@@ -1281,6 +1281,9 @@ def go_gradio(**kwargs):
                                 system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
                                 system_text3 = gr.Textbox(label='Hash', interactive=False,
                                                           visible=not is_public, show_copy_button=True)
+                                system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
+                                system_text4 = gr.Textbox(label='Model Names', interactive=False,
+                                                          visible=not is_public, show_copy_button=True)
 
                             with gr.Row():
                                 zip_btn = gr.Button("Zip", size='sm')
@@ -2452,6 +2455,13 @@ def go_gradio(**kwargs):
                 for key in key_overrides:
                     if user_kwargs.get(key) is None and model_state1.get(key) is not None:
                         args_list[eval_func_param_names.index(key)] = model_state1[key]
+                if hasattr(model_state1['tokenizer'], 'model_max_length'):
+                    # ensure listen to limit, with some buffer
+                    # buffer = 50
+                    buffer = 0
+                    args_list[eval_func_param_names.index('max_new_tokens')] = min(
+                        args_list[eval_func_param_names.index('max_new_tokens')],
+                        model_state1['tokenizer'].model_max_length - buffer)
 
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
@@ -3792,6 +3802,18 @@ def go_gradio(**kwargs):
                                          api_name='system_hash' if allow_api else None,
                                          queue=False,
                                          )
+
+        def get_model_names():
+            key_list = ['base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())
+            # don't want to expose backend inference server IP etc.
+            # key_list += ['inference_server']
+            return [{k: x[k] for k in key_list if k in x} for x in model_states]
+
+        models_list_event = system_btn4.click(get_model_names,
+                                              outputs=system_text4,
+                                              api_name='model_names' if allow_api else None,
+                                              queue=False,
+                                              )
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
                               memory_restriction_level1=0,

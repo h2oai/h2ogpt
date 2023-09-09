@@ -187,6 +187,101 @@ def test_client1api_lean(save_dir, admin_pass):
 
 
 @wrap_test_forked
+def test_client1api_lean_lock_choose_model():
+    from src.gen import main
+    base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    base2 = 'distilgpt2'
+    model_lock = [dict(base_model=base1, prompt_type='human_bot'),
+                  dict(base_model=base2, prompt_type='plain')]
+    save_dir = 'save_test'
+    main(model_lock=model_lock, chat=False,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         save_dir=save_dir)
+
+    client = get_client(serialize=True)
+    for prompt_type in ['human_bot', None, '', 'plain']:
+        for model_active_choice in [None, 0, base1, 1, base2]:
+            base_model = base1 if model_active_choice in [None, 0, base1] else base2
+            if base_model == base1 and prompt_type == 'plain':
+                continue
+            if base_model == base2 and prompt_type == 'human_bot':
+                continue
+
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+            if base_model == base1:
+                prompt = 'Who are you?'
+            else:
+                prompt = 'The sky is'
+            kwargs = dict(instruction_nochat=prompt, prompt_type=prompt_type, model_active_choice=model_active_choice)
+            # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+            res = client.predict(str(dict(kwargs)), api_name=api_name)
+            res = ast.literal_eval(res)
+            assert save_dir
+            assert 'base_model' in res['save_dict']
+            assert res['save_dict']['base_model'] == base_model
+            assert res['save_dict']['error'] is None
+            assert 'extra_dict' in res['save_dict']
+            assert res['save_dict']['extra_dict']['ntokens'] > 0
+            assert res['save_dict']['extra_dict']['t_generate'] > 0
+            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+
+            print("Raw client result: %s" % res, flush=True)
+            response = res['response']
+
+            if base_model == base1:
+                assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
+            else:
+                assert 'the limit of time' in response
+
+    api_name = '/model_names'
+    res = client.predict(api_name=api_name)
+    res = ast.literal_eval(res)
+    assert [x['base_model'] for x in res] == [base1, base2]
+    assert res == [{'base_model': 'h2oai/h2ogpt-oig-oasst1-512-6_9b', 'prompt_type': 'human_bot',
+                                      'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
+                                                      'PreInput': None, 'PreResponse': '<bot>:',
+                                                      'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
+                                                                             '<bot>:', '<bot>:'], 'chat_sep': '\n',
+                                                      'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                                      'generates_leading_space': True, 'system_prompt': None},
+                                      'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                                      'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
+                                      'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                                      'use_cache': None,
+                                      'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
+                                                        'n_gqa': 0,
+                                                        'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                        'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                                        'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                                        'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                                     {'base_model': 'distilgpt2', 'prompt_type': 'plain',
+                                      'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
+                                                      'PreInput': None, 'PreResponse': '<bot>:',
+                                                      'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
+                                                                             '<bot>:', '<bot>:'], 'chat_sep': '\n',
+                                                      'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                                      'generates_leading_space': True, 'system_prompt': None},
+                                      'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                                      'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
+                                      'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                                      'use_cache': None,
+                                      'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
+                                                        'n_gqa': 0,
+                                                        'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                        'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                                        'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                                        'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'}]
+
+
+@wrap_test_forked
 def test_client1api_lean_chat_server():
     from src.gen import main
     main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', prompt_type='human_bot', chat=True,
