@@ -101,7 +101,6 @@ def main(
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
         fail_if_cannot_connect: bool = False,
-        model_active_choice: Union[int, str] = None,
 
         # input to generation
         temperature: float = None,
@@ -368,9 +367,6 @@ def main(
            Maximum value is 4 due to non-dynamic gradio rendering elements
     :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
            Useful when many endpoints and want to just see what works, but still have to wait for timeout.
-    :param model_active_choice: List of models by name or by index in model_lock, to use for nochat API
-                                If None, then just use first model in model_lock list
-                                If model_lock not set, use model selected by CLI --base_model etc.
 
     :param temperature: generation temperature
     :param top_p: generation top_p
@@ -465,6 +461,10 @@ def main(
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
            Ignored if model_lock not used
+           For nochat API, this is single item within a list for model by name or by index in model_lock
+                                If None, then just use first model in model_lock list
+                                If model_lock not set, use model selected by CLI --base_model etc.
+
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
@@ -1963,7 +1963,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
-        model_active_choice,  # here only for simplicity, not used internally in this function, but just externally
+        visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,

@@ -47,9 +47,9 @@ def test_client1_lock_choose_model():
     from src.client_test import test_client_basic
 
     for prompt_type in ['human_bot', None, '']:
-        for model_active_choice in [None, 0, base1]:
+        for visible_models in [None, 0, base1]:
             prompt = 'Who are you?'
-            res_dict, _ = test_client_basic(model_active_choice=model_active_choice, prompt=prompt,
+            res_dict, _ = test_client_basic(visible_models=visible_models, prompt=prompt,
                                             prompt_type=prompt_type)
             assert res_dict['prompt'] == prompt
             assert res_dict['iinput'] == ''
@@ -58,9 +58,9 @@ def test_client1_lock_choose_model():
                        'response']
 
     for prompt_type in ['plain', None, '']:
-        for model_active_choice in [1, base2]:
+        for visible_models in [1, base2]:
             prompt = 'The sky is'
-            res_dict, _ = test_client_basic(model_active_choice=model_active_choice, prompt=prompt,
+            res_dict, _ = test_client_basic(visible_models=visible_models, prompt=prompt,
                                             prompt_type=prompt_type)
             assert res_dict['prompt'] == prompt
             assert res_dict['iinput'] == ''
@@ -200,8 +200,8 @@ def test_client1api_lean_lock_choose_model():
 
     client = get_client(serialize=True)
     for prompt_type in ['human_bot', None, '', 'plain']:
-        for model_active_choice in [None, 0, base1, 1, base2]:
-            base_model = base1 if model_active_choice in [None, 0, base1] else base2
+        for visible_models in [None, 0, base1, 1, base2]:
+            base_model = base1 if visible_models in [None, 0, base1] else base2
             if base_model == base1 and prompt_type == 'plain':
                 continue
             if base_model == base2 and prompt_type == 'human_bot':
@@ -212,7 +212,7 @@ def test_client1api_lean_lock_choose_model():
                 prompt = 'Who are you?'
             else:
                 prompt = 'The sky is'
-            kwargs = dict(instruction_nochat=prompt, prompt_type=prompt_type, model_active_choice=model_active_choice)
+            kwargs = dict(instruction_nochat=prompt, prompt_type=prompt_type, visible_models=visible_models)
             # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
             res = client.predict(str(dict(kwargs)), api_name=api_name)
             res = ast.literal_eval(res)
