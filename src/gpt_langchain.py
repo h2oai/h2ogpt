@@ -3974,8 +3974,10 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     with open(sources_file, "wt") as f:
         f.write(source_files_added)
     source_list = docs_state0 + source_list
-    if 'All' in source_list:
-        source_list.remove('All')
+    if DocumentChoice.ALL.value in source_list:
+        source_list.remove(DocumentChoice.ALL.value)
+    # at back at front of list
+    source_list = [DocumentChoice.ALL.value] + source_list
     return sources_file, source_list, num_chunks, db
 
 

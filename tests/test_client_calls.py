@@ -8,7 +8,7 @@ import pytest
 
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
 from src.client_test import get_client, get_args, run_client_gen
-from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str
+from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
 
 
@@ -1467,7 +1467,7 @@ def test_client_chat_stream_langchain_fake_embeddings():
         langchain_action="Query",
         top_k_docs=-1,
         document_subset='Relevant',
-        document_choice='All',
+        document_choice=DocumentChoice.ALL.value,
     ))
     res = client.predict(
         str(dict(kwargs)),
@@ -1539,7 +1539,7 @@ def test_client_summarization(prompt_summary):
                   langchain_action="Summarize",  # uses full document, not vectorDB chunks
                   top_k_docs=4,  # -1 for entire pdf
                   document_subset='Relevant',
-                  document_choice='All',
+                  document_choice=DocumentChoice.ALL.value,
                   max_new_tokens=256,
                   max_time=300,
                   do_sample=False,
@@ -1608,7 +1608,7 @@ def test_client_summarization_from_text():
                   langchain_action="Summarize",  # uses full document, not vectorDB chunks
                   top_k_docs=4,  # -1 for entire pdf
                   document_subset='Relevant',
-                  document_choice='All',
+                  document_choice=DocumentChoice.ALL.value,
                   max_new_tokens=256,
                   max_time=300,
                   do_sample=False)
@@ -1657,7 +1657,7 @@ def test_client_summarization_from_url(url, top_k_docs):
                   langchain_action="Summarize",  # uses full document, not vectorDB chunks
                   top_k_docs=top_k_docs,  # -1 for entire pdf
                   document_subset='Relevant',
-                  document_choice='All',
+                  document_choice=DocumentChoice.ALL.value,
                   max_new_tokens=256,  # per LLM call internally, so affects both intermediate and final steps
                   max_time=300,
                   do_sample=False)
@@ -1743,7 +1743,7 @@ def test_fastsys(stream_output, bits, prompt_type):
                   langchain_action="Query",
                   top_k_docs=4,
                   document_subset='Relevant',
-                  document_choice='All',
+                  document_choice=DocumentChoice.ALL.value,
                   max_new_tokens=256,
                   max_time=300,
                   do_sample=False,

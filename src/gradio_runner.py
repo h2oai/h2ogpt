@@ -603,9 +603,7 @@ def go_gradio(**kwargs):
                 with gr.Accordion("Upload", open=False, visible=upload_visible):
                     with gr.Column():
                         with gr.Row(equal_height=False):
-                            file_types_str = '[' + ' '.join(file_types) + ' URL ArXiv TEXT' + ']'
-                            fileup_output = gr.File(label=f'Upload {file_types_str}',
-                                                    show_label=False,
+                            fileup_output = gr.File(show_label=False,
                                                     file_types=['.' + x for x in file_types],
                                                     # file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
                                                     file_count="multiple",
@@ -765,7 +763,7 @@ def go_gradio(**kwargs):
                     if kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
                 with doc_selection_tab:
                     document_choice = gr.Dropdown(docs_state0,
-                                                  label="Select Subset of Document(s) %s" % file_types_str,
+                                                  label="Select Subset of Document(s) for Chat",
                                                   value=[DocumentChoice.ALL.value],
                                                   interactive=True,
                                                   multiselect=True,
@@ -838,6 +836,12 @@ def go_gradio(**kwargs):
                     doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
                                                     interactive=False,
                                                     visible=kwargs['langchain_mode'] != 'Disabled')
+                    file_types_str = ' '.join(file_types) + ' URL ArXiv TEXT'
+                    gr.Textbox(value=file_types_str, label='Document Types Supported',
+                               lines=2,
+                               interactive=False,
+                               visible=kwargs['langchain_mode'] != 'Disabled')
+
                 doc_view_tab = gr.TabItem("Document Viewer") \
                     if kwargs['visible_doc_view_tab'] else gr.Row(visible=False)
                 with doc_view_tab:
@@ -848,7 +852,7 @@ def go_gradio(**kwargs):
                                                                  visible=sources_visible and kwargs[
                                                                      'large_file_count_mode'])
                             view_document_choice = gr.Dropdown(viewable_docs_state0,
-                                                               label="Select Single Document",
+                                                               label="Select Single Document to View",
                                                                value=None,
                                                                interactive=True,
                                                                multiselect=False,
@@ -1332,6 +1336,7 @@ def go_gradio(**kwargs):
                 login_tab = gr.TabItem("Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
+                    gr.Markdown(value="#### Login page to persist your state (database, documents, chat, chat history)")
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
