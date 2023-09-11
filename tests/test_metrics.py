@@ -53,6 +53,7 @@ def test_squad_v1():
     assert results == {'exact_match': 100.0, 'f1': 100.0}
 
 
+@wrap_test_forked
 def test_squad_v2():
     predictions = [{'prediction_text': '1976', 'id': '56e10a3be3433e1400422b22', 'no_answer_probability': 0.}]
     references = [{'answers': {'answer_start': [97], 'text': ['1976']}, 'id': '56e10a3be3433e1400422b22'}]
