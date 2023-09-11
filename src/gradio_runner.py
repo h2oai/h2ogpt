@@ -741,17 +741,14 @@ def go_gradio(**kwargs):
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
                             with gr.Row(visible=visible_model_choice):
-                                with gr.Column(scale=1):
-                                    with gr.Accordion("Select Visible Models", open=False):
-                                        visible_models = gr.Dropdown(kwargs['all_models'],
-                                                                     label="Visible Models",
-                                                                     value=visible_models_state0,
-                                                                     interactive=True,
-                                                                     multiselect=True,
-                                                                     visible=visible_model_choice,
-                                                                     )
-                                with gr.Column(scale=3):
-                                    pass
+                                visible_models = gr.Dropdown(kwargs['all_models'],
+                                                             label="Visible Models",
+                                                             value=visible_models_state0,
+                                                             interactive=True,
+                                                             multiselect=True,
+                                                             visible=visible_model_choice,
+                                                             elem_id="visible-models",
+                                                             )
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)

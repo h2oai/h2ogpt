@@ -151,4 +151,18 @@ def make_css_base() -> str:
           display: none;
         }
     }
+
+    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
+        display: none !important;
+    }
+    
+    #visible-models > label > div.wrap > div.wrap-inner > div.token {
+        display: none !important;
+    }
+    
+    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
+        content: "Select: ";
+        padding: 0 4px;
+        margin-right: 2px;
+    }
     """
