@@ -108,4 +108,38 @@ def make_css_base() -> str:
     #prompt-form > label > textarea {
         padding-right: 40px;
     }
+    
+    #header-links {
+        float: left;
+        justify-content: left;
+        height: 80px;
+        width: 195px;
+        margin-top: 0px;
+    }
+    
+    #main-logo {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+        margin-right: 330px;
+        
+        @media (max-width: 463px) {
+          justify-content: flex-end;
+          margin-right: 0;
+          margin-bottom: 0;
+        }
+    }
+    
+    #qr {
+        @media (min-width: 464px) {
+            float: right;
+            height: 80px;
+            width: 80px;
+            margin-top: -100px
+        }
+        
+        @media (max-width: 463px) {
+          display: none;
+        }
+    }
     """
