@@ -99,6 +99,10 @@ def make_css_base() -> str:
         display: flex;
         justify-content: center;
         border: 1px solid var(--primary-500) !important;
+        
+        @media (max-width: 463px) {
+          width: 56px;
+        }
     }
     
     #attach-button > img {
@@ -106,7 +110,16 @@ def make_css_base() -> str:
     }
     
     #prompt-form > label > textarea {
-        padding-right: 40px;
+        padding-right: 100px;
+        
+        @media (max-width: 463px) {
+          height: 94px;
+          padding-right: 70px;
+        }
+        
+        @media (max-width: 1040px) {
+          height: 58px;
+        }
     }
     
     #header-links {
