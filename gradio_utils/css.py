@@ -12,13 +12,28 @@ def get_css(kwargs) -> str:
 
 
 def make_css_base() -> str:
-    css1 = """
-        #col_container {margin-left: auto; margin-right: auto; text-align: left;}
-        """
-    return css1 + """
+    return """
+    #col_container {margin-left: auto; margin-right: auto; text-align: left;}
+
     @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
     
     body.dark{#warning {background-color: #555555};}
+    
+    #sidebar {
+        order: 1;
+        
+        @media (max-width: 463px) {
+          order: 2;
+        }
+    }
+    
+    #col-tabs {
+        order: 2;
+        
+        @media (max-width: 463px) {
+          order: 1;
+        }
+    }
     
     #small_btn {
         margin: 0.6em 0em 0.55em 0;

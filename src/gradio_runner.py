@@ -591,9 +591,9 @@ def go_gradio(**kwargs):
                 df = pd.DataFrame(None)
             return df
 
-        normal_block = gr.Row(visible=not base_wanted, equal_height=False)
+        normal_block = gr.Row(visible=not base_wanted, equal_height=False, elem_id="col_container")
         with normal_block:
-            side_bar = gr.Column(elem_id="col_container", scale=1, min_width=100, visible=kwargs['visible_side_bar'])
+            side_bar = gr.Column(elem_id="sidebar", scale=1, min_width=100, visible=kwargs['visible_side_bar'])
             with side_bar:
                 with gr.Accordion("Chats", open=False, visible=True):
                     radio_chats = gr.Radio(value=None, label="Saved Chats", show_label=False,
@@ -664,7 +664,7 @@ def go_gradio(**kwargs):
                                                 visible=visible_doc_track)
                     text_file_last = gr.Textbox(lines=1, label="Newest Doc", value=None, visible=visible_doc_track)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
-            col_tabs = gr.Column(elem_id="col_container", scale=10)
+            col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
                 if kwargs['chat_tables']:
                     chat_tab = gr.Row(visible=True)
