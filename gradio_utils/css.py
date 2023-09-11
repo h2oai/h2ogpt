@@ -155,4 +155,13 @@ def make_css_base() -> str:
     #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
         display: none !important;
     }
+    
+    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
+        content: "Select: ";
+        border: 1px solid var(--primary-500);
+        border-radius: var(--block-label-radius);
+        background-color: var(--primary-500);
+        padding: 0 4px;
+        margin-right: 2px;
+    }
     """
