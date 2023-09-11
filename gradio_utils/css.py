@@ -110,15 +110,11 @@ def make_css_base() -> str:
     }
     
     #prompt-form > label > textarea {
-        padding-right: 100px;
+        padding-right: 104px;
         
         @media (max-width: 463px) {
-          height: 94px;
+          min-height: 94px;
           padding-right: 70px;
-        }
-        
-        @media (max-width: 1040px) {
-          height: 58px;
         }
     }
     
