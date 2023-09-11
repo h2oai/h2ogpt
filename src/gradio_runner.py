@@ -737,16 +737,17 @@ def go_gradio(**kwargs):
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
 
-                            visible_model_choice = bool(kwargs['model_lock']) and \
-                                                   len(model_states) > 1 and \
-                                                   kwargs['visible_visible_models']
-                            visible_models = gr.Dropdown(kwargs['all_models'],
-                                                         label="Visible Models",
-                                                         value=visible_models_state0,
-                                                         interactive=True,
-                                                         multiselect=True,
-                                                         visible=visible_model_choice,
-                                                         )
+                            with gr.Accordion("Select Visible Models", open=False):
+                                visible_model_choice = bool(kwargs['model_lock']) and \
+                                                       len(model_states) > 1 and \
+                                                       kwargs['visible_visible_models']
+                                visible_models = gr.Dropdown(kwargs['all_models'],
+                                                             label="Visible Models",
+                                                             value=visible_models_state0,
+                                                             interactive=True,
+                                                             multiselect=True,
+                                                             visible=visible_model_choice,
+                                                             )
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
