@@ -772,12 +772,14 @@ def main(
             # infer even if don't pass which langchain_mode, just langchain_modes.
             langchain_mode = langchain_modes[0]
         if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
-            print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
+            if verbose:
+                print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
-            print("Auto set langchain_mode=%s.  Could use MyData instead."
-                  "  To allow UserData to pull files from disk,"
-                  " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
-                  flush=True)
+            if verbose:
+                print("Auto set langchain_mode=%s.  Could use MyData instead."
+                      "  To allow UserData to pull files from disk,"
+                      " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
+                      flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
     if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
@@ -1003,7 +1005,8 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
-                                    kwargs_make_db=locals())
+                                    kwargs_make_db=locals(),
+                                    verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
                 clear_torch_cache()

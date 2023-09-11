@@ -2377,7 +2377,8 @@ def prep_langchain(persist_directory,
                    langchain_mode, langchain_mode_paths, langchain_mode_types,
                    hf_embedding_model,
                    migrate_embedding_model,
-                   n_jobs=-1, kwargs_make_db={}):
+                   n_jobs=-1, kwargs_make_db={},
+                   verbose=False):
     """
     do prep first time, involving downloads
     # FIXME: Add github caching then add here
@@ -2393,7 +2394,8 @@ def prep_langchain(persist_directory,
     user_path = langchain_mode_paths.get(langchain_mode)
 
     if db_dir_exists and user_path is None:
-        print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
+        if verbose:
+            print("Prep: persist_directory=%s exists, using" % persist_directory, flush=True)
         db, use_openai_embedding, hf_embedding_model = \
             get_existing_db(None, persist_directory, load_db_if_exists,
                             db_type, use_openai_embedding,
@@ -2402,10 +2404,12 @@ def prep_langchain(persist_directory,
                             n_jobs=n_jobs)
     else:
         if db_dir_exists and user_path is not None:
-            print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (
-                persist_directory, user_path), flush=True)
+            if verbose:
+                print("Prep: persist_directory=%s exists, user_path=%s passed, adding any changed or new documents" % (
+                    persist_directory, user_path), flush=True)
         elif not db_dir_exists:
-            print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
+            if verbose:
+                print("Prep: persist_directory=%s does not exist, regenerating" % persist_directory, flush=True)
         db = None
         if langchain_mode in ['DriverlessAI docs']:
             # FIXME: Could also just use dai_docs.pickle directly and upload that
