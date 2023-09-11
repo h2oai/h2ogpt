@@ -1391,7 +1391,7 @@ def go_gradio(**kwargs):
         def get_model_lock_visible_list(visible_models1, all_models):
             visible_list = []
             for modeli, model in enumerate(all_models):
-                if model in visible_models1 or modeli in visible_models1:
+                if visible_models1 is None or model in visible_models1 or modeli in visible_models1:
                     visible_list.append(True)
                 else:
                     visible_list.append(False)
