@@ -161,7 +161,7 @@ def make_css_base() -> str:
     }
     
     #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
-        content: "Select: ";
+        content: "Select";
         padding: 0 4px;
         margin-right: 2px;
     }
