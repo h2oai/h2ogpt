@@ -782,7 +782,7 @@ def go_gradio(**kwargs):
                             get_document_api_text = gr.Textbox(visible=False)
 
                             show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
-                                                         visible=sources_visible)
+                                                         visible=sources_visible and kwargs['large_file_count_mode'])
                             delete_sources_btn = gr.Button(value="Delete Selected Sources from DB", scale=0, size='sm',
                                                            visible=sources_visible)
                             refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
@@ -810,8 +810,10 @@ def go_gradio(**kwargs):
                                                                    label='Purge Collection (UI, DB, & source files)',
                                                                    placeholder=remove_placeholder,
                                                                    interactive=True)
-                            load_langchain = gr.Button(value="Load Collections State", scale=0, size='sm',
-                                                       visible=allow_upload_to_user_data and
+                            sync_sources_btn = gr.Button(value="Synchronize DB and UI [only required if did not login and have shared docs]", scale=0, size='sm',
+                                                         visible=sources_visible and allow_upload_to_user_data and not kwargs['large_file_count_mode'])
+                            load_langchain = gr.Button(value="Load Collections State [only required if logged in another user ", scale=0, size='sm',
+                                                       visible=False and allow_upload_to_user_data and
                                                                kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
                             if kwargs['langchain_mode'] != 'Disabled' and visible_add_remove_collection:
@@ -1460,6 +1462,8 @@ def go_gradio(**kwargs):
         attach_file_kwargs['outputs'][0] = attach_button
         attach_file_kwargs['api_name'] = 'attach_file'
         event_attach2 = event_attach1.then(**attach_file_kwargs, show_progress='full')
+
+        sync1 = sync_sources_btn.click(**user_state_kwargs)
 
         # deal with challenge to have fileup_output itself as input
         add_file_kwargs2 = dict(fn=update_db_func,
@@ -2422,6 +2426,12 @@ def go_gradio(**kwargs):
             event_attach6 = event_attach5.then(**get_viewable_sources_args)
             event_attach7 = event_attach6.then(**viewable_kwargs)
 
+            sync2 = sync1.then(**get_sources_kwargs)
+            sync3 = sync2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            sync4 = sync3.then(**show_sources_kwargs)
+            sync5 = sync4.then(**get_viewable_sources_args)
+            sync6 = sync5.then(**viewable_kwargs)
+
             db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
                               lg_change_event6] +
                              [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
@@ -2431,7 +2441,8 @@ def go_gradio(**kwargs):
                              [eventdb20c, eventdb20d, eventdb20e, eventdb20f, eventdb20g] +
                              [eventdb21c, eventdb21d, eventdb21e, eventdb21f, eventdb21g] +
                              [eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
-                             [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7]
+                             [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7] +
+                             [sync1, sync2, sync3, sync4, sync5, sync6]
                              ,
                              )
 
