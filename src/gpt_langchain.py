@@ -2884,8 +2884,10 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
-    else:
+    elif db is not None:
         return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+    else:
+        return [], []
 
 
 def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
@@ -3980,8 +3982,6 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     source_list = docs_state0 + source_list
     if DocumentChoice.ALL.value in source_list:
         source_list.remove(DocumentChoice.ALL.value)
-    # at back at front of list
-    source_list = [DocumentChoice.ALL.value] + source_list
     return sources_file, source_list, num_chunks, db
 
 

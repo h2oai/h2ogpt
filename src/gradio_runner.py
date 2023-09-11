@@ -1591,7 +1591,10 @@ def go_gradio(**kwargs):
                                    outputs=[text_output, text_output2] + text_outputs, queue=False)
 
         def update_dropdown(x):
-            return gr.Dropdown.update(choices=x, value=[docs_state0[0]])
+            if DocumentChoice.ALL.value in x:
+                x.remove(DocumentChoice.ALL.value)
+            source_list = [DocumentChoice.ALL.value] + x
+            return gr.Dropdown.update(choices=source_list, value=[DocumentChoice.ALL.value])
 
         get_sources_kwargs = dict(fn=get_sources1,
                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
