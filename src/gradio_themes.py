@@ -204,17 +204,18 @@ h2o_logo = '<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/
 
 def get_h2o_title(title, description):
     # NOTE: Check full width desktop, smallest width browser desktop, iPhone browsers to ensure no overlap etc.
-    return f"""<div style="float:left; justify-content:left; height: 80px; width: 195px; margin-top:0px">
-                    {description}
-                </div>
-                <div style="display:flex; justify-content:center; margin-bottom:30px; margin-right:330px;">
-                    <div style="height: 60px; width: 60px; margin-right:20px;">{h2o_logo}</div>
-                    <h1 style="line-height:60px">{title}</h1>
-                </div>
-                <div style="float:right; height: 80px; width: 80px; margin-top:-100px">
-                    <img src="https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/h2o-qr.png">
-                </div>
-                """
+    return f"""
+    <div id="header-links">
+        {description}
+    </div>
+    <div id="main-logo">
+        <div style="height: 60px; width: 60px; margin-right:20px;">{h2o_logo}</div>
+        <h1 style="line-height:60px">{title}</h1>
+    </div>
+    <div id="qr">
+        <img src="https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/h2o-qr.png">
+    </div>
+"""
 
 
 def get_simple_title(title, description):
