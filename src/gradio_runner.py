@@ -243,7 +243,17 @@ def go_gradio(**kwargs):
                 prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
         return prompt_type1, prompt_dict1
 
-    def model_choice_str_to_int(model_active_choice1):
+    def visible_models_to_model_choice(visible_models1):
+        if isinstance(visible_models1, list):
+            assert len(
+                visible_models1) >= 1, "Invalid visible_models1=%s, can only be single entry" % visible_models1
+            # just take first
+            model_active_choice1 = visible_models1[0]
+        elif isinstance(visible_models1, (str, int)):
+            model_active_choice1 = visible_models1
+        else:
+            assert isinstance(visible_models1, type(None)), "Invalid visible_models1=%s" % visible_models1
+            model_active_choice1 = visible_models1
         if model_active_choice1 is not None:
             if isinstance(model_active_choice1, str):
                 base_model_list = [x['base_model'] for x in model_states]
@@ -259,7 +269,7 @@ def go_gradio(**kwargs):
     default_kwargs['prompt_type'], default_kwargs['prompt_dict'] = \
         update_prompt(default_kwargs['prompt_type'], default_kwargs['prompt_dict'],
                       model_state1=model_state0,
-                      which_model=model_choice_str_to_int(kwargs['model_active_choice']))
+                      which_model=visible_models_to_model_choice(kwargs['visible_models']))
     for k in no_default_param_names:
         default_kwargs[k] = ''
 
@@ -690,8 +700,6 @@ def go_gradio(**kwargs):
                         inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
                         text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                             show_copy_button=True)
-                        model_active_choice = gr.Radio(value=kwargs['model_active_choice'],
-                                                       label="Model choice for nochat API", visible=False)
 
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
@@ -2476,8 +2484,8 @@ def go_gradio(**kwargs):
                 user_kwargs['instruction_nochat'] = user_kwargs['instruction']
             if 'iinput' in user_kwargs and 'iinput_nochat' not in user_kwargs:
                 user_kwargs['iinput_nochat'] = user_kwargs['iinput']
-            if 'model_active_choice' not in user_kwargs:
-                user_kwargs['model_active_choice'] = 0
+            if 'visible_models' not in user_kwargs:
+                user_kwargs['visible_models'] = [0]
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -2491,9 +2499,9 @@ def go_gradio(**kwargs):
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
-            model_active_choice1 = args_list[eval_func_param_names.index('model_active_choice')]
-            model_active_choice1 = model_choice_str_to_int(model_active_choice1)
             if len(model_states) > 1:
+                visible_models1 = args_list[eval_func_param_names.index('visible_models')]
+                model_active_choice1 = visible_models_to_model_choice(visible_models1)
                 model_state1 = model_states[model_active_choice1 % len(model_states)]
                 for key in key_overrides:
                     if user_kwargs.get(key) is None and model_state1.get(key) is not None:
@@ -2773,10 +2781,9 @@ def go_gradio(**kwargs):
         def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0, all_models=None):
             args_list = list(args)
 
-            visible_models1 = args_list[-1]
+            visible_models1 = args_list[eval_func_param_names.index('visible_models')]
             assert isinstance(all_models, list)
             visible_list = get_model_lock_visible_list(visible_models1, all_models)
-            args_list = args_list[:-1]
 
             history_list = args_list[-num_model_lock:]
             assert len(all_models) == len(history_list)
@@ -2975,19 +2982,18 @@ def go_gradio(**kwargs):
 
         def all_bot(*args, retry=False, model_states1=None, all_models=None):
             args_list = list(args).copy()
-
-            visible_models1 = args_list[-1]
-            assert isinstance(all_models, list)
-            assert len(all_models) == len(model_states1)
-            visible_list = get_model_lock_visible_list(visible_models1, all_models)
-            args_list = args_list[:-1]
-
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
             exceptions = []
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
+
+            visible_models1 = args_list[eval_func_param_names.index('visible_models')]
+            assert isinstance(all_models, list)
+            assert len(all_models) == len(model_states1)
+            visible_list = get_model_lock_visible_list(visible_models1, all_models)
+
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             requests_state1 = None
@@ -3134,20 +3140,20 @@ def go_gradio(**kwargs):
                                                   num_model_lock=len(text_outputs),
                                                   all_models=kwargs['all_models']
                                                   ),
-                             inputs=inputs_list + text_outputs + [visible_models],
+                             inputs=inputs_list + text_outputs,
                              outputs=text_outputs,
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
                                                  all_models=kwargs['all_models']),
                             inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
-                                   text_outputs + [visible_models],
+                                   text_outputs,
                             outputs=text_outputs + [chat_exception_text],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
                                                        all_models=kwargs['all_models'],
                                                        retry=True),
                                   inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
-                                         text_outputs + [visible_models],
+                                         text_outputs,
                                   outputs=text_outputs + [chat_exception_text],
                                   )
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
@@ -3155,7 +3161,7 @@ def go_gradio(**kwargs):
                                                         num_model_lock=len(text_outputs),
                                                         all_models=kwargs['all_models']
                                                         ),
-                                   inputs=inputs_list + text_outputs + [visible_models],
+                                   inputs=inputs_list + text_outputs,
                                    outputs=text_outputs,
                                    )
         all_undo_user_args = dict(fn=functools.partial(all_user, undo=True,
@@ -3163,7 +3169,7 @@ def go_gradio(**kwargs):
                                                        num_model_lock=len(text_outputs),
                                                        all_models=kwargs['all_models']
                                                        ),
-                                  inputs=inputs_list + text_outputs + [visible_models],
+                                  inputs=inputs_list + text_outputs,
                                   outputs=text_outputs,
                                   )
 

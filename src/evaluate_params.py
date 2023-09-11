@@ -48,7 +48,7 @@ eval_func_param_names = ['instruction',
                          'system_prompt',
                          ] + \
                         reader_names + \
-                        ['model_active_choice']
+                        ['visible_models']
 
 # form evaluate defaults for submit_nochat_api
 eval_func_param_names_defaults = eval_func_param_names.copy()
