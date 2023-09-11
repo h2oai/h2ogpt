@@ -21,9 +21,6 @@ apt-get update && apt-get install -y \
     autoconf \
     libtool
 
-# Run upgrades
-apt-get upgrade -y
-
 # Install conda
 wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh && \
     mkdir -p /h2ogpt_conda && \
