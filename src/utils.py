@@ -21,6 +21,8 @@ import zipfile
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import Tuple, Callable, Dict
+from queue import Queue, Empty
+from concurrent.futures import ThreadPoolExecutor
 
 import filelock
 import fire
@@ -1396,22 +1398,46 @@ def wrap_in_try_except(code):
     return ast.unparse(parsed_code)
 
 
+
+
+def enqueue_output(file, queue):
+    for line in iter(file.readline, ''):
+        queue.put(line)
+    file.close()
+
+
+def read_popen_pipes(p):
+
+    with ThreadPoolExecutor(2) as pool:
+        q_stdout, q_stderr = Queue(), Queue()
+
+        pool.submit(enqueue_output, p.stdout, q_stdout)
+        pool.submit(enqueue_output, p.stderr, q_stderr)
+
+        while True:
+
+            if p.poll() is not None and q_stdout.empty() and q_stderr.empty():
+                break
+
+            out_line = err_line = ''
+
+            try:
+                out_line = q_stdout.get_nowait()
+            except Empty:
+                pass
+            try:
+                err_line = q_stderr.get_nowait()
+            except Empty:
+                pass
+
+            yield (out_line, err_line)
+
+
 def start_process(cmd):
     start_cmd = sys.executable + " -i -q -u"
     print_cmd = 'print("{}")'
+    cmd = [start_cmd] + [cmd]
 
-    # Use the appropriate start_cmd to execute the code
-    proc = subprocess.Popen(start_cmd.split(),
-                                 stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 text=True,
-                                 bufsize=0)
-
-    # Start watching ^ its `stdout` and `stderr` streams
-    threading.Thread(target=self.save_and_display_stream,
-                     args=(self.proc.stdout, False), # Passes False to is_error_stream
-                     daemon=True).start()
-    threading.Thread(target=self.save_and_display_stream,
-                     args=(self.proc.stderr, True), # Passes True to is_error_stream
-                     daemon=True).start()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    for c in iter(lambda: process.stdout.read(1), b''):
+        sys.stdout.write(c)
