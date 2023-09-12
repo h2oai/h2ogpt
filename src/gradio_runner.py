@@ -1704,17 +1704,22 @@ def go_gradio(**kwargs):
                                 )
                 query_action = False  # long chunks like would be used for summarize
                 # the below is as or filter, so will show doc or by chunk, unrestricted
-                one_filter = \
-                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                           "chunk_id": {
-                                                                                               "$eq": -1}}
-                     for x in document_choice1][0]
                 if view_raw_text_checkbox1:
+                    one_filter = \
+                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                               "chunk_id": {
+                                                                                                   "$gte": -1}}
+                         for x in document_choice1][0]
                     # like or, full raw all chunk types
-                    filter_kwargs = dict(filter=one_filter)
+                    #filter_kwargs = dict(filter=one_filter)
                 else:
-                    filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
-                                                          dict(chunk_id=one_filter['chunk_id'])]})
+                    one_filter = \
+                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                               "chunk_id": {
+                                                                                                   "$eq": -1}}
+                         for x in document_choice1][0]
+                filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                      dict(chunk_id=one_filter['chunk_id'])]})
                 db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
                 # order documents
                 from langchain.docstore.document import Document
