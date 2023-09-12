@@ -1461,7 +1461,7 @@ def add_parser(docs1, parser):
     [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
 
 
-def add_meta(docs1, file, headsize, parser='NotSet'):
+def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
     if os.path.isfile(file):
         file_extension = pathlib.Path(file).suffix
         hashid = hash_file(file)
@@ -1474,9 +1474,12 @@ def add_meta(docs1, file, headsize, parser='NotSet'):
     [x.metadata.update(dict(input_type=file_extension,
                             parser=x.metadata.get('parser', parser),
                             date=str(datetime.now()),
+                            time=time.time(),
+                            order_id=order_id,
                             hashid=hashid,
                             doc_hash=doc_hash,
-                            head=x.page_content[:headsize].strip())) for x in docs1]
+                            file_id=filei,
+                            head=x.page_content[:headsize].strip())) for order_id, x in enumerate(docs1)]
 
 
 def json_metadata_func(record: dict, metadata: dict) -> dict:
@@ -1493,7 +1496,9 @@ def json_metadata_func(record: dict, metadata: dict) -> dict:
     return metadata
 
 
-def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
+def file_to_doc(file,
+                filei=0,
+                base_path=None, verbose=False, fail_any_exception=False,
                 chunk=True, chunk_size=512, n_jobs=-1,
                 is_url=False, is_txt=False,
 
@@ -1532,6 +1537,8 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
 
     assert db_type is not None
     chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
+    add_meta = functools.partial(_add_meta, headsize=headsize, filei=filei)
+    # FIXME: if zip, file index order will not be correct if other files involved
     path_to_docs_func = functools.partial(path_to_docs,
                                           verbose=verbose,
                                           fail_any_exception=fail_any_exception,
@@ -1653,7 +1660,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
-        add_meta(docs1, file, headsize, parser="is_url")
+        add_meta(docs1, file, parser="is_url")
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif is_txt:
@@ -1664,28 +1671,29 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=str(file), metadata=metadata)
-        add_meta(doc1, file, headsize, parser="f.write")
-        doc1 = clean_doc(doc1)
+        add_meta(doc1, file, parser="f.write")
+        # Bit odd to change if was original text
+        # doc1 = clean_doc(doc1)
     elif file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm'):
         docs1 = UnstructuredHTMLLoader(file_path=file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredHTMLLoader')
+        add_meta(docs1, file, parser='UnstructuredHTMLLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.HTML)
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredWordDocumentLoader')
+        add_meta(docs1, file, parser='UnstructuredWordDocumentLoader')
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredExcelLoader')
+        add_meta(docs1, file, parser='UnstructuredExcelLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.odt'):
         docs1 = UnstructuredODTLoader(file_path=file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredODTLoader')
+        add_meta(docs1, file, parser='UnstructuredODTLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('pptx') or file.lower().endswith('ppt'):
         docs1 = UnstructuredPowerPointLoader(file_path=file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredPowerPointLoader')
+        add_meta(docs1, file, parser='UnstructuredPowerPointLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.txt'):
@@ -1693,24 +1701,25 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
         docs1 = TextLoader(file, encoding="utf8", autodetect_encoding=True).load()
         # makes just one, but big one
         doc1 = chunk_sources(docs1)
-        doc1 = clean_doc(doc1)
-        add_meta(doc1, file, headsize, parser='TextLoader')
+        # Bit odd to change if was original text
+        # doc1 = clean_doc(doc1)
+        add_meta(doc1, file, parser='TextLoader')
     elif file.lower().endswith('.rtf'):
         docs1 = UnstructuredRTFLoader(file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredRTFLoader')
+        add_meta(docs1, file, parser='UnstructuredRTFLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.md'):
         docs1 = UnstructuredMarkdownLoader(file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredMarkdownLoader')
+        add_meta(docs1, file, parser='UnstructuredMarkdownLoader')
         docs1 = clean_doc(docs1)
         doc1 = chunk_sources(docs1, language=Language.MARKDOWN)
     elif file.lower().endswith('.enex'):
         docs1 = EverNoteLoader(file).load()
-        add_meta(doc1, file, headsize, parser='EverNoteLoader')
+        add_meta(doc1, file, parser='EverNoteLoader')
         doc1 = chunk_sources(docs1)
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
-        add_meta(docs1, file, headsize, parser='UnstructuredEPubLoader')
+        add_meta(docs1, file, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
         docs1 = []
@@ -1721,7 +1730,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             docs1a = UnstructuredImageLoader(file, strategy='ocr_only').load()
             # docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
             docs1a = [x for x in docs1a if x.page_content]
-            add_meta(docs1a, file, headsize, parser='UnstructuredImageLoader')
+            add_meta(docs1a, file, parser='UnstructuredImageLoader')
             docs1.extend(docs1a)
         if verbose:
             print("END: Tesseract", flush=True)
@@ -1740,7 +1749,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             model_loaders['doctr'].set_document_paths([file])
             docs1c = model_loaders['doctr'].load()
             docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
+            add_meta(docs1c, file, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('document_path', file)
@@ -1767,7 +1776,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             model_loaders['caption'].set_image_paths([file])
             docs1c = model_loaders['caption'].load()
             docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, headsize, parser='H2OImageCaptionLoader: %s' % captions_model)
+            add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model)
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
@@ -1792,7 +1801,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             model_loaders['pix2struct'].set_image_paths([file])
             docs1c = model_loaders['pix2struct'].load()
             docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, headsize, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
+            add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
             # caption didn't set source, so fix-up meta
             for doci in docs1c:
                 doci.metadata['source'] = doci.metadata.get('image_path', file)
@@ -1808,7 +1817,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.eml'):
         try:
             docs1 = UnstructuredEmailLoader(file).load()
-            add_meta(docs1, file, headsize, parser='UnstructuredEmailLoader')
+            add_meta(docs1, file, parser='UnstructuredEmailLoader')
             doc1 = chunk_sources(docs1)
         except ValueError as e:
             if 'text/html content not found in email' in str(e):
@@ -1821,7 +1830,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             # doc1 = TextLoader(file, encoding="utf8").load()
             docs1 = UnstructuredEmailLoader(file, content_source="text/plain").load()
             docs1 = [x for x in docs1 if x.page_content]
-            add_meta(docs1, file, headsize, parser='UnstructuredEmailLoader text/plain')
+            add_meta(docs1, file, parser='UnstructuredEmailLoader text/plain')
             doc1 = chunk_sources(docs1)
     # elif file.lower().endswith('.gcsdir'):
     #    doc1 = GCSDirectoryLoader(project_name, bucket, prefix).load()
@@ -1830,7 +1839,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     elif file.lower().endswith('.rst'):
         with open(file, "r") as f:
             doc1 = Document(page_content=str(f.read()), metadata={"source": file})
-        add_meta(doc1, file, headsize, parser='f.read()')
+        add_meta(doc1, file, parser='f.read()')
         doc1 = chunk_sources(doc1, language=Language.RST)
     elif file.lower().endswith('.json'):
         # 10k rows, 100 columns-like parts 4 bytes each
@@ -1845,7 +1854,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             text_content=False,
             metadata_func=json_metadata_func)
         doc1 = loader.load()
-        add_meta(doc1, file, headsize, parser='JSONLoader: %s' % jq_schema)
+        add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
     elif file.lower().endswith('.jsonl'):
         loader = JSONLoader(
             file_path=file,
@@ -1855,7 +1864,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             text_content=False,
             metadata_func=json_metadata_func)
         doc1 = loader.load()
-        add_meta(doc1, file, headsize, parser='JSONLoader: %s' % jq_schema)
+        add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
     elif file.lower().endswith('.pdf'):
         doc1 = []
         handled = False
@@ -1952,7 +1961,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             model_loaders['doctr'].set_document_paths([file])
             doc1a = model_loaders['doctr'].load()
             doc1a = [x for x in doc1a if x.page_content]
-            add_meta(doc1a, file, headsize, parser='H2OOCRLoader: %s' % 'DocTR')
+            add_meta(doc1a, file, parser='H2OOCRLoader: %s' % 'DocTR')
             handled |= len(doc1a) > 0
             # caption didn't set source, so fix-up meta
             for doci in doc1a:
@@ -1968,7 +1977,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 raise ValueError("%s had no valid text, but meta data was parsed" % file)
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
-        add_meta(doc1, file, headsize, parser='pdf')
+        add_meta(doc1, file, parser='pdf')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.csv'):
         CSV_SIZE_LIMIT = int(os.getenv('CSV_SIZE_LIMIT', str(10 * 1024 * 10 * 4)))
@@ -1976,7 +1985,7 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             raise ValueError(
                 "CSV file sizes > %s not supported for naive parsing and embedding, requires Agents enabled" % CSV_SIZE_LIMIT)
         doc1 = CSVLoader(file).load()
-        add_meta(doc1, file, headsize, parser='CSVLoader')
+        add_meta(doc1, file, parser='CSVLoader')
         if isinstance(doc1, list):
             # each row is a Document, identify
             [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
@@ -1987,17 +1996,17 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
                 doc1 = sdoc1 + doc1
     elif file.lower().endswith('.py'):
         doc1 = PythonLoader(file).load()
-        add_meta(doc1, file, headsize, parser='PythonLoader')
+        add_meta(doc1, file, parser='PythonLoader')
         doc1 = chunk_sources(doc1, language=Language.PYTHON)
     elif file.lower().endswith('.toml'):
         doc1 = TomlLoader(file).load()
-        add_meta(doc1, file, headsize, parser='TomlLoader')
+        add_meta(doc1, file, parser='TomlLoader')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.xml'):
         from langchain.document_loaders import UnstructuredXMLLoader
         loader = UnstructuredXMLLoader(file_path=file)
         doc1 = loader.load()
-        add_meta(doc1, file, headsize, parser='UnstructuredXMLLoader')
+        add_meta(doc1, file, parser='UnstructuredXMLLoader')
     elif file.lower().endswith('.urls'):
         with open(file, "r") as f:
             urls = f.readlines()
@@ -2019,7 +2028,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
             with open(de_file, 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
         # recurse
-        doc1 = file_to_doc(de_file, base_path=base_path, verbose=verbose, fail_any_exception=fail_any_exception,
+        doc1 = file_to_doc(de_file,
+                           filei=filei,  # single file, same file index as outside caller
+                           base_path=base_path, verbose=verbose, fail_any_exception=fail_any_exception,
                            chunk=chunk, chunk_size=chunk_size, n_jobs=n_jobs,
                            is_url=is_url, is_txt=is_txt,
 
@@ -2067,7 +2078,9 @@ def file_to_doc(file, base_path=None, verbose=False, fail_any_exception=False,
     return docs
 
 
-def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True,
+def path_to_doc1(file,
+                 filei=0,
+                 verbose=False, fail_any_exception=False, return_file=True,
                  chunk=True, chunk_size=512,
                  n_jobs=-1,
                  is_url=False, is_txt=False,
@@ -2109,7 +2122,9 @@ def path_to_doc1(file, verbose=False, fail_any_exception=False, return_file=True
     res = None
     try:
         # don't pass base_path=path, would infinitely recurse
-        res = file_to_doc(file, base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
+        res = file_to_doc(file,
+                          filei=filei,
+                          base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
                           n_jobs=n_jobs,
                           is_url=is_url, is_txt=is_txt,
@@ -2332,20 +2347,22 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, **kwargs) for file in globs_non_image_types
+            delayed(path_to_doc1)(file, filei=filei, **kwargs) for filei, file in enumerate(globs_non_image_types)
         )
     else:
-        documents = [path_to_doc1(file, **kwargs) for file in tqdm(globs_non_image_types)]
+        documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
+                     enumerate(tqdm(globs_non_image_types))]
 
     # do images separately since can't fork after cuda in parent, so can't be parallel
     if n_jobs_image != 1 and len(globs_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         image_documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, **kwargs) for file in globs_image_types
+            delayed(path_to_doc1)(file, filei=filei, **kwargs) for filei, file in enumerate(globs_image_types)
         )
     else:
-        image_documents = [path_to_doc1(file, **kwargs) for file in tqdm(globs_image_types)]
+        image_documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
+                           enumerate(tqdm(globs_image_types))]
 
     # unload loaders (image loaders, includes enable_pdf_doctr that uses same loader)
     for name, loader in model_loaders.items():
@@ -3275,7 +3292,19 @@ def _run_qa_db(query=None,
 
 def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
     # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
-    docs_with_score = []
+    if hasattr(db, '_embedding_function') and isinstance(db._embedding_function, FakeEmbeddings):
+        top_k_docs = -1
+        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+        # sort by order given to parser (file_id) and any chunk_id if chunked
+        doc_file_ids = [x.get('file_id', 0) for x in db_metadatas]
+        doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
+        docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 1.0)
+                           for result in zip(db_documents, db_metadatas)]
+        docs_with_score = [x for fx, cx, x in
+                           sorted(zip(doc_file_ids, doc_chunk_ids, docs_with_score),
+                                  key=lambda x: (x[0], x[1]))
+                           ]
+        return docs_with_score
     if db_type == 'chroma':
         while True:
             try:
@@ -4630,7 +4659,8 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
         assert os.path.isfile(path_to_zip_file), "Missing zip in %s" % path_to_zip_file
         if dir_expected:
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
-            assert os.path.isdir(os.path.join(dest, dir_expected, 'chroma.sqlite3')), "Missing chroma.sqlite3 in %s" % dir_expected
+            assert os.path.isdir(
+                os.path.join(dest, dir_expected, 'chroma.sqlite3')), "Missing chroma.sqlite3 in %s" % dir_expected
 
 
 def _create_local_weaviate_client():
