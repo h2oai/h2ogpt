@@ -582,8 +582,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
 
     stream_output = True
     max_new_tokens = 256
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat' # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2' # 'human_bot'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
@@ -605,7 +605,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'a large language model' in res_dict['response'] and 'FAQ.md' not in res_dict['response']
+    assert 'an AI assistant developed by Meta' in res_dict['response'] and 'FAQ.md' not in res_dict['response']
 
     # QUERY2
     prompt = "What is whisper?"
@@ -923,8 +923,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
 
     stream_output = True
     max_new_tokens = 256
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat' # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2' # 'human_bot'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
