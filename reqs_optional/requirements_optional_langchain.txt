@@ -13,7 +13,7 @@ openai==0.27.8
 replicate==0.10.0
 
 # local vector db
-chromadb==0.3.25
+chromadb==0.4.10
 # server vector db
 #pymilvus==2.2.8
 

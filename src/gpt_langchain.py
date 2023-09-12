@@ -124,7 +124,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
-                                       chroma_db_impl="duckdb+parquet",
+                                       is_persistent=True,
                                        persist_directory=persist_directory)
             if n_jobs in [None, -1]:
                 n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -2511,7 +2511,7 @@ def get_existing_db(db, persist_directory,
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             from chromadb.config import Settings
             client_settings = Settings(anonymized_telemetry=False,
-                                       chroma_db_impl="duckdb+parquet",
+                                       is_persistent=True,
                                        persist_directory=persist_directory)
             db = Chroma(persist_directory=persist_directory, embedding_function=embedding,
                         collection_name=langchain_mode.replace(' ', '_'),

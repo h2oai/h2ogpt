@@ -33,8 +33,6 @@ if os.getenv('OMP_NUM_THREADS') is None:
     os.environ['OMP_NUM_THREADS'] = str(min(8, max_cores))
 if os.getenv('OPENBLAS_NUM_THREADS') is None:
     os.environ['OPENBLAS_NUM_THREADS'] = str(min(8, max_cores))
-if os.getenv('DUCKDB_NUM_THREADS') is None:
-    os.environ['DUCKDB_NUM_THREADS'] = str(min(4, max_cores))
 if os.getenv('RAYON_RS_NUM_CPUS') is None:
     os.environ['RAYON_RS_NUM_CPUS'] = str(min(8, max_cores))
 if os.getenv('RAYON_NUM_THREADS') is None:
