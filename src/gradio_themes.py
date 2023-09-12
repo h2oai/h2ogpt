@@ -35,7 +35,6 @@ h2o_gray = Color(
     c950="#0d0d0d",
 )
 
-
 text_xsm = Size(
     name="text_xsm",
     xxs="4px",
@@ -47,7 +46,6 @@ text_xsm = Size(
     xxl="12px",
 )
 
-
 spacing_xsm = Size(
     name="spacing_xsm",
     xxs="1px",
@@ -58,7 +56,6 @@ spacing_xsm = Size(
     xl="5px",
     xxl="7px",
 )
-
 
 radius_xsm = Size(
     name="radius_xsm",
@@ -83,20 +80,20 @@ class H2oTheme(Soft):
             radius_size: sizes.Size | str = sizes.radius_md,
             text_size: sizes.Size | str = sizes.text_lg,
             font: fonts.Font
-            | str
-            | Iterable[fonts.Font | str] = (
-                fonts.GoogleFont("Montserrat"),
-                "ui-sans-serif",
-                "system-ui",
-                "sans-serif",
+                  | str
+                  | Iterable[fonts.Font | str] = (
+                    fonts.GoogleFont("Montserrat"),
+                    "ui-sans-serif",
+                    "system-ui",
+                    "sans-serif",
             ),
             font_mono: fonts.Font
-            | str
-            | Iterable[fonts.Font | str] = (
-                fonts.GoogleFont("IBM Plex Mono"),
-                "ui-monospace",
-                "Consolas",
-                "monospace",
+                       | str
+                       | Iterable[fonts.Font | str] = (
+                    fonts.GoogleFont("IBM Plex Mono"),
+                    "ui-monospace",
+                    "Consolas",
+                    "monospace",
             ),
     ):
         super().__init__(
@@ -133,11 +130,11 @@ class H2oTheme(Soft):
             background_fill_primary_dark="*block_background_fill",
             block_radius="0 0 8px 8px",
             checkbox_label_text_color_selected_dark='#000000',
-            #checkbox_label_text_size="*text_xs",  # too small for iPhone etc. but good if full large screen zoomed to fit
+            # checkbox_label_text_size="*text_xs",  # too small for iPhone etc. but good if full large screen zoomed to fit
             checkbox_label_text_size="*text_sm",
-            #radio_circle="""url("data:image/svg+xml,%3csvg viewBox='0 0 32 32' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='32' cy='32' r='1'/%3e%3c/svg%3e")""",
-            #checkbox_border_width=1,
-            #heckbox_border_width_dark=1,
+            # radio_circle="""url("data:image/svg+xml,%3csvg viewBox='0 0 32 32' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='32' cy='32' r='1'/%3e%3c/svg%3e")""",
+            # checkbox_border_width=1,
+            # heckbox_border_width_dark=1,
         )
 
 
@@ -152,20 +149,20 @@ class SoftTheme(Soft):
             radius_size: sizes.Size | str = sizes.radius_md,
             text_size: sizes.Size | str = sizes.text_md,
             font: fonts.Font
-            | str
-            | Iterable[fonts.Font | str] = (
-                fonts.GoogleFont("Montserrat"),
-                "ui-sans-serif",
-                "system-ui",
-                "sans-serif",
+                  | str
+                  | Iterable[fonts.Font | str] = (
+                    fonts.GoogleFont("Montserrat"),
+                    "ui-sans-serif",
+                    "system-ui",
+                    "sans-serif",
             ),
             font_mono: fonts.Font
-            | str
-            | Iterable[fonts.Font | str] = (
-                fonts.GoogleFont("IBM Plex Mono"),
-                "ui-monospace",
-                "Consolas",
-                "monospace",
+                       | str
+                       | Iterable[fonts.Font | str] = (
+                    fonts.GoogleFont("IBM Plex Mono"),
+                    "ui-monospace",
+                    "Consolas",
+                    "monospace",
             ),
     ):
         super().__init__(
@@ -204,18 +201,17 @@ h2o_logo = '<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/
 
 def get_h2o_title(title, description):
     # NOTE: Check full width desktop, smallest width browser desktop, iPhone browsers to ensure no overlap etc.
-    return f"""
-    <div id="header-links">
-        {description}
-    </div>
-    <div id="main-logo">
-        <div style="height: 60px; width: 60px; margin-right:20px;">{h2o_logo}</div>
-        <h1 style="line-height:60px">{title}</h1>
-    </div>
-    <div id="qr">
-        <img src="https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/h2o-qr.png">
-    </div>
-"""
+    return f"""<div style="float:left; justify-content:left; height: 80px; width: 195px; margin-top:0px">
+                    {description}
+                </div>
+                <div style="display:flex; justify-content:center; margin-bottom:30px; margin-right:330px;">
+                    <div style="height: 60px; width: 60px; margin-right:20px;">{h2o_logo}</div>
+                    <h1 style="line-height:60px">{title}</h1>
+                </div>
+                <div style="float:right; height: 80px; width: 80px; margin-top:-100px">
+                    <img src="https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/h2o-qr.png">
+                </div>
+                """
 
 
 def get_simple_title(title, description):
@@ -231,9 +227,12 @@ def get_dark_js() -> str:
         }
     """
 
+
 def get_heap_js(heapAppId: str) -> str:
-    return ("""globalThis.window.heap=window.heap||[],heap.load=function(e,t){window.heap.appid=e,window.heap.config=t=t||{};var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src="https://cdn.heapanalytics.com/js/heap-"+e+".js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(r,a);for(var n=function(e){return function(){heap.push([e].concat(Array.prototype.slice.call(arguments,0)))}},p=["addEventProperties","addUserProperties","clearEventProperties","identify","resetIdentity","removeEventProperty","setEventProperties","track","unsetEventProperty"],o=0;o<p.length;o++)heap[p[o]]=n(p[o])};"""
-           f"""heap.load("{heapAppId}");""")
+    return (
+        """globalThis.window.heap=window.heap||[],heap.load=function(e,t){window.heap.appid=e,window.heap.config=t=t||{};var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src="https://cdn.heapanalytics.com/js/heap-"+e+".js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(r,a);for(var n=function(e){return function(){heap.push([e].concat(Array.prototype.slice.call(arguments,0)))}},p=["addEventProperties","addUserProperties","clearEventProperties","identify","resetIdentity","removeEventProperty","setEventProperties","track","unsetEventProperty"],o=0;o<p.length;o++)heap[p[o]]=n(p[o])};"""
+        f"""heap.load("{heapAppId}");""")
+
 
 def wrap_js_to_lambda(num_params: int, *args: str) -> str:
     """

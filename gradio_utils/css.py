@@ -139,19 +139,6 @@ def make_css_base() -> str:
         }
     }
     
-    #qr {
-        @media (min-width: 464px) {
-            float: right;
-            height: 80px;
-            width: 80px;
-            margin-top: -100px
-        }
-        
-        @media (max-width: 463px) {
-          display: none;
-        }
-    }
-
     #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
         display: none !important;
     }
