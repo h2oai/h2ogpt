@@ -2498,8 +2498,8 @@ def get_existing_db(db, persist_directory,
                     migrate_embedding_model,
                     verbose=False, check_embedding=True, migrate_meta=True,
                     n_jobs=-1):
-    if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isdir(
-            os.path.join(persist_directory, 'index')):
+    if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory) and os.path.isfile(
+            os.path.join(persist_directory, 'chroma.sqlite3')):
         if db is None:
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
@@ -4630,7 +4630,7 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
         assert os.path.isfile(path_to_zip_file), "Missing zip in %s" % path_to_zip_file
         if dir_expected:
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
-            assert os.path.isdir(os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
+            assert os.path.isdir(os.path.join(dest, dir_expected, 'chroma.sqlite3')), "Missing chroma.sqlite3 in %s" % dir_expected
 
 
 def _create_local_weaviate_client():
