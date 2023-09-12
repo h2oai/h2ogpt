@@ -1,7 +1,7 @@
 all: clean dist
 
 PACKAGE_VERSION       := `cat version.txt | tr -d '\n'`
-BUILD_TAG_FILES       := docker_build_script_ubuntu.sh requirements.txt Dockerfile `ls reqs_optional/*.txt | sort`
+BUILD_TAG_FILES       := $(shell git describe --always --dirty)
 BUILD_TAG             := $(shell md5sum $(BUILD_TAG_FILES) 2> /dev/null | sort | md5sum | cut -d' ' -f1)
 DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
 PYTHON_BINARY         ?= `which python`
