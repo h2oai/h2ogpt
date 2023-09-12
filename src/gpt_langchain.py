@@ -2589,8 +2589,15 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
             with open(embed_info_file, 'wb') as f:
                 if isinstance(hf_embedding_model, str):
                     hf_embedding_model_save = hf_embedding_model
-                else:
+                elif hasattr(hf_embedding_model, 'model_name'):
+                    hf_embedding_model_save = hf_embedding_model.model_name
+                elif isinstance(hf_embedding_model, dict) and 'name' in hf_embedding_model:
                     hf_embedding_model_save = hf_embedding_model['name']
+                elif isinstance(hf_embedding_model, dict) and 'name' in hf_embedding_model:
+                    if os.getenv('HARD_ASSERTS'):
+                        # unexpected in testing or normally
+                        raise RuntimeError("HERE")
+                    hf_embedding_model_save = 'hkunlp/instructor-large'
                 pickle.dump((use_openai_embedding, hf_embedding_model_save), f)
     return use_openai_embedding, hf_embedding_model
 
@@ -2605,11 +2612,17 @@ def load_embed(db=None, persist_directory=None):
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, embed_file_string % name_path)):
             with open(embed_info_file, 'rb') as f:
-                use_openai_embedding, hf_embedding_model = pickle.load(f)
-            got_embedding = True
+                try:
+                    use_openai_embedding, hf_embedding_model = pickle.load(f)
+                    got_embedding = True
+                except EOFError:
+                    got_embedding = False
+                    if os.getenv('HARD_ASSERTS'):
+                        # unexpected in testing or normally
+                        raise
     else:
         # migration, assume defaults
-        use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
+        use_openai_embedding, hf_embedding_model = False, 'hkunlp/instructor-large'
         got_embedding = False
     return got_embedding, use_openai_embedding, hf_embedding_model
 
