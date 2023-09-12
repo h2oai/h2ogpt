@@ -1,5 +1,16 @@
 ## Frequently asked questions
 
+### Migration from Chroma < 0.4 to > 0.4
+
+* Install and run migration tool
+```
+pip install chroma-migrate
+chroma-migrate
+```
+* Choose DuckDB
+* Choose "Files I can use ..."
+* Choose your collection path, e.g. `db_dir_UserData` for collection name `UserData`
+
 ### Adding Models
 
 One can choose any Hugging Face model or quantized GGML model file in h2oGPT.
