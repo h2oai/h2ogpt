@@ -347,8 +347,13 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False):
     elif hf_embedding_model == 'fake':
         embedding = H2OFakeEmbeddings(size=1)
     else:
-        if not isinstance(hf_embedding_model, str):
+        if isinstance(hf_embedding_model, str):
+            pass
+        elif isinstance(hf_embedding_model, dict):
             # embedding itself preloaded globally
+            return hf_embedding_model['model']
+        else:
+            # object
             return hf_embedding_model
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
@@ -2582,7 +2587,11 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
         with filelock.FileLock(os.path.join(base_path, embed_file_string % name_path)):
             embed_info_file = os.path.join(db._persist_directory, 'embed_info')
             with open(embed_info_file, 'wb') as f:
-                pickle.dump((use_openai_embedding, hf_embedding_model), f)
+                if isinstance(hf_embedding_model, str):
+                    hf_embedding_model_save = hf_embedding_model
+                else:
+                    hf_embedding_model_save = hf_embedding_model['name']
+                pickle.dump((use_openai_embedding, hf_embedding_model_save), f)
     return use_openai_embedding, hf_embedding_model
 
 

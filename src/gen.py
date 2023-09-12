@@ -1185,8 +1185,9 @@ def main(
 
         if pre_load_embedding_model and langchain_mode != 'Disabled' and not use_openai_embedding:
             from src.gpt_langchain import get_embedding
-            hf_embedding_model = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                               preload=True)
+            hf_embedding_model = dict(name=hf_embedding_model,
+                                      model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                               preload=True))
 
         # assume gradio needs everything
         go_gradio(**locals())
