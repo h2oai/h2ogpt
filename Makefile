@@ -51,6 +51,7 @@ docker_build_deps:
 	@sed -i '/# Install prebuilt dependencies/,$$d' docker_build_script_ubuntu.sh
 	@docker build -t h2ogpt-deps-builder -f Dockerfile .
 	@mv docker_build_script_ubuntu.sh.back docker_build_script_ubuntu.sh
+	@mkdir -p prebuilt_deps
 	@docker run \
 		--rm \
 		-it \
@@ -69,12 +70,9 @@ docker_build_deps:
 		--rm \
 		-it \
 		--entrypoint bash \
-		--runtime nvidia \
 		-v `pwd`:/dot \
-		-v /etc/passwd:/etc/passwd:ro \
-		-v /etc/group:/etc/group:ro \
-		-u `id -u`:`id -g` \
-		h2ogpt-deps-builder -c " \
+		quay.io/pypa/manylinux2014_x86_64 -c " \
+			ln -s /usr/local/bin/python3.10 /usr/local/bin/python3 && cd /tmp && \
 			git clone https://github.com/h2oai/duckdb.git && \
 			cd duckdb && \
 			git checkout dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad && \
