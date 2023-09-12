@@ -12,11 +12,12 @@ def test_get_list_or_str():
 
 
 @wrap_test_forked
-def test_stream_popen():
+def test_stream_popen1():
     cmd_python = sys.executable + " -i -q -u"
-    cmd =
+    cmd = cmd_python + " -c print('hi')"
+    #cmd = cmd.split(' ')
 
-    with sp.Popen(["python", ], stdout=sp.PIPE, stderr=sp.PIPE, text=True, shell=True) as p:
+    with sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=True, shell=True) as p:
         for out_line, err_line in read_popen_pipes(p):
             print(out_line, end='')
             print(err_line, end='')
@@ -25,7 +26,7 @@ def test_stream_popen():
 
 
 @wrap_test_forked
-def test_stream_popen():
+def test_stream_popen2():
     script = """for i in 0 1 2 3 4 5
 do
     echo "This messages goes to stdout $i"

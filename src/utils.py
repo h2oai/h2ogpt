@@ -1398,8 +1398,6 @@ def wrap_in_try_except(code):
     return ast.unparse(parsed_code)
 
 
-
-
 def enqueue_output(file, queue):
     for line in iter(file.readline, ''):
         queue.put(line)
@@ -1430,7 +1428,7 @@ def read_popen_pipes(p):
             except Empty:
                 pass
 
-            yield (out_line, err_line)
+            yield out_line, err_line
 
 
 def start_process(cmd):
