@@ -2616,6 +2616,7 @@ def load_embed(db=None, persist_directory=None):
                     use_openai_embedding, hf_embedding_model = pickle.load(f)
                     got_embedding = True
                 except EOFError:
+                    use_openai_embedding, hf_embedding_model = False, 'hkunlp/instructor-large'
                     got_embedding = False
                     if os.getenv('HARD_ASSERTS'):
                         # unexpected in testing or normally
