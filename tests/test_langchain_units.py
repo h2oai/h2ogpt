@@ -490,6 +490,7 @@ def test_make_add_db(repeat, db_type):
                     kwargs = dict(use_openai_embedding=False,
                                   hf_embedding_model='hkunlp/instructor-large',
                                   migrate_embedding_model=True,
+                                  migrate_db=True,
                                   caption_loader=False,
                                   enable_captions=False,
                                   enable_doctr=False,
@@ -544,6 +545,7 @@ def test_make_add_db(repeat, db_type):
                                    db_type=db_type,
                                    hf_embedding_model=kwargs['hf_embedding_model'],
                                    migrate_embedding_model=kwargs['migrate_embedding_model'],
+                                   migrate_db=kwargs['migrate_db'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
                     update_and_get_source_files_given_langchain_mode(db1,
