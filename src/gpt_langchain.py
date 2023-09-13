@@ -2654,6 +2654,11 @@ def load_embed(db=None, persist_directory=None):
             with open(embed_info_file, 'rb') as f:
                 try:
                     use_openai_embedding, hf_embedding_model = pickle.load(f)
+                    if not isinstance(hf_embedding_model, (str, dict)):
+                        # work-around bug introduced here: https://github.com/h2oai/h2ogpt/commit/54c4414f1ce3b5b7c938def651c0f6af081c66de
+                        hf_embedding_model = 'hkunlp/instructor-large'
+                        # fix file
+                        save_embed(db, use_openai_embedding, hf_embedding_model)
                     got_embedding = True
                 except EOFError:
                     use_openai_embedding, hf_embedding_model = False, 'hkunlp/instructor-large'
