@@ -991,7 +991,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'Yes, it is.' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
+    assert 'Yes, more text can be boring' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
 
     # QUERY2
     prompt = "What is a universal file format?"
