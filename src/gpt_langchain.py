@@ -2539,7 +2539,6 @@ def get_existing_db(db, persist_directory,
             else:
                 print("Detected chromadb<0.4 database, require migration, but , doing now....", flush=True)
 
-
         if db is None:
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
@@ -2664,7 +2663,7 @@ def load_embed(db=None, persist_directory=None):
                         raise
     else:
         # migration, assume defaults
-        use_openai_embedding, hf_embedding_model = False, 'hkunlp/instructor-large'
+        use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
         got_embedding = False
     return got_embedding, use_openai_embedding, hf_embedding_model
 
