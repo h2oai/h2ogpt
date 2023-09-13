@@ -360,7 +360,7 @@ def main(
            n_batch: Can make smaller to 128 for slower low-memory CPU systems
            n_gqa: Required to be 8 for LLaMa 70B
            ... etc. anything that could be passed to llama.cpp or GPT4All models
-           e.g. python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --llamacpp_dict="{'n_gpu_layers':25,'n_batch':128}"
+           e.g. python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --llamacpp_dict="{n_gpu_layers:25,n_batch:128}"
     :param model_path_llama: model path or URL (for auto-download)
     :param model_name_gptj: model path or URL (for auto-download)
     :param model_name_gpt4all_llama: model path or URL (for auto-download)
