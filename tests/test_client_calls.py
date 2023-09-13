@@ -442,8 +442,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     user_path = make_user_path_test()
 
     stream_output = True
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat' # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2' # 'human_bot'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled', 'LLM']
 
@@ -470,6 +470,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert ('a large language model' in res_dict['response'] or
+             '2oGPT is an open-source, Apache V2 project' in res_dict['response'] or
             'language model trained' in res_dict['response'] or
             'H2O GPT is a language model' in res_dict['response'] or
             'H2O GPT is a chatbot framework' in res_dict['response'] or
@@ -527,7 +528,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # i.e. answers wrongly without data, dumb model, but also no docs at all since cutoff entirely
-    assert 'H2O.ai is a technology company' in res_dict['response'] and '.md' not in res_dict['response']
+    assert 'h2oGPT is a variant of the popular GPT' in res_dict['response'] and '.md' not in res_dict['response']
 
     # QUERY3
     prompt = "What is whisper?"
@@ -1833,6 +1834,7 @@ def test_fastsys(stream_output, bits, prompt_type):
 
     # ask for summary, need to use same client if using MyData
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    instruction = "What is Whisper?"
     kwargs = dict(langchain_mode=langchain_mode,
                   langchain_action="Query",
                   top_k_docs=4,
@@ -1842,9 +1844,8 @@ def test_fastsys(stream_output, bits, prompt_type):
                   max_time=300,
                   do_sample=False,
                   stream_output=stream_output,
-                  instruction="What is Whisper?",
                   )
-    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    res_dict, client = run_client_gen(client, instruction, None, kwargs)
     response = res_dict['response']
     if bits is None:
         assert """Whisper is a machine learning model developed by OpenAI for speech recognition. It is trained on large amounts of text data from the internet and uses a minimalist approach to data pre-processing, relying on the expressiveness of sequence-to-sequence models to learn to map between words in a transcript. The model is designed to be able to predict the raw text of transcripts without any significant standardization, allowing it to learn to map between words in different languages without having to rely on pre-trained models.""" in response or \
