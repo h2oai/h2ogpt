@@ -2537,7 +2537,7 @@ def get_existing_db(db, persist_directory,
                 did_migration = migrate_from_duckdb(api, persist_directory)
                 assert did_migration, "Failed to migrate chroma collection at %s, see https://docs.trychroma.com/migration for CLI tool" % persist_directory
             else:
-                print("Detected chromadb<0.4 database, require migration, but , doing now....", flush=True)
+                raise ValueError("Detected chromadb<0.4 database, require migration, but did not choose migrate_db=True")
 
         if db is None:
             if verbose:
