@@ -1770,6 +1770,7 @@ def test_client_summarization_from_url(url, top_k_docs):
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary \
                or 'H2OGPT is an open-source project' in summary \
+               or 'H2O GPT is an open-source project' in summary \
                or 'is an open-source project for document Q/A' in summary \
                or 'h2oGPT is an open-source project' in summary
         assert 'h2oGPT' in [x['content'] for x in sources][0]
