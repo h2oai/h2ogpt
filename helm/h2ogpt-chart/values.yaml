@@ -1,6 +1,8 @@
 nameOverride: ""
 fullnameOverride: h2ogpt
 
+updateStrategy: RollingUpdate
+
 h2ogpt:
   enabled: true
   replicaCount: 1

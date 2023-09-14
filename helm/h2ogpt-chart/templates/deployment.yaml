@@ -13,6 +13,8 @@ spec:
   {{- if not .Values.h2ogpt.autoscaling.enabled }}
   replicas: {{ .Values.h2ogpt.replicaCount }}
   {{- end }}
+  strategy:
+    type: {{ .Values.updateStrategy }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}
@@ -153,6 +155,8 @@ spec:
   {{- if not .Values.tgi.autoscaling.enabled }}
   replicas: {{ .Values.tgi.replicaCount }}
   {{- end }}
+  strategy:
+    type: {{ .Values.updateStrategy }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-tgi-inference
@@ -256,6 +260,8 @@ spec:
   {{- if not .Values.vllm.autoscaling.enabled }}
   replicas: {{ .Values.vllm.replicaCount }}
   {{- end }}
+  strategy:
+    type: {{ .Values.updateStrategy }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-vllm-inference
