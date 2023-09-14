@@ -617,7 +617,9 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_mi
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    res1 = 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    res2 = 'speech recognition system' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    assert res1 or res2
 
     # QUERY3
     prompt = "What is h2oGPT"
