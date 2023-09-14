@@ -19,7 +19,7 @@ For optional thread handling use our duckdb with old chroma:
 
 #### Option 2: Automatically Migrate
 
-h2oGPT by default does not migrate automatically with `--auto_migrate_db=False` for `generate.py`.  One can set this to `True` for auto-migration, which may time some time for larger databases.  This will occur on-deman when accessing a database.
+h2oGPT by default does not migrate automatically with `--auto_migrate_db=False` for `generate.py`.  One can set this to `True` for auto-migration, which may time some time for larger databases.  This will occur on-demand when accessing a database.  This takes about 0.03s per chunk.
 
 #### Option 3: Manually Migrate
 
