@@ -966,6 +966,13 @@ try:
 except (PackageNotFoundError, AssertionError):
     pass
 
+have_chromamigdb = False
+try:
+    assert distribution('chromamigdb') is not None
+    have_chromamigdb = True
+except (PackageNotFoundError, AssertionError):
+    pass
+
 
 def hash_file(file):
     try:

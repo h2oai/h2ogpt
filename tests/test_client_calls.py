@@ -573,8 +573,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
+@pytest.mark.parametrize("auto_migrate_db", [False, True])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
+def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_migrate_db):
     os.environ['VERBOSE_PIPELINE'] = '1'
     # full user data
     from src.make_db import make_db_main
@@ -594,7 +595,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         verbose=True)
+         verbose=True,
+         auto_migrate_db=auto_migrate_db)
 
     from src.client_test import get_client, get_args, run_client
     client = get_client(serialize=False)
