@@ -2532,7 +2532,7 @@ def get_existing_db(db, persist_directory,
         else:
             return db, use_openai_embedding, hf_embedding_model
         chroma_settings = dict(is_persistent=True)
-        use_chromadb3 = False
+        use_chromamigdb = False
         if must_migrate:
             if auto_migrate_db:
                 print("Detected chromadb<0.4 database, require migration, doing now....", flush=True)
@@ -2543,13 +2543,13 @@ def get_existing_db(db, persist_directory,
                 assert did_migration, "Failed to migrate chroma collection at %s, see https://docs.trychroma.com/migration for CLI tool" % persist_directory
             elif have_chromamigdb:
                 print(
-                    "Detected chroma<0.4 database but --auto_migrate_db=False, but detected chromadb3 package, so using old database that still requires duckdb",
+                    "Detected chroma<0.4 database but --auto_migrate_db=False, but detected chromamigdb package, so using old database that still requires duckdb",
                     flush=True)
                 chroma_settings = dict(chroma_db_impl="duckdb+parquet")
-                use_chromadb3 = True
+                use_chromamigdb = True
             else:
                 raise ValueError(
-                    "Detected chromadb<0.4 database, require migration, but did not detect chromadb3 package or did not choose auto_migrate_db=False (see FAQ.md)")
+                    "Detected chromadb<0.4 database, require migration, but did not detect chromamigdb package or did not choose auto_migrate_db=False (see FAQ.md)")
 
         if db is None:
             if verbose:
@@ -2560,7 +2560,7 @@ def get_existing_db(db, persist_directory,
             embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
-            if use_chromadb3:
+            if use_chromamigdb:
                 from chromamigdb.config import Settings
                 chroma_class = ChromaMig
             else:

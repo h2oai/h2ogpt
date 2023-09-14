@@ -15,6 +15,12 @@ replicate==0.10.0
 # local vector db
 chromadb==0.4.10
 
+# chroma migration
+chroma-migrate==0.0.7
+duckdb==0.7.1
+https://h2o-release.s3.amazonaws.com/h2ogpt/chromamigdb-0.3.25-py3-none-any.whl
+https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
+
 # server vector db
 #pymilvus==2.2.8
 
