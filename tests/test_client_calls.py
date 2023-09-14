@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
@@ -1402,21 +1402,25 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert got_embedding
 
 
+# NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
 @pytest.mark.parametrize("data_kind", [
     'simple',
     'helium1',
     'helium2',
 ])
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat'])
 @wrap_test_forked
-def test_client_chat_stream_langchain_fake_embeddings(data_kind):
+def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     os.environ['VERBOSE_PIPELINE'] = '1'
     remove('db_dir_UserData')
 
     stream_output = True
     max_new_tokens = 256
     # base_model = 'distilgpt2'
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        prompt_type = 'human_bot'
+    else:
+        prompt_type = 'llama2'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
@@ -1438,6 +1442,8 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind):
     if data_kind == 'simple':
         texts = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
         expected_return_number = len(texts)
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        print('counts ', counts)
     elif data_kind == 'helium1':
         texts = [
             '464 $ \n453 \n$ \n97 \n$ 125 $ 131 \n$ \n96 \n$ 89 $ \n84 \n$ 2,417 \n$ 2,291 $ 2,260 \nAverage loans\n291 \n287 \n298 \n321 \n307 \n304 \n41 \n74 \n83 \n— \n— \n— \n653 \n668 \n685 \nAverage deposits\n830 \n828 \n780 \n435 \n417 \n358 \n52 \n82 \n81 \n16 \n8 \n11 \n1,333 \n1,335 1,230 \n(1) \nIncludes total Citi revenues, net of interest expense (excluding \nCorporate/Other\n), in North America of $34.4 billion, $34.4 billion and $37.1 billion; in EMEA of',
@@ -1465,7 +1471,17 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind):
             'Net income from continuing operations (for EPS purposes)\n$ \n15,076 \n$ \n21,945 $ \n11,067 \nLoss from discontinued operations, net of taxes\n(231) \n7 \n(20) \nCitigroup’s net income\n$ \n14,845 \n$ \n21,952 $ \n11,047 \nLess: Preferred dividends\n(1)\n1,032 \n1,040 \n1,095 \nNet income available to common shareholders\n$ \n13,813 \n$ \n20,912 $ \n9,952 \nLess: Dividends and undistributed earnings allocated to employee restricted and deferred shares \nwith rights to dividends, applicable to basic EPS\n113 \n154 \n73',
             'During 2022, emerging markets revenues accounted for \napproximately 37% of Citi’s total revenues (Citi generally \ndefines emerging markets as countries in Latin America, Asia \n(other than Japan, Australia and New Zealand), and central \nand Eastern Europe, the Middle East and Africa in EMEA). \nCiti’s presence in the emerging markets subjects it to various \nrisks, such as limitations or unavailability of hedges on foreign \ninvestments; foreign currency volatility, including',
             'On November 1, 2022, Citi completed the sale of its Thailand consumer banking business, which was part of \nLegacy Franchises\n. The business had approximately \n$2.7 billion in assets, including $2.4 billion of loans (net of allowance of $67 million) and excluding goodwill. The total amount of liabilities was $1.0 billion, \nincluding $0.8 billion in deposits. The sale resulted in a pretax gain on sale of approximately $209 million ($115 million after-tax), subject to closing adjustments, \nrecorded in']
-        expected_return_number = 10
+        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+            expected_return_number = 10
+            tokens_expected = 1500
+        else:
+            expected_return_number = 24
+            tokens_expected = 3500
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        assert counts['llm'] > tokens_expected, counts['llm']
+        print('counts ', counts)
+        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        print('countsall ', countsall)
     else:
         texts = [
             'Efficiency ratio (total operating expenses/total revenues, net)\n68.1\n67.0\n58.8\n57.0\n58.1\nBasel III ratios\nCET1 Capital\n(4)\n13.03 %\n12.25 %\n11.51 %\n11.79 %\n11.86 %\nTier 1 Capital\n(4)\n14.80\n13.91\n13.06\n13.33\n13.43\nTotal Capital\n(4)\n15.46\n16.04\n15.33\n15.87\n16.14\nSupplementary Leverage ratio\n5.82\n5.73\n6.99\n6.20\n6.40\nCitigroup common stockholders’ equity to assets\n7.54 %\n7.99 %\n7.96 %\n8.98 %\n9.27 %\nTotal Citigroup stockholders’ equity to assets\n8.33\n8.81\n8.82\n9.90\n10.23',
@@ -1518,7 +1534,17 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind):
             'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$\n14,845\n$\n21,952 $\n11,047\nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$\n(5,384)\n$\n(3,934) $\n3,585\nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029\n232\n(475)\nNet change in cash flow hedges, net of taxes\n(2,623)\n(1,492)',
             'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$\n14,845\n$\n21,952 $\n11,047\nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$\n(5,384)\n$\n(3,934) $\n3,585\nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029\n232\n(475)\nNet change in cash flow hedges, net of taxes\n(2,623)\n(1,492)',
             '817 $\n852\nIn billions of dollars\n4Q22\n3Q22\n4Q21\nLegacy Franchises\n(1)\n$\n50\n$\n50 $\n74\nCorporate/Other\n$\n32\n$\n21 $\n7\nPersonal Banking and Wealth\nManagement\nU.S. Retail banking\n$\n37\n$\n36 $\n34\nTotal Citigroup deposits (AVG)\n$ 1,361\n$ 1,316 $ 1,370\nU.S. Cards\n143\n138\n128\nTotal Citigroup deposits (EOP)\n$ 1,366\n$ 1,306 $ 1,317\nGlobal Wealth\n150\n151\n150\nTotal\n$\n330\n$\n325 $\n312\n(1)\nSee footnote 2 to the table in “Credit Risk—Consumer Credit—\nConsumer Credit Portfolio” above.']
-        expected_return_number = 10
+        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+            expected_return_number = 10
+            tokens_expected = 1500
+        else:
+            expected_return_number = 24
+            tokens_expected = 3500
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        assert counts['llm'] > tokens_expected, counts['llm']
+        print('counts ', counts)
+        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        print('countsall ', countsall)
     langchain_mode = "UserData"
     embed = False
     chunk = False
