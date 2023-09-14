@@ -229,6 +229,7 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         migrate_embedding_model: str = False,
+        auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -551,6 +552,7 @@ def main(
            used to migrate all embeddings to a new one, but will take time to re-embed.
            Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
            If had old database without embedding saved, then hf_embedding_model is also used.
+    :param auto_migrate_db: whether to automatically migrate any chroma<0.4 database from duckdb -> sqlite version
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -1005,6 +1007,7 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
+                                    auto_migrate_db,
                                     kwargs_make_db=locals(),
                                     verbose=verbose)
             finally:
@@ -1998,6 +2001,7 @@ def evaluate(
         use_openai_model=None,
         hf_embedding_model=None,
         migrate_embedding_model=None,
+        auto_migrate_db=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -2033,6 +2037,7 @@ def evaluate(
     assert use_openai_model is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
+    assert auto_migrate_db is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -2192,6 +2197,7 @@ def evaluate(
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
+                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -2257,6 +2263,7 @@ def evaluate(
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
+                auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,

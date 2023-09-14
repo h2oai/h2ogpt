@@ -1,5 +1,28 @@
 ## Frequently asked questions
 
+### Migration from Chroma < 0.4 to > 0.4
+
+#### Option 1: Use old Chroma for old DBs
+
+Do nothing as user.  h2oGPT will by default not migrate for old databases.  This is the default way handled internally by requirements added in `requirements_optional_langchain.txt` by adding special wheels for old versions of chromadb and hnswlib, handling migration better than chromadb itself.
+
+#### Option 2: Automatically Migrate
+
+h2oGPT by default does not migrate automatically with `--auto_migrate_db=False` for `generate.py`.  One can set this to `True` for auto-migration, which may time some time for larger databases.  This will occur on-demand when accessing a database.  This takes about 0.03s per chunk.
+
+#### Option 3: Manually Migrate
+
+One can set that to False and manually migrate databases by doing the following.
+
+* Install and run migration tool
+```
+pip install chroma-migrate
+chroma-migrate
+```
+* Choose DuckDB
+* Choose "Files I can use ..."
+* Choose your collection path, e.g. `db_dir_UserData` for collection name `UserData`
+
 ### Adding Models
 
 One can choose any Hugging Face model or quantized GGML model file in h2oGPT.

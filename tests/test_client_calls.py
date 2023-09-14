@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
@@ -442,8 +442,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
     user_path = make_user_path_test()
 
     stream_output = True
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2'  # 'human_bot'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled', 'LLM']
 
@@ -470,6 +470,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert ('a large language model' in res_dict['response'] or
+            '2oGPT is an open-source, Apache V2 project' in res_dict['response'] or
             'language model trained' in res_dict['response'] or
             'H2O GPT is a language model' in res_dict['response'] or
             'H2O GPT is a chatbot framework' in res_dict['response'] or
@@ -527,7 +528,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     # i.e. answers wrongly without data, dumb model, but also no docs at all since cutoff entirely
-    assert 'H2O.ai is a technology company' in res_dict['response'] and '.md' not in res_dict['response']
+    assert 'h2oGPT is a variant of the popular GPT' in res_dict['response'] and '.md' not in res_dict['response']
 
     # QUERY3
     prompt = "What is whisper?"
@@ -572,8 +573,9 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
+@pytest.mark.parametrize("auto_migrate_db", [False, True])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
+def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_migrate_db):
     os.environ['VERBOSE_PIPELINE'] = '1'
     # full user data
     from src.make_db import make_db_main
@@ -582,8 +584,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
 
     stream_output = True
     max_new_tokens = 256
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2'  # 'human_bot'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
@@ -593,7 +595,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         verbose=True)
+         verbose=True,
+         auto_migrate_db=auto_migrate_db)
 
     from src.client_test import get_client, get_args, run_client
     client = get_client(serialize=False)
@@ -605,7 +608,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'a large language model' in res_dict['response'] and 'FAQ.md' not in res_dict['response']
+    assert 'an AI assistant developed by Meta' in res_dict['response'] and 'FAQ.md' not in res_dict['response']
 
     # QUERY2
     prompt = "What is whisper?"
@@ -614,7 +617,9 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    res1 = 'large-scale speech recognition model' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    res2 = 'speech recognition system' in res_dict['response'] and 'whisper.pdf' in res_dict['response']
+    assert res1 or res2
 
     # QUERY3
     prompt = "What is h2oGPT"
@@ -923,8 +928,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
 
     stream_output = True
     max_new_tokens = 256
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2'  # 'human_bot'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
@@ -965,7 +970,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res0_choices = [x[0] for x in res[0]['choices']]
     assert langchain_mode2 in res0_choices
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory', 'Embedding', 'DB']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
@@ -991,7 +996,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert 'Yes, it is.' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
+    assert 'Yes, more text can be boring' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
 
     # QUERY2
     prompt = "What is a universal file format?"
@@ -1094,7 +1099,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res0_choices = [x[0] for x in res[0]['choices']]
     assert res0_choices == [langchain_mode, 'MyData', 'github h2oGPT', 'LLM', langchain_mode2]
     assert res[0]['value'] == langchain_mode
-    assert res[1]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    assert res[1]['headers'] == ['Collection', 'Type', 'Path', 'Directory', 'Embedding', 'DB']
     res[1]['data'] = [[x[0], x[1], x[2]] for x in res[1]['data']]  # ignore persist_directory
     assert res[1]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
@@ -1153,7 +1158,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res0_choices = [x[0] for x in res[0]['choices']]
     assert langchain_mode2 in res0_choices
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory', 'Embedding', 'DB']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
@@ -1202,7 +1207,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res0_choices = [x[0] for x in res[0]['choices']]
     assert langchain_mode3 in res0_choices
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory', 'Embedding', 'DB']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
@@ -1247,7 +1252,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res0_choices = [x[0] for x in res[0]['choices']]
     assert langchain_mode2 in res0_choices
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory', 'Embedding', 'DB']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['UserData', 'shared', user_path],
                               ['github h2oGPT', 'shared', ''],
@@ -1262,7 +1267,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res0_choices = [x[0] for x in res[0]['choices']]
     assert langchain_mode not in res0_choices
     assert res[1] == ''
-    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory']
+    assert res[2]['headers'] == ['Collection', 'Type', 'Path', 'Directory', 'Embedding', 'DB']
     res[2]['data'] = [[x[0], x[1], x[2]] for x in res[2]['data']]  # ignore persist_directory
     assert res[2]['data'] == [['github h2oGPT', 'shared', ''],
                               ['MyData', 'personal', ''],
@@ -1397,16 +1402,25 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert got_embedding
 
 
+# NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
+@pytest.mark.parametrize("data_kind", [
+    'simple',
+    'helium1',
+    'helium2',
+])
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat'])
 @wrap_test_forked
-def test_client_chat_stream_langchain_fake_embeddings():
+def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     os.environ['VERBOSE_PIPELINE'] = '1'
     remove('db_dir_UserData')
 
     stream_output = True
     max_new_tokens = 256
     # base_model = 'distilgpt2'
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
+    if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        prompt_type = 'human_bot'
+    else:
+        prompt_type = 'llama2'
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
@@ -1425,15 +1439,125 @@ def test_client_chat_stream_langchain_fake_embeddings():
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
 
-    texts = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
+    if data_kind == 'simple':
+        texts = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
+        expected_return_number = len(texts)
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        print('counts ', counts)
+    elif data_kind == 'helium1':
+        texts = [
+            '464 $ \n453 \n$ \n97 \n$ 125 $ 131 \n$ \n96 \n$ 89 $ \n84 \n$ 2,417 \n$ 2,291 $ 2,260 \nAverage loans\n291 \n287 \n298 \n321 \n307 \n304 \n41 \n74 \n83 \n— \n— \n— \n653 \n668 \n685 \nAverage deposits\n830 \n828 \n780 \n435 \n417 \n358 \n52 \n82 \n81 \n16 \n8 \n11 \n1,333 \n1,335 1,230 \n(1) \nIncludes total Citi revenues, net of interest expense (excluding \nCorporate/Other\n), in North America of $34.4 billion, $34.4 billion and $37.1 billion; in EMEA of',
+            'Legacy Franchises\nCorporate/Other\nTotal Citi\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\nIn millions of \ndollars, except \nidentifiable assets, \naverage loans and \naverage deposits in \nbillions\nNet interest \nincome\n$ 17,911 \n$ 14,999 $ 15,750 \n$ 22,656 \n$ 20,646 $ 22,326 \n$ 5,691 \n$ 6,250 $ 6,973 \n$ 2,410 \n$ 599 $ (298) \n$ 48,668 \n$ 42,494 $ 44,751 \nNon-interest \nrevenue\n23,295 \n24,837 25,343 \n1,561 \n2,681 2,814 \n2,781 \n2,001 2,481 \n(967) \n(129) \n112 \n26,670 \n29,390 30,750',
+            'Personal Banking and Wealth Management\n24,217 \n23,327 \n25,140 \n4 \n(7) \nLegacy Franchises\n8,472 \n8,251 \n9,454 \n3 \n(13) \nCorporate/Other\n1,443 \n470 \n(186) \nNM\nNM\nTotal Citigroup net revenues\n$ \n75,338 \n$ \n71,884 $ \n75,501 \n5 %\n(5) %\nNM Not meaningful\nINCOME\n% Change\n% Change\n2022 vs. 2021\n2021 vs. 2020\nIn millions of dollars\n2022\n2021\n2020\nIncome (loss) from continuing operations\nInstitutional Clients Group\n$ \n10,738 \n$ \n14,308 $ \n10,811 \n(25) %\n32 %\nPersonal Banking and Wealth Management\n3,319 \n7,734 \n1,322',
+            '(2)\n307 \n(140) \n(59) \nNM\nNM\nTotal Banking revenues (including gains (losses) on loan \nhedges)\n(2)\n$ \n6,071 \n$ \n9,378 $ \n7,233 \n(35) %\n30 %\nTotal \nICG\nrevenues, net of interest expense\n$ \n41,206 \n$ \n39,836 $ \n41,093 \n3 %\n(3) %\n(1) \nCiti assesses its Markets business performance on a total revenue basis, as offsets may occur across revenue line items. For example, securities that generate \nNet \ninterest income\nmay be risk managed by derivatives that are recorded in \nPrincipal transactions\nrevenue within',
+            'higher revenues. Citigroup’s effective tax rate was 19.4% in \nthe current year versus 19.8% in the prior year. Earnings per \nshare (EPS) decreased 31%, reflecting the decrease in net \nincome, partially offset by a 4% decline in average diluted \nshares outstanding.\nAs discussed above, results for 2022 included divestiture-\n•\nCiti’s revenues increased 5% versus the prior year, \nincluding net gains on sales of Citi’s Philippines and \nThailand consumer banking businesses versus a loss on',
+            'Citigroup reported net income of $14.8 billion, or $7.00 per \nshare, compared to net income of $22.0 billion, or $10.14 per \nshare in the prior year. The decrease in net income was \nprimarily driven by the higher cost of credit, resulting from \nloan growth in \nPersonal Banking and Wealth Management \n(PBWM)\nand a deterioration in macroeconomic assumptions, \n3\nPolicies and Significant Estimates—Citi’s Allowance for \nCredit Losses (ACL)” below.\nNet credit losses of $3.8 billion decreased 23% from the',
+            'The Company’s operating leases, where Citi is a lessor, \nCommercial and industrial\n$ \n56,176 \n$ \n48,364 \nare not significant to the Consolidated Financial Statements.\nFinancial institutions\n43,399 \n49,804 \nMortgage and real estate\n(2)\n17,829 \n15,965 \nInstallment and other\n23,767 \n20,143 \nLease financing\n308 \n415 \nTotal\n$ \n141,479 \n$ \n134,691 \nIn offices outside North America\n(1)\nCommercial and industrial\n$ \n93,967 \n$ \n102,735 \nFinancial institutions\n21,931 \n22,158 \nMortgage and real estate\n(2)\n4,179 \n4,374',
+            '$1.8 billion in assets, including $1.2 billion of loans (net of allowance of $80 million) and excluding goodwill. The total amount of liabilities was $1.3 billion, \nincluding $1.2 billion in deposits. The sale resulted in a pretax gain on sale of approximately $618 million ($290 million after-tax), subject to closing adjustments, \nrecorded in \nOther revenue\n. The income before taxes shown in the above table for the Philippines reflects Citi’s ownership through August 1, 2022.\n(4)',
+            'net interest income—taxable equivalent basis\n(1)\n$ \n43,660 \n$ \n37,519 \n$ \n39,739 \n(1) \nInterest revenue\nand \nNet interest income\ninclude the taxable equivalent adjustments discussed in the table above.\nCiti’s net interest income in the fourth quarter of 2022 was \n$13.3 billion (also $13.3 billion on a taxable equivalent basis), \nan increase of $2.5 billion versus the prior year, primarily \ndriven by non-\nICG\nMarkets (approximately $2.2 billion), as \nICG\nMarkets was largely unchanged (up approximately $0.3',
+            'Corporate/Other\nin 2022, see “\nCorporate/Other\n” below.\n7% versus the prior year. Branded cards revenues of $8.9 \nbillion increased 9%, driven by higher net interest income. In \nBranded cards, new account acquisitions increased 11%, card \nspend volumes increased 16% and average loans increased \n11%. Retail services revenues of $5.5 billion increased 7%, \n5\nCITI’S CONSENT ORDER COMPLIANCE\nCiti has embarked on a multiyear transformation, with the \ntarget outcome to change Citi’s business and operating models',
+            '$ (38,765) \n$ (32,058) $ (36,318) \nCitigroup’s total other comprehensive income (loss)\n(8,297) \n(6,707) \n4,260 \nBalance, end of year\n$ (47,062) \n$ (38,765) $ (32,058) \nTotal Citigroup common stockholders’ equity\n$ 182,194 \n$ 182,977 $ 179,962 \n1,936,986 \n1,984,355 2,082,089 \nTotal Citigroup stockholders’ equity\n$ 201,189 \n$ 201,972 $ 199,442 \nNoncontrolling interests\nBalance, beginning of year\n$ \n700 \n$ \n758 $ \n704 \nTransactions between Citigroup and the noncontrolling-interest \nshareholders\n(34) \n(10)',
+            'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$ \n14,845 \n$ \n21,952 $ \n11,047 \nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$ \n(5,384) \n$ \n(3,934) $ \n3,585 \nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029 \n232 \n(475) \nNet change in cash flow hedges, net of taxes\n(2,623) \n(1,492)',
+            'Efficiency ratio (total operating expenses/total revenues, net)\n68.1 \n67.0 \n58.8 \n57.0 \n58.1 \nBasel III ratios\nCET1 Capital\n(4)\n13.03 %\n12.25 %\n11.51 %\n11.79 %\n11.86 %\nTier 1 Capital\n(4)\n14.80 \n13.91 \n13.06 \n13.33 \n13.43 \nTotal Capital\n(4)\n15.46 \n16.04 \n15.33 \n15.87 \n16.14 \nSupplementary Leverage ratio\n5.82 \n5.73 \n6.99 \n6.20 \n6.40 \nCitigroup common stockholders’ equity to assets\n7.54 %\n7.99 %\n7.96 %\n8.98 %\n9.27 %\nTotal Citigroup stockholders’ equity to assets\n8.33 \n8.81 \n8.82 \n9.90 \n10.23',
+            'to contractually based performance thresholds that, if met, \nwould require Citi to make ongoing payments to the partner. \nThe threshold is based on the profitability of a program and is \ngenerally calculated based on predefined program revenues \n166\nThe following table presents \nCommissions and fees\nrevenue:\n2022\n2021\n2020\nIn millions of \ndollars\nICG\nPBWM\nLF\nTotal\nICG\nPBWM\nLF\nTotal\nICG\nPBWM\nLF\nTotal\nInvestment \nbanking\n$ 3,084 $ \n— $ \n— $ 3,084 \n$ 6,007 $ \n— $ \n— $ 6,007 $ 4,483 $ \n— $ \n— $ 4,483',
+            '$742 billion and $684 billion; in Latin America of $184 billion, $179 billion and $180 billion; and in Asia of $588 billion, $572 billion and $572 billion in 2022, \n2021 and 2020, respectively. These regional numbers exclude \nCorporate/Other\n, which largely reflects U.S. activities. The Company’s long-lived assets for the \nperiods presented are not considered to be significant in relation to its total assets. The majority of Citi’s long-lived assets are located in the U.S.\n164',
+            '32,517 \n58,170 \nMortgage-backed securities\n33,573 \n— \n33,573 \nAsset-backed securities\n1,681 \n— \n1,681 \nOther\n4,026 \n58 \n4,084 \nTotal\n$ \n305,597 $ \n33,029 $ \n338,626 \n193\n12. BROKERAGE RECEIVABLES AND BROKERAGE \nPAYABLES\nThe Company has receivables and payables for financial \ninstruments sold to and purchased from brokers, dealers and \ncustomers, which arise in the ordinary course of business. Citi \nis exposed to risk of loss from the inability of brokers, dealers',
+            'Payables to customers\n$ \n55,747 \n$ \n52,158 \nPayables to brokers, dealers and \nclearing organizations\n13,471 \n9,272 \nTotal brokerage payables\n(1)\n$ \n69,218 \n$ \n61,430 \n(1) Includes brokerage receivables and payables recorded by Citi broker-\ndealer entities that are accounted for in accordance with the AICPA \nAccounting Guide for Brokers and Dealers in Securities as codified in \nASC 940-320.\n194\n13. INVESTMENTS\nThe following table presents Citi’s investments by category:\nDecember 31,\nIn millions of dollars',
+            'investment banking fees generated across the industry (i.e., the \nrevenue wallet) from investment banking transactions in \nM&A, equity and debt underwriting, and loan syndications.\n326\nNotes\n327\nNotes\n328\nNotes\n329\nNotes\n330\nNotes\n331\nNotes\n332\nNotes\n333\nStockholder information\nExchange agent\nCitigroup common stock is listed on the NYSE under the \nticker symbol “C.” Citigroup preferred stock Series J and K \nare also listed on the NYSE.\nHolders of Golden State Bancorp, Associates First Capital',
+            'Non-U.S. pretax earnings approximated $16.2 billion in 2022, \n$12.9 billion in 2021 and $13.8 billion in 2020. As a U.S. \ncorporation, Citigroup and its U.S. subsidiaries are currently \nsubject to U.S. taxation on all non-U.S. pretax earnings of \nnon-U.S. branches. Beginning in 2018, there is a separate \nforeign tax credit (FTC) basket for branches. Also, dividends \nfrom a non-U.S. subsidiary or affiliate are effectively exempt \nfrom U.S. taxation. The Company provides income taxes on',
+            'Total comprehensive income\n$ \n15,307 $ \n3,050 $ \n13,286 $ \n(16,270) $ \n15,373 \n308\nCondensed Consolidating Balance Sheet\nDecember 31, 2022\nOther \nCitigroup \nCitigroup \nsubsidiaries \nparent \nand \nCitigroup \ncompany\nCGMHI\neliminations\nConsolidating \nadjustments\nconsolidated\nIn millions of dollars\nAssets\nCash and due from banks\n$ \n— $ \n955 $ \n29,622 $ \n— $ \n30,577 \nCash and due from banks—intercompany\n15 \n7,448 \n(7,463) \n— \n— \nDeposits with banks, net of allowance\n— \n7,902 \n303,546 \n— \n311,448',
+            '817 $ \n852 \nIn billions of dollars\n4Q22\n3Q22\n4Q21\nLegacy Franchises\n(1)\n$ \n50 \n$ \n50 $ \n74 \nCorporate/Other\n$ \n32 \n$ \n21 $ \n7 \nPersonal Banking and Wealth \nManagement\nU.S. Retail banking\n$ \n37 \n$ \n36 $ \n34 \nTotal Citigroup deposits (AVG)\n$ 1,361 \n$ 1,316 $ 1,370 \nU.S. Cards\n143 \n138 \n128 \nTotal Citigroup deposits (EOP)\n$ 1,366 \n$ 1,306 $ 1,317 \nGlobal Wealth\n150 \n151 \n150 \nTotal\n$ \n330 \n$ \n325 $ \n312 \n(1)\nSee footnote 2 to the table in “Credit Risk—Consumer Credit—\nConsumer Credit Portfolio” above.',
+            'Citigroup Inc. and Consolidated Subsidiaries\nIn millions of dollars, except per share amounts, ratios and direct staff\n2022\n2021\n2020\n2019\n2018\nAt December 31:\nTotal assets\n$ 2,416,676 \n$ 2,291,413 \n$ 2,260,090 \n$ 1,951,158 \n$ 1,917,383 \nTotal deposits \n1,365,954 \n1,317,230 \n1,280,671 \n1,070,590 \n1,013,170 \nLong-term debt\n271,606 \n254,374 \n271,686 \n248,760 \n231,999 \nCitigroup common stockholders’ equity\n182,194 \n182,977 \n179,962 \n175,262 \n177,760 \nTotal Citigroup stockholders’ equity\n201,189 \n201,972',
+            'Net income from continuing operations (for EPS purposes)\n$ \n15,076 \n$ \n21,945 $ \n11,067 \nLoss from discontinued operations, net of taxes\n(231) \n7 \n(20) \nCitigroup’s net income\n$ \n14,845 \n$ \n21,952 $ \n11,047 \nLess: Preferred dividends\n(1)\n1,032 \n1,040 \n1,095 \nNet income available to common shareholders\n$ \n13,813 \n$ \n20,912 $ \n9,952 \nLess: Dividends and undistributed earnings allocated to employee restricted and deferred shares \nwith rights to dividends, applicable to basic EPS\n113 \n154 \n73',
+            'During 2022, emerging markets revenues accounted for \napproximately 37% of Citi’s total revenues (Citi generally \ndefines emerging markets as countries in Latin America, Asia \n(other than Japan, Australia and New Zealand), and central \nand Eastern Europe, the Middle East and Africa in EMEA). \nCiti’s presence in the emerging markets subjects it to various \nrisks, such as limitations or unavailability of hedges on foreign \ninvestments; foreign currency volatility, including',
+            'On November 1, 2022, Citi completed the sale of its Thailand consumer banking business, which was part of \nLegacy Franchises\n. The business had approximately \n$2.7 billion in assets, including $2.4 billion of loans (net of allowance of $67 million) and excluding goodwill. The total amount of liabilities was $1.0 billion, \nincluding $0.8 billion in deposits. The sale resulted in a pretax gain on sale of approximately $209 million ($115 million after-tax), subject to closing adjustments, \nrecorded in']
+        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+            expected_return_number = 10
+            tokens_expected = 1500
+        else:
+            expected_return_number = 24
+            tokens_expected = 3500
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        assert counts['llm'] > tokens_expected, counts['llm']
+        print('counts ', counts)
+        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        print('countsall ', countsall)
+    else:
+        texts = [
+            'Efficiency ratio (total operating expenses/total revenues, net)\n68.1\n67.0\n58.8\n57.0\n58.1\nBasel III ratios\nCET1 Capital\n(4)\n13.03 %\n12.25 %\n11.51 %\n11.79 %\n11.86 %\nTier 1 Capital\n(4)\n14.80\n13.91\n13.06\n13.33\n13.43\nTotal Capital\n(4)\n15.46\n16.04\n15.33\n15.87\n16.14\nSupplementary Leverage ratio\n5.82\n5.73\n6.99\n6.20\n6.40\nCitigroup common stockholders’ equity to assets\n7.54 %\n7.99 %\n7.96 %\n8.98 %\n9.27 %\nTotal Citigroup stockholders’ equity to assets\n8.33\n8.81\n8.82\n9.90\n10.23',
+            'Payables to customers\n$\n55,747\n$\n52,158\nPayables to brokers, dealers and\nclearing organizations\n13,471\n9,272\nTotal brokerage payables\n(1)\n$\n69,218\n$\n61,430\n(1) Includes brokerage receivables and payables recorded by Citi broker-\ndealer entities that are accounted for in accordance with the AICPA\nAccounting Guide for Brokers and Dealers in Securities as codified in\nASC 940-320.\n194\n13. INVESTMENTS\nThe following table presents Citi’s investments by category:\nDecember 31,\nIn millions of dollars',
+            'Payables to customers\n$\n55,747\n$\n52,158\nPayables to brokers, dealers and\nclearing organizations\n13,471\n9,272\nTotal brokerage payables\n(1)\n$\n69,218\n$\n61,430\n(1) Includes brokerage receivables and payables recorded by Citi broker-\ndealer entities that are accounted for in accordance with the AICPA\nAccounting Guide for Brokers and Dealers in Securities as codified in\nASC 940-320.\n194\n13. INVESTMENTS\nThe following table presents Citi’s investments by category:\nDecember 31,\nIn millions of dollars',
+            'Corporate/Other\nin 2022, see “\nCorporate/Other\n” below.\n7% versus the prior year. Branded cards revenues of $8.9\nbillion increased 9%, driven by higher net interest income. In\nBranded cards, new account acquisitions increased 11%, card\nspend volumes increased 16% and average loans increased\n11%. Retail services revenues of $5.5 billion increased 7%,\n5\nCITI’S CONSENT ORDER COMPLIANCE\nCiti has embarked on a multiyear transformation, with the\ntarget outcome to change Citi’s business and operating models',
+            'Corporate/Other\nin 2022, see “\nCorporate/Other\n” below.\n7% versus the prior year. Branded cards revenues of $8.9\nbillion increased 9%, driven by higher net interest income. In\nBranded cards, new account acquisitions increased 11%, card\nspend volumes increased 16% and average loans increased\n11%. Retail services revenues of $5.5 billion increased 7%,\n5\nCITI’S CONSENT ORDER COMPLIANCE\nCiti has embarked on a multiyear transformation, with the\ntarget outcome to change Citi’s business and operating models',
+            'Citigroup Inc. and Consolidated Subsidiaries\nIn millions of dollars, except per share amounts, ratios and direct staff\n2022\n2021\n2020\n2019\n2018\nAt December 31:\nTotal assets\n$ 2,416,676\n$ 2,291,413\n$ 2,260,090\n$ 1,951,158\n$ 1,917,383\nTotal deposits\n1,365,954\n1,317,230\n1,280,671\n1,070,590\n1,013,170\nLong-term debt\n271,606\n254,374\n271,686\n248,760\n231,999\nCitigroup common stockholders’ equity\n182,194\n182,977\n179,962\n175,262\n177,760\nTotal Citigroup stockholders’ equity\n201,189\n201,972',
+            'Citigroup Inc. and Consolidated Subsidiaries\nIn millions of dollars, except per share amounts, ratios and direct staff\n2022\n2021\n2020\n2019\n2018\nAt December 31:\nTotal assets\n$ 2,416,676\n$ 2,291,413\n$ 2,260,090\n$ 1,951,158\n$ 1,917,383\nTotal deposits\n1,365,954\n1,317,230\n1,280,671\n1,070,590\n1,013,170\nLong-term debt\n271,606\n254,374\n271,686\n248,760\n231,999\nCitigroup common stockholders’ equity\n182,194\n182,977\n179,962\n175,262\n177,760\nTotal Citigroup stockholders’ equity\n201,189\n201,972',
+            '32,517\n58,170\nMortgage-backed securities\n33,573\n—\n33,573\nAsset-backed securities\n1,681\n—\n1,681\nOther\n4,026\n58\n4,084\nTotal\n$\n305,597 $\n33,029 $\n338,626\n193\n12. BROKERAGE RECEIVABLES AND BROKERAGE\nPAYABLES\nThe Company has receivables and payables for financial\ninstruments sold to and purchased from brokers, dealers and\ncustomers, which arise in the ordinary course of business. Citi\nis exposed to risk of loss from the inability of brokers, dealers',
+            '32,517\n58,170\nMortgage-backed securities\n33,573\n—\n33,573\nAsset-backed securities\n1,681\n—\n1,681\nOther\n4,026\n58\n4,084\nTotal\n$\n305,597 $\n33,029 $\n338,626\n193\n12. BROKERAGE RECEIVABLES AND BROKERAGE\nPAYABLES\nThe Company has receivables and payables for financial\ninstruments sold to and purchased from brokers, dealers and\ncustomers, which arise in the ordinary course of business. Citi\nis exposed to risk of loss from the inability of brokers, dealers',
+            'Total comprehensive income\n$\n15,307 $\n3,050 $\n13,286 $\n(16,270) $\n15,373\n308\nCondensed Consolidating Balance Sheet\nDecember 31, 2022\nOther\nCitigroup\nCitigroup\nsubsidiaries\nparent\nand\nCitigroup\ncompany\nCGMHI\neliminations\nConsolidating\nadjustments\nconsolidated\nIn millions of dollars\nAssets\nCash and due from banks\n$\n— $\n955 $\n29,622 $\n— $\n30,577\nCash and due from banks—intercompany\n15\n7,448\n(7,463)\n—\n—\nDeposits with banks, net of allowance\n—\n7,902\n303,546\n—\n311,448',
+            'Total comprehensive income\n$\n15,307 $\n3,050 $\n13,286 $\n(16,270) $\n15,373\n308\nCondensed Consolidating Balance Sheet\nDecember 31, 2022\nOther\nCitigroup\nCitigroup\nsubsidiaries\nparent\nand\nCitigroup\ncompany\nCGMHI\neliminations\nConsolidating\nadjustments\nconsolidated\nIn millions of dollars\nAssets\nCash and due from banks\n$\n— $\n955 $\n29,622 $\n— $\n30,577\nCash and due from banks—intercompany\n15\n7,448\n(7,463)\n—\n—\nDeposits with banks, net of allowance\n—\n7,902\n303,546\n—\n311,448',
+            'its right as a clearing member to transform cash margin into\nother assets, (iii) Citi does not guarantee and is not liable to\nthe client for the performance of the CCP or the depository\ninstitution and (iv) the client cash balances are legally isolated\nfrom Citi’s bankruptcy estate. The total amount of cash initial\nmargin collected and remitted in this manner was\napproximately $18.0 billion and $18.7 billion as of\nDecember 31, 2022 and 2021, respectively.',
+            'its right as a clearing member to transform cash margin into\nother assets, (iii) Citi does not guarantee and is not liable to\nthe client for the performance of the CCP or the depository\ninstitution and (iv) the client cash balances are legally isolated\nfrom Citi’s bankruptcy estate. The total amount of cash initial\nmargin collected and remitted in this manner was\napproximately $18.0 billion and $18.7 billion as of\nDecember 31, 2022 and 2021, respectively.',
+            '817 $\n852\nIn billions of dollars\n4Q22\n3Q22\n4Q21\nLegacy Franchises\n(1)\n$\n50\n$\n50 $\n74\nCorporate/Other\n$\n32\n$\n21 $\n7\nPersonal Banking and Wealth\nManagement\nU.S. Retail banking\n$\n37\n$\n36 $\n34\nTotal Citigroup deposits (AVG)\n$ 1,361\n$ 1,316 $ 1,370\nU.S. Cards\n143\n138\n128\nTotal Citigroup deposits (EOP)\n$ 1,366\n$ 1,306 $ 1,317\nGlobal Wealth\n150\n151\n150\nTotal\n$\n330\n$\n325 $\n312\n(1)\nSee footnote 2 to the table in “Credit Risk—Consumer Credit—\nConsumer Credit Portfolio” above.',
+            '$14.9 billion, $13.4 billion and $13.4 billion; in Latin America of $9.9 billion, $9.2 billion and $9.4 billion; and in Asia of $14.7 billion, $14.4 billion and\n$15.8 billion in 2022, 2021 and 2020, respectively. These regional numbers exclude\nCorporate/Other\n, which largely reflects U.S. activities.\n(2)\nIncludes total Citi identifiable assets (excluding\nCorporate/Other\n), in North America of $776 billion, $709 billion and $741 billion; in EMEA of $773 billion,',
+            'Revenues, net of interest expense\n$\n75,338\n$\n71,884 $\n75,501 $\n75,067 $\n74,036\nOperating expenses\n51,292\n48,193\n44,374\n42,783\n43,023\nProvisions for credit losses and for benefits and claims\n5,239\n(3,778)\n17,495\n8,383\n7,568\nIncome from continuing operations before income taxes\n$\n18,807\n$\n27,469 $\n13,632 $\n23,901 $\n23,445\nIncome taxes\n3,642\n5,451\n2,525\n4,430\n5,357\nIncome from continuing operations\n$\n15,165\n$\n22,018 $\n11,107 $\n19,471 $\n18,088',
+            'Revenues, net of interest expense\n$\n75,338\n$\n71,884 $\n75,501 $\n75,067 $\n74,036\nOperating expenses\n51,292\n48,193\n44,374\n42,783\n43,023\nProvisions for credit losses and for benefits and claims\n5,239\n(3,778)\n17,495\n8,383\n7,568\nIncome from continuing operations before income taxes\n$\n18,807\n$\n27,469 $\n13,632 $\n23,901 $\n23,445\nIncome taxes\n3,642\n5,451\n2,525\n4,430\n5,357\nIncome from continuing operations\n$\n15,165\n$\n22,018 $\n11,107 $\n19,471 $\n18,088',
+            'approximately $400 million ($345 million after-tax) related to\nare inherently limited because they involve techniques,\nincluding the use of historical data in many circumstances,\nassumptions and judgments that cannot anticipate every\neconomic and financial outcome in the markets in which Citi\noperates, nor can they anticipate the specifics and timing of\n49\ninterconnectedness among financial institutions, concerns\nabout the creditworthiness of or defaults by a financial',
+            'approximately $400 million ($345 million after-tax) related to\nare inherently limited because they involve techniques,\nincluding the use of historical data in many circumstances,\nassumptions and judgments that cannot anticipate every\neconomic and financial outcome in the markets in which Citi\noperates, nor can they anticipate the specifics and timing of\n49\ninterconnectedness among financial institutions, concerns\nabout the creditworthiness of or defaults by a financial',
+            'to contractually based performance thresholds that, if met,\nwould require Citi to make ongoing payments to the partner.\nThe threshold is based on the profitability of a program and is\ngenerally calculated based on predefined program revenues\n166\nThe following table presents\nCommissions and fees\nrevenue:\n2022\n2021\n2020\nIn millions of\ndollars\nICG\nPBWM\nLF\nTotal\nICG\nPBWM\nLF\nTotal\nICG\nPBWM\nLF\nTotal\nInvestment\nbanking\n$ 3,084 $\n— $\n— $ 3,084\n$ 6,007 $\n— $\n— $ 6,007 $ 4,483 $\n— $\n— $ 4,483',
+            'to contractually based performance thresholds that, if met,\nwould require Citi to make ongoing payments to the partner.\nThe threshold is based on the profitability of a program and is\ngenerally calculated based on predefined program revenues\n166\nThe following table presents\nCommissions and fees\nrevenue:\n2022\n2021\n2020\nIn millions of\ndollars\nICG\nPBWM\nLF\nTotal\nICG\nPBWM\nLF\nTotal\nICG\nPBWM\nLF\nTotal\nInvestment\nbanking\n$ 3,084 $\n— $\n— $ 3,084\n$ 6,007 $\n— $\n— $ 6,007 $ 4,483 $\n— $\n— $ 4,483',
+            'On November 1, 2022, Citi completed the sale of its Thailand consumer banking business, which was part of\nLegacy Franchises\n. The business had approximately\n$2.7 billion in assets, including $2.4 billion of loans (net of allowance of $67 million) and excluding goodwill. The total amount of liabilities was $1.0 billion,\nincluding $0.8 billion in deposits. The sale resulted in a pretax gain on sale of approximately $209 million ($115 million after-tax), subject to closing adjustments,\nrecorded in',
+            'On November 1, 2022, Citi completed the sale of its Thailand consumer banking business, which was part of\nLegacy Franchises\n. The business had approximately\n$2.7 billion in assets, including $2.4 billion of loans (net of allowance of $67 million) and excluding goodwill. The total amount of liabilities was $1.0 billion,\nincluding $0.8 billion in deposits. The sale resulted in a pretax gain on sale of approximately $209 million ($115 million after-tax), subject to closing adjustments,\nrecorded in',
+            'Efficiency ratio (total operating expenses/total revenues, net)\n68.1\n67.0\n58.8\n57.0\n58.1\nBasel III ratios\nCET1 Capital\n(4)\n13.03 %\n12.25 %\n11.51 %\n11.79 %\n11.86 %\nTier 1 Capital\n(4)\n14.80\n13.91\n13.06\n13.33\n13.43\nTotal Capital\n(4)\n15.46\n16.04\n15.33\n15.87\n16.14\nSupplementary Leverage ratio\n5.82\n5.73\n6.99\n6.20\n6.40\nCitigroup common stockholders’ equity to assets\n7.54 %\n7.99 %\n7.96 %\n8.98 %\n9.27 %\nTotal Citigroup stockholders’ equity to assets\n8.33\n8.81\n8.82\n9.90\n10.23',
+            'The Company’s operating leases, where Citi is a lessor,\nCommercial and industrial\n$\n56,176\n$\n48,364\nare not significant to the Consolidated Financial Statements.\nFinancial institutions\n43,399\n49,804\nMortgage and real estate\n(2)\n17,829\n15,965\nInstallment and other\n23,767\n20,143\nLease financing\n308\n415\nTotal\n$\n141,479\n$\n134,691\nIn offices outside North America\n(1)\nCommercial and industrial\n$\n93,967\n$\n102,735\nFinancial institutions\n21,931\n22,158\nMortgage and real estate\n(2)\n4,179\n4,374',
+            '464 $\n453\n$\n97\n$ 125 $ 131\n$\n96\n$ 89 $\n84\n$ 2,417\n$ 2,291 $ 2,260\nAverage loans\n291\n287\n298\n321\n307\n304\n41\n74\n83\n—\n—\n—\n653\n668\n685\nAverage deposits\n830\n828\n780\n435\n417\n358\n52\n82\n81\n16\n8\n11\n1,333\n1,335 1,230\n(1)\nIncludes total Citi revenues, net of interest expense (excluding\nCorporate/Other\n), in North America of $34.4 billion, $34.4 billion and $37.1 billion; in EMEA of',
+            '$14.9 billion, $13.4 billion and $13.4 billion; in Latin America of $9.9 billion, $9.2 billion and $9.4 billion; and in Asia of $14.7 billion, $14.4 billion and\n$15.8 billion in 2022, 2021 and 2020, respectively. These regional numbers exclude\nCorporate/Other\n, which largely reflects U.S. activities.\n(2)\nIncludes total Citi identifiable assets (excluding\nCorporate/Other\n), in North America of $776 billion, $709 billion and $741 billion; in EMEA of $773 billion,',
+            'Legacy Franchises\nCorporate/Other\nTotal Citi\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\nIn millions of\ndollars, except\nidentifiable assets,\naverage loans and\naverage deposits in\nbillions\nNet interest\nincome\n$ 17,911\n$ 14,999 $ 15,750\n$ 22,656\n$ 20,646 $ 22,326\n$ 5,691\n$ 6,250 $ 6,973\n$ 2,410\n$ 599 $ (298)\n$ 48,668\n$ 42,494 $ 44,751\nNon-interest\nrevenue\n23,295\n24,837 25,343\n1,561\n2,681 2,814\n2,781\n2,001 2,481\n(967)\n(129)\n112\n26,670\n29,390 30,750',
+            'Legacy Franchises\nCorporate/Other\nTotal Citi\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\n2022\n2021\n2020\nIn millions of\ndollars, except\nidentifiable assets,\naverage loans and\naverage deposits in\nbillions\nNet interest\nincome\n$ 17,911\n$ 14,999 $ 15,750\n$ 22,656\n$ 20,646 $ 22,326\n$ 5,691\n$ 6,250 $ 6,973\n$ 2,410\n$ 599 $ (298)\n$ 48,668\n$ 42,494 $ 44,751\nNon-interest\nrevenue\n23,295\n24,837 25,343\n1,561\n2,681 2,814\n2,781\n2,001 2,481\n(967)\n(129)\n112\n26,670\n29,390 30,750',
+            'Personal Banking and Wealth Management\n24,217\n23,327\n25,140\n4\n(7)\nLegacy Franchises\n8,472\n8,251\n9,454\n3\n(13)\nCorporate/Other\n1,443\n470\n(186)\nNM\nNM\nTotal Citigroup net revenues\n$\n75,338\n$\n71,884 $\n75,501\n5 %\n(5) %\nNM Not meaningful\nINCOME\n% Change\n% Change\n2022 vs. 2021\n2021 vs. 2020\nIn millions of dollars\n2022\n2021\n2020\nIncome (loss) from continuing operations\nInstitutional Clients Group\n$\n10,738\n$\n14,308 $\n10,811\n(25) %\n32 %\nPersonal Banking and Wealth Management\n3,319\n7,734\n1,322',
+            'Personal Banking and Wealth Management\n24,217\n23,327\n25,140\n4\n(7)\nLegacy Franchises\n8,472\n8,251\n9,454\n3\n(13)\nCorporate/Other\n1,443\n470\n(186)\nNM\nNM\nTotal Citigroup net revenues\n$\n75,338\n$\n71,884 $\n75,501\n5 %\n(5) %\nNM Not meaningful\nINCOME\n% Change\n% Change\n2022 vs. 2021\n2021 vs. 2020\nIn millions of dollars\n2022\n2021\n2020\nIncome (loss) from continuing operations\nInstitutional Clients Group\n$\n10,738\n$\n14,308 $\n10,811\n(25) %\n32 %\nPersonal Banking and Wealth Management\n3,319\n7,734\n1,322',
+            '(2)\n307\n(140)\n(59)\nNM\nNM\nTotal Banking revenues (including gains (losses) on loan\nhedges)\n(2)\n$\n6,071\n$\n9,378 $\n7,233\n(35) %\n30 %\nTotal\nICG\nrevenues, net of interest expense\n$\n41,206\n$\n39,836 $\n41,093\n3 %\n(3) %\n(1)\nCiti assesses its Markets business performance on a total revenue basis, as offsets may occur across revenue line items. For example, securities that generate\nNet\ninterest income\nmay be risk managed by derivatives that are recorded in\nPrincipal transactions\nrevenue within',
+            '(2)\n307\n(140)\n(59)\nNM\nNM\nTotal Banking revenues (including gains (losses) on loan\nhedges)\n(2)\n$\n6,071\n$\n9,378 $\n7,233\n(35) %\n30 %\nTotal\nICG\nrevenues, net of interest expense\n$\n41,206\n$\n39,836 $\n41,093\n3 %\n(3) %\n(1)\nCiti assesses its Markets business performance on a total revenue basis, as offsets may occur across revenue line items. For example, securities that generate\nNet\ninterest income\nmay be risk managed by derivatives that are recorded in\nPrincipal transactions\nrevenue within',
+            '$1.8 billion in assets, including $1.2 billion of loans (net of allowance of $80 million) and excluding goodwill. The total amount of liabilities was $1.3 billion,\nincluding $1.2 billion in deposits. The sale resulted in a pretax gain on sale of approximately $618 million ($290 million after-tax), subject to closing adjustments,\nrecorded in\nOther revenue\n. The income before taxes shown in the above table for the Philippines reflects Citi’s ownership through August 1, 2022.\n(4)',
+            '$1.8 billion in assets, including $1.2 billion of loans (net of allowance of $80 million) and excluding goodwill. The total amount of liabilities was $1.3 billion,\nincluding $1.2 billion in deposits. The sale resulted in a pretax gain on sale of approximately $618 million ($290 million after-tax), subject to closing adjustments,\nrecorded in\nOther revenue\n. The income before taxes shown in the above table for the Philippines reflects Citi’s ownership through August 1, 2022.\n(4)',
+            'Citigroup reported net income of $14.8 billion, or $7.00 per\nshare, compared to net income of $22.0 billion, or $10.14 per\nshare in the prior year. The decrease in net income was\nprimarily driven by the higher cost of credit, resulting from\nloan growth in\nPersonal Banking and Wealth Management\n(PBWM)\nand a deterioration in macroeconomic assumptions,\n3\nPolicies and Significant Estimates—Citi’s Allowance for\nCredit Losses (ACL)” below.\nNet credit losses of $3.8 billion decreased 23% from the',
+            'Citigroup reported net income of $14.8 billion, or $7.00 per\nshare, compared to net income of $22.0 billion, or $10.14 per\nshare in the prior year. The decrease in net income was\nprimarily driven by the higher cost of credit, resulting from\nloan growth in\nPersonal Banking and Wealth Management\n(PBWM)\nand a deterioration in macroeconomic assumptions,\n3\nPolicies and Significant Estimates—Citi’s Allowance for\nCredit Losses (ACL)” below.\nNet credit losses of $3.8 billion decreased 23% from the',
+            'The Company’s operating leases, where Citi is a lessor,\nCommercial and industrial\n$\n56,176\n$\n48,364\nare not significant to the Consolidated Financial Statements.\nFinancial institutions\n43,399\n49,804\nMortgage and real estate\n(2)\n17,829\n15,965\nInstallment and other\n23,767\n20,143\nLease financing\n308\n415\nTotal\n$\n141,479\n$\n134,691\nIn offices outside North America\n(1)\nCommercial and industrial\n$\n93,967\n$\n102,735\nFinancial institutions\n21,931\n22,158\nMortgage and real estate\n(2)\n4,179\n4,374',
+            '464 $\n453\n$\n97\n$ 125 $ 131\n$\n96\n$ 89 $\n84\n$ 2,417\n$ 2,291 $ 2,260\nAverage loans\n291\n287\n298\n321\n307\n304\n41\n74\n83\n—\n—\n—\n653\n668\n685\nAverage deposits\n830\n828\n780\n435\n417\n358\n52\n82\n81\n16\n8\n11\n1,333\n1,335 1,230\n(1)\nIncludes total Citi revenues, net of interest expense (excluding\nCorporate/Other\n), in North America of $34.4 billion, $34.4 billion and $37.1 billion; in EMEA of',
+            '$ (38,765)\n$ (32,058) $ (36,318)\nCitigroup’s total other comprehensive income (loss)\n(8,297)\n(6,707)\n4,260\nBalance, end of year\n$ (47,062)\n$ (38,765) $ (32,058)\nTotal Citigroup common stockholders’ equity\n$ 182,194\n$ 182,977 $ 179,962\n1,936,986\n1,984,355 2,082,089\nTotal Citigroup stockholders’ equity\n$ 201,189\n$ 201,972 $ 199,442\nNoncontrolling interests\nBalance, beginning of year\n$\n700\n$\n758 $\n704\nTransactions between Citigroup and the noncontrolling-interest\nshareholders\n(34)\n(10)',
+            '$ (38,765)\n$ (32,058) $ (36,318)\nCitigroup’s total other comprehensive income (loss)\n(8,297)\n(6,707)\n4,260\nBalance, end of year\n$ (47,062)\n$ (38,765) $ (32,058)\nTotal Citigroup common stockholders’ equity\n$ 182,194\n$ 182,977 $ 179,962\n1,936,986\n1,984,355 2,082,089\nTotal Citigroup stockholders’ equity\n$ 201,189\n$ 201,972 $ 199,442\nNoncontrolling interests\nBalance, beginning of year\n$\n700\n$\n758 $\n704\nTransactions between Citigroup and the noncontrolling-interest\nshareholders\n(34)\n(10)',
+            'net interest income—taxable equivalent basis\n(1)\n$\n43,660\n$\n37,519\n$\n39,739\n(1)\nInterest revenue\nand\nNet interest income\ninclude the taxable equivalent adjustments discussed in the table above.\nCiti’s net interest income in the fourth quarter of 2022 was\n$13.3 billion (also $13.3 billion on a taxable equivalent basis),\nan increase of $2.5 billion versus the prior year, primarily\ndriven by non-\nICG\nMarkets (approximately $2.2 billion), as\nICG\nMarkets was largely unchanged (up approximately $0.3',
+            'net interest income—taxable equivalent basis\n(1)\n$\n43,660\n$\n37,519\n$\n39,739\n(1)\nInterest revenue\nand\nNet interest income\ninclude the taxable equivalent adjustments discussed in the table above.\nCiti’s net interest income in the fourth quarter of 2022 was\n$13.3 billion (also $13.3 billion on a taxable equivalent basis),\nan increase of $2.5 billion versus the prior year, primarily\ndriven by non-\nICG\nMarkets (approximately $2.2 billion), as\nICG\nMarkets was largely unchanged (up approximately $0.3',
+            'higher revenues. Citigroup’s effective tax rate was 19.4% in\nthe current year versus 19.8% in the prior year. Earnings per\nshare (EPS) decreased 31%, reflecting the decrease in net\nincome, partially offset by a 4% decline in average diluted\nshares outstanding.\nAs discussed above, results for 2022 included divestiture-\n•\nCiti’s revenues increased 5% versus the prior year,\nincluding net gains on sales of Citi’s Philippines and\nThailand consumer banking businesses versus a loss on',
+            'higher revenues. Citigroup’s effective tax rate was 19.4% in\nthe current year versus 19.8% in the prior year. Earnings per\nshare (EPS) decreased 31%, reflecting the decrease in net\nincome, partially offset by a 4% decline in average diluted\nshares outstanding.\nAs discussed above, results for 2022 included divestiture-\n•\nCiti’s revenues increased 5% versus the prior year,\nincluding net gains on sales of Citi’s Philippines and\nThailand consumer banking businesses versus a loss on',
+            '$742 billion and $684 billion; in Latin America of $184 billion, $179 billion and $180 billion; and in Asia of $588 billion, $572 billion and $572 billion in 2022,\n2021 and 2020, respectively. These regional numbers exclude\nCorporate/Other\n, which largely reflects U.S. activities. The Company’s long-lived assets for the\nperiods presented are not considered to be significant in relation to its total assets. The majority of Citi’s long-lived assets are located in the U.S.\n164',
+            '$742 billion and $684 billion; in Latin America of $184 billion, $179 billion and $180 billion; and in Asia of $588 billion, $572 billion and $572 billion in 2022,\n2021 and 2020, respectively. These regional numbers exclude\nCorporate/Other\n, which largely reflects U.S. activities. The Company’s long-lived assets for the\nperiods presented are not considered to be significant in relation to its total assets. The majority of Citi’s long-lived assets are located in the U.S.\n164',
+            'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$\n14,845\n$\n21,952 $\n11,047\nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$\n(5,384)\n$\n(3,934) $\n3,585\nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029\n232\n(475)\nNet change in cash flow hedges, net of taxes\n(2,623)\n(1,492)',
+            'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$\n14,845\n$\n21,952 $\n11,047\nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$\n(5,384)\n$\n(3,934) $\n3,585\nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029\n232\n(475)\nNet change in cash flow hedges, net of taxes\n(2,623)\n(1,492)',
+            '817 $\n852\nIn billions of dollars\n4Q22\n3Q22\n4Q21\nLegacy Franchises\n(1)\n$\n50\n$\n50 $\n74\nCorporate/Other\n$\n32\n$\n21 $\n7\nPersonal Banking and Wealth\nManagement\nU.S. Retail banking\n$\n37\n$\n36 $\n34\nTotal Citigroup deposits (AVG)\n$ 1,361\n$ 1,316 $ 1,370\nU.S. Cards\n143\n138\n128\nTotal Citigroup deposits (EOP)\n$ 1,366\n$ 1,306 $ 1,317\nGlobal Wealth\n150\n151\n150\nTotal\n$\n330\n$\n325 $\n312\n(1)\nSee footnote 2 to the table in “Credit Risk—Consumer Credit—\nConsumer Credit Portfolio” above.']
+        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+            expected_return_number = 10
+            tokens_expected = 1500
+        else:
+            expected_return_number = 24
+            tokens_expected = 3500
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        assert counts['llm'] > tokens_expected, counts['llm']
+        print('counts ', counts)
+        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        print('countsall ', countsall)
     langchain_mode = "UserData"
+    embed = False
+    chunk = False
+    chunk_size = 512
     res = client.predict(texts,
-                         langchain_mode, True, 512, False,
+                         langchain_mode, chunk, chunk_size, embed,
                          None, None, None, None,
                          api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
-    assert all([x in res[2] for x in texts])
+    if data_kind == 'simple':
+        # else won't show entire string, so can't check this
+        assert all([x in res[2] for x in texts])
     assert res[3] == ''
 
     from src.gpt_langchain import load_embed
@@ -1479,7 +1603,7 @@ def test_client_chat_stream_langchain_fake_embeddings():
     assert 'response' in res_dict and res_dict['response']
     sources = res_dict['sources']
     texts_out = [x['content'] for x in sources]
-    assert texts == texts_out
+    assert texts[:expected_return_number] == texts_out
 
 
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
@@ -1677,6 +1801,7 @@ def test_client_summarization_from_url(url, top_k_docs):
         assert 'Accurate embeddings for private offline databases' in summary \
                or 'private offline database' in summary \
                or 'H2OGPT is an open-source project' in summary \
+               or 'H2O GPT is an open-source project' in summary \
                or 'is an open-source project for document Q/A' in summary \
                or 'h2oGPT is an open-source project' in summary
         assert 'h2oGPT' in [x['content'] for x in sources][0]
@@ -1739,6 +1864,7 @@ def test_fastsys(stream_output, bits, prompt_type):
 
     # ask for summary, need to use same client if using MyData
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    instruction = "What is Whisper?"
     kwargs = dict(langchain_mode=langchain_mode,
                   langchain_action="Query",
                   top_k_docs=4,
@@ -1748,9 +1874,8 @@ def test_fastsys(stream_output, bits, prompt_type):
                   max_time=300,
                   do_sample=False,
                   stream_output=stream_output,
-                  instruction="What is Whisper?",
                   )
-    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    res_dict, client = run_client_gen(client, instruction, None, kwargs)
     response = res_dict['response']
     if bits is None:
         assert """Whisper is a machine learning model developed by OpenAI for speech recognition. It is trained on large amounts of text data from the internet and uses a minimalist approach to data pre-processing, relying on the expressiveness of sequence-to-sequence models to learn to map between words in a transcript. The model is designed to be able to predict the raw text of transcripts without any significant standardization, allowing it to learn to map between words in different languages without having to rely on pre-trained models.""" in response or \

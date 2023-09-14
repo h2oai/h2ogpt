@@ -111,6 +111,7 @@ def go_gradio(**kwargs):
     hf_embedding_model = kwargs['hf_embedding_model']
     load_db_if_exists = kwargs['load_db_if_exists']
     migrate_embedding_model = kwargs['migrate_embedding_model']
+    auto_migrate_db = kwargs['auto_migrate_db']
     captions_model = kwargs['captions_model']
     caption_loader = kwargs['caption_loader']
 
@@ -564,29 +565,59 @@ def go_gradio(**kwargs):
                 df2.columns = ['Collection', 'Type']
                 df2 = df2.set_index('Collection')
 
-                from src.gpt_langchain import get_persist_directory
+                from src.gpt_langchain import get_persist_directory, load_embed
                 persist_directory_dict = {}
+                embed_dict = {}
+                chroma_version_dict = {}
                 for langchain_mode3 in langchain_mode_types:
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
                     persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
                                                                                 langchain_type=langchain_type3)
+                    got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(
+                        persist_directory=persist_directory3)
                     persist_directory_dict[langchain_mode3] = persist_directory3
+                    embed_dict[langchain_mode3] = 'OpenAI' if not hf_embedding_model3 else hf_embedding_model3
+
+                    if os.path.isfile(os.path.join(persist_directory3, 'chroma.sqlite3')):
+                        chroma_version_dict[langchain_mode3] = 'ChromaDB>=0.4'
+                    elif os.path.isdir(os.path.join(persist_directory3, 'index')):
+                        chroma_version_dict[langchain_mode3] = 'ChromaDB<0.4'
+                    elif not os.listdir(persist_directory3):
+                        if db_type == 'chroma':
+                            chroma_version_dict[langchain_mode3] = 'ChromaDB>=0.4'  # will be
+                        else:
+                            chroma_version_dict[langchain_mode3] = 'Weaviate'  # will be
+                        if isinstance(hf_embedding_model, dict):
+                            hf_embedding_model3 = hf_embedding_model['name']
+                        else:
+                            hf_embedding_model3 = hf_embedding_model
+                        assert isinstance(hf_embedding_model3, str)
+                        embed_dict[langchain_mode3] = hf_embedding_model3  # will be
+                    else:
+                        chroma_version_dict[langchain_mode3] = 'Weaviate'
 
                 df3 = pd.DataFrame.from_dict(persist_directory_dict.items(), orient='columns')
                 df3.columns = ['Collection', 'Directory']
                 df3 = df3.set_index('Collection')
+
+                df4 = pd.DataFrame.from_dict(embed_dict.items(), orient='columns')
+                df4.columns = ['Collection', 'Embedding']
+                df4 = df4.set_index('Collection')
+
+                df5 = pd.DataFrame.from_dict(chroma_version_dict.items(), orient='columns')
+                df5.columns = ['Collection', 'DB']
+                df5 = df5.set_index('Collection')
             else:
                 df2 = pd.DataFrame(None)
                 df3 = pd.DataFrame(None)
-            if df1.shape[1] > 0 and df2.shape[1] > 0 and df2.shape[1] > 0:
-                df_tmp = df2.join(df1, on='Collection').replace(np.nan, '')
-                df = df_tmp.join(df3, on='Collection').replace(np.nan, '')
-                df = df.reset_index()
-            elif df2.shape[1] > 0 and df2.shape[1] > 0:
-                df = df2.join(df3, on='Collection').replace(np.nan, '')
-                df = df.reset_index()
-            elif df1.shape[1] > 0:
-                df = df1.reset_index()
+                df4 = pd.DataFrame(None)
+                df5 = pd.DataFrame(None)
+            df_list = [df2, df1, df3, df4, df5]
+            df_list = [x for x in df_list if x.shape[1] > 0]
+            if len(df_list) > 1:
+                df = df_list[0].join(df_list[1:]).replace(np.nan, '').reset_index()
+            elif len(df_list) == 0:
+                df = df_list[0].replace(np.nan, '').reset_index()
             else:
                 df = pd.DataFrame(None)
             return df
@@ -660,7 +691,11 @@ def go_gradio(**kwargs):
                 visible_doc_track = upload_visible and kwargs['visible_doc_track']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:
-                    text_doc_count = gr.Textbox(lines=2, label="Doc Counts", value="Docs: 0\nChunks: 0",
+                    if kwargs['langchain_mode'] in langchain_modes_non_db:
+                        doc_counts_str = "Pure LLM Mode"
+                    else:
+                        doc_counts_str = "Name: %s\nDocs: Unset\nChunks: Unset" % kwargs['langchain_mode']
+                    text_doc_count = gr.Textbox(lines=3, label="Doc Counts", value=doc_counts_str,
                                                 visible=visible_doc_track)
                     text_file_last = gr.Textbox(lines=1, label="Newest Doc", value=None, visible=visible_doc_track)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
@@ -705,9 +740,10 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     with gr.Row(elem_id="prompt-form-row"):
+                                        label_instruction = 'Ask anything'
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
-                                            label='Ask anything',
+                                            label=label_instruction,
                                             placeholder=instruction_label,
                                             info=None,
                                             elem_id='prompt-form',
@@ -764,8 +800,15 @@ def go_gradio(**kwargs):
                 doc_selection_tab = gr.TabItem("Document Selection") \
                     if kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
                 with doc_selection_tab:
+                    if kwargs['langchain_mode'] in langchain_modes_non_db:
+                        dlabel1 = 'Choose Resources->Collections and Pick Collection'
+                        active_collection = gr.Markdown(value="#### Not Chatting with Any Collection\n%s" % dlabel1)
+                    else:
+                        dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
+                        active_collection = gr.Markdown(
+                            value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
                     document_choice = gr.Dropdown(docs_state0,
-                                                  label="Select Subset of Document(s) for Chat",
+                                                  label=dlabel1,
                                                   value=[DocumentChoice.ALL.value],
                                                   interactive=True,
                                                   multiselect=True,
@@ -812,11 +855,16 @@ def go_gradio(**kwargs):
                                                                    label='Purge Collection (UI, DB, & source files)',
                                                                    placeholder=remove_placeholder,
                                                                    interactive=True)
-                            sync_sources_btn = gr.Button(value="Synchronize DB and UI [only required if did not login and have shared docs]", scale=0, size='sm',
-                                                         visible=sources_visible and allow_upload_to_user_data and not kwargs['large_file_count_mode'])
-                            load_langchain = gr.Button(value="Load Collections State [only required if logged in another user ", scale=0, size='sm',
-                                                       visible=False and allow_upload_to_user_data and
-                                                               kwargs['langchain_mode'] != 'Disabled')
+                            sync_sources_btn = gr.Button(
+                                value="Synchronize DB and UI [only required if did not login and have shared docs]",
+                                scale=0, size='sm',
+                                visible=sources_visible and allow_upload_to_user_data and not kwargs[
+                                    'large_file_count_mode'])
+                            load_langchain = gr.Button(
+                                value="Load Collections State [only required if logged in another user ", scale=0,
+                                size='sm',
+                                visible=False and allow_upload_to_user_data and
+                                        kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
                             if kwargs['langchain_mode'] != 'Disabled' and visible_add_remove_collection:
                                 df0 = get_df_langchain_mode_paths(selection_docs_state0)
@@ -1427,6 +1475,7 @@ def go_gradio(**kwargs):
                                            use_openai_embedding=use_openai_embedding,
                                            hf_embedding_model=hf_embedding_model,
                                            migrate_embedding_model=migrate_embedding_model,
+                                           auto_migrate_db=auto_migrate_db,
                                            captions_model=captions_model,
                                            caption_loader=caption_loader,
                                            verbose=kwargs['verbose'],
@@ -1541,16 +1590,25 @@ def go_gradio(**kwargs):
                                          use_openai_embedding=use_openai_embedding,
                                          hf_embedding_model=hf_embedding_model,
                                          migrate_embedding_model=migrate_embedding_model,
+                                         auto_migrate_db=auto_migrate_db,
                                          verbose=verbose,
                                          get_userid_auth=get_userid_auth,
                                          n_jobs=n_jobs,
                                          )
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
-        def clear_doc_choice():
-            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value)
+        def clear_doc_choice(langchain_mode1):
+            if langchain_mode1 in langchain_modes_non_db:
+                label1 = 'Choose Resources->Collections and Pick Collection'
+                active_collection1 = "#### Not Chatting with Any Collection\n%s" % label1
+            else:
+                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
+                active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
+            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value,
+                                      label=label1), gr.Markdown.update(value=active_collection1)
 
-        lg_change_event = langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice,
+        lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
+                                                outputs=[document_choice, active_collection],
                                                 queue=not kwargs['large_file_count_mode'])
 
         def change_visible_llama(x):
@@ -1625,6 +1683,7 @@ def go_gradio(**kwargs):
                                           use_openai_embedding=use_openai_embedding,
                                           hf_embedding_model=hf_embedding_model,
                                           migrate_embedding_model=migrate_embedding_model,
+                                          auto_migrate_db=auto_migrate_db,
                                           verbose=verbose,
                                           get_userid_auth=get_userid_auth,
                                           n_jobs=n_jobs)
@@ -1648,6 +1707,7 @@ def go_gradio(**kwargs):
                                                   use_openai_embedding=use_openai_embedding,
                                                   hf_embedding_model=hf_embedding_model,
                                                   migrate_embedding_model=migrate_embedding_model,
+                                                  auto_migrate_db=auto_migrate_db,
                                                   verbose=kwargs['verbose'],
                                                   get_userid_auth=get_userid_auth,
                                                   n_jobs=n_jobs)
@@ -1674,7 +1734,8 @@ def go_gradio(**kwargs):
                      db_type1=None,
                      use_openai_embedding1=None,
                      hf_embedding_model1=None,
-                     migrate_embedding_model1=None,
+                     migrate_embedding_model_or_db1=None,
+                     auto_migrate_db1=None,
                      verbose1=False,
                      get_userid_auth1=None,
                      max_raw_chunks=1000000,
@@ -1697,24 +1758,28 @@ def go_gradio(**kwargs):
                                 db_type=db_type1,
                                 use_openai_embedding=use_openai_embedding1,
                                 hf_embedding_model=hf_embedding_model1,
-                                migrate_embedding_model=migrate_embedding_model1,
+                                migrate_embedding_model=migrate_embedding_model_or_db1,
+                                auto_migrate_db=auto_migrate_db1,
                                 for_sources_list=True,
                                 verbose=verbose1,
                                 n_jobs=n_jobs,
                                 )
                 query_action = False  # long chunks like would be used for summarize
                 # the below is as or filter, so will show doc or by chunk, unrestricted
-                one_filter = \
-                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                           "chunk_id": {
-                                                                                               "$eq": -1}}
-                     for x in document_choice1][0]
                 if view_raw_text_checkbox1:
-                    # like or, full raw all chunk types
-                    filter_kwargs = dict(filter=one_filter)
+                    one_filter = \
+                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                               "chunk_id": {
+                                                                                                   "$gte": -1}}
+                         for x in document_choice1][0]
                 else:
-                    filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
-                                                          dict(chunk_id=one_filter['chunk_id'])]})
+                    one_filter = \
+                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                               "chunk_id": {
+                                                                                                   "$eq": -1}}
+                         for x in document_choice1][0]
+                filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                      dict(chunk_id=one_filter['chunk_id'])]})
                 db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
                 # order documents
                 from langchain.docstore.document import Document
@@ -1869,7 +1934,8 @@ def go_gradio(**kwargs):
                                           db_type1=db_type,
                                           use_openai_embedding1=use_openai_embedding,
                                           hf_embedding_model1=hf_embedding_model,
-                                          migrate_embedding_model1=migrate_embedding_model,
+                                          migrate_embedding_model_or_db1=migrate_embedding_model,
+                                          auto_migrate_db1=auto_migrate_db,
                                           verbose1=verbose,
                                           get_userid_auth1=get_userid_auth,
                                           max_raw_chunks=kwargs['max_raw_chunks'],
@@ -1900,6 +1966,7 @@ def go_gradio(**kwargs):
                                              hf_embedding_model=hf_embedding_model,
                                              use_openai_embedding=use_openai_embedding,
                                              migrate_embedding_model=migrate_embedding_model,
+                                             auto_migrate_db=auto_migrate_db,
                                              text_limit=kwargs['text_limit'],
                                              db_type=db_type,
                                              load_db_if_exists=load_db_if_exists,
@@ -1933,6 +2000,7 @@ def go_gradio(**kwargs):
                                             use_openai_embedding=use_openai_embedding,
                                             hf_embedding_model=hf_embedding_model,
                                             migrate_embedding_model=migrate_embedding_model,
+                                            auto_migrate_db=auto_migrate_db,
                                             verbose=verbose,
                                             get_userid_auth=get_userid_auth,
                                             n_jobs=n_jobs)
@@ -1986,9 +2054,10 @@ def go_gradio(**kwargs):
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             if success1:
                 requests_state1['username'] = username1
+            label_instruction1 = 'Ask anything, %s' % requests_state1['username']
             return db1s, selection_docs_state1, requests_state1, chat_state1, \
                 text_result, \
-                gr.update(label='Ask anything, %s' % requests_state1['username']), \
+                gr.update(label=label_instruction1), \
                 df_langchain_mode_paths1, \
                 gr.update(choices=list(chat_state1.keys()), value=None), \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -2245,6 +2314,7 @@ def go_gradio(**kwargs):
                                     use_openai_embedding=use_openai_embedding,
                                     hf_embedding_model=hf_embedding_model,
                                     migrate_embedding_model=migrate_embedding_model,
+                                    auto_migrate_db=auto_migrate_db,
                                     verbose=verbose,
                                     get_userid_auth=get_userid_auth,
                                     n_jobs=n_jobs)
@@ -4136,6 +4206,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    use_openai_embedding=None,
                    hf_embedding_model=None,
                    migrate_embedding_model=None,
+                   auto_migrate_db=None,
                    verbose=False,
                    get_userid_auth=None,
                    api=False,
@@ -4149,13 +4220,18 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
+                    auto_migrate_db=auto_migrate_db,
                     verbose=verbose,
                     get_userid_auth=get_userid_auth,
                     n_jobs=n_jobs,
                     )
     if api:
         return source_list
-    return sources_file, source_list, "Docs: %d\nChunks: %d" % (len(source_list), num_chunks)
+    if langchain_mode in langchain_modes_non_db:
+        doc_counts_str = "LLM Mode\nNo Collection"
+    else:
+        doc_counts_str = "Collection: %s\nDocs: %d\nChunks: %d" % (langchain_mode, len(source_list), num_chunks)
+    return sources_file, source_list, doc_counts_str
 
 
 def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1,
@@ -4166,6 +4242,7 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              use_openai_embedding=None,
                                              hf_embedding_model=None,
                                              migrate_embedding_model=None,
+                                             auto_migrate_db=None,
                                              verbose=False,
                                              get_userid_auth=None,
                                              n_jobs=-1):
@@ -4178,6 +4255,7 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  use_openai_embedding=use_openai_embedding,
                                                  hf_embedding_model=hf_embedding_model,
                                                  migrate_embedding_model=migrate_embedding_model,
+                                                 auto_migrate_db=auto_migrate_db,
                                                  verbose=verbose,
                                                  get_userid_auth=get_userid_auth,
                                                  delete_sources=False,
@@ -4192,6 +4270,7 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              use_openai_embedding=None,
                                              hf_embedding_model=None,
                                              migrate_embedding_model=None,
+                                             auto_migrate_db=None,
                                              verbose=False,
                                              get_userid_auth=None,
                                              n_jobs=-1):
@@ -4204,6 +4283,7 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  use_openai_embedding=use_openai_embedding,
                                                  hf_embedding_model=hf_embedding_model,
                                                  migrate_embedding_model=migrate_embedding_model,
+                                                 auto_migrate_db=auto_migrate_db,
                                                  verbose=verbose,
                                                  get_userid_auth=get_userid_auth,
                                                  delete_sources=True,
@@ -4227,6 +4307,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         hf_embedding_model=None,
                                                         use_openai_embedding=None,
                                                         migrate_embedding_model=None,
+                                                        auto_migrate_db=None,
                                                         text_limit=None,
                                                         db_type=None, load_db_if_exists=None,
                                                         n_jobs=None, verbose=None, get_userid_auth=None,
@@ -4260,6 +4341,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                             hf_embedding_model=hf_embedding_model,
                                                             use_openai_embedding=use_openai_embedding,
                                                             migrate_embedding_model=migrate_embedding_model,
+                                                            auto_migrate_db=auto_migrate_db,
                                                             text_limit=text_limit,
                                                             db_type=db_type, load_db_if_exists=load_db_if_exists,
                                                             n_jobs=n_jobs, verbose=verbose,
