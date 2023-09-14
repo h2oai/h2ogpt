@@ -1772,8 +1772,6 @@ def go_gradio(**kwargs):
                                                                                                "chunk_id": {
                                                                                                    "$gte": -1}}
                          for x in document_choice1][0]
-                    # like or, full raw all chunk types
-                    # filter_kwargs = dict(filter=one_filter)
                 else:
                     one_filter = \
                         [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
