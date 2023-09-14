@@ -77,6 +77,10 @@ spec:
                 sleep 5;
               done
 {{- end }}
+      {{- with .Values.vllm.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "h2ogpt.fullname" . }}
           securityContext:

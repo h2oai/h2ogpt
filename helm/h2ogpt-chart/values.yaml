@@ -92,18 +92,26 @@ vllm:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
     pullPolicy: IfNotPresent
 
+  imagePullSecrets:
+    - name: docker-creds
+
   storage:
     size: 512Gi
     class: ebs-csi
   
   overrideConfig:
-    base_model: h2oai/h2ogpt-4096-llama2-7b-chat
-    tokenizer: hf-internal-testing/llama-tokenizer
-    tensor_parallel_size: llama2
-    seed: 1234
-    trust_remote_code: True
+    CUDA_VISIBLE_DEVICES: "0,1"
 
   containerArgs:
+    - "--model"
+    - h2oai/h2ogpt-4096-llama2-7b-chat
+    - "--tokenizer"
+    - hf-internal-testing/llama-tokenizer
+    - "--tensor-parallel-size"
+    - 2
+    - "--seed"
+    - 1234
+    - "--trust-remote-code"
 
   service:
     type: ClusterIP
@@ -124,8 +132,15 @@ vllm:
     seccompProfile:
 
   resources:
+
   nodeSelector:
+    hac.h2o.ai/accelerator: training-gpu
+
   tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "training-gpu"
+      effect: "NoSchedule"
 
   podAnnotations: {}
   podLabels: {}
