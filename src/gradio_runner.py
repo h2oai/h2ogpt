@@ -586,7 +586,12 @@ def go_gradio(**kwargs):
                             chroma_version_dict[langchain_mode3] = 'ChromaDB>=0.4'  # will be
                         else:
                             chroma_version_dict[langchain_mode3] = 'Weaviate'  # will be
-                        embed_dict[langchain_mode3] = hf_embedding_model  # will be
+                        if isinstance(hf_embedding_model, dict):
+                            hf_embedding_model3 = hf_embedding_model['name']
+                        else:
+                            hf_embedding_model3 = hf_embedding_model
+                        assert isinstance(hf_embedding_model3, str)
+                        embed_dict[langchain_mode3] = hf_embedding_model3  # will be
                     else:
                         chroma_version_dict[langchain_mode3] = 'Weaviate'
 
@@ -606,7 +611,7 @@ def go_gradio(**kwargs):
                 df3 = pd.DataFrame(None)
                 df4 = pd.DataFrame(None)
                 df5 = pd.DataFrame(None)
-            df_list = [df1, df2, df3, df4, df5]
+            df_list = [df2, df1, df3, df4, df5]
             df_list = [x for x in df_list if x.shape[1] > 0]
             if len(df_list) > 1:
                 df = df_list[0].join(df_list[1:]).replace(np.nan, '').reset_index()
