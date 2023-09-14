@@ -4,18 +4,7 @@
 
 #### Option 1: Use old Chroma for old DBs
 
-Do not migrate for old databases by using these wheels:
-  ```bash
-    pip install chroma-migrate==0.0.7 duckdb==0.7.1
-    pip install https://h2o-release.s3.amazonaws.com/h2ogpt/chromamigdb-0.3.25-py3-none-any.whl --force-reinstall --no-deps
-    pip install https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz --force-reinstall --no-deps
-  ```
-For optional thread handling use our duckdb with old chroma:
-  ```bash
-  # Uninstall duckdb and use own so can control thread count per db
-  python3.10 -m pip uninstall -y pyduckdb duckdb && \
-  python3.10 -m pip install https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/duckdb-0.8.2.dev4026%2Bgdcd8c1ffc5-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall
-  ```
+Do nothing as user.  h2oGPT will by default not migrate for old databases.  This is the default way handled internally by requirements added in `requirements_optional_langchain.txt` by adding special wheels for old versions of chromadb and hnswlib, handling migration better than chromadb itself.
 
 #### Option 2: Automatically Migrate
 
