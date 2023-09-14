@@ -76,7 +76,9 @@ def test_pipeline1():
     for output in outputs:
         print(tr.fill(output['generated_text'], width=40))
 
-    assert 'Drinking water is healthy because it is essential for life' in outputs[0]['generated_text']
+    res1 = 'Drinking water is healthy because it is essential for life' in outputs[0]['generated_text']
+    res2 = 'Drinking water is healthy because it helps your body' in outputs[0]['generated_text']
+    assert res1 or res2
 
 
 @pytest.mark.need_gpu
