@@ -2485,9 +2485,11 @@ def check_update_chroma_embedding(db, use_openai_embedding,
                                   langchain_mode, langchain_mode_paths, langchain_mode_types,
                                   n_jobs=-1):
     changed_db = False
-    if load_embed(db=db) not in [(True, use_openai_embedding, hf_embedding_model),
-                                 (False, use_openai_embedding, hf_embedding_model)]:
-        print("Detected new embedding, updating db: %s" % langchain_mode, flush=True)
+    embed_tuple = load_embed(db=db)
+    if embed_tuple not in [(True, use_openai_embedding, hf_embedding_model),
+                           (False, use_openai_embedding, hf_embedding_model)]:
+        print("Detected new embedding %s vs. %s %s, updating db: %s" % (
+            use_openai_embedding, hf_embedding_model, embed_tuple, langchain_mode), flush=True)
         # handle embedding changes
         db_get = get_documents(db)
         sources = [Document(page_content=result[0], metadata=result[1] or {})
@@ -2575,12 +2577,14 @@ def get_existing_db(db, persist_directory,
             except BaseException as e:
                 # migration when no embed_info
                 if 'Dimensionality of (768) does not match index dimensionality (384)' in str(e):
-                    embedding = get_embedding(use_openai_embedding, hf_embedding_model="sentence-transformers/all-MiniLM-L6-v2")
+                    hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+                    embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
                     db = chroma_class(persist_directory=persist_directory, embedding_function=embedding,
                                       collection_name=langchain_mode.replace(' ', '_'),
                                       client_settings=client_settings)
                     # should work now, let fail if not
                     db.similarity_search('')
+                    save_embed(db, use_openai_embedding, hf_embedding_model)
                 else:
                     raise
 
@@ -2672,6 +2676,11 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
 
 
 def load_embed(db=None, persist_directory=None):
+    if hasattr(db, 'embeddings') and hasattr(db.embeddings, 'model_name'):
+        hf_embedding_model = db.embeddings.model_name if 'openai' not in db.embeddings.model_name.lower() else None
+        use_openai_embedding = hf_embedding_model is None
+        save_embed(db, use_openai_embedding, hf_embedding_model)
+        return True, use_openai_embedding, hf_embedding_model
     if persist_directory is None:
         persist_directory = db._persist_directory
     embed_info_file = os.path.join(persist_directory, 'embed_info')

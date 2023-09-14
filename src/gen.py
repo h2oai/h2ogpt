@@ -229,7 +229,7 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         migrate_embedding_model: str = False,
-        auto_migrate_db: bool = True,
+        auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,

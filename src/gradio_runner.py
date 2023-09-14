@@ -565,29 +565,53 @@ def go_gradio(**kwargs):
                 df2.columns = ['Collection', 'Type']
                 df2 = df2.set_index('Collection')
 
-                from src.gpt_langchain import get_persist_directory
+                from src.gpt_langchain import get_persist_directory, load_embed
                 persist_directory_dict = {}
+                embed_dict = {}
+                chroma_version_dict = {}
                 for langchain_mode3 in langchain_mode_types:
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
                     persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
                                                                                 langchain_type=langchain_type3)
+                    got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(persist_directory=persist_directory3)
                     persist_directory_dict[langchain_mode3] = persist_directory3
+                    embed_dict[langchain_mode3] = 'OpenAI' if not hf_embedding_model3 else hf_embedding_model3
+
+                    if os.path.isfile(os.path.join(persist_directory3, 'chroma.sqlite3')):
+                        chroma_version_dict[langchain_mode3] = 'ChromaDB>=0.4'
+                    elif os.path.isdir(os.path.join(persist_directory3, 'index')):
+                        chroma_version_dict[langchain_mode3] = 'ChromaDB<0.4'
+                    elif not os.listdir(persist_directory3):
+                        if db_type == 'chroma':
+                            chroma_version_dict[langchain_mode3] = 'ChromaDB>=0.4'  # will be
+                        else:
+                            chroma_version_dict[langchain_mode3] = 'Weaviate'  # will be
+                        embed_dict[langchain_mode3] = hf_embedding_model  # will be
+                    else:
+                        chroma_version_dict[langchain_mode3] = 'Weaviate'
 
                 df3 = pd.DataFrame.from_dict(persist_directory_dict.items(), orient='columns')
                 df3.columns = ['Collection', 'Directory']
                 df3 = df3.set_index('Collection')
+
+                df4 = pd.DataFrame.from_dict(embed_dict.items(), orient='columns')
+                df4.columns = ['Collection', 'Embedding']
+                df4 = df4.set_index('Collection')
+
+                df5 = pd.DataFrame.from_dict(chroma_version_dict.items(), orient='columns')
+                df5.columns = ['Collection', 'DB']
+                df5 = df5.set_index('Collection')
             else:
                 df2 = pd.DataFrame(None)
                 df3 = pd.DataFrame(None)
-            if df1.shape[1] > 0 and df2.shape[1] > 0 and df2.shape[1] > 0:
-                df_tmp = df2.join(df1, on='Collection').replace(np.nan, '')
-                df = df_tmp.join(df3, on='Collection').replace(np.nan, '')
-                df = df.reset_index()
-            elif df2.shape[1] > 0 and df2.shape[1] > 0:
-                df = df2.join(df3, on='Collection').replace(np.nan, '')
-                df = df.reset_index()
-            elif df1.shape[1] > 0:
-                df = df1.reset_index()
+                df4 = pd.DataFrame(None)
+                df5 = pd.DataFrame(None)
+            df_list = [df1, df2, df3, df4, df5]
+            df_list = [x for x in df_list if x.shape[1] > 0]
+            if len(df_list) > 1:
+                df = df_list[0].join(df_list[1:]).replace(np.nan, '').reset_index()
+            elif len(df_list) == 0:
+                df = df_list[0].replace(np.nan, '').reset_index()
             else:
                 df = pd.DataFrame(None)
             return df
@@ -765,8 +789,14 @@ def go_gradio(**kwargs):
                 doc_selection_tab = gr.TabItem("Document Selection") \
                     if kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
                 with doc_selection_tab:
+                    if kwargs['langchain_mode'] in langchain_modes_non_db:
+                        dlabel1 = 'Choose Resources->Collections and Pick Collection'
+                        active_collection = gr.Markdown(value="#### Not Chatting with Any Collection\n%s" % dlabel1)
+                    else:
+                        dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
+                        active_collection = gr.Markdown(value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
                     document_choice = gr.Dropdown(docs_state0,
-                                                  label="Select Subset of Document(s) for Chat",
+                                                  label=dlabel1,
                                                   value=[DocumentChoice.ALL.value],
                                                   interactive=True,
                                                   multiselect=True,
@@ -1550,10 +1580,18 @@ def go_gradio(**kwargs):
                                          )
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
-        def clear_doc_choice():
-            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value)
+        def clear_doc_choice(langchain_mode1):
+            if langchain_mode1 in langchain_modes_non_db:
+                label1 = 'Choose Resources->Collections and Pick Collection'
+                active_collection1 = "#### Not Chatting with Any Collection\n%s" % label1
+            else:
+                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
+                active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
+            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value,
+                                      label=label1), gr.Markdown.update(value=active_collection1)
 
-        lg_change_event = langchain_mode.change(clear_doc_choice, inputs=None, outputs=document_choice,
+        lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
+                                                outputs=[document_choice, active_collection],
                                                 queue=not kwargs['large_file_count_mode'])
 
         def change_visible_llama(x):
