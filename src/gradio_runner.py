@@ -573,7 +573,8 @@ def go_gradio(**kwargs):
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
                     persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
                                                                                 langchain_type=langchain_type3)
-                    got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(persist_directory=persist_directory3)
+                    got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(
+                        persist_directory=persist_directory3)
                     persist_directory_dict[langchain_mode3] = persist_directory3
                     embed_dict[langchain_mode3] = 'OpenAI' if not hf_embedding_model3 else hf_embedding_model3
 
@@ -690,7 +691,11 @@ def go_gradio(**kwargs):
                 visible_doc_track = upload_visible and kwargs['visible_doc_track']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:
-                    text_doc_count = gr.Textbox(lines=2, label="Doc Counts", value="Docs: 0\nChunks: 0",
+                    if kwargs['langchain_mode'] in langchain_modes_non_db:
+                        doc_counts_str = "Pure LLM Mode"
+                    else:
+                        doc_counts_str = "Name: %s\nDocs: Unset\nChunks: Unset" % kwargs['langchain_mode']
+                    text_doc_count = gr.Textbox(lines=3, label="Doc Counts", value=doc_counts_str,
                                                 visible=visible_doc_track)
                     text_file_last = gr.Textbox(lines=1, label="Newest Doc", value=None, visible=visible_doc_track)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
@@ -735,9 +740,10 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     with gr.Row(elem_id="prompt-form-row"):
+                                        label_instruction = 'Ask anything'
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
-                                            label='Ask anything',
+                                            label=label_instruction,
                                             placeholder=instruction_label,
                                             info=None,
                                             elem_id='prompt-form',
@@ -799,7 +805,8 @@ def go_gradio(**kwargs):
                         active_collection = gr.Markdown(value="#### Not Chatting with Any Collection\n%s" % dlabel1)
                     else:
                         dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
-                        active_collection = gr.Markdown(value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
+                        active_collection = gr.Markdown(
+                            value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
                     document_choice = gr.Dropdown(docs_state0,
                                                   label=dlabel1,
                                                   value=[DocumentChoice.ALL.value],
@@ -848,11 +855,16 @@ def go_gradio(**kwargs):
                                                                    label='Purge Collection (UI, DB, & source files)',
                                                                    placeholder=remove_placeholder,
                                                                    interactive=True)
-                            sync_sources_btn = gr.Button(value="Synchronize DB and UI [only required if did not login and have shared docs]", scale=0, size='sm',
-                                                         visible=sources_visible and allow_upload_to_user_data and not kwargs['large_file_count_mode'])
-                            load_langchain = gr.Button(value="Load Collections State [only required if logged in another user ", scale=0, size='sm',
-                                                       visible=False and allow_upload_to_user_data and
-                                                               kwargs['langchain_mode'] != 'Disabled')
+                            sync_sources_btn = gr.Button(
+                                value="Synchronize DB and UI [only required if did not login and have shared docs]",
+                                scale=0, size='sm',
+                                visible=sources_visible and allow_upload_to_user_data and not kwargs[
+                                    'large_file_count_mode'])
+                            load_langchain = gr.Button(
+                                value="Load Collections State [only required if logged in another user ", scale=0,
+                                size='sm',
+                                visible=False and allow_upload_to_user_data and
+                                        kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
                             if kwargs['langchain_mode'] != 'Disabled' and visible_add_remove_collection:
                                 df0 = get_df_langchain_mode_paths(selection_docs_state0)
@@ -1761,7 +1773,7 @@ def go_gradio(**kwargs):
                                                                                                    "$gte": -1}}
                          for x in document_choice1][0]
                     # like or, full raw all chunk types
-                    #filter_kwargs = dict(filter=one_filter)
+                    # filter_kwargs = dict(filter=one_filter)
                 else:
                     one_filter = \
                         [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
@@ -2044,9 +2056,10 @@ def go_gradio(**kwargs):
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
             if success1:
                 requests_state1['username'] = username1
+            label_instruction1 = 'Ask anything, %s' % requests_state1['username']
             return db1s, selection_docs_state1, requests_state1, chat_state1, \
                 text_result, \
-                gr.update(label='Ask anything, %s' % requests_state1['username']), \
+                gr.update(label=label_instruction1), \
                 df_langchain_mode_paths1, \
                 gr.update(choices=list(chat_state1.keys()), value=None), \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -4216,7 +4229,11 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     )
     if api:
         return source_list
-    return sources_file, source_list, "Docs: %d\nChunks: %d" % (len(source_list), num_chunks)
+    if langchain_mode in langchain_modes_non_db:
+        doc_counts_str = "LLM Mode\nNo Collection"
+    else:
+        doc_counts_str = "Collection: %s\nDocs: %d\nChunks: %d" % (langchain_mode, len(source_list), num_chunks)
+    return sources_file, source_list, doc_counts_str
 
 
 def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1,

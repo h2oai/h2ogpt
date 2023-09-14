@@ -2516,6 +2516,27 @@ def check_update_chroma_embedding(db, use_openai_embedding,
     return db, changed_db
 
 
+def migrate_meta_func(db, langchain_mode):
+    changed_db = False
+    db_get = get_documents(db)
+    # just check one doc
+    if len(db_get['metadatas']) > 0 and 'chunk_id' not in db_get['metadatas'][0]:
+        print("Detected old metadata, adding additional information", flush=True)
+        t0 = time.time()
+        # handle meta changes
+        [x.update(dict(chunk_id=x.get('chunk_id', 0))) for x in db_get['metadatas']]
+        client_collection = db._client.get_collection(name=db._collection.name,
+                                                      embedding_function=db._collection._embedding_function)
+        client_collection.update(ids=db_get['ids'], metadatas=db_get['metadatas'])
+        # check
+        db_get = get_documents(db)
+        assert 'chunk_id' in db_get['metadatas'][0], "Failed to add meta"
+        changed_db = True
+        print("Done updating db for new meta: %s in %s seconds" % (langchain_mode, time.time() - t0), flush=True)
+
+    return db, changed_db
+
+
 def get_existing_db(db, persist_directory,
                     load_db_if_exists, db_type, use_openai_embedding,
                     langchain_mode, langchain_mode_paths, langchain_mode_types,
@@ -2597,10 +2618,6 @@ def get_existing_db(db, persist_directory,
                 got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db)
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
-        if migrate_meta and db is not None:
-            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs=-1)
-            [x.update(dict(chunk_id=x.get('chunk_id', 0))) for x in db_metadatas]
-
         if check_embedding:
             db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding,
                                                                  hf_embedding_model,
@@ -2617,6 +2634,10 @@ def get_existing_db(db, persist_directory,
                     db.persist()
                     clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
+        if migrate_meta and db is not None:
+            db_trial, changed_db = migrate_meta_func(db, langchain_mode)
+            if changed_db:
+                db = db_trial
         return db, use_openai_embedding, hf_embedding_model
     return db, use_openai_embedding, hf_embedding_model
 
