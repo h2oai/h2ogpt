@@ -2637,8 +2637,9 @@ def go_gradio(**kwargs):
 
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
+            # NOTE: Don't allow UI-like access, in case modify state via API
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
-                                     requests_state1=requests_state1)
+                                     requests_state1=None)
             evaluate_local = evaluate if valid_key else evaluate_fake
 
             save_dict = dict()
@@ -3007,9 +3008,8 @@ def go_gradio(**kwargs):
                 # None when not filling with '' to keep client happy
                 return dummy_return
 
-            # NOTE: Don't allow UI-like access, in case modify state via API
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
-                                     requests_state1=None)
+                                     requests_state1=requests_state1)
             evaluate_local = evaluate if valid_key else evaluate_fake
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
