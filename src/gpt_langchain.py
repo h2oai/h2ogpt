@@ -424,6 +424,9 @@ class GradioInference(LLM):
     client: Any = None
     tokenizer: Any = None
 
+    system_prompt: Any = None
+    h2ogpt_key: Any = None
+
     class Config:
         """Configuration for this pydantic object."""
 
@@ -504,6 +507,17 @@ class GradioInference(LLM):
                              chunk_size=chunk_size,
                              document_subset=DocumentSubset.Relevant.name,
                              document_choice=[DocumentChoice.ALL.value],
+                             pre_prompt_query=None,
+                             prompt_query=None,
+                             pre_prompt_summary=None,
+                             prompt_summary=None,
+                             system_prompt=self.system_prompt,
+                             image_loaders=None,  # don't need to further do doc specific things
+                             pdf_loaders=None,  # don't need to further do doc specific things
+                             url_loaders=None,  # don't need to further do doc specific things
+                             jq_schema=None,  # don't need to further do doc specific things
+                             visible_models=None,  # FIXME: control?
+                             h2ogpt_key=self.h2ogpt_key,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         if not stream_output:
@@ -933,6 +947,7 @@ def get_llm(use_openai_model=False,
             iinput=None,
             sanitize_bot_response=False,
             system_prompt='',
+            h2ogpt_key=None,
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
@@ -1103,6 +1118,8 @@ def get_llm(use_openai_model=False,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
                 tokenizer=tokenizer,
+                system_prompt=system_prompt,
+                h2ogpt_key=h2ogpt_key,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -3154,6 +3171,7 @@ def _run_qa_db(query=None,
                prompt_query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
+               h2ogpt_key=None,
                n_jobs=-1,
                llamacpp_dict=None,
                verbose=False,
@@ -3243,6 +3261,7 @@ def _run_qa_db(query=None,
                 iinput=iinput,
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
+                h2ogpt_key=h2ogpt_key,
                 n_jobs=n_jobs,
                 llamacpp_dict=llamacpp_dict,
                 cli=cli,

@@ -52,6 +52,7 @@ def run_eval(  # for local function:
         url_loaders=None,
         jq_schema=None,
         visible_models=None,
+        h2ogpt_key=None,
         # for evaluate kwargs:
         use_system_prompt=None,
         captions_model=None,
