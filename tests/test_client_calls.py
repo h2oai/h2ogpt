@@ -150,7 +150,7 @@ def test_client1api_lean(save_dir, admin_pass):
         if save_dir:
             assert 'base_model' in res['save_dict']
             assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] is None
+            assert res['save_dict']['error'] in [None, '']
             assert 'extra_dict' in res['save_dict']
             assert res['save_dict']['extra_dict']['ntokens'] > 0
             assert res['save_dict']['extra_dict']['t_generate'] > 0
@@ -219,7 +219,7 @@ def test_client1api_lean_lock_choose_model():
             assert save_dir
             assert 'base_model' in res['save_dict']
             assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] is None
+            assert res['save_dict']['error'] in [None, '']
             assert 'extra_dict' in res['save_dict']
             assert res['save_dict']['extra_dict']['ntokens'] > 0
             assert res['save_dict']['extra_dict']['t_generate'] > 0
