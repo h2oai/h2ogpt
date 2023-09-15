@@ -92,19 +92,23 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
 
 
 def is_valid_key(enforce_h2ogpt_api_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
+    valid_key = False
     if not enforce_h2ogpt_api_key:
         # no token barrier
         valid_key = 'not enforced'
-    elif enforce_h2ogpt_api_key and \
-            isinstance(h2ogpt_api_keys, list) and \
-            h2ogpt_key1 in h2ogpt_api_keys:
-        # passed token barrier
-        valid_key = True
-    elif isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
+    else:
+        if isinstance(h2ogpt_api_keys, list) and h2ogpt_key1 in h2ogpt_api_keys:
+            # passed token barrier
+            valid_key = True
+        elif isinstance(h2ogpt_api_keys, str) and os.path.isfile(h2ogpt_api_keys):
+            with filelock.FileLock(h2ogpt_api_keys + '.lock'):
+                with open(h2ogpt_api_keys, 'rt') as f:
+                    h2ogpt_api_keys = json.load(f)
+                if h2ogpt_key1 in h2ogpt_api_keys:
+                    valid_key = True
+    if isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
         # no UI limit currently
         valid_key = True
-    else:
-        valid_key = False
     return valid_key
 
 

@@ -167,7 +167,7 @@ def main(
         auth_message: str = None,
         guest_name: str = "guest",
         enforce_h2ogpt_api_key: bool = None,
-        h2ogpt_api_keys: list = [],
+        h2ogpt_api_keys: Union[list, str] = [],
         h2ogpt_key: str = None,
 
         max_max_time=None,
@@ -459,7 +459,7 @@ def main(
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
-    :param h2ogpt_api_keys: list of tokens allowed for API access
+    :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
     :param h2ogpt_key: Placeholder for default access key, not usually used
 
     :param max_max_time: Maximum max_time for gradio slider
@@ -693,7 +693,7 @@ def main(
     else:
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = False
-    if isinstance(h2ogpt_api_keys, str):
+    if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
         h2ogpt_api_keys = ast.literal_eval(h2ogpt_api_keys)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
