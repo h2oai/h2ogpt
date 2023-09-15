@@ -117,28 +117,7 @@ def make_css_base() -> str:
           padding-right: 70px;
         }
     }
-    
-    #header-links {
-        float: left;
-        justify-content: left;
-        height: 80px;
-        width: 195px;
-        margin-top: 0px;
-    }
-    
-    #main-logo {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 30px;
-        margin-right: 330px;
-        
-        @media (max-width: 463px) {
-          justify-content: flex-end;
-          margin-right: 0;
-          margin-bottom: 0;
-        }
-    }
-    
+
     #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
         display: none !important;
     }
