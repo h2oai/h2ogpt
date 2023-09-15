@@ -2654,7 +2654,13 @@ def go_gradio(**kwargs):
                 for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
                     error = res_dict.get('error', '')
                     extra = res_dict.get('extra', '')
-                    save_dict = res_dict.get('save_dict', {})
+                    save_dict = res_dict.get('save_dict', {}).copy()
+                    if is_public:
+                        # don't want to share actual endpoints
+                        if 'save_dict' in res_dict and isinstance(res_dict['save_dict'], dict):
+                            res_dict['save_dict'].pop('inference_server', None)
+                            if 'extra_dict' in res_dict['save_dict'] and isinstance(res_dict['save_dict']['extra_dict'], dict):
+                                res_dict['save_dict']['extra_dict'].pop('inference_server', None)
                     if str_api:
                         # full return of dict
                         ret = res_dict
