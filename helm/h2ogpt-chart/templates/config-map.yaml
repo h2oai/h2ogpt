@@ -8,7 +8,7 @@ metadata:
     {{- include "h2ogpt.labels" . | nindent 4 }}
 data:
 {{- range $key, $value := .Values.h2ogpt.overrideConfig }}
-  {{ printf "%s" $key | upper }}: {{ $value | quote }}
+  {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
 {{- end }}
 {{- end }}
 ---

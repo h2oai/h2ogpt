@@ -77,6 +77,10 @@ spec:
                 sleep 5;
               done
 {{- end }}
+      {{- with .Values.vllm.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "h2ogpt.fullname" . }}
           securityContext:
@@ -191,7 +195,7 @@ spec:
         - name: {{ include "h2ogpt.fullname" . }}-tgi-inference
           securityContext:
             {{- toYaml .Values.tgi.securityContext | nindent 12 }}
-          image: "{{ .Values.tgi.image.repository }}:{{ .Values.tgi.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.tgi.image.repository }}:{{ .Values.tgi.image.tag }}"
           imagePullPolicy: {{ .Values.tgi.image.pullPolicy }}
           command: []
           args: 
