@@ -1493,7 +1493,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             expected_return_number = 10
             tokens_expected = 1500
         else:
-            expected_return_number = 24
+            expected_return_number = 16  # i.e. out of 25
             tokens_expected = 3500
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1556,7 +1556,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             expected_return_number = 10
             tokens_expected = 1500
         else:
-            expected_return_number = 24
+            expected_return_number = 16
             tokens_expected = 3500
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
