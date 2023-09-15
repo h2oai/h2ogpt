@@ -783,7 +783,7 @@ def go_gradio(**kwargs):
                                                              interactive=True,
                                                              multiselect=True,
                                                              visible=visible_model_choice,
-                                                             elem_id="visible-models",
+                                                             elem_classes="multi-selection",
                                                              )
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
@@ -813,6 +813,7 @@ def go_gradio(**kwargs):
                                                   interactive=True,
                                                   multiselect=True,
                                                   visible=kwargs['langchain_mode'] != 'Disabled',
+                                                  elem_classes="multi-selection"
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
