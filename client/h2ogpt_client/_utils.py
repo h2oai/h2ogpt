@@ -40,6 +40,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     pdf_loaders="pdf_loaders",
     url_loaders="url_loaders",
     jq_schema="jq_schema",
+    visible_models="visible_models",
 )
 
 

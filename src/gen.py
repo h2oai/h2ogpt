@@ -40,7 +40,6 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -171,6 +170,8 @@ def main(
         max_max_time=None,
         max_max_new_tokens=None,
 
+        visible_models: list = None,
+        visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
         visible_doc_track: bool = True,
@@ -228,6 +229,7 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         migrate_embedding_model: str = False,
+        auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -366,6 +368,7 @@ def main(
            Maximum value is 4 due to non-dynamic gradio rendering elements
     :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
            Useful when many endpoints and want to just see what works, but still have to wait for timeout.
+
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
@@ -455,6 +458,15 @@ def main(
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+
+    :param visible_models: Which models in model_lock list to show by default
+           Takes integers of position in model_lock (model_states) list or strings of base_model names
+           Ignored if model_lock not used
+           For nochat API, this is single item within a list for model by name or by index in model_lock
+                                If None, then just use first model in model_lock list
+                                If model_lock not set, use model selected by CLI --base_model etc.
+
+    :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
     :param visible_doc_track: whether left side bar's document tracking is visible when UI first comes up
@@ -540,6 +552,7 @@ def main(
            used to migrate all embeddings to a new one, but will take time to re-embed.
            Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
            If had old database without embedding saved, then hf_embedding_model is also used.
+    :param auto_migrate_db: whether to automatically migrate any chroma<0.4 database from duckdb -> sqlite version
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -654,8 +667,6 @@ def main(
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
-        if len(model_lock) > 1:
-            assert chat, "model_lock only works for multiple models for chat=True"
         assert not cli, "model_lock only supported for cli=False"
         assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
         assert not base_model, "Don't specify model_lock and base_model"
@@ -748,7 +759,8 @@ def main(
         if user_path:
             langchain_mode_paths['UserData'] = user_path
 
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (langchain_action, langchain_actions)
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
+        langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -762,12 +774,14 @@ def main(
             # infer even if don't pass which langchain_mode, just langchain_modes.
             langchain_mode = langchain_modes[0]
         if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
-            print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
+            if verbose:
+                print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
-            print("Auto set langchain_mode=%s.  Could use MyData instead."
-                  "  To allow UserData to pull files from disk,"
-                  " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
-                  flush=True)
+            if verbose:
+                print("Auto set langchain_mode=%s.  Could use MyData instead."
+                      "  To allow UserData to pull files from disk,"
+                      " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
+                      flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
     if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
@@ -993,7 +1007,9 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
-                                    kwargs_make_db=locals())
+                                    auto_migrate_db,
+                                    kwargs_make_db=locals(),
+                                    verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
                 clear_torch_cache()
@@ -1137,6 +1153,15 @@ def main(
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
 
+        if isinstance(visible_models, str):
+            visible_models = ast.literal_eval(visible_models)
+        assert isinstance(visible_models, (type(None), list))
+        all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
+        visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
+                                 visible_models is None or
+                                 x.get('base_model', xi) in visible_models or
+                                 xi in visible_models]
+
         # update to be consistent with what is passed from CLI and model chose
         # do after go over all models if multi-model, so don't contaminate
         # This is just so UI shows reasonable correct value, not 2048 dummy value
@@ -1163,8 +1188,9 @@ def main(
 
         if pre_load_embedding_model and langchain_mode != 'Disabled' and not use_openai_embedding:
             from src.gpt_langchain import get_embedding
-            hf_embedding_model = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                               preload=True)
+            hf_embedding_model = dict(name=hf_embedding_model,
+                                      model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                               preload=True))
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -1944,6 +1970,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
+        visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -1974,6 +2001,7 @@ def evaluate(
         use_openai_model=None,
         hf_embedding_model=None,
         migrate_embedding_model=None,
+        auto_migrate_db=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -2009,6 +2037,7 @@ def evaluate(
     assert use_openai_model is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
+    assert auto_migrate_db is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -2141,6 +2170,15 @@ def evaluate(
     iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
     num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
+    if inference_server and inference_server.startswith('http'):
+        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
+        pass
+    else:
+        # limit so max_new_tokens = prompt + new < max
+        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
+        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
+
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                         use_system_prompt=use_system_prompt)
@@ -2149,7 +2187,8 @@ def evaluate(
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
-    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (langchain_action, langchain_actions)
+    assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
+        langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
@@ -2162,6 +2201,7 @@ def evaluate(
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
+                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -2227,6 +2267,7 @@ def evaluate(
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
+                auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,
@@ -3122,6 +3163,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    None,
                     ]
         # adjust examples if non-chat mode
         if not chat:

@@ -18,8 +18,8 @@ gen_hyper0 = ['num_beams',
               'do_sample',
               ]
 gen_hyper = ['temperature',
-                          'top_p',
-                          'top_k'] + gen_hyper0
+             'top_p',
+             'top_k'] + gen_hyper0
 reader_names = ['image_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema']
 
 eval_func_param_names = ['instruction',
@@ -47,7 +47,8 @@ eval_func_param_names = ['instruction',
                          'prompt_summary',
                          'system_prompt',
                          ] + \
-                        reader_names
+                        reader_names + \
+                        ['visible_models']
 
 # form evaluate defaults for submit_nochat_api
 eval_func_param_names_defaults = eval_func_param_names.copy()
@@ -56,3 +57,8 @@ for k in no_default_param_names:
         eval_func_param_names_defaults.remove(k)
 
 eval_extra_columns = ['prompt', 'response', 'score']
+
+# override default_kwargs if user_kwargs None for args evaluate() uses that are not just in model_state
+# ensure prompt_type consistent with prep_bot(), so nochat API works same way
+# see how default_kwargs is set in gradio_runner.py
+key_overrides = ['prompt_type', 'prompt_dict']
