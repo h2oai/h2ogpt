@@ -72,6 +72,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     # only case when GRADIO_SERVER_PORT and HOST should appear in tests because using 2 gradio instances
     os.environ['GRADIO_SERVER_PORT'] = str(client_port)
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
+
     h2ogpt_key = 'foodoo#'
     main_kwargs = main_kwargs.copy()
     if enforce_h2ogpt_api_key:

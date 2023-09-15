@@ -457,7 +457,23 @@ def go_gradio(**kwargs):
         url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
     jq_schema0 = '.[]'
 
-    with ((demo)):
+    def is_valid_key(h2ogpt_key1, requests_state1=None):
+        if not kwargs['enforce_h2ogpt_api_key']:
+            # no token barrier
+            valid_key = 'not enforced'
+        elif kwargs['enforce_h2ogpt_api_key'] and \
+                isinstance(kwargs['h2ogpt_api_keys'], list) and \
+                h2ogpt_key1 in kwargs['h2ogpt_api_keys']:
+            # passed token barrier
+            valid_key = True
+        elif isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
+            # no UI limit currently
+            valid_key = True
+        else:
+            valid_key = False
+        return valid_key
+
+    with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(
@@ -2614,19 +2630,8 @@ def go_gradio(**kwargs):
 
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
-            if not kwargs['enforce_h2ogpt_api_key']:
-                # no token barrier
-                evaluate_local = evaluate
-                valid_key = None
-            elif kwargs['enforce_h2ogpt_api_key'] and \
-                    isinstance(kwargs['h2ogpt_api_keys'], list) and \
-                    h2ogpt_key1 in kwargs['h2ogpt_api_keys']:
-                # passed token barrier
-                evaluate_local = evaluate
-                valid_key = True
-            else:
-                evaluate_local = evaluate_fake
-                valid_key = False
+            valid_key = is_valid_key(h2ogpt_key1, requests_state1=requests_state1)
+            evaluate_local = evaluate if valid_key else evaluate_fake
 
             save_dict = dict()
             error = ''
@@ -2994,19 +2999,9 @@ def go_gradio(**kwargs):
                 # None when not filling with '' to keep client happy
                 return dummy_return
 
-            if kwargs['enforce_h2ogpt_api_key'] and \
-                    isinstance(kwargs['h2ogpt_api_keys'], list) and \
-                    h2ogpt_key1 in kwargs['h2ogpt_api_keys']:
-                # passed token barrier
-                evaluate_local = evaluate
-                valid_key = True
-            elif isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
-                # no UI limit currently
-                evaluate_local = evaluate
-                valid_key = True
-            else:
-                evaluate_local = evaluate_fake
-                valid_key = False
+            # NOTE: Don't allow UI-like access, in case modify state via API
+            valid_key = is_valid_key(h2ogpt_key1, requests_state1=None)
+            evaluate_local = evaluate if valid_key else evaluate_fake
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
             prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,

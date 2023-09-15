@@ -909,7 +909,8 @@ def test_text_generation_inference_server1():
 @pytest.mark.need_tokens
 @wrap_test_forked
 @pytest.mark.parametrize("loaders", ['all', None])
-def test_client_chat_stream_langchain_steps3(loaders):
+@pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -934,11 +935,17 @@ def test_client_chat_stream_langchain_steps3(loaders):
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
     from src.gen import main
+    main_kwargs = {}
+    h2ogpt_key = 'foodoo#'
+    if enforce_h2ogpt_api_key:
+        main_kwargs.update(dict(enforce_h2ogpt_api_key=True, h2ogpt_api_keys=[h2ogpt_key]))
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
+         enforce_h2ogpt_api_key=enforce_h2ogpt_api_key,
+         **main_kwargs,
          verbose=True)
 
     from src.client_test import get_client, get_args, run_client
@@ -993,7 +1000,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     # QUERY1
     prompt = "Is more text boring?"
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                            h2ogpt_key=h2ogpt_key)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert 'Yes, more text can be boring' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
@@ -1001,7 +1009,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     # QUERY2
     prompt = "What is a universal file format?"
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode2)
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode2,
+                            h2ogpt_key=h2ogpt_key)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert 'PDF' in res_dict['response'] and 'pdf-sample.pdf' in res_dict['response']
