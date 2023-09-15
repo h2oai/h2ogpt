@@ -2170,10 +2170,14 @@ def evaluate(
     iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
     num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
-    # limit so max_new_tokens = prompt + new < max
-    # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
-    max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
+    if inference_server and inference_server.startswith('http'):
+        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
+        pass
+    else:
+        # limit so max_new_tokens = prompt + new < max
+        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
+        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
