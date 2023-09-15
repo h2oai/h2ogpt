@@ -43,7 +43,7 @@ if os.getenv('RAYON_NUM_THREADS') is None:
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -166,6 +166,9 @@ def main(
         auth_freeze: bool = False,
         auth_message: str = None,
         guest_name: str = "guest",
+        enforce_h2ogpt_api_key: bool = None,
+        h2ogpt_api_keys: list = [],
+        h2ogpt_key: str = None,
 
         max_max_time=None,
         max_max_new_tokens=None,
@@ -455,6 +458,9 @@ def main(
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
+    :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
+    :param h2ogpt_api_keys: list of tokens allowed for API access
+    :param h2ogpt_key: Placeholder for default access key, not usually used
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
@@ -682,6 +688,13 @@ def main(
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
     if is_public:
         visible_tos_tab = visible_hosts_tab = True
+        if enforce_h2ogpt_api_key is None:
+            enforce_h2ogpt_api_key = True
+    else:
+        if enforce_h2ogpt_api_key is None:
+            enforce_h2ogpt_api_key = False
+    if isinstance(h2ogpt_api_keys, str):
+        h2ogpt_api_keys = ast.literal_eval(h2ogpt_api_keys)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
@@ -1190,7 +1203,7 @@ def main(
             from src.gpt_langchain import get_embedding
             hf_embedding_model = dict(name=hf_embedding_model,
                                       model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                               preload=True))
+                                                          preload=True))
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -1925,6 +1938,11 @@ def get_score_model(score_model: str = None,
     return smodel, stokenizer, sdevice
 
 
+def evaluate_fake(*args, **kwargs):
+    yield dict(response=invalid_key_msg, sources='')
+    return
+
+
 def evaluate(
         model_state,
         my_db_state,
@@ -1971,6 +1989,7 @@ def evaluate(
         url_loaders,
         jq_schema,
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
+        h2ogpt_key,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2296,6 +2315,7 @@ def evaluate(
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
+                h2ogpt_key=h2ogpt_key,
 
                 **gen_hyper_langchain,
 
@@ -2513,6 +2533,17 @@ def evaluate(
                                      chunk_size=chunk_size,
                                      document_subset=DocumentSubset.Relevant.name,
                                      document_choice=[DocumentChoice.ALL.value],
+                                     pre_prompt_query=pre_prompt_query,
+                                     prompt_query=prompt_query,
+                                     pre_prompt_summary=pre_prompt_summary,
+                                     prompt_summary=prompt_summary,
+                                     system_prompt=system_prompt,
+                                     image_loaders=image_loaders,
+                                     pdf_loaders=pdf_loaders,
+                                     url_loaders=url_loaders,
+                                     jq_schema=jq_schema,
+                                     visible_models=visible_models,
+                                     h2ogpt_key=h2ogpt_key,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3163,6 +3194,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    None,
                     None,
                     ]
         # adjust examples if non-chat mode

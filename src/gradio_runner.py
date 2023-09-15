@@ -50,7 +50,7 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg
+    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -60,7 +60,8 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
-    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list
+    get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
+    evaluate_fake
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -88,6 +89,23 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
                 ts[parti] = ts[parti].replace('\n', '<br>')
         text = '```'.join(ts)
     return text
+
+
+def is_valid_key(enforce_h2ogpt_api_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
+    if not enforce_h2ogpt_api_key:
+        # no token barrier
+        valid_key = 'not enforced'
+    elif enforce_h2ogpt_api_key and \
+            isinstance(h2ogpt_api_keys, list) and \
+            h2ogpt_key1 in h2ogpt_api_keys:
+        # passed token barrier
+        valid_key = True
+    elif isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
+        # no UI limit currently
+        valid_key = True
+    else:
+        valid_key = False
+    return valid_key
 
 
 def go_gradio(**kwargs):
@@ -730,6 +748,7 @@ def go_gradio(**kwargs):
                         score_text_nochat = gr.Textbox("Response Score: NA", show_label=False,
                                                        visible=not kwargs['chat'])
                         submit_nochat_api = gr.Button("Submit nochat API", visible=False)
+                        submit_nochat_api_plain = gr.Button("Submit nochat API Plain", visible=False)
                         inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
                         text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                             show_copy_button=True)
@@ -1395,6 +1414,7 @@ def go_gradio(**kwargs):
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
+                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'], label="h2oGPT Token for API access", type='password', visible=False)
 
                 hosts_tab = gr.TabItem("Hosts") \
                     if kwargs['visible_hosts_tab'] else gr.Row(visible=False)
@@ -1485,6 +1505,8 @@ def go_gradio(**kwargs):
                                            pdf_loaders_options0=pdf_loaders_options0,
                                            url_loaders_options0=url_loaders_options0,
                                            jq_schema0=jq_schema0,
+                                           enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                           h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -1494,6 +1516,7 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       h2ogpt_key,
                                        ],
                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
                                queue=queue,
@@ -1524,6 +1547,7 @@ def go_gradio(**kwargs):
                                         pdf_loaders,
                                         url_loaders,
                                         jq_schema,
+                                        h2ogpt_key,
                                         ],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
                                 queue=queue,
@@ -1545,6 +1569,7 @@ def go_gradio(**kwargs):
                                       pdf_loaders,
                                       url_loaders,
                                       jq_schema,
+                                      h2ogpt_key,
                                       ],
                               outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last],
                               queue=queue,
@@ -1567,6 +1592,7 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       h2ogpt_key,
                                        ],
                                outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last],
                                queue=queue,
@@ -2578,6 +2604,9 @@ def go_gradio(**kwargs):
             if 'visible_models' not in user_kwargs:
                 user_kwargs['visible_models'] = [0]
 
+            if 'h2ogpt_key' not in user_kwargs:
+                user_kwargs['h2ogpt_key'] = None
+
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
             assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
@@ -2604,18 +2633,24 @@ def go_gradio(**kwargs):
                     args_list[eval_func_param_names.index('max_new_tokens')] = min(
                         args_list[eval_func_param_names.index('max_new_tokens')],
                         model_state1['tokenizer'].model_max_length - buffer)
+            h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
+
+            # NOTE: Don't allow UI-like access, in case modify state via API
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+                                     requests_state1=None)
+            evaluate_local = evaluate if valid_key else evaluate_fake
 
             save_dict = dict()
             error = ''
             extra = ''
             ret = {}
             try:
-                for res_dict in evaluate(*tuple(args_list), **kwargs1):
-                    error = res_dict.get('error')
-                    extra = res_dict.get('extra')
-                    save_dict = res_dict.get('save_dict')
+                for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
+                    error = res_dict.get('error', '')
+                    extra = res_dict.get('extra', '')
+                    save_dict = res_dict.get('save_dict', {})
                     if str_api:
                         # full return of dict
                         ret = res_dict
@@ -2631,6 +2666,22 @@ def go_gradio(**kwargs):
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
                 save_dict['error'] = error
                 save_dict['extra'] = extra
+                save_dict['valid_key'] = valid_key
+                save_dict['h2ogpt_key'] = h2ogpt_key1
+                if str_api and plain_api:
+                    save_dict['which_api'] = 'str_plain_api'
+                elif str_api:
+                    save_dict['which_api'] = 'str_api'
+                elif plain_api:
+                    save_dict['which_api'] = 'plain_api'
+                else:
+                    save_dict['which_api'] = 'nochat_api'
+                if 'extra_dict' not in save_dict:
+                    save_dict['extra_dict'] = {}
+                if requests_state1:
+                    save_dict['extra_dict'].update(requests_state1)
+                else:
+                    save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
             save_generate_output(**save_dict)
             if not stream_output1:
                 # return back last ret
@@ -2927,7 +2978,7 @@ def go_gradio(**kwargs):
                 history = []
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
-            dummy_return = history, None, None, None, None
+            dummy_return = history, None, None, None, None, False, None
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
@@ -2939,6 +2990,7 @@ def go_gradio(**kwargs):
             langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
+            h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
             if not history:
                 print("No history", flush=True)
                 return dummy_return
@@ -2955,6 +3007,10 @@ def go_gradio(**kwargs):
                 # reject submit button if already filled and not retrying
                 # None when not filling with '' to keep client happy
                 return dummy_return
+
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+                                     requests_state1=requests_state1)
+            evaluate_local = evaluate if valid_key else evaluate_fake
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
             prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,
@@ -2975,7 +3031,7 @@ def go_gradio(**kwargs):
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1 + context2
 
-            fun1 = partial(evaluate,
+            fun1 = partial(evaluate_local,
                            model_state1,
                            my_db_state1,
                            selection_docs_state1,
@@ -2983,7 +3039,7 @@ def go_gradio(**kwargs):
                            *tuple(args_list),
                            **kwargs_evaluate)
 
-            return history, fun1, langchain_mode1, my_db_state1, requests_state1
+            return history, fun1, langchain_mode1, my_db_state1, requests_state1, valid_key, h2ogpt_key1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3008,7 +3064,7 @@ def go_gradio(**kwargs):
                 for output_fun in fun1():
                     output = output_fun['response']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
-                    save_dict = output_fun['save_dict']
+                    save_dict = output_fun.get('save_dict', {})
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
                     history[-1][1] = bot_message
@@ -3051,7 +3107,7 @@ def go_gradio(**kwargs):
                         clear_embedding(db1[0])
 
         def bot(*args, retry=False):
-            history, fun1, langchain_mode1, db1, requests_state1 = prep_bot(*args, retry=retry)
+            history, fun1, langchain_mode1, db1, requests_state1, valid_key, h2ogpt_key1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
@@ -3063,12 +3119,17 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
+            if 'extra_dict' not in save_dict:
+                save_dict['extra_dict'] = {}
+            save_dict['valid_key'] = valid_key
+            save_dict['h2ogpt_key'] = h2ogpt_key1
             if requests_state1:
-                if 'extra_dict' not in save_dict:
-                    save_dict['extra_dict'] = {}
                 save_dict['extra_dict'].update(requests_state1)
+            else:
+                save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
             save_dict['error'] = error
             save_dict['extra'] = extra
+            save_dict['which_api'] = 'bot'
             save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None, all_models=None):
@@ -3088,6 +3149,8 @@ def go_gradio(**kwargs):
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             requests_state1 = None
+            valid_key = False
+            h2ogpt_key1 = ''
             extras = []
             exceptions = []
             save_dicts = []
@@ -3106,8 +3169,9 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
-                    history, fun1, langchain_mode1, db1s, requests_state1 = prep_bot(*tuple(args_list1), retry=retry,
-                                                                                     which_model=chatboti)
+                    history, fun1, langchain_mode1, db1s, requests_state1, valid_key, h2ogpt_key1, = \
+                        prep_bot(*tuple(args_list1), retry=retry,
+                                 which_model=chatboti)
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
                         if stream_output1:
@@ -3168,13 +3232,18 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
-            for extra, error, save_dict in zip(extras, exceptions, save_dicts):
+            for extra, error, save_dict, model_name in zip(extras, exceptions, save_dicts, all_models):
+                if 'extra_dict' not in save_dict:
+                    save_dict['extra_dict'] = {}
                 if requests_state1:
-                    if 'extra_dict' not in save_dict:
-                        save_dict['extra_dict'] = {}
                     save_dict['extra_dict'].update(requests_state1)
+                else:
+                    save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
                 save_dict['error'] = error
                 save_dict['extra'] = extra
+                save_dict['which_api'] = 'all_bot_%s' % model_name
+                save_dict['valid_key'] = valid_key
+                save_dict['h2ogpt_key'] = h2ogpt_key1
                 save_generate_output(**save_dict)
 
         # NORMAL MODEL
@@ -3655,11 +3724,11 @@ def go_gradio(**kwargs):
                                                           queue=True,  # required for generator
                                                           api_name='submit_nochat_api' if allow_api else None)
 
-        submit_event_nochat_api_plain = submit_nochat_api.click(fun_with_dict_str_plain,
-                                                                inputs=inputs_dict_str,
-                                                                outputs=text_output_nochat_api,
-                                                                queue=False,
-                                                                api_name='submit_nochat_plain_api' if allow_api else None)
+        submit_event_nochat_api_plain = submit_nochat_api_plain.click(fun_with_dict_str_plain,
+                                                                      inputs=inputs_dict_str,
+                                                                      outputs=text_output_nochat_api,
+                                                                      queue=False,
+                                                                      api_name='submit_nochat_plain_api' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
@@ -4163,6 +4232,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       pdf_loaders,
                       url_loaders,
                       jq_schema,
+                      h2ogpt_key,
 
                       captions_model=None,
                       caption_loader=None,
@@ -4170,6 +4240,11 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       dbs=None,
                       get_userid_auth=None,
                       **kwargs):
+    valid_key = is_valid_key(kwargs.pop('enforce_h2ogpt_api_key', None),
+                             kwargs.pop('h2ogpt_api_keys', []), h2ogpt_key,
+                             requests_state1=requests_state1)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
     loaders_dict, captions_model = gr_to_lg(image_loaders,
                                             pdf_loaders,
                                             url_loaders,

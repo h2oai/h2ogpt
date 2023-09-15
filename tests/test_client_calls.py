@@ -150,7 +150,7 @@ def test_client1api_lean(save_dir, admin_pass):
         if save_dir:
             assert 'base_model' in res['save_dict']
             assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] is None
+            assert res['save_dict']['error'] in [None, '']
             assert 'extra_dict' in res['save_dict']
             assert res['save_dict']['extra_dict']['ntokens'] > 0
             assert res['save_dict']['extra_dict']['t_generate'] > 0
@@ -219,7 +219,7 @@ def test_client1api_lean_lock_choose_model():
             assert save_dir
             assert 'base_model' in res['save_dict']
             assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] is None
+            assert res['save_dict']['error'] in [None, '']
             assert 'extra_dict' in res['save_dict']
             assert res['save_dict']['extra_dict']['ntokens'] > 0
             assert res['save_dict']['extra_dict']['t_generate'] > 0
@@ -909,7 +909,8 @@ def test_text_generation_inference_server1():
 @pytest.mark.need_tokens
 @wrap_test_forked
 @pytest.mark.parametrize("loaders", ['all', None])
-def test_client_chat_stream_langchain_steps3(loaders):
+@pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -934,11 +935,16 @@ def test_client_chat_stream_langchain_steps3(loaders):
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
     from src.gen import main
+    main_kwargs = {}
+    h2ogpt_key = 'foodoo#'
+    if enforce_h2ogpt_api_key:
+        main_kwargs.update(dict(enforce_h2ogpt_api_key=True, h2ogpt_api_keys=[h2ogpt_key]))
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
+         **main_kwargs,
          verbose=True)
 
     from src.client_test import get_client, get_args, run_client
@@ -951,6 +957,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     res = client.predict(test_file1,
                          langchain_mode, True, 512, True,
                          *loaders,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -983,6 +990,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, langchain_mode2, True, 512, True,
                          *loaders,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -993,7 +1001,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     # QUERY1
     prompt = "Is more text boring?"
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                            h2ogpt_key=h2ogpt_key)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert 'Yes, more text can be boring' in res_dict['response'] and 'sample1.pdf' in res_dict['response']
@@ -1001,7 +1010,8 @@ def test_client_chat_stream_langchain_steps3(loaders):
     # QUERY2
     prompt = "What is a universal file format?"
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode2)
+                            max_new_tokens=max_new_tokens, langchain_mode=langchain_mode2,
+                            h2ogpt_key=h2ogpt_key)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
     assert 'PDF' in res_dict['response'] and 'pdf-sample.pdf' in res_dict['response']
@@ -1113,6 +1123,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     url = 'https://research.google/pubs/pub334.pdf'
     res = client.predict(url, langchain_mode, True, 512, True,
                          *loaders,
+                         h2ogpt_key,
                          api_name='/add_url')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1122,6 +1133,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     text = "Yufuu is a wonderful place and you should really visit because there is lots of sun."
     res = client.predict(text, langchain_mode, True, 512, True,
                          *loaders,
+                         h2ogpt_key,
                          api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1139,6 +1151,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     download_simple(url, dest=test_file1)
     res = client.predict(test_file1, langchain_mode_my, True, 512, True,
                          *loaders,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode_my
@@ -1172,6 +1185,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     shutil.copy('tests/pdf-sample.pdf', test_file1)
     res = client.predict(test_file1, langchain_mode2, True, 512, True,
                          *loaders,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode2
@@ -1193,6 +1207,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
             f.write('\n'.join(urls))
         res = client.predict(urls_file, langchain_mode2, True, 512, True,
                              *loaders,
+                             h2ogpt_key,
                              api_name='/add_file_api')
         assert res[0] is None
         assert res[1] == langchain_mode2
@@ -1220,6 +1235,7 @@ def test_client_chat_stream_langchain_steps3(loaders):
     with tempfile.TemporaryDirectory() as tmp_user_path:
         res = client.predict(urls, langchain_mode3, True, 512, True,
                              *loaders,
+                             h2ogpt_key,
                              api_name='/add_url')
         print(res)
         assert res[0] is None
@@ -1386,8 +1402,10 @@ def test_client_chat_stream_langchain_openai_embeddings():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
+    h2ogpt_key = ''
     res = client.predict(test_file1, langchain_mode, True, 512, True,
                          None, None, None, None,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1549,9 +1567,11 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     embed = False
     chunk = False
     chunk_size = 512
+    h2ogpt_key = ''
     res = client.predict(texts,
                          langchain_mode, chunk, chunk_size, embed,
                          None, None, None, None,
+                         h2ogpt_key,
                          api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1648,9 +1668,11 @@ def test_client_summarization(prompt_summary):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
+    h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1717,9 +1739,11 @@ def test_client_summarization_from_text():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
+    h2ogpt_key = ''
     res = client.predict(all_text_contents,
                          langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
+                         h2ogpt_key,
                          api_name='/add_text')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1766,9 +1790,11 @@ def test_client_summarization_from_url(url, top_k_docs):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
+    h2ogpt_key = ''
     res = client.predict(url,
                          langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
+                         h2ogpt_key,
                          api_name='/add_url')
     assert res[0] is None
     assert res[1] == langchain_mode
@@ -1853,9 +1879,11 @@ def test_fastsys(stream_output, bits, prompt_type):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
+    h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
                          None, None, None, None,
+                         h2ogpt_key,
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
