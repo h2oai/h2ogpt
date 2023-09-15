@@ -19,9 +19,6 @@ def make_css_base() -> str:
     
     body.dark{#warning {background-color: #555555};}
     
-    label > span:first-child {
-        background-color: var(--primary-200)
-
     #sidebar {
         order: 1;
         
