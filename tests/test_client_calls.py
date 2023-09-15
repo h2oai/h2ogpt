@@ -954,7 +954,6 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    h2ogpt_key = ''
     res = client.predict(test_file1,
                          langchain_mode, True, 512, True,
                          *loaders,

@@ -1414,7 +1414,7 @@ def go_gradio(**kwargs):
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
-                    h2ogpt_key = gr.Text(label="h2oGPT Token for API access", type='password', visible=False)
+                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'], label="h2oGPT Token for API access", type='password', visible=False)
 
                 hosts_tab = gr.TabItem("Hosts") \
                     if kwargs['visible_hosts_tab'] else gr.Row(visible=False)

@@ -167,7 +167,7 @@ def main(
         auth_message: str = None,
         guest_name: str = "guest",
         enforce_h2ogpt_api_key: bool = None,
-        h2ogpt_api_keys: list = None,
+        h2ogpt_api_keys: list = [],
         h2ogpt_key: str = None,
 
         max_max_time=None,
@@ -460,7 +460,7 @@ def main(
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
     :param h2ogpt_api_keys: list of tokens allowed for API access
-    :param h2ogpt_key: Placeholder for access key, not usually used
+    :param h2ogpt_key: Placeholder for default access key, not usually used
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
