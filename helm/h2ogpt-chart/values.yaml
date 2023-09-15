@@ -93,14 +93,12 @@ vllm:
     pullPolicy: IfNotPresent
 
   imagePullSecrets:
-    - name: docker-creds
 
   storage:
     size: 512Gi
     class: ebs-csi
   
   overrideConfig:
-    CUDA_VISIBLE_DEVICES: "0,1"
 
   containerArgs:
     - "--model"
@@ -134,13 +132,8 @@ vllm:
   resources:
 
   nodeSelector:
-    hac.h2o.ai/accelerator: training-gpu
 
   tolerations:
-    - key: "dedicated"
-      operator: "Equal"
-      value: "training-gpu"
-      effect: "NoSchedule"
 
   podAnnotations: {}
   podLabels: {}
