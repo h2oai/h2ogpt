@@ -235,7 +235,7 @@ python src/make_db.py --user_path=user_path2 --collection_name=UserData2 --hf_em
 ```
 then
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --langchain_modes=['UserData','UserData2'] --langchain_modes=['UserData','UserData2'] --langchain_mode_paths={'UserData':'user_path','UserData2':'user_path2'}
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --langchain_modes=['UserData','UserData2'] --langchain_mode_paths={'UserData':'user_path','UserData2':'user_path2'} --langchain_mode_types={'UserData':'shared','UserData2':'shared'}
 ```
 and watch-out for use of whitespace.  For `langchain_mode_paths` you can pass surrounded by "'s and have spaces.
 
