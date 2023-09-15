@@ -50,7 +50,7 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg
+    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -89,6 +89,23 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
                 ts[parti] = ts[parti].replace('\n', '<br>')
         text = '```'.join(ts)
     return text
+
+
+def is_valid_key(enforce_h2ogpt_api_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
+    if not enforce_h2ogpt_api_key:
+        # no token barrier
+        valid_key = 'not enforced'
+    elif enforce_h2ogpt_api_key and \
+            isinstance(h2ogpt_api_keys, list) and \
+            h2ogpt_key1 in h2ogpt_api_keys:
+        # passed token barrier
+        valid_key = True
+    elif isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
+        # no UI limit currently
+        valid_key = True
+    else:
+        valid_key = False
+    return valid_key
 
 
 def go_gradio(**kwargs):
@@ -456,22 +473,6 @@ def go_gradio(**kwargs):
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
     jq_schema0 = '.[]'
-
-    def is_valid_key(h2ogpt_key1, requests_state1=None):
-        if not kwargs['enforce_h2ogpt_api_key']:
-            # no token barrier
-            valid_key = 'not enforced'
-        elif kwargs['enforce_h2ogpt_api_key'] and \
-                isinstance(kwargs['h2ogpt_api_keys'], list) and \
-                h2ogpt_key1 in kwargs['h2ogpt_api_keys']:
-            # passed token barrier
-            valid_key = True
-        elif isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
-            # no UI limit currently
-            valid_key = True
-        else:
-            valid_key = False
-        return valid_key
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -1504,6 +1505,8 @@ def go_gradio(**kwargs):
                                            pdf_loaders_options0=pdf_loaders_options0,
                                            url_loaders_options0=url_loaders_options0,
                                            jq_schema0=jq_schema0,
+                                           enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                           h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -1513,6 +1516,7 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       h2ogpt_key,
                                        ],
                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
                                queue=queue,
@@ -1543,6 +1547,7 @@ def go_gradio(**kwargs):
                                         pdf_loaders,
                                         url_loaders,
                                         jq_schema,
+                                        h2ogpt_key,
                                         ],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
                                 queue=queue,
@@ -1564,6 +1569,7 @@ def go_gradio(**kwargs):
                                       pdf_loaders,
                                       url_loaders,
                                       jq_schema,
+                                      h2ogpt_key,
                                       ],
                               outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last],
                               queue=queue,
@@ -1586,6 +1592,7 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       h2ogpt_key,
                                        ],
                                outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last],
                                queue=queue,
@@ -2630,7 +2637,8 @@ def go_gradio(**kwargs):
 
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
-            valid_key = is_valid_key(h2ogpt_key1, requests_state1=requests_state1)
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+                                     requests_state1=requests_state1)
             evaluate_local = evaluate if valid_key else evaluate_fake
 
             save_dict = dict()
@@ -3000,7 +3008,8 @@ def go_gradio(**kwargs):
                 return dummy_return
 
             # NOTE: Don't allow UI-like access, in case modify state via API
-            valid_key = is_valid_key(h2ogpt_key1, requests_state1=None)
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+                                     requests_state1=None)
             evaluate_local = evaluate if valid_key else evaluate_fake
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
@@ -4223,6 +4232,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       pdf_loaders,
                       url_loaders,
                       jq_schema,
+                      h2ogpt_key,
 
                       captions_model=None,
                       caption_loader=None,
@@ -4230,6 +4240,11 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       dbs=None,
                       get_userid_auth=None,
                       **kwargs):
+    valid_key = is_valid_key(kwargs.pop('enforce_h2ogpt_api_key', None),
+                             kwargs.pop('h2ogpt_api_keys', []), h2ogpt_key,
+                             requests_state1=requests_state1)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
     loaders_dict, captions_model = gr_to_lg(image_loaders,
                                             pdf_loaders,
                                             url_loaders,

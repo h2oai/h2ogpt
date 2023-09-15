@@ -43,7 +43,7 @@ if os.getenv('RAYON_NUM_THREADS') is None:
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -1939,7 +1939,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response='Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai', sources='')
+    yield dict(response=invalid_key_msg, sources='')
     return
 
 
