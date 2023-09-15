@@ -112,7 +112,7 @@ class H2oTheme(Soft):
             block_border_width='1px',
             block_border_width_dark='1px',
             block_label_background_fill="*primary_300",
-            block_label_background_fill_dark="*primary_700",
+            block_label_background_fill_dark="*primary_600",
             block_label_text_color="*neutral_950",
             block_label_text_color_dark="*neutral_950",
             block_radius="0 0 8px 8px",
@@ -130,7 +130,8 @@ class H2oTheme(Soft):
             button_primary_background_fill_dark="*primary_500",
             button_secondary_background_fill_hover_dark="*primary_700",
             button_secondary_border_color="*primary_500",
-            button_secondary_border_color_dark="*primary_700",
+            button_secondary_border_color_dark="*primary_500",
+            button_secondary_border_color_hover_dark="*primary_700",
             checkbox_label_text_color_selected_dark='#000000',
             # checkbox_label_text_size="*text_xs",  # too small for iPhone etc. but good if full large screen zoomed to fit
             checkbox_label_text_size="*text_sm",
