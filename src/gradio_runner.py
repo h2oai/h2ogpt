@@ -2647,20 +2647,41 @@ def go_gradio(**kwargs):
             evaluate_local = evaluate if valid_key else evaluate_fake
 
             save_dict = dict()
-            error = ''
-            extra = ''
             ret = {}
             try:
                 for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
                     error = res_dict.get('error', '')
                     extra = res_dict.get('extra', '')
-                    save_dict = res_dict.get('save_dict', {}).copy()
+                    save_dict = res_dict.get('save_dict', {})
+
+                    # update save_dict
+                    save_dict['error'] = error
+                    save_dict['extra'] = extra
+                    save_dict['valid_key'] = valid_key
+                    save_dict['h2ogpt_key'] = h2ogpt_key1
+                    if str_api and plain_api:
+                        save_dict['which_api'] = 'str_plain_api'
+                    elif str_api:
+                        save_dict['which_api'] = 'str_api'
+                    elif plain_api:
+                        save_dict['which_api'] = 'plain_api'
+                    else:
+                        save_dict['which_api'] = 'nochat_api'
+                    if 'extra_dict' not in save_dict:
+                        save_dict['extra_dict'] = {}
+                    if requests_state1:
+                        save_dict['extra_dict'].update(requests_state1)
+                    else:
+                        save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
+
                     if is_public:
                         # don't want to share actual endpoints
                         if 'save_dict' in res_dict and isinstance(res_dict['save_dict'], dict):
                             res_dict['save_dict'].pop('inference_server', None)
                             if 'extra_dict' in res_dict['save_dict'] and isinstance(res_dict['save_dict']['extra_dict'], dict):
                                 res_dict['save_dict']['extra_dict'].pop('inference_server', None)
+
+                    # get response
                     if str_api:
                         # full return of dict
                         ret = res_dict
@@ -2674,24 +2695,6 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
-                save_dict['error'] = error
-                save_dict['extra'] = extra
-                save_dict['valid_key'] = valid_key
-                save_dict['h2ogpt_key'] = h2ogpt_key1
-                if str_api and plain_api:
-                    save_dict['which_api'] = 'str_plain_api'
-                elif str_api:
-                    save_dict['which_api'] = 'str_api'
-                elif plain_api:
-                    save_dict['which_api'] = 'plain_api'
-                else:
-                    save_dict['which_api'] = 'nochat_api'
-                if 'extra_dict' not in save_dict:
-                    save_dict['extra_dict'] = {}
-                if requests_state1:
-                    save_dict['extra_dict'].update(requests_state1)
-                else:
-                    save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
             save_generate_output(**save_dict)
             if not stream_output1:
                 # return back last ret
