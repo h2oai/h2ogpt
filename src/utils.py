@@ -2,11 +2,14 @@ import ast
 import contextlib
 import functools
 import gc
+import getpass
 import hashlib
 import inspect
+import json
 import os
 import pathlib
 import pickle
+import platform
 import random
 import shutil
 import subprocess
@@ -18,6 +21,8 @@ import zipfile
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import Tuple, Callable, Dict
+from queue import Queue, Empty
+from concurrent.futures import ThreadPoolExecutor
 
 import filelock
 import fire
@@ -896,13 +901,18 @@ class _ForkDataContext(threading.local):
 forkdatacontext = _ForkDataContext()
 
 
+# Add user info
+username = getpass.getuser()
+current_working_directory = os.getcwd()
+operating_system = platform.system()
+
+
 def _traced_func(func, *args, **kwargs):
     func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
     return func(*args, **kwargs)
 
 
 def call_subprocess_onetask(func, args=None, kwargs=None):
-    import platform
     if platform.system() in ['Darwin', 'Windows']:
         return func(*args, **kwargs)
     if isinstance(args, list):
@@ -1305,3 +1315,141 @@ def lg_to_gr(
     return image_loaders_options0, image_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options
+
+
+def fix_json(s):
+
+    # Attempt to parse the string as-is.
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        pass
+
+    # Initialize variables.
+    new_s = ""
+    stack = []
+    is_inside_string = False
+    escaped = False
+
+    # Process each character in the string one at a time.
+    for char in s:
+        if is_inside_string:
+            if char == '"' and not escaped:
+                is_inside_string = False
+            elif char == '\n' and not escaped:
+                char = '\\n' # Replace the newline character with the escape sequence.
+            elif char == '\\':
+                escaped = not escaped
+            else:
+                escaped = False
+        else:
+            if char == '"':
+                is_inside_string = True
+                escaped = False
+            elif char == '{':
+                stack.append('}')
+            elif char == '[':
+                stack.append(']')
+            elif char == '}' or char == ']':
+                if stack and stack[-1] == char:
+                    stack.pop()
+                else:
+                    # Mismatched closing character; the input is malformed.
+                    return None
+
+        # Append the processed character to the new string.
+        new_s += char
+
+    # If we're still inside a string at the end of processing, we need to close the string.
+    if is_inside_string:
+        new_s += '"'
+
+    # Close any remaining open structures in the reverse order that they were opened.
+    for closing_char in reversed(stack):
+        new_s += closing_char
+
+    # Attempt to parse the modified string as JSON.
+    try:
+        return json.loads(new_s)
+    except json.JSONDecodeError:
+        # If we still can't parse the string as JSON, return None to indicate failure.
+        return None
+
+
+def wrap_in_try_except(code):
+    # Add import traceback
+    code = "import traceback\n" + code
+
+    # Parse the input code into an AST
+    parsed_code = ast.parse(code)
+
+    # Wrap the entire code's AST in a single try-except block
+    try_except = ast.Try(
+        body=parsed_code.body,
+        handlers=[
+            ast.ExceptHandler(
+                type=ast.Name(id="Exception", ctx=ast.Load()),
+                name=None,
+                body=[
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(value=ast.Name(id="traceback", ctx=ast.Load()), attr="print_exc", ctx=ast.Load()),
+                            args=[],
+                            keywords=[]
+                        )
+                    ),
+                ]
+            )
+        ],
+        orelse=[],
+        finalbody=[]
+    )
+
+    # Assign the try-except block as the new body
+    parsed_code.body = [try_except]
+
+    # Convert the modified AST back to source code
+    return ast.unparse(parsed_code)
+
+
+def enqueue_output(file, queue):
+    for line in iter(file.readline, ''):
+        queue.put(line)
+    file.close()
+
+
+def read_popen_pipes(p):
+
+    with ThreadPoolExecutor(2) as pool:
+        q_stdout, q_stderr = Queue(), Queue()
+
+        pool.submit(enqueue_output, p.stdout, q_stdout)
+        pool.submit(enqueue_output, p.stderr, q_stderr)
+
+        while True:
+
+            if p.poll() is not None and q_stdout.empty() and q_stderr.empty():
+                break
+
+            out_line = err_line = ''
+
+            try:
+                out_line = q_stdout.get_nowait()
+            except Empty:
+                pass
+            try:
+                err_line = q_stderr.get_nowait()
+            except Empty:
+                pass
+
+            yield out_line, err_line
+
+
+def start_process(cmd):
+    start_cmd = sys.executable + " -i -q -u"
+    print_cmd = 'print("{}")'
+    cmd = [start_cmd] + [cmd]
+
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    for c in iter(lambda: process.stdout.read(1), b''):
+        sys.stdout.write(c)
