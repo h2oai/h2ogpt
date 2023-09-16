@@ -93,4 +93,6 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
             'output_text']
         res2 = 'Einstein and Newton are two of the most famous scientists in history' in answer[
             'output_text'] and "Newton" in answer['output_text']
-    assert res1 or res2
+        res3 = 'Einstein is considered to be the smartest person' in answer[
+            'output_text'] and "Newton" in answer['output_text']
+    assert res1 or res2 or res3

@@ -213,3 +213,6 @@ def gr_to_lg(image_loaders,
     else:
         captions_model = kwargs['captions_model']
     return ret, captions_model
+
+
+invalid_key_msg = 'Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai'

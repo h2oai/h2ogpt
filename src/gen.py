@@ -43,7 +43,7 @@ if os.getenv('RAYON_NUM_THREADS') is None:
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -166,6 +166,9 @@ def main(
         auth_freeze: bool = False,
         auth_message: str = None,
         guest_name: str = "guest",
+        enforce_h2ogpt_api_key: bool = None,
+        h2ogpt_api_keys: Union[list, str] = [],
+        h2ogpt_key: str = None,
 
         max_max_time=None,
         max_max_new_tokens=None,
@@ -229,6 +232,7 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         migrate_embedding_model: str = False,
+        auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -454,6 +458,9 @@ def main(
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
+    :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
+    :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
+    :param h2ogpt_key: Placeholder for default access key, not usually used
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
@@ -551,6 +558,7 @@ def main(
            used to migrate all embeddings to a new one, but will take time to re-embed.
            Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
            If had old database without embedding saved, then hf_embedding_model is also used.
+    :param auto_migrate_db: whether to automatically migrate any chroma<0.4 database from duckdb -> sqlite version
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -680,6 +688,13 @@ def main(
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
     if is_public:
         visible_tos_tab = visible_hosts_tab = True
+        if enforce_h2ogpt_api_key is None:
+            enforce_h2ogpt_api_key = True
+    else:
+        if enforce_h2ogpt_api_key is None:
+            enforce_h2ogpt_api_key = False
+    if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
+        h2ogpt_api_keys = ast.literal_eval(h2ogpt_api_keys)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
@@ -1005,6 +1020,7 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
+                                    auto_migrate_db,
                                     kwargs_make_db=locals(),
                                     verbose=verbose)
             finally:
@@ -1185,8 +1201,9 @@ def main(
 
         if pre_load_embedding_model and langchain_mode != 'Disabled' and not use_openai_embedding:
             from src.gpt_langchain import get_embedding
-            hf_embedding_model = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                               preload=True)
+            hf_embedding_model = dict(name=hf_embedding_model,
+                                      model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                                          preload=True))
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -1921,6 +1938,11 @@ def get_score_model(score_model: str = None,
     return smodel, stokenizer, sdevice
 
 
+def evaluate_fake(*args, **kwargs):
+    yield dict(response=invalid_key_msg, sources='')
+    return
+
+
 def evaluate(
         model_state,
         my_db_state,
@@ -1967,6 +1989,7 @@ def evaluate(
         url_loaders,
         jq_schema,
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
+        h2ogpt_key,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -1997,6 +2020,7 @@ def evaluate(
         use_openai_model=None,
         hf_embedding_model=None,
         migrate_embedding_model=None,
+        auto_migrate_db=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -2032,6 +2056,7 @@ def evaluate(
     assert use_openai_model is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
+    assert auto_migrate_db is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -2164,10 +2189,14 @@ def evaluate(
     iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
     num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
 
-    # limit so max_new_tokens = prompt + new < max
-    # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
-    max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
+    if inference_server and inference_server.startswith('http'):
+        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
+        pass
+    else:
+        # limit so max_new_tokens = prompt + new < max
+        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
+        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
@@ -2191,6 +2220,7 @@ def evaluate(
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
+                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -2256,6 +2286,7 @@ def evaluate(
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
+                auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,
@@ -2284,6 +2315,7 @@ def evaluate(
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
+                h2ogpt_key=h2ogpt_key,
 
                 **gen_hyper_langchain,
 
@@ -2501,6 +2533,17 @@ def evaluate(
                                      chunk_size=chunk_size,
                                      document_subset=DocumentSubset.Relevant.name,
                                      document_choice=[DocumentChoice.ALL.value],
+                                     pre_prompt_query=pre_prompt_query,
+                                     prompt_query=prompt_query,
+                                     pre_prompt_summary=pre_prompt_summary,
+                                     prompt_summary=prompt_summary,
+                                     system_prompt=system_prompt,
+                                     image_loaders=image_loaders,
+                                     pdf_loaders=pdf_loaders,
+                                     url_loaders=url_loaders,
+                                     jq_schema=jq_schema,
+                                     visible_models=visible_models,
+                                     h2ogpt_key=h2ogpt_key,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3151,6 +3194,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    None,
                     None,
                     ]
         # adjust examples if non-chat mode

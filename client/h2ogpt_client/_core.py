@@ -1,6 +1,6 @@
 import ast
 import asyncio
-from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView
+from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView, Union
 
 import gradio_client  # type: ignore
 
@@ -69,8 +69,11 @@ class TextCompletionCreator:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
+        add_chat_history_to_context: bool = False,
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
+        visible_models: Union[str, list] = [],
+        h2ogpt_key: str = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -98,6 +101,8 @@ class TextCompletionCreator:
         :param add_chat_history_to_context: Whether to add chat history to context
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
+        :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param h2ogpt_key: Key for access to API on keyed endpoints
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -125,7 +130,8 @@ class TextCompletionCreator:
         params["pdf_loaders"] = None
         params["url_loaders"] = None
         params["jq_schema"] = None
-        params["visible_models"] = None
+        params["visible_models"] = visible_models
+        params["h2ogpt_key"] = h2ogpt_key
         return TextCompletion(self._client, params)
 
 
@@ -196,6 +202,8 @@ class ChatCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
+        visible_models: Union[str, list] = [],
+        h2ogpt_key: str = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -222,6 +230,8 @@ class ChatCompletionCreator:
         :param langchain_mode: LangChain mode
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
+        :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param h2ogpt_key: Key for access to API on keyed endpoints
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -249,7 +259,8 @@ class ChatCompletionCreator:
         params["pdf_loaders"] = None
         params["url_loaders"] = None
         params["jq_schema"] = None
-        params["visible_models"] = None
+        params["visible_models"] = visible_models
+        params["h2ogpt_key"] = h2ogpt_key
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 

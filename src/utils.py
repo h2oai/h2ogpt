@@ -238,12 +238,14 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
 
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
-                         extra_dict={}, error='', extra='', return_dict=False):
+                         extra_dict={}, error='', extra='', which_api='', valid_key=None,
+                         h2ogpt_key='', return_dict=False):
     if not save_dir:
         return
     try:
         return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
                                      where_from=where_from, extra_dict=extra_dict, error=error, extra=extra,
+                                     which_api=which_api, valid_key=valid_key, h2ogpt_key=h2ogpt_key,
                                      return_dict=return_dict)
     except Exception as e:
         traceback.print_exc()
@@ -251,7 +253,9 @@ def save_generate_output(prompt=None, output=None, base_model=None, save_dir=Non
 
 
 def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
-                          extra_dict={}, error='', extra='', return_dict=False):
+                          extra_dict={}, error='', extra='', which_api='',
+                          valid_key=None, h2ogpt_key='',
+                          return_dict=False):
     """
     Save conversation to .json, row by row.
     json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
@@ -271,6 +275,9 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
                         where_from=where_from,
                         error=error,
                         extra=extra,
+                        which_api=which_api,
+                        valid_key=valid_key,
+                        h2ogpt_key=h2ogpt_key,
                         )
     dict_to_save.update(extra_dict)
 
@@ -281,7 +288,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
         raise RuntimeError("save_dir already exists and is not a directory!")
     makedirs(save_dir, exist_ok=True)  # already should be made, can't change at this point
     import json
-    with filelock.FileLock("save_dir.lock"):
+    with filelock.FileLock("%s.lock" % os.path.basename(save_dir)):
         # lock logging in case have concurrency
         with open(os.path.join(save_dir, "history.json"), "a") as f:
             # just add [ at start, and ] at end, and have proper JSON dataset
@@ -973,6 +980,13 @@ except (PackageNotFoundError, AssertionError):
 try:
     assert distribution('faiss_cpu') is not None
     have_faiss = True
+except (PackageNotFoundError, AssertionError):
+    pass
+
+have_chromamigdb = False
+try:
+    assert distribution('chromamigdb') is not None
+    have_chromamigdb = True
 except (PackageNotFoundError, AssertionError):
     pass
 

@@ -18,14 +18,18 @@ from src.enums import PromptType, LangChainAction
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
+@pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @wrap_test_forked
-def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain,
+def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain, enforce_h2ogpt_api_key,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
                                  user_path=None,
                                  langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
                                  reverse_docs=True):
+    if enforce_h2ogpt_api_key and base_model != 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        # no need for so many cases
+        return
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
     if do_langchain:
@@ -68,6 +72,11 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     # only case when GRADIO_SERVER_PORT and HOST should appear in tests because using 2 gradio instances
     os.environ['GRADIO_SERVER_PORT'] = str(client_port)
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
+
+    h2ogpt_key = 'foodoo#'
+    main_kwargs = main_kwargs.copy()
+    if enforce_h2ogpt_api_key:
+        main_kwargs.update(dict(enforce_h2ogpt_api_key=True, h2ogpt_api_keys=[h2ogpt_key]))
     main(**main_kwargs, inference_server=inference_server)
 
     # client test to server that only consumes inference server
@@ -79,7 +88,27 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     assert res_dict['iinput'] == ''
 
     # will use HOST from above
-    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
+    if enforce_h2ogpt_api_key:
+        # try without key first
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)
+        assert 'Invalid Access Key' in ret1['response']
+        assert 'Invalid Access Key' in ret2['response']
+        assert 'Invalid Access Key' in ret3['response']
+        assert 'Invalid Access Key' in ret4['response']
+        assert 'Invalid Access Key' in ret5['response']
+        assert 'Invalid Access Key' in ret6['response']
+        assert 'Invalid Access Key' in ret7['response']
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, h2ogpt_key='foo')
+        assert 'Invalid Access Key' in ret1['response']
+        assert 'Invalid Access Key' in ret2['response']
+        assert 'Invalid Access Key' in ret3['response']
+        assert 'Invalid Access Key' in ret4['response']
+        assert 'Invalid Access Key' in ret5['response']
+        assert 'Invalid Access Key' in ret6['response']
+        assert 'Invalid Access Key' in ret7['response']
+
+    # try normal or with key if enforcing
+    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, h2ogpt_key=h2ogpt_key)  # client shouldn't have to specify
     if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         assert 'h2oGPT' in ret1['response']
         assert 'Birds' in ret2['response']
