@@ -2240,7 +2240,7 @@ def evaluate(
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate
-    if LangChainAgent.SEARCH.value in langchain_agents:
+    if LangChainAgent.NONE.value not in langchain_agents and len(langchain_agents) > 0:
         do_langchain_path = True
 
     if do_langchain_path:

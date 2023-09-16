@@ -99,6 +99,11 @@ class LangChainAgent(Enum):
 
     NONE = "None"
     SEARCH = "Search"
+    COLLECTION = "Collection"
+    PYTHON = "Python"
+    CSV = "CSV"
+    PANDAS = "Pandas"
+    JSON = 'JSON'
     # CSV = "csv"  # WIP
 
 

@@ -23,12 +23,17 @@ from functools import reduce
 from operator import concat
 import filelock
 import tabulate
+import yaml
 
 from joblib import delayed
-from langchain.agents import AgentType, load_tools, initialize_agent
+from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
+    create_pandas_dataframe_agent, create_json_agent, create_csv_agent
+from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_python_agent, JsonToolkit
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.schema import LLMResult, Generation, AgentAction, AgentFinish, OutputParserException
+from langchain.tools import PythonREPLTool
+from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
@@ -569,7 +574,7 @@ class GradioInference(LLM):
             if text_callback:
                 text_callback(text_chunk)
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
-                                              sanitize_bot_response=self.sanitize_bot_response)
+                                             sanitize_bot_response=self.sanitize_bot_response)
             print("FINISH: prompt=%s\nret=%s" % (prompt, ret), flush=True)
             return ret
 
@@ -3530,8 +3535,8 @@ def get_chain(query=None,
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
 
+    from src.output_parser import H2OMRKLOutputParser
     if LangChainAgent.SEARCH.value in langchain_agents:
-        from src.output_parser import H2OMRKLOutputParser
         output_parser = H2OMRKLOutputParser()
         tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'),
                            output_parser=output_parser)
@@ -3544,9 +3549,117 @@ def get_chain(query=None,
         chain = initialize_agent(tools, llm, agent=agent_type,
                                  agent_executor_kwargs=agent_executor_kwargs,
                                  agent_kwargs=dict(output_parser=output_parser),
-                                 #output_parser=output_parser,
+                                 # output_parser=output_parser,
                                  max_iterations=4,
                                  verbose=True)
+        chain_kwargs = dict(input=query)
+        target = wrapped_partial(chain, chain_kwargs)
+
+        docs = []
+        scores = []
+        use_docs_planned = False
+        have_any_docs = False
+        use_llm_if_no_docs = True
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+
+    if LangChainAgent.COLLECTION.value in langchain_agents:
+        output_parser = H2OMRKLOutputParser()
+        vectorstore_info = VectorStoreInfo(
+            name=langchain_mode,
+            description="DataBase of text from PDFs, Image Captions, or web URL content",
+            vectorstore=db,
+        )
+        toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info)
+        chain = create_vectorstore_agent(llm=llm, toolkit=toolkit,
+                                         agent_executor_kwargs=dict(output_parser=output_parser),
+                                         verbose=True)
+
+        chain_kwargs = dict(input=query)
+        target = wrapped_partial(chain, chain_kwargs)
+
+        docs = []
+        scores = []
+        use_docs_planned = False
+        have_any_docs = False
+        use_llm_if_no_docs = True
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+
+    if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
+        chain = create_python_agent(
+            llm=llm,
+            tool=PythonREPLTool(),
+            verbose=True,
+            agent_type=AgentType.OPENAI_FUNCTIONS,
+            agent_executor_kwargs={"handle_parsing_errors": True},
+        )
+
+        chain_kwargs = dict(input=query)
+        target = wrapped_partial(chain, chain_kwargs)
+
+        docs = []
+        scores = []
+        use_docs_planned = False
+        have_any_docs = False
+        use_llm_if_no_docs = True
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+
+    if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
+        # FIXME: DATA
+        df = pd.DataFrame(None)
+        chain = create_pandas_dataframe_agent(
+            llm,
+            df,
+            verbose=True,
+            agent_type=AgentType.OPENAI_FUNCTIONS,
+        )
+
+        chain_kwargs = dict(input=query)
+        target = wrapped_partial(chain, chain_kwargs)
+
+        docs = []
+        scores = []
+        use_docs_planned = False
+        have_any_docs = False
+        use_llm_if_no_docs = True
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+
+    if LangChainAgent.JSON.value in langchain_agents and inference_server.startswith('openai_chat'):
+        # FIXME: DATA
+        with open('src/openai.yaml') as f:
+            data = yaml.load(f, Loader=yaml.FullLoader)
+        json_spec = JsonSpec(dict_=data, max_value_length=4000)
+        json_toolkit = JsonToolkit(spec=json_spec)
+
+        chain = create_json_agent(
+            llm=llm, toolkit=json_toolkit, verbose=True
+        )
+
+        chain_kwargs = dict(input=query)
+        target = wrapped_partial(chain, chain_kwargs)
+
+        docs = []
+        scores = []
+        use_docs_planned = False
+        have_any_docs = False
+        use_llm_if_no_docs = True
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+
+    if LangChainAgent.CSV.value in langchain_agents and len(document_choice) == 1 and document_choice[0].endswith('.csv'):
+        data_file = document_choice[0]
+        if inference_server.startswith('openai_chat'):
+            chain = create_csv_agent(
+                llm,
+                data_file,
+                verbose=True,
+                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+            )
+        else:
+            chain = create_csv_agent(
+                llm,
+                data_file,
+                verbose=True,
+                agent_type=AgentType.OPENAI_FUNCTIONS,
+            )
         chain_kwargs = dict(input=query)
         target = wrapped_partial(chain, chain_kwargs)
 
