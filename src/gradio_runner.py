@@ -50,7 +50,8 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg
+    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
+    LangChainAgent
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -705,11 +706,11 @@ def go_gradio(**kwargs):
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     langchain_agents = gr.Dropdown(
                         langchain_agents_list,
-                        value=kwargs['langchain_agents'],
+                        value=LangChainAgent.NONE.value,
                         label="Agents",
                         multiselect=True,
                         interactive=True,
-                        visible=False)  # WIP
+                        visible=True)
                 visible_doc_track = upload_visible and kwargs['visible_doc_track']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:

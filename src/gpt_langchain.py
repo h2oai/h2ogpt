@@ -25,14 +25,15 @@ import filelock
 import tabulate
 
 from joblib import delayed
+from langchain.agents import AgentType, load_tools, initialize_agent
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.schema import LLMResult, Generation
+from langchain.schema import LLMResult, Generation, AgentAction, AgentFinish, OutputParserException
 from tqdm import tqdm
 
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts
+    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
@@ -520,6 +521,7 @@ class GradioInference(LLM):
                              h2ogpt_key=self.h2ogpt_key,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        print("START: %s" % prompt, flush=True)
         if not stream_output:
             res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
@@ -566,8 +568,10 @@ class GradioInference(LLM):
             text_chunk = text[len(text0):]
             if text_callback:
                 text_callback(text_chunk)
-            return self.prompter.get_response(prompt + text, prompt=prompt,
+            ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                               sanitize_bot_response=self.sanitize_bot_response)
+            print("FINISH: prompt=%s\nret=%s" % (prompt, ret), flush=True)
+            return ret
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -3283,7 +3287,7 @@ def _run_qa_db(query=None,
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_docs_planned, have_any_docs = get_chain(**sim_kwargs)
+    docs, chain, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs = get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
@@ -3366,7 +3370,11 @@ def _run_qa_db(query=None,
                     # in case no exception and didn't join with thread yet, then join
                     if not thread.exc:
                         answer = thread.join()
-                        answer = answer['output_text']
+                        if isinstance(answer, dict):
+                            if 'output_text' in answer:
+                                answer = answer['output_text']
+                            elif 'output' in answer:
+                                answer = answer['output']
                 # in case raise StopIteration or broke queue loop in streamer, but still have exception
                 if thread.exc:
                     raise thread.exc
@@ -3376,7 +3384,11 @@ def _run_qa_db(query=None,
                     answer = asyncio.run(chain())
                 else:
                     answer = chain()
-                    answer = answer['output_text']
+                    if isinstance(answer, dict):
+                        if 'output_text' in answer:
+                            answer = answer['output_text']
+                        elif 'output' in answer:
+                            answer = answer['output']
 
     t_run = time.time() - t_run
     if not use_docs_planned:
@@ -3511,11 +3523,40 @@ def get_chain(query=None,
               # local
               auto_reduce_chunks=True,
               max_chunks=100,
+              use_llm_if_no_docs=None,
               ):
     if inference_server is None:
         inference_server = ''
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
+
+    if LangChainAgent.SEARCH.value in langchain_agents:
+        from src.output_parser import H2OMRKLOutputParser
+        output_parser = H2OMRKLOutputParser()
+        tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'),
+                           output_parser=output_parser)
+        if inference_server.startswith('openai'):
+            agent_type = AgentType.OPENAI_FUNCTIONS
+            agent_executor_kwargs = {"handle_parsing_errors": True}
+        else:
+            agent_type = AgentType.ZERO_SHOT_REACT_DESCRIPTION
+            agent_executor_kwargs = {}
+        chain = initialize_agent(tools, llm, agent=agent_type,
+                                 agent_executor_kwargs=agent_executor_kwargs,
+                                 agent_kwargs=dict(output_parser=output_parser),
+                                 #output_parser=output_parser,
+                                 max_iterations=4,
+                                 verbose=True)
+        chain_kwargs = dict(input=query)
+        target = wrapped_partial(chain, chain_kwargs)
+
+        docs = []
+        scores = []
+        use_docs_planned = False
+        have_any_docs = False
+        use_llm_if_no_docs = True
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
         if langchain_mode in ['Disabled', 'LLM']:
@@ -3809,11 +3850,11 @@ def get_chain(query=None,
 
     if not docs and use_docs_planned and not langchain_only_model:
         # if HF type and have no docs, can bail out
-        return docs, None, [], False, have_any_docs
+        return docs, None, [], False, have_any_docs, use_llm_if_no_docs
 
     if document_subset in non_query_commands:
         # no LLM use
-        return docs, None, [], False, have_any_docs
+        return docs, None, [], False, have_any_docs, use_llm_if_no_docs
 
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
     if os.path.isfile(common_words_file) and langchain_mode == LangChainAction.QUERY.value:
@@ -3893,7 +3934,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_docs_planned, have_any_docs
+    return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
 
 
 def get_sources_answer(query, docs, answer, scores, show_rank,

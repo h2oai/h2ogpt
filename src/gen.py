@@ -460,7 +460,7 @@ def main(
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
-    :param h2ogpt_key: Placeholder for default access key, not usually used
+    :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
@@ -670,6 +670,9 @@ def main(
         llamacpp_dict['n_gpu_layers'] = 100
     if 'n_gqa' not in llamacpp_dict:
         llamacpp_dict['n_gqa'] = 0
+
+    if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
+        visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
@@ -2074,6 +2077,8 @@ def evaluate(
         url_loaders = url_loaders_options0
     if jq_schema is None:
         jq_schema = jq_schema0
+    if isinstance(langchain_agents, str):
+        langchain_agents = [langchain_agents]
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
@@ -2235,6 +2240,9 @@ def evaluate(
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate
+    if LangChainAgent.SEARCH.value in langchain_agents:
+        do_langchain_path = True
+
     if do_langchain_path:
         text = ''
         sources = ''
