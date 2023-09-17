@@ -442,22 +442,28 @@ def go_gradio(**kwargs):
                               guest_name=kwargs['guest_name'],
                               selection_docs_state00=copy.deepcopy(selection_docs_state0))
 
-    def get_request_state(request):
+    def get_request_state(requests_state1, request, db1s):
         # if need to get state, do it now
-        requests_state1 = requests_state0
+        if not requests_state1:
+            requests_state1 = requests_state0.copy()
         if requests:
-            if hasattr(request, 'headers'):
+            if not requests_state1.get('headers', '') and hasattr(request, 'headers'):
                 requests_state1.update(request.headers)
-            if hasattr(request, 'host'):
+            if not requests_state1.get('host', '') and hasattr(request, 'host'):
+                requests_state1.update(dict(host=request.host))
+            if not requests_state1.get('host2', '') and hasattr(request, 'client') and hasattr(request.client, 'host'):
                 requests_state1.update(dict(host2=request.client.host))
-            if hasattr(request, 'username'):
-                requests_state1.update(dict(username=request.username or str(uuid.uuid4())))
+            if not requests_state1.get('username', '') and hasattr(request, 'username'):
+                from src.gpt_langchain import get_username_direct
+                # use already-defined username instead of keep changing to new uuid
+                # should be same as in requests_state1
+                db_username = get_username_direct(db1s)
+                requests_state1.update(dict(username=request.username or db_username or str(uuid.uuid4())))
         requests_state1 = {str(k): str(v) for k, v in requests_state1.items()}
         return requests_state1
 
     def user_state_setup(db1s, requests_state1, request: gr.Request, *args):
-        if not requests_state1['username']:  # should at least be "None" or actual username
-            requests_state1 = get_request_state(request)
+        requests_state1 = get_request_state(requests_state1, request, db1s)
         from src.gpt_langchain import set_userid
         set_userid(db1s, requests_state1, get_userid_auth)
         args_list = [db1s, requests_state1] + list(args)
@@ -2991,12 +2997,6 @@ def go_gradio(**kwargs):
                 history = []
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
-            dummy_return = history, None, None, None, None, False, None
-
-            if model_state1['model'] is None or model_state1['model'] == no_model_str:
-                return dummy_return
-
-            args_list = args_list[:-isize]  # only keep rest needed for evaluate()
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
@@ -3004,6 +3004,15 @@ def go_gradio(**kwargs):
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+                                     requests_state1=requests_state1)
+
+            dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, valid_key, h2ogpt_key1
+
+            if model_state1['model'] is None or model_state1['model'] == no_model_str:
+                return dummy_return
+
+            args_list = args_list[:-isize]  # only keep rest needed for evaluate()
             if not history:
                 print("No history", flush=True)
                 return dummy_return
@@ -3021,8 +3030,6 @@ def go_gradio(**kwargs):
                 # None when not filling with '' to keep client happy
                 return dummy_return
 
-            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
-                                     requests_state1=requests_state1)
             evaluate_local = evaluate if valid_key else evaluate_fake
 
             # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
