@@ -8,7 +8,7 @@ import pytest
 
 from tests.utils import wrap_test_forked, kill_weaviate
 from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes
-from src.gpt_langchain import get_persist_directory
+from src.gpt_langchain import get_persist_directory, get_db, get_documents
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
@@ -1404,6 +1404,21 @@ def test_url_more_subunit():
     docs1 = SeleniumURLLoader(urls=[url]).load()
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
+
+
+@wrap_test_forked
+@pytest.mark.parametrize("db_type", db_types_full)
+@pytest.mark.parametrize("num", [1000, 100000])
+def test_many_text(db_type, num):
+    from langchain.docstore.document import Document
+
+    sources = [Document(page_content=str(i)) for i in range(0, num)]
+    hf_embedding_model = "fake"
+    # hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    # hf_embedding_model = 'hkunlp/instructor-large'
+    db = get_db(sources, db_type=db_type, langchain_mode='ManyTextData', hf_embedding_model=hf_embedding_model)
+    documents = get_documents(db)['documents']
+    assert len(documents) == num
 
 
 if __name__ == '__main__':
