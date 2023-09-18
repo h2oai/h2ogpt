@@ -867,7 +867,8 @@ class H2OOpenAI(OpenAI):
             if not self.streaming:
                 # Can't update token usage if streaming
                 update_token_usage(_keys, response, token_usage)
-        choices[0]['text'] = text
+        if self.streaming:
+            choices[0]['text'] = text
         return self.create_llm_result(choices, prompts, token_usage)
 
     def get_token_ids(self, text: str) -> List[int]:
@@ -3760,8 +3761,13 @@ def get_chain(query=None,
                 elif hasattr(llm, 'tokenizer'):
                     # e.g. TGI client mode etc.
                     tokz = llm.tokenizer
-                    tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
-                    template_tokens = len(tokz.encode(template))
+                    template_tokens = tokz.encode(template)
+                    if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
+                        tokens = [len(tokz.encode(x[0].page_content)['input_ids']) for x in docs_with_score]
+                        template_tokens = len(tokz.encode(template)['input_ids'])
+                    else:
+                        tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
+                        template_tokens = len(tokz.encode(template))
                 elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                                           'openai_azure_chat'] or use_openai_model:
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
@@ -3801,9 +3807,17 @@ def get_chain(query=None,
                         top_k_docs = min(top_k_docs, top_k_docs_trial)
                 if top_k_docs == -1:
                     # if here, means 0 and just do best with 1 doc
-                    print("Unexpected large chunks and can't add to context, will add 1 anyways", flush=True)
                     top_k_docs = 1
-                docs_with_score = docs_with_score[:top_k_docs]
+                    docs_with_score = docs_with_score[:top_k_docs]
+                    # critical protection
+                    from src.h2oai_pipeline import H2OTextGenerationPipeline
+                    doc_content = docs_with_score[0][0].page_content
+                    doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content, tokenizer)
+                    docs_with_score[0][0].page_content = doc_content
+                    print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
+                        tokens[0], new_tokens0), flush=True)
+                else:
+                    docs_with_score = docs_with_score[:top_k_docs]
             else:
                 with filelock.FileLock(lock_file):
                     docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
@@ -4329,6 +4343,10 @@ def _update_user_db(file,
 
     # FIXME: could avoid even parsing, let alone embedding, same old files if upload same file again
     # FIXME: but assume nominally user isn't uploading all files over again from UI
+
+    if is_txt and hf_embedding_model == 'fake':
+        # avoid parallel if fake embedding since assume trivial ingestion
+        n_jobs = 1
 
     sources = path_to_docs(file if not is_url and not is_txt else None,
                            verbose=verbose,

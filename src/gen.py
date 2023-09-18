@@ -1561,13 +1561,17 @@ def get_model(
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
             tokenizer.model_max_length = tokenizer.model_max_length - 50
     else:
-        tokenizer = FakeTokenizer()
+        tokenizer = None
 
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                   base_model=base_model)
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
+        if tokenizer is None:
+            if os.getenv("HARD_ASSERTS"):
+                raise RuntimeError("Unexpected tokenizer=None")
+            tokenizer = FakeTokenizer()
         return client, tokenizer, 'http'
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
@@ -1591,7 +1595,9 @@ def get_model(
                 )
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
+        if inference_server.startswith('openai') or tokenizer is None:
+            # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
