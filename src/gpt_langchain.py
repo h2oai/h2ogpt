@@ -3560,13 +3560,13 @@ def get_chain(query=None,
         from langchain.utilities import SerpAPIWrapper
         search = SerpAPIWrapper()
         search_result = search.run(query)
-        pre_prompt_search = "Pay attention and remember web search information below, which will help to answer the question or imperative\n"
-        prompt_search = "End of web search context.  Assume this web search context is most up-to-date information, but it may be incomplete or poor quality"
+        pre_prompt_search = "Pay attention to the web search information provided below, and assume that is up-to-date but that it may be incomplete or poor quality.  Start of information from web search:\n"
+        prompt_search = "End of information from web search.\nUsing a balance of the web search information and any other knowledge, "
         search_template = """%s
 \"\"\"
 {search_result}
 \"\"\"
-%s""" % (pre_prompt_search, prompt_search)
+%s{query}""" % (pre_prompt_search, prompt_search)
         query = search_template.format(search_result=search_result, query=query)
         use_llm_if_no_docs = True
 
