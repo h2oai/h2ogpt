@@ -72,6 +72,11 @@ from langchain.vectorstores import Chroma
 from chromamig import ChromaMig
 
 
+def split_list(input_list, split_size):
+    for i in range(0, len(input_list), split_size):
+        yield input_list[i:i + split_size]
+
+
 def get_db(sources, use_openai_embedding=False, db_type='faiss',
            persist_directory=None, load_db_if_exists=True,
            langchain_mode='notset',
@@ -141,13 +146,18 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             else:
                 num_threads = max(1, n_jobs)
             collection_metadata = {"hnsw:num_threads": num_threads}
-            db = Chroma.from_documents(documents=sources,
-                                       embedding=embedding,
-                                       persist_directory=persist_directory,
-                                       collection_name=collection_name,
-                                       client_settings=client_settings,
-                                       collection_metadata=collection_metadata)
-            db.persist()
+            import chromadb
+            api = chromadb.PersistentClient(path=persist_directory)
+            max_batch_size = api._producer.max_batch_size
+            sources_batches = split_list(sources, max_batch_size)
+            from_kwargs = dict(embedding=embedding,
+                               persist_directory=persist_directory,
+                               collection_name=collection_name,
+                               client_settings=client_settings,
+                               collection_metadata=collection_metadata)
+            for sources_batch in sources_batches:
+                db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
+                db.persist()
             clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
@@ -262,8 +272,13 @@ def add_to_db(db, sources, db_type='faiss',
         with context(file):
             # this is place where add to db, but others maybe accessing db, so lock access.
             # else see RuntimeError: Index seems to be corrupted or unsupported
-            db.add_documents(documents=sources)
-            db.persist()
+            import chromadb
+            api = chromadb.PersistentClient(path=db._persist_directory)
+            max_batch_size = api._producer.max_batch_size
+            sources_batches = split_list(sources, max_batch_size)
+            for sources_batch in sources_batches:
+                db.add_documents(documents=sources_batch)
+                db.persist()
             clear_embedding(db)
             # save here is for migration, in case old db directory without embedding saved
             save_embed(db, use_openai_embedding, hf_embedding_model)
@@ -3025,12 +3040,14 @@ def _get_documents(db):
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
+        documents = dict(documents=documents)
     elif isinstance(db, Chroma) or isinstance(db, ChromaMig):
         documents = db.get()
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
         documents = [x for x in db.similarity_search("", k=10000)]
+        documents = dict(documents=documents)
     return documents
 
 
@@ -3064,7 +3081,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
             db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
     else:
         db_metadatas = get_metadatas(db)
-        db_documents = get_documents(db)
+        db_documents = get_documents(db)['documents']
     return db_documents, db_metadatas
 
 
