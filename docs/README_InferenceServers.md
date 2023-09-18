@@ -241,9 +241,16 @@ Assuming torch was installed with CUDA 11.7, and you have installed cuda locally
 CUDA_HOME=/usr/local/cuda-11.7 pip install vllm ray pandas
 export NCCL_IGNORE_DISABLED_P2P=1
 export CUDA_VISIBLE_DEVICESs=0,1
-python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-research-oasst1-llama-65b --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234
+python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-research-oasst1-llama-65b --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234 --max-num-batched-tokens=2048
 ```
-which takes about 3 minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
+or for LLaMa-2 70b on 4 GPUs:
+```bash
+export NCCL_IGNORE_DISABLED_P2P=1
+export CUDA_VISIBLE_DEVICESs=0,1,2,3
+python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-4096-llama2-70b-chat --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=4 --seed 1234 --max-num-batched-tokens=8192
+```
+
+The startup may take few minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
 ```text
 INFO 07-15 02:56:41 llm_engine.py:131] # GPU blocks: 496, # CPU blocks: 204
 INFO 07-15 02:56:43 tokenizer.py:28] For some LLaMA-based models, initializing the fast tokenizer may take a long time. To eliminate the initialization time, consider using 'hf-internal-testing/llama-tokenizer' instead of the original tokenizer.
