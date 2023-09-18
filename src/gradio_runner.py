@@ -698,6 +698,8 @@ def go_gradio(**kwargs):
                         min_width=100)
                     add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                               value=kwargs['add_chat_history_to_context'])
+                    add_search_to_context = gr.Checkbox(label="Web Search",
+                                                              value=kwargs['add_search_to_context'])
                     document_subset = gr.Radio([x.name for x in DocumentSubset],
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,

@@ -244,6 +244,7 @@ def main(
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
         add_chat_history_to_context: bool = True,
+        add_search_to_context: bool = False,
         context: str = '',
         iinput: str = '',
         allow_upload_to_user_data: bool = True,
@@ -577,6 +578,7 @@ def main(
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
+    :param add_search_to_context: Include web search in context as augmented prompt
     :param context: Default context to use (for system pre-context in gradio UI)
     :param iinput: Default input for instruction-based prompts
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
@@ -1974,6 +1976,7 @@ def evaluate(
         iinput_nochat,
         langchain_mode,
         add_chat_history_to_context,
+        add_search_to_context,
         langchain_action,
         langchain_agents,
         top_k_docs,
@@ -2067,6 +2070,7 @@ def evaluate(
     assert n_jobs is not None
     assert first_para is not None
     assert isinstance(add_chat_history_to_context, bool)
+    assert isinstance(add_search_to_context, bool)
     assert load_exllama is not None
     # for lazy client (even chat client)
     if image_loaders is None:
@@ -2242,6 +2246,9 @@ def evaluate(
                         force_langchain_evaluate
     if LangChainAgent.NONE.value not in langchain_agents and len(langchain_agents) > 0:
         do_langchain_path = True
+    if add_search_to_context:
+        # easier to manage prompt etc. by doing full langchain path
+        do_langchain_path = True
 
     if do_langchain_path:
         text = ''
@@ -2289,6 +2296,7 @@ def evaluate(
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
                 add_chat_history_to_context=add_chat_history_to_context,
+                add_search_to_context=add_search_to_context,
                 system_prompt=system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
@@ -2480,6 +2488,7 @@ def evaluate(
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
                 client_add_chat_history_to_context = True
+                client_add_search_to_context = False
                 client_langchain_action = LangChainAction.QUERY.value
                 client_langchain_agents = []
                 gen_server_kwargs = dict(temperature=temperature,
@@ -2534,6 +2543,7 @@ def evaluate(
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
                                      add_chat_history_to_context=client_add_chat_history_to_context,
+                                     add_search_to_context=client_add_search_to_context,
                                      langchain_action=client_langchain_action,
                                      langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
@@ -3192,7 +3202,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, True,
+        example += [chat, '', '', LangChainMode.DISABLED.value, True, False,
                     LangChainAction.QUERY.value, [],
                     top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [],
                     pre_prompt_query, prompt_query,

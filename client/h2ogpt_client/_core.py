@@ -70,6 +70,7 @@ class TextCompletionCreator:
         number_returns: int = 1,
         system_pre_context: str = "",
         add_chat_history_to_context: bool = False,
+        add_search_to_context: bool = False,
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
@@ -99,6 +100,7 @@ class TextCompletionCreator:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :param add_chat_history_to_context: Whether to add chat history to context
+        :param add_search_to_context: Whether to add web search to context
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
@@ -114,6 +116,7 @@ class TextCompletionCreator:
         params["instruction_nochat"] = None  # future prompt
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = False  # relevant only for the UI
+        params["add_search_to_context"] = False
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks
@@ -243,6 +246,7 @@ class ChatCompletionCreator:
         params["instruction_nochat"] = ""  # empty when chat_mode is True
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = False  # relevant only for the UI
+        params["add_search_to_context"] = False
         params["system_prompt"] = ""
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []

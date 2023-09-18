@@ -490,6 +490,7 @@ class GradioInference(LLM):
         gr_client = self.client
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = True
+        client_add_search_to_context = False
         client_langchain_action = LangChainAction.QUERY.value
         client_langchain_agents = []
         top_k_docs = 1
@@ -521,6 +522,7 @@ class GradioInference(LLM):
                              iinput_nochat=self.iinput if not self.chat_client else '',
                              langchain_mode=client_langchain_mode,
                              add_chat_history_to_context=client_add_chat_history_to_context,
+                             add_search_to_context=client_add_search_to_context,
                              langchain_action=client_langchain_action,
                              langchain_agents=client_langchain_agents,
                              top_k_docs=top_k_docs,
@@ -3168,6 +3170,7 @@ def _run_qa_db(query=None,
                append_sources_to_answer=True,
                cut_distance=1.64,
                add_chat_history_to_context=True,
+               add_search_to_context=False,
                system_prompt='',
                sanitize_bot_response=False,
                show_rank=False,
@@ -3522,6 +3525,7 @@ def get_chain(query=None,
               prompt_dict=None,
               cut_distance=1.1,
               add_chat_history_to_context=True,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
+              add_search_to_context=False,
               load_db_if_exists=False,
               db=None,
               langchain_mode=None,
@@ -3551,6 +3555,20 @@ def get_chain(query=None,
         inference_server = ''
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
+
+    if add_search_to_context:
+        from langchain.utilities import SerpAPIWrapper
+        search = SerpAPIWrapper()
+        search_result = search.run(query)
+        pre_prompt_search = "Pay attention and remember web search information below, which will help to answer the question or imperative\n"
+        prompt_search = "End of web search context.  Assume this web search context is most up-to-date information, but it may be incomplete or poor quality"
+        search_template = """%s
+\"\"\"
+{search_result}
+\"\"\"
+%s""" % (pre_prompt_search, prompt_search)
+        query = search_template.format(search_result=search_result, query=query)
+        use_llm_if_no_docs = True
 
     from src.output_parser import H2OMRKLOutputParser
     if LangChainAgent.SEARCH.value in langchain_agents:
@@ -3766,10 +3784,10 @@ def get_chain(query=None,
             template_if_no_docs = template = """{context}{question}"""
         else:
             template = """%s
-    \"\"\"
-    {context}
-    \"\"\"
-    %s{question}""" % (pre_prompt_query, prompt_query)
+\"\"\"
+{context}
+\"\"\"
+%s{question}""" % (pre_prompt_query, prompt_query)
             template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]

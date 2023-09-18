@@ -62,6 +62,7 @@ def run_cli(  # for local function:
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         add_chat_history_to_context=None,
+        add_search_to_context=None,
         context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
