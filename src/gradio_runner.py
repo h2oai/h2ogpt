@@ -718,7 +718,9 @@ def go_gradio(**kwargs):
                         label="Agents",
                         multiselect=True,
                         interactive=True,
-                        visible=True)
+                        visible=True,
+                        elem_id="langchain_agents",
+                        filterable=False)
                 visible_doc_track = upload_visible and kwargs['visible_doc_track']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:
@@ -816,6 +818,7 @@ def go_gradio(**kwargs):
                                                              multiselect=True,
                                                              visible=visible_model_choice,
                                                              elem_id="visible-models",
+                                                             filterable=False,
                                                              )
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
