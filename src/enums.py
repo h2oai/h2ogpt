@@ -151,10 +151,10 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
                        model_path_llama and 'llama-2' in model_path_llama.lower()) or \
             model_name in [None, '']:
         # use when no model, like no --base_model
-        pre_prompt_query1 = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
         prompt_query1 = "According to only the information in the document sources provided within the context above, "
     elif inference_server and inference_server.startswith('openai'):
-        pre_prompt_query1 = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
         prompt_query1 = "According to (primarily) the information in the document sources provided within context above, "
     else:
         pre_prompt_query1 = ""
