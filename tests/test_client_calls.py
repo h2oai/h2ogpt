@@ -1426,7 +1426,10 @@ def test_client_chat_stream_langchain_openai_embeddings():
     'helium1',
     'helium2',
 ])
+# local_server=True
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat'])
+# local_server=False
+# @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @wrap_test_forked
 def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     os.environ['VERBOSE_PIPELINE'] = '1'
@@ -1556,14 +1559,17 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             expected_return_number = 10
             tokens_expected = 1500
         else:
-            expected_return_number = 16
-            tokens_expected = 3500
+            expected_return_number = 16 if local_server else 17
+            tokens_expected = 3500 if local_server else 2900
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
         countsall = count_tokens('\n'.join(texts), base_model=base_model)
         print('countsall ', countsall)
-    langchain_mode = "UserData"
+    # for testing persistent database
+    # langchain_mode = "UserData"
+    # for testing ephemeral database
+    langchain_mode = "MyData"
     embed = False
     chunk = False
     chunk_size = 512
@@ -1580,11 +1586,13 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         assert all([x in res[2] for x in texts])
     assert res[3] == ''
 
-    from src.gpt_langchain import load_embed
-    got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory='db_dir_%s' % langchain_mode)
-    assert not use_openai_embedding
-    assert hf_embedding_model == 'fake'
-    assert got_embedding
+    if local_server:
+        from src.gpt_langchain import load_embed
+        got_embedding, use_openai_embedding, hf_embedding_model = load_embed(
+            persist_directory='db_dir_%s' % langchain_mode)
+        assert not use_openai_embedding
+        assert hf_embedding_model == 'fake'
+        assert got_embedding
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
 
@@ -1623,7 +1631,9 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     assert 'response' in res_dict and res_dict['response']
     sources = res_dict['sources']
     texts_out = [x['content'] for x in sources]
-    assert texts[:expected_return_number] == texts_out
+    texts_expected = texts[:expected_return_number]
+    assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
+    assert texts_expected == texts_out
 
 
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
