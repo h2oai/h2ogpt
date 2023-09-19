@@ -1168,6 +1168,7 @@ def set_openai(inference_server):
             deployment_type = inference_server.split(':')[1]
         if len(inference_server.split(':')) >= 3:
             base_url = inference_server.split(':')[2]
+            base_url = 'https://' + base_url
         if len(inference_server.split(':')) >= 4:
             api_version = inference_server.split(':')[3]
 

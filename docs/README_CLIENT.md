@@ -366,7 +366,7 @@ As long as objects within the `gradio_runner.py` for a given api_name are for a 
 
 For example, for a server launched as:
 ```bash
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir=fooasdf --use_system_prompt=True
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir=fooasdf --system_prompt='auto'
 ```
 one can use the `submit_nochat_plain_api` that has no `state` objects to perform chat via `curl` by doing:
 ```bash

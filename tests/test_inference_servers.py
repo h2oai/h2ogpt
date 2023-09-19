@@ -493,7 +493,10 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
     if inference_server == 'openai_azure_chat':
         # need at least deployment name added:
         deployment_name = 'h2ogpt'
-        inference_server += ':%s' % deployment_name
+        inference_server += ':%s:%s' % (deployment_name, 'h2ogpt.openai.azure.com/')
+    if 'azure' in inference_server:
+        assert 'OPENAI_AZURE_KEY' in os.environ, "Missing 'OPENAI_AZURE_KEY'"
+        os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_AZURE_KEY']
 
     main_kwargs = dict(base_model=base_model, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -503,6 +506,7 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
+                       system_prompt='auto',
                        reverse_docs=reverse_docs)
 
     # server that consumes inference server

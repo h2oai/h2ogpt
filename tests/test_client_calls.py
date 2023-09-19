@@ -570,6 +570,47 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
            and '.md' in res_dict['response']
 
 
+@pytest.mark.parametrize("system_prompt", ['', None, 'None', 'auto', 'You are a goofy lion who talks to kids'])
+@wrap_test_forked
+def test_client_system_prompts(system_prompt):
+    stream_output = True
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2'  # 'human_bot'
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         )
+
+    from src.client_test import get_client, get_args, run_client
+    client = get_client(serialize=False)
+
+    # QUERY1
+    prompt = "Who are you?"
+    for client_type in ['chat', 'nochat']:
+        if client_type == 'chat':
+            kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                                    system_prompt=system_prompt)
+
+            res_dict, client = run_client(client, prompt, args, kwargs)
+        else:
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+            kwargs = dict(instruction_nochat=prompt, system_prompt=system_prompt)
+            # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+            res = client.predict(str(dict(kwargs)), api_name=api_name)
+            res_dict = ast.literal_eval(res)
+
+        if system_prompt == 'You are a goofy lion who talks to kids':
+            assert 'ROAR!' in res_dict['response'] and 'respectful' not in res_dict[
+                'response'] and 'developed by Meta' not in res_dict['response']
+        elif system_prompt == '':
+            assert "developed by Meta" in res_dict['response'] and 'respectful' not in res_dict[
+                'response'] and 'ROAR!' not in res_dict['response']
+        elif system_prompt in [None, 'auto', 'None']:
+            assert 'respectful' in res_dict['response'] and 'ROAR!' not in res_dict[
+                'response'] and 'developed by Meta' not in res_dict['response']
+
+
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
@@ -1425,8 +1466,12 @@ def test_client_chat_stream_langchain_openai_embeddings():
     'simple',
     'helium1',
     'helium2',
+    'helium3',
 ])
+# local_server=True
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat'])
+# local_server=False
+# @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @wrap_test_forked
 def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     os.environ['VERBOSE_PIPELINE'] = '1'
@@ -1500,7 +1545,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         print('counts ', counts)
         countsall = count_tokens('\n'.join(texts), base_model=base_model)
         print('countsall ', countsall)
-    else:
+    elif data_kind == 'helium2':
         texts = [
             'Efficiency ratio (total operating expenses/total revenues, net)\n68.1\n67.0\n58.8\n57.0\n58.1\nBasel III ratios\nCET1 Capital\n(4)\n13.03 %\n12.25 %\n11.51 %\n11.79 %\n11.86 %\nTier 1 Capital\n(4)\n14.80\n13.91\n13.06\n13.33\n13.43\nTotal Capital\n(4)\n15.46\n16.04\n15.33\n15.87\n16.14\nSupplementary Leverage ratio\n5.82\n5.73\n6.99\n6.20\n6.40\nCitigroup common stockholders’ equity to assets\n7.54 %\n7.99 %\n7.96 %\n8.98 %\n9.27 %\nTotal Citigroup stockholders’ equity to assets\n8.33\n8.81\n8.82\n9.90\n10.23',
             'Payables to customers\n$\n55,747\n$\n52,158\nPayables to brokers, dealers and\nclearing organizations\n13,471\n9,272\nTotal brokerage payables\n(1)\n$\n69,218\n$\n61,430\n(1) Includes brokerage receivables and payables recorded by Citi broker-\ndealer entities that are accounted for in accordance with the AICPA\nAccounting Guide for Brokers and Dealers in Securities as codified in\nASC 940-320.\n194\n13. INVESTMENTS\nThe following table presents Citi’s investments by category:\nDecember 31,\nIn millions of dollars',
@@ -1556,14 +1601,51 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             expected_return_number = 10
             tokens_expected = 1500
         else:
-            expected_return_number = 16
-            tokens_expected = 3500
+            expected_return_number = 16 if local_server else 17
+            tokens_expected = 3500 if local_server else 2900
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
         countsall = count_tokens('\n'.join(texts), base_model=base_model)
         print('countsall ', countsall)
-    langchain_mode = "UserData"
+    elif data_kind == 'helium3':
+        texts = [
+            '12 Assets under management (AUM) includes\n3\nAssets under management consist of cash and\nassets of the investment advisers affiliated\n6\nThe company’s general account investment\ninvested assets and separate account assets of the\nwith New York Life Insurance Company, other\nportfolio totaled $317.13 billion at December 31,\ncompany’s domestic and international insurance\nthan Kartesia Management, and Tristan Capital\n2022 (including $122.99 billion invested assets\noperations, and assets the company manages\nPartners, as of 12/31/2022. As of 12/31/2022\nfor NYLIAC and $8.39 billion invested assets\nfor third-party investors, including mutual funds,\nNew York Life Investments changed its AUM\nfor LINA). At December 31, 2022, total assets\nseparately managed accounts, retirement plans,\ncalculation methodology, and AUM now includes\nequaled $392.13 billion (including $184.99 billion\nSee Note 6 for and assets under certain assets, such as non-discretionary\ntotal assets for NYLIAC and $9.25 billion total\ninformation on the company’s general account\nAUM, external fund selection, and overlay\nassets for LINA). Total liabilities, excluding the\ninvestment',
+            '| 0                               | 1      | 2             | 3      | 4             |\n|:--------------------------------|:-------|:--------------|:-------|:--------------|\n| Cash and Invested Assets        |        |               |        |               |\n| (In $ Billions)                 |        | Dec. 31, 2022 |        | Dec. 31, 2021 |\n| Bonds                           | $230.4 | 73%           | $221.4 | 74%           |\n| Mortgage Loans                  | 38.7   | 12%           | 35.2   | 12%           |\n| Equities                        | 15.3   | 5%            | 14.9   | 5%            |\n| Policy Loans                    | 12.6   | 4%            | 12.2   | 4%            |\n| Cash and Short-Term Investments | 9.9    | 3%            | 4.7    | 2%            |\n| Other Investments               | 4.4    | 1%            | 4.1    | 1%            |\n| Derivatives                     | 3.0    | 1%            | 1.6    | 1%            |\n| Investments in Subsidiaries     | 2.8    | 1%            | 2.9    | 1%            |\n| Total Cash and Invested Assets  | $317.1 | 100%          | $297.0 | 100%          |',
+            'The portfolio is high\nmortgage loan portfolio is broadly diversified\nquality, with a loan-to-value ratio of by both property type and geographic\n$38.7\nBILLION10\n33% Multifamily\n4%\n27% Industrial\n19%\n23% Office\n24%\n9%\n15% Retail\n7%\n24%\n2% Other\n13%\nNEW YORK LIFE INSURANCE COMPANY\nNotes appear on page 15\n10\nIn particular, we utilize our extensive investment\npotential for value appreciation. We also\nEquities\ncapabilities in private equity and real estate to\ninvest in properties where opportunities exist\nadd value to the General to increase net operating income through\nWe maintain a 5%\ncapital investment and/or repositioning and\nPrivate Equities consist primarily of\nallocation to equities,\nthereby increase the property’s investments in small- and middle-market\nwhich offer higher\ncompanies through funds sponsored by\nPublic Equities are invested in a broad\nreturns and inflation\ntop-tier partners and spectrum of publicly listed companies. We\nprotection over the\nWe have extensive expertise and also long-\nutilize public equities to manage our overall\nlong standing relationships with high-performing\nallocation to equities.',
+            'program, New York Life fully committed the $1\nbillion across various investments that are at\nthe heart of our impact thesis, and we continue\nto seek additional investment opportunities to\nexpand the program beyond our initial SURPLUS AND ASSET VALUATION RESERVE5\nCASH AND INVESTED ASSETS6\nIn $ Billions\nIn $ Billions\n317.1\n30.1\n2022\n2022\n297.0\n30.7\n2021\n2021\n284.2\n27.0\n2020\n2020\n268.0\n27.0\n2019\n2019\n2018\n2018\n256.1\n24.8\nNEW YORK LIFE INSURANCE COMPANY\nNotes appear on page 15\n6\nGeneral Account Investment Portfolio Overview\nNew York Life had\ncash and invested assets\nof $317.1 billion as of\nDecember 31, 2022.6\nNet Yield on Investment7\nNet yield on investment (net investment\nflow being invested at market income divided by the average of the current\nHowever, having the capability to originate\nand prior years’ invested assets) has declined\nprivate placement debt and mortgage loans\nslowly since reaching a peak in the helps mitigate the effect of a lower interest\nThis is attributable to the combined effect of\nrate higher-yielding assets maturing and new cash\n15%\nNew York Life Average\nAverage 10-Year',
+            'Investment Capabilities\n$710 billion in assets under management.3\nExpertise that creates Our deep investment\nexperience and\nNew York Life had $710 billion of assets under\nNew York Life is able to access virtually all\ninvestment capabilities\nmanagement as of December 31, 2022. This\nasset classes, providing a broad universe of\nare put to work for\nincludes the $317 billion General Account—an\ninvestment opportunities to deliver long-\nour investment portfolio used to support claim\nterm, relatively stable returns. In particular, we\nand benefit payments made to clients. New\nhave the ability to originate private debt and\nYork Life’s investment boutiques manage\nequity investments. This expertise allows us\na broad array of fixed income, equity, asset\nto identify valuable investment opportunities\nallocation, sustainable investments, and\nunavailable in the public alternative investment General Account Investment Philosophy\nWe take a long-term We maintain At New York Life,\nour General Account\nWe invest for the long term because we make\nWe focus on maintaining safety and security\ninvestment philosophy\nlong-term commitments to our policy owners\nwhile pursuing superior investment',
+            'Overview of\ninvestment managers13\nNewly unified alternatives investment firm\nBoutique offering a range of fixed income\nwith capabilities spanning private credit,\nstrategies, including investment grade, high\nprivate equity, GP stakes, private real assets,\nyield, bank loans, and municipals, as well as\nand long/short fundamental Specialists in cross-asset investing, leveraging\nBoutique with expertise in active the breadth and depth of the New York Life\nCapabilities across Australian equities\nInvestments’ multi-boutique and global small cap, natural resources, and\nlisted Provides investment management and\nfinancing solutions for New York Life and our\nESG-focused, active asset manager with\nvalued strategic partners, focused on fixed\nexpertise in fixed income, equity, thematic\nincome and real investing, absolute return, asset allocation,\nand liability-driven investing for pension\nfunds and insurance ~~ TRISTAN\nSs “CAPTTALPARTNERS\nReal estate investment management company\nspecializing in a wide range of property types\nPioneer and leading provider of exchange\nacross the UK and continental traded funds, granting investors access to\ninnovative solutions designed to deliver a\nsmarter approach to traditional',
+            'dominated by high-\nquality investments,\nWe maintain a relatively small allocation\nwith 95% rated as\nto high yield issuers. These investments\ninvestment typically offer higher yields but have\ngreater risk of default. Our experienced\n$230.4\ninvestment team conducts thorough\nBILLION8\nresearch to identify companies with good\nbusiness fundamentals, making them\nless likely to default. We have historically\nachieved significant risk-adjusted returns\nfrom high yield investments, creating\nvalue for our NAIC 1:\nAAA to A-\n62%\nCorporate Bond Industry Diversification\nThe public and private\ncorporate bond\nportfolio, totaling\nOther\nIndustrial\nTechnology\n$142.6 billion, or\nFinance\n4%\n5%\n2%\n62% of the bond\nCable &\nportfolio, remains\nMedia\nPaper & Packaging\n7%\n5%\n4%\n2%\nConsumer\nwell diversified across\nEnergy\nProducts\nAutomotive\nthe broad industry\n2%\n16%\nspectrum, providing\n8%\nUtilities\n8%\nprotection throughout\nBanking/\nServices\nREITs\nBrokerage\n2%\nbusiness',
+            'manages $661 billion in assets as of\nOur global capabilities combined with local\n12/31/22,12 including New York Life’s\npresence drive more nuanced perspective and\nGeneral Account investments and\na more personal experience for our third-party Insurance insights\nOur boutiques\nIn addition to offering investment expertise\nto our clients, our investment managers\nOur multi-boutique business model is built\npartner and collaborate with our core insurance\non the foundation of a long and stable history,\nbusiness to deliver deep insights on topics such\nwhich gives our clients proven performance\nas asset/liability management, liability-driven\nmanaging risk through multiple economic\ninvesting, and income-focused strategies, as\ncycles. With capabilities across virtually all asset\nwell as regulatory, rating agency, and accounting\nclasses, market segments, and geographies, our\nregimes. This partnership allows New York\nfamily of specialized, independent boutiques\nLife Investments to help meet the unique\nand investment teams allows us to deliver\ninvestment needs of insurance companies as\ncustomized strategies and integrated solutions\nwell as other institutional and retail for every client Investment Capabilities\nOur investment\nFixed Income\nETFs\nIndex Solutions\nEquities\nteams’ expertise\n• U.S.',
+            'services, including ESG screening services,\nAsset Valuation Reserve (AVR), equaled $362.02\n4\nPolicy owner benefits primarily include death\nadvisory consulting services, white labeling\nbillion (including $174.56 billion total liabilities for\nclaims paid to beneficiaries and annuity investment management services, and model\nNYLIAC and $7.50 billion total liabilities for Dividends are payments made to eligible policy\nSee Note 5 for total portfolio delivery services, that do not qualify\nowners from divisible surplus. Divisible surplus is\nas Regulatory Assets Under Management,\n7\nThe chart represents the composite yield on\nthe portion of the company’s total surplus that\nas defined in the SEC’s Form ADV. AUM is\ninvested assets in the General Accounts of New\nis available, following each year’s operations, for\nreported in USD. AUM not denominated in USD\nYork Life and its subsidiaries. Although yields\ndistribution in the form of dividends. Dividends\nis converted at the spot rate as of shown are for a retail product (10-year are not guaranteed.',
+            'Each year the board of\nThis total AUM figure is less than the sum of the\nTreasury bonds), New York Life’s net yield does\ndirectors votes on the amount and allocation of\nAUM of each affiliated investment adviser in the\nnot represent the yield of a retail product. The\nthe divisible surplus. Policy owner benefits and\ngroup because it does not count AUM where the\nchart shows how New York Life’s aggregate net\ndividends reflect the consolidated results of\nsame assets can be counted by more than one\nyield on invested assets has remained relatively\nNYLIC and its domestic insurance affiliated investment stable during periods of both rising and falling\nIntercompany transactions have been eliminated\n13 The products and services of New York Life\ninterest rates. It is indicative of New York Life’s\nin consolidation. NYLIC’s policy owner benefits\nInvestments Boutiques are not available to\nfinancial strength and does not reflect a rate of\nand dividends were $8.70 billion and $8.80 billion\nall clients in all jurisdictions or regions where\nreturn on any particular investment or insurance\nfor the years ended December 31, 2022 and 2021,\nsuch provisions would be contrary to local\nproduct.',
+            '9%\nHealthcare/\nInsurance\n4%\nPharmaceuticals\n3%\nOther\nTelecommunications\n2%\nRetail\nAerospace & Defense\nTransportation\n3%\n2%\n4%\n$142.6\nConglomerates\nChemicals\nBILLION9\n5%\n3%\n2022 INVESTMENT REPORT\nNotes appear on page 15\n9\nSingle\nCorporate Bond Issuer Diversification\nLargest Issuer\n0.2%\nThe largest single issuer represents 0.2%\nThe corporate\nof cash and invested assets. Furthermore,\nbond portfolio is\nthe portfolio’s ten largest corporate bond\nmanaged to limit\nholdings represent only 1.5% of cash\nexposure to individual\nand invested assets. The corporate bond\nissuers according to\nportfolio is comprised of securities issued\ncredit quality and\nby over 3,300 individual other $317.1\nBILLION6\nCash and\nTop 10\nInvested Assets\nLargest Issuers\n100%\n1.5%\nThe company’s mortgage loan investment\nlocation. We maintain regional underwriting\nMortgage Loans\nstyle emphasizes conservative underwriting\noffices to ensure we have deep knowledge\nand a focus on high quality properties. The\nof our target markets.',
+            'These holdings are\nprivate equity sponsors. In addition, our\ntypically highly liquid and offer higher return\nNYL Ventures team invests directly in\npotential in the long term compared with that\ninnovative technology partnerships focused\nof fixed income on impacting financial services, digital\nhealth, and enterprise software. We also\nmake opportunistic investments in a\nselect group of venture capital Real Estate\nPrivate\nReal Estate Equities primarily consist of\nEquities\nEquities\n36%\n53%\nhigh-quality, institutional-grade properties\ndiversified across property types and\n$15.3\ngeographic regions. We strategically focus\nBILLION11\non multifamily, industrial, office, and retail\nproperties in primary markets. These\nPublic\nEquities\ntypes of real estate investments generally\n11%\nprovide stable and predictable income, with\nAsset Class Returns and Diversification\nAs illustrated below, individual asset class benchmark returns vary from year to We maintain\nBy maintaining a diversified asset allocation, we invest throughout market cycles and\ndiversification across\ndon’t simply chase',
+            'The New York Life net yield shown in this chart\n14 Based on revenue as reported by “Fortune\n5\nTotal surplus, which includes the AVR, is\nrepresents a composite net yield of the invested\n500 ranked within Industries, Insurance: Life,\none of the key indicators of the company’s\nassets of each of the following companies:\nHealth (Mutual),”Fortune magazine, long-term financial strength and stability\nNYLIC, NYLIAC, NYLAZ, LINA, and NYLGICNY,\nFor methodology, please see and is presented on a consolidated basis of\nnet of eliminations for certain intra-company\nthe company. NYLIC’s statutory surplus was\ntransactions. The curve shown represents only\n$23.89 billion and $24.57 billion at December\nNYLIC in years 1972–1979, NYLIC and NYLIAC in\n31, 2022 and 2021, respectively. Included in\nyears 1980–1986, NYLIC, NYLIAC, and NYLAZ in\n2022 INVESTMENT REPORT\n15\n',
+            '7\nBonds\nThe majority of the\nPublic Corporate Bonds\n31%\nGeneral Account\ninvestment portfolio\nPrivate Corporate Bonds\n31%\nis allocated to bonds,\nwhich provide current\nAsset-Backed Securities\n10%\nincome to pay claims\nand benefits to policy\n$230.4\nCommerical Mortgage-Backed Securities\n10%\nBILLION8\nMunicipal Bonds\n7%\nResidential Mortgage-Backed Securities\n6%\nGovernment & Agency\n5%\nPublic Corporate Bonds, issued primarily\nResidential Mortgage-Backed Securities\nby investment grade companies, form the\nare investments in the residential real\ncore of our investment portfolio. We invest\nestate mortgage market. These securities\nacross a diverse group of industries. Public\nare typically pools of mortgages from a\ncorporate bonds are liquid and provide stable\ndiverse group of borrowers and geographic\ncurrent regions. A large portion of our holdings are\nissued and guaranteed by U.S. government–\nPrivate Corporate Bonds are originated by our\nsponsored dedicated team of investment This expertise allows us to identify valuable\nMunicipal Bonds provide opportunities\ninvestment opportunities unavailable in the\nto invest in states, counties, and local\npublic markets. In addition, these investments\nmunicipalities.',
+            'We believe being a responsible investor is\ndisciplined approach\nWe invest in assets with similar interest rate\nconsistent with our goal to create long-term\nsensitivities and cash flow characteristics\nfinancial security for our clients and aligns our\nwhen investing the\nas our liabilities. This is done with the goal of\ninvestment activity with the broader objectives\nGeneral Account\nhaving funds available when we need to pay\nof society. Our holistic approach to investment\ninvestment benefits to clients and to protect the surplus\nanalysis incorporates a financial assessment\nof the company from adverse changes in\nas well as considering environmental, social,\ninterest rates. In addition, we maintain ample\nand governance (ESG) factors that are deemed\nliquidity in the event we need to meet large\nmaterial to a company’s performance. We\nand unexpected cash believe responsible investing is a journey that\nneeds to be thoughtfully implemented to\nWell-balanced and diversified investments\nbe effective in its outcomes, and we remain\nPortfolios with diversified asset allocations\ncommitted to sharing our progress as we',
+            'Municipal investments include\nprovide further diversification, better\ngeneral obligation bonds supported by\nselectivity, and higher returns compared with\ntaxes, as well as revenue bonds that finance\nthose of public specific income-producing projects. These\ninvestments provide further diversification\nCommercial Mortgage-Backed Securities\nto our portfolio as well as exhibit longer\nprovide access to diversified pools of\nduration, high credit quality, and a historically\ncommercial mortgages that supplement our\nlow default commercial mortgage loan Government & Agency Bonds are highly\nAsset-Backed Securities are bonds backed\nliquid securities that help ensure we have\nby various types of financial receivables, such\nample funds available to pay large and\nas equipment leases, collateralized bank\nunexpected loans, royalties, or consumer NEW YORK LIFE INSURANCE COMPANY\nNotes appear on page 15\n8\nNAIC 2:\nNAIC 3–6:\nBond Portfolio Quality\nBBB+ to BBB-\nBB+ and below\n33%\n5%\nInvestment grade securities provide\nThe bond portfolio\nsafety and security while producing\ncontinues to be\nstable',
+            'Net Investment Yield\nTreasury Bond Yield\n10%\n5%\n4.04%\n2.95%\n0%\n1975\n1980\n1985\n1990\n1995\n2000\n2005\n2010\n2015\n2020\n2022 INVESTMENT REPORT\nNotes appear on page 15\n',
+            'is aligned with the\nand are not distracted by short-term results\nWe focus keenly on capital preservation and\nbest interests of our\nat the expense of long-term predictable investment results while seeking\nabove-market General Account Value Proposition\nDriving benefits.4\nDriving the The General Account\ninvestment portfolio\nInvestment return is a primary driver of\nOur investments positively impact the\nplays a dual role:\nbenefits paid to our clients. By staying true\neconomy—creating jobs, benefiting\nto our investment philosophy and principles,\ncommunities, supporting innovation, and\nwe create value, paying dividends to our\nfunding sustainable energy participating policy owners and growing\nour already strong 2022 INVESTMENT REPORT\nNotes appear on page 15\n5\nGeneral Account Investment Strategy and Approach\nAsset/liability management focus\nDelivering for clients and society through\nReflecting our\nresponsible investing\ninvestment philosophy,\nOur primary focuses are asset/liability\nwe take a highly\nmanagement and maintaining ample']
+        if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+            expected_return_number = 10
+            tokens_expected = 1500
+        else:
+            expected_return_number = 16 if local_server else 11
+            tokens_expected = 3500 if local_server else 2900
+        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        assert counts['llm'] > tokens_expected, counts['llm']
+        print('counts ', counts)
+        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        print('countsall ', countsall)
+    else:
+        raise ValueError("No such data_kind=%s" % data_kind)
+
+    # for testing persistent database
+    # langchain_mode = "UserData"
+    # for testing ephemeral database
+    langchain_mode = "MyData"
     embed = False
     chunk = False
     chunk_size = 512
@@ -1580,11 +1662,13 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         assert all([x in res[2] for x in texts])
     assert res[3] == ''
 
-    from src.gpt_langchain import load_embed
-    got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory='db_dir_%s' % langchain_mode)
-    assert not use_openai_embedding
-    assert hf_embedding_model == 'fake'
-    assert got_embedding
+    if local_server:
+        from src.gpt_langchain import load_embed
+        got_embedding, use_openai_embedding, hf_embedding_model = load_embed(
+            persist_directory='db_dir_%s' % langchain_mode)
+        assert not use_openai_embedding
+        assert hf_embedding_model == 'fake'
+        assert got_embedding
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
 
@@ -1623,7 +1707,9 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     assert 'response' in res_dict and res_dict['response']
     sources = res_dict['sources']
     texts_out = [x['content'] for x in sources]
-    assert texts[:expected_return_number] == texts_out
+    texts_expected = texts[:expected_return_number]
+    assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
+    assert texts_expected == texts_out
 
 
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])

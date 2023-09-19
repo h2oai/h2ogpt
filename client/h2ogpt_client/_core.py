@@ -58,14 +58,14 @@ class TextCompletionCreator:
         prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
-        temperature: float = 1.0,
+        temperature: float = 0.1,
         top_p: float = 1.0,
         top_k: int = 40,
         beams: float = 1.0,
         early_stopping: bool = False,
         min_output_length: int = 0,
-        max_output_length: int = 128,
-        max_time: int = 180,
+        max_output_length: int = 1024,
+        max_time: int = 360,
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
@@ -103,6 +103,7 @@ class TextCompletionCreator:
         :param add_search_to_context: Whether to add web search to context
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
+                              If pass 'None' or 'auto' or None, then automatic per-model value used
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
         :param h2ogpt_key: Key for access to API on keyed endpoints
         """
@@ -192,14 +193,14 @@ class ChatCompletionCreator:
         prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
-        temperature: float = 1.0,
+        temperature: float = 0.1,
         top_p: float = 1.0,
         top_k: int = 40,
         beams: float = 1.0,
         early_stopping: bool = False,
         min_output_length: int = 0,
-        max_output_length: int = 128,
-        max_time: int = 180,
+        max_output_length: int = 1024,
+        max_time: int = 360,
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
