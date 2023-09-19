@@ -1006,7 +1006,7 @@ def go_gradio(**kwargs):
                                                 placeholder=kwargs['placeholder_input'],
                                                 interactive=not is_public)
                             system_prompt = gr.Textbox(label="System Prompt",
-                                                       info="If 'None', or 'auto', then uses model's system prompt,"
+                                                       info="If 'auto', then uses model's system prompt,"
                                                             " else use this message."
                                                             " If empty, no system message is used",
                                                        value=kwargs['system_prompt'])
