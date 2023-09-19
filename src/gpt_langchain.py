@@ -3011,7 +3011,7 @@ def get_metadatas(db):
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
-    elif isinstance(db, Chroma) or isinstance(db, ChromaMig):
+    elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         metadatas = get_documents(db)['metadatas']
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
@@ -3037,7 +3037,7 @@ def _get_documents(db):
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents)
-    elif isinstance(db, Chroma) or isinstance(db, ChromaMig):
+    elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         documents = db.get()
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
@@ -3062,7 +3062,7 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
 
 def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
     from langchain.vectorstores import FAISS
-    if isinstance(db, Chroma) or isinstance(db, ChromaMig):
+    if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         db_get = db._collection.get(where=filter_kwargs.get('filter'))
         db_metadatas = db_get['metadatas']
         db_documents = db_get['documents']
@@ -3691,7 +3691,7 @@ def get_chain(query=None,
             name_path = "sim.lock"
         lock_file = os.path.join(base_path, name_path)
 
-        if not (isinstance(db, Chroma) or isinstance(db, ChromaMig)):
+        if not (isinstance(db, Chroma) or isinstance(db, ChromaMig)) or ChromaMig.__name__ in str(db):
             # only chroma supports filtering
             filter_kwargs = {}
         else:
