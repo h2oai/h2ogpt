@@ -15,6 +15,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  prompt_type=None, prompt_dict=None,
                  max_input_tokens=2048 - 256,
                  base_model=None,
+                 stop=None,
                  **kwargs):
         """
         HF-like pipeline, but handle instruction prompting and stopping (for some models)
@@ -54,6 +55,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             self.human = None
             self.bot = None
             self.can_stop = False
+        self.stop = stop
         self.sanitize_bot_response = sanitize_bot_response
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
         self.base_model = base_model
@@ -222,13 +224,21 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
-        if self.can_stop:
+        stop = []
+        if generate_kwargs.get('stop'):
+            stop += generate_kwargs['stop']
+        if self.stop:
+            stop += self.stop
+        if self.can_stop or stop:
             stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
                                              self.tokenizer, self.device,
                                              self.base_model,
                                              human=self.human, bot=self.bot,
-                                             model_max_length=self.tokenizer.model_max_length)
+                                             model_max_length=self.tokenizer.model_max_length,
+                                             prompter=self.prompter,
+                                             stop=stop)
             generate_kwargs['stopping_criteria'] = stopping_criteria
+        generate_kwargs.pop('stop', None)
         # return super()._forward(model_inputs, **generate_kwargs)
         return self.__forward(model_inputs, **generate_kwargs)
 

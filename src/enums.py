@@ -97,7 +97,6 @@ class LangChainAction(Enum):
 class LangChainAgent(Enum):
     """LangChain agents"""
 
-    NONE = "None"
     SEARCH = "Search"
     COLLECTION = "Collection"
     PYTHON = "Python"

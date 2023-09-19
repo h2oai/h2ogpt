@@ -32,20 +32,24 @@ class StoppingCriteriaSub(StoppingCriteria):
 
 
 def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
-                 human='<human>:', bot="<bot>:", model_max_length=None):
+                 human='<human>:', bot="<bot>:", model_max_length=None,
+                 prompter=None,
+                 stop=None):
+    stop_words = []
+    encounters = []
     # FIXME: prompt_dict unused currently
     user_human_assistant_types = [PromptType.instruct_vicuna.value, str(PromptType.instruct_vicuna.value),
-                                 PromptType.instruct_vicuna.name] + \
-                                [PromptType.guanaco.value, str(PromptType.guanaco.value),
-                                 PromptType.guanaco.name] + \
-                                [PromptType.one_shot.value, str(PromptType.one_shot.value),
-                                 PromptType.one_shot.name] + \
-                                [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
-                                 PromptType.instruct_vicuna2.name] + \
-                                [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
-                                 PromptType.instruct_vicuna3.name] + \
-                                [PromptType.instruct_with_end.value, str(PromptType.instruct_with_end.value),
-                                 PromptType.instruct_with_end.name]
+                                  PromptType.instruct_vicuna.name] + \
+                                 [PromptType.guanaco.value, str(PromptType.guanaco.value),
+                                  PromptType.guanaco.name] + \
+                                 [PromptType.one_shot.value, str(PromptType.one_shot.value),
+                                  PromptType.one_shot.name] + \
+                                 [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
+                                  PromptType.instruct_vicuna2.name] + \
+                                 [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
+                                  PromptType.instruct_vicuna3.name] + \
+                                 [PromptType.instruct_with_end.value, str(PromptType.instruct_with_end.value),
+                                  PromptType.instruct_with_end.name]
     human_bot_types = [PromptType.human_bot.value, str(PromptType.human_bot.value),
                        PromptType.human_bot.name] + \
                       [PromptType.human_bot_orig.value, str(PromptType.human_bot_orig.value),
@@ -89,33 +93,49 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
             # some instruct prompts have this as end, doesn't hurt to stop on it since not common otherwise
             stop_words = ['### End']
             encounters = [1]
-        stop_words_ids = [
-            tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
-        # handle single token case
-        stop_words_ids = [x if len(x.shape) > 0 else torch.tensor([x]) for x in stop_words_ids]
-        stop_words_ids = [x for x in stop_words_ids if x.shape[0] > 0]
-        # avoid padding in front of tokens
-        if tokenizer._pad_token:  # use hidden variable to avoid annoying properly logger bug
-            stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
-        if tokenizer._unk_token:  # use hidden variable to avoid annoying properly logger bug
-            stop_words_ids = [x[1:] if x[0] == tokenizer.unk_token_id and len(x) > 1 else x for x in stop_words_ids]
-            stop_words_ids = [x[:-1] if x[-1] == tokenizer.unk_token_id and len(x) > 1 else x for x in stop_words_ids]
-        if tokenizer._eos_token:  # use hidden variable to avoid annoying properly logger bug
-            stop_words_ids = [x[:-1] if x[-1] == tokenizer.eos_token_id and len(x) > 1 else x for x in stop_words_ids]
-        if base_model and t5_type(base_model):
-            # T5 encoder converts internal double space to space+new line, so fix
-            for stopi, stop_word_id in enumerate(stop_words_ids):
-                start = stop_word_id[0:1]
-                mlist = stop_word_id[1:-1]
-                end = stop_word_id[-1:]
-                mlist = [tokenizer.vocab[' '] if x == tokenizer.vocab['\n'] else x for x in mlist]
-                stop_words_ids[stopi] = torch.tensor(list(start) + list(mlist) + list(end), device=stop_word_id.device)
-        # handle fake \n added
-        stop_words_ids = [x[1:] if y[0] == '\n' else x for x, y in zip(stop_words_ids, stop_words)]
+    elif prompter and prompter.terminate_response:
+        stop_words = prompter.terminate_response
+        encounters = [1] * len(stop_words)
+    handle_newlines = [True] * len(stop_words)
+
+
+    # add other stop words too if passed, e.g. for LangChain agents
+    if stop:
+        stop_words += stop
+        encounters += [1] * len(stop)
+        handle_newlines += [False] * len(stop)
+
+    # get stop tokens
+    stop_words_ids = [
+        tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
+    # handle single token case
+    stop_words_ids = [x if len(x.shape) > 0 else torch.tensor([x]) for x in stop_words_ids]
+    stop_words_ids = [x for x in stop_words_ids if x.shape[0] > 0]
+    # avoid padding in front of tokens
+    if tokenizer._pad_token:  # use hidden variable to avoid annoying properly logger bug
+        stop_words_ids = [x[1:] if x[0] == tokenizer.pad_token_id and len(x) > 1 else x for x in stop_words_ids]
+    if tokenizer._unk_token:  # use hidden variable to avoid annoying properly logger bug
+        stop_words_ids = [x[1:] if x[0] == tokenizer.unk_token_id and len(x) > 1 else x for x in stop_words_ids]
+        stop_words_ids = [x[:-1] if x[-1] == tokenizer.unk_token_id and len(x) > 1 else x for x in stop_words_ids]
+    if tokenizer._eos_token:  # use hidden variable to avoid annoying properly logger bug
+        stop_words_ids = [x[:-1] if x[-1] == tokenizer.eos_token_id and len(x) > 1 else x for x in stop_words_ids]
+    if base_model and t5_type(base_model):
+        # T5 encoder converts internal double space to space+new line, so fix
+        for stopi, stop_word_id in enumerate(stop_words_ids):
+            start = stop_word_id[0:1]
+            mlist = stop_word_id[1:-1]
+            end = stop_word_id[-1:]
+            mlist = [tokenizer.vocab[' '] if x == tokenizer.vocab['\n'] else x for x in mlist]
+            stop_words_ids[stopi] = torch.tensor(list(start) + list(mlist) + list(end), device=stop_word_id.device)
+    # handle fake \n added
+    stop_words_ids = [x[1:] if y[0] == '\n' and handle_newline else x for x, y, handle_newline in
+                      zip(stop_words_ids, stop_words, handle_newlines)]
+    if stop_words_ids:
         # build stopper
         stopping_criteria = StoppingCriteriaList(
             [StoppingCriteriaSub(stops=stop_words_ids, encounters=encounters, device=device,
                                  model_max_length=model_max_length)])
     else:
+        # nothing to stop on
         stopping_criteria = StoppingCriteriaList()
     return stopping_criteria

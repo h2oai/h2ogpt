@@ -31,6 +31,8 @@ from langchain.agents import AgentType, load_tools, initialize_agent, create_vec
 from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_python_agent, JsonToolkit
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
+from langchain.llms.huggingface_pipeline import VALID_TASKS
+from langchain.llms.utils import enforce_stop_tokens
 from langchain.schema import LLMResult, Generation, AgentAction, AgentFinish, OutputParserException
 from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
@@ -67,7 +69,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
-from langchain import PromptTemplate, HuggingFaceTextGenInference
+from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
 from langchain.vectorstores import Chroma
 from chromamig import ChromaMig
 
@@ -946,6 +948,34 @@ class H2OAzureOpenAI(AzureOpenAI):
         return _all_required_field_names
 
 
+class H2OHuggingFacePipeline(HuggingFacePipeline):
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        response = self.pipeline(prompt, stop=stop)
+        if self.pipeline.task == "text-generation":
+            # Text generation return includes the starter text.
+            text = response[0]["generated_text"][len(prompt) :]
+        elif self.pipeline.task == "text2text-generation":
+            text = response[0]["generated_text"]
+        elif self.pipeline.task == "summarization":
+            text = response[0]["summary_text"]
+        else:
+            raise ValueError(
+                f"Got invalid task {self.pipeline.task}, "
+                f"currently only {VALID_TASKS} are supported"
+            )
+        if stop:
+            # This is a bit hacky, but I can't figure out a better way to enforce
+            # stop tokens when making calls to huggingface_hub.
+            text = enforce_stop_tokens(text, stop)
+        return text
+
+
 def get_llm(use_openai_model=False,
             model_name=None,
             model=None,
@@ -1303,8 +1333,7 @@ def get_llm(use_openai_model=False,
         # not built in prompt removal that is less general and not specific for our model
         pipe.task = "text2text-generation"
 
-        from langchain.llms import HuggingFacePipeline
-        llm = HuggingFacePipeline(pipeline=pipe)
+        llm = H2OHuggingFacePipeline(pipeline=pipe)
     return llm, model_name, streamer, prompt_type, async_output, only_new_text
 
 
@@ -3575,7 +3604,7 @@ def get_chain(query=None,
         output_parser = H2OMRKLOutputParser()
         tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'),
                            output_parser=output_parser)
-        if inference_server.startswith('openai'):
+        if inference_server.startswith('openai') and False:
             agent_type = AgentType.OPENAI_FUNCTIONS
             agent_executor_kwargs = {"handle_parsing_errors": True}
         else:

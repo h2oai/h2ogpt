@@ -2244,7 +2244,7 @@ def evaluate(
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate
-    if LangChainAgent.NONE.value not in langchain_agents and len(langchain_agents) > 0:
+    if len(langchain_agents) > 0:
         do_langchain_path = True
     if add_search_to_context:
         # easier to manage prompt etc. by doing full langchain path
@@ -2704,7 +2704,8 @@ def evaluate(
         tokenizer.src_lang = languages_covered()[src_lang]
 
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
-                                     model_max_length=tokenizer.model_max_length)
+                                     model_max_length=tokenizer.model_max_length,
+                                     prompter=prompter)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:

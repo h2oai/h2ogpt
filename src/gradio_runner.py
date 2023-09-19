@@ -714,7 +714,7 @@ def go_gradio(**kwargs):
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     langchain_agents = gr.Dropdown(
                         langchain_agents_list,
-                        value=LangChainAgent.NONE.value,
+                        value=None,
                         label="Agents",
                         multiselect=True,
                         interactive=True,
