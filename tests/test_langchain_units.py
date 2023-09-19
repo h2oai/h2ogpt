@@ -1514,33 +1514,52 @@ def test_chroma_filtering():
                              model_name=base_model,
                              prompt_type=prompt_type,
                              )
+
+        # GET_CHAIN etc.
         for answer_with_sources in [-1, True]:
             print("answer_with_sources: %s" % answer_with_sources, flush=True)
             # mimic nochat-API or chat-UI
             append_sources_to_answer = answer_with_sources != -1
-
-            ret = _run_qa_db(**run_db_kwargs,
-                             langchain_action=LangChainAction.QUERY.value,
-                             document_subset=DocumentSubset.Relevant.name,
-                             document_choice=[DocumentChoice.ALL.value],
-                             answer_with_sources=answer_with_sources,
-                             append_sources_to_answer=append_sources_to_answer,
-                             )
-            rets = check_ret(ret)
-            rets1 = rets[0]
-            if chroma_new:
-                if answer_with_sources == -1:
-                    assert len(rets1) == 2 and 'h2oGPT' in rets1[0] and 'score' in rets1[1][0] and 'content' in \
-                           rets1[1][0] and 'source' in rets1[1][0]
+            for doc_choice in ['All', 1, 2]:
+                if doc_choice == 'All':
+                    document_choice = [DocumentChoice.ALL.value]
                 else:
-                    assert len(rets1) == 2 and 'h2oGPT' in rets1[0] and 'h2ogpt.git' in rets1[1]
-            else:
-                if answer_with_sources == -1:
-                    assert len(rets1) == 2 and 'whisper' in rets1[0].lower() and 'score' in rets1[1][0] and 'content' in \
-                           rets1[1][0] and 'source' in rets1[1][0]
-                else:
-                    assert len(rets1) == 2 and 'whisper' in rets1[0].lower() and 'whisper' in rets1[1]
+                    document_choice = [x['source'] for x in db.get()['metadatas']][:doc_choice]
+                print("doc_choice: %s" % doc_choice, flush=True)
+                for langchain_action in [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value]:
+                    print("langchain_action: %s" % langchain_action, flush=True)
+                    for document_subset in [DocumentSubset.Relevant.name, DocumentSubset.TopKSources.name,
+                                            DocumentSubset.RelSources.name]:
+                        print("document_subset: %s" % document_subset, flush=True)
 
+                        ret = _run_qa_db(**run_db_kwargs,
+                                         langchain_action=langchain_action,
+                                         document_subset=document_subset,
+                                         document_choice=document_choice,
+                                         answer_with_sources=answer_with_sources,
+                                         append_sources_to_answer=append_sources_to_answer,
+                                         )
+                        rets = check_ret(ret)
+                        rets1 = rets[0]
+                        if chroma_new:
+                            if answer_with_sources == -1:
+                                assert len(rets1) == 2 and ('h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0])
+                            else:
+                                assert len(rets1) == 2 and ('h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0])
+                                if document_subset == DocumentSubset.Relevant.name:
+                                    assert 'h2oGPT' in rets1[1]
+                        else:
+                            if answer_with_sources == -1:
+                                assert len(rets1) == 2 and ('whisper' in rets1[0].lower() or '.pdf' in rets1[0].lower())
+                            else:
+                                assert len(rets1) == 2 and ('whisper' in rets1[0].lower() or '.pdf' in rets1[0].lower())
+                                if document_subset == DocumentSubset.Relevant.name:
+                                    assert 'whisper' in rets1[1]
+                        if answer_with_sources == -1:
+                            if document_subset == DocumentSubset.Relevant.name:
+                                assert 'score' in rets1[1][0] and 'content' in rets1[1][0] and 'source' in rets1[1][0]
+
+        # SHOW DOC
         single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]
         for view_raw_text_checkbox1 in [True, False]:
             print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
@@ -1554,6 +1573,14 @@ def test_chroma_filtering():
                                 **other_kwargs
                                 )
             assert len(show_ret) == 5
+            if chroma_new:
+                assert1 = show_ret[4]['value'] is not None and 'README.md' in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
+                assert assert1 or assert2
+            else:
+                assert1 = show_ret[4]['value'] is not None and 'whisper' in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and 'whisper' in show_ret[3]['value']
+                assert assert1 or assert2
 
 
 if __name__ == '__main__':
