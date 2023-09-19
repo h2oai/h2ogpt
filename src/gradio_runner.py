@@ -1006,8 +1006,9 @@ def go_gradio(**kwargs):
                                                 placeholder=kwargs['placeholder_input'],
                                                 interactive=not is_public)
                             system_prompt = gr.Textbox(label="System Prompt",
-                                                       info="If empty, uses prompt_type's system prompt,"
-                                                            " else use this message.  Use space for actually empty.",
+                                                       info="If 'auto', then uses model's system prompt,"
+                                                            " else use this message."
+                                                            " If empty, no system message is used",
                                                        value=kwargs['system_prompt'])
                         with gr.Column():
                             pre_prompt_query = gr.Textbox(label="Query Pre-Prompt",
@@ -1427,7 +1428,8 @@ def go_gradio(**kwargs):
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
-                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'], label="h2oGPT Token for API access", type='password', visible=False)
+                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'], label="h2oGPT Token for API access",
+                                         type='password', visible=False)
 
                 hosts_tab = gr.TabItem("Hosts") \
                     if kwargs['visible_hosts_tab'] else gr.Row(visible=False)
@@ -2619,6 +2621,9 @@ def go_gradio(**kwargs):
 
             if 'h2ogpt_key' not in user_kwargs:
                 user_kwargs['h2ogpt_key'] = None
+            if 'system_prompt' in user_kwargs and user_kwargs['system_prompt'] is None:
+                # avoid worrying about below default_kwargs -> args_list that checks if None
+                user_kwargs['system_prompt'] = 'None'
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
@@ -2687,7 +2692,8 @@ def go_gradio(**kwargs):
                         # don't want to share actual endpoints
                         if 'save_dict' in res_dict and isinstance(res_dict['save_dict'], dict):
                             res_dict['save_dict'].pop('inference_server', None)
-                            if 'extra_dict' in res_dict['save_dict'] and isinstance(res_dict['save_dict']['extra_dict'], dict):
+                            if 'extra_dict' in res_dict['save_dict'] and isinstance(res_dict['save_dict']['extra_dict'],
+                                                                                    dict):
                                 res_dict['save_dict']['extra_dict'].pop('inference_server', None)
 
                     # get response
@@ -3050,7 +3056,7 @@ def go_gradio(**kwargs):
                                           prompt_type1, prompt_dict1, chat1,
                                           model_max_length1, memory_restriction_level,
                                           kwargs['keep_sources_in_context'],
-                                          kwargs['use_system_prompt'])
+                                          system_prompt)
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1 + context2
 
@@ -3758,7 +3764,8 @@ def go_gradio(**kwargs):
                        load_gptq, load_exllama, use_safetensors, revision,
                        use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
-                       n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1):
+                       n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
+                       system_prompt1):
             try:
                 llamacpp_dict = ast.literal_eval(llamacpp_dict_more1)
             except:
@@ -3857,7 +3864,7 @@ def go_gradio(**kwargs):
             tokenizer_base_model = model_name
             prompt_dict1, error0 = get_prompt(prompt_type1, '',
                                               chat=False, context='', reduced=False, making_context=False,
-                                              return_dict=True)
+                                              return_dict=True, system_prompt=system_prompt1)
             model_state_new = dict(model=model1, tokenizer=tokenizer1, device=device1,
                                    base_model=model_name, tokenizer_base_model=tokenizer_base_model,
                                    lora_weights=lora_weights, inference_server=server_name,
@@ -3872,12 +3879,13 @@ def go_gradio(**kwargs):
                 gr.Slider.update(maximum=max_max_new_tokens1), \
                 gr.Slider.update(maximum=max_max_new_tokens1)
 
-        def get_prompt_str(prompt_type1, prompt_dict1, which=0):
+        def get_prompt_str(prompt_type1, prompt_dict1, system_prompt1, which=0):
             if prompt_type1 in ['', None]:
                 print("Got prompt_type %s: %s" % (which, prompt_type1), flush=True)
                 return str({})
             prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
-                                                         reduced=False, making_context=False, return_dict=True)
+                                                         reduced=False, making_context=False, return_dict=True,
+                                                         system_prompt=system_prompt1)
             if prompt_dict_error:
                 return str(prompt_dict_error)
             else:
@@ -3886,8 +3894,10 @@ def go_gradio(**kwargs):
 
         get_prompt_str_func1 = functools.partial(get_prompt_str, which=1)
         get_prompt_str_func2 = functools.partial(get_prompt_str, which=2)
-        prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict], outputs=prompt_dict, queue=False)
-        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2], outputs=prompt_dict2,
+        prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict, system_prompt],
+                           outputs=prompt_dict, queue=False)
+        prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2, system_prompt],
+                            outputs=prompt_dict2,
                             queue=False)
 
         def dropdown_prompt_type_list(x):
@@ -3904,7 +3914,8 @@ def go_gradio(**kwargs):
                                        model_use_gpu_id_checkbox, model_gpu,
                                        max_seq_len, rope_scaling,
                                        model_path_llama, model_name_gptj, model_name_gpt4all_llama,
-                                       n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more],
+                                       n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
+                                       system_prompt],
                                outputs=[model_state, model_used, lora_used, server_used,
                                         # if prompt_type changes, prompt_dict will change via change rule
                                         prompt_type, max_new_tokens, min_new_tokens,
@@ -3927,7 +3938,8 @@ def go_gradio(**kwargs):
                                         model_use_gpu_id_checkbox2, model_gpu2,
                                         max_seq_len2, rope_scaling2,
                                         model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
-                                        n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2],
+                                        n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2,
+                                        system_prompt],
                                 outputs=[model_state2, model_used2, lora_used2, server_used2,
                                          # if prompt_type2 changes, prompt_dict2 will change via change rule
                                          prompt_type2, max_new_tokens2, min_new_tokens2
@@ -4088,7 +4100,7 @@ def go_gradio(**kwargs):
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
                               memory_restriction_level1=0,
                               keep_sources_in_context1=False,
-                              use_system_prompt1=False,
+                              system_prompt1=None,
                               ):
             if model_state1 and not isinstance(model_state1['tokenizer'], str):
                 tokenizer = model_state1['tokenizer']
@@ -4108,7 +4120,7 @@ def go_gradio(**kwargs):
                                               prompt_type1, prompt_dict1, chat1,
                                               model_max_length1,
                                               memory_restriction_level1, keep_sources_in_context1,
-                                              use_system_prompt1)
+                                              system_prompt1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
@@ -4116,7 +4128,7 @@ def go_gradio(**kwargs):
         count_chat_tokens_func = functools.partial(count_chat_tokens,
                                                    memory_restriction_level1=memory_restriction_level,
                                                    keep_sources_in_context1=kwargs['keep_sources_in_context'],
-                                                   use_system_prompt1=kwargs['use_system_prompt'])
+                                                   system_prompt1=kwargs['system_prompt'])
         count_tokens_event = count_chat_tokens_btn.click(fn=count_chat_tokens,
                                                          inputs=[model_state, text_output, prompt_type, prompt_dict],
                                                          outputs=chat_token_count,

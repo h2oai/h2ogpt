@@ -79,7 +79,9 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              prompt_dict=None,
              version=None,
              h2ogpt_key=None,
-             visible_models=None):
+             visible_models=None,
+             system_prompt='',  # default of no system prompt tiggered by empty string
+             ):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -116,7 +118,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          prompt_query=None,
                          pre_prompt_summary=None,
                          prompt_summary=None,
-                         system_prompt="",
+                         system_prompt=system_prompt,
                          image_loaders=None,
                          pdf_loaders=None,
                          url_loaders=None,
@@ -131,7 +133,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
     if version == 0:
         diff = 1
     if version >= 1:
-        kwargs.update(dict(system_prompt=''))
+        kwargs.update(dict(system_prompt=system_prompt))
         diff = 0
 
     from evaluate_params import eval_func_param_names

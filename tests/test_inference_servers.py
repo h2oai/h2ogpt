@@ -503,6 +503,7 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
+                       system_prompt='auto',
                        reverse_docs=reverse_docs)
 
     # server that consumes inference server
