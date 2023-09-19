@@ -139,7 +139,7 @@ python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model
 
 For arbitrary tasks, good to use uncensored models like [Falcon 40 GM](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2).  If censored is ok, then [LLama-2 Chat](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) are ok. Choose model size according to your system specs.
 
-For the UI, CLI, or EVAL this means editing the `System Pre-Context` text box in expert settings.  When starting h2oGPT, one can pass `--context` or `--iinput` for setting a fixed default context choice and fixed default instruction choice.  Note if no context is passed but `--chat_context=True`, then that function sets the context.
+For the UI, CLI, or EVAL this means editing the `System Pre-Context` text box in expert settings.  When starting h2oGPT, one can pass `--system_prompt` to give a model a system prompt if it supports that, `--context` to pre-append some raw context, `--chat_conversation` to pre-append a conversation for instruct/chat models, or `--iinput` for a default input (to instruction for pure instruct models) choice.
 
 Or for API, passing `context` variable.  This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then need to put in prompts like:
 ```python
@@ -165,6 +165,27 @@ print(response)
 See for example: https://github.com/h2oai/h2ogpt/blob/d3334233ca6de6a778707feadcadfef4249240ad/tests/test_prompter.py#L47 .
 
 Note that even if the prompting is not perfect or matches the model, smarter models will still do quite well, as long as you give their answers as part of context.
+
+If just wanting to pre-append a conversation, then use `chat_conversation` instead and h2oGPT will generate the context for the given instruct/chat model:
+```python
+from gradio_client import Client
+import ast
+
+HOST_URL = "http://localhost:7860"
+client = Client(HOST_URL)
+
+# string of dict for input
+prompt = 'Who are you?'
+chat_conversation = [("Who are you?", "I am a pixie filled with fairy dust"), ("What kind of pixie are you?", "Magical")]
+kwargs = dict(instruction_nochat=prompt, chat_conversation=chat_conversation)
+res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+
+# string of dict for output
+response = ast.literal_eval(res)['response']
+print(response)
+```
+
+Note that if give both `context` and `chat_conversation`, then `context` is put first.  A `system_prompt` can also be passed, which can overpower any `context` or `chat_conversation` depending upon details.
 
 ### Token access to Hugging Face models:
 

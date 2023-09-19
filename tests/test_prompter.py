@@ -100,6 +100,8 @@ If a question does not make any sense, or is not factually coherent, explain why
 
 Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]"""
 
+prompt_llama2_pig = """<s>[INST] Who are you? [/INST] I am a big pig who loves to tell kid stories </s><s>[INST] Hello! [/INST] Hi! </s><s>[INST] How are you? [/INST] I'm good </s><s>[INST] Go to the market? [/INST]"""
+
 # Fastsys doesn't put space above before final [/INST], I think wrong, since with context version has space.
 # and llama2 code has space before it always: https://github.com/facebookresearch/llama/blob/6c7fe276574e78057f917549435a2554000a876d/llama/generation.py
 
@@ -160,24 +162,26 @@ Falcon:"""
 
 
 @wrap_test_forked
-@pytest.mark.parametrize("prompt_type,system_prompt,expected",
+@pytest.mark.parametrize("prompt_type,system_prompt,chat_conversation,expected",
                          [
-                             ('vicuna11', '', prompt_fastchat),
-                             ('human_bot', '', prompt_humanbot),
-                             ('prompt_answer', '', prompt_prompt_answer),
-                             ('prompt_answer_openllama', '', prompt_prompt_answer_openllama),
-                             ('mptinstruct', '', prompt_mpt_instruct),
-                             ('mptchat', '', prompt_mpt_chat),
-                             ('falcon', '', prompt_falcon),
-                             ('llama2', '', prompt_llama2),
-                             ('llama2', 'auto', prompt_llama2_sys),
-                             ('beluga', '', prompt_beluga),
-                             ('beluga', 'auto', prompt_beluga_sys),
-                             ('falcon_chat', '', prompt_falcon180),
-                             ('falcon_chat', 'auto', prompt_falcon180_sys),
+                             ('vicuna11', '', None, prompt_fastchat),
+                             ('human_bot', '', None, prompt_humanbot),
+                             ('prompt_answer', '', None, prompt_prompt_answer),
+                             ('prompt_answer_openllama', '', None, prompt_prompt_answer_openllama),
+                             ('mptinstruct', '', None, prompt_mpt_instruct),
+                             ('mptchat', '', None, prompt_mpt_chat),
+                             ('falcon', '', None, prompt_falcon),
+                             ('llama2', '', None, prompt_llama2),
+                             ('llama2', 'auto', None, prompt_llama2_sys),
+                             ('llama2', '', [('Who are you?', 'I am a big pig who loves to tell kid stories')],
+                              prompt_llama2_pig),
+                             ('beluga', '', None, prompt_beluga),
+                             ('beluga', 'auto', None, prompt_beluga_sys),
+                             ('falcon_chat', '', None, prompt_falcon180),
+                             ('falcon_chat', 'auto', None, prompt_falcon180_sys),
                          ]
                          )
-def test_prompt_with_context(prompt_type, system_prompt, expected):
+def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
     prompt_dict = None  # not used unless prompt_type='custom'
     langchain_mode = 'Disabled'
     add_chat_history_to_context = True
@@ -204,7 +208,7 @@ def test_prompt_with_context(prompt_type, system_prompt, expected):
                                  prompt_type, prompt_dict, chat,
                                  model_max_length, memory_restriction_level,
                                  keep_sources_in_context1,
-                                 system_prompt)
+                                 system_prompt, chat_conversation)
     print("duration2: %s %s" % (prompt_type, time.time() - t0), flush=True)
     t0 = time.time()
     instruction = history[-1][0]

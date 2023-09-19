@@ -43,6 +43,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     jq_schema="jq_schema",
     visible_models="visible_models",
     h2ogpt_key="h2ogpt_key",
+    chat_conversation="chat_conversation",
 )
 
 

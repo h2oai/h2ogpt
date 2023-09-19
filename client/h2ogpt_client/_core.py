@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import typing
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView, Union
 
 import gradio_client  # type: ignore
@@ -75,6 +76,7 @@ class TextCompletionCreator:
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
         h2ogpt_key: str = None,
+        chat_conversation: typing.List[typing.Tuple[str, str]] = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -106,6 +108,7 @@ class TextCompletionCreator:
                               If pass 'None' or 'auto' or None, then automatic per-model value used
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
         :param h2ogpt_key: Key for access to API on keyed endpoints
+        :param chat_conversation: list of tuples of (human, bot) form
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -136,6 +139,7 @@ class TextCompletionCreator:
         params["jq_schema"] = None
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = h2ogpt_key
+        params["chat_conversation"] = chat_conversation
         return TextCompletion(self._client, params)
 
 
@@ -208,6 +212,7 @@ class ChatCompletionCreator:
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
         h2ogpt_key: str = None,
+        chat_conversation: typing.List[typing.Tuple[str, str]] = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -236,6 +241,7 @@ class ChatCompletionCreator:
                               prompt
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
         :param h2ogpt_key: Key for access to API on keyed endpoints
+        :param chat_conversation: list of tuples of (human, bot) form
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -266,6 +272,7 @@ class ChatCompletionCreator:
         params["jq_schema"] = None
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = h2ogpt_key
+        params["chat_conversation"] = chat_conversation
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 

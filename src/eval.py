@@ -6,7 +6,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from evaluate_params import eval_func_param_names, eval_extra_columns
-from gen import get_context, get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
@@ -14,7 +14,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 def run_eval(  # for local function:
         base_model=None, lora_weights=None, inference_server=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
-        debug=None, chat=False, chat_context=None,
+        debug=None, chat=False,
         stream_output=None, async_output=None, num_async=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
@@ -53,6 +53,7 @@ def run_eval(  # for local function:
         jq_schema=None,
         visible_models=None,
         h2ogpt_key=None,
+        chat_conversation=None,
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,
@@ -90,8 +91,7 @@ def run_eval(  # for local function:
     check_locals(**locals())
 
     if not context:
-        # get hidden context if have one
-        context = get_context(chat_context, prompt_type)
+        context = ''
 
     if eval_prompts_only_num > 0:
         np.random.seed(eval_prompts_only_seed)
@@ -236,8 +236,6 @@ def run_eval(  # for local function:
                         if eval_prompts_only_num > 0:
                             # only our own examples have this filled at moment
                             assert iinput in [None, ''], iinput  # should be no iinput
-                        if not (chat_context and prompt_type == 'human_bot'):
-                            assert context in [None, ''], context  # should be no context
                         prompt = instruction
                     if memory_restriction_level > 0:
                         cutoff_len = 768 if memory_restriction_level <= 2 else 512
