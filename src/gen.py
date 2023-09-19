@@ -88,7 +88,6 @@ def main(
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
         system_prompt: str = '',
-        use_system_prompt: bool = False,
 
         # llama and gpt4all settings
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
@@ -340,8 +339,10 @@ def main(
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
            Useful for langchain case to control behavior, or OpenAI and Replicate.
-    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
-           Independent of system_prompt, which is used for OpenAI, Replicate.
+           If None, 'None', or 'auto', then for LLaMa or other models that internally have system_prompt, will use default for each model
+           If '', then no system prompt (no empty template given to model either, just no system part added at all)
+           If some string not in ['None', 'auto'], then use that as system prompt
+           Default is '', no system_prompt, because often it hurts performance/accuracy
 
     :param llamacpp_dict:
            n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
@@ -986,7 +987,6 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
-                            use_system_prompt,
                             verbose,
                             )
 
@@ -1130,7 +1130,8 @@ def main(
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    chat=False, context='', reduced=False,
                                                                    making_context=False,
-                                                                   return_dict=True)
+                                                                   return_dict=True,
+                                                                   system_prompt=system_prompt)
                 else:
                     model_dict['prompt_dict'] = prompt_dict
             else:
@@ -2051,7 +2052,6 @@ def evaluate(
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
-        use_system_prompt=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -2206,7 +2206,7 @@ def evaluate(
 
     # get prompt
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
-                        use_system_prompt=use_system_prompt)
+                        system_prompt=system_prompt)
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
 
@@ -2423,15 +2423,17 @@ def evaluate(
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if inf_type == 'vllm_chat':
                     raise NotImplementedError('%s not supported by vLLM' % inf_type)
-                openai_system_prompt = system_prompt or "You are a helpful assistant."
+                if system_prompt in [None, 'None', 'auto']:
+                    openai_system_prompt = "You are a helpful assistant."
+                else:
+                    openai_system_prompt = system_prompt
+                messages0 = []
+                if openai_system_prompt:
+                    messages0.append({"role": "system", "content": openai_system_prompt})
+                messages0.append({'role': 'user', 'content': prompt})
                 responses = openai.ChatCompletion.create(
                     model=base_model,
-                    messages=[
-                        {"role": "system", "content": openai_system_prompt},
-                        {'role': 'user',
-                         'content': prompt,
-                         }
-                    ],
+                    messages=messages0,
                     stream=stream_output,
                     **gen_server_kwargs,
                 )
@@ -3025,7 +3027,6 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
-                        use_system_prompt,
                         verbose,
                         ):
     use_defaults = False
@@ -3220,7 +3221,7 @@ y = np.random.randint(0, 1, 100)
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
                                      chat=False, context='', reduced=False, making_context=False, return_dict=True,
-                                     use_system_prompt=use_system_prompt)
+                                     system_prompt=system_prompt)
     if error0:
         raise RuntimeError("Prompt wrong: %s" % error0)
 
@@ -3351,7 +3352,7 @@ def history_to_context(history, langchain_mode1,
                        add_chat_history_to_context,
                        prompt_type1, prompt_dict1, chat1, model_max_length1,
                        memory_restriction_level1, keep_sources_in_context1,
-                       use_system_prompt1):
+                       system_prompt1):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -3363,7 +3364,7 @@ def history_to_context(history, langchain_mode1,
     :param model_max_length1:
     :param memory_restriction_level1:
     :param keep_sources_in_context1:
-    :param use_system_prompt1:
+    :param system_prompt1:
     :return:
     """
     # ensure output will be unique to models
@@ -3382,7 +3383,7 @@ def history_to_context(history, langchain_mode1,
                                 chat1,
                                 reduced=True,
                                 making_context=True,
-                                use_system_prompt=use_system_prompt1,
+                                system_prompt=system_prompt1,
                                 histi=histi)
             # md -> back to text, maybe not super important if model trained enough
             if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(super_source_prefix) >= 0:
@@ -3405,7 +3406,7 @@ def history_to_context(history, langchain_mode1,
             generate_prompt({}, prompt_type1, prompt_dict1,
                             chat1, reduced=True,
                             making_context=True,
-                            use_system_prompt=use_system_prompt1,
+                            system_prompt=system_prompt1,
                             histi=-1)
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line

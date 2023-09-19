@@ -984,10 +984,14 @@ def get_llm(use_openai_model=False,
                           top_p=top_p if do_sample else 1,
                           top_k=top_k,  # not always supported
                           repetition_penalty=repetition_penalty)
+        if system_prompt in [None, 'None', 'auto']:
+            if prompter.system_prompt:
+                system_prompt = prompter.system_prompt
+            else:
+                system_prompt = ''
         if system_prompt:
             gen_kwargs.update(dict(system_prompt=system_prompt))
-        elif prompter.system_prompt:
-            gen_kwargs.update(dict(system_prompt=prompter.system_prompt))
+
         # replicate handles prompting, so avoid get_resopnse() filter
         prompter.prompt_type = 'plain'
         if stream_output:

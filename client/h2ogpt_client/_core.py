@@ -101,6 +101,7 @@ class TextCompletionCreator:
         :param add_chat_history_to_context: Whether to add chat history to context
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
+                              If pass 'None' or 'auto' or None, then automatic per-model value used
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
         :param h2ogpt_key: Key for access to API on keyed endpoints
         """
