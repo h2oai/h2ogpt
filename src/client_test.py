@@ -81,6 +81,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              h2ogpt_key=None,
              visible_models=None,
              system_prompt='',  # default of no system prompt tiggered by empty string
+             chat_conversation=None,
              ):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
@@ -125,6 +126,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          jq_schema=None,
                          visible_models=visible_models,
                          h2ogpt_key=h2ogpt_key,
+                         chat_conversation=chat_conversation,
                          )
     diff = 0
     if version is None:

@@ -139,7 +139,7 @@ python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model
 
 For arbitrary tasks, good to use uncensored models like [Falcon 40 GM](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2).  If censored is ok, then [LLama-2 Chat](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) are ok. Choose model size according to your system specs.
 
-For the UI, CLI, or EVAL this means editing the `System Pre-Context` text box in expert settings.  When starting h2oGPT, one can pass `--context` or `--iinput` for setting a fixed default context choice and fixed default instruction choice.  Note if no context is passed but `--chat_context=True`, then that function sets the context.
+For the UI, CLI, or EVAL this means editing the `System Pre-Context` text box in expert settings.  When starting h2oGPT, one can pass `--context` to pre-append some raw context, `--chat_conversation` to pre-append a conversation for instruct/chat models, or `--iinput` for a default input (to instruction for pure instruct models) choice.
 
 Or for API, passing `context` variable.  This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then need to put in prompts like:
 ```python
