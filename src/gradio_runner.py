@@ -2621,6 +2621,9 @@ def go_gradio(**kwargs):
 
             if 'h2ogpt_key' not in user_kwargs:
                 user_kwargs['h2ogpt_key'] = None
+            if 'system_prompt' in user_kwargs and user_kwargs['system_prompt'] is None:
+                # avoid worrying about below default_kwargs -> args_list that checks if None
+                user_kwargs['system_prompt'] = 'None'
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
