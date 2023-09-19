@@ -322,7 +322,7 @@ def main(
                              e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=text-davinci-003
                              Optionals (Replace with None or just leave empty but keep :)
                                  <deployment_name> of some deployment name
-                                 <baseurl>: e.g. "https://<endpoint>.openai.azure.com" for some <endpoint>
+                                 <baseurl>: e.g. "<endpoint>.openai.azure.com" for some <endpoint> without https://
                                  <api_version> of some api, e.g. 2023-05-15
                                  <model_version> e.g. 0613
 
