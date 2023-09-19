@@ -50,6 +50,7 @@ eval_func_param_names = ['instruction',
                         reader_names + \
                         ['visible_models',
                          'h2ogpt_key',
+                         'chat_conversation',
                          ]
 
 # form evaluate defaults for submit_nochat_api

@@ -571,8 +571,12 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
 
 
 @pytest.mark.parametrize("system_prompt", ['', None, 'None', 'auto', 'You are a goofy lion who talks to kids'])
+# @pytest.mark.parametrize("system_prompt", [None])
+@pytest.mark.parametrize("chat_conversation",
+                         [None, [('Who are you?', 'I am a big pig who loves to tell kid stories')]])
+# @pytest.mark.parametrize("chat_conversation", [[('Who are you?', 'I am a big pig who loves to tell kid stories')]])
 @wrap_test_forked
-def test_client_system_prompts(system_prompt):
+def test_client_system_prompts(system_prompt, chat_conversation):
     stream_output = True
     base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     prompt_type = 'llama2'  # 'human_bot'
@@ -590,25 +594,39 @@ def test_client_system_prompts(system_prompt):
     for client_type in ['chat', 'nochat']:
         if client_type == 'chat':
             kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
-                                    system_prompt=system_prompt)
+                                    system_prompt=system_prompt,
+                                    chat_conversation=chat_conversation)
 
             res_dict, client = run_client(client, prompt, args, kwargs)
         else:
             api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-            kwargs = dict(instruction_nochat=prompt, system_prompt=system_prompt)
+            kwargs = dict(instruction_nochat=prompt,
+                          system_prompt=system_prompt,
+                          chat_conversation=chat_conversation)
             # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
             res = client.predict(str(dict(kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
 
-        if system_prompt == 'You are a goofy lion who talks to kids':
-            assert 'ROAR!' in res_dict['response'] and 'respectful' not in res_dict[
-                'response'] and 'developed by Meta' not in res_dict['response']
-        elif system_prompt == '':
-            assert "developed by Meta" in res_dict['response'] and 'respectful' not in res_dict[
-                'response'] and 'ROAR!' not in res_dict['response']
-        elif system_prompt in [None, 'auto', 'None']:
-            assert 'respectful' in res_dict['response'] and 'ROAR!' not in res_dict[
-                'response'] and 'developed by Meta' not in res_dict['response']
+        if not chat_conversation:
+            if system_prompt == 'You are a goofy lion who talks to kids':
+                assert 'ROAR!' in res_dict['response'] and 'respectful' not in res_dict[
+                    'response'] and 'developed by Meta' not in res_dict['response']
+            elif system_prompt == '':
+                assert "developed by Meta" in res_dict['response'] and 'respectful' not in res_dict[
+                    'response'] and 'ROAR!' not in res_dict['response']
+            elif system_prompt in [None, 'auto', 'None']:
+                assert 'respectful' in res_dict['response'] and 'ROAR!' not in res_dict[
+                    'response'] and 'developed by Meta' not in res_dict['response']
+        else:
+            if system_prompt == 'You are a goofy lion who talks to kids':
+                # system prompt overwhelms chat conversation
+                assert "I'm a goofy lion" in res_dict['response'] or "goofiest lion" in res_dict['response']
+            elif system_prompt == '':
+                # empty system prompt gives room for chat conversation to control
+                assert "My name is Porky" in res_dict['response']
+            elif system_prompt in [None, 'auto', 'None']:
+                # conservative default system_prompt makes it ignore chat
+                assert "not a real person" in res_dict['response']
 
 
 @pytest.mark.need_tokens

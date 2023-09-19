@@ -136,7 +136,7 @@ def main(
         server_name: str = "0.0.0.0",
         root_path: str = "",
         chat: bool = True,
-        chat_context: bool = False,
+        chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         stream_output: bool = True,
         async_output: bool = True,
         num_async: int = 3,
@@ -416,7 +416,9 @@ def main(
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
            the `root_path` should be set to "/myapp".
     :param chat: whether to enable chat mode with chat history
-    :param chat_context: whether to use extra helpful context if human_bot
+    :param chat_conversation: list of tuples of (human, bot) conversation pre-appended to existing chat when using instruct/chat models
+           Requires also add_chat_history_to_context = True
+           It does *not* require chat=True, so works with nochat_api etc.
     :param stream_output: whether to stream output
     :param async_output: Whether to do asyncio handling
            For summarization
@@ -579,6 +581,7 @@ def main(
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
     :param context: Default context to use (for system pre-context in gradio UI)
+           context comes before chat_conversation
     :param iinput: Default input for instruction-based prompts
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
@@ -1997,6 +2000,7 @@ def evaluate(
         jq_schema,
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
         h2ogpt_key,
+        chat_conversation,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2017,7 +2021,6 @@ def evaluate(
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
-        chat_context=None,
         lora_weights=None,
         use_llm_if_no_docs=True,
         load_db_if_exists=True,
@@ -2057,7 +2060,6 @@ def evaluate(
     assert concurrency_count is not None
     assert memory_restriction_level is not None
     assert raise_generate_gpu_exceptions is not None
-    assert chat_context is not None
     assert use_openai_embedding is not None
     assert use_openai_model is not None
     assert hf_embedding_model is not None
@@ -2185,8 +2187,7 @@ def evaluate(
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
-        # get hidden context if have one
-        context = get_context(chat_context, prompt_type)
+        context = ''
 
     # restrict instruction, typically what has large input
     from h2oai_pipeline import H2OTextGenerationPipeline
@@ -3203,6 +3204,7 @@ y = np.random.randint(0, 1, 100)
                     jq_schema,
                     None,
                     None,
+                    None,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3243,15 +3245,6 @@ def languages_covered():
     covered = covered.split(', ')
     covered = {x.split(' ')[0]: x.split(' ')[1].replace(')', '').replace('(', '') for x in covered}
     return covered
-
-
-def get_context(chat_context, prompt_type):
-    if chat_context and prompt_type == 'human_bot':
-        context0 = """<bot>: I am an intelligent, helpful, truthful, and fair assistant named h2oGPT, who will give accurate, balanced, and reliable responses.  I will not respond with I don't know or I don't understand.
-<human>: I am a human person seeking useful assistance and request all questions be answered completely, and typically expect detailed responses.  Give answers in numbered list format if several distinct but related items are being listed."""
-    else:
-        context0 = ''
-    return context0
 
 
 def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len):
@@ -3352,7 +3345,7 @@ def history_to_context(history, langchain_mode1,
                        add_chat_history_to_context,
                        prompt_type1, prompt_dict1, chat1, model_max_length1,
                        memory_restriction_level1, keep_sources_in_context1,
-                       system_prompt1):
+                       system_prompt1, chat_conversation1):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -3365,8 +3358,31 @@ def history_to_context(history, langchain_mode1,
     :param memory_restriction_level1:
     :param keep_sources_in_context1:
     :param system_prompt1:
+    :param chat_conversation1:
     :return:
     """
+    if chat_conversation1:
+        if isinstance(chat_conversation1, str):
+            chat_conversation1 = ast.literal_eval(chat_conversation1.strip())
+        assert isinstance(chat_conversation1, list)
+        for conv1 in chat_conversation1:
+            assert isinstance(conv1, (list, tuple))
+            assert len(conv1) == 2
+
+    if isinstance(history, list):
+        # make copy so only local change
+        if chat_conversation1:
+            history = chat_conversation1 + history.copy()
+    elif chat_conversation1:
+        history = chat_conversation1
+    else:
+        history = []
+    if len(history) >= 1 and len(history[-1]) >= 2 and history[-1][1] is None:
+        len_history = len(history) - 1
+    else:
+        # full history
+        len_history = len(history)
+
     # ensure output will be unique to models
     _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
                                              for_context=True, model_max_length=model_max_length1)
@@ -3374,7 +3390,7 @@ def history_to_context(history, langchain_mode1,
     if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
         # - 1 below because current instruction already in history from user()
-        for histi in range(0, len(history) - 1):
+        for histi in range(0, len_history):
             data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,

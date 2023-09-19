@@ -997,19 +997,22 @@ def go_gradio(**kwargs):
                                                        value=kwargs['prompt_type'], label="Prompt Type Model 2",
                                                        visible=False and not kwargs['model_lock'],
                                                        interactive=not is_public)
-                            context = gr.Textbox(lines=2, label="System Pre-Context",
-                                                 info="Directly pre-appended without prompt processing",
-                                                 value=kwargs['context'])
-                            iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
-                                                info="If given for document query, added after query",
-                                                value=kwargs['iinput'],
-                                                placeholder=kwargs['placeholder_input'],
-                                                interactive=not is_public)
                             system_prompt = gr.Textbox(label="System Prompt",
                                                        info="If 'auto', then uses model's system prompt,"
                                                             " else use this message."
                                                             " If empty, no system message is used",
                                                        value=kwargs['system_prompt'])
+                            context = gr.Textbox(lines=2, label="System Pre-Context",
+                                                 info="Directly pre-appended without prompt processing (before Pre-Conversation)",
+                                                 value=kwargs['context'])
+                            chat_conversation = gr.Textbox(lines=2, label="Pre-Conversation",
+                                                           info="Pre-append conversation for instruct/chat models as List of tuple of (human, bot)",
+                                                           value=kwargs['chat_conversation'])
+                            iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
+                                                info="If given for document query, added after query",
+                                                value=kwargs['iinput'],
+                                                placeholder=kwargs['placeholder_input'],
+                                                interactive=not is_public)
                         with gr.Column():
                             pre_prompt_query = gr.Textbox(label="Query Pre-Prompt",
                                                           info="Added before documents",
@@ -2653,6 +2656,26 @@ def go_gradio(**kwargs):
                         model_state1['tokenizer'].model_max_length - buffer)
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
+            context1 = args_list[eval_func_param_names.index('context')]
+            add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            chat1 = args_list[eval_func_param_names.index('chat')]
+            model_max_length1 = get_model_max_length(model_state1)
+            system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
+            chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
+            history = []
+            langchain_mode1 = user_kwargs['langchain_mode']
+            context2 = history_to_context(history, langchain_mode1,
+                                          add_chat_history_to_context1,
+                                          prompt_type1, prompt_dict1, chat1,
+                                          model_max_length1, memory_restriction_level,
+                                          kwargs['keep_sources_in_context'],
+                                          system_prompt1,
+                                          chat_conversation1)
+            # replace
+            args_list[eval_func_param_names.index('context')] = context1 + context2
+
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
             # NOTE: Don't allow UI-like access, in case modify state via API
@@ -3006,6 +3029,7 @@ def go_gradio(**kwargs):
                 history = []
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
@@ -3013,6 +3037,7 @@ def go_gradio(**kwargs):
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
+            chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
                                      requests_state1=requests_state1)
 
@@ -3056,7 +3081,8 @@ def go_gradio(**kwargs):
                                           prompt_type1, prompt_dict1, chat1,
                                           model_max_length1, memory_restriction_level,
                                           kwargs['keep_sources_in_context'],
-                                          system_prompt)
+                                          system_prompt1,
+                                          chat_conversation1)
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1 + context2
 
@@ -4098,9 +4124,9 @@ def go_gradio(**kwargs):
                                               )
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
+                              system_prompt1, chat_conversation1,
                               memory_restriction_level1=0,
                               keep_sources_in_context1=False,
-                              system_prompt1=None,
                               ):
             if model_state1 and not isinstance(model_state1['tokenizer'], str):
                 tokenizer = model_state1['tokenizer']
@@ -4120,17 +4146,18 @@ def go_gradio(**kwargs):
                                               prompt_type1, prompt_dict1, chat1,
                                               model_max_length1,
                                               memory_restriction_level1, keep_sources_in_context1,
-                                              system_prompt1)
+                                              system_prompt1,
+                                              chat_conversation1)
                 return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
             else:
                 return "N/A"
 
         count_chat_tokens_func = functools.partial(count_chat_tokens,
                                                    memory_restriction_level1=memory_restriction_level,
-                                                   keep_sources_in_context1=kwargs['keep_sources_in_context'],
-                                                   system_prompt1=kwargs['system_prompt'])
-        count_tokens_event = count_chat_tokens_btn.click(fn=count_chat_tokens,
-                                                         inputs=[model_state, text_output, prompt_type, prompt_dict],
+                                                   keep_sources_in_context1=kwargs['keep_sources_in_context'])
+        count_tokens_event = count_chat_tokens_btn.click(fn=count_chat_tokens_func,
+                                                         inputs=[model_state, text_output, prompt_type, prompt_dict,
+                                                                 system_prompt, chat_conversation],
                                                          outputs=chat_token_count,
                                                          api_name='count_tokens' if allow_api else None)
 

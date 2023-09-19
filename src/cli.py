@@ -2,14 +2,14 @@ import copy
 import torch
 
 from evaluate_params import eval_func_param_names
-from gen import get_score_model, get_model, evaluate, check_locals, get_context
+from gen import get_score_model, get_model, evaluate, check_locals
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_cli(  # for local function:
         base_model=None, lora_weights=None, inference_server=None,
-        debug=None, chat_context=None,
+        debug=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None,
@@ -35,6 +35,7 @@ def run_cli(  # for local function:
         jq_schema=None,
         visible_models=None,
         h2ogpt_key=None,
+        chat_conversation=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
@@ -108,8 +109,7 @@ def run_cli(  # for local function:
         example1 = examples[-1]  # pick reference example
         all_generations = []
         if not context:
-            # get hidden context if have one
-            context = get_context(chat_context, prompt_type)
+            context = ''
         while True:
             clear_torch_cache()
             instruction = input("\nEnter an instruction: ")
