@@ -283,6 +283,9 @@ def go_gradio(**kwargs):
                 if model_active_choice1 in base_model_list:
                     # if dups, will just be first one
                     model_active_choice1 = base_model_list.index(model_active_choice1)
+                else:
+                    # NOTE: Could raise, but sometimes raising in certain places fails too hard and requires UI restart
+                    model_active_choice1 = 0
         else:
             model_active_choice1 = 0
         return model_active_choice1
