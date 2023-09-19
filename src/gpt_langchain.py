@@ -3698,28 +3698,60 @@ def get_chain(query=None,
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             assert document_choice is not None, "Document choice was None"
-            if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
-                filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
-                    {"filter": {"chunk_id": {"$eq": -1}}}
-            elif len(document_choice) >= 2:
-                if document_choice[0] == DocumentChoice.ALL.value:
-                    document_choice = document_choice[1:]
-                or_filter = [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                                   "chunk_id": {
-                                                                                                       "$eq": -1}}
-                             for x in document_choice]
-                filter_kwargs = dict(filter={"$or": or_filter})
-            elif len(document_choice) == 1:
-                # degenerate UX bug in chroma
-                one_filter = \
-                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                           "chunk_id": {
-                                                                                               "$eq": -1}}
-                     for x in document_choice][0]
-                filter_kwargs = dict(filter=one_filter)
+            if isinstance(db, Chroma):
+                # chroma >= 0.4
+                if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
+                    filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
+                        {"filter": {"chunk_id": {"$eq": -1}}}
+                else:
+                    if document_choice[0] == DocumentChoice.ALL.value:
+                        document_choice = document_choice[1:]
+                        if len(document_choice) > 1:
+                            or_filter = [
+                                {"$and": [dict(source={"$eq": x}), dict(chunk_id={"$gte": 0})]} if query_action else {
+                                    "$and": [dict(source={"$eq": x}), dict(chunk_id={"$eq": -1})]}
+                                for x in document_choice]
+                            filter_kwargs = dict(filter={"$or": or_filter})
+                        else:
+                            # still chromadb UX bug, have to do different thing for 1 vs. 2+ docs when doing filter
+                            one_filter = \
+                                [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {
+                                    "source": {"$eq": x},
+                                    "chunk_id": {
+                                        "$eq": -1}}
+                                 for x in document_choice][0]
+
+                            filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                                  dict(chunk_id=one_filter['chunk_id'])]})
+                    else:
+                        # shouldn't reach
+                        filter_kwargs = {}
             else:
-                # shouldn't reach
-                filter_kwargs = {}
+                # migration for chroma < 0.4
+                if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
+                    filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
+                        {"filter": {"chunk_id": {"$eq": -1}}}
+                elif len(document_choice) >= 2:
+                    if document_choice[0] == DocumentChoice.ALL.value:
+                        document_choice = document_choice[1:]
+                    or_filter = [
+                        {"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                              "chunk_id": {
+                                                                                                  "$eq": -1}}
+                        for x in document_choice]
+                    filter_kwargs = dict(filter={"$or": or_filter})
+                elif len(document_choice) == 1:
+                    # degenerate UX bug in chroma
+                    one_filter = \
+                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                               "chunk_id": {
+                                                                                                   "$eq": -1}}
+                         for x in document_choice][0]
+                    filter_kwargs = dict(filter=one_filter)
+                else:
+                    # shouldn't reach
+                    filter_kwargs = {}
+
         if langchain_mode in [LangChainMode.LLM.value]:
             docs = []
             scores = []
