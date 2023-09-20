@@ -4,11 +4,13 @@ import json
 import os
 import shutil
 import tempfile
+import uuid
+
 import pytest
 
-from tests.utils import wrap_test_forked, kill_weaviate
-from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes
-from src.gpt_langchain import get_persist_directory, get_db, get_documents
+from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
+from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
@@ -80,6 +82,7 @@ def check_ret(ret):
         rets.append(ret1)
         print(ret1)
     assert rets
+    return rets
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -242,10 +245,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     check_ret(ret)
 
 
-@pytest.mark.need_gpu
-@pytest.mark.parametrize("db_type", ['chroma'])
-@wrap_test_forked
-def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
+def get_test_model():
     # need to get model externally, so don't OOM
     from src.gen import get_model
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
@@ -280,6 +280,14 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       verbose=False)
     model, tokenizer, device = get_model(reward_type=False,
                                          **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
+    return model, tokenizer, base_model, prompt_type
+
+
+@pytest.mark.need_gpu
+@pytest.mark.parametrize("db_type", ['chroma'])
+@wrap_test_forked
+def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
+    model, tokenizer, base_model, prompt_type = get_test_model()
 
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
@@ -507,13 +515,13 @@ def test_make_add_db(repeat, db_type):
                                                  langchain_mode_types={})
                     requests_state2 = dict()
                     z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2_my, db1,
-                                                                            selection_docs_state2,
-                                                                            requests_state2,
-                                                                            langchain_mode2,
-                                                                            chunk=chunk,
-                                                                            chunk_size=chunk_size,
-                                                                            dbs={}, db_type=db_type,
-                                                                            **kwargs)
+                                                                                       selection_docs_state2,
+                                                                                       requests_state2,
+                                                                                       langchain_mode2,
+                                                                                       chunk=chunk,
+                                                                                       chunk_size=chunk_size,
+                                                                                       dbs={}, db_type=db_type,
+                                                                                       **kwargs)
                     assert z1 is None
                     assert 'MyData' == z2
                     assert 'test2my' in str(source_files_added)
@@ -524,14 +532,14 @@ def test_make_add_db(repeat, db_type):
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
                                                  langchain_mode_types={langchain_mode: LangChainTypes.SHARED.value})
                     z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2, db1,
-                                                                            selection_docs_state1,
-                                                                            requests_state1,
-                                                                            langchain_mode,
-                                                                            chunk=chunk,
-                                                                            chunk_size=chunk_size,
-                                                                            dbs={langchain_mode: db},
-                                                                            db_type=db_type,
-                                                                            **kwargs)
+                                                                                       selection_docs_state1,
+                                                                                       requests_state1,
+                                                                                       langchain_mode,
+                                                                                       chunk=chunk,
+                                                                                       chunk_size=chunk_size,
+                                                                                       dbs={langchain_mode: db},
+                                                                                       db_type=db_type,
+                                                                                       **kwargs)
                     assert 'test2' in str(source_files_added)
                     assert langchain_mode == z2
                     assert z1 is None
@@ -1058,7 +1066,8 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
         # nothing enabled for images
         return
     # FIXME (too many permutations):
-    if enable_pix2struct and (pre_load_caption_model or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
+    if enable_pix2struct and (
+            pre_load_caption_model or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
         return
     if enable_pix2struct and 'kowalievska' in file:
         # FIXME: Not good for this
@@ -1204,7 +1213,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # because search can't find DRIVERLICENSE from DocTR one
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 1)
                     check_content_ocr(docs)
-                    #check_content_doctr(docs)
+                    # check_content_doctr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
             else:
@@ -1231,7 +1240,7 @@ def check_content_doctr(docs):
 
 def check_content_ocr(docs):
     # hi_res
-    #assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
+    # assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
     # ocr_only
     assert any(['DRIVER LICENSE A' in docs[ix].page_content for ix in range(len(docs))])
 
@@ -1419,6 +1428,159 @@ def test_many_text(db_type, num):
     db = get_db(sources, db_type=db_type, langchain_mode='ManyTextData', hf_embedding_model=hf_embedding_model)
     documents = get_documents(db)['documents']
     assert len(documents) == num
+
+
+@wrap_test_forked
+def test_chroma_filtering():
+    # get test model so don't have to reload it each time
+    model, tokenizer, base_model, prompt_type = get_test_model()
+
+    # generic settings true for all cases
+    requests_state1 = {'username': 'foo'}
+    verbose1 = True
+    max_raw_chunks = None
+    api = False
+    n_jobs = -1
+    db_type1 = 'chroma'
+    load_db_if_exists1 = True
+    use_openai_embedding1 = False
+    migrate_embedding_model_or_db1 = False
+    auto_migrate_db1 = False
+
+    def get_userid_auth_fake(requests_state1, auth_filename=None, auth_access=None, guest_name=None, **kwargs):
+        return str(uuid.uuid4())
+
+    other_kwargs = dict(load_db_if_exists1=load_db_if_exists1,
+                        db_type1=db_type1,
+                        use_openai_embedding1=use_openai_embedding1,
+                        migrate_embedding_model_or_db1=migrate_embedding_model_or_db1,
+                        auto_migrate_db1=auto_migrate_db1,
+                        verbose1=verbose1,
+                        get_userid_auth1=get_userid_auth_fake,
+                        max_raw_chunks=max_raw_chunks,
+                        api=api,
+                        n_jobs=n_jobs,
+                        )
+    mydata_mode1 = LangChainMode.MY_DATA.value
+    from src.make_db import make_db_main
+
+    for chroma_new in [True, False]:
+        print("chroma_new: %s" % chroma_new, flush=True)
+        if chroma_new:
+            # fresh, so chroma >= 0.4
+            user_path = make_user_path_test()
+            from langchain.vectorstores import Chroma
+            db, collection_name = make_db_main(user_path=user_path)
+            assert isinstance(db, Chroma)
+
+            hf_embedding_model = 'hkunlp/instructor-xl'
+            langchain_mode1 = collection_name
+            query = 'What is h2oGPT?'
+        else:
+            # old, was with chroma < 0.4
+            # has no user_path
+            db, collection_name = make_db_main(download_some=True)
+            from src.gpt_langchain import ChromaMig
+            assert isinstance(db, ChromaMig)
+            assert ChromaMig.__name__ in str(db)
+            query = 'What is whisper?'
+
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+            langchain_mode1 = collection_name
+
+        db1s = {langchain_mode1: [None] * length_db1(), mydata_mode1: [None] * length_db1()}
+
+        dbs1 = {langchain_mode1: db}
+        langchain_modes = [langchain_mode1]
+        langchain_mode_paths = dict(langchain_mode1=None)
+        langchain_mode_types = dict(langchain_modes='shared')
+        selection_docs_state1 = dict(langchain_modes=langchain_modes,
+                                     langchain_mode_paths=langchain_mode_paths,
+                                     langchain_mode_types=langchain_mode_types)
+
+        run_db_kwargs = dict(query=query,
+                             db=db,
+                             use_openai_model=False, use_openai_embedding=False, text_limit=None,
+                             hf_embedding_model=hf_embedding_model,
+                             db_type=db_type1,
+                             langchain_mode_paths=langchain_mode_paths,
+                             langchain_mode_types=langchain_mode_types,
+                             langchain_mode=langchain_mode1,
+                             langchain_agents=[],
+                             llamacpp_dict={},
+
+                             model=model,
+                             tokenizer=tokenizer,
+                             model_name=base_model,
+                             prompt_type=prompt_type,
+                             )
+
+        # GET_CHAIN etc.
+        for answer_with_sources in [-1, True]:
+            print("answer_with_sources: %s" % answer_with_sources, flush=True)
+            # mimic nochat-API or chat-UI
+            append_sources_to_answer = answer_with_sources != -1
+            for doc_choice in ['All', 1, 2]:
+                if doc_choice == 'All':
+                    document_choice = [DocumentChoice.ALL.value]
+                else:
+                    document_choice = [x['source'] for x in db.get()['metadatas']][:doc_choice]
+                print("doc_choice: %s" % doc_choice, flush=True)
+                for langchain_action in [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value]:
+                    print("langchain_action: %s" % langchain_action, flush=True)
+                    for document_subset in [DocumentSubset.Relevant.name, DocumentSubset.TopKSources.name,
+                                            DocumentSubset.RelSources.name]:
+                        print("document_subset: %s" % document_subset, flush=True)
+
+                        ret = _run_qa_db(**run_db_kwargs,
+                                         langchain_action=langchain_action,
+                                         document_subset=document_subset,
+                                         document_choice=document_choice,
+                                         answer_with_sources=answer_with_sources,
+                                         append_sources_to_answer=append_sources_to_answer,
+                                         )
+                        rets = check_ret(ret)
+                        rets1 = rets[0]
+                        if chroma_new:
+                            if answer_with_sources == -1:
+                                assert len(rets1) == 2 and ('h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0])
+                            else:
+                                assert len(rets1) == 2 and ('h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0])
+                                if document_subset == DocumentSubset.Relevant.name:
+                                    assert 'h2oGPT' in rets1[1]
+                        else:
+                            if answer_with_sources == -1:
+                                assert len(rets1) == 2 and ('whisper' in rets1[0].lower() or '.pdf' in rets1[0].lower())
+                            else:
+                                assert len(rets1) == 2 and ('whisper' in rets1[0].lower() or '.pdf' in rets1[0].lower())
+                                if document_subset == DocumentSubset.Relevant.name:
+                                    assert 'whisper' in rets1[1]
+                        if answer_with_sources == -1:
+                            if document_subset == DocumentSubset.Relevant.name:
+                                assert 'score' in rets1[1][0] and 'content' in rets1[1][0] and 'source' in rets1[1][0]
+
+        # SHOW DOC
+        single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]
+        for view_raw_text_checkbox1 in [True, False]:
+            print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
+            from src.gradio_runner import show_doc
+            show_ret = show_doc(db1s, selection_docs_state1, requests_state1,
+                                langchain_mode1,
+                                single_document_choice1,
+                                view_raw_text_checkbox1,
+                                dbs1=dbs1,
+                                hf_embedding_model1=hf_embedding_model,
+                                **other_kwargs
+                                )
+            assert len(show_ret) == 5
+            if chroma_new:
+                assert1 = show_ret[4]['value'] is not None and 'README.md' in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
+                assert assert1 or assert2
+            else:
+                assert1 = show_ret[4]['value'] is not None and single_document_choice1 in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and single_document_choice1 in show_ret[3]['value']
+                assert assert1 or assert2
 
 
 if __name__ == '__main__':

@@ -660,6 +660,9 @@ def main(
     model_lock = os.getenv('model_lock', str(model_lock))
     model_lock = ast.literal_eval(model_lock)
 
+    if isinstance(chat_conversation, str):
+        chat_conversation = ast.literal_eval(chat_conversation)
+
     if isinstance(llamacpp_dict, str):
         llamacpp_dict = ast.literal_eval(llamacpp_dict)
     # add others to single dict
