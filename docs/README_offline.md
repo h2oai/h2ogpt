@@ -24,7 +24,9 @@ playwright install --with-deps
 ```
 Some of these locations can be controlled, but others not, so best to make local version of ~/.cache (e.g. move original out of way), run the above, archive it for offline system, restore old ~/.cache, then use offline.  If same system, then those steps aren't required, one can just go fully offline.
 
-## Harde Way:
+If you have a GGML file, you should download it ahead of time and place it in some path you provide to `--llamacpp_dict` for its `model_path_llama` dict entry.
+
+## Hard Way:
 
 Identify all models needed and download each.  The below list is not exhaustive because the models added changes frequently and each uses different approach for downloading.
 
