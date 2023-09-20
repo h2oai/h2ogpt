@@ -4029,6 +4029,11 @@ def go_gradio(**kwargs):
                 print("favicon_path3: %s not found in %s" % (favicon_file, alt_path), flush=True)
                 favicon_path = None
 
+    if kwargs['prepare_offline_level'] > 0:
+        from src.prepare_offline import go_prepare_offline
+        go_prepare_offline(**locals())
+        return
+
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
     if is_public and \
