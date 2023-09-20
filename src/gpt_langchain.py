@@ -3767,16 +3767,23 @@ def get_chain(query=None,
             doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
             if query_action:
                 doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
-                docs_with_score = [x for hx, cx, x in
+                docs_with_score2 = [x for hx, cx, x in
                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                    if cx >= 0]
             else:
                 assert summarize_action
                 doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
-                docs_with_score = [x for hx, cx, x in
+                docs_with_score2 = [x for hx, cx, x in
                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                    if cx == -1
                                    ]
+                if len(docs_with_score2) == 0:
+                    # old database without chunk_id, migration added 0 but didn't make -1 as that would be expensive
+                    # just do again and relax filter, let summarize operate on actual chunks if nothing else
+                    docs_with_score2 = [x for hx, cx, x in
+                                       sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                       ]
+            docs_with_score = docs_with_score2
 
             docs_with_score = docs_with_score[:top_k_docs]
             docs = [x[0] for x in docs_with_score]

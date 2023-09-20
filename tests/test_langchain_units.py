@@ -1578,8 +1578,8 @@ def test_chroma_filtering():
                 assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
                 assert assert1 or assert2
             else:
-                assert1 = show_ret[4]['value'] is not None and 'whisper' in show_ret[4]['value']
-                assert2 = show_ret[3]['value'] is not None and 'whisper' in show_ret[3]['value']
+                assert1 = show_ret[4]['value'] is not None and single_document_choice1 in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and single_document_choice1 in show_ret[3]['value']
                 assert assert1 or assert2
 
 
