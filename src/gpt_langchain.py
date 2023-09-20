@@ -3700,7 +3700,7 @@ def get_chain(query=None,
             assert document_choice is not None, "Document choice was None"
             if isinstance(db, Chroma):
                 # chroma >= 0.4
-                if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
+                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
                     filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                         {"filter": {"chunk_id": {"$eq": -1}}}
                 else:
@@ -3728,7 +3728,7 @@ def get_chain(query=None,
                         filter_kwargs = {}
             else:
                 # migration for chroma < 0.4
-                if len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
+                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
                     filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                         {"filter": {"chunk_id": {"$eq": -1}}}
                 elif len(document_choice) >= 2:
