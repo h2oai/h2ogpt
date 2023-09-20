@@ -2355,6 +2355,12 @@ def go_gradio(**kwargs):
             sync5 = sync4.then(**get_viewable_sources_args)
             sync6 = sync5.then(**viewable_kwargs)
 
+            eventdb_loginb = eventdb_logina.then(**get_sources_kwargs)
+            eventdb_loginc = eventdb_loginb.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb_logind = eventdb_loginc.then(**show_sources_kwargs)
+            eventdb_logine = eventdb_logind.then(**get_viewable_sources_args)
+            eventdb_loginf = eventdb_logine.then(**viewable_kwargs)
+
             db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
                               lg_change_event6] +
                              [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
@@ -2365,7 +2371,8 @@ def go_gradio(**kwargs):
                              [eventdb21c, eventdb21d, eventdb21e, eventdb21f, eventdb21g] +
                              [eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
                              [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7] +
-                             [sync1, sync2, sync3, sync4, sync5, sync6]
+                             [sync1, sync2, sync3, sync4, sync5, sync6] +
+                             [eventdb_logina, eventdb_loginb, eventdb_loginc, eventdb_logind, eventdb_logine, eventdb_loginf]
                              ,
                              )
 
@@ -4001,6 +4008,11 @@ def go_gradio(**kwargs):
             load_event2 = load_event.then(load_login_func,
                                           inputs=login_inputs,
                                           outputs=login_outputs)
+            load_event3 = load_event2.then(**get_sources_kwargs)
+            load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            load_event5 = load_event4.then(**show_sources_kwargs)
+            load_event6 = load_event5.then(**get_viewable_sources_args)
+            load_event7 = load_event6.then(**viewable_kwargs)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
