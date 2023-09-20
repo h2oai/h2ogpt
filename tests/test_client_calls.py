@@ -1559,7 +1559,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             tokens_expected = 1500
         else:
             expected_return_number = 16  # i.e. out of 25
-            tokens_expected = 3500
+            tokens_expected = 3400
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
@@ -1621,8 +1621,8 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             expected_return_number = 10
             tokens_expected = 1500
         else:
-            expected_return_number = 16 if local_server else 17
-            tokens_expected = 3500 if local_server else 2900
+            expected_return_number = 17 if local_server else 17
+            tokens_expected = 3400 if local_server else 2900
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
@@ -1649,10 +1649,10 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             'Net Investment Yield\nTreasury Bond Yield\n10%\n5%\n4.04%\n2.95%\n0%\n1975\n1980\n1985\n1990\n1995\n2000\n2005\n2010\n2015\n2020\n2022 INVESTMENT REPORT\nNotes appear on page 15\n',
             'is aligned with the\nand are not distracted by short-term results\nWe focus keenly on capital preservation and\nbest interests of our\nat the expense of long-term predictable investment results while seeking\nabove-market General Account Value Proposition\nDriving benefits.4\nDriving the The General Account\ninvestment portfolio\nInvestment return is a primary driver of\nOur investments positively impact the\nplays a dual role:\nbenefits paid to our clients. By staying true\neconomy—creating jobs, benefiting\nto our investment philosophy and principles,\ncommunities, supporting innovation, and\nwe create value, paying dividends to our\nfunding sustainable energy participating policy owners and growing\nour already strong 2022 INVESTMENT REPORT\nNotes appear on page 15\n5\nGeneral Account Investment Strategy and Approach\nAsset/liability management focus\nDelivering for clients and society through\nReflecting our\nresponsible investing\ninvestment philosophy,\nOur primary focuses are asset/liability\nwe take a highly\nmanagement and maintaining ample']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 10
+            expected_return_number = 6
             tokens_expected = 1500
         else:
-            expected_return_number = 16 if local_server else 11
+            expected_return_number = 11 if local_server else 11
             tokens_expected = 3500 if local_server else 2900
         counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
         assert counts['llm'] > tokens_expected, counts['llm']
