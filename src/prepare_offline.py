@@ -1,4 +1,3 @@
-
 def noop_load(*args, **kwargs):
     return None
 
@@ -18,23 +17,35 @@ def go_prepare_offline(*args, **kwargs):
     embed = True
     h2ogpt_key = ''
     file_list = ['tests/driverslicense.jpeg', 'tests/CityofTshwaneWater.pdf', 'tests/example.xlsx']
-    for fileup_output in file_list:
 
+    inputs2 = [kwargs['my_db_state0'],
+               kwargs['selection_docs_state0'],
+               kwargs['requests_state0'],
+               kwargs0['langchain_mode'],
+               kwargs0['chunk'],
+               kwargs0['chunk_size'],
+               embed,
+               kwargs['image_loaders_options'],
+               kwargs['pdf_loaders_options'],
+               kwargs['url_loaders_options'],
+               kwargs['jq_schema0'],
+               h2ogpt_key,
+               ]
+
+    for fileup_output in file_list:
+        inputs1 = [fileup_output]
         add_file_kwargs = dict(fn=kwargs['update_db_func'],
-                               inputs=[fileup_output,
-                                       kwargs['my_db_state0'],
-                                       kwargs['selection_docs_state0'],
-                                       kwargs['requests_state0'],
-                                       kwargs0['langchain_mode'],
-                                       kwargs0['chunk'],
-                                       kwargs0['chunk_size'],
-                                       embed,
-                                       kwargs['image_loaders_options'],
-                                       kwargs['pdf_loaders_options'],
-                                       kwargs['url_loaders_options'],
-                                       kwargs['jq_schema0'],
-                                       h2ogpt_key,
-                                       ])
+                               inputs=inputs1 + inputs2)
+        add_file_kwargs['fn'](*tuple(add_file_kwargs['inputs']))
+
+        # ensure normal blip (not 2) obtained
+        blip2 = 'CaptionBlip2'
+        if blip2 in kwargs['image_loaders_options']:
+            image_loaders_options = kwargs['image_loaders_options'].copy()
+            image_loaders_options.remove(blip2)
+        inputs2[8] = kwargs['image_loaders_options']
+        add_file_kwargs = dict(fn=kwargs['update_db_func'],
+                               inputs=inputs1 + inputs2)
         add_file_kwargs['fn'](*tuple(add_file_kwargs['inputs']))
 
     # FakeTokenizer etc. needs tiktoken for general tasks
