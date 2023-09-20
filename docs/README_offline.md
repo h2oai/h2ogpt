@@ -24,6 +24,8 @@ playwright install --with-deps
 ```
 Some of these locations can be controlled, but others not, so best to make local version of ~/.cache (e.g. move original out of way), run the above, archive it for offline system, restore old ~/.cache, then use offline.  If same system, then those steps aren't required, one can just go fully offline.
 
+If you are only concerned with what h2oGPT needs, not any inference servers, you can run with `--prepare_offline_level=1` that will not obtain models associated with inference severs (e.g. vLLM or TGI).
+
 If you have a GGML file, you should download it ahead of time and place it in some path you provide to `--llamacpp_dict` for its `model_path_llama` dict entry.
 
 ## Hard Way:
