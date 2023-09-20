@@ -129,6 +129,7 @@ def main(
         src_lang: str = "English",
         tgt_lang: str = "Russian",
 
+        prepare_offline_level: int = 0,
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
@@ -399,6 +400,12 @@ def main(
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
+
+    :param prepare_offline_level:
+           Whether to just prepare for offline use, do not go into cli, eval, or gradio run modes
+           0 : no prep
+           1: prepare just h2oGPT with exact same setup as passed to CLI and ensure all artifacts for h2oGPT alone added to ~/.cache/
+           2: prepare h2oGPT + all inference servers so h2oGPT+inference servers can use the ~/.cache/
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
@@ -1079,7 +1086,7 @@ def main(
     elif not gradio:
         from eval import run_eval
         return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
-    elif gradio:
+    elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
 
@@ -1105,6 +1112,10 @@ def main(
             model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
             model_dict['lora_weights'] = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = model_dict.get('inference_server', '')
+            if prepare_offline_level >= 2:
+                if 'openai' not in model_dict['inference_server'] and 'replicate' not in model_dict['inference_server']:
+                    # assume want locally, but OpenAI and replicate are never local for model part
+                    model_dict['inference_server'] = ''
             prompt_type_infer = not model_dict.get('prompt_type')
             model_dict['prompt_type'] = model_dict.get('prompt_type',
                                                        model_list0[0]['prompt_type'])  # don't use mutated value
