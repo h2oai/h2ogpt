@@ -1573,7 +1573,8 @@ def get_model(
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
         if tokenizer is None:
-            if os.getenv("HARD_ASSERTS"):
+            # FIXME: Could use only tokenizer from llama etc. but hard to detatch from model, just use fake for now
+            if os.getenv("HARD_ASSERTS") and base_model not in non_hf_types:
                 raise RuntimeError("Unexpected tokenizer=None")
             tokenizer = FakeTokenizer()
         return client, tokenizer, 'http'
