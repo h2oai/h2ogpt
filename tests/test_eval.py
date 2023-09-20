@@ -130,6 +130,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'jq_schema': '.[]',
                  'visible_models': None,
                  'h2ogpt_key': None,
+                 'chat_conversation': None,
                  }
     if cpu and bits == 32:
         expected1.update({'image_loaders': np.array([], dtype=object)})

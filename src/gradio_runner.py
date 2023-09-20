@@ -572,7 +572,7 @@ def go_gradio(**kwargs):
             choices = [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes]
             return choices
 
-        def get_df_langchain_mode_paths(selection_docs_state1):
+        def get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=None):
             langchain_choices1 = get_langchain_choices(selection_docs_state1)
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if k in langchain_choices1}
@@ -603,7 +603,8 @@ def go_gradio(**kwargs):
                 for langchain_mode3 in langchain_mode_types:
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
                     persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
-                                                                                langchain_type=langchain_type3)
+                                                                                langchain_type=langchain_type3,
+                                                                                db1s=db1s, dbs=dbs1)
                     got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(
                         persist_directory=persist_directory3)
                     persist_directory_dict[langchain_mode3] = persist_directory3
@@ -899,7 +900,7 @@ def go_gradio(**kwargs):
                                         kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
                             if kwargs['langchain_mode'] != 'Disabled' and visible_add_remove_collection:
-                                df0 = get_df_langchain_mode_paths(selection_docs_state0)
+                                df0 = get_df_langchain_mode_paths(selection_docs_state0, None, dbs1=dbs)
                             else:
                                 df0 = pd.DataFrame(None)
                             langchain_mode_path_text = gr.Dataframe(value=df0,
@@ -2095,7 +2096,7 @@ def go_gradio(**kwargs):
             else:
                 success1 = False
                 text_result = "Wrong password for user %s" % username1
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             if success1:
                 requests_state1['username'] = username1
             label_instruction1 = 'Ask anything, %s' % requests_state1['username']
@@ -2299,7 +2300,7 @@ def go_gradio(**kwargs):
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             choices = get_langchain_choices(selection_docs_state1)
 
             if valid and not user_path:
@@ -2392,7 +2393,7 @@ def go_gradio(**kwargs):
 
             # update
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
 
             if changed_state:
                 save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
@@ -2471,7 +2472,7 @@ def go_gradio(**kwargs):
             load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1)
 
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             return selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), df_langchain_mode_paths1
@@ -2658,8 +2659,8 @@ def go_gradio(**kwargs):
 
             context1 = args_list[eval_func_param_names.index('context')]
             add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
-            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
-            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')] or model_state1['prompt_type']
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')] or model_state1['prompt_dict']
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
             system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]

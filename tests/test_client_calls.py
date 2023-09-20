@@ -1401,6 +1401,7 @@ def test_client_load_unload_models():
     n_batch = 128
     n_gqa = 0  # llama2 needs 8
     llamacpp_dict_more = '{}'
+    system_prompt = None
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
@@ -1410,7 +1411,8 @@ def test_client_load_unload_models():
                  model_use_gpu_id_checkbox, model_gpu,
                  max_seq_len, rope_scaling,
                  model_path_llama, model_name_gptj, model_name_gpt4all_llama,
-                 n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more]
+                 n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
+                 system_prompt]
     res = client.predict(*tuple(args_list), api_name='/load_model')
     res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 1024},
                     {'__type__': 'update', 'maximum': 1024})
@@ -1682,11 +1684,17 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
 
     if local_server:
         from src.gpt_langchain import load_embed
-        got_embedding, use_openai_embedding, hf_embedding_model = load_embed(
-            persist_directory='db_dir_%s' % langchain_mode)
+
+        # even normal langchain_mode  passed to this should get the other langchain_mode2
+        res = client.predict(langchain_mode, api_name='/load_langchain')
+        persist_directory = res[1]['data'][2][3]
+        if langchain_mode == 'UserData':
+            persist_directory_check = 'db_dir_%s' % langchain_mode
+            assert persist_directory == persist_directory_check
+        got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory=persist_directory)
+        assert got_embedding
         assert not use_openai_embedding
         assert hf_embedding_model == 'fake'
-        assert got_embedding
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
 
