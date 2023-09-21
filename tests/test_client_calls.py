@@ -1146,8 +1146,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
 
     file_to_get = sources_expected[3]
     view_raw_text = False
+    text_context_list = None
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
@@ -1157,7 +1158,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
 
     view_raw_text = True  # dict of metadatas stays dict instead of string
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)
@@ -1789,8 +1790,47 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
     chunk = False
     chunk_size = 512
     h2ogpt_key = ''
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     print("TIME prep: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
     t0 = time.time()
+
+    prompt = "Documents"
+    kwargs0 = dict(
+        instruction='',
+        max_new_tokens=200,
+        min_new_tokens=1,
+        max_time=300,
+        do_sample=False,
+        instruction_nochat=prompt,
+        text_context_list=None,  # NOTE: If use same client instance and push to this textbox, will be there next call
+    )
+
+    # fast text doc Q/A
+    kwargs = kwargs0.copy()
+    kwargs.update(dict(
+        langchain_mode=langchain_mode,
+        langchain_action="Query",
+        top_k_docs=-1,
+        document_subset='Relevant',
+        document_choice=DocumentChoice.ALL.value,
+        text_context_list=texts,
+    ))
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    assert isinstance(res, str)
+    res_dict = ast.literal_eval(res)
+    assert 'response' in res_dict and res_dict['response']
+    sources = res_dict['sources']
+    texts_out = [x['content'] for x in sources]
+    texts_expected = texts[:expected_return_number]
+    assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
+    assert texts_expected == texts_out
+    print("TIME nochat0: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+
+    # Full langchain with db
     res = client.predict(texts,
                          langchain_mode, chunk, chunk_size, embed,
                          None, None, None, None,
@@ -1822,17 +1862,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
     if not chat:
         return
 
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-
-    prompt = "Documents"
-    kwargs = dict(
-        instruction='',
-        max_new_tokens=200,
-        min_new_tokens=1,
-        max_time=300,
-        do_sample=False,
-        instruction_nochat=prompt,
-    )
+    kwargs = kwargs0.copy()
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
@@ -1844,6 +1874,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
     print("TIME nochat1: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
     t0 = time.time()
 
+    kwargs = kwargs0.copy()
     kwargs.update(dict(
         langchain_mode=langchain_mode,
         langchain_action="Query",

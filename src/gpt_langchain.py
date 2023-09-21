@@ -3030,12 +3030,13 @@ def _make_db(use_openai_embedding=False,
 
 
 def get_metadatas(db):
+    metadatas = []
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         metadatas = get_documents(db)['metadatas']
-    else:
+    elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
         metadatas = [x.metadata for x in db.similarity_search("", k=10000)]
@@ -3069,37 +3070,43 @@ def _get_documents(db):
     return documents
 
 
-def get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
+def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None):
     if hasattr(db, '_persist_directory'):
         name_path = os.path.basename(db._persist_directory)
         base_path = 'locks'
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
-            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
-    elif db is not None:
-        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs, text_context_list=text_context_list)
     else:
-        return [], []
+        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs, text_context_list=text_context_list)
 
 
-def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}):
+def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None):
+    db_documents = []
+    db_metadatas = []
+
+    if text_context_list:
+        db_documents += [x for x in text_context_list]
+        db_metadatas += [{}] * len(db_documents)
+
     from langchain.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         db_get = db._collection.get(where=filter_kwargs.get('filter'))
-        db_metadatas = db_get['metadatas']
-        db_documents = db_get['documents']
+        db_metadatas += db_get['metadatas']
+        db_documents += db_get['documents']
     elif isinstance(db, FAISS):
         import itertools
-        db_metadatas = get_metadatas(db)
+        db_metadatas += get_metadatas(db)
         # FIXME: FAISS has no filter
         if top_k_docs == -1:
-            db_documents = list(db.docstore._dict.values())
+            db_documents += list(db.docstore._dict.values())
         else:
             # slice dict first
-            db_documents = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
-    else:
-        db_metadatas = get_metadatas(db)
-        db_documents = get_documents(db)['documents']
+            db_documents += list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+    elif db is not None:
+        db_metadatas += get_metadatas(db)
+        db_documents += get_documents(db)['documents']
+
     return db_documents, db_metadatas
 
 
@@ -3215,7 +3222,9 @@ def _run_qa_db(query=None,
                prompt_query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
+               text_context_list=None,
                h2ogpt_key=None,
+
                n_jobs=-1,
                llamacpp_dict=None,
                verbose=False,
@@ -3457,25 +3466,31 @@ def _run_qa_db(query=None,
     return
 
 
-def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
+def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None, verbose=False):
+    docs_with_score = []
+
+    if text_context_list:
+        docs_with_score += [(Document(page_content=x, metadata={}), 1.0) for x in text_context_list]
+
     # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
     if hasattr(db, '_embedding_function') and isinstance(db._embedding_function, FakeEmbeddings):
         top_k_docs = -1
-        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                                       text_context_list=text_context_list)
         # sort by order given to parser (file_id) and any chunk_id if chunked
         doc_file_ids = [x.get('file_id', 0) for x in db_metadatas]
         doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
-        docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 1.0)
-                           for result in zip(db_documents, db_metadatas)]
-        docs_with_score = [x for fx, cx, x in
-                           sorted(zip(doc_file_ids, doc_chunk_ids, docs_with_score),
-                                  key=lambda x: (x[0], x[1]))
-                           ]
-        return docs_with_score
-    if db_type == 'chroma':
+        docs_with_score_fake = [(Document(page_content=result[0], metadata=result[1] or {}), 1.0)
+                                for result in zip(db_documents, db_metadatas)]
+        docs_with_score_fake = [x for fx, cx, x in
+                                sorted(zip(doc_file_ids, doc_chunk_ids, docs_with_score_fake),
+                                       key=lambda x: (x[0], x[1]))
+                                ]
+        docs_with_score += docs_with_score_fake
+    elif db is not None and db_type == 'chroma':
         while True:
             try:
-                docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+                docs_with_score_chroma = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
                 break
             except (RuntimeError, AttributeError) as e:
                 # AttributeError is for people with wrong version of langchain
@@ -3492,8 +3507,9 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=False):
                 else:
                     k_db -= 1
                 k_db = max(1, k_db)
-    else:
-        docs_with_score = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+        docs_with_score += docs_with_score_chroma
+    elif db is not None:
+        docs_with_score += db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
     return docs_with_score
 
 
@@ -3555,6 +3571,8 @@ def get_chain(query=None,
               prompt_query=None,
               pre_prompt_summary=None,
               prompt_summary=None,
+              text_context_list=None,
+
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
@@ -3643,7 +3661,8 @@ def get_chain(query=None,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
-    have_any_docs = db is not None
+    have_any_docs = (db is not None or
+                     text_context_list is not None and len(text_context_list) > 0)
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
@@ -3716,7 +3735,7 @@ def get_chain(query=None,
         # leave some room for 1 paragraph, even if min_new_tokens=0
         max_input_tokens = 2048 - min(256, max_new_tokens)
 
-    if db and use_docs_planned:
+    if (db or text_context_list) and use_docs_planned:
         base_path = 'locks'
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         if hasattr(db, '_persist_directory'):
@@ -3803,9 +3822,11 @@ def get_chain(query=None,
             docs = []
             scores = []
         elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
-            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                                           text_context_list=text_context_list)
             if len(db_documents) == 0 and filter_kwargs_backup:
-                db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup)
+                db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup,
+                                                               text_context_list=text_context_list)
 
             if top_k_docs == -1:
                 top_k_docs = len(db_documents)
@@ -3846,10 +3867,12 @@ def get_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 top_k_docs_tokenize = 100
                 with filelock.FileLock(lock_file):
-                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
+                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                          text_context_list=text_context_list, verbose=verbose)[
                                       :top_k_docs_tokenize]
                     if len(docs_with_score) == 0 and filter_kwargs_backup:
                         docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db, db_type,
+                                                              text_context_list=text_context_list,
                                                               verbose=verbose)[
                                           :top_k_docs_tokenize]
 
@@ -3919,10 +3942,12 @@ def get_chain(query=None,
                     docs_with_score = docs_with_score[:top_k_docs]
             else:
                 with filelock.FileLock(lock_file):
-                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
+                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                          text_context_list=text_context_list, verbose=verbose)[
                                       :top_k_docs]
                     if len(docs_with_score) == 0 and filter_kwargs_backup:
                         docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db, db_type,
+                                                              text_context_list=text_context_list,
                                                               verbose=verbose)[
                                           :top_k_docs]
 

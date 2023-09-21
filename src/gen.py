@@ -138,6 +138,7 @@ def main(
         root_path: str = "",
         chat: bool = True,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
+        text_context_list: typing.List[str] = None,
         stream_output: bool = True,
         async_output: bool = True,
         num_async: int = 3,
@@ -430,6 +431,8 @@ def main(
     :param chat_conversation: list of tuples of (human, bot) conversation pre-appended to existing chat when using instruct/chat models
            Requires also add_chat_history_to_context = True
            It does *not* require chat=True, so works with nochat_api etc.
+    :param text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
+           Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
     :param stream_output: whether to stream output
     :param async_output: Whether to do asyncio handling
            For summarization
@@ -592,7 +595,7 @@ def main(
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
     :param context: Default context to use (for system pre-context in gradio UI)
-           context comes before chat_conversation
+           context comes before chat_conversation and any document Q/A from text_context_list
     :param iinput: Default input for instruction-based prompts
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
@@ -673,6 +676,8 @@ def main(
 
     if isinstance(chat_conversation, str):
         chat_conversation = ast.literal_eval(chat_conversation)
+    if isinstance(text_context_list, str):
+        text_context_list = ast.literal_eval(text_context_list)
 
     if isinstance(llamacpp_dict, str):
         llamacpp_dict = ast.literal_eval(llamacpp_dict)
@@ -1620,7 +1625,8 @@ def get_model(
                 )
         if inference_server.startswith('sagemaker'):
             assert len(
-                inference_server.split(':')) >= 3, "Expected sagemaker_chat:<endpoint name>:<region>, got %s" % inference_server
+                inference_server.split(
+                    ':')) >= 3, "Expected sagemaker_chat:<endpoint name>:<region>, got %s" % inference_server
             assert os.getenv('AWS_ACCESS_KEY_ID'), "Set environment for AWS_ACCESS_KEY_ID"
             assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
@@ -2027,6 +2033,7 @@ def evaluate(
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
         h2ogpt_key,
         chat_conversation,
+        text_context_list,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2108,6 +2115,10 @@ def evaluate(
         url_loaders = url_loaders_options0
     if jq_schema is None:
         jq_schema = jq_schema0
+    if isinstance(chat_conversation, str):
+        chat_conversation = ast.literal_eval(chat_conversation)
+    if isinstance(text_context_list, str):
+        text_context_list = ast.literal_eval(text_context_list)
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
@@ -2268,7 +2279,8 @@ def evaluate(
                            inference_server.startswith('openai_azure')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
-                        force_langchain_evaluate
+                        force_langchain_evaluate or \
+                        text_context_list
     if do_langchain_path:
         text = ''
         sources = ''
@@ -2349,6 +2361,7 @@ def evaluate(
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
+                text_context_list=text_context_list,
                 h2ogpt_key=h2ogpt_key,
 
                 **gen_hyper_langchain,
@@ -3229,6 +3242,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    None,
                     None,
                     None,
                     None,

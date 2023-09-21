@@ -54,6 +54,7 @@ def run_eval(  # for local function:
         visible_models=None,
         h2ogpt_key=None,
         chat_conversation=None,
+        text_context_list=None,
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,
