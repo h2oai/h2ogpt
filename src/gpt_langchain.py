@@ -3516,6 +3516,7 @@ def _run_qa_db(query=None,
 
 def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None, verbose=False):
     docs_with_score = []
+    got_db_docs = False
 
     if text_context_list:
         docs_with_score += [(x, x.metadata.get('score', 1.0)) for x in text_context_list]
@@ -3535,6 +3536,7 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                                 sorted(zip(doc_file_ids, doc_chunk_ids, docs_with_score_fake),
                                        key=lambda x: (x[0], x[1]))
                                 ]
+        got_db_docs |= len(docs_with_score_fake) > 0
         docs_with_score += docs_with_score_fake
     elif db is not None and db_type == 'chroma':
         while True:
@@ -3556,10 +3558,13 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                 else:
                     k_db -= 1
                 k_db = max(1, k_db)
+        got_db_docs |= len(docs_with_score_chroma) > 0
         docs_with_score += docs_with_score_chroma
     elif db is not None:
-        docs_with_score += db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
-    return docs_with_score
+        docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+        got_db_docs |= len(docs_with_score_other) > 0
+        docs_with_score += docs_with_score_other
+    return docs_with_score, got_db_docs
 
 
 def get_chain(query=None,
@@ -3646,8 +3651,9 @@ def get_chain(query=None,
     llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
-        text_context_list = [(Document(page_content=x, metadata=dict(source='text_context_list', score=1.0, chunk_id=0)), 1.0) for x
-                            in text_context_list]
+        text_context_list = [
+            (Document(page_content=x, metadata=dict(source='text_context_list', score=1.0, chunk_id=0)), 1.0) for x
+            in text_context_list]
 
     if add_search_to_context:
         from langchain.utilities import SerpAPIWrapper
@@ -3664,16 +3670,11 @@ def get_chain(query=None,
         # assumes web search, if selected, is highest priority in terms of order
         search_text_list = [search_template.format(search_result=search_result, query=query)]
         text_context_list = [Document(page_content=x, metadata=dict(source='Web Search', score=1.0, chunk_id=0)) for x
-                            in search_text_list] + text_context_list
+                             in search_text_list] + text_context_list
         if len(text_context_list) > 0:
             llm_mode = False
         use_llm_if_no_docs = True
-
-        # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
-        prompt_query = prompt_query.replace('information in the document sources',
-                                            'information in the document and web search sources')
-        prompt_summary = prompt_summary.replace('information in the document sources',
-                                                'information in the document and web search sources')
+        add_search_to_context &= len(text_context_list) > 0
 
     from src.output_parser import H2OMRKLOutputParser
     if LangChainAgent.SEARCH.value in langchain_agents:
@@ -3884,47 +3885,18 @@ def get_chain(query=None,
                                                         verbose=verbose)
     have_any_docs = (db is not None or
                      text_context_list is not None and len(text_context_list) > 0)
-    if langchain_action == LangChainAction.QUERY.value:
-        if iinput:
-            query = "%s\n%s" % (query, iinput)
-        if llm_mode or not use_docs_planned:
-            template_if_no_docs = template = """{context}{question}"""
-        else:
-            template = """%s
-\"\"\"
-{context}
-\"\"\"
-%s{question}""" % (pre_prompt_query, prompt_query)
-            template_if_no_docs = """{context}{question}"""
-    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
-        none = ['', '\n', None]
-
-        # modify prompt_summary if user passes query or iinput
-        if query not in none and iinput not in none:
-            prompt_summary = "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
-        elif query not in none:
-            prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
-        # don't auto reduce
-        auto_reduce_chunks = False
-        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
-            fstring = '{text}'
-        else:
-            fstring = '{input_documents}'
-        template = """%s:
-\"\"\"
-%s
-\"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
-        template_if_no_docs = "Exactly only say: There are no documents to summarize."
-    elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
-        template = ''  # unused
-        template_if_no_docs = ''  # unused
-    else:
-        raise RuntimeError("No such langchain_action=%s" % langchain_action)
-
-    if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
-        use_template = True
-    else:
-        use_template = False
+    use_template = not use_openai_model and prompt_type not in ['plain'] or langchain_only_model
+    got_db_docs = False  # not yet at least
+    template, template_if_no_docs, auto_reduce_chunks, query = \
+        get_template(query, iinput,
+                     pre_prompt_query, prompt_query,
+                     pre_prompt_summary, prompt_summary,
+                     langchain_action,
+                     llm_mode,
+                     use_docs_planned,
+                     auto_reduce_chunks,
+                     got_db_docs,
+                     add_search_to_context)
 
     query_action = langchain_action == LangChainAction.QUERY.value
     summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -4088,14 +4060,16 @@ def get_chain(query=None,
             if top_k_docs == -1 or auto_reduce_chunks:
                 top_k_docs_tokenize = 100
                 with filelock.FileLock(lock_file):
-                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
-                                                          text_context_list=text_context_list, verbose=verbose)[
-                                      :top_k_docs_tokenize]
+                    docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                                       text_context_list=text_context_list,
+                                                                       verbose=verbose)[
+                                                   :top_k_docs_tokenize]
                     if len(docs_with_score) == 0 and filter_kwargs_backup:
-                        docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db, db_type,
-                                                              text_context_list=text_context_list,
-                                                              verbose=verbose)[
-                                          :top_k_docs_tokenize]
+                        docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
+                                                                           db_type,
+                                                                           text_context_list=text_context_list,
+                                                                           verbose=verbose)[
+                                                       :top_k_docs_tokenize]
 
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
@@ -4163,14 +4137,15 @@ def get_chain(query=None,
                     docs_with_score = docs_with_score[:top_k_docs]
             else:
                 with filelock.FileLock(lock_file):
-                    docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
-                                                          text_context_list=text_context_list, verbose=verbose)[
-                                      :top_k_docs]
+                    docs_with_score, got_db_docs = get_docs_with_score(query, k_db,
+                                                                       filter_kwargs, db, db_type,
+                                                                       text_context_list=text_context_list,
+                                                                       verbose=verbose)[:top_k_docs]
                     if len(docs_with_score) == 0 and filter_kwargs_backup:
-                        docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db, db_type,
-                                                              text_context_list=text_context_list,
-                                                              verbose=verbose)[
-                                          :top_k_docs]
+                        docs_with_score, got_db_docs = get_docs_with_score(query, k_db,
+                                                                           filter_kwargs_backup, db, db_type,
+                                                                           text_context_list=text_context_list,
+                                                                           verbose=verbose)[:top_k_docs]
 
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
@@ -4214,6 +4189,21 @@ def get_chain(query=None,
         # avoid context == in prompt then
         use_docs_planned = False
         template = template_if_no_docs
+
+    got_db_docs = got_db_docs and len(text_context_list) < len(docs)
+    # update template in case situation changed or did get docs
+    # then no new documents from database or not used, redo template
+    # got template earlier as estimate of template token size, here is final used version
+    template, template_if_no_docs, auto_reduce_chunks, query = \
+        get_template(query, iinput,
+                     pre_prompt_query, prompt_query,
+                     pre_prompt_summary, prompt_summary,
+                     langchain_action,
+                     llm_mode,
+                     use_docs_planned,
+                     auto_reduce_chunks,
+                     got_db_docs,
+                     add_search_to_context)
 
     if langchain_action == LangChainAction.QUERY.value:
         if use_template:
@@ -4276,6 +4266,70 @@ def get_chain(query=None,
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
     return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+
+
+def get_template(query, iinput,
+                 pre_prompt_query, prompt_query,
+                 pre_prompt_summary, prompt_summary,
+                 langchain_action,
+                 llm_mode,
+                 use_docs_planned,
+                 auto_reduce_chunks,
+                 got_db_docs,
+                 add_search_to_context):
+    if got_db_docs and add_search_to_context:
+        # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
+        prompt_query = prompt_query.replace('information in the document sources',
+                                            'information in the document and web search sources')
+        prompt_summary = prompt_summary.replace('information in the document sources',
+                                                'information in the document and web search sources')
+    elif got_db_docs and not add_search_to_context:
+        pass
+    elif not got_db_docs and add_search_to_context:
+        # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
+        prompt_query = prompt_query.replace('information in the document sources',
+                                            'information in the web search sources')
+        prompt_summary = prompt_summary.replace('information in the document sources',
+                                                'information in the web search sources')
+
+    if langchain_action == LangChainAction.QUERY.value:
+        if iinput:
+            query = "%s\n%s" % (query, iinput)
+        if llm_mode or not use_docs_planned:
+            template_if_no_docs = template = """{context}{question}"""
+        else:
+            template = """%s
+\"\"\"
+{context}
+\"\"\"
+%s{question}""" % (pre_prompt_query, prompt_query)
+            template_if_no_docs = """{context}{question}"""
+    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
+        none = ['', '\n', None]
+
+        # modify prompt_summary if user passes query or iinput
+        if query not in none and iinput not in none:
+            prompt_summary = "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+        elif query not in none:
+            prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
+        # don't auto reduce
+        auto_reduce_chunks = False
+        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+            fstring = '{text}'
+        else:
+            fstring = '{input_documents}'
+        template = """%s:
+\"\"\"
+%s
+\"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
+        template_if_no_docs = "Exactly only say: There are no documents to summarize."
+    elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
+        template = ''  # unused
+        template_if_no_docs = ''  # unused
+    else:
+        raise RuntimeError("No such langchain_action=%s" % langchain_action)
+
+    return template, template_if_no_docs, auto_reduce_chunks, query
 
 
 def get_sources_answer(query, docs, answer, scores, show_rank,
