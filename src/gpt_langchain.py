@@ -3332,6 +3332,8 @@ def _run_qa_db(query=None,
         # support string as well
         document_choice = [document_choice]
 
+    llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
+
     func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
@@ -3363,8 +3365,7 @@ def _run_qa_db(query=None,
             extra = ''
             yield ret, extra
             return
-        if not docs and langchain_mode not in [LangChainMode.DISABLED.value,
-                                               LangChainMode.LLM.value]:
+        if not docs and not llm_mode:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
             yield ret, extra
@@ -3582,6 +3583,8 @@ def get_chain(query=None,
               stream_output=True,
               async_output=True,
 
+              llm_mode=None,
+
               # local
               auto_reduce_chunks=True,
               max_chunks=100,
@@ -3592,7 +3595,7 @@ def get_chain(query=None,
     assert langchain_agents is not None  # should be at least []
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
-        if langchain_mode in ['Disabled', 'LLM']:
+        if llm_mode:
             use_docs_planned = False
         else:
             use_docs_planned = True
@@ -3666,7 +3669,7 @@ def get_chain(query=None,
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
-        if langchain_mode in ['Disabled', 'LLM'] or not use_docs_planned:
+        if llm_mode or not use_docs_planned:
             template_if_no_docs = template = """{context}{question}"""
         else:
             template = """%s
@@ -3818,7 +3821,7 @@ def get_chain(query=None,
                     filter_kwargs = {}
                     filter_kwargs_backup = {}
 
-        if langchain_mode in [LangChainMode.LLM.value]:
+        if llm_mode:
             docs = []
             scores = []
         elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
@@ -3975,8 +3978,9 @@ def get_chain(query=None,
         # no LLM use
         return docs, None, [], False, have_any_docs
 
+    # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
-    if os.path.isfile(common_words_file) and langchain_mode == LangChainAction.QUERY.value:
+    if False and os.path.isfile(common_words_file) and langchain_action == LangChainAction.QUERY.value:
         df = pd.read_csv("data/NGSL_1.2_stats.csv.zip")
         import string
         reduced_query = query.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation))).strip()

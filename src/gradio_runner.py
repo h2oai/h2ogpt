@@ -1010,7 +1010,7 @@ def go_gradio(**kwargs):
                                                            info="Pre-append conversation for instruct/chat models as List of tuple of (human, bot)",
                                                            value=kwargs['chat_conversation'])
                             text_context_list = gr.Textbox(lines=2, label="Text Doc Q/A",
-                                                           info="List of strings, for document Q/A, for bypassing database",
+                                                           info="List of strings, for document Q/A, for bypassing database (i.e. also works in LLM Mode)",
                                                            value=kwargs['chat_conversation'],
                                                            visible=not is_public,  # primarily meant for API
                                                            )

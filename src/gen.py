@@ -2268,7 +2268,7 @@ def evaluate(
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
-                        text_context_list
+                        len(text_context_list) > 0
     if do_langchain_path:
         text = ''
         sources = ''
