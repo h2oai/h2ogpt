@@ -380,11 +380,11 @@ This presumes one has set up an [AWS SageMaker endpoint](aws_sagemaker_endpoint_
 
 Streaming is not yet supported in LangChain version of SageMaker, see [Streaming Docs](https://aws.amazon.com/blogs/machine-learning/elevating-the-generative-ai-experience-introducing-streaming-support-in-amazon-sagemaker-hosting/).
 
-To use AWS SageMaker Chat endpoint, e.g. with LLaMa-2 Chat, pass to h2oGPT `--inference_server=sagemaker_chat:<endpointname>` for `<endpointname>` of the endpoint's name, e.g.
+To use AWS SageMaker Chat endpoint, e.g. with LLaMa-2 Chat, pass to h2oGPT `--inference_server=sagemaker_chat:<endpointname>:<region>` for `<endpointname>` of the endpoint's name and `<region>` the region (e.g. `us-east-2`), e.g.
 ```bash
 export AWS_ACCESS_KEY_ID=<...>
 export AWS_SECRET_ACCESS_KEY=<...>
-python generate.py --inference_server=sagemaker_chat:<endpointname> --base_model=h2oai/h2ogpt-4096-llama2-7b-chat
+python generate.py --inference_server=sagemaker_chat:<endpointname>:<region> --base_model=h2oai/h2ogpt-4096-llama2-7b-chat
 ```
 
 ## h2oGPT start-up vs. in-app selection

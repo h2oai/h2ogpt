@@ -1620,7 +1620,7 @@ def get_model(
                 )
         if inference_server.startswith('sagemaker'):
             assert len(
-                inference_server.split(':')) >= 2, "Expected sagemaker_chat:<endpoint name>, got %s" % inference_server
+                inference_server.split(':')) >= 3, "Expected sagemaker_chat:<endpoint name>:<region>, got %s" % inference_server
             assert os.getenv('AWS_ACCESS_KEY_ID'), "Set environment for AWS_ACCESS_KEY_ID"
             assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
