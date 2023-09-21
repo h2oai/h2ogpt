@@ -7,7 +7,7 @@ if os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))) not in sys.pat
     sys.path.append(os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))))
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
-    get_persist_directory
+    get_persist_directory, get_existing_db
 from utils import get_ngpus_vis, H2O_Fire, makedirs
 
 
@@ -157,6 +157,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
+           Normally same as langchain_mode
     :param verbose: whether to show verbose messages
     :param chunk: whether to chunk data
     :param chunk_size: chunk size for chunking
@@ -213,23 +214,39 @@ def make_db_main(use_openai_embedding: bool = False,
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
 
+    existing_db = False
+
     if download_all:
         print("Downloading all (and unzipping): %s" % all_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=all_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return db, collection_name
+        existing_db = True
     elif download_some:
         print("Downloading some (and unzipping): %s" % some_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=some_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return db, collection_name
+        existing_db = True
     elif download_one:
         print("Downloading %s (and unzipping)" % download_one, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=[[download_one, '', 'Unknown License']])
         if verbose:
             print("DONE", flush=True)
+        existing_db = True
+
+    if existing_db:
+        load_db_if_exists = True
+        langchain_mode = collection_name
+        langchain_mode_paths = dict(langchain_mode=None)
+        langchain_mode_types = dict(langchain_mode='shared')
+        db, use_openai_embedding, hf_embedding_model = \
+            get_existing_db(None, persist_directory, load_db_if_exists, db_type,
+                            use_openai_embedding,
+                            langchain_mode, langchain_mode_paths, langchain_mode_types,
+                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            verbose=False,
+                            n_jobs=n_jobs)
         return db, collection_name
 
     if enable_captions and pre_load_caption_model:

@@ -3,10 +3,12 @@ import json
 import os, sys
 import shutil
 import tempfile
+import time
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens, \
+    count_tokens_llm
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
@@ -243,7 +245,7 @@ def test_client1api_lean_lock_choose_model():
                                     'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
                                                            '<bot>:', '<bot>:'], 'chat_sep': '\n',
                                     'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
-                                    'generates_leading_space': True, 'system_prompt': None},
+                                    'generates_leading_space': True, 'system_prompt': ''},
                     'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
                     'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
                     'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
@@ -264,7 +266,7 @@ def test_client1api_lean_lock_choose_model():
                                     'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
                                                            '<bot>:', '<bot>:'], 'chat_sep': '\n',
                                     'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
-                                    'generates_leading_space': True, 'system_prompt': None},
+                                    'generates_leading_space': True, 'system_prompt': ''},
                     'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
                     'load_gptq': '', 'load_exllama': False, 'use_safetensors': False,
                     'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
@@ -1144,8 +1146,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
 
     file_to_get = sources_expected[3]
     view_raw_text = False
+    text_context_list = None
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
@@ -1155,7 +1158,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
 
     view_raw_text = True  # dict of metadatas stays dict instead of string
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)
@@ -1401,6 +1404,7 @@ def test_client_load_unload_models():
     n_batch = 128
     n_gqa = 0  # llama2 needs 8
     llamacpp_dict_more = '{}'
+    system_prompt = None
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
@@ -1410,7 +1414,8 @@ def test_client_load_unload_models():
                  model_use_gpu_id_checkbox, model_gpu,
                  max_seq_len, rope_scaling,
                  model_path_llama, model_name_gptj, model_name_gpt4all_llama,
-                 n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more]
+                 n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
+                 system_prompt]
     res = client.predict(*tuple(args_list), api_name='/load_model')
     res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 1024},
                     {'__type__': 'update', 'maximum': 1024})
@@ -1479,6 +1484,93 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert got_embedding
 
 
+# pip install pytest-timeout
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_chat_stream_langchain_fake_embeddings_stress(repeat):
+    data_kind = 'helium3'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
+    local_server = False
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
+
+
+# pip install pytest-timeout
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_upload_simple(repeat):
+    data_kind = 'helium3'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # fake, just for tokenizer
+    local_server = False
+    # used with go_upload_gradio (say on remote machine) to test add_text
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=True)
+
+
+# pip install pytest-timeout
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_chat_stream_langchain_fake_embeddings_stress_no_llm(repeat):
+    data_kind = 'helium3'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
+    local_server = False
+    chat = False
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, chat=chat)
+
+
+def go_upload_gradio():
+    import gradio as gr
+    import time
+
+    with gr.Blocks() as demo:
+        chatbot = gr.Chatbot()
+        msg = gr.Textbox()
+        clear = gr.ClearButton([msg, chatbot])
+        with gr.Accordion("Upload", open=False, visible=True):
+            with gr.Column():
+                with gr.Row(equal_height=False):
+                    file = gr.File(show_label=False,
+                                   file_count="multiple",
+                                   scale=1,
+                                   min_width=0,
+                                   )
+
+        def respond(message, chat_history):
+            if not chat_history:
+                chat_history = [[message, '']]
+            chat_history[-1][1] = message
+            for fake in range(0, 1000):
+                chat_history[-1][1] += str(fake)
+                time.sleep(0.1)
+                yield "", chat_history
+            return
+
+        def gofile(x):
+            print(x)
+            return x
+
+        user_text_text = gr.Textbox(label='Paste Text',
+                                    interactive=True,
+                                    visible=True)
+
+        msg.submit(respond, [msg, chatbot], [msg, chatbot])
+
+        def show_text(x):
+            return str(x)
+
+        user_text_text.submit(fn=show_text, inputs=user_text_text, outputs=user_text_text, api_name='add_text')
+
+        eventdb1 = file.upload(gofile, file, api_name='file')
+
+    if __name__ == "__main__":
+        demo.queue(concurrency_count=64)
+        demo.launch(server_name='0.0.0.0')
+
+
 # NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
 @pytest.mark.parametrize("data_kind", [
     'simple',
@@ -1492,6 +1584,13 @@ def test_client_chat_stream_langchain_openai_embeddings():
 # @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @wrap_test_forked
 def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
+    local_server = True  # set to False to test local server, e.g. gradio connected to TGI server
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
+
+
+def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=False, chat=True):
+    t0 = time.time()
+
     os.environ['VERBOSE_PIPELINE'] = '1'
     remove('db_dir_UserData')
 
@@ -1505,8 +1604,12 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
-    local_server = True  # set to False to test local server, e.g. gradio connected to TGI server
+    assert base_model is not None
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(base_model)
+
     if local_server:
+        assert not simple
         from src.gen import main
         main(base_model=base_model, prompt_type=prompt_type, chat=True,
              stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -1515,15 +1618,20 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
              langchain_modes=langchain_modes,
              use_openai_embedding=True,
              verbose=True)
+    print("TIME main: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+    t0 = time.time()
 
     from src.client_test import get_client, get_args, run_client
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
+    print("TIME client: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+    t0 = time.time()
 
     if data_kind == 'simple':
         texts = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
         expected_return_number = len(texts)
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('counts ', counts)
     elif data_kind == 'helium1':
         texts = [
@@ -1557,11 +1665,13 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             tokens_expected = 1500
         else:
             expected_return_number = 16  # i.e. out of 25
-            tokens_expected = 3500
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+            tokens_expected = 3400
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
-        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        prompt = '\n'.join(texts)
+        countsall = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('countsall ', countsall)
     elif data_kind == 'helium2':
         texts = [
@@ -1619,12 +1729,14 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             expected_return_number = 10
             tokens_expected = 1500
         else:
-            expected_return_number = 16 if local_server else 17
-            tokens_expected = 3500 if local_server else 2900
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+            expected_return_number = 17 if local_server else 17
+            tokens_expected = 3400 if local_server else 2900
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
-        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        prompt = '\n'.join(texts)
+        countsall = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('countsall ', countsall)
     elif data_kind == 'helium3':
         texts = [
@@ -1647,18 +1759,28 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
             'Net Investment Yield\nTreasury Bond Yield\n10%\n5%\n4.04%\n2.95%\n0%\n1975\n1980\n1985\n1990\n1995\n2000\n2005\n2010\n2015\n2020\n2022 INVESTMENT REPORT\nNotes appear on page 15\n',
             'is aligned with the\nand are not distracted by short-term results\nWe focus keenly on capital preservation and\nbest interests of our\nat the expense of long-term predictable investment results while seeking\nabove-market General Account Value Proposition\nDriving benefits.4\nDriving the The General Account\ninvestment portfolio\nInvestment return is a primary driver of\nOur investments positively impact the\nplays a dual role:\nbenefits paid to our clients. By staying true\neconomy—creating jobs, benefiting\nto our investment philosophy and principles,\ncommunities, supporting innovation, and\nwe create value, paying dividends to our\nfunding sustainable energy participating policy owners and growing\nour already strong 2022 INVESTMENT REPORT\nNotes appear on page 15\n5\nGeneral Account Investment Strategy and Approach\nAsset/liability management focus\nDelivering for clients and society through\nReflecting our\nresponsible investing\ninvestment philosophy,\nOur primary focuses are asset/liability\nwe take a highly\nmanagement and maintaining ample']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 10
+            expected_return_number = 6
             tokens_expected = 1500
         else:
-            expected_return_number = 16 if local_server else 11
+            expected_return_number = 11 if local_server else 11
             tokens_expected = 3500 if local_server else 2900
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
-        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        prompt = '\n'.join(texts)
+        countsall = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('countsall ', countsall)
     else:
         raise ValueError("No such data_kind=%s" % data_kind)
+
+    if simple:
+        print("TIME prep: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+        # res = client.predict(texts, api_name='/file')
+        res = client.predict(texts, api_name='/add_text')
+        assert res is not None
+        print("TIME add_text: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+        return
 
     # for testing persistent database
     # langchain_mode = "UserData"
@@ -1668,6 +1790,47 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     chunk = False
     chunk_size = 512
     h2ogpt_key = ''
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    print("TIME prep: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+    t0 = time.time()
+
+    prompt = "Documents"
+    kwargs0 = dict(
+        instruction='',
+        max_new_tokens=200,
+        min_new_tokens=1,
+        max_time=300,
+        do_sample=False,
+        instruction_nochat=prompt,
+        text_context_list=None,  # NOTE: If use same client instance and push to this textbox, will be there next call
+    )
+
+    # fast text doc Q/A
+    kwargs = kwargs0.copy()
+    kwargs.update(dict(
+        langchain_mode=langchain_mode,
+        langchain_action="Query",
+        top_k_docs=-1,
+        document_subset='Relevant',
+        document_choice=DocumentChoice.ALL.value,
+        text_context_list=texts,
+    ))
+    res = client.predict(
+        str(dict(kwargs)),
+        api_name=api_name,
+    )
+    print("Raw client result: %s" % res, flush=True)
+    assert isinstance(res, str)
+    res_dict = ast.literal_eval(res)
+    assert 'response' in res_dict and res_dict['response']
+    sources = res_dict['sources']
+    texts_out = [x['content'] for x in sources]
+    texts_expected = texts[:expected_return_number]
+    assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
+    assert texts_expected == texts_out
+    print("TIME nochat0: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+
+    # Full langchain with db
     res = client.predict(texts,
                          langchain_mode, chunk, chunk_size, embed,
                          None, None, None, None,
@@ -1679,26 +1842,27 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         # else won't show entire string, so can't check this
         assert all([x in res[2] for x in texts])
     assert res[3] == ''
+    print("TIME add_text: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+    t0 = time.time()
 
     if local_server:
         from src.gpt_langchain import load_embed
-        got_embedding, use_openai_embedding, hf_embedding_model = load_embed(
-            persist_directory='db_dir_%s' % langchain_mode)
+
+        # even normal langchain_mode  passed to this should get the other langchain_mode2
+        res = client.predict(langchain_mode, api_name='/load_langchain')
+        persist_directory = res[1]['data'][2][3]
+        if langchain_mode == 'UserData':
+            persist_directory_check = 'db_dir_%s' % langchain_mode
+            assert persist_directory == persist_directory_check
+        got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory=persist_directory)
+        assert got_embedding
         assert not use_openai_embedding
         assert hf_embedding_model == 'fake'
-        assert got_embedding
 
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    if not chat:
+        return
 
-    prompt = "Documents"
-    kwargs = dict(
-        instruction='',
-        max_new_tokens=200,
-        min_new_tokens=1,
-        max_time=300,
-        do_sample=False,
-        instruction_nochat=prompt,
-    )
+    kwargs = kwargs0.copy()
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
@@ -1707,7 +1871,10 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     assert isinstance(res, str)
     res_dict = ast.literal_eval(res)
     assert 'response' in res_dict and res_dict['response']
+    print("TIME nochat1: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
+    t0 = time.time()
 
+    kwargs = kwargs0.copy()
     kwargs.update(dict(
         langchain_mode=langchain_mode,
         langchain_action="Query",
@@ -1728,6 +1895,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     texts_expected = texts[:expected_return_number]
     assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
     assert texts_expected == texts_out
+    print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])

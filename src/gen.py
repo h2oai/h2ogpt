@@ -47,7 +47,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict
 
 start_faulthandler()
 import_matplotlib()
@@ -129,6 +129,7 @@ def main(
         src_lang: str = "English",
         tgt_lang: str = "Russian",
 
+        prepare_offline_level: int = 0,
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
@@ -137,6 +138,7 @@ def main(
         root_path: str = "",
         chat: bool = True,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
+        text_context_list: typing.List[str] = None,
         stream_output: bool = True,
         async_output: bool = True,
         num_async: int = 3,
@@ -328,13 +330,17 @@ def main(
                                  <model_version> e.g. 0613
 
                              Or Address can be for vLLM:
-                              Use: "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                              Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
                               Note: vllm_chat not supported by vLLM project.
 
                              Or Address can be replicate:
                              Use:
                               --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
                               e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
+
+                             Or Address can be for AWS SageMaker:
+                              Use: "sagemaker_chat:<endpoint name>" for chat models that AWS sets up as dialog
+                              Use: "sagemaker:<endpoint name>" for foundation models that AWS only text as inputs
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -400,6 +406,12 @@ def main(
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
+
+    :param prepare_offline_level:
+           Whether to just prepare for offline use, do not go into cli, eval, or gradio run modes
+           0 : no prep
+           1: prepare just h2oGPT with exact same setup as passed to CLI and ensure all artifacts for h2oGPT alone added to ~/.cache/
+           2: prepare h2oGPT + all inference servers so h2oGPT+inference servers can use the ~/.cache/
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
@@ -420,6 +432,8 @@ def main(
     :param chat_conversation: list of tuples of (human, bot) conversation pre-appended to existing chat when using instruct/chat models
            Requires also add_chat_history_to_context = True
            It does *not* require chat=True, so works with nochat_api etc.
+    :param text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
+           Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
     :param stream_output: whether to stream output
     :param async_output: Whether to do asyncio handling
            For summarization
@@ -583,7 +597,7 @@ def main(
            Also not supported when using CLI mode
     :param add_search_to_context: Include web search in context as augmented prompt
     :param context: Default context to use (for system pre-context in gradio UI)
-           context comes before chat_conversation
+           context comes before chat_conversation and any document Q/A from text_context_list
     :param iinput: Default input for instruction-based prompts
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
@@ -662,8 +676,10 @@ def main(
     model_lock = os.getenv('model_lock', str(model_lock))
     model_lock = ast.literal_eval(model_lock)
 
-    if isinstance(llamacpp_dict, str):
-        llamacpp_dict = ast.literal_eval(llamacpp_dict)
+    chat_conversation = str_to_list(chat_conversation)
+    text_context_list = str_to_list(text_context_list)
+
+    llamacpp_dict = str_to_dict(llamacpp_dict)
     # add others to single dict
     llamacpp_dict['model_path_llama'] = model_path_llama
     llamacpp_dict['model_name_gptj'] = model_name_gptj
@@ -703,7 +719,7 @@ def main(
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = False
     if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
-        h2ogpt_api_keys = ast.literal_eval(h2ogpt_api_keys)
+        h2ogpt_api_keys = str_to_list(h2ogpt_api_keys)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
@@ -718,12 +734,11 @@ def main(
     # but becomes unrecoverable sometimes if raise, so just be silent for now
     raise_generate_gpu_exceptions = True
 
-    if isinstance(rope_scaling, str):
-        rope_scaling = ast.literal_eval(rope_scaling)
+    rope_scaling = str_to_dict(rope_scaling)
 
     if isinstance(auth, str):
         if auth.strip().startswith('['):
-            auth = ast.literal_eval(auth.strip())
+            auth = str_to_list(auth)
     if isinstance(auth, str) and auth:
         auth_filename = auth
     if not auth_filename:
@@ -748,12 +763,8 @@ def main(
         langchain_modes.append(LangChainMode.DISABLED.value)
 
     # update
-    if isinstance(langchain_mode_paths, str):
-        langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
-        assert isinstance(langchain_mode_paths, dict)
-    if isinstance(langchain_mode_types, str):
-        langchain_mode_types = ast.literal_eval(langchain_mode_types)
-        assert isinstance(langchain_mode_types, dict)
+    langchain_mode_paths = str_to_dict(langchain_mode_paths)
+    langchain_mode_types = str_to_dict(langchain_mode_types)
     for lmode in [LangChainMode.GITHUB_H2OGPT.value,
                   LangChainMode.H2O_DAI_DOCS.value,
                   LangChainMode.WIKI.value,
@@ -1081,7 +1092,7 @@ def main(
     elif not gradio:
         from eval import run_eval
         return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
-    elif gradio:
+    elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
 
@@ -1107,6 +1118,10 @@ def main(
             model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
             model_dict['lora_weights'] = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = model_dict.get('inference_server', '')
+            if prepare_offline_level >= 2:
+                if 'openai' not in model_dict['inference_server'] and 'replicate' not in model_dict['inference_server']:
+                    # assume want locally, but OpenAI and replicate are never local for model part
+                    model_dict['inference_server'] = ''
             prompt_type_infer = not model_dict.get('prompt_type')
             model_dict['prompt_type'] = model_dict.get('prompt_type',
                                                        model_list0[0]['prompt_type'])  # don't use mutated value
@@ -1175,9 +1190,7 @@ def main(
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
 
-        if isinstance(visible_models, str):
-            visible_models = ast.literal_eval(visible_models)
-        assert isinstance(visible_models, (type(None), list))
+        visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
         all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
         visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
                                  visible_models is None or
@@ -1578,14 +1591,17 @@ def get_model(
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
         if tokenizer is None:
-            if os.getenv("HARD_ASSERTS"):
+            # FIXME: Could use only tokenizer from llama etc. but hard to detatch from model, just use fake for now
+            if os.getenv("HARD_ASSERTS") and base_model not in non_hf_types:
                 raise RuntimeError("Unexpected tokenizer=None")
             tokenizer = FakeTokenizer()
         return client, tokenizer, 'http'
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
-            inference_server.startswith('replicate')):
+            inference_server.startswith('replicate') or
+            inference_server.startswith('sagemaker')
+    ):
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
@@ -1602,6 +1618,12 @@ def get_model(
                     "Could not import replicate python package. "
                     "Please install it with `pip install replicate`."
                 )
+        if inference_server.startswith('sagemaker'):
+            assert len(
+                inference_server.split(
+                    ':')) >= 3, "Expected sagemaker_chat:<endpoint name>:<region>, got %s" % inference_server
+            assert os.getenv('AWS_ACCESS_KEY_ID'), "Set environment for AWS_ACCESS_KEY_ID"
+            assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
         if inference_server.startswith('openai') or tokenizer is None:
@@ -2007,6 +2029,7 @@ def evaluate(
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
         h2ogpt_key,
         chat_conversation,
+        text_context_list,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2090,7 +2113,14 @@ def evaluate(
     if jq_schema is None:
         jq_schema = jq_schema0
     if isinstance(langchain_agents, str):
-        langchain_agents = [langchain_agents]
+        if langchain_agents.strip().startswith('['):
+            # already list, but as string
+            langchain_agents = str_to_list(langchain_agents)
+        else:
+            # just 1 item and make list
+            langchain_agents = [langchain_agents]
+    chat_conversation = str_to_list(chat_conversation)
+    text_context_list = str_to_list(text_context_list)
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
@@ -2246,11 +2276,14 @@ def evaluate(
     langchain_only_model = base_model in non_hf_types or \
                            load_exllama or \
                            inference_server.startswith('replicate') or \
+                           inference_server.startswith('sagemaker') or \
                            inference_server.startswith('openai_azure_chat') or \
                            inference_server.startswith('openai_azure')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
-                        force_langchain_evaluate
+                        force_langchain_evaluate or \
+                        len(text_context_list) > 0
+
     if len(langchain_agents) > 0:
         do_langchain_path = True
     if add_search_to_context:
@@ -2338,6 +2371,7 @@ def evaluate(
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
+                text_context_list=text_context_list,
                 h2ogpt_key=h2ogpt_key,
 
                 **gen_hyper_langchain,
@@ -3224,6 +3258,7 @@ y = np.random.randint(0, 1, 100)
                     None,
                     None,
                     None,
+                    None,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3381,9 +3416,7 @@ def history_to_context(history, langchain_mode1,
     :return:
     """
     if chat_conversation1:
-        if isinstance(chat_conversation1, str):
-            chat_conversation1 = ast.literal_eval(chat_conversation1.strip())
-        assert isinstance(chat_conversation1, list)
+        chat_conversation1 = str_to_list(chat_conversation1)
         for conv1 in chat_conversation1:
             assert isinstance(conv1, (list, tuple))
             assert len(conv1) == 2

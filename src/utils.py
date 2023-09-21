@@ -1454,3 +1454,37 @@ def start_process(cmd):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     for c in iter(lambda: process.stdout.read(1), b''):
         sys.stdout.write(c)
+
+
+def str_to_list(x, allow_none=False):
+    if isinstance(x, str):
+        if len(x.strip()) > 0:
+            if x.strip().startswith('['):
+                x = ast.literal_eval(x.strip())
+            else:
+                raise ValueError("Invalid str_to_list for %s" % x)
+        else:
+            x = []
+    elif x is None and not allow_none:
+        x = []
+    if allow_none:
+        assert isinstance(x, (type(None), list))
+    else:
+        assert isinstance(x, list)
+    return x
+
+
+def str_to_dict(x):
+    if isinstance(x, str):
+        if len(x.strip()) > 0:
+            if x.strip().startswith('{'):
+                x = ast.literal_eval(x.strip())
+            else:
+                raise ValueError("Invalid str_to_dict for %s" % x)
+        else:
+            x = {}
+    elif x is None:
+        x = {}
+    assert isinstance(x, dict)
+    return x
+

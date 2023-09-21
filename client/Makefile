@@ -53,3 +53,6 @@ test: copy_files_from_h2ogpt
 .PHONY: build
 build: copy_files_from_h2ogpt
 	$(POETRY_BIN) build
+
+print-%:
+	@echo $($*)

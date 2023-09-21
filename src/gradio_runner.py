@@ -59,7 +59,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr
+    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake
@@ -573,7 +573,7 @@ def go_gradio(**kwargs):
             choices = [x for x in langchain_modes if x in allowed_modes and x not in no_show_modes]
             return choices
 
-        def get_df_langchain_mode_paths(selection_docs_state1):
+        def get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=None):
             langchain_choices1 = get_langchain_choices(selection_docs_state1)
             langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
             langchain_mode_paths = {k: v for k, v in langchain_mode_paths.items() if k in langchain_choices1}
@@ -604,7 +604,8 @@ def go_gradio(**kwargs):
                 for langchain_mode3 in langchain_mode_types:
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
                     persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
-                                                                                langchain_type=langchain_type3)
+                                                                                langchain_type=langchain_type3,
+                                                                                db1s=db1s, dbs=dbs1)
                     got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(
                         persist_directory=persist_directory3)
                     persist_directory_dict[langchain_mode3] = persist_directory3
@@ -905,7 +906,7 @@ def go_gradio(**kwargs):
                                         kwargs['langchain_mode'] != 'Disabled')
                         with gr.Column(scale=5):
                             if kwargs['langchain_mode'] != 'Disabled' and visible_add_remove_collection:
-                                df0 = get_df_langchain_mode_paths(selection_docs_state0)
+                                df0 = get_df_langchain_mode_paths(selection_docs_state0, None, dbs1=dbs)
                             else:
                                 df0 = pd.DataFrame(None)
                             langchain_mode_path_text = gr.Dataframe(value=df0,
@@ -1014,6 +1015,11 @@ def go_gradio(**kwargs):
                             chat_conversation = gr.Textbox(lines=2, label="Pre-Conversation",
                                                            info="Pre-append conversation for instruct/chat models as List of tuple of (human, bot)",
                                                            value=kwargs['chat_conversation'])
+                            text_context_list = gr.Textbox(lines=2, label="Text Doc Q/A",
+                                                           info="List of strings, for document Q/A, for bypassing database (i.e. also works in LLM Mode)",
+                                                           value=kwargs['chat_conversation'],
+                                                           visible=not is_public,  # primarily meant for API
+                                                           )
                             iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
                                                 info="If given for document query, added after query",
                                                 value=kwargs['iinput'],
@@ -1430,7 +1436,8 @@ def go_gradio(**kwargs):
                 login_tab = gr.TabItem("Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
-                    gr.Markdown(value="#### Login page to persist your state (database, documents, chat, chat history)")
+                    gr.Markdown(
+                        value="#### Login page to persist your state (database, documents, chat, chat history)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
@@ -1775,204 +1782,6 @@ def go_gradio(**kwargs):
                                     api_name='get_viewable_sources' if allow_api else None) \
             .then(**viewable_kwargs)
 
-        def show_doc(db1s, selection_docs_state1, requests_state1,
-                     langchain_mode1,
-                     single_document_choice1,
-                     view_raw_text_checkbox1,
-                     dbs1=None,
-                     load_db_if_exists1=None,
-                     db_type1=None,
-                     use_openai_embedding1=None,
-                     hf_embedding_model1=None,
-                     migrate_embedding_model_or_db1=None,
-                     auto_migrate_db1=None,
-                     verbose1=False,
-                     get_userid_auth1=None,
-                     max_raw_chunks=1000000,
-                     api=False):
-            file = single_document_choice1
-            document_choice1 = [single_document_choice1]
-            content = None
-            db_documents = []
-            db_metadatas = []
-            if db_type == 'chroma':
-                assert langchain_mode1 is not None
-                langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-                langchain_mode_types = selection_docs_state1['langchain_mode_types']
-                from src.gpt_langchain import set_userid, get_any_db, get_docs_and_meta
-                set_userid(db1s, requests_state1, get_userid_auth1)
-                top_k_docs = -1
-                db = get_any_db(db1s, langchain_mode1, langchain_mode_paths, langchain_mode_types,
-                                dbs=dbs1,
-                                load_db_if_exists=load_db_if_exists1,
-                                db_type=db_type1,
-                                use_openai_embedding=use_openai_embedding1,
-                                hf_embedding_model=hf_embedding_model1,
-                                migrate_embedding_model=migrate_embedding_model_or_db1,
-                                auto_migrate_db=auto_migrate_db1,
-                                for_sources_list=True,
-                                verbose=verbose1,
-                                n_jobs=n_jobs,
-                                )
-                query_action = False  # long chunks like would be used for summarize
-                # the below is as or filter, so will show doc or by chunk, unrestricted
-                if view_raw_text_checkbox1:
-                    one_filter = \
-                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                               "chunk_id": {
-                                                                                                   "$gte": -1}}
-                         for x in document_choice1][0]
-                else:
-                    one_filter = \
-                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                               "chunk_id": {
-                                                                                                   "$eq": -1}}
-                         for x in document_choice1][0]
-                filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
-                                                      dict(chunk_id=one_filter['chunk_id'])]})
-                db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
-                # order documents
-                from langchain.docstore.document import Document
-                docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
-                                   for result in zip(db_documents, db_metadatas)]
-                doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
-                doc_page_ids = [x.get('page', 0) for x in db_metadatas]
-                doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
-                docs_with_score = [x for hx, px, cx, x in
-                                   sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score),
-                                          key=lambda x: (x[0], x[1], x[2]))
-                                   # if cx == -1
-                                   ]
-                db_metadatas = [x[0].metadata for x in docs_with_score][:max_raw_chunks]
-                db_documents = [x[0].page_content for x in docs_with_score][:max_raw_chunks]
-                # done reordering
-                if view_raw_text_checkbox1:
-                    content = [dict_to_html(x) + '\n' + text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
-                else:
-                    content = [text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
-                content = '\n'.join(content)
-                content = f"""<!DOCTYPE html>
-<html>
- <head>
-    <title>{file}</title>
- </head>
-  <body>
-  {content}
-  </body>
-</html>"""
-            if api:
-                if view_raw_text_checkbox1:
-                    return dict(contents=db_documents, metadatas=db_metadatas)
-                else:
-                    contents = [text_to_html(y, api=api) for y in db_documents]
-                    metadatas = [dict_to_html(x, api=api) for x in db_metadatas]
-                    return dict(contents=contents, metadatas=metadatas)
-            else:
-                assert not api, "API mode for get_document only supported for chroma"
-
-            dummy1 = gr.update(visible=False, value=None)
-            # backup is text dump of db version
-            if content:
-                dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
-                if view_raw_text_checkbox1:
-                    return dummy_ret
-            else:
-                dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1
-
-            if not isinstance(file, str):
-                return dummy_ret
-
-            if file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm') or \
-                    file.lower().endswith('.xml'):
-                try:
-                    with open(file, 'rt') as f:
-                        content = f.read()
-                    return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
-                except:
-                    return dummy_ret
-
-            if file.lower().endswith('.md'):
-                try:
-                    with open(file, 'rt') as f:
-                        content = f.read()
-                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
-                except:
-                    return dummy_ret
-
-            if file.lower().endswith('.py'):
-                try:
-                    with open(file, 'rt') as f:
-                        content = f.read()
-                    content = f"```python\n{content}\n```"
-                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
-                except:
-                    return dummy_ret
-
-            if file.lower().endswith('.txt') or file.lower().endswith('.rst') or file.lower().endswith(
-                    '.rtf') or file.lower().endswith('.toml'):
-                try:
-                    with open(file, 'rt') as f:
-                        content = f.read()
-                    content = f"```text\n{content}\n```"
-                    return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
-                except:
-                    return dummy_ret
-
-            func = None
-            if file.lower().endswith(".csv"):
-                func = pd.read_csv
-            elif file.lower().endswith(".pickle"):
-                func = pd.read_pickle
-            elif file.lower().endswith(".xls") or file.lower().endswith("xlsx"):
-                func = pd.read_excel
-            elif file.lower().endswith('.json'):
-                func = pd.read_json
-            # pandas doesn't show full thing, even if html view shows broken things still better
-            # elif file.lower().endswith('.xml'):
-            #    func = pd.read_xml
-            if func is not None:
-                try:
-                    df = func(file).head(100)
-                except:
-                    return dummy_ret
-                return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1
-            port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
-            import pathlib
-            absolute_path_string = os.path.abspath(file)
-            url_path = pathlib.Path(absolute_path_string).as_uri()
-            url = get_url(absolute_path_string, from_str=True)
-            img_url = url.replace("""<a href=""", """<img src=""")
-            if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
-                return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1
-            elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
-
-                # account for when use `wget -b -m -k -o wget.log -e robots=off`
-                if url_alive('http://' + file):
-                    file = 'http://' + file
-                if url_alive('https://' + file):
-                    file = 'https://' + file
-
-                if file.lower().startswith('http') or file.lower().startswith('https'):
-                    # if file is online, then might as well use google(?)
-                    document1 = file
-                    return gr.update(visible=True,
-                                     value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
-</iframe>
-"""), dummy1, dummy1, dummy1, dummy1
-                else:
-                    # FIXME: This doesn't work yet, just return dummy result for now
-                    if False:
-                        ip = get_local_ip()
-                        document1 = url_path.replace('file://', f'http://{ip}:{port}/')
-                        # document1 = url
-                        return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
-        <iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
-    </object>"""), dummy1, dummy1, dummy1, dummy1
-                    else:
-                        return dummy_ret
-            else:
-                return dummy_ret
-
         eventdb_viewa = view_document_choice.select(user_state_setup,
                                                     inputs=[my_db_state, requests_state,
                                                             view_document_choice, view_document_choice],
@@ -1990,17 +1799,20 @@ def go_gradio(**kwargs):
                                           get_userid_auth1=get_userid_auth,
                                           max_raw_chunks=kwargs['max_raw_chunks'],
                                           api=False,
+                                          n_jobs=n_jobs,
                                           )
         # Note: Not really useful for API, so no api_name
         eventdb_viewa.then(fn=show_doc_func,
                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                   view_document_choice, view_raw_text_checkbox],
+                                   view_document_choice, view_raw_text_checkbox,
+                                   text_context_list],
                            outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5])
 
         show_doc_func_api = functools.partial(show_doc_func, api=True)
         get_document_api_btn.click(fn=show_doc_func_api,
                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                           view_document_choice, view_raw_text_checkbox],
+                                           view_document_choice, view_raw_text_checkbox,
+                                           text_context_list],
                                    outputs=get_document_api_text, api_name='get_document_api')
 
         # Get inputs to evaluate() and make_db()
@@ -2101,7 +1913,7 @@ def go_gradio(**kwargs):
             else:
                 success1 = False
                 text_result = "Wrong password for user %s" % username1
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             if success1:
                 requests_state1['username'] = username1
             label_instruction1 = 'Ask anything, %s' % requests_state1['username']
@@ -2305,7 +2117,7 @@ def go_gradio(**kwargs):
                 langchain_mode2 = langchain_mode1
                 textbox = "Invalid, must be like UserData2, user_path2"
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             choices = get_langchain_choices(selection_docs_state1)
 
             if valid and not user_path:
@@ -2398,7 +2210,7 @@ def go_gradio(**kwargs):
 
             # update
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
 
             if changed_state:
                 save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
@@ -2477,7 +2289,7 @@ def go_gradio(**kwargs):
             load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1)
 
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
-            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1)
+            df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             return selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), df_langchain_mode_paths1
@@ -2557,6 +2369,12 @@ def go_gradio(**kwargs):
             sync5 = sync4.then(**get_viewable_sources_args)
             sync6 = sync5.then(**viewable_kwargs)
 
+            eventdb_loginb = eventdb_logina.then(**get_sources_kwargs)
+            eventdb_loginc = eventdb_loginb.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb_logind = eventdb_loginc.then(**show_sources_kwargs)
+            eventdb_logine = eventdb_logind.then(**get_viewable_sources_args)
+            eventdb_loginf = eventdb_logine.then(**viewable_kwargs)
+
             db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
                               lg_change_event6] +
                              [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
@@ -2567,7 +2385,9 @@ def go_gradio(**kwargs):
                              [eventdb21c, eventdb21d, eventdb21e, eventdb21f, eventdb21g] +
                              [eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
                              [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7] +
-                             [sync1, sync2, sync3, sync4, sync5, sync6]
+                             [sync1, sync2, sync3, sync4, sync5, sync6] +
+                             [eventdb_logina, eventdb_loginb, eventdb_loginc, eventdb_logind, eventdb_logine,
+                              eventdb_loginf]
                              ,
                              )
 
@@ -2664,8 +2484,8 @@ def go_gradio(**kwargs):
 
             context1 = args_list[eval_func_param_names.index('context')]
             add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
-            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
-            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')] or model_state1['prompt_type']
+            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')] or model_state1['prompt_dict']
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
             system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
@@ -3870,7 +3690,7 @@ def go_gradio(**kwargs):
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
             all_kwargs1['max_seq_len'] = max_seq_len1
             try:
-                all_kwargs1['rope_scaling'] = ast.literal_eval(rope_scaling1)  # transcribe
+                all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
             except:
                 print("Failed to use user input for rope_scaling dict", flush=True)
                 all_kwargs1['rope_scaling'] = {}
@@ -4203,6 +4023,11 @@ def go_gradio(**kwargs):
             load_event2 = load_event.then(load_login_func,
                                           inputs=login_inputs,
                                           outputs=login_outputs)
+            load_event3 = load_event2.then(**get_sources_kwargs)
+            load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            load_event5 = load_event4.then(**show_sources_kwargs)
+            load_event6 = load_event5.then(**get_viewable_sources_args)
+            load_event7 = load_event6.then(**viewable_kwargs)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
@@ -4218,6 +4043,11 @@ def go_gradio(**kwargs):
             if not os.path.isfile(favicon_path):
                 print("favicon_path3: %s not found in %s" % (favicon_file, alt_path), flush=True)
                 favicon_path = None
+
+    if kwargs['prepare_offline_level'] > 0:
+        from src.prepare_offline import go_prepare_offline
+        go_prepare_offline(**locals())
+        return
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
@@ -4258,6 +4088,224 @@ def go_gradio(**kwargs):
               flush=True)
     if kwargs['block_gradio_exit']:
         demo.block_thread()
+
+
+def show_doc(db1s, selection_docs_state1, requests_state1,
+             langchain_mode1,
+             single_document_choice1,
+             view_raw_text_checkbox1,
+             text_context_list1,
+             dbs1=None,
+             load_db_if_exists1=None,
+             db_type1=None,
+             use_openai_embedding1=None,
+             hf_embedding_model1=None,
+             migrate_embedding_model_or_db1=None,
+             auto_migrate_db1=None,
+             verbose1=False,
+             get_userid_auth1=None,
+             max_raw_chunks=1000000,
+             api=False,
+             n_jobs=-1):
+    file = single_document_choice1
+    document_choice1 = [single_document_choice1]
+    content = None
+    db_documents = []
+    db_metadatas = []
+    if db_type1 == 'chroma':
+        assert langchain_mode1 is not None
+        langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+        langchain_mode_types = selection_docs_state1['langchain_mode_types']
+        from src.gpt_langchain import set_userid, get_any_db, get_docs_and_meta
+        set_userid(db1s, requests_state1, get_userid_auth1)
+        top_k_docs = -1
+        db = get_any_db(db1s, langchain_mode1, langchain_mode_paths, langchain_mode_types,
+                        dbs=dbs1,
+                        load_db_if_exists=load_db_if_exists1,
+                        db_type=db_type1,
+                        use_openai_embedding=use_openai_embedding1,
+                        hf_embedding_model=hf_embedding_model1,
+                        migrate_embedding_model=migrate_embedding_model_or_db1,
+                        auto_migrate_db=auto_migrate_db1,
+                        for_sources_list=True,
+                        verbose=verbose1,
+                        n_jobs=n_jobs,
+                        )
+        query_action = False  # long chunks like would be used for summarize
+        # the below is as or filter, so will show doc or by chunk, unrestricted
+        from langchain.vectorstores import Chroma
+        if isinstance(db, Chroma):
+            # chroma >= 0.4
+            if view_raw_text_checkbox1:
+                one_filter = \
+                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                           "chunk_id": {
+                                                                                               "$gte": -1}}
+                     for x in document_choice1][0]
+            else:
+                one_filter = \
+                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                           "chunk_id": {
+                                                                                               "$eq": -1}}
+                     for x in document_choice1][0]
+            filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                  dict(chunk_id=one_filter['chunk_id'])]})
+        else:
+            # migration for chroma < 0.4
+            one_filter = \
+                [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                       "chunk_id": {
+                                                                                           "$eq": -1}}
+                 for x in document_choice1][0]
+            if view_raw_text_checkbox1:
+                # like or, full raw all chunk types
+                filter_kwargs = dict(filter=one_filter)
+            else:
+                filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                      dict(chunk_id=one_filter['chunk_id'])]})
+        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                                       text_context_list=text_context_list1)
+        # order documents
+        from langchain.docstore.document import Document
+        docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
+                           for result in zip(db_documents, db_metadatas)]
+        doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+        doc_page_ids = [x.get('page', 0) for x in db_metadatas]
+        doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
+        docs_with_score = [x for hx, px, cx, x in
+                           sorted(zip(doc_hashes, doc_page_ids, doc_chunk_ids, docs_with_score),
+                                  key=lambda x: (x[0], x[1], x[2]))
+                           # if cx == -1
+                           ]
+        db_metadatas = [x[0].metadata for x in docs_with_score][:max_raw_chunks]
+        db_documents = [x[0].page_content for x in docs_with_score][:max_raw_chunks]
+        # done reordering
+        if view_raw_text_checkbox1:
+            content = [dict_to_html(x) + '\n' + text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
+        else:
+            content = [text_to_html(y) for x, y in zip(db_metadatas, db_documents)]
+        content = '\n'.join(content)
+        content = f"""<!DOCTYPE html>
+<html>
+<head>
+<title>{file}</title>
+</head>
+<body>
+{content}
+</body>
+</html>"""
+    if api:
+        if view_raw_text_checkbox1:
+            return dict(contents=db_documents, metadatas=db_metadatas)
+        else:
+            contents = [text_to_html(y, api=api) for y in db_documents]
+            metadatas = [dict_to_html(x, api=api) for x in db_metadatas]
+            return dict(contents=contents, metadatas=metadatas)
+    else:
+        assert not api, "API mode for get_document only supported for chroma"
+
+    dummy1 = gr.update(visible=False, value=None)
+    # backup is text dump of db version
+    if content:
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+        if view_raw_text_checkbox1:
+            return dummy_ret
+    else:
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1
+
+    if not isinstance(file, str):
+        return dummy_ret
+
+    if file.lower().endswith('.html') or file.lower().endswith('.mhtml') or file.lower().endswith('.htm') or \
+            file.lower().endswith('.xml'):
+        try:
+            with open(file, 'rt') as f:
+                content = f.read()
+            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
+        except:
+            return dummy_ret
+
+    if file.lower().endswith('.md'):
+        try:
+            with open(file, 'rt') as f:
+                content = f.read()
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+        except:
+            return dummy_ret
+
+    if file.lower().endswith('.py'):
+        try:
+            with open(file, 'rt') as f:
+                content = f.read()
+            content = f"```python\n{content}\n```"
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+        except:
+            return dummy_ret
+
+    if file.lower().endswith('.txt') or file.lower().endswith('.rst') or file.lower().endswith(
+            '.rtf') or file.lower().endswith('.toml'):
+        try:
+            with open(file, 'rt') as f:
+                content = f.read()
+            content = f"```text\n{content}\n```"
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+        except:
+            return dummy_ret
+
+    func = None
+    if file.lower().endswith(".csv"):
+        func = pd.read_csv
+    elif file.lower().endswith(".pickle"):
+        func = pd.read_pickle
+    elif file.lower().endswith(".xls") or file.lower().endswith("xlsx"):
+        func = pd.read_excel
+    elif file.lower().endswith('.json'):
+        func = pd.read_json
+    # pandas doesn't show full thing, even if html view shows broken things still better
+    # elif file.lower().endswith('.xml'):
+    #    func = pd.read_xml
+    if func is not None:
+        try:
+            df = func(file).head(100)
+        except:
+            return dummy_ret
+        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1
+    port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
+    import pathlib
+    absolute_path_string = os.path.abspath(file)
+    url_path = pathlib.Path(absolute_path_string).as_uri()
+    url = get_url(absolute_path_string, from_str=True)
+    img_url = url.replace("""<a href=""", """<img src=""")
+    if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
+        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1
+    elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
+
+        # account for when use `wget -b -m -k -o wget.log -e robots=off`
+        if url_alive('http://' + file):
+            file = 'http://' + file
+        if url_alive('https://' + file):
+            file = 'https://' + file
+
+        if file.lower().startswith('http') or file.lower().startswith('https'):
+            # if file is online, then might as well use google(?)
+            document1 = file
+            return gr.update(visible=True,
+                             value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
+</iframe>
+"""), dummy1, dummy1, dummy1, dummy1
+        else:
+            # FIXME: This doesn't work yet, just return dummy result for now
+            if False:
+                ip = get_local_ip()
+                document1 = url_path.replace('file://', f'http://{ip}:{port}/')
+                # document1 = url
+                return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
+<iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
+</object>"""), dummy1, dummy1, dummy1, dummy1
+            else:
+                return dummy_ret
+    else:
+        return dummy_ret
 
 
 def get_inputs_list(inputs_dict, model_lower, model_id=1):
