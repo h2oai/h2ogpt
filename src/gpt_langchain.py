@@ -2002,7 +2002,7 @@ def file_to_doc(file,
             doc1a = try_as_html(file)
             add_parser(doc1a, 'try_as_html')
             doc1.extend(doc1a)
-        if len(doc1) == 0 or (enable_pdf_ocr == 'auto' and not enable_pdf_doctr) or enable_pdf_ocr == 'on':
+        if len(doc1) == 0 and (enable_pdf_ocr == 'auto' and not enable_pdf_doctr) or enable_pdf_ocr == 'on':
             # no did_unstructured condition here because here we do OCR, and before we did not
             # try OCR in end since slowest, but works on pure image pages well
             doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
