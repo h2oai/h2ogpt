@@ -1464,7 +1464,7 @@ def test_chroma_filtering():
     mydata_mode1 = LangChainMode.MY_DATA.value
     from src.make_db import make_db_main
 
-    for chroma_new in [True, False]:
+    for chroma_new in [False, True]:
         print("chroma_new: %s" % chroma_new, flush=True)
         if chroma_new:
             # fresh, so chroma >= 0.4
@@ -1524,7 +1524,9 @@ def test_chroma_filtering():
                 if doc_choice == 'All':
                     document_choice = [DocumentChoice.ALL.value]
                 else:
-                    document_choice = [x['source'] for x in db.get()['metadatas']][:doc_choice]
+                    docs = [x['source'] for x in db.get()['metadatas']]
+                    docs = sorted(set(docs))
+                    document_choice = docs[:doc_choice]
                 print("doc_choice: %s" % doc_choice, flush=True)
                 for langchain_action in [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value]:
                     print("langchain_action: %s" % langchain_action, flush=True)
@@ -1543,9 +1545,11 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 2 and ('h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0])
+                                assert len(rets1) == 2 and (
+                                            'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
                             else:
-                                assert len(rets1) == 2 and ('h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0])
+                                assert len(rets1) == 2 and (
+                                            'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
                                 if document_subset == DocumentSubset.Relevant.name:
                                     assert 'h2oGPT' in rets1[1]
                         else:
@@ -1558,6 +1562,19 @@ def test_chroma_filtering():
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1[1][0] and 'content' in rets1[1][0] and 'source' in rets1[1][0]
+                                if doc_choice in [1, 2]:
+                                    assert len(set([x['source'] for x in rets1[1]])) == doc_choice
+                                else:
+                                    assert len(set([x['source'] for x in rets1[1]])) >= 1
+                            elif document_subset == DocumentSubset.RelSources.name:
+                                if doc_choice in [1, 2]:
+                                    assert len(set([x['source'] for x in rets1[1]])) <= doc_choice
+                                else:
+                                    assert len(set([x['source'] for x in rets1[1]])) >= 2
+                            else:
+                                # TopK may just be 1 doc because of many chunks from that doc
+                                # if top_k_docs=-1 might get more
+                                assert len(set([x['source'] for x in rets1[1]])) >= 1
 
         # SHOW DOC
         single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]

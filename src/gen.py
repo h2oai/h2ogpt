@@ -328,13 +328,17 @@ def main(
                                  <model_version> e.g. 0613
 
                              Or Address can be for vLLM:
-                              Use: "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                              Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
                               Note: vllm_chat not supported by vLLM project.
 
                              Or Address can be replicate:
                              Use:
                               --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
                               e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
+
+                             Or Address can be for AWS SageMaker:
+                              Use: "sagemaker_chat:<endpoint name>" for chat models that AWS sets up as dialog
+                              Use: "sagemaker:<endpoint name>" for foundation models that AWS only text as inputs
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -1595,7 +1599,9 @@ def get_model(
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
-            inference_server.startswith('replicate')):
+            inference_server.startswith('replicate') or
+            inference_server.startswith('sagemaker')
+    ):
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
@@ -1612,6 +1618,11 @@ def get_model(
                     "Could not import replicate python package. "
                     "Please install it with `pip install replicate`."
                 )
+        if inference_server.startswith('sagemaker'):
+            assert len(
+                inference_server.split(':')) >= 2, "Expected sagemaker_chat:<endpoint name>, got %s" % inference_server
+            assert os.getenv('AWS_ACCESS_KEY_ID'), "Set environment for AWS_ACCESS_KEY_ID"
+            assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
         if inference_server.startswith('openai') or tokenizer is None:
@@ -2252,6 +2263,7 @@ def evaluate(
     langchain_only_model = base_model in non_hf_types or \
                            load_exllama or \
                            inference_server.startswith('replicate') or \
+                           inference_server.startswith('sagemaker') or \
                            inference_server.startswith('openai_azure_chat') or \
                            inference_server.startswith('openai_azure')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \

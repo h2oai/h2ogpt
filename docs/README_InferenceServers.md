@@ -369,7 +369,23 @@ Replicate is **not** recommended for private document question-answer, but suffi
 
 Issues:
 * `requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)`
-  * Sometimes Replicate sends back bad json, seems randomly occurs.
+* Sometimes Replicate sends back bad json, seems randomly occurs.
+
+
+## AWS SageMaker Endpoint
+
+h2oGPT code is based upon [LangChain Code](https://python.langchain.com/docs/integrations/llms/sagemaker) but with various fixes, handling of access keys, and handling for LLama-2 Chat type model.  See also https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html .
+
+This presumes one has set up an [AWS SageMaker endpoint](aws_sagemaker_endpoint_setup.pdf) (from [here](https://medium.com/@mudassir.aqeel24/deploy-llama2-7b-on-aws-easiest-method-f76d71a51684)) and that you are able to view events in the AWS console to confirm things are working or debug if not.
+
+Streaming is not yet supported in LangChain version of SageMaker, see [Streaming Docs](https://aws.amazon.com/blogs/machine-learning/elevating-the-generative-ai-experience-introducing-streaming-support-in-amazon-sagemaker-hosting/).
+
+To use AWS SageMaker Chat endpoint, e.g. with LLaMa-2 Chat, pass to h2oGPT `--inference_server=sagemaker_chat:<endpointname>` for `<endpointname>` of the endpoint's name, e.g.
+```bash
+export AWS_ACCESS_KEY_ID=<...>
+export AWS_SECRET_ACCESS_KEY=<...>
+python generate.py --inference_server=sagemaker_chat:<endpointname> --base_model=h2oai/h2ogpt-4096-llama2-7b-chat
+```
 
 ## h2oGPT start-up vs. in-app selection
 

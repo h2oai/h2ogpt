@@ -992,7 +992,7 @@ def get_llm(use_openai_model=False,
         if system_prompt:
             gen_kwargs.update(dict(system_prompt=system_prompt))
 
-        # replicate handles prompting, so avoid get_resopnse() filter
+        # replicate handles prompting, so avoid get_response() filter
         prompter.prompt_type = 'plain'
         if stream_output:
             callbacks = [StreamingGradioCallbackHandler()]
@@ -1090,6 +1090,29 @@ def get_llm(use_openai_model=False,
         else:
             # vllm goes here
             prompt_type = prompt_type or 'plain'
+    elif inference_server and inference_server.startswith('sagemaker'):
+        callbacks = [StreamingGradioCallbackHandler()]  # FIXME
+        streamer = None
+
+        endpoint_name = ':'.join(inference_server.split(':')[1:2])
+        region_name = ':'.join(inference_server.split(':')[2:])
+
+        from sagemaker import H2OSagemakerEndpoint, ChatContentHandler, BaseContentHandler
+        if inference_server.startswith('sagemaker_chat'):
+            content_handler = ChatContentHandler()
+        else:
+            content_handler = BaseContentHandler()
+        model_kwargs = dict(temperature=temperature if do_sample else 1E-10,
+                            return_full_text=False, top_p=top_p, max_new_tokens=max_new_tokens)
+        llm = H2OSagemakerEndpoint(
+            endpoint_name=endpoint_name,
+            region_name=region_name,
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            model_kwargs=model_kwargs,
+            content_handler=content_handler,
+            endpoint_kwargs={'CustomAttributes': 'accept_eula=true'},
+        )
     elif inference_server:
         assert inference_server.startswith(
             'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
@@ -3311,7 +3334,17 @@ def _run_qa_db(query=None,
             yield "No sources", ''
             return
         # if no souces, outside gpt_langchain, LLM will be used with '' input
-        yield formatted_doc_chunks, ''
+        scores = [1] * len(docs)
+        get_answer_args = tuple([query, docs, formatted_doc_chunks, scores, show_rank,
+                                 answer_with_sources,
+                                 append_sources_to_answer])
+        get_answer_kwargs = dict(show_accordions=show_accordions,
+                                 show_link_in_sources=show_link_in_sources,
+                                 top_k_docs_max_show=top_k_docs_max_show,
+                                 reverse_docs=reverse_docs,
+                                 verbose=verbose)
+        ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
+        yield formatted_doc_chunks, extra
         return
     if not use_llm_if_no_docs:
         if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -3399,25 +3432,27 @@ def _run_qa_db(query=None,
                     answer = chain()
                     answer = answer['output_text']
 
+    get_answer_args = tuple([query, docs, answer, scores, show_rank,
+                             answer_with_sources,
+                             append_sources_to_answer])
+    get_answer_kwargs = dict(show_accordions=show_accordions,
+                             show_link_in_sources=show_link_in_sources,
+                             top_k_docs_max_show=top_k_docs_max_show,
+                             reverse_docs=reverse_docs,
+                             verbose=verbose,
+                             t_run=t_run,
+                             count_input_tokens=llm.count_input_tokens
+                             if hasattr(llm, 'count_input_tokens') else None,
+                             count_output_tokens=llm.count_output_tokens
+                             if hasattr(llm, 'count_output_tokens') else None)
+
     t_run = time.time() - t_run
     if not use_docs_planned:
         ret = answer
         extra = ''
         yield ret, extra
     elif answer is not None:
-        ret, extra = get_sources_answer(query, docs, answer, scores, show_rank,
-                                        answer_with_sources,
-                                        append_sources_to_answer,
-                                        show_accordions=show_accordions,
-                                        show_link_in_sources=show_link_in_sources,
-                                        top_k_docs_max_show=top_k_docs_max_show,
-                                        reverse_docs=reverse_docs,
-                                        verbose=verbose,
-                                        t_run=t_run,
-                                        count_input_tokens=llm.count_input_tokens
-                                        if hasattr(llm, 'count_input_tokens') else None,
-                                        count_output_tokens=llm.count_output_tokens
-                                        if hasattr(llm, 'count_output_tokens') else None)
+        ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield ret, extra
     return
 
@@ -3690,7 +3725,7 @@ def get_chain(query=None,
             name_path = "sim.lock"
         lock_file = os.path.join(base_path, name_path)
 
-        if not (isinstance(db, Chroma) or isinstance(db, ChromaMig)) or ChromaMig.__name__ in str(db):
+        if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
             # only chroma supports filtering
             filter_kwargs = {}
         else:
@@ -3699,35 +3734,36 @@ def get_chain(query=None,
             assert document_choice is not None, "Document choice was None"
             if isinstance(db, Chroma):
                 # chroma >= 0.4
-                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
+                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
+                    0] == DocumentChoice.ALL.value:
                     filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                         {"filter": {"chunk_id": {"$eq": -1}}}
                 else:
                     if document_choice[0] == DocumentChoice.ALL.value:
                         document_choice = document_choice[1:]
-                        if len(document_choice) > 1:
-                            or_filter = [
-                                {"$and": [dict(source={"$eq": x}), dict(chunk_id={"$gte": 0})]} if query_action else {
-                                    "$and": [dict(source={"$eq": x}), dict(chunk_id={"$eq": -1})]}
-                                for x in document_choice]
-                            filter_kwargs = dict(filter={"$or": or_filter})
-                        else:
-                            # still chromadb UX bug, have to do different thing for 1 vs. 2+ docs when doing filter
-                            one_filter = \
-                                [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {
-                                    "source": {"$eq": x},
-                                    "chunk_id": {
-                                        "$eq": -1}}
-                                 for x in document_choice][0]
-
-                            filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
-                                                                  dict(chunk_id=one_filter['chunk_id'])]})
-                    else:
-                        # shouldn't reach
+                    if len(document_choice) == 0:
                         filter_kwargs = {}
+                    elif len(document_choice) > 1:
+                        or_filter = [
+                            {"$and": [dict(source={"$eq": x}), dict(chunk_id={"$gte": 0})]} if query_action else {
+                                "$and": [dict(source={"$eq": x}), dict(chunk_id={"$eq": -1})]}
+                            for x in document_choice]
+                        filter_kwargs = dict(filter={"$or": or_filter})
+                    else:
+                        # still chromadb UX bug, have to do different thing for 1 vs. 2+ docs when doing filter
+                        one_filter = \
+                            [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {
+                                "source": {"$eq": x},
+                                "chunk_id": {
+                                    "$eq": -1}}
+                             for x in document_choice][0]
+
+                        filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                              dict(chunk_id=one_filter['chunk_id'])]})
             else:
                 # migration for chroma < 0.4
-                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[0] == DocumentChoice.ALL.value:
+                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
+                    0] == DocumentChoice.ALL.value:
                     filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                         {"filter": {"chunk_id": {"$eq": -1}}}
                 elif len(document_choice) >= 2:
@@ -3767,21 +3803,22 @@ def get_chain(query=None,
             if query_action:
                 doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
                 docs_with_score2 = [x for hx, cx, x in
-                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                                   if cx >= 0]
+                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                    if cx >= 0]
             else:
                 assert summarize_action
                 doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
                 docs_with_score2 = [x for hx, cx, x in
-                                   sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                                   if cx == -1
-                                   ]
+                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                    if cx == -1
+                                    ]
                 if len(docs_with_score2) == 0:
                     # old database without chunk_id, migration added 0 but didn't make -1 as that would be expensive
                     # just do again and relax filter, let summarize operate on actual chunks if nothing else
                     docs_with_score2 = [x for hx, cx, x in
-                                       sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                                       ]
+                                        sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score),
+                                               key=lambda x: (x[0], x[1]))
+                                        ]
             docs_with_score = docs_with_score2
 
             docs_with_score = docs_with_score[:top_k_docs]
