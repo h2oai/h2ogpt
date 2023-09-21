@@ -951,16 +951,16 @@ class H2OAzureOpenAI(AzureOpenAI):
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
     def _call(
-        self,
-        prompt: str,
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
     ) -> str:
         response = self.pipeline(prompt, stop=stop)
         if self.pipeline.task == "text-generation":
             # Text generation return includes the starter text.
-            text = response[0]["generated_text"][len(prompt) :]
+            text = response[0]["generated_text"][len(prompt):]
         elif self.pipeline.task == "text2text-generation":
             text = response[0]["generated_text"]
         elif self.pipeline.task == "summarization":
@@ -3126,8 +3126,8 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None)
     db_metadatas = []
 
     if text_context_list:
-        db_documents += [x for x in text_context_list]
-        db_metadatas += [dict(source='text_context_list', chunk_id=0)] * len(db_documents)
+        db_documents += [x.page_content for x in text_context_list]
+        db_metadatas += [x.metadata for x in text_context_list]
 
     from langchain.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
@@ -3373,13 +3373,11 @@ def _run_qa_db(query=None,
         # support string as well
         document_choice = [document_choice]
 
-    llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
-
     func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs = get_chain(**sim_kwargs)
+    docs, chain, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode = get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
@@ -3520,13 +3518,14 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
     docs_with_score = []
 
     if text_context_list:
-        docs_with_score += [(Document(page_content=x, metadata=dict(source='text_context_list', chunk_id=0)), 1.0) for x in text_context_list]
+        docs_with_score += [(x, x.metadata.get('score', 1.0)) for x in text_context_list]
 
     # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
     if hasattr(db, '_embedding_function') and isinstance(db._embedding_function, FakeEmbeddings):
         top_k_docs = -1
+        # don't add text_context_list twice
         db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
-                                                       text_context_list=text_context_list)
+                                                       text_context_list=None)
         # sort by order given to parser (file_id) and any chunk_id if chunked
         doc_file_ids = [x.get('file_id', 0) for x in db_metadatas]
         doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
@@ -3633,8 +3632,6 @@ def get_chain(query=None,
               stream_output=True,
               async_output=True,
 
-              llm_mode=None,
-
               # local
               auto_reduce_chunks=True,
               max_chunks=100,
@@ -3645,19 +3642,38 @@ def get_chain(query=None,
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
 
+    # default value:
+    llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
+    if len(text_context_list) > 0:
+        # turn into documents to make easy to manage and add meta
+        text_context_list = [(Document(page_content=x, metadata=dict(source='text_context_list', score=1.0, chunk_id=0)), 1.0) for x
+                            in text_context_list]
+
     if add_search_to_context:
         from langchain.utilities import SerpAPIWrapper
         search = SerpAPIWrapper()
         search_result = search.run(query)
-        pre_prompt_search = "Pay attention to the web search information provided below, and assume that is up-to-date but that it may be incomplete or poor quality.  Start of information from web search:\n"
-        prompt_search = "End of information from web search.\nUsing a balance of the web search information and any other knowledge, "
+        pre_prompt_search = "\n\nInformation from web search:"
+        prompt_search = "End of information from web search.\n"
         search_template = """%s
 \"\"\"
 {search_result}
 \"\"\"
-%s{query}""" % (pre_prompt_search, prompt_search)
-        query = search_template.format(search_result=search_result, query=query)
+%s""" % (pre_prompt_search, prompt_search)
+        # assumes not too big a result
+        # assumes web search, if selected, is highest priority in terms of order
+        search_text_list = [search_template.format(search_result=search_result, query=query)]
+        text_context_list = [Document(page_content=x, metadata=dict(source='Web Search', score=1.0, chunk_id=0)) for x
+                            in search_text_list] + text_context_list
+        if len(text_context_list) > 0:
+            llm_mode = False
         use_llm_if_no_docs = True
+
+        # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
+        prompt_query = prompt_query.replace('information in the document sources',
+                                            'information in the document and web search sources')
+        prompt_summary = prompt_summary.replace('information in the document sources',
+                                                'information in the document and web search sources')
 
     from src.output_parser import H2OMRKLOutputParser
     if LangChainAgent.SEARCH.value in langchain_agents:
@@ -3684,7 +3700,7 @@ def get_chain(query=None,
         use_docs_planned = False
         have_any_docs = False
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -3706,7 +3722,7 @@ def get_chain(query=None,
         use_docs_planned = False
         have_any_docs = False
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
         chain = create_python_agent(
@@ -3725,7 +3741,7 @@ def get_chain(query=None,
         use_docs_planned = False
         have_any_docs = False
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3745,7 +3761,7 @@ def get_chain(query=None,
         use_docs_planned = False
         have_any_docs = False
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.JSON.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3766,9 +3782,10 @@ def get_chain(query=None,
         use_docs_planned = False
         have_any_docs = False
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
-    if LangChainAgent.CSV.value in langchain_agents and len(document_choice) == 1 and document_choice[0].endswith('.csv'):
+    if LangChainAgent.CSV.value in langchain_agents and len(document_choice) == 1 and document_choice[0].endswith(
+            '.csv'):
         data_file = document_choice[0]
         if inference_server.startswith('openai_chat'):
             chain = create_csv_agent(
@@ -3792,7 +3809,7 @@ def get_chain(query=None,
         use_docs_planned = False
         have_any_docs = False
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
@@ -4173,11 +4190,11 @@ def get_chain(query=None,
 
     if not docs and use_docs_planned and not langchain_only_model:
         # if HF type and have no docs, can bail out
-        return docs, None, [], False, have_any_docs, use_llm_if_no_docs
+        return docs, None, [], False, have_any_docs, use_llm_if_no_docs, llm_mode
 
     if document_subset in non_query_commands:
         # no LLM use
-        return docs, None, [], False, have_any_docs, use_llm_if_no_docs
+        return docs, None, [], False, have_any_docs, use_llm_if_no_docs, llm_mode
 
     # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
@@ -4258,7 +4275,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs
+    return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
 
 def get_sources_answer(query, docs, answer, scores, show_rank,
