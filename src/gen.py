@@ -2400,6 +2400,8 @@ def evaluate(
                               langchain_agents=langchain_agents,
                               document_subset=document_subset,
                               document_choice=document_choice,
+                              chat_conversation=chat_conversation,
+                              add_search_to_context=add_search_to_context,
                               num_prompt_tokens=num_prompt_tokens,
                               instruction=instruction,
                               iinput=iinput,
