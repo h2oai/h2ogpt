@@ -3,10 +3,12 @@ import json
 import os, sys
 import shutil
 import tempfile
+import time
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens, \
+    count_tokens_llm
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
@@ -1481,6 +1483,18 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert got_embedding
 
 
+# pip install pytest-timeout
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_chat_stream_langchain_fake_embeddings_stress(repeat):
+    data_kind = 'helium3'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
+    local_server = False
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
+
+
 # NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
 @pytest.mark.parametrize("data_kind", [
     'simple',
@@ -1494,6 +1508,13 @@ def test_client_chat_stream_langchain_openai_embeddings():
 # @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @wrap_test_forked
 def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
+    local_server = True  # set to False to test local server, e.g. gradio connected to TGI server
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
+
+
+def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server):
+    t0 = time.time()
+
     os.environ['VERBOSE_PIPELINE'] = '1'
     remove('db_dir_UserData')
 
@@ -1507,7 +1528,10 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
-    local_server = True  # set to False to test local server, e.g. gradio connected to TGI server
+    assert base_model is not None
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(base_model)
+
     if local_server:
         from src.gen import main
         main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -1517,10 +1541,14 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
              langchain_modes=langchain_modes,
              use_openai_embedding=True,
              verbose=True)
+    print("TIME main: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr);
+    t0 = time.time()
 
     from src.client_test import get_client, get_args, run_client
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
+    print("TIME client: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr);
+    t0 = time.time()
 
     if data_kind == 'simple':
         texts = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
@@ -1560,10 +1588,12 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         else:
             expected_return_number = 16  # i.e. out of 25
             tokens_expected = 3400
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
-        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        prompt = '\n'.join(texts)
+        countsall = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('countsall ', countsall)
     elif data_kind == 'helium2':
         texts = [
@@ -1623,10 +1653,12 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         else:
             expected_return_number = 17 if local_server else 17
             tokens_expected = 3400 if local_server else 2900
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
-        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        prompt = '\n'.join(texts)
+        countsall = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('countsall ', countsall)
     elif data_kind == 'helium3':
         texts = [
@@ -1654,10 +1686,12 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         else:
             expected_return_number = 11 if local_server else 11
             tokens_expected = 3500 if local_server else 2900
-        counts = count_tokens('\n'.join(texts[:expected_return_number]), base_model=base_model)
+        prompt = '\n'.join(texts[:expected_return_number])
+        counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
         print('counts ', counts)
-        countsall = count_tokens('\n'.join(texts), base_model=base_model)
+        prompt = '\n'.join(texts)
+        countsall = count_tokens_llm(prompt, tokenizer=tokenizer)
         print('countsall ', countsall)
     else:
         raise ValueError("No such data_kind=%s" % data_kind)
@@ -1670,6 +1704,8 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     chunk = False
     chunk_size = 512
     h2ogpt_key = ''
+    print("TIME prep: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr);
+    t0 = time.time()
     res = client.predict(texts,
                          langchain_mode, chunk, chunk_size, embed,
                          None, None, None, None,
@@ -1681,6 +1717,8 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
         # else won't show entire string, so can't check this
         assert all([x in res[2] for x in texts])
     assert res[3] == ''
+    print("TIME add_text: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr);
+    t0 = time.time()
 
     if local_server:
         from src.gpt_langchain import load_embed
@@ -1715,6 +1753,8 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     assert isinstance(res, str)
     res_dict = ast.literal_eval(res)
     assert 'response' in res_dict and res_dict['response']
+    print("TIME nochat1: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr);
+    t0 = time.time()
 
     kwargs.update(dict(
         langchain_mode=langchain_mode,
@@ -1736,6 +1776,8 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     texts_expected = texts[:expected_return_number]
     assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
     assert texts_expected == texts_out
+    print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr);
+    t0 = time.time()
 
 
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])

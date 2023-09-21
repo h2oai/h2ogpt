@@ -161,6 +161,18 @@ def kill_weaviate(db_type):
         os.system('pkill --signal 9 -f weaviate-embedded/weaviate')
 
 
+def count_tokens_llm(prompt, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', tokenizer=None):
+    import time
+    if tokenizer is None:
+        assert base_model is not None
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+    t0 = time.time()
+    a = len(tokenizer(prompt)['input_ids'])
+    print('llm: ', a, time.time() - t0)
+    return dict(llm=a)
+
+
 def count_tokens(prompt, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b'):
     tokenizer = FakeTokenizer()
     num_tokens = tokenizer.num_tokens_from_string(prompt)
