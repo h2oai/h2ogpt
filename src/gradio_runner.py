@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr
+    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake
@@ -1010,7 +1010,7 @@ def go_gradio(**kwargs):
                                                            info="Pre-append conversation for instruct/chat models as List of tuple of (human, bot)",
                                                            value=kwargs['chat_conversation'])
                             text_context_list = gr.Textbox(lines=2, label="Text Doc Q/A",
-                                                           info="Documents as texts, for bypassing database",
+                                                           info="List of strings, for document Q/A, for bypassing database",
                                                            value=kwargs['chat_conversation'],
                                                            visible=not is_public,  # primarily meant for API
                                                            )
@@ -3684,7 +3684,7 @@ def go_gradio(**kwargs):
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
             all_kwargs1['max_seq_len'] = max_seq_len1
             try:
-                all_kwargs1['rope_scaling'] = ast.literal_eval(rope_scaling1)  # transcribe
+                all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
             except:
                 print("Failed to use user input for rope_scaling dict", flush=True)
                 all_kwargs1['rope_scaling'] = {}

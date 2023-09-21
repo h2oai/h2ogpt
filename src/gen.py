@@ -47,7 +47,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict
 
 start_faulthandler()
 import_matplotlib()
@@ -674,13 +674,10 @@ def main(
     model_lock = os.getenv('model_lock', str(model_lock))
     model_lock = ast.literal_eval(model_lock)
 
-    if isinstance(chat_conversation, str):
-        chat_conversation = ast.literal_eval(chat_conversation)
-    if isinstance(text_context_list, str):
-        text_context_list = ast.literal_eval(text_context_list)
+    chat_conversation = str_to_list(chat_conversation)
+    text_context_list = str_to_list(text_context_list)
 
-    if isinstance(llamacpp_dict, str):
-        llamacpp_dict = ast.literal_eval(llamacpp_dict)
+    llamacpp_dict = str_to_dict(llamacpp_dict)
     # add others to single dict
     llamacpp_dict['model_path_llama'] = model_path_llama
     llamacpp_dict['model_name_gptj'] = model_name_gptj
@@ -717,7 +714,7 @@ def main(
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = False
     if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
-        h2ogpt_api_keys = ast.literal_eval(h2ogpt_api_keys)
+        h2ogpt_api_keys = str_to_list(h2ogpt_api_keys)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
@@ -732,12 +729,11 @@ def main(
     # but becomes unrecoverable sometimes if raise, so just be silent for now
     raise_generate_gpu_exceptions = True
 
-    if isinstance(rope_scaling, str):
-        rope_scaling = ast.literal_eval(rope_scaling)
+    rope_scaling = str_to_dict(rope_scaling)
 
     if isinstance(auth, str):
         if auth.strip().startswith('['):
-            auth = ast.literal_eval(auth.strip())
+            auth = str_to_list(auth)
     if isinstance(auth, str) and auth:
         auth_filename = auth
     if not auth_filename:
@@ -762,12 +758,8 @@ def main(
         langchain_modes.append(LangChainMode.DISABLED.value)
 
     # update
-    if isinstance(langchain_mode_paths, str):
-        langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
-        assert isinstance(langchain_mode_paths, dict)
-    if isinstance(langchain_mode_types, str):
-        langchain_mode_types = ast.literal_eval(langchain_mode_types)
-        assert isinstance(langchain_mode_types, dict)
+    langchain_mode_paths = str_to_dict(langchain_mode_paths)
+    langchain_mode_types = str_to_dict(langchain_mode_types)
     for lmode in [LangChainMode.GITHUB_H2OGPT.value,
                   LangChainMode.H2O_DAI_DOCS.value,
                   LangChainMode.WIKI.value,
@@ -1193,9 +1185,7 @@ def main(
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
 
-        if isinstance(visible_models, str):
-            visible_models = ast.literal_eval(visible_models)
-        assert isinstance(visible_models, (type(None), list))
+        visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
         all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
         visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
                                  visible_models is None or
@@ -2115,10 +2105,8 @@ def evaluate(
         url_loaders = url_loaders_options0
     if jq_schema is None:
         jq_schema = jq_schema0
-    if isinstance(chat_conversation, str):
-        chat_conversation = ast.literal_eval(chat_conversation)
-    if isinstance(text_context_list, str):
-        text_context_list = ast.literal_eval(text_context_list)
+    chat_conversation = str_to_list(chat_conversation)
+    text_context_list = str_to_list(text_context_list)
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
@@ -3403,9 +3391,7 @@ def history_to_context(history, langchain_mode1,
     :return:
     """
     if chat_conversation1:
-        if isinstance(chat_conversation1, str):
-            chat_conversation1 = ast.literal_eval(chat_conversation1.strip())
-        assert isinstance(chat_conversation1, list)
+        chat_conversation1 = str_to_list(chat_conversation1)
         for conv1 in chat_conversation1:
             assert isinstance(conv1, (list, tuple))
             assert len(conv1) == 2
