@@ -1508,6 +1508,19 @@ def test_client_upload_simple(repeat):
     return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=True)
 
 
+# pip install pytest-timeout
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+@pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
+@pytest.mark.parametrize("repeat", list(range(0, 100)))
+@wrap_test_forked
+def test_client_chat_stream_langchain_fake_embeddings_stress_no_llm(repeat):
+    data_kind = 'helium3'
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
+    local_server = False
+    chat = False
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, chat=chat)
+
+
 def go_upload_gradio():
     import gradio as gr
     import time
@@ -1574,7 +1587,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
     return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
 
 
-def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=False):
+def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=False, chat=True):
     t0 = time.time()
 
     os.environ['VERBOSE_PIPELINE'] = '1'
@@ -1805,6 +1818,9 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
         assert got_embedding
         assert not use_openai_embedding
         assert hf_embedding_model == 'fake'
+
+    if not chat:
+        return
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
 
