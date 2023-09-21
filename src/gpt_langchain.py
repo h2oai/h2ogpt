@@ -3087,7 +3087,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None)
 
     if text_context_list:
         db_documents += [x for x in text_context_list]
-        db_metadatas += [{}] * len(db_documents)
+        db_metadatas += [dict(source='text_context_list', chunk_id=0)] * len(db_documents)
 
     from langchain.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
@@ -3471,7 +3471,7 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
     docs_with_score = []
 
     if text_context_list:
-        docs_with_score += [(Document(page_content=x, metadata={}), 1.0) for x in text_context_list]
+        docs_with_score += [(Document(page_content=x, metadata=dict(source='text_context_list', chunk_id=0)), 1.0) for x in text_context_list]
 
     # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
     if hasattr(db, '_embedding_function') and isinstance(db._embedding_function, FakeEmbeddings):
