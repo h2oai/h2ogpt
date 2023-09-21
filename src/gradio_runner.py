@@ -58,7 +58,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr
+    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake
@@ -1009,6 +1009,11 @@ def go_gradio(**kwargs):
                             chat_conversation = gr.Textbox(lines=2, label="Pre-Conversation",
                                                            info="Pre-append conversation for instruct/chat models as List of tuple of (human, bot)",
                                                            value=kwargs['chat_conversation'])
+                            text_context_list = gr.Textbox(lines=2, label="Text Doc Q/A",
+                                                           info="List of strings, for document Q/A, for bypassing database (i.e. also works in LLM Mode)",
+                                                           value=kwargs['chat_conversation'],
+                                                           visible=not is_public,  # primarily meant for API
+                                                           )
                             iinput = gr.Textbox(lines=2, label="Input for Instruct prompt types",
                                                 info="If given for document query, added after query",
                                                 value=kwargs['iinput'],
@@ -1425,7 +1430,8 @@ def go_gradio(**kwargs):
                 login_tab = gr.TabItem("Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
-                    gr.Markdown(value="#### Login page to persist your state (database, documents, chat, chat history)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
+                    gr.Markdown(
+                        value="#### Login page to persist your state (database, documents, chat, chat history)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
@@ -1792,13 +1798,15 @@ def go_gradio(**kwargs):
         # Note: Not really useful for API, so no api_name
         eventdb_viewa.then(fn=show_doc_func,
                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                   view_document_choice, view_raw_text_checkbox],
+                                   view_document_choice, view_raw_text_checkbox,
+                                   text_context_list],
                            outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5])
 
         show_doc_func_api = functools.partial(show_doc_func, api=True)
         get_document_api_btn.click(fn=show_doc_func_api,
                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                           view_document_choice, view_raw_text_checkbox],
+                                           view_document_choice, view_raw_text_checkbox,
+                                           text_context_list],
                                    outputs=get_document_api_text, api_name='get_document_api')
 
         # Get inputs to evaluate() and make_db()
@@ -2372,7 +2380,8 @@ def go_gradio(**kwargs):
                              [eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
                              [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7] +
                              [sync1, sync2, sync3, sync4, sync5, sync6] +
-                             [eventdb_logina, eventdb_loginb, eventdb_loginc, eventdb_logind, eventdb_logine, eventdb_loginf]
+                             [eventdb_logina, eventdb_loginb, eventdb_loginc, eventdb_logind, eventdb_logine,
+                              eventdb_loginf]
                              ,
                              )
 
@@ -3675,7 +3684,7 @@ def go_gradio(**kwargs):
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
             all_kwargs1['max_seq_len'] = max_seq_len1
             try:
-                all_kwargs1['rope_scaling'] = ast.literal_eval(rope_scaling1)  # transcribe
+                all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
             except:
                 print("Failed to use user input for rope_scaling dict", flush=True)
                 all_kwargs1['rope_scaling'] = {}
@@ -4079,6 +4088,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
              langchain_mode1,
              single_document_choice1,
              view_raw_text_checkbox1,
+             text_context_list1,
              dbs1=None,
              load_db_if_exists1=None,
              db_type1=None,
@@ -4137,17 +4147,18 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         else:
             # migration for chroma < 0.4
             one_filter = \
-            [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                   "chunk_id": {
-                                                                                       "$eq": -1}}
-             for x in document_choice1][0]
+                [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                       "chunk_id": {
+                                                                                           "$eq": -1}}
+                 for x in document_choice1][0]
             if view_raw_text_checkbox1:
                 # like or, full raw all chunk types
                 filter_kwargs = dict(filter=one_filter)
             else:
                 filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
                                                       dict(chunk_id=one_filter['chunk_id'])]})
-        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                                       text_context_list=text_context_list1)
         # order documents
         from langchain.docstore.document import Document
         docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)

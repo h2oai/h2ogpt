@@ -76,6 +76,7 @@ class TextCompletionCreator:
         visible_models: Union[str, list] = [],
         h2ogpt_key: str = None,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
+        text_context_list: typing.List[str] = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -107,6 +108,7 @@ class TextCompletionCreator:
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
         :param h2ogpt_key: Key for access to API on keyed endpoints
         :param chat_conversation: list of tuples of (human, bot) form
+        :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -137,6 +139,7 @@ class TextCompletionCreator:
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = h2ogpt_key
         params["chat_conversation"] = chat_conversation
+        params["text_context_list"] = text_context_list
         return TextCompletion(self._client, params)
 
 
@@ -210,6 +213,7 @@ class ChatCompletionCreator:
         visible_models: Union[str, list] = [],
         h2ogpt_key: str = None,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
+        text_context_list: typing.List[str] = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -239,6 +243,7 @@ class ChatCompletionCreator:
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
         :param h2ogpt_key: Key for access to API on keyed endpoints
         :param chat_conversation: list of tuples of (human, bot) form
+        :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -269,6 +274,7 @@ class ChatCompletionCreator:
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = h2ogpt_key
         params["chat_conversation"] = chat_conversation
+        params["text_context_list"] = text_context_list
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 
