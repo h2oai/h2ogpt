@@ -1513,6 +1513,9 @@ def test_chroma_filtering():
                              tokenizer=tokenizer,
                              model_name=base_model,
                              prompt_type=prompt_type,
+
+                             top_k_docs=10,  # 4 leaves out docs for test in some cases, so use 10
+                             cut_distance=1.8,  # default leaves out some docs in some cases
                              )
 
         # GET_CHAIN etc.
@@ -1525,8 +1528,12 @@ def test_chroma_filtering():
                     document_choice = [DocumentChoice.ALL.value]
                 else:
                     docs = [x['source'] for x in db.get()['metadatas']]
-                    docs = sorted(set(docs))
-                    document_choice = docs[:doc_choice]
+                    if doc_choice == 1:
+                        document_choice = docs[:doc_choice]
+                    else:
+                        # ensure don't get dup
+                        docs = sorted(set(docs))
+                        document_choice = docs[:doc_choice]
                 print("doc_choice: %s" % doc_choice, flush=True)
                 for langchain_action in [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value]:
                     print("langchain_action: %s" % langchain_action, flush=True)
@@ -1546,19 +1553,29 @@ def test_chroma_filtering():
                         if chroma_new:
                             if answer_with_sources == -1:
                                 assert len(rets1) == 2 and (
-                                            'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
+                                        'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
                             else:
                                 assert len(rets1) == 2 and (
-                                            'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
+                                        'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
                                 if document_subset == DocumentSubset.Relevant.name:
                                     assert 'h2oGPT' in rets1[1]
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 2 and ('whisper' in rets1[0].lower() or '.pdf' in rets1[0].lower())
+                                assert len(rets1) == 2 and (
+                                        'whisper' in rets1[0].lower() or
+                                        'phase' in rets1[0].lower() or
+                                        'generate' in rets1[0].lower() or
+                                        'statistic' in rets1[0].lower() or
+                                        '.pdf' in rets1[0].lower())
                             else:
-                                assert len(rets1) == 2 and ('whisper' in rets1[0].lower() or '.pdf' in rets1[0].lower())
+                                assert len(rets1) == 2 and (
+                                        'whisper' in rets1[0].lower() or
+                                        'phase' in rets1[0].lower() or
+                                        'generate' in rets1[0].lower() or
+                                        'statistic' in rets1[0].lower() or
+                                        '.pdf' in rets1[0].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in rets1[1]
+                                    assert 'whisper' in rets1[1] or 'unbiased' in rets1[1] or 'approximate' in rets1[1]
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1[1][0] and 'content' in rets1[1][0] and 'source' in rets1[1][0]

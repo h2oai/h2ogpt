@@ -3728,11 +3728,13 @@ def get_chain(query=None,
         if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
             # only chroma supports filtering
             filter_kwargs = {}
+            filter_kwargs_backup = {}
         else:
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             assert document_choice is not None, "Document choice was None"
             if isinstance(db, Chroma):
+                filter_kwargs_backup = {}  # shouldn't ever need backup
                 # chroma >= 0.4
                 if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
                     0] == DocumentChoice.ALL.value:
@@ -3766,6 +3768,7 @@ def get_chain(query=None,
                     0] == DocumentChoice.ALL.value:
                     filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                         {"filter": {"chunk_id": {"$eq": -1}}}
+                    filter_kwargs_backup = {"filter": {"chunk_id": {"$gte": 0}}}
                 elif len(document_choice) >= 2:
                     if document_choice[0] == DocumentChoice.ALL.value:
                         document_choice = document_choice[1:]
@@ -3775,6 +3778,10 @@ def get_chain(query=None,
                                                                                                   "$eq": -1}}
                         for x in document_choice]
                     filter_kwargs = dict(filter={"$or": or_filter})
+                    or_filter_backup = [
+                        {"source": {"$eq": x}} if query_action else {"source": {"$eq": x}}
+                        for x in document_choice]
+                    filter_kwargs_backup = dict(filter={"$or": or_filter_backup})
                 elif len(document_choice) == 1:
                     # degenerate UX bug in chroma
                     one_filter = \
@@ -3783,15 +3790,23 @@ def get_chain(query=None,
                                                                                                    "$eq": -1}}
                          for x in document_choice][0]
                     filter_kwargs = dict(filter=one_filter)
+                    one_filter_backup = \
+                        [{"source": {"$eq": x}} if query_action else {"source": {"$eq": x}}
+                         for x in document_choice][0]
+                    filter_kwargs_backup = dict(filter=one_filter_backup)
                 else:
                     # shouldn't reach
                     filter_kwargs = {}
+                    filter_kwargs_backup = {}
 
         if langchain_mode in [LangChainMode.LLM.value]:
             docs = []
             scores = []
         elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs)
+            if len(db_documents) == 0 and filter_kwargs_backup:
+                db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup)
+
             if top_k_docs == -1:
                 top_k_docs = len(db_documents)
             # similar to langchain's chroma's _results_to_docs_and_scores
@@ -3812,7 +3827,7 @@ def get_chain(query=None,
                                     sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                     if cx == -1
                                     ]
-                if len(docs_with_score2) == 0:
+                if len(docs_with_score2) == 0 and len(docs_with_score) > 0:
                     # old database without chunk_id, migration added 0 but didn't make -1 as that would be expensive
                     # just do again and relax filter, let summarize operate on actual chunks if nothing else
                     docs_with_score2 = [x for hx, cx, x in
@@ -3833,6 +3848,11 @@ def get_chain(query=None,
                 with filelock.FileLock(lock_file):
                     docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
                                       :top_k_docs_tokenize]
+                    if len(docs_with_score) == 0 and filter_kwargs_backup:
+                        docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db, db_type,
+                                                              verbose=verbose)[
+                                          :top_k_docs_tokenize]
+
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
@@ -3901,6 +3921,11 @@ def get_chain(query=None,
                 with filelock.FileLock(lock_file):
                     docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type, verbose=verbose)[
                                       :top_k_docs]
+                    if len(docs_with_score) == 0 and filter_kwargs_backup:
+                        docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db, db_type,
+                                                              verbose=verbose)[
+                                          :top_k_docs]
+
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest

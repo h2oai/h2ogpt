@@ -1425,7 +1425,7 @@ def go_gradio(**kwargs):
                 login_tab = gr.TabItem("Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
-                    gr.Markdown(value="#### Login page to persist your state (database, documents, chat, chat history)")
+                    gr.Markdown(value="#### Login page to persist your state (database, documents, chat, chat history)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
