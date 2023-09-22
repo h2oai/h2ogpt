@@ -108,23 +108,6 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     "Failed to reduce %s tokens with %s chars: %s" % (num_prompt_tokens, len(prompt_text), prompt_text),
                     flush=True)
 
-            # Why Below False: don't limit max_new_tokens more, just rely upon stopping to reach limit of model
-            if False:
-                # if input prompt is some number of tokens, despite user request, can't have max_new_tokens more
-                #
-                assert num_prompt_tokens is not None
-                if self.prompt_type not in [PromptType.plain.name, PromptType.plain.value]:
-                    # then give room for prompt
-                    fudge = 20
-                else:
-                    fudge = 0
-                max_new_tokens = max(0, min(generate_kwargs['max_new_tokens'],
-                                            model_max_length - (num_prompt_tokens + fudge)))
-                if max_new_tokens < generate_kwargs['max_new_tokens']:
-                    if verbose:
-                        print("Reduced max_new_tokens from %s -> %s" % (
-                            generate_kwargs['max_new_tokens'], max_new_tokens))
-                    generate_kwargs['max_new_tokens'] = max_new_tokens
         return prompt_text, num_prompt_tokens
 
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
