@@ -3404,7 +3404,7 @@ def history_to_context(history, langchain_mode1,
         history = chat_conversation1
     else:
         history = []
-    if len(history) >= 1 and len(history[-1]) >= 2 and history[-1][1] is None:
+    if len(history) >= 1 and len(history[-1]) >= 2 and not history[-1][1]:
         len_history = len(history) - 1
     else:
         # full history
