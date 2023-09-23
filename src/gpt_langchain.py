@@ -3687,17 +3687,30 @@ def get_chain(query=None,
 
     # default value:
     llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
+    query_action = langchain_action == LangChainAction.QUERY.value
+    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                            LangChainAction.SUMMARIZE_ALL.value,
+                                            LangChainAction.SUMMARIZE_REFINE.value]
+
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
         # try to account for summarization vs. query
-        chunk_id = 0 if langchain_action == LangChainAction.QUERY.value else -1
+        chunk_id = 0 if query_action else summarize_action
         text_context_list = [
             Document(page_content=x, metadata=dict(source='text_context_list', score=1.0, chunk_id=chunk_id)) for x
             in text_context_list]
 
     if add_search_to_context:
-        search = H2OSerpAPIWrapper()
-        text_context_list = search.get_search_documents(query, chunk=chunk, chunk_size=chunk_size, db_type=db_type) + text_context_list
+        params = {
+            "engine": "duckduckgo",
+            "gl": "us",
+            "hl": "en",
+        }
+        search = H2OSerpAPIWrapper(params=params)
+        text_context_list = search.get_search_documents(query,
+                                                        query_action=query_action,
+                                                        merge_before_chunk=True, chunk=chunk,
+                                                        chunk_size=chunk_size, db_type=db_type) + text_context_list
         if len(text_context_list) > 0:
             llm_mode = False
         use_llm_if_no_docs = True
@@ -3927,11 +3940,6 @@ def get_chain(query=None,
                      auto_reduce_chunks,
                      got_db_docs,
                      add_search_to_context)
-
-    query_action = langchain_action == LangChainAction.QUERY.value
-    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                            LangChainAction.SUMMARIZE_ALL.value,
-                                            LangChainAction.SUMMARIZE_REFINE.value]
 
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
         max_input_tokens = llm.pipeline.max_input_tokens
@@ -4310,17 +4318,17 @@ def get_template(query, iinput,
     if got_db_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
-                                            'information in the document and web search sources')
+                                            'information in the document and web search sources (and their source dates and publisher)')
         prompt_summary = prompt_summary.replace('information in the document sources',
-                                                'information in the document and web search sources')
+                                                'information in the document and web search sources (and their source dates and publisher)')
     elif got_db_docs and not add_search_to_context:
         pass
     elif not got_db_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
-                                            'information in the web search sources')
+                                            'information in the web search sources (and their source dates and publisher)')
         prompt_summary = prompt_summary.replace('information in the document sources',
-                                                'information in the web search sources')
+                                                'information in the web search sources (and their source dates and publisher)')
 
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:

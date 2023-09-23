@@ -1,30 +1,36 @@
 import functools
-import os
-import sys
 import typing
-from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 from langchain.docstore.document import Document
-from langchain.pydantic_v1 import Extra, Field, root_validator
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.utilities.serpapi import HiddenPrints
-from langchain.utils import get_from_dict_or_env
 from langchain import SerpAPIWrapper
 
 from src.utils_langchain import _chunk_sources
+from urllib.parse import urlparse
 
 
 class H2OSerpAPIWrapper(SerpAPIWrapper):
-    def get_search_documents(self, query, chunk=True, chunk_size=512, db_type='chroma'):
+    def get_search_documents(self, query, query_action=True, merge_before_chunk=True, chunk=True, chunk_size=512, db_type='chroma'):
         search_results_list = self.run(query, return_list=True)
-        docs = [Document(page_content=x, metadata=dict(source='Web Search %s' % query, score=1.0)) for x
-                in search_results_list]
+        for xi, x in enumerate(search_results_list):
+            search_results_list[xi] = 'Web search result %d: ' % xi + search_results_list[xi]
+
+        # merge first to avoid too small chunks
+        if merge_before_chunk and chunk:
+            search_results = '\n\n'.join(search_results_list)
+            docs = [Document(page_content=search_results, metadata=dict(source='Web Search %s' % query, score=1.0))]
+        else:
+            docs = [Document(page_content=x, metadata=dict(source='Web Search %s' % query, score=1.0)) for x
+                    in search_results_list]
         chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
         docs = chunk_sources(docs)
-        for xi, x in enumerate(docs):
-            x.page_content = 'Web search result %d: ' % xi + x.page_content
-            x.metadata['web_result_index'] = xi
+        if query_action:
+            docs = [x for x in docs if x.metadata['chunk_id'] >= 0]
+        else:
+            docs = [x for x in docs if x.metadata['chunk_id'] == -1]
+        # get score assuming search results scale with ranking
+        [x.metadata.update(score=1.0 / (1 + x.metadata['chunk_id'] if x.metadata['chunk_id'] >= 0 else -1)) for x in
+         docs]
 
         return docs
 
@@ -103,16 +109,24 @@ class H2OSerpAPIWrapper(SerpAPIWrapper):
                     snippets.append(f"{title} {key}: {value}.")
         if "organic_results" in res.keys():
             for org_res in res["organic_results"]:
-                if "snippet" in org_res.keys():
-                    snippets.append(org_res["snippet"])
-                elif "snippet_highlighted_words" in org_res.keys():
-                    snippets.append(org_res["snippet_highlighted_words"])
-                elif "rich_snippet" in org_res.keys():
-                    snippets.append(org_res["rich_snippet"])
-                elif "rich_snippet_table" in org_res.keys():
-                    snippets.append(org_res["rich_snippet_table"])
-                elif "link" in org_res.keys():
-                    snippets.append(org_res["link"])
+                keys_to_try = ['snippet', 'snippet_highlighted_words', 'rich_snippet', 'rich_snippet_table', 'link']
+                for key in keys_to_try:
+                    if key in org_res.keys():
+                        snippet1 = ''
+                        if key != 'link':
+                            snippet1 = org_res[key]
+                        if 'date' in org_res.keys():
+                            snippet1 += ' on %s' % org_res['date']
+                        if 'link' in org_res.keys():
+                            link = org_res['link']
+                            domain = urlparse(link).netloc
+                            if key == 'link':
+                                snippet1 += ' Link at %s: <a href="%s">%s</a>' % (domain, link, domain)
+                            else:
+                                snippet1 += ' according to %s: <a href="%s">%s</a>' % (domain, link, domain)
+                        if snippet1:
+                            snippets.append(snippet1)
+                            break
         if "buying_guide" in res.keys():
             snippets.append(res["buying_guide"])
         if "local_results" in res.keys() and "places" in res["local_results"].keys():

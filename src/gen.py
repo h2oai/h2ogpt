@@ -3388,7 +3388,7 @@ def get_max_max_new_tokens(model_state, **kwargs):
 def get_minmax_top_k_docs(is_public):
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = 3
+        max_top_k_docs = 8
         label_top_k_docs = "Number of document chunks"
     else:
         min_top_k_docs = -1
