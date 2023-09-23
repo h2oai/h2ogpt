@@ -3522,7 +3522,7 @@ def go_gradio(**kwargs):
                         new_chats = json.loads(f.read())
                         for chat1_k, chat1_v in new_chats.items():
                             # ignore chat1_k, regenerate and de-dup to avoid loss
-                            chat_state1, _ = save_chat(chat1_v, chat_state1, chat_is_list=True)
+                            chat_state1, _ = save_chat(db1s, requests_state1, chat1_v, chat_state1, chat_is_list=True)
                 except BaseException as e:
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
