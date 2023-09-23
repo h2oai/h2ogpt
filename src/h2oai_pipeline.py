@@ -40,7 +40,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.prompter = prompter
         self.context = context
         self.iinput = iinput
-        self.debug = debug
+        self.debug = True
         if self.use_prompter:
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
@@ -212,15 +212,16 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             stop += generate_kwargs['stop']
         if self.stop:
             stop += self.stop
+            stop = sorted(set(self.stop))
         if self.can_stop or stop:
-            stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
+            self.stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
                                              self.tokenizer, self.device,
                                              self.base_model,
                                              human=self.human, bot=self.bot,
                                              model_max_length=self.tokenizer.model_max_length,
                                              prompter=self.prompter,
                                              stop=stop)
-            generate_kwargs['stopping_criteria'] = stopping_criteria
+            generate_kwargs['stopping_criteria'] = self.stopping_criteria
         generate_kwargs.pop('stop', None)
         # return super()._forward(model_inputs, **generate_kwargs)
         return self.__forward(model_inputs, **generate_kwargs)

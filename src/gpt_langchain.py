@@ -26,9 +26,6 @@ import tabulate
 import yaml
 
 from joblib import delayed
-from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
-    create_pandas_dataframe_agent, create_json_agent, create_csv_agent
-from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_python_agent, JsonToolkit
 from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
@@ -3325,6 +3322,20 @@ def _run_qa_db(query=None,
             assert prompt_dict is not None  # should at least be {} or ''
         else:
             prompt_dict = ''
+
+    if LangChainAgent.SEARCH.value in langchain_agents and 'llama' in model_name.lower():
+        system_prompt = """You are a zero shot react agent.
+Consider to prompt of Question that was original query from the user.
+Respond to prompt of Thought with a thought that may lead to a reasonable new action choice.
+Respond to prompt of Action with an action to take out of the tools given, giving exactly single word for the tool name.
+Respond to prompt of Action Input with an input to give the tool.
+Consider to prompt of Observation that was response from the tool.
+Repeat this Thought, Action, Action Input, Observation, Thought sequence several times with new and different thoughts and actions each time, do not repeat.
+Once satisfied that the thoughts, responses are sufficient to answer the question, then respond to prompt of Thought with: I now know the final answer
+Respond to prompt of Final Answer with your final high-quality bullet list answer to the original query.
+"""
+        prompter.system_prompt = system_prompt
+
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
@@ -3677,21 +3688,24 @@ def get_chain(query=None,
         add_search_to_context &= len(text_context_list) > 0
 
     from src.output_parser import H2OMRKLOutputParser
+    from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
+        create_pandas_dataframe_agent, create_json_agent, create_csv_agent
+    from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_python_agent, JsonToolkit
     if LangChainAgent.SEARCH.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
-        tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'),
-                           output_parser=output_parser)
-        if inference_server.startswith('openai') and False:
+        tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
+        if inference_server.startswith('openai'):
             agent_type = AgentType.OPENAI_FUNCTIONS
-            agent_executor_kwargs = {"handle_parsing_errors": True}
+            agent_executor_kwargs = {"handle_parsing_errors": True, 'output_parser': output_parser}
         else:
             agent_type = AgentType.ZERO_SHOT_REACT_DESCRIPTION
-            agent_executor_kwargs = {}
+            agent_executor_kwargs = {'output_parser': output_parser}
         chain = initialize_agent(tools, llm, agent=agent_type,
                                  agent_executor_kwargs=agent_executor_kwargs,
-                                 agent_kwargs=dict(output_parser=output_parser),
-                                 # output_parser=output_parser,
-                                 max_iterations=4,
+                                 agent_kwargs=dict(output_parser=output_parser,
+                                                   format_instructions=output_parser.get_format_instructions()),
+                                 output_parser=output_parser,
+                                 max_iterations=10,
                                  verbose=True)
         chain_kwargs = dict(input=query)
         target = wrapped_partial(chain, chain_kwargs)
