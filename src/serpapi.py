@@ -59,7 +59,7 @@ class H2OSerpAPIWrapper(SerpAPIWrapper):
         docs = []
 
         res1 = SerpAPIWrapper._process_response(res)
-        if res1 and not res1.startswith('['):  # avoid snippets
+        if res1 and isinstance(res1, str) and not res1.startswith('['):  # avoid snippets
             docs += [Document(page_content='Web search result %s: ' % len(docs) + res1,
                               metadata=dict(source='Web Search %s for %s' % (len(docs), query), score=0.0))]
 
