@@ -1,9 +1,13 @@
+import copy
+import types
 from typing import Any, Dict, List, Union, Optional
 import time
 import queue
 
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema import LLMResult
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
 
 
 class StreamingGradioCallbackHandler(BaseCallbackHandler):
@@ -62,3 +66,48 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
             raise StopIteration()
         else:
             return value
+
+
+def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=None):
+    assert db_type is not None
+
+    if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
+        # if just one document
+        sources = [sources]
+    if not chunk:
+        [x.metadata.update(dict(chunk_id=0)) for chunk_id, x in enumerate(sources)]
+        if db_type == 'chroma':
+            # make copy so can have separate summarize case
+            source_chunks = [Document(page_content=x.page_content,
+                                      metadata=copy.deepcopy(x.metadata) or {})
+                             for x in sources]
+        else:
+            source_chunks = sources  # just same thing
+    else:
+        if language and False:
+            # Bug in langchain, keep separator=True not working
+            # https://github.com/hwchase17/langchain/issues/2836
+            # so avoid this for now
+            keep_separator = True
+            separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
+        else:
+            separators = ["\n\n", "\n", " ", ""]
+            keep_separator = False
+        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
+                                                  separators=separators)
+        source_chunks = splitter.split_documents(sources)
+
+        # currently in order, but when pull from db won't be, so mark order and document by hash
+        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
+
+    if db_type == 'chroma':
+        # also keep original source for summarization and other tasks
+
+        # assign chunk_id=-1 for original content
+        # this assumes, as is currently true, that splitter makes new documents and list and metadata is deepcopy
+        [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sources)]
+
+        # in some cases sources is generator, so convert to list
+        return list(sources) + source_chunks
+    else:
+        return source_chunks

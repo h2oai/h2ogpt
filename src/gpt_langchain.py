@@ -35,18 +35,19 @@ from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
 
+from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
+    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
+    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
+    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
+    get_accordion, have_jq, get_doc, get_source, have_chromamigdb
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
-from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
-    get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
-    have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
-    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb
-from utils_langchain import StreamingGradioCallbackHandler
+from src.serpapi import H2OSerpAPIWrapper
+from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources
 
 import_matplotlib()
 
@@ -3695,21 +3696,8 @@ def get_chain(query=None,
             in text_context_list]
 
     if add_search_to_context:
-        from langchain.utilities import SerpAPIWrapper
-        search = SerpAPIWrapper()
-        search_result = search.run(query)
-        pre_prompt_search = "\n\nInformation from web search:"
-        prompt_search = "End of information from web search.\n"
-        search_template = """%s
-\"\"\"
-{search_result}
-\"\"\"
-%s""" % (pre_prompt_search, prompt_search)
-        # assumes not too big a result
-        # assumes web search, if selected, is highest priority in terms of order
-        search_text_list = [search_template.format(search_result=search_result, query=query)]
-        text_context_list = [Document(page_content=x, metadata=dict(source='Web Search', score=1.0, chunk_id=0)) for x
-                             in search_text_list] + text_context_list
+        search = H2OSerpAPIWrapper()
+        text_context_list = search.get_search_documents(query, chunk=chunk, chunk_size=chunk_size, db_type=db_type) + text_context_list
         if len(text_context_list) > 0:
             llm_mode = False
         use_llm_if_no_docs = True
@@ -5191,51 +5179,6 @@ def clone_documents(documents: Iterable[Document]) -> List[Document]:
         new_doc = Document(page_content=doc.page_content, metadata=copy.deepcopy(doc.metadata))
         new_docs.append(new_doc)
     return new_docs
-
-
-def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=None):
-    assert db_type is not None
-
-    if not isinstance(sources, (list, tuple, types.GeneratorType)) and not callable(sources):
-        # if just one document
-        sources = [sources]
-    if not chunk:
-        [x.metadata.update(dict(chunk_id=0)) for chunk_id, x in enumerate(sources)]
-        if db_type == 'chroma':
-            # make copy so can have separate summarize case
-            source_chunks = [Document(page_content=x.page_content,
-                                      metadata=copy.deepcopy(x.metadata) or {})
-                             for x in sources]
-        else:
-            source_chunks = sources  # just same thing
-    else:
-        if language and False:
-            # Bug in langchain, keep separator=True not working
-            # https://github.com/hwchase17/langchain/issues/2836
-            # so avoid this for now
-            keep_separator = True
-            separators = RecursiveCharacterTextSplitter.get_separators_for_language(language)
-        else:
-            separators = ["\n\n", "\n", " ", ""]
-            keep_separator = False
-        splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, keep_separator=keep_separator,
-                                                  separators=separators)
-        source_chunks = splitter.split_documents(sources)
-
-        # currently in order, but when pull from db won't be, so mark order and document by hash
-        [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
-
-    if db_type == 'chroma':
-        # also keep original source for summarization and other tasks
-
-        # assign chunk_id=-1 for original content
-        # this assumes, as is currently true, that splitter makes new documents and list and metadata is deepcopy
-        [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sources)]
-
-        # in some cases sources is generator, so convert to list
-        return list(sources) + source_chunks
-    else:
-        return source_chunks
 
 
 def get_db_from_hf(dest=".", db_dir='db_dir_DriverlessAI_docs.zip'):
