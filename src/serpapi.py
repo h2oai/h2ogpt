@@ -59,9 +59,41 @@ class H2OSerpAPIWrapper(SerpAPIWrapper):
         docs = []
 
         res1 = SerpAPIWrapper._process_response(res)
-        if res1 and isinstance(res1, str) and not res1.startswith('['):  # avoid snippets
-            docs += [Document(page_content='Web search result %s: ' % len(docs) + res1,
-                              metadata=dict(source='Web Search %s for %s' % (len(docs), query), score=0.0))]
+        if res1:
+            if isinstance(res1, str) and not res1.startswith('['):  # avoid snippets
+                docs += [Document(page_content='Web search result %s: ' % len(docs) + res1,
+                                  metadata=dict(source='Web Search %s for %s' % (len(docs), query), score=0.0))]
+            elif isinstance(res1, list):
+                for x in res1:
+                    date = ''
+                    content = ''
+                    if 'source' in x:
+                        source = x['source']
+                        content += '%s says' % source
+                    else:
+                        content = 'Web search result %s: ' % len(docs)
+                    if 'date' in x:
+                        date = x['date']
+                        content += ' %s' % date
+                    if 'title' in x:
+                        content += ': %s' % x['title']
+                    if 'snippet' in x:
+                        content += ': %s' % x['snippet']
+                    if 'link' in x:
+                        link = x['link']
+                        domain = urlparse(link).netloc
+                        font_size = 2
+                        source_name = domain
+                        http_content = """<font size="%s"><a href="%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
+                            font_size, link, source_name)
+                        source = 'Web Search %s' % len(docs) + \
+                                 ' from Date: %s Domain: %s Link: %s' % (date, domain, http_content)
+                        if date:
+                            content += ' around %s' % date
+                        content += ' according to %s' % domain
+                    else:
+                        source = 'Web Search %s for %s' % (len(docs), query)
+                    docs += [Document(page_content=content, metadata=dict(source=source, score=0.0))]
 
         if "knowledge_graph" in res.keys():
             knowledge_graph = res["knowledge_graph"]
