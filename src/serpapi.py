@@ -129,6 +129,8 @@ class H2OSerpAPIWrapper(SerpAPIWrapper):
                         if 'date' in org_res.keys():
                             date = org_res['date']
                             snippet1 += ' on %s' % date
+                        else:
+                            date = 'unknown date'
                         if 'link' in org_res.keys():
                             link = org_res['link']
                             domain = urlparse(link).netloc
