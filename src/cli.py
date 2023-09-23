@@ -67,7 +67,8 @@ def run_cli(  # for local function:
         context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
-        auto_reduce_chunks=None, max_chunks=None, model_lock=None, force_langchain_evaluate=None,
+        auto_reduce_chunks=None, max_chunks=None, headsize=None,
+        model_lock=None, force_langchain_evaluate=None,
         model_state_none=None,
         # unique to this function:
         cli_loop=None,

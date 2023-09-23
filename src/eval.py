@@ -85,7 +85,7 @@ def run_eval(  # for local function:
         context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
         use_cache=None,
-        auto_reduce_chunks=None, max_chunks=None,
+        auto_reduce_chunks=None, max_chunks=None, headsize=None,
         model_lock=None, force_langchain_evaluate=None,
         model_state_none=None,
 ):

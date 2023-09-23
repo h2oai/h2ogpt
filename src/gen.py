@@ -260,6 +260,7 @@ def main(
         reverse_docs: bool = True,
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
+        headsize: int = 50,
         n_jobs: int = -1,
 
         # urls
@@ -618,6 +619,7 @@ def main(
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
+    :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
 
     :param use_unstructured: Enable unstructured URL loader
@@ -2074,6 +2076,7 @@ def evaluate(
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        headsize=None,
         model_lock=None,
         force_langchain_evaluate=None,
         model_state_none=None,
@@ -2387,6 +2390,7 @@ def evaluate(
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
+                headsize=headsize,
         ):
             response, sources = r  # doesn't accumulate, new answer every yield, so only save that full answer
             yield dict(response=response, sources=sources, save_dict=dict())

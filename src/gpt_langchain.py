@@ -30,7 +30,7 @@ from langchain.callbacks import streaming_stdout
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
-from langchain.schema import LLMResult, Generation, AgentAction, AgentFinish, OutputParserException
+from langchain.schema import LLMResult, Generation
 from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
@@ -47,7 +47,7 @@ from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
-from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources
+from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser
 
 import_matplotlib()
 
@@ -64,7 +64,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
     UnstructuredExcelLoader, JSONLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
+from langchain.text_splitter import Language
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
@@ -1556,31 +1556,6 @@ def try_as_html(file):
     return doc1
 
 
-def add_parser(docs1, parser):
-    [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
-
-
-def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
-    if os.path.isfile(file):
-        file_extension = pathlib.Path(file).suffix
-        hashid = hash_file(file)
-    else:
-        file_extension = str(file)  # not file, just show full thing
-        hashid = get_sha(file)
-    doc_hash = str(uuid.uuid4())[:10]
-    if not isinstance(docs1, (list, tuple, types.GeneratorType)):
-        docs1 = [docs1]
-    [x.metadata.update(dict(input_type=file_extension,
-                            parser=x.metadata.get('parser', parser),
-                            date=str(datetime.now()),
-                            time=time.time(),
-                            order_id=order_id,
-                            hashid=hashid,
-                            doc_hash=doc_hash,
-                            file_id=filei,
-                            head=x.page_content[:headsize].strip())) for order_id, x in enumerate(docs1)]
-
-
 def json_metadata_func(record: dict, metadata: dict) -> dict:
     # Define the metadata extraction function.
 
@@ -1625,7 +1600,7 @@ def file_to_doc(file,
                 # json
                 jq_schema='.[]',
 
-                headsize=50,
+                headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
                 selected_file_types=None):
     assert isinstance(model_loaders, dict)
@@ -3298,6 +3273,7 @@ def _run_qa_db(query=None,
                lora_weights='',
                auto_reduce_chunks=True,
                max_chunks=100,
+               headsize=50,
                ):
     """
 
@@ -3679,6 +3655,7 @@ def get_chain(query=None,
               auto_reduce_chunks=True,
               max_chunks=100,
               use_llm_if_no_docs=None,
+              headsize=50,
               ):
     if inference_server is None:
         inference_server = ''
@@ -3707,14 +3684,18 @@ def get_chain(query=None,
             "hl": "en",
         }
         search = H2OSerpAPIWrapper(params=params)
-        text_context_list = search.get_search_documents(query,
-                                                        query_action=query_action,
-                                                        merge_before_chunk=True, chunk=chunk,
-                                                        chunk_size=chunk_size, db_type=db_type) + text_context_list
-        if len(text_context_list) > 0:
-            llm_mode = False
-        use_llm_if_no_docs = True
-        add_search_to_context &= len(text_context_list) > 0
+        docs_search, top_k_docs = search.get_search_documents(query,
+                                                              query_action=query_action,
+                                                              chunk=chunk, chunk_size=chunk_size,
+                                                              db_type=db_type,
+                                                              headsize=headsize,
+                                                              top_k_docs=top_k_docs)
+        text_context_list = docs_search + text_context_list
+        add_search_to_context &= len(docs_search) > 0
+
+    if len(text_context_list) > 0:
+        llm_mode = False
+    use_llm_if_no_docs = True
 
     from src.output_parser import H2OMRKLOutputParser
     from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
@@ -4318,17 +4299,17 @@ def get_template(query, iinput,
     if got_db_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
-                                            'information in the document and web search sources (and their source dates and publisher)')
+                                            'information in the document and web search sources (and their source dates and website source)')
         prompt_summary = prompt_summary.replace('information in the document sources',
-                                                'information in the document and web search sources (and their source dates and publisher)')
+                                                'information in the document and web search sources (and their source dates and website source)')
     elif got_db_docs and not add_search_to_context:
         pass
     elif not got_db_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
-                                            'information in the web search sources (and their source dates and publisher)')
+                                            'information in the web search sources (and their source dates and website source)')
         prompt_summary = prompt_summary.replace('information in the document sources',
-                                                'information in the web search sources (and their source dates and publisher)')
+                                                'information in the web search sources (and their source dates and website source)')
 
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:

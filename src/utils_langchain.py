@@ -1,8 +1,14 @@
 import copy
+import os
 import types
+import uuid
 from typing import Any, Dict, List, Union, Optional
 import time
 import queue
+import pathlib
+from datetime import datetime
+
+from src.utils import hash_file, get_sha
 
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema import LLMResult
@@ -111,3 +117,28 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
         return list(sources) + source_chunks
     else:
         return source_chunks
+
+
+def add_parser(docs1, parser):
+    [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
+
+
+def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
+    if os.path.isfile(file):
+        file_extension = pathlib.Path(file).suffix
+        hashid = hash_file(file)
+    else:
+        file_extension = str(file)  # not file, just show full thing
+        hashid = get_sha(file)
+    doc_hash = str(uuid.uuid4())[:10]
+    if not isinstance(docs1, (list, tuple, types.GeneratorType)):
+        docs1 = [docs1]
+    [x.metadata.update(dict(input_type=file_extension,
+                            parser=x.metadata.get('parser', parser),
+                            date=str(datetime.now()),
+                            time=time.time(),
+                            order_id=order_id,
+                            hashid=hashid,
+                            doc_hash=doc_hash,
+                            file_id=filei,
+                            head=x.page_content[:headsize].strip())) for order_id, x in enumerate(docs1)]

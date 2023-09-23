@@ -653,9 +653,12 @@ def get_url(x, from_str=False, short_name=False, font_size=2):
     if source.startswith('http://') or source.startswith('https://'):
         return """<font size="%s"><a href="%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
             font_size, source, source_name)
-    else:
+    elif '<a href=' not in source:
         return """<font size="%s"><a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
             font_size, source, source_name)
+    else:
+        # already filled
+        return source
 
 
 def get_short_name(name, maxl=50):
