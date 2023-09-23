@@ -255,15 +255,12 @@ def add_to_db(db, sources, db_type='faiss',
         if hasattr(db, '_persist_directory'):
             print("Existing db, adding to %s" % db._persist_directory, flush=True)
             # chroma only
-            name_path = os.path.basename(db._persist_directory)
-            base_path = 'locks'
-            base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-            file = os.path.join(base_path, "getdb_%s.lock" % name_path)
+            lock_file = get_db_lock_file(db)
             context = filelock.FileLock
         else:
-            file = None
+            lock_file = None
             context = NullContext
-        with context(file):
+        with context(lock_file):
             # this is place where add to db, but others maybe accessing db, so lock access.
             # else see RuntimeError: Index seems to be corrupted or unsupported
             import chromadb
@@ -2730,16 +2727,28 @@ def make_db(**langchain_kwargs):
     return _make_db(**langchain_kwargs)
 
 
-embed_file_string = "embed_%s.lock"
+embed_lock_name = 'embed.lock'
+
+
+def get_embed_lock_file(db, persist_directory=None):
+    if hasattr(db, '_persist_directory') or persist_directory:
+        if persist_directory is None:
+            persist_directory = db._persist_directory
+        check_persist_directory(persist_directory)
+        base_path = os.path.join('locks', persist_directory)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        lock_file = os.path.join(base_path, embed_lock_name)
+        makedirs(os.path.dirname(lock_file))
+        return lock_file
+    return None
 
 
 def save_embed(db, use_openai_embedding, hf_embedding_model):
     if hasattr(db, '_persist_directory'):
-        name_path = os.path.basename(db._persist_directory)
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        with filelock.FileLock(os.path.join(base_path, embed_file_string % name_path)):
-            embed_info_file = os.path.join(db._persist_directory, 'embed_info')
+        persist_directory = db._persist_directory
+        lock_file = get_embed_lock_file(db)
+        with filelock.FileLock(lock_file):
+            embed_info_file = os.path.join(persist_directory, 'embed_info')
             with open(embed_info_file, 'wb') as f:
                 if isinstance(hf_embedding_model, str):
                     hf_embedding_model_save = hf_embedding_model
@@ -2766,10 +2775,8 @@ def load_embed(db=None, persist_directory=None):
         persist_directory = db._persist_directory
     embed_info_file = os.path.join(persist_directory, 'embed_info')
     if os.path.isfile(embed_info_file):
-        name_path = os.path.basename(persist_directory)
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        with filelock.FileLock(os.path.join(base_path, embed_file_string % name_path)):
+        lock_file = get_embed_lock_file(db, persist_directory=persist_directory)
+        with filelock.FileLock(lock_file):
             with open(embed_info_file, 'rb') as f:
                 try:
                     use_openai_embedding, hf_embedding_model = pickle.load(f)
@@ -2828,6 +2835,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
              langchain_type == LangChainTypes.PERSONAL.value):
         langchain_type = LangChainTypes.PERSONAL.value
         persist_directory = makedirs(persist_directory, use_base=True)
+        check_persist_directory(persist_directory)
         return persist_directory, langchain_type
 
     persist_directory = 'db_dir_%s' % langchain_mode
@@ -2837,6 +2845,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
         # ensure consistent
         langchain_type = LangChainTypes.SHARED.value
         persist_directory = makedirs(persist_directory, use_base=True)
+        check_persist_directory(persist_directory)
         return persist_directory, langchain_type
 
     # dummy return for prep_langchain() or full personal space
@@ -2844,7 +2853,16 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
     persist_directory = os.path.join(base_others, 'db_dir_%s' % str(uuid.uuid4()))
     persist_directory = makedirs(persist_directory, use_base=True)
     langchain_type = LangChainTypes.PERSONAL.value
+
+    check_persist_directory(persist_directory)
     return persist_directory, langchain_type
+
+
+def check_persist_directory(persist_directory):
+    # deal with some cases when see intrinsic names being used as shared
+    for langchain_mode in langchain_modes_intrinsic:
+        if persist_directory == 'db_dir_%s' % langchain_mode:
+            raise RuntimeError("Illegal access to %s" % persist_directory)
 
 
 def _make_db(use_openai_embedding=False,
@@ -3043,12 +3061,22 @@ def get_metadatas(db):
     return metadatas
 
 
+def get_db_lock_file(db, lock_type='getdb'):
+    if hasattr(db, '_persist_directory'):
+        persist_directory = db._persist_directory
+        check_persist_directory(persist_directory)
+        base_path = os.path.join('locks', persist_directory)
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        lock_file = os.path.join(base_path, "%s.lock" % lock_type)
+        makedirs(os.path.dirname(lock_file))  # ensure made
+        return lock_file
+    return None
+
+
 def get_documents(db):
     if hasattr(db, '_persist_directory'):
-        name_path = os.path.basename(db._persist_directory)
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
+        lock_file = get_db_lock_file(db)
+        with filelock.FileLock(lock_file):
             # get segfaults and other errors when multiple threads access this
             return _get_documents(db)
     else:
@@ -3072,10 +3100,8 @@ def _get_documents(db):
 
 def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None):
     if hasattr(db, '_persist_directory'):
-        name_path = os.path.basename(db._persist_directory)
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        with filelock.FileLock(os.path.join(base_path, "getdb_%s.lock" % name_path)):
+        lock_file = get_db_lock_file(db)
+        with filelock.FileLock(lock_file):
             return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs, text_context_list=text_context_list)
     else:
         return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs, text_context_list=text_context_list)
@@ -3471,7 +3497,8 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
     docs_with_score = []
 
     if text_context_list:
-        docs_with_score += [(Document(page_content=x, metadata=dict(source='text_context_list', chunk_id=0)), 1.0) for x in text_context_list]
+        docs_with_score += [(Document(page_content=x, metadata=dict(source='text_context_list', chunk_id=0)), 1.0) for x
+                            in text_context_list]
 
     # deal with bug in chroma where if (say) 234 doc chunks and ask for 233+ then fails due to reduction misbehavior
     if hasattr(db, '_embedding_function') and isinstance(db._embedding_function, FakeEmbeddings):
@@ -3739,13 +3766,13 @@ def get_chain(query=None,
         max_input_tokens = 2048 - min(256, max_new_tokens)
 
     if (db or text_context_list) and use_docs_planned:
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         if hasattr(db, '_persist_directory'):
-            name_path = "sim_%s.lock" % os.path.basename(db._persist_directory)
+            lock_file = get_db_lock_file(db, lock_type='sim')
         else:
+            base_path = 'locks'
+            base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
             name_path = "sim.lock"
-        lock_file = os.path.join(base_path, name_path)
+            lock_file = os.path.join(base_path, name_path)
 
         if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
             # only chroma supports filtering
@@ -4356,7 +4383,13 @@ def get_lock_file(db1, langchain_mode):
     db_id = get_dbid(db1)
     base_path = 'locks'
     base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-    lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_'), db_id))
+    # don't allow db_id to be '' or None, would be bug and lock up everything
+    if not db_id:
+        if os.getenv('HARD_ASSERTS'):
+            raise ValueError("Invalid access for langchain_mode=%s" % langchain_mode)
+        db_id = str(uuid.uuid4())
+    lock_file = os.path.join(base_path, "db_%s_%s.lock" % (langchain_mode.replace(' ', '_').replace('/', '_'), db_id))
+    makedirs(os.path.dirname(lock_file))  # ensure really made
     return lock_file
 
 
