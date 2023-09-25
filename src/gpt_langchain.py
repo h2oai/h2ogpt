@@ -3956,6 +3956,7 @@ def get_chain(query=None,
             # this works if using TGI where tell it input may be same as output, even if model can't actually handle
             max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
         else:
+            # e.g. vLLM, etc. will all fail otherwise
             # trust that maybe model will make so many tokens, so limit input
             max_input_tokens = tokenizer.model_max_length - max_new_tokens
     else:
@@ -4105,8 +4106,9 @@ def get_chain(query=None,
                                                                            verbose=verbose)[
                                                        :top_k_docs_tokenize]
 
-                tokens = get_doc_tokens([x[0].page_content for x in docs_with_score])
-                template_tokens = get_doc_tokens([template])
+                prompt_no_docs = template.format(context='', question=query)
+                tokens = get_doc_tokens([x[0].page_content for x in docs_with_score], db, llm, tokenizer, inference_server, use_openai_model, db_type)
+                template_tokens = get_doc_tokens([prompt_no_docs], db, llm, tokenizer, inference_server, use_openai_model, db_type)[0]
                 tokens_cumsum = np.cumsum(tokens)
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
@@ -4268,43 +4270,37 @@ def get_chain(query=None,
     return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
 
-def get_doc_tokens(llm, docs_with_score, x):
+def get_doc_tokens(docs_list, db, llm, tokenizer, inference_server, use_openai_model, db_type):
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
         # more accurate
-        tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
-        template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+        tokens = [len(llm.pipeline.tokenizer(x)['input_ids']) for x in docs_list]
     elif hasattr(llm, 'tokenizer'):
         # e.g. TGI client mode etc.
         tokz = llm.tokenizer
-        template_tokens = tokz.encode(template)
-        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
-            tokens = [len(tokz.encode(x[0].page_content)['input_ids']) for x in docs_with_score]
-            template_tokens = len(tokz.encode(template)['input_ids'])
+        test_tokens = tokz.encode('Test')
+        if isinstance(test_tokens, dict) and 'input_ids' in test_tokens:
+            tokens = [len(tokz.encode(x)['input_ids']) for x in docs_list]
         else:
-            tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
-            template_tokens = len(tokz.encode(template))
+            tokens = [len(tokz.encode(x)) for x in docs_list]
     elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                               'openai_azure_chat'] or use_openai_model:
-        tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
-        template_tokens = llm.get_num_tokens(template)
+        tokens = [llm.get_num_tokens(x) for x in docs_list]
     elif isinstance(tokenizer, FakeTokenizer):
-        tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-        template_tokens = tokenizer.num_tokens_from_string(template)
+        tokens = [tokenizer.num_tokens_from_string(x) for x in docs_list]
     elif (hasattr(db, '_embedding_function') and
           hasattr(db._embedding_function, 'client') and
           hasattr(db._embedding_function.client, 'tokenize')):
         # in case model is not our pipeline with HF tokenizer
-        tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
-                  docs_with_score]
-        template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
+        tokens = [db._embedding_function.client.tokenize(x)['input_ids'].shape[1] for x in docs_list]
     else:
         # backup method
         if os.getenv('HARD_ASSERTS'):
             assert db_type in ['faiss', 'weaviate']
         # use tiktoken for faiss since embedding called differently
         tokz = FakeTokenizer()
-        tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-        template_tokens = tokz.num_tokens_from_string(template)
+        tokens = [tokz.num_tokens_from_string(x) for x in docs_list]
+    return tokens
+
 
 def get_template(query, iinput,
                  pre_prompt_query, prompt_query,

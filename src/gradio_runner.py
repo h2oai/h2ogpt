@@ -3955,7 +3955,13 @@ def go_gradio(**kwargs):
                                               memory_restriction_level1, keep_sources_in_context1,
                                               system_prompt1,
                                               chat_conversation1)
-                return str(tokenizer(context1, return_tensors="pt")['input_ids'].shape[1])
+                tokens = tokenizer(context1, return_tensors="pt")['input_ids']
+                if len(tokens.shape) == 1:
+                    return str(tokens.shape[0])
+                elif len(tokens.shape) == 2:
+                    return str(tokens.shape[1])
+                else:
+                    return "N/A"
             else:
                 return "N/A"
 
