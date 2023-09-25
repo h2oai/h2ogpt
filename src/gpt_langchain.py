@@ -540,7 +540,9 @@ class GradioInference(LLM):
                              h2ogpt_key=self.h2ogpt_key,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-        print("START: %s" % prompt, flush=True)
+        # print("START: %s" % prompt, flush=True)
+        self.count_input_tokens += self.get_num_tokens(prompt)
+
         if not stream_output:
             res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
@@ -3263,6 +3265,7 @@ def _run_qa_db(query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
                text_context_list=None,
+               chat_conversation=None,
                h2ogpt_key=None,
 
                n_jobs=-1,
@@ -3383,6 +3386,10 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     scores = []
     chain = None
 
+    # basic version of prompt without docs etc.
+    data_point = dict(context=context, instruction=query, input=iinput)
+    prompt_basic = prompter.generate_prompt(data_point)
+
     if isinstance(document_choice, str):
         # support string as well
         document_choice = [document_choice]
@@ -3395,7 +3402,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
-            yield "No sources", ''
+            yield dict(prompt=prompt_basic, response="No sources", sources='')
             return
         # if no souces, outside gpt_langchain, LLM will be used with '' input
         scores = [1] * len(docs)
@@ -3408,7 +3415,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  reverse_docs=reverse_docs,
                                  verbose=verbose)
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
-        yield formatted_doc_chunks, extra
+        yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra)
         return
     if not use_llm_if_no_docs:
         if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -3416,12 +3423,12 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                              LangChainAction.SUMMARIZE_REFINE.value]:
             ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
             extra = ''
-            yield ret, extra
+            yield dict(prompt=prompt_basic, response=ret, sources=extra)
             return
         if not docs and not llm_mode:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
-            yield ret, extra
+            yield dict(prompt=prompt_basic, response=ret, sources=extra)
             return
 
     if chain is None and not langchain_only_model:
@@ -3471,9 +3478,9 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
-                            yield output1, ''
+                            yield dict(prompt=prompt, response=output1, sources='')
                         else:
-                            yield outputs, ''
+                            yield dict(prompt=prompt, response=outputs, sources='')
                 except BaseException:
                     # if any exception, raise that exception if was from thread, first
                     if thread.exc:
@@ -3518,13 +3525,20 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                              if hasattr(llm, 'count_output_tokens') else None)
 
     t_run = time.time() - t_run
+
+    # for final yield, get real prompt used
+    if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
+        prompt = llm.prompter.prompt
+    else:
+        prompt = prompt_basic
+
     if not use_docs_planned:
         ret = answer
         extra = ''
-        yield ret, extra
+        yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens)
     elif answer is not None:
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
-        yield ret, extra
+        yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens)
     return
 
 
@@ -3641,6 +3655,7 @@ def get_chain(query=None,
               pre_prompt_summary=None,
               prompt_summary=None,
               text_context_list=None,
+              chat_conversation=None,
 
               n_jobs=-1,
               # beyond run_db_query:
@@ -4090,42 +4105,8 @@ def get_chain(query=None,
                                                                            verbose=verbose)[
                                                        :top_k_docs_tokenize]
 
-                if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
-                    # more accurate
-                    tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
-                    template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
-                elif hasattr(llm, 'tokenizer'):
-                    # e.g. TGI client mode etc.
-                    tokz = llm.tokenizer
-                    template_tokens = tokz.encode(template)
-                    if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
-                        tokens = [len(tokz.encode(x[0].page_content)['input_ids']) for x in docs_with_score]
-                        template_tokens = len(tokz.encode(template)['input_ids'])
-                    else:
-                        tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
-                        template_tokens = len(tokz.encode(template))
-                elif inference_server in ['openai', 'openai_chat', 'openai_azure',
-                                          'openai_azure_chat'] or use_openai_model:
-                    tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
-                    template_tokens = llm.get_num_tokens(template)
-                elif isinstance(tokenizer, FakeTokenizer):
-                    tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-                    template_tokens = tokenizer.num_tokens_from_string(template)
-                elif (hasattr(db, '_embedding_function') and
-                      hasattr(db._embedding_function, 'client') and
-                      hasattr(db._embedding_function.client, 'tokenize')):
-                    # in case model is not our pipeline with HF tokenizer
-                    tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
-                              docs_with_score]
-                    template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
-                else:
-                    # backup method
-                    if os.getenv('HARD_ASSERTS'):
-                        assert db_type in ['faiss', 'weaviate']
-                    # use tiktoken for faiss since embedding called differently
-                    tokz = FakeTokenizer()
-                    tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-                    template_tokens = tokz.num_tokens_from_string(template)
+                tokens = get_doc_tokens([x[0].page_content for x in docs_with_score])
+                template_tokens = get_doc_tokens([template])
                 tokens_cumsum = np.cumsum(tokens)
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
@@ -4286,6 +4267,44 @@ def get_chain(query=None,
 
     return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
+
+def get_doc_tokens(llm, docs_with_score, x):
+    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
+        # more accurate
+        tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
+        template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+    elif hasattr(llm, 'tokenizer'):
+        # e.g. TGI client mode etc.
+        tokz = llm.tokenizer
+        template_tokens = tokz.encode(template)
+        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
+            tokens = [len(tokz.encode(x[0].page_content)['input_ids']) for x in docs_with_score]
+            template_tokens = len(tokz.encode(template)['input_ids'])
+        else:
+            tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
+            template_tokens = len(tokz.encode(template))
+    elif inference_server in ['openai', 'openai_chat', 'openai_azure',
+                              'openai_azure_chat'] or use_openai_model:
+        tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
+        template_tokens = llm.get_num_tokens(template)
+    elif isinstance(tokenizer, FakeTokenizer):
+        tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
+        template_tokens = tokenizer.num_tokens_from_string(template)
+    elif (hasattr(db, '_embedding_function') and
+          hasattr(db._embedding_function, 'client') and
+          hasattr(db._embedding_function.client, 'tokenize')):
+        # in case model is not our pipeline with HF tokenizer
+        tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
+                  docs_with_score]
+        template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
+    else:
+        # backup method
+        if os.getenv('HARD_ASSERTS'):
+            assert db_type in ['faiss', 'weaviate']
+        # use tiktoken for faiss since embedding called differently
+        tokz = FakeTokenizer()
+        tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
+        template_tokens = tokz.num_tokens_from_string(template)
 
 def get_template(query, iinput,
                  pre_prompt_query, prompt_query,

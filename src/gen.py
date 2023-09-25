@@ -2087,6 +2087,7 @@ def evaluate(
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        keep_sources_in_context=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -2231,27 +2232,9 @@ def evaluate(
     if not context:
         context = ''
 
-    # restrict instruction, typically what has large input
-    from h2oai_pipeline import H2OTextGenerationPipeline
-    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
-    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
-    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
-    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
-
-    if inference_server and inference_server.startswith('http'):
-        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
-        pass
-    else:
-        # limit so max_new_tokens = prompt + new < max
-        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
-        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
-
-    # get prompt
+    # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                         system_prompt=system_prompt)
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt = prompter.generate_prompt(data_point)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -2322,6 +2305,10 @@ def evaluate(
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
                                  ))
+        data_point = dict(context=context, instruction=instruction, input=iinput)
+        prompt_basic = prompter.generate_prompt(data_point)
+        prompt = prompt_basic
+        num_prompt_tokens = 0
         for r in run_qa_db(
                 inference_server=inference_server,
                 model_name=base_model, model=model, tokenizer=tokenizer,
@@ -2375,6 +2362,7 @@ def evaluate(
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
                 text_context_list=text_context_list,
+                chat_conversation=chat_conversation,
                 h2ogpt_key=h2ogpt_key,
 
                 **gen_hyper_langchain,
@@ -2392,7 +2380,11 @@ def evaluate(
                 max_chunks=max_chunks,
                 headsize=headsize,
         ):
-            response, sources = r  # doesn't accumulate, new answer every yield, so only save that full answer
+            # doesn't accumulate, new answer every yield, so only save that full answer
+            response = r['response']
+            sources  = r['sources']
+            prompt  = r['prompt']
+            num_prompt_tokens = r['num_prompt_tokens']
             yield dict(response=response, sources=sources, save_dict=dict())
         if save_dir:
             # estimate using tiktoken
@@ -2430,6 +2422,20 @@ def evaluate(
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
             return
+
+    # NOT LANGCHAIN PATH, raw LLM
+    # restrict instruction + , typically what has large input
+    prompt, num_prompt_tokens = get_limited_prompt(prompter, instruction,
+                                                   iinput,
+                                                   tokenizer,
+                                                   inference_server,
+                                                   prompt_type, prompt_dict, chat, max_new_tokens,
+                                                   system_prompt,
+                                                   context, chat_conversation,
+                                                   keep_sources_in_context,
+                                                   model_max_length, memory_restriction_level,
+                                                   langchain_mode, add_chat_history_to_context,
+                                                   )
 
     if inference_server.startswith('vllm') or \
             inference_server.startswith('openai') or \
@@ -3401,6 +3407,24 @@ def get_minmax_top_k_docs(is_public):
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
 
+def merge_chat_conversation_history(chat_conversation1, history):
+    if chat_conversation1:
+        chat_conversation1 = str_to_list(chat_conversation1)
+        for conv1 in chat_conversation1:
+            assert isinstance(conv1, (list, tuple))
+            assert len(conv1) == 2
+
+    if isinstance(history, list):
+        # make copy so only local change
+        if chat_conversation1:
+            history = chat_conversation1 + history.copy()
+    elif chat_conversation1:
+        history = chat_conversation1
+    else:
+        history = []
+    return history
+
+
 def history_to_context(history, langchain_mode1,
                        add_chat_history_to_context,
                        prompt_type1, prompt_dict1, chat1, model_max_length1,
@@ -3421,20 +3445,8 @@ def history_to_context(history, langchain_mode1,
     :param chat_conversation1:
     :return:
     """
-    if chat_conversation1:
-        chat_conversation1 = str_to_list(chat_conversation1)
-        for conv1 in chat_conversation1:
-            assert isinstance(conv1, (list, tuple))
-            assert len(conv1) == 2
+    merge_chat_conversation_history(chat_conversation1, history)
 
-    if isinstance(history, list):
-        # make copy so only local change
-        if chat_conversation1:
-            history = chat_conversation1 + history.copy()
-    elif chat_conversation1:
-        history = chat_conversation1
-    else:
-        history = []
     if len(history) >= 1 and len(history[-1]) >= 2 and not history[-1][1]:
         len_history = len(history) - 1
     else:
@@ -3485,6 +3497,66 @@ def history_to_context(history, langchain_mode1,
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
+
+
+def get_token_count(tokenizer, x):
+    if tokenizer:
+        template_tokens = tokenizer.encode(x)
+        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
+            n_tokens = len(tokenizer.encode(x)['input_ids'])
+        else:
+            n_tokens = len(tokenizer.encode(x))
+    else:
+        n_tokens = tokenizer.num_tokens_from_string(x)
+    return n_tokens
+
+
+def get_limited_prompt(prompter, instruction,
+                       iinput,
+                       tokenizer,
+                       inference_server,
+                       prompt_type, prompt_dict, chat, max_new_tokens,
+                       system_prompt,
+                       context, chat_conversation,
+                       keep_sources_in_context,
+                       model_max_length, memory_restriction_level,
+                       langchain_mode, add_chat_history_to_context,
+                       ):
+    history = []
+    context2 = history_to_context(history, langchain_mode,
+                                  add_chat_history_to_context,
+                                  prompt_type, prompt_dict, chat,
+                                  model_max_length, memory_restriction_level,
+                                  keep_sources_in_context,
+                                  system_prompt,
+                                  chat_conversation)
+    context1 = context
+    context = context1 + context2
+
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    context1, num_prompt_tokens2a = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
+    context2, num_prompt_tokens2b = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
+    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
+    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
+
+    if num_prompt_tokens > model_max_length:
+        # need to limit in some way, keep portion of chat_conversation but all of context and instruction
+
+    if inference_server and inference_server.startswith('http'):
+        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
+        pass
+    else:
+        # limit so max_new_tokens = prompt + new < max
+        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
+        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
+
+    data_point = dict(context=context, instruction=instruction, input=iinput)
+    prompt = prompter.generate_prompt(data_point)
+
+    return prompt, num_prompt_tokens
 
 
 def entrypoint_main():

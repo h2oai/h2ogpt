@@ -2482,26 +2482,7 @@ def go_gradio(**kwargs):
                         model_state1['tokenizer'].model_max_length - buffer)
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
-            context1 = args_list[eval_func_param_names.index('context')]
-            add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
-            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')] or model_state1['prompt_type']
-            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')] or model_state1['prompt_dict']
-            chat1 = args_list[eval_func_param_names.index('chat')]
-            model_max_length1 = get_model_max_length(model_state1)
-            system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
-            chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
-            history = []
-            langchain_mode1 = user_kwargs['langchain_mode']
-            context2 = history_to_context(history, langchain_mode1,
-                                          add_chat_history_to_context1,
-                                          prompt_type1, prompt_dict1, chat1,
-                                          model_max_length1, memory_restriction_level,
-                                          kwargs['keep_sources_in_context'],
-                                          system_prompt1,
-                                          chat_conversation1)
-            # replace
-            args_list[eval_func_param_names.index('context')] = context1 + context2
-
+            # final full evaluate args list
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
             # NOTE: Don't allow UI-like access, in case modify state via API
