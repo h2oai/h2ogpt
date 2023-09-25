@@ -3759,6 +3759,7 @@ def get_chain(query=None,
             # this works if using TGI where tell it input may be same as output, even if model can't actually handle
             max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
         else:
+            # e.g. vLLM, etc. will all fail otherwise
             # trust that maybe model will make so many tokens, so limit input
             max_input_tokens = tokenizer.model_max_length - max_new_tokens
     else:
@@ -3906,34 +3907,35 @@ def get_chain(query=None,
                                                               verbose=verbose)[
                                           :top_k_docs_tokenize]
 
+                prompt_no_docs = template.format(context='', question=query)
                 if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
                     # more accurate
                     tokens = [len(llm.pipeline.tokenizer(x[0].page_content)['input_ids']) for x in docs_with_score]
-                    template_tokens = len(llm.pipeline.tokenizer(template)['input_ids'])
+                    template_tokens = len(llm.pipeline.tokenizer(prompt_no_docs)['input_ids'])
                 elif hasattr(llm, 'tokenizer'):
                     # e.g. TGI client mode etc.
                     tokz = llm.tokenizer
-                    template_tokens = tokz.encode(template)
+                    template_tokens = tokz.encode(prompt_no_docs)
                     if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
                         tokens = [len(tokz.encode(x[0].page_content)['input_ids']) for x in docs_with_score]
-                        template_tokens = len(tokz.encode(template)['input_ids'])
+                        template_tokens = len(tokz.encode(prompt_no_docs)['input_ids'])
                     else:
                         tokens = [len(tokz.encode(x[0].page_content)) for x in docs_with_score]
-                        template_tokens = len(tokz.encode(template))
+                        template_tokens = len(tokz.encode(prompt_no_docs))
                 elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                                           'openai_azure_chat'] or use_openai_model:
                     tokens = [llm.get_num_tokens(x[0].page_content) for x in docs_with_score]
-                    template_tokens = llm.get_num_tokens(template)
+                    template_tokens = llm.get_num_tokens(prompt_no_docs)
                 elif isinstance(tokenizer, FakeTokenizer):
                     tokens = [tokenizer.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-                    template_tokens = tokenizer.num_tokens_from_string(template)
+                    template_tokens = tokenizer.num_tokens_from_string(prompt_no_docs)
                 elif (hasattr(db, '_embedding_function') and
                       hasattr(db._embedding_function, 'client') and
                       hasattr(db._embedding_function.client, 'tokenize')):
                     # in case model is not our pipeline with HF tokenizer
                     tokens = [db._embedding_function.client.tokenize([x[0].page_content])['input_ids'].shape[1] for x in
                               docs_with_score]
-                    template_tokens = db._embedding_function.client.tokenize([template])['input_ids'].shape[1]
+                    template_tokens = db._embedding_function.client.tokenize([prompt_no_docs])['input_ids'].shape[1]
                 else:
                     # backup method
                     if os.getenv('HARD_ASSERTS'):
@@ -3941,7 +3943,7 @@ def get_chain(query=None,
                     # use tiktoken for faiss since embedding called differently
                     tokz = FakeTokenizer()
                     tokens = [tokz.num_tokens_from_string(x[0].page_content) for x in docs_with_score]
-                    template_tokens = tokz.num_tokens_from_string(template)
+                    template_tokens = tokz.num_tokens_from_string(prompt_no_docs)
                 tokens_cumsum = np.cumsum(tokens)
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
