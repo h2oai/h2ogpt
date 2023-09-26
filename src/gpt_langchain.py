@@ -4139,6 +4139,7 @@ def get_chain(query=None,
                 if top_k_docs > 0:
                     docs_with_score = docs_with_score[:top_k_docs]
                 else:
+                    assert one_doc_size is not None
                     docs_with_score = [docs_with_score[0][:one_doc_size]]
             else:
                 docs_with_score = docs_with_score[:top_k_docs]

@@ -40,7 +40,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.prompter = prompter
         self.context = context
         self.iinput = iinput
-        self.debug = True
+        self.debug = debug
         if self.use_prompter:
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
