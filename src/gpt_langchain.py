@@ -3937,31 +3937,8 @@ def get_chain(query=None,
                      got_db_docs,
                      add_search_to_context)
 
-    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
-        max_input_tokens = llm.pipeline.max_input_tokens
-    elif inference_server in ['openai', 'openai_azure']:
-        max_tokens = llm.modelname_to_contextsize(model_name)
-        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
-        max_input_tokens = max_tokens - max_new_tokens
-    elif inference_server in ['openai_chat', 'openai_azure_chat']:
-        max_tokens = model_token_mapping[model_name]
-        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
-        max_input_tokens = max_tokens - max_new_tokens
-    elif isinstance(tokenizer, FakeTokenizer):
-        # don't trust that fake tokenizer (e.g. GGML) will make lots of tokens normally, allow more input
-        max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
-    elif hasattr(tokenizer, 'model_max_length'):
-        if 'falcon' in model_name:
-            # allow for more input for falcon, assume won't make as long outputs as default max_new_tokens
-            # this works if using TGI where tell it input may be same as output, even if model can't actually handle
-            max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
-        else:
-            # e.g. vLLM, etc. will all fail otherwise
-            # trust that maybe model will make so many tokens, so limit input
-            max_input_tokens = tokenizer.model_max_length - max_new_tokens
-    else:
-        # leave some room for 1 paragraph, even if min_new_tokens=0
-        max_input_tokens = 2048 - min(256, max_new_tokens)
+    max_input_tokens = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                            model_name=model_name, max_new_tokens=max_new_tokens)
 
     if (db or text_context_list) and use_docs_planned:
         if hasattr(db, '_persist_directory'):
@@ -4116,7 +4093,8 @@ def get_chain(query=None,
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 where_res = np.where(tokens_cumsum < max_input_tokens)[0]
-                if where_res.shape[0] > 0:  # if fails this condition, then keep top_k_docs=-1 and trigger special handling next
+                if where_res.shape[
+                    0] > 0:  # if fails this condition, then keep top_k_docs=-1 and trigger special handling next
                     top_k_docs_trial = 1 + where_res[-1]
                     if 0 < top_k_docs_trial < max_chunks:
                         # avoid craziness
@@ -4270,6 +4248,36 @@ def get_chain(query=None,
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
     return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+
+
+def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_name=None, max_new_tokens=None):
+    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
+        max_input_tokens = llm.pipeline.max_input_tokens
+    elif inference_server in ['openai', 'openai_azure']:
+        max_tokens = llm.modelname_to_contextsize(model_name)
+        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
+        max_input_tokens = max_tokens - max_new_tokens
+    elif inference_server in ['openai_chat', 'openai_azure_chat']:
+        max_tokens = model_token_mapping[model_name]
+        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
+        max_input_tokens = max_tokens - max_new_tokens
+    elif isinstance(tokenizer, FakeTokenizer):
+        # don't trust that fake tokenizer (e.g. GGML) will make lots of tokens normally, allow more input
+        max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
+    elif hasattr(tokenizer, 'model_max_length'):
+        if 'falcon' in model_name:
+            # allow for more input for falcon, assume won't make as long outputs as default max_new_tokens
+            # this works if using TGI where tell it input may be same as output, even if model can't actually handle
+            max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
+        else:
+            # e.g. vLLM, etc. will all fail otherwise
+            # trust that maybe model will make so many tokens, so limit input
+            max_input_tokens = tokenizer.model_max_length - max_new_tokens
+    else:
+        # leave some room for 1 paragraph, even if min_new_tokens=0
+        max_input_tokens = 2048 - min(256, max_new_tokens)
+
+    return max_input_tokens
 
 
 def get_doc_tokens(docs_list, db=None, llm=None, tokenizer=None, inference_server=None, use_openai_model=False,

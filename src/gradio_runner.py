@@ -62,7 +62,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
-    evaluate_fake
+    evaluate_fake, merge_chat_conversation_history
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -2836,13 +2836,9 @@ def go_gradio(**kwargs):
                 history = []
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
-            system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
-            add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
-            langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
-            document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
             chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
@@ -2881,21 +2877,11 @@ def go_gradio(**kwargs):
             args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
             context1 = args_list[eval_func_param_names.index('context')]
 
-            chat1 = args_list[eval_func_param_names.index('chat')]
-            model_max_length1 = get_model_max_length(model_state1)
-            context2 = history_to_context(history,
-                                          langchain_mode=langchain_mode1,
-                                          add_chat_history_to_context=add_chat_history_to_context1,
-                                          prompt_type=prompt_type1,
-                                          prompt_dict=prompt_dict1,
-                                          chat=chat1,
-                                          model_max_length=model_max_length1,
-                                          memory_restriction_level=memory_restriction_level,
-                                          keep_sources_in_context=kwargs['keep_sources_in_context'],
-                                          system_prompt=system_prompt1,
-                                          chat_conversation=chat_conversation1)
+            chat_conversation1 = merge_chat_conversation_history(chat_conversation1, history)
+            args_list[eval_func_param_names.index('chat_conversation')] = chat_conversation1
+
             args_list[0] = instruction1  # override original instruction with history from user
-            args_list[2] = context1 + context2
+            args_list[2] = context1
 
             fun1 = partial(evaluate_local,
                            model_state1,

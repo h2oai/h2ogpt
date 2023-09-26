@@ -3426,6 +3426,7 @@ def merge_chat_conversation_history(chat_conversation1, history):
     if isinstance(history, list):
         # make copy so only local change
         if chat_conversation1:
+            # so priority will be newest that comes from actual chat history from UI, then chat_conversation
             history = chat_conversation1 + history.copy()
     elif chat_conversation1:
         history = chat_conversation1
