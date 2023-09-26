@@ -4116,17 +4116,14 @@ def get_chain(query=None,
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 where_res = np.where(tokens_cumsum < max_input_tokens)[0]
-                if where_res.shape[0] == 0:
-                    # then no chunk can fit, still do first one
-                    top_k_docs_trial = 1
-                else:
+                if where_res.shape[0] > 0:  # if fails this condition, then keep top_k_docs=-1 and trigger special handling next
                     top_k_docs_trial = 1 + where_res[-1]
-                if 0 < top_k_docs_trial < max_chunks:
-                    # avoid craziness
-                    if top_k_docs == -1:
-                        top_k_docs = top_k_docs_trial
-                    else:
-                        top_k_docs = min(top_k_docs, top_k_docs_trial)
+                    if 0 < top_k_docs_trial < max_chunks:
+                        # avoid craziness
+                        if top_k_docs == -1:
+                            top_k_docs = top_k_docs_trial
+                        else:
+                            top_k_docs = min(top_k_docs, top_k_docs_trial)
                 if top_k_docs == -1:
                     # if here, means 0 and just do best with 1 doc
                     top_k_docs = 1
@@ -4134,7 +4131,9 @@ def get_chain(query=None,
                     # critical protection
                     from src.h2oai_pipeline import H2OTextGenerationPipeline
                     doc_content = docs_with_score[0][0].page_content
-                    doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content, tokenizer)
+                    doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
+                                                                                      tokenizer,
+                                                                                      max_prompt_length=max_input_tokens)
                     docs_with_score[0][0].page_content = doc_content
                     print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
                         tokens[0], new_tokens0), flush=True)
