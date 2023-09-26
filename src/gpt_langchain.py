@@ -445,6 +445,9 @@ class GradioInference(LLM):
     system_prompt: Any = None
     h2ogpt_key: Any = None
 
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
+
     class Config:
         """Configuration for this pydantic object."""
 
@@ -540,15 +543,16 @@ class GradioInference(LLM):
                              h2ogpt_key=self.h2ogpt_key,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-        # print("START: %s" % prompt, flush=True)
         self.count_input_tokens += self.get_num_tokens(prompt)
 
         if not stream_output:
             res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
-            return self.prompter.get_response(prompt + text, prompt=prompt,
+            ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                               sanitize_bot_response=self.sanitize_bot_response)
+            self.count_output_tokens += self.get_num_tokens(ret)
+            return ret
         else:
             text_callback = None
             if run_manager:
@@ -591,7 +595,7 @@ class GradioInference(LLM):
                 text_callback(text_chunk)
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
-            print("FINISH: prompt=%s\nret=%s" % (prompt, ret), flush=True)
+            self.count_output_tokens += self.get_num_tokens(ret)
             return ret
 
     def get_token_ids(self, text: str) -> List[int]:
