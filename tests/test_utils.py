@@ -68,7 +68,7 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
     context = context1 if context == 'context1' else context2
 
     chat_conversation1 = []
-    chat_conversation2 = ['conv_%s ' % x for x in range(0, 500)]
+    chat_conversation2 = [['user_conv_%s ' % x, 'bot_conv_%s ' % x] for x in range(0, 500)]
     chat_conversation = chat_conversation1 if chat_conversation == 'chat_conversation1' else chat_conversation2
 
     from transformers import AutoTokenizer
@@ -95,7 +95,8 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
                            max_new_tokens=max_new_tokens,
                            context=context,
                            chat_conversation=chat_conversation,
-                           model_max_length=model_max_length)
+                           model_max_length=model_max_length,
+                           verbose=True)
     print('%s -> %s or %s' % (num_prompt_tokens0, num_prompt_tokens, num_prompt_tokens_actual), flush=True)
     assert num_prompt_tokens <= model_max_length + min_max_new_tokens
     # actual might be less due to token merging for characters across parts, but not more

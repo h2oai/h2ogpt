@@ -2425,7 +2425,7 @@ def evaluate(
 
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
-    prompt, num_prompt_tokens, max_new_tokens = \
+    prompt, num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -3519,6 +3519,7 @@ def get_limited_prompt(instruction,
                        keep_sources_in_context=False,
                        model_max_length=None, memory_restriction_level=0,
                        langchain_mode=None, add_chat_history_to_context=True,
+                       verbose=False,
                        ):
     if prompter:
         prompt_type = prompter.prompt_type
@@ -3571,16 +3572,21 @@ def get_limited_prompt(instruction,
         if diff1 > 0:
             # then should be able to do #1
             iinput = ''
+            num_prompt_tokens3 = 0
         elif diff2 > 0 > diff1:
             # then may be able to do #1 + #2
             iinput = ''
             num_prompt_tokens3 = 0
             for i in range(len(history)):
-                context2 = history_to_context_func(history[:-i])
+                # NOTE: history and chat_conversation are older for first entries
+                # FIXME: This is a slow for many short conversations
+                context2 = history_to_context_func(history[i:])
                 num_prompt_tokens2b = get_token_count(context2, tokenizer)
                 diff1 = model_max_length - (
                         num_prompt_tokens1 + num_prompt_tokens2a + num_prompt_tokens2b + min_max_new_tokens)
                 if diff1 > 0:
+                    if verbose:
+                        print("chat_conversation used %d out of %d" % (i, len(history)), flush=True)
                     break
         elif diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
