@@ -3408,7 +3408,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
-            yield dict(prompt=prompt_basic, response="No sources", sources='')
+            yield dict(prompt=prompt_basic, response="No sources", sources='', num_prompt_tokens=0)
             return
         # if no souces, outside gpt_langchain, LLM will be used with '' input
         scores = [1] * len(docs)
@@ -3421,7 +3421,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  reverse_docs=reverse_docs,
                                  verbose=verbose)
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
-        yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra)
+        yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
         return
     if not use_llm_if_no_docs:
         if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -3429,12 +3429,12 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                              LangChainAction.SUMMARIZE_REFINE.value]:
             ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
             extra = ''
-            yield dict(prompt=prompt_basic, response=ret, sources=extra)
+            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
             return
         if not docs and not llm_mode:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
-            yield dict(prompt=prompt_basic, response=ret, sources=extra)
+            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
             return
 
     if chain is None and not langchain_only_model:
@@ -3484,9 +3484,9 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
-                            yield dict(prompt=prompt, response=output1, sources='')
+                            yield dict(prompt=prompt, response=output1, sources='', num_prompt_tokens=0)
                         else:
-                            yield dict(prompt=prompt, response=outputs, sources='')
+                            yield dict(prompt=prompt, response=outputs, sources='', num_prompt_tokens=0)
                 except BaseException:
                     # if any exception, raise that exception if was from thread, first
                     if thread.exc:
