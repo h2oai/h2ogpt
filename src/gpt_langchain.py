@@ -4107,8 +4107,11 @@ def get_chain(query=None,
                                                        :top_k_docs_tokenize]
 
                 prompt_no_docs = template.format(context='', question=query)
-                tokens = get_doc_tokens([x[0].page_content for x in docs_with_score], db, llm, tokenizer, inference_server, use_openai_model, db_type)
-                template_tokens = get_doc_tokens([prompt_no_docs], db, llm, tokenizer, inference_server, use_openai_model, db_type)[0]
+                get_doc_tokens_func = functools.partial(get_doc_tokens, db=db, llm=llm, tokenizer=tokenizer,
+                                                        inference_server=inference_server,
+                                                        use_openai_model=use_openai_model, db_type=db_type)
+                tokens = get_doc_tokens_func([x[0].page_content for x in docs_with_score])
+                template_tokens = get_doc_tokens_func([prompt_no_docs])[0]
                 tokens_cumsum = np.cumsum(tokens)
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
@@ -4270,7 +4273,8 @@ def get_chain(query=None,
     return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
 
-def get_doc_tokens(docs_list, db, llm, tokenizer, inference_server, use_openai_model, db_type):
+def get_doc_tokens(docs_list, db=None, llm=None, tokenizer=None, inference_server=None, use_openai_model=False,
+                   db_type='chroma'):
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
         # more accurate
         tokens = [len(llm.pipeline.tokenizer(x)['input_ids']) for x in docs_list]

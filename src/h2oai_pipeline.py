@@ -76,6 +76,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 prompt_text = prompt_text[-model_max_length * 10:]
                 if verbose:
                     print("Cut of input: %s -> %s" % (len0, len(prompt_text)), flush=True)
+        elif max_prompt_length is not None:
+            model_max_length = max_prompt_length
         else:
             # unknown
             model_max_length = None

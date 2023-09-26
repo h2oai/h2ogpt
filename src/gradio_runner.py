@@ -703,7 +703,7 @@ def go_gradio(**kwargs):
                     add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                               value=kwargs['add_chat_history_to_context'])
                     add_search_to_context = gr.Checkbox(label="Web Search",
-                                                              value=kwargs['add_search_to_context'])
+                                                        value=kwargs['add_search_to_context'])
                     document_subset = gr.Radio([x.name for x in DocumentSubset],
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,
@@ -2883,13 +2883,17 @@ def go_gradio(**kwargs):
 
             chat1 = args_list[eval_func_param_names.index('chat')]
             model_max_length1 = get_model_max_length(model_state1)
-            context2 = history_to_context(history, langchain_mode1,
-                                          add_chat_history_to_context1,
-                                          prompt_type1, prompt_dict1, chat1,
-                                          model_max_length1, memory_restriction_level,
-                                          kwargs['keep_sources_in_context'],
-                                          system_prompt1,
-                                          chat_conversation1)
+            context2 = history_to_context(history,
+                                          langchain_mode=langchain_mode1,
+                                          add_chat_history_to_context=add_chat_history_to_context1,
+                                          prompt_type=prompt_type1,
+                                          prompt_dict=prompt_dict1,
+                                          chat=chat1,
+                                          model_max_length=model_max_length1,
+                                          memory_restriction_level=memory_restriction_level,
+                                          keep_sources_in_context=kwargs['keep_sources_in_context'],
+                                          system_prompt=system_prompt1,
+                                          chat_conversation=chat_conversation1)
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1 + context2
 
@@ -3948,13 +3952,17 @@ def go_gradio(**kwargs):
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
                 model_max_length1 = tokenizer.model_max_length
-                context1 = history_to_context(chat1, langchain_mode1,
-                                              add_chat_history_to_context1,
-                                              prompt_type1, prompt_dict1, chat1,
-                                              model_max_length1,
-                                              memory_restriction_level1, keep_sources_in_context1,
-                                              system_prompt1,
-                                              chat_conversation1)
+                context1 = history_to_context(chat1,
+                                              langchain_mode=langchain_mode1,
+                                              add_chat_history_to_context=add_chat_history_to_context1,
+                                              prompt_type=prompt_type1,
+                                              prompt_dict=prompt_dict1,
+                                              chat=True,
+                                              model_max_length=model_max_length1,
+                                              memory_restriction_level=memory_restriction_level1,
+                                              keep_sources_in_context=keep_sources_in_context1,
+                                              system_prompt=system_prompt1,
+                                              chat_conversation=chat_conversation1)
                 tokens = tokenizer(context1, return_tensors="pt")['input_ids']
                 if len(tokens.shape) == 1:
                     return str(tokens.shape[0])

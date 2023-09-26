@@ -188,7 +188,7 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
     chat = True
     model_max_length = 2048
     memory_restriction_level = 0
-    keep_sources_in_context1 = False
+    keep_sources_in_context = False
     iinput = ''
     stream_output = False
     debug = False
@@ -203,12 +203,17 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
                ]
     print("duration1: %s %s" % (prompt_type, time.time() - t0), flush=True)
     t0 = time.time()
-    context = history_to_context(history, langchain_mode,
-                                 add_chat_history_to_context,
-                                 prompt_type, prompt_dict, chat,
-                                 model_max_length, memory_restriction_level,
-                                 keep_sources_in_context1,
-                                 system_prompt, chat_conversation)
+    context = history_to_context(history,
+                                 langchain_mode=langchain_mode,
+                                 add_chat_history_to_context=add_chat_history_to_context,
+                                 prompt_type=prompt_type,
+                                 prompt_dict=prompt_dict,
+                                 chat=chat,
+                                 model_max_length=model_max_length,
+                                 memory_restriction_level=memory_restriction_level,
+                                 keep_sources_in_context=keep_sources_in_context,
+                                 system_prompt=system_prompt,
+                                 chat_conversation=chat_conversation)
     print("duration2: %s %s" % (prompt_type, time.time() - t0), flush=True)
     t0 = time.time()
     instruction = history[-1][0]

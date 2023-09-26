@@ -1491,3 +1491,18 @@ def str_to_dict(x):
     assert isinstance(x, dict)
     return x
 
+
+def get_token_count(x, tokenizer):
+    # handle ambiguity in if get dict or list
+    if tokenizer:
+        template_tokens = tokenizer.encode(x)
+        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
+            n_tokens = len(tokenizer.encode(x)['input_ids'])
+        else:
+            n_tokens = len(tokenizer.encode(x))
+    else:
+        tokenizer = FakeTokenizer()
+        n_tokens = tokenizer.num_tokens_from_string(x)
+    return n_tokens
+
+

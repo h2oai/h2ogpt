@@ -47,7 +47,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count
 
 start_faulthandler()
 import_matplotlib()
@@ -2382,8 +2382,8 @@ def evaluate(
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
-            sources  = r['sources']
-            prompt  = r['prompt']
+            sources = r['sources']
+            prompt = r['prompt']
             num_prompt_tokens = r['num_prompt_tokens']
             yield dict(response=response, sources=sources, save_dict=dict())
         if save_dir:
@@ -2425,17 +2425,25 @@ def evaluate(
 
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
-    prompt, num_prompt_tokens = get_limited_prompt(prompter, instruction,
-                                                   iinput,
-                                                   tokenizer,
-                                                   inference_server,
-                                                   prompt_type, prompt_dict, chat, max_new_tokens,
-                                                   system_prompt,
-                                                   context, chat_conversation,
-                                                   keep_sources_in_context,
-                                                   model_max_length, memory_restriction_level,
-                                                   langchain_mode, add_chat_history_to_context,
-                                                   )
+    prompt, num_prompt_tokens, max_new_tokens = \
+        get_limited_prompt(instruction,
+                           iinput,
+                           tokenizer,
+                           prompter=prompter,
+                           inference_server=inference_server,
+                           # prompt_type=prompt_type,
+                           # prompt_dict=prompt_dict,
+                           # chat=chat,
+                           max_new_tokens=max_new_tokens,
+                           # system_prompt=system_prompt,
+                           context=context,
+                           chat_conversation=chat_conversation,
+                           keep_sources_in_context=keep_sources_in_context,
+                           model_max_length=model_max_length,
+                           memory_restriction_level=memory_restriction_level,
+                           langchain_mode=langchain_mode,
+                           add_chat_history_to_context=add_chat_history_to_context,
+                           )
 
     if inference_server.startswith('vllm') or \
             inference_server.startswith('openai') or \
@@ -3408,6 +3416,7 @@ def get_minmax_top_k_docs(is_public):
 
 
 def merge_chat_conversation_history(chat_conversation1, history):
+    # chat_conversation and history ordered so largest index of list is most recent
     if chat_conversation1:
         chat_conversation1 = str_to_list(chat_conversation1)
         for conv1 in chat_conversation1:
@@ -3425,27 +3434,27 @@ def merge_chat_conversation_history(chat_conversation1, history):
     return history
 
 
-def history_to_context(history, langchain_mode1,
-                       add_chat_history_to_context,
-                       prompt_type1, prompt_dict1, chat1, model_max_length1,
-                       memory_restriction_level1, keep_sources_in_context1,
-                       system_prompt1, chat_conversation1):
+def history_to_context(history, langchain_mode=None,
+                       add_chat_history_to_context=None,
+                       prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
+                       memory_restriction_level=None, keep_sources_in_context=None,
+                       system_prompt=None, chat_conversation=None):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
-    :param langchain_mode1:
+    :param langchain_mode:
     :param add_chat_history_to_context:
-    :param prompt_type1:
-    :param prompt_dict1:
-    :param chat1:
-    :param model_max_length1:
-    :param memory_restriction_level1:
-    :param keep_sources_in_context1:
-    :param system_prompt1:
-    :param chat_conversation1:
+    :param prompt_type:
+    :param prompt_dict:
+    :param chat:
+    :param model_max_length:
+    :param memory_restriction_level:
+    :param keep_sources_in_context:
+    :param system_prompt:
+    :param chat_conversation:
     :return:
     """
-    merge_chat_conversation_history(chat_conversation1, history)
+    history = merge_chat_conversation_history(chat_conversation, history)
 
     if len(history) >= 1 and len(history[-1]) >= 2 and not history[-1][1]:
         len_history = len(history) - 1
@@ -3454,8 +3463,8 @@ def history_to_context(history, langchain_mode1,
         len_history = len(history)
 
     # ensure output will be unique to models
-    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
-                                             for_context=True, model_max_length=model_max_length1)
+    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
+                                             for_context=True, model_max_length=model_max_length)
     context1 = ''
     if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
@@ -3464,15 +3473,15 @@ def history_to_context(history, langchain_mode1,
             data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,
-                                prompt_type1,
-                                prompt_dict1,
-                                chat1,
+                                prompt_type,
+                                prompt_dict,
+                                chat,
                                 reduced=True,
                                 making_context=True,
-                                system_prompt=system_prompt1,
+                                system_prompt=system_prompt,
                                 histi=histi)
             # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(super_source_prefix) >= 0:
+            if not keep_sources_in_context and langchain_mode != 'Disabled' and prompt.find(super_source_prefix) >= 0:
                 # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
                 import re
                 prompt = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', prompt,
@@ -3489,74 +3498,147 @@ def history_to_context(history, langchain_mode1,
             context1 += prompt
 
         _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
-            generate_prompt({}, prompt_type1, prompt_dict1,
-                            chat1, reduced=True,
+            generate_prompt({}, prompt_type, prompt_dict,
+                            chat, reduced=True,
                             making_context=True,
-                            system_prompt=system_prompt1,
+                            system_prompt=system_prompt,
                             histi=-1)
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
 
 
-def get_token_count(tokenizer, x):
-    if tokenizer:
-        template_tokens = tokenizer.encode(x)
-        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
-            n_tokens = len(tokenizer.encode(x)['input_ids'])
-        else:
-            n_tokens = len(tokenizer.encode(x))
-    else:
-        n_tokens = tokenizer.num_tokens_from_string(x)
-    return n_tokens
-
-
-def get_limited_prompt(prompter, instruction,
+def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
-                       inference_server,
-                       prompt_type, prompt_dict, chat, max_new_tokens,
-                       system_prompt,
-                       context, chat_conversation,
-                       keep_sources_in_context,
-                       model_max_length, memory_restriction_level,
-                       langchain_mode, add_chat_history_to_context,
+                       prompter=None,
+                       inference_server=None,
+                       prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
+                       system_prompt='',
+                       context='', chat_conversation=None,
+                       keep_sources_in_context=False,
+                       model_max_length=None, memory_restriction_level=0,
+                       langchain_mode=None, add_chat_history_to_context=True,
                        ):
+    if prompter:
+        prompt_type = prompter.prompt_type
+        prompt_dict = prompter.prompt_dict
+        chat = prompter.chat
+        stream_output = prompter.stream_output
+        system_prompt = prompter.system_prompt
     history = []
-    context2 = history_to_context(history, langchain_mode,
-                                  add_chat_history_to_context,
-                                  prompt_type, prompt_dict, chat,
-                                  model_max_length, memory_restriction_level,
-                                  keep_sources_in_context,
-                                  system_prompt,
-                                  chat_conversation)
+    history = merge_chat_conversation_history(chat_conversation, history)
+    history_to_context_func = functools.partial(history_to_context,
+                                                langchain_mode=langchain_mode,
+                                                add_chat_history_to_context=add_chat_history_to_context,
+                                                prompt_type=prompt_type,
+                                                prompt_dict=prompt_dict,
+                                                chat=chat,
+                                                model_max_length=model_max_length,
+                                                memory_restriction_level=memory_restriction_level,
+                                                keep_sources_in_context=keep_sources_in_context,
+                                                system_prompt=system_prompt)
+    context2 = history_to_context_func(history)
     context1 = context
-    context = context1 + context2
 
     from h2oai_pipeline import H2OTextGenerationPipeline
+    data_point_just_instruction = dict(context='', instruction=instruction, input='')
+    prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
     instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
+    num_prompt_tokens1 += (num_instruction_tokens_real - num_prompt_tokens1)
+
     context1, num_prompt_tokens2a = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
     context2, num_prompt_tokens2b = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
-    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
     iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
-    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
+    num_prompt_tokens0 = (num_prompt_tokens1 or 0) + (num_prompt_tokens2a or 0) + (num_prompt_tokens2b or 0) + (
+            num_prompt_tokens3 or 0)
 
-    if num_prompt_tokens > model_max_length:
-        # need to limit in some way, keep portion of chat_conversation but all of context and instruction
+    # go down to no less than 256, about 1 paragraph
+    # use max_new_tokens before use num_prompt_tokens0 else would be negative or ~0
+    min_max_new_tokens = min(256, max_new_tokens)
 
+    if num_prompt_tokens0 > model_max_length:
+        # need to limit in some way, keep portion of history but all of context and instruction
+        # 1) drop iinput (unusual to include anyways)
+        # 2) reduce history
+        # 3) reduce context1
+        # 4) limit instruction so will fit
+        diff1 = model_max_length - (num_prompt_tokens1 + num_prompt_tokens2a + num_prompt_tokens2b + min_max_new_tokens)
+        diff2 = model_max_length - (num_prompt_tokens1 + num_prompt_tokens2a + min_max_new_tokens)
+        diff3 = model_max_length - (num_prompt_tokens1 + min_max_new_tokens)
+        diff4 = model_max_length - min_max_new_tokens
+        if diff1 > 0:
+            # then should be able to do #1
+            iinput = ''
+        elif diff2 > 0 > diff1:
+            # then may be able to do #1 + #2
+            iinput = ''
+            num_prompt_tokens3 = 0
+            for i in range(len(history)):
+                context2 = history_to_context_func(history[:-i])
+                num_prompt_tokens2b = get_token_count(context2, tokenizer)
+                diff1 = model_max_length - (
+                        num_prompt_tokens1 + num_prompt_tokens2a + num_prompt_tokens2b + min_max_new_tokens)
+                if diff1 > 0:
+                    break
+        elif diff3 > 0 > diff2:
+            # then may be able to do #1 + #2 + #3
+            iinput = ''
+            num_prompt_tokens3 = 0
+            context2 = ''
+            num_prompt_tokens2b = 0
+            context1, num_prompt_tokens2a = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+                                                                                   max_prompt_length=diff3)
+            if num_prompt_tokens2a <= diff3:
+                pass
+            else:
+                print("failed to reduce", flush=True)
+        else:
+            # then must be able to do #1 + #2 + #3 + #4
+            iinput = ''
+            num_prompt_tokens3 = 0
+            context2 = ''
+            num_prompt_tokens2b = 0
+            context1 = ''
+            num_prompt_tokens2a = 0
+            # diff4 accounts for real prompting for instruction
+            # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
+            instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                     max_prompt_length=diff4)
+            # get actual tokens
+            data_point_just_instruction = dict(context='', instruction=instruction, input='')
+            prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
+            num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
+            num_prompt_tokens1 += (num_instruction_tokens_real - num_prompt_tokens1)
+
+    # update full context
+    context = context1 + context2
+    # update token counts
+    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2a or 0) + (num_prompt_tokens2b or 0) + (
+            num_prompt_tokens3 or 0)
+
+    # update max_new_tokens
     if inference_server and inference_server.startswith('http'):
         # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
         pass
     else:
         # limit so max_new_tokens = prompt + new < max
         # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
-        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
+        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+
+    if prompter is None:
+        # get prompter
+        debug = False
+        stream_output = False  # doesn't matter
+        prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+                            system_prompt=system_prompt)
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
+    num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
-    return prompt, num_prompt_tokens
+    return prompt, num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual
 
 
 def entrypoint_main():

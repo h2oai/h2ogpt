@@ -880,14 +880,13 @@ class Prompter(object):
         stop_sequences = [x for x in stop_sequences if x]
         return stop_sequences
 
-    def generate_prompt(self, data_point, reduced=None):
+    def generate_prompt(self, data_point, reduced=False):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
         :param data_point:
         :param reduced:
         :return:
         """
-        reduced = data_point.get('context') not in ['', None] if reduced is None else reduced
         making_context = False  # whether really making final prompt or just generating context
         prompt, _, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, self.chat, reduced,
                                              making_context, histi=-1, system_prompt=self.system_prompt)
