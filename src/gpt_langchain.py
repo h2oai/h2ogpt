@@ -44,7 +44,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED
+from gen import get_model, SEED, get_limited_prompt
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser
@@ -3236,6 +3236,7 @@ def _run_qa_db(query=None,
                add_chat_history_to_context=True,
                add_search_to_context=False,
                keep_sources_in_context=False,
+               memory_restriction_level=0,
                system_prompt='',
                sanitize_bot_response=False,
                show_rank=False,
@@ -3643,10 +3644,12 @@ def get_chain(query=None,
               prompter=None,
               prompt_type=None,
               prompt_dict=None,
+              system_prompt=None,
               cut_distance=1.1,
               add_chat_history_to_context=True,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               add_search_to_context=False,
               keep_sources_in_context=False,
+              memory_restriction_level=0,
 
               load_db_if_exists=False,
               db=None,
@@ -4090,59 +4093,49 @@ def get_chain(query=None,
                 prompt_no_docs = template.format(context='', question=query)
 
                 model_max_length = tokenizer.model_max_length
-                prompt, num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual = \
+                chat = True  # FIXME?
+                tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                          use_openai_model=use_openai_model,
+                                          db_type=db_type)
+
+                # first docs_with_score are most important with highest score
+                full_prompt, \
+                    instruction, iinput, context, \
+                    num_prompt_tokens, max_new_tokens, \
+                    num_prompt_tokens0, num_prompt_tokens_actual, \
+                    chat_index, top_k_docs_trial, one_doc_size = \
                     get_limited_prompt(prompt_no_docs,
                                        iinput,
                                        tokenizer,
                                        prompter=prompter,
                                        inference_server=inference_server,
-                                       # prompt_type=prompt_type,
-                                       # prompt_dict=prompt_dict,
-                                       # chat=chat,
+                                       prompt_type=prompt_type,
+                                       prompt_dict=prompt_dict,
+                                       chat=chat,
                                        max_new_tokens=max_new_tokens,
-                                       # system_prompt=system_prompt,
+                                       system_prompt=system_prompt,
                                        context=context,
                                        chat_conversation=chat_conversation,
+                                       text_context_list=[x[0].page_content for x in docs_with_score],
                                        keep_sources_in_context=keep_sources_in_context,
                                        model_max_length=model_max_length,
                                        memory_restriction_level=memory_restriction_level,
                                        langchain_mode=langchain_mode,
                                        add_chat_history_to_context=add_chat_history_to_context,
                                        )
-
-                get_doc_tokens_func = functools.partial(get_doc_tokens, db=db, llm=llm, tokenizer=tokenizer,
-                                                        inference_server=inference_server,
-                                                        use_openai_model=use_openai_model, db_type=db_type)
-                tokens = get_doc_tokens_func([x[0].page_content for x in docs_with_score])
-                template_tokens = get_doc_tokens_func([prompt_no_docs])[0]
-                tokens_cumsum = np.cumsum(tokens)
-                max_input_tokens -= template_tokens
-                # FIXME: Doesn't account for query, == context, or new lines between contexts
-                where_res = np.where(tokens_cumsum < max_input_tokens)[0]
-                # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
-                if where_res.shape[0] > 0:
-                    top_k_docs_trial = 1 + where_res[-1]
-                    if 0 < top_k_docs_trial < max_chunks:
-                        # avoid craziness
-                        if top_k_docs == -1:
-                            top_k_docs = top_k_docs_trial
-                        else:
-                            top_k_docs = min(top_k_docs, top_k_docs_trial)
-                if top_k_docs == -1:
-                    # if here, means 0 and just do best with 1 doc
-                    top_k_docs = 1
+                # avoid craziness
+                if 0 < top_k_docs_trial < max_chunks:
+                    # avoid craziness
+                    if top_k_docs == -1:
+                        top_k_docs = top_k_docs_trial
+                    else:
+                        top_k_docs = min(top_k_docs, top_k_docs_trial)
+                elif top_k_docs_trial > max_chunks:
+                    top_k_docs = max_chunks
+                if top_k_docs > 0:
                     docs_with_score = docs_with_score[:top_k_docs]
-                    # critical protection
-                    from src.h2oai_pipeline import H2OTextGenerationPipeline
-                    doc_content = docs_with_score[0][0].page_content
-                    doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
-                                                                                      tokenizer,
-                                                                                      max_prompt_length=max_input_tokens)
-                    docs_with_score[0][0].page_content = doc_content
-                    print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
-                        tokens[0], new_tokens0), flush=True)
                 else:
-                    docs_with_score = docs_with_score[:top_k_docs]
+                    docs_with_score = [docs_with_score[0][:one_doc_size]]
             else:
                 docs_with_score = docs_with_score[:top_k_docs]
 
@@ -4309,39 +4302,26 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
                   db_type='chroma'):
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
         # more accurate
-        return llm.pipeline.tokenizer, None
+        return llm.pipeline.tokenizer
     elif hasattr(llm, 'tokenizer'):
         # e.g. TGI client mode etc.
-        return llm.tokenizer, None
+        return llm.tokenizer
     elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                               'openai_azure_chat'] or use_openai_model:
-        return None, llm.get_num_tokens
+        raise RuntimeError("Shouldn't be here")
     elif isinstance(tokenizer, FakeTokenizer):
-        return None, tokenizer.num_tokens_from_string
+        return tokenizer
     elif (hasattr(db, '_embedding_function') and
           hasattr(db._embedding_function, 'client') and
           hasattr(db._embedding_function.client, 'tokenize')):
         # in case model is not our pipeline with HF tokenizer
-        return db._embedding_function.client.tokenize, None
+        return db._embedding_function.client.tokenize
     else:
         # backup method
         if os.getenv('HARD_ASSERTS'):
             assert db_type in ['faiss', 'weaviate']
         # use tiktoken for faiss since embedding called differently
-        tokz = FakeTokenizer()
-        return None, tokz.num_tokens_from_string
-
-
-def get_doc_tokens(docs_list, db=None, llm=None, tokenizer=None, inference_server=None, use_openai_model=False,
-                   db_type='chroma'):
-    tokenizer, token_count_fun = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                               use_openai_model=use_openai_model,
-                                               db_type=db_type)
-
-    if token_count_fun is None:
-        return [get_token_count(x, tokenizer) for x in docs_list]
-    else:
-        return [token_count_fun(x) for x in docs_list]
+        return FakeTokenizer()
 
 
 def get_template(query, iinput,

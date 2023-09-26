@@ -1492,14 +1492,21 @@ def str_to_dict(x):
     return x
 
 
-def get_token_count(x, tokenizer):
+def get_token_count(x, tokenizer, token_count_fun=None):
+    # NOTE: Somewhat duplicates H2OTextGenerationPipeline.get_token_count()
     # handle ambiguity in if get dict or list
     if tokenizer:
-        template_tokens = tokenizer.encode(x)
+        if hasattr(tokenizer, 'encode'):
+            template_tokens = tokenizer.encode(x)
+        else:
+            template_tokens = tokenizer(x)
         if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
             n_tokens = len(tokenizer.encode(x)['input_ids'])
         else:
             n_tokens = len(tokenizer.encode(x))
+    elif token_count_fun is not None:
+        assert callable(token_count_fun)
+        n_tokens = token_count_fun(x)
     else:
         tokenizer = FakeTokenizer()
         n_tokens = tokenizer.num_tokens_from_string(x)

@@ -40,6 +40,7 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
+import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -2425,7 +2426,10 @@ def evaluate(
 
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
-    prompt, num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual = \
+    prompt, \
+        instruction, iinput, context, \
+        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, top_k_docs_trial, one_doc_size = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -3521,6 +3525,7 @@ def get_limited_prompt(instruction,
                        model_max_length=None, memory_restriction_level=0,
                        langchain_mode=None, add_chat_history_to_context=True,
                        verbose=False,
+                       doc_importance=0.5,
                        ):
     if prompter:
         prompt_type = prompter.prompt_type
@@ -3528,6 +3533,8 @@ def get_limited_prompt(instruction,
         chat = prompter.chat
         stream_output = prompter.stream_output
         system_prompt = prompter.system_prompt
+
+    # merge handles if chat_conversation is None
     history = []
     history = merge_chat_conversation_history(chat_conversation, history)
     history_to_context_func = functools.partial(history_to_context,
@@ -3542,88 +3549,114 @@ def get_limited_prompt(instruction,
                                                 system_prompt=system_prompt)
     context2 = history_to_context_func(history)
     context1 = context
+    if context1 is None:
+        context1 = ''
 
     from h2oai_pipeline import H2OTextGenerationPipeline
     data_point_just_instruction = dict(context='', instruction=instruction, input='')
     prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
     num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
-    num_prompt_tokens1 += (num_instruction_tokens_real - num_prompt_tokens1)
+    num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
 
-    context1, num_prompt_tokens2a = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
-    context2, num_prompt_tokens2b = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
-    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
-    num_prompt_tokens0 = (num_prompt_tokens1 or 0) + (num_prompt_tokens2a or 0) + (num_prompt_tokens2b or 0) + (
-            num_prompt_tokens3 or 0)
+    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
+    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
+    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    if text_context_list is None:
+        text_context_list = []
+    num_doc_tokens = sum([get_token_count(x + '\n\n', tokenizer) for x in text_context_list])
+
+    num_prompt_tokens0 = (num_instruction_tokens or 0) + \
+                         (num_context1_tokens or 0) + \
+                         (num_context2_tokens or 0) + \
+                         (num_iinput_tokens or 0) + \
+                         (num_doc_tokens or 0)
 
     # go down to no less than 256, about 1 paragraph
     # use max_new_tokens before use num_prompt_tokens0 else would be negative or ~0
     min_max_new_tokens = min(256, max_new_tokens)
+    # by default assume can handle all chat and docs
+    chat_index = 0
 
-    if num_prompt_tokens0 > model_max_length:
+    # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
+    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
+    # to doc first then non-doc, shouldn't matter much either way
+    doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
+    top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
+                                                               max_input_tokens=doc_max_length)
+    non_doc_max_length = max(model_max_length - num_doc_tokens, (1.0 - doc_importance) * model_max_length)
+
+    if num_non_doc_tokens > non_doc_max_length:
         # need to limit in some way, keep portion of history but all of context and instruction
         # 1) drop iinput (unusual to include anyways)
         # 2) reduce history
         # 3) reduce context1
         # 4) limit instruction so will fit
-        diff1 = model_max_length - (num_prompt_tokens1 + num_prompt_tokens2a + num_prompt_tokens2b + min_max_new_tokens)
-        diff2 = model_max_length - (num_prompt_tokens1 + num_prompt_tokens2a + min_max_new_tokens)
-        diff3 = model_max_length - (num_prompt_tokens1 + min_max_new_tokens)
-        diff4 = model_max_length - min_max_new_tokens
+        diff1 = non_doc_max_length - (
+                num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens + min_max_new_tokens)
+        diff3 = non_doc_max_length - (num_instruction_tokens + min_max_new_tokens)
+        diff4 = non_doc_max_length - min_max_new_tokens
         if diff1 > 0:
             # then should be able to do #1
             iinput = ''
-            num_prompt_tokens3 = 0
+            num_iinput_tokens = 0
         elif diff2 > 0 > diff1:
             # then may be able to do #1 + #2
             iinput = ''
-            num_prompt_tokens3 = 0
-            for i in range(len(history)):
+            num_iinput_tokens = 0
+            chat_index_final = len(history)
+            for chat_index in range(len(history)):
                 # NOTE: history and chat_conversation are older for first entries
                 # FIXME: This is a slow for many short conversations
-                context2 = history_to_context_func(history[i:])
-                num_prompt_tokens2b = get_token_count(context2, tokenizer)
-                diff1 = model_max_length - (
-                        num_prompt_tokens1 + num_prompt_tokens2a + num_prompt_tokens2b + min_max_new_tokens)
+                context2 = history_to_context_func(history[chat_index:])
+                num_context2_tokens = get_token_count(context2, tokenizer)
+                diff1 = non_doc_max_length - (
+                        num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
                 if diff1 > 0:
+                    chat_index_final = chat_index
                     if verbose:
-                        print("chat_conversation used %d out of %d" % (i, len(history)), flush=True)
+                        print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
                     break
+            chat_index = chat_index_final  # i.e. if chat_index == len(history), then nothing can be consumed
         elif diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
-            num_prompt_tokens3 = 0
+            num_iinput_tokens = 0
             context2 = ''
-            num_prompt_tokens2b = 0
-            context1, num_prompt_tokens2a = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+            num_context2_tokens = 0
+            context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                                    max_prompt_length=diff3)
-            if num_prompt_tokens2a <= diff3:
+            if num_context1_tokens <= diff3:
                 pass
             else:
                 print("failed to reduce", flush=True)
         else:
             # then must be able to do #1 + #2 + #3 + #4
             iinput = ''
-            num_prompt_tokens3 = 0
+            num_iinput_tokens = 0
             context2 = ''
-            num_prompt_tokens2b = 0
+            num_context2_tokens = 0
             context1 = ''
-            num_prompt_tokens2a = 0
+            num_context1_tokens = 0
             # diff4 accounts for real prompting for instruction
             # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
-            instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                                     max_prompt_length=diff4)
+            instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                         max_prompt_length=diff4)
             # get actual tokens
             data_point_just_instruction = dict(context='', instruction=instruction, input='')
             prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
             num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
-            num_prompt_tokens1 += (num_instruction_tokens_real - num_prompt_tokens1)
+            num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
 
     # update full context
     context = context1 + context2
-    # update token counts
-    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2a or 0) + (num_prompt_tokens2b or 0) + (
-            num_prompt_tokens3 or 0)
+    # update token counts (docs + non-docs, all tokens)
+    num_prompt_tokens = (num_instruction_tokens or 0) + \
+                        (num_context1_tokens or 0) + \
+                        (num_context2_tokens or 0) + \
+                        (num_iinput_tokens or 0) + \
+                        (num_doc_tokens or 0)
 
     # update max_new_tokens
     if inference_server and inference_server.startswith('http'):
@@ -3645,7 +3678,39 @@ def get_limited_prompt(instruction,
     prompt = prompter.generate_prompt(data_point)
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
-    return prompt, num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual
+    return prompt, \
+        instruction, iinput, context, \
+        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, top_k_docs, one_doc_size
+
+
+def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
+    if max_input_tokens is None:
+        max_input_tokens = tokenizer.model_max_length
+    tokens = [get_token_count(x + '\n\n', tokenizer) for x in text_context_list]
+    tokens_cumsum = np.cumsum(tokens)
+    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+    # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
+    if where_res.shape[0] > 0:
+        top_k_docs = 1 + where_res[-1]
+        one_doc_size = None
+        num_doc_tokens = tokens_cumsum[top_k_docs - 1]  # by index
+    else:
+        # if here, means 0 and just do best with 1 doc
+        top_k_docs = 1
+        docs_with_score = text_context_list[:top_k_docs]
+        # critical protection
+        from src.h2oai_pipeline import H2OTextGenerationPipeline
+        doc_content = docs_with_score[0][0].page_content
+        doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
+                                                                          tokenizer,
+                                                                          max_prompt_length=max_input_tokens)
+        docs_with_score[0][0].page_content = doc_content
+        one_doc_size = len(doc_content)
+        num_doc_tokens = get_token_count(doc_content + '\n\n', tokenizer)
+        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
+            tokens[0], new_tokens0), flush=True)
+    return top_k_docs, one_doc_size, num_doc_tokens
 
 
 def entrypoint_main():

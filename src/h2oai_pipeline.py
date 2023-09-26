@@ -4,7 +4,7 @@ from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
 from stopping import get_stopping
-from prompter import Prompter, PromptType
+from prompter import Prompter
 
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
@@ -61,6 +61,20 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.base_model = base_model
 
     @staticmethod
+    def get_token_count(x, tokenizer):
+        # NOTE: Somewhat duplicates get_token_count()
+        # handle ambiguity in if get dict or list
+        if hasattr(tokenizer, 'encode'):
+            tokens = tokenizer.encode(x)
+        else:
+            tokens = tokenizer(x)
+        if isinstance(tokens, dict) and 'input_ids' in tokens:
+            n_tokens = len(tokenizer.encode(x)['input_ids'])
+        else:
+            n_tokens = len(tokenizer.encode(x))
+        return n_tokens
+
+    @staticmethod
     def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
         verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
 
@@ -88,10 +102,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # For https://github.com/h2oai/h2ogpt/issues/192
             for trial in range(0, 5):
                 if prompt_text:
-                    prompt_tokens = tokenizer(prompt_text)['input_ids']
+                    num_prompt_tokens = H2OTextGenerationPipeline.get_token_count(prompt_text, tokenizer)
                 else:
-                    prompt_tokens = []
-                num_prompt_tokens = len(prompt_tokens)
+                    num_prompt_tokens = 0
                 if num_prompt_tokens > model_max_length:
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
