@@ -3235,6 +3235,7 @@ def _run_qa_db(query=None,
                cut_distance=1.64,
                add_chat_history_to_context=True,
                add_search_to_context=False,
+               keep_sources_in_context=False,
                system_prompt='',
                sanitize_bot_response=False,
                show_rank=False,
@@ -3639,11 +3640,14 @@ def get_chain(query=None,
               hf_embedding_model=None,
               migrate_embedding_model=False,
               auto_migrate_db=False,
+              prompter=None,
               prompt_type=None,
               prompt_dict=None,
               cut_distance=1.1,
               add_chat_history_to_context=True,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               add_search_to_context=False,
+              keep_sources_in_context=False,
+
               load_db_if_exists=False,
               db=None,
               langchain_mode=None,
@@ -4084,6 +4088,28 @@ def get_chain(query=None,
                 docs_with_score = docs_with_score[:top_k_docs_tokenize]
 
                 prompt_no_docs = template.format(context='', question=query)
+
+                model_max_length = tokenizer.model_max_length
+                prompt, num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual = \
+                    get_limited_prompt(prompt_no_docs,
+                                       iinput,
+                                       tokenizer,
+                                       prompter=prompter,
+                                       inference_server=inference_server,
+                                       # prompt_type=prompt_type,
+                                       # prompt_dict=prompt_dict,
+                                       # chat=chat,
+                                       max_new_tokens=max_new_tokens,
+                                       # system_prompt=system_prompt,
+                                       context=context,
+                                       chat_conversation=chat_conversation,
+                                       keep_sources_in_context=keep_sources_in_context,
+                                       model_max_length=model_max_length,
+                                       memory_restriction_level=memory_restriction_level,
+                                       langchain_mode=langchain_mode,
+                                       add_chat_history_to_context=add_chat_history_to_context,
+                                       )
+
                 get_doc_tokens_func = functools.partial(get_doc_tokens, db=db, llm=llm, tokenizer=tokenizer,
                                                         inference_server=inference_server,
                                                         use_openai_model=use_openai_model, db_type=db_type)
@@ -4241,32 +4267,40 @@ def get_chain(query=None,
     return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
 
 
-def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_name=None, max_new_tokens=None):
-    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'max_input_tokens'):
-        max_input_tokens = llm.pipeline.max_input_tokens
+def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
+    if hasattr(tokenizer, 'model_max_length'):
+        return tokenizer.model_max_length
     elif inference_server in ['openai', 'openai_azure']:
-        max_tokens = llm.modelname_to_contextsize(model_name)
-        # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
-        max_input_tokens = max_tokens - max_new_tokens
+        return llm.modelname_to_contextsize(model_name)
     elif inference_server in ['openai_chat', 'openai_azure_chat']:
-        max_tokens = model_token_mapping[model_name]
+        return model_token_mapping[model_name]
+    elif isinstance(tokenizer, FakeTokenizer):
+        # GGML
+        return tokenizer.model_max_length
+    else:
+        return 2048
+
+
+def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_name=None, max_new_tokens=None):
+    model_max_length = get_max_model_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                            model_name=model_name)
+
+    if any([inference_server.startswith(x) for x in
+            ['openai', 'openai_azure', 'openai_chat', 'openai_azure_chat', 'vllm']]):
         # openai can't handle tokens + max_new_tokens > max_tokens even if never generate those tokens
-        max_input_tokens = max_tokens - max_new_tokens
+        # and vllm uses OpenAI API with same limits
+        max_input_tokens = model_max_length - max_new_tokens
     elif isinstance(tokenizer, FakeTokenizer):
         # don't trust that fake tokenizer (e.g. GGML) will make lots of tokens normally, allow more input
-        max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
-    elif hasattr(tokenizer, 'model_max_length'):
-        if 'falcon' in model_name:
-            # allow for more input for falcon, assume won't make as long outputs as default max_new_tokens
-            # this works if using TGI where tell it input may be same as output, even if model can't actually handle
-            max_input_tokens = tokenizer.model_max_length - min(256, max_new_tokens)
-        else:
-            # e.g. vLLM, etc. will all fail otherwise
-            # trust that maybe model will make so many tokens, so limit input
-            max_input_tokens = tokenizer.model_max_length - max_new_tokens
+        max_input_tokens = model_max_length - min(256, max_new_tokens)
     else:
-        # leave some room for 1 paragraph, even if min_new_tokens=0
-        max_input_tokens = 2048 - min(256, max_new_tokens)
+        if 'falcon' in model_name or inference_server.startswith('http'):
+            # allow for more input for falcon, assume won't make as long outputs as default max_new_tokens
+            # Also allow if TGI or Gradio, because we tell it input may be same as output, even if model can't actually handle
+            max_input_tokens = model_max_length - min(256, max_new_tokens)
+        else:
+            # trust that maybe model will make so many tokens, so limit input
+            max_input_tokens = model_max_length - max_new_tokens
 
     return max_input_tokens
 
