@@ -39,7 +39,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb
+    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
@@ -3531,6 +3531,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         prompt = llm.prompter.prompt
     else:
         prompt = prompt_basic
+    num_prompt_tokens = get_token_count(prompt, tokenizer)
 
     if not use_docs_planned:
         ret = answer
@@ -4067,21 +4068,20 @@ def get_chain(query=None,
             scores = [x[1] for x in docs_with_score]
             have_any_docs |= len(docs) > 0
         else:
-            # FIXME: if langchain_action == LangChainAction.SUMMARIZE_MAP.value
-            # if map_reduce, then no need to auto reduce chunks
-            if top_k_docs == -1 or auto_reduce_chunks:
-                top_k_docs_tokenize = 100
-                with filelock.FileLock(lock_file):
-                    docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+            with filelock.FileLock(lock_file):
+                docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                                   text_context_list=text_context_list,
+                                                                   verbose=verbose)
+                if len(docs_with_score) == 0 and filter_kwargs_backup:
+                    docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
+                                                                       db_type,
                                                                        text_context_list=text_context_list,
-                                                                       verbose=verbose)[
-                                                   :top_k_docs_tokenize]
-                    if len(docs_with_score) == 0 and filter_kwargs_backup:
-                        docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
-                                                                           db_type,
-                                                                           text_context_list=text_context_list,
-                                                                           verbose=verbose)[
-                                                       :top_k_docs_tokenize]
+                                                                       verbose=verbose)
+
+            # NOTE: if map_reduce, then no need to auto reduce chunks
+            if query_action and (top_k_docs == -1 or auto_reduce_chunks):
+                top_k_docs_tokenize = 100
+                docs_with_score = docs_with_score[:top_k_docs_tokenize]
 
                 prompt_no_docs = template.format(context='', question=query)
                 get_doc_tokens_func = functools.partial(get_doc_tokens, db=db, llm=llm, tokenizer=tokenizer,
@@ -4093,8 +4093,8 @@ def get_chain(query=None,
                 max_input_tokens -= template_tokens
                 # FIXME: Doesn't account for query, == context, or new lines between contexts
                 where_res = np.where(tokens_cumsum < max_input_tokens)[0]
-                if where_res.shape[
-                    0] > 0:  # if fails this condition, then keep top_k_docs=-1 and trigger special handling next
+                # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
+                if where_res.shape[0] > 0:
                     top_k_docs_trial = 1 + where_res[-1]
                     if 0 < top_k_docs_trial < max_chunks:
                         # avoid craziness
@@ -4118,16 +4118,7 @@ def get_chain(query=None,
                 else:
                     docs_with_score = docs_with_score[:top_k_docs]
             else:
-                with filelock.FileLock(lock_file):
-                    docs_with_score, got_db_docs = get_docs_with_score(query, k_db,
-                                                                       filter_kwargs, db, db_type,
-                                                                       text_context_list=text_context_list,
-                                                                       verbose=verbose)[:top_k_docs]
-                    if len(docs_with_score) == 0 and filter_kwargs_backup:
-                        docs_with_score, got_db_docs = get_docs_with_score(query, k_db,
-                                                                           filter_kwargs_backup, db, db_type,
-                                                                           text_context_list=text_context_list,
-                                                                           verbose=verbose)[:top_k_docs]
+                docs_with_score = docs_with_score[:top_k_docs]
 
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
@@ -4280,37 +4271,43 @@ def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_
     return max_input_tokens
 
 
-def get_doc_tokens(docs_list, db=None, llm=None, tokenizer=None, inference_server=None, use_openai_model=False,
-                   db_type='chroma'):
+def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_openai_model=False,
+                  db_type='chroma'):
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
         # more accurate
-        tokens = [len(llm.pipeline.tokenizer(x)['input_ids']) for x in docs_list]
+        return llm.pipeline.tokenizer, None
     elif hasattr(llm, 'tokenizer'):
         # e.g. TGI client mode etc.
-        tokz = llm.tokenizer
-        test_tokens = tokz.encode('Test')
-        if isinstance(test_tokens, dict) and 'input_ids' in test_tokens:
-            tokens = [len(tokz.encode(x)['input_ids']) for x in docs_list]
-        else:
-            tokens = [len(tokz.encode(x)) for x in docs_list]
+        return llm.tokenizer, None
     elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                               'openai_azure_chat'] or use_openai_model:
-        tokens = [llm.get_num_tokens(x) for x in docs_list]
+        return None, llm.get_num_tokens
     elif isinstance(tokenizer, FakeTokenizer):
-        tokens = [tokenizer.num_tokens_from_string(x) for x in docs_list]
+        return None, tokenizer.num_tokens_from_string
     elif (hasattr(db, '_embedding_function') and
           hasattr(db._embedding_function, 'client') and
           hasattr(db._embedding_function.client, 'tokenize')):
         # in case model is not our pipeline with HF tokenizer
-        tokens = [db._embedding_function.client.tokenize(x)['input_ids'].shape[1] for x in docs_list]
+        return db._embedding_function.client.tokenize, None
     else:
         # backup method
         if os.getenv('HARD_ASSERTS'):
             assert db_type in ['faiss', 'weaviate']
         # use tiktoken for faiss since embedding called differently
         tokz = FakeTokenizer()
-        tokens = [tokz.num_tokens_from_string(x) for x in docs_list]
-    return tokens
+        return None, tokz.num_tokens_from_string
+
+
+def get_doc_tokens(docs_list, db=None, llm=None, tokenizer=None, inference_server=None, use_openai_model=False,
+                   db_type='chroma'):
+    tokenizer, token_count_fun = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                               use_openai_model=use_openai_model,
+                                               db_type=db_type)
+
+    if token_count_fun is None:
+        return [get_token_count(x, tokenizer) for x in docs_list]
+    else:
+        return [token_count_fun(x) for x in docs_list]
 
 
 def get_template(query, iinput,
