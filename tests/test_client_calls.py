@@ -1582,11 +1582,12 @@ def go_upload_gradio():
 ])
 # local_server=True
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat'])
-# local_server=False
+# local_server=False or True if inference_server used
 # @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @wrap_test_forked
 def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
-    local_server = True  # set to False to test local server, e.g. gradio connected to TGI server
+    # local_server = False  # set to False to test local server, e.g. gradio connected to TGI server
+    local_server = True  # for gradio connected to TGI, or if pass inference_server too then some remote vLLM/TGI using local server
     return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
 
 
@@ -1614,6 +1615,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
         assert not simple
         from src.gen import main
         main(base_model=base_model, prompt_type=prompt_type, chat=True,
+             # inference_server='vllm:....',
              stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
              max_new_tokens=max_new_tokens,
              langchain_mode=langchain_mode,
