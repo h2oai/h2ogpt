@@ -1077,7 +1077,7 @@ def get_llm(use_openai_model=False,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai.api_key,
                   logit_bias=None if inf_type == 'vllm' else {},
-                  max_retries=2,
+                  max_retries=6,
                   streaming=stream_output,
                   **kwargs_extra
                   )
