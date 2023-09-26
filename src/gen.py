@@ -3685,6 +3685,8 @@ def get_limited_prompt(instruction,
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
+    if text_context_list is None or len(text_context_list) == 0:
+        return 0, None, 0
     if max_input_tokens is None:
         max_input_tokens = tokenizer.model_max_length
     tokens = [get_token_count(x + '\n\n', tokenizer) for x in text_context_list]

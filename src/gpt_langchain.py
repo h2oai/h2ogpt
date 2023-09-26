@@ -4134,13 +4134,14 @@ def get_chain(query=None,
                         top_k_docs = top_k_docs_trial
                     else:
                         top_k_docs = min(top_k_docs, top_k_docs_trial)
-                elif top_k_docs_trial > max_chunks:
+                elif top_k_docs_trial >= max_chunks:
                     top_k_docs = max_chunks
                 if top_k_docs > 0:
                     docs_with_score = docs_with_score[:top_k_docs]
-                else:
-                    assert one_doc_size is not None
+                elif one_doc_size is not None:
                     docs_with_score = [docs_with_score[0][:one_doc_size]]
+                else:
+                    docs_with_score = []
             else:
                 docs_with_score = docs_with_score[:top_k_docs]
 
