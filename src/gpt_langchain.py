@@ -44,7 +44,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED, get_limited_prompt
+from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser
@@ -3283,6 +3283,7 @@ def _run_qa_db(query=None,
                lora_weights='',
                auto_reduce_chunks=True,
                max_chunks=100,
+               total_tokens_for_docs=None,
                headsize=50,
                ):
     """
@@ -3692,6 +3693,7 @@ def get_chain(query=None,
               # local
               auto_reduce_chunks=True,
               max_chunks=100,
+              total_tokens_for_docs=None,
               use_llm_if_no_docs=None,
               headsize=50,
               ):
@@ -3710,7 +3712,7 @@ def get_chain(query=None,
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
         # try to account for summarization vs. query
-        chunk_id = 0 if query_action else summarize_action
+        chunk_id = 0 if query_action else -1
         text_context_list = [
             Document(page_content=x, metadata=dict(source='text_context_list', score=1.0, chunk_id=chunk_id)) for x
             in text_context_list]
@@ -3722,6 +3724,7 @@ def get_chain(query=None,
             "hl": "en",
         }
         search = H2OSerpAPIWrapper(params=params)
+        # if doing search, allow more docs
         docs_search, top_k_docs = search.get_search_documents(query,
                                                               query_action=query_action,
                                                               chunk=chunk, chunk_size=chunk_size,
@@ -4102,6 +4105,9 @@ def get_chain(query=None,
                                                                        text_context_list=text_context_list,
                                                                        verbose=verbose)
 
+            tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                      use_openai_model=use_openai_model,
+                                      db_type=db_type)
             # NOTE: if map_reduce, then no need to auto reduce chunks
             if query_action and (top_k_docs == -1 or auto_reduce_chunks):
                 top_k_docs_tokenize = 100
@@ -4111,9 +4117,6 @@ def get_chain(query=None,
 
                 model_max_length = tokenizer.model_max_length
                 chat = True  # FIXME?
-                tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                          use_openai_model=use_openai_model,
-                                          db_type=db_type)
 
                 # first docs_with_score are most important with highest score
                 full_prompt, \
@@ -4156,6 +4159,13 @@ def get_chain(query=None,
                 else:
                     docs_with_score = []
             else:
+                if total_tokens_for_docs is not None:
+                    # used to limit tokens for summarization, e.g. public instance
+                    top_k_docs, one_doc_size, num_doc_tokens = \
+                        get_docs_tokens(tokenizer,
+                                        text_context_list=[x[0].page_content for x in docs_with_score],
+                                        max_input_tokens=total_tokens_for_docs)
+
                 docs_with_score = docs_with_score[:top_k_docs]
 
             # put most relevant chunks closest to question,

@@ -2235,6 +2235,11 @@ def evaluate(
     repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
     num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
     min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    # limit total tokens processed, e.g. for summarization, if public instance
+    if is_public:
+        total_tokens_for_docs = min(2 * model_max_length, 16384)
+    else:
+        total_tokens_for_docs = None
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
@@ -2388,6 +2393,7 @@ def evaluate(
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
+                total_tokens_for_docs=total_tokens_for_docs,
                 headsize=headsize,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
@@ -2781,7 +2787,7 @@ def evaluate(
         tokenizer.src_lang = languages_covered()[src_lang]
 
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
-                                     model_max_length=tokenizer.model_max_length,
+                                     model_max_length=model_max_length,
                                      prompter=prompter)
 
     inputs = tokenizer(prompt, return_tensors="pt")
