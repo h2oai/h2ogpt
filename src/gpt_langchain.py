@@ -550,7 +550,7 @@ class GradioInference(LLM):
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
-                                              sanitize_bot_response=self.sanitize_bot_response)
+                                             sanitize_bot_response=self.sanitize_bot_response)
             self.count_output_tokens += self.get_num_tokens(ret)
             return ret
         else:
@@ -3404,7 +3404,10 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
-    docs, chain, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode = get_chain(**sim_kwargs)
+    docs, chain, scores, \
+        use_docs_planned, have_any_docs, \
+        use_llm_if_no_docs, llm_mode, top_k_docs_max_show = \
+        get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
@@ -3654,6 +3657,7 @@ def get_chain(query=None,
               add_search_to_context=False,
               keep_sources_in_context=False,
               memory_restriction_level=0,
+              top_k_docs_max_show=10,
 
               load_db_if_exists=False,
               db=None,
@@ -3719,6 +3723,7 @@ def get_chain(query=None,
                                                               top_k_docs=top_k_docs)
         text_context_list = docs_search + text_context_list
         add_search_to_context &= len(docs_search) > 0
+        top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
 
     if len(text_context_list) > 0:
         llm_mode = False
@@ -4263,7 +4268,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+    return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
 
 def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):

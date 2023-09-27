@@ -586,6 +586,7 @@ def main(
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
+           If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
@@ -2328,6 +2329,8 @@ def evaluate(
                 append_sources_to_answer=append_sources_to_answer,
                 add_chat_history_to_context=add_chat_history_to_context,
                 add_search_to_context=add_search_to_context,
+                keep_sources_in_context=keep_sources_in_context,
+                memory_restriction_level=memory_restriction_level,
                 system_prompt=system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
