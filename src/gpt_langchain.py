@@ -3730,7 +3730,7 @@ def get_chain(query=None,
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
     if text_context_list is None:
-        text_context_list= []
+        text_context_list = []
 
     # default value:
     llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
@@ -3797,7 +3797,7 @@ def get_chain(query=None,
         use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -3819,7 +3819,7 @@ def get_chain(query=None,
         use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
         chain = create_python_agent(
@@ -3838,7 +3838,7 @@ def get_chain(query=None,
         use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3858,7 +3858,7 @@ def get_chain(query=None,
         use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     if LangChainAgent.JSON.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3879,7 +3879,7 @@ def get_chain(query=None,
         use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     if LangChainAgent.CSV.value in langchain_agents and len(document_choice) == 1 and document_choice[0].endswith(
             '.csv'):
@@ -3906,7 +3906,7 @@ def get_chain(query=None,
         use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
@@ -4224,11 +4224,11 @@ def get_chain(query=None,
 
     if not docs and use_docs_planned and not langchain_only_model:
         # if HF type and have no docs, can bail out
-        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     if document_subset in non_query_commands:
         # no LLM use
-        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode
+        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
     # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
