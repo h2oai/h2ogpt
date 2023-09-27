@@ -3389,6 +3389,16 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     # in case change, override original prompter
     if hasattr(llm, 'prompter'):
         prompter = llm.prompter
+    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'prompter'):
+        prompter = llm.pipeline.prompter
+
+    if prompter is None:
+        if prompt_type is None:
+            prompt_type = prompt_type_out
+        # get prompter
+        chat = True  # FIXME?
+        prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=chat, stream_output=stream_output,
+                            system_prompt=system_prompt)
 
     use_docs_planned = False
     scores = []
@@ -3701,6 +3711,8 @@ def get_chain(query=None,
         inference_server = ''
     assert hf_embedding_model is not None
     assert langchain_agents is not None  # should be at least []
+    if text_context_list is None:
+        text_context_list= []
 
     # default value:
     llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0

@@ -76,6 +76,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
     @staticmethod
     def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
+        if prompt_text is None:
+            prompt_text = ''
         verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
 
         if hasattr(tokenizer, 'model_max_length'):
