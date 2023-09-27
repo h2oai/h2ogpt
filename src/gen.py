@@ -620,11 +620,11 @@ def main(
                        -1 : auto-fills context up to max_seq_len
     :param docs_ordering_type:
         Type of ordering of docs.
-        'best_first' or '' or None : Order by score so score is worst match near prompt
+        'best_first': Order by score so score is worst match near prompt
         'best_near_prompt' or 'reverse_sort' : reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
-        'reverse_ucurve_sort' : Sort so most relevant is either near start or near end
+        '' or None (i.e. default) or 'reverse_ucurve_sort' : Sort so most relevant is either near start or near end
            Best to avoid "lost in middle" as well as avoid hallucinating off starting content that LLM focuses on alot.
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
@@ -2232,6 +2232,11 @@ def evaluate(
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
                                                 max_max_new_tokens=max_max_new_tokens)
+    if min_max_new_tokens is None:
+        # default for nochat api
+        min_max_new_tokens = 256
+    if docs_ordering_type is None:
+        docs_ordering_type = 'reverse_ucurve_sort'
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)

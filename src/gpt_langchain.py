@@ -3290,7 +3290,7 @@ def _run_qa_db(query=None,
                chat_conversation=None,
                h2ogpt_key=None,
                docs_ordering_type='reverse_ucurve_sort',
-               min_max_new_tokens=None,
+               min_max_new_tokens=256,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -4202,11 +4202,11 @@ def get_chain(query=None,
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
-            if docs_ordering_type in ['best_first', '', None]:
+            if docs_ordering_type in ['best_first']:
                 pass
             elif docs_ordering_type in ['best_near_prompt', 'reverse_sort']:
                 docs_with_score.reverse()
-            elif docs_ordering_type == 'reverse_ucurve_sort':
+            elif docs_ordering_type in ['', None, 'reverse_ucurve_sort']:
                 docs_with_score = reverse_ucurve_list(docs_with_score)
             else:
                 raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
