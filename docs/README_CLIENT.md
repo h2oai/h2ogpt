@@ -29,6 +29,42 @@ print(response)
 ```
 For other ways to use gradio client, see example [test code](../client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).
 
+One can also stream the response.  Here is a complete example code of streaming to console each updated text fragment so appears to stream in console:
+```python
+from gradio_client import Client
+import ast
+import time
+
+HOST = 'http://localhost:7860'
+client = Client(HOST)
+api_name = '/submit_nochat_api'
+prompt = "Who are you?"
+kwargs = dict(instruction_nochat=prompt, stream_output=True)
+
+job = client.submit(str(dict(kwargs)), api_name=api_name)
+
+text_old = ''
+while not job.done():
+    outputs_list = job.communicator.job.outputs
+    if outputs_list:
+        res = job.communicator.job.outputs[-1]
+        res_dict = ast.literal_eval(res)
+        text = res_dict['response']
+        new_text = text[len(text_old):]
+        if new_text:
+            print(new_text, end='', flush=True)
+            text_old = text
+        time.sleep(0.01)
+res_final = job.outputs()
+if len(res_final) > 0:
+    res = res_final[-1]
+    res_dict = ast.literal_eval(res)
+    text = res_dict['response']
+    new_text = text[len(text_old):]
+    print(new_text)
+```
+
+
 Any element in [gradio_runner.py](../gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
 
 The below is an example client code, which handles persistence of state when doing multiple queries, or avoids persistence to avoid issues when server goes up and down for a fixed client.  Choose `HOST` to be the h2oGPT server, and as gradio client use function calls `answer_question_using_context` and `summarize` that handle question-answer or summarization using LangChain backend.   One can choose h2oGPT server to have `--async_output=True` and `--num_async=10` (or some optimal value) to enable full parallel summarization when the h2oGPT server uses `--inference_server` that points to a text-generation inference server, to allow for high tokens/sec.
