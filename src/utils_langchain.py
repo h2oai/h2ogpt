@@ -142,3 +142,11 @@ def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
                             doc_hash=doc_hash,
                             file_id=filei,
                             head=x.page_content[:headsize].strip())) for order_id, x in enumerate(docs1)]
+
+
+def fix_json_meta(docs1):
+    if not isinstance(docs1, (list, tuple, types.GeneratorType)):
+        docs1 = [docs1]
+    # fix meta, chroma doesn't like None, only str, int, float for values
+    [x.metadata.update(dict(sender_name=x.metadata.get('sender_name') or '')) for x in docs1]
+    [x.metadata.update(dict(timestamp_ms=x.metadata.get('timestamp_ms') or '')) for x in docs1]

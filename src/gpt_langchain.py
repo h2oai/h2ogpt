@@ -47,7 +47,7 @@ from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
-from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser
+from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta
 
 import_matplotlib()
 
@@ -1951,6 +1951,7 @@ def file_to_doc(file,
             metadata_func=json_metadata_func)
         doc1 = loader.load()
         add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
+        fix_json_meta(doc1)
     elif file.lower().endswith('.jsonl'):
         loader = JSONLoader(
             file_path=file,
@@ -1961,6 +1962,7 @@ def file_to_doc(file,
             metadata_func=json_metadata_func)
         doc1 = loader.load()
         add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
+        fix_json_meta(doc1)
     elif file.lower().endswith('.pdf'):
         doc1 = []
         handled = False
