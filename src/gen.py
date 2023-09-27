@@ -3700,14 +3700,14 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
     else:
         # if here, means 0 and just do best with 1 doc
         top_k_docs = 1
-        docs_with_score = text_context_list[:top_k_docs]
+        text_context_list = text_context_list[:top_k_docs]
         # critical protection
         from src.h2oai_pipeline import H2OTextGenerationPipeline
-        doc_content = docs_with_score[0][0].page_content
+        doc_content = text_context_list[0]
         doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
                                                                           tokenizer,
                                                                           max_prompt_length=max_input_tokens)
-        docs_with_score[0][0].page_content = doc_content
+        text_context_list[0] = doc_content
         one_doc_size = len(doc_content)
         num_doc_tokens = get_token_count(doc_content + '\n\n', tokenizer)
         print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (

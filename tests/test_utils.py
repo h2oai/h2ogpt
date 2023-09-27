@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from src.utils import get_list_or_str, read_popen_pipes
+from src.utils import get_list_or_str, read_popen_pipes, get_token_count
 from tests.utils import wrap_test_forked
 import subprocess as sp
 
@@ -47,13 +47,16 @@ done
         p.poll()
 
 
+@pytest.mark.parametrize("text_context_list",
+                         ['text_context_list1', 'text_context_list2', 'text_context_list3', 'text_context_list4',
+                          'text_context_list5', 'text_context_list6'])
 @pytest.mark.parametrize("system_prompt", ['auto', ''])
 @pytest.mark.parametrize("context", ['context1', 'context2'])
 @pytest.mark.parametrize("iinput", ['iinput1', 'iinput2'])
 @pytest.mark.parametrize("chat_conversation", ['chat_conversation1', 'chat_conversation2'])
 @pytest.mark.parametrize("instruction", ['instruction1', 'instruction2'])
 @wrap_test_forked
-def test_limited_prompt(instruction, chat_conversation, iinput, context, system_prompt):
+def test_limited_prompt(instruction, chat_conversation, iinput, context, system_prompt, text_context_list):
     instruction1 = 'Who are you?'
     instruction2 = ' '.join(['foo_%s ' % x for x in range(0, 500)])
     instruction = instruction1 if instruction == 'instruction1' else instruction2
@@ -69,6 +72,32 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
     chat_conversation1 = []
     chat_conversation2 = [['user_conv_%s ' % x, 'bot_conv_%s ' % x] for x in range(0, 500)]
     chat_conversation = chat_conversation1 if chat_conversation == 'chat_conversation1' else chat_conversation2
+
+    text_context_list1 = []
+    text_context_list2 = ['doc_%s ' % x for x in range(0, 500)]
+    text_context_list3 = ['doc_%s ' % x for x in range(0, 10)]
+    text_context_list4 = ['documentmany_%s ' % x for x in range(0, 10000)]
+    import random, string
+    text_context_list5 = [
+        'documentlong_%s_%s' % (x, ''.join(random.choices(string.ascii_letters + string.digits, k=300))) for x in
+        range(0, 20)]
+    text_context_list6 = [
+        'documentlong_%s_%s' % (x, ''.join(random.choices(string.ascii_letters + string.digits, k=4000))) for x in
+        range(0, 1)]
+    if text_context_list == 'text_context_list1':
+        text_context_list = text_context_list1
+    elif text_context_list == 'text_context_list2':
+        text_context_list = text_context_list2
+    elif text_context_list == 'text_context_list3':
+        text_context_list = text_context_list3
+    elif text_context_list == 'text_context_list4':
+        text_context_list = text_context_list4
+    elif text_context_list == 'text_context_list5':
+        text_context_list = text_context_list5
+    elif text_context_list == 'text_context_list6':
+        text_context_list = text_context_list6
+    else:
+        raise ValueError("No such %s" % text_context_list)
 
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained('h2oai/h2ogpt-4096-llama2-7b-chat')
@@ -97,9 +126,25 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
                            max_new_tokens=max_new_tokens,
                            context=context,
                            chat_conversation=chat_conversation,
+                           text_context_list=text_context_list,
                            model_max_length=model_max_length,
                            verbose=True)
-    print('%s -> %s or %s' % (num_prompt_tokens0, num_prompt_tokens, num_prompt_tokens_actual), flush=True)
+    print('%s -> %s or %s: chat_index: %s top_k_docs_trial=%s one_doc_size: %s' % (num_prompt_tokens0,
+                                                                                   num_prompt_tokens,
+                                                                                   num_prompt_tokens_actual,
+                                                                                   chat_index,
+                                                                                   top_k_docs_trial,
+                                                                                   one_doc_size),
+          flush=True, file=sys.stderr)
     assert num_prompt_tokens <= model_max_length + min_max_new_tokens
     # actual might be less due to token merging for characters across parts, but not more
     assert num_prompt_tokens >= num_prompt_tokens_actual
+    assert num_prompt_tokens_actual <= model_max_length
+
+    if top_k_docs_trial > 0:
+        text_context_list = text_context_list[:top_k_docs_trial]
+    elif one_doc_size is not None:
+        text_context_list = [text_context_list[0][:one_doc_size]]
+    else:
+        text_context_list = []
+    assert sum([get_token_count(x, tokenizer) for x in text_context_list]) <= model_max_length
