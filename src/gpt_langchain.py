@@ -4365,10 +4365,12 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
         # e.g. TGI client mode etc.
         return llm.tokenizer
     elif inference_server in ['openai', 'openai_chat', 'openai_azure',
-                              'openai_azure_chat'] or use_openai_model:
+                              'openai_azure_chat']:
         raise RuntimeError("Shouldn't be here")
     elif isinstance(tokenizer, FakeTokenizer):
         return tokenizer
+    elif use_openai_model:
+        return FakeTokenizer()
     elif (hasattr(db, '_embedding_function') and
           hasattr(db._embedding_function, 'client') and
           hasattr(db._embedding_function.client, 'tokenize')):
