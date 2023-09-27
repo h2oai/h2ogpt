@@ -347,6 +347,8 @@ spec:
             - name: h2ogpt-vllm-inference-volume
               mountPath: /workspace/.cache/huggingface/hub
             - name: h2ogpt-vllm-inference-volume
+              mountPath: /workspace/.cache/huggingface/modules
+            - name: h2ogpt-vllm-inference-volume
               mountPath: /dev/shm
       volumes:
         - name: h2ogpt-vllm-inference-volume
