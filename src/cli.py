@@ -37,6 +37,7 @@ def run_cli(  # for local function:
         h2ogpt_key=None,
         chat_conversation=None,
         text_context_list=None,
+        docs_ordering_type=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
@@ -65,7 +66,7 @@ def run_cli(  # for local function:
         add_chat_history_to_context=None,
         add_search_to_context=None,
         context=None, iinput=None,
-        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, docs_ordering_type=None,
+        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None,
         use_cache=None,
         auto_reduce_chunks=None, max_chunks=None, headsize=None,
         model_lock=None, force_langchain_evaluate=None,

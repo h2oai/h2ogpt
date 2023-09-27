@@ -131,6 +131,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          h2ogpt_key=h2ogpt_key,
                          chat_conversation=chat_conversation,
                          text_context_list=text_context_list,
+                         docs_ordering_type=None,
                          )
     diff = 0
     if version is None:

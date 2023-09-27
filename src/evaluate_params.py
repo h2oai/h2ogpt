@@ -53,6 +53,7 @@ eval_func_param_names = ['instruction',
                          'h2ogpt_key',
                          'chat_conversation',
                          'text_context_list',
+                         'docs_ordering_type',
                          ]
 
 # form evaluate defaults for submit_nochat_api

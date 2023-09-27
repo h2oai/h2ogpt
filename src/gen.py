@@ -618,8 +618,8 @@ def main(
                        -1 : auto-fills context up to max_seq_len
     :param docs_ordering_type:
         Type of ordering of docs.
-        '' or None : Order by score so score is worst match near prompt
-        'reverse_sort' : reverse docs order so most relevant is closest to question.
+        'best_first' or '' or None : Order by score so score is worst match near prompt
+        'best_near_prompt' or 'reverse_sort' : reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
         'reverse_ucurve_sort' : Sort so most relevant is either near start or near end
@@ -1015,6 +1015,7 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
+                            docs_ordering_type,
                             verbose,
                             )
 
@@ -2039,6 +2040,7 @@ def evaluate(
         h2ogpt_key,
         chat_conversation,
         text_context_list,
+        docs_ordering_type,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2079,7 +2081,6 @@ def evaluate(
         show_link_in_sources=None,
         verbose=False,
         cli=False,
-        docs_ordering_type=True,
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
@@ -2373,6 +2374,7 @@ def evaluate(
                 text_context_list=text_context_list,
                 chat_conversation=chat_conversation,
                 h2ogpt_key=h2ogpt_key,
+                docs_ordering_type=docs_ordering_type,
 
                 **gen_hyper_langchain,
 
@@ -2381,7 +2383,6 @@ def evaluate(
                 verbose=verbose,
                 cli=cli,
                 sanitize_bot_response=sanitize_bot_response,
-                docs_ordering_type=docs_ordering_type,
 
                 lora_weights=lora_weights,
 
@@ -2637,6 +2638,7 @@ def evaluate(
                                      jq_schema=jq_schema,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
+                                     docs_ordering_type=None,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3113,6 +3115,7 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
+                        docs_ordering_type,
                         verbose,
                         ):
     use_defaults = False
@@ -3291,6 +3294,7 @@ y = np.random.randint(0, 1, 100)
                     None,
                     None,
                     None,
+                    docs_ordering_type,
                     ]
         # adjust examples if non-chat mode
         if not chat:

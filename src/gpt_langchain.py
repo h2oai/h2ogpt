@@ -541,6 +541,7 @@ class GradioInference(LLM):
                              jq_schema=None,  # don't need to further do doc specific things
                              visible_models=None,  # FIXME: control?
                              h2ogpt_key=self.h2ogpt_key,
+                             docs_ordering_type=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -3405,7 +3406,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, \
-        use_docs_planned, have_any_docs, \
+        use_docs_planned, num_docs_before_cut, \
         use_llm_if_no_docs, llm_mode, top_k_docs_max_show = \
         get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
@@ -3422,6 +3423,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  show_link_in_sources=show_link_in_sources,
                                  top_k_docs_max_show=top_k_docs_max_show,
                                  docs_ordering_type=docs_ordering_type,
+                                 num_docs_before_cut=num_docs_before_cut,
                                  verbose=verbose)
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
@@ -3430,12 +3432,12 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                                              LangChainAction.SUMMARIZE_ALL.value,
                                              LangChainAction.SUMMARIZE_REFINE.value]:
-            ret = 'No relevant documents to summarize.' if have_any_docs else 'No documents to summarize.'
+            ret = 'No relevant documents to summarize.' if num_docs_before_cut else 'No documents to summarize.'
             extra = ''
             yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
             return
         if not docs and not llm_mode:
-            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if have_any_docs else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
+            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
             yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
             return
@@ -3526,6 +3528,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
                              docs_ordering_type=docs_ordering_type,
+                             num_docs_before_cut=num_docs_before_cut,
                              verbose=verbose,
                              t_run=t_run,
                              count_input_tokens=llm.count_input_tokens
@@ -3602,6 +3605,10 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
         docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
         got_db_docs |= len(docs_with_score_other) > 0
         docs_with_score += docs_with_score_other
+
+    # set in metadata original order of docs
+    [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
+
     return docs_with_score, got_db_docs
 
 
@@ -3755,9 +3762,9 @@ def get_chain(query=None,
         docs = []
         scores = []
         use_docs_planned = False
-        have_any_docs = False
+        num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -3777,9 +3784,9 @@ def get_chain(query=None,
         docs = []
         scores = []
         use_docs_planned = False
-        have_any_docs = False
+        num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
         chain = create_python_agent(
@@ -3796,9 +3803,9 @@ def get_chain(query=None,
         docs = []
         scores = []
         use_docs_planned = False
-        have_any_docs = False
+        num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3816,9 +3823,9 @@ def get_chain(query=None,
         docs = []
         scores = []
         use_docs_planned = False
-        have_any_docs = False
+        num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.JSON.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3837,9 +3844,9 @@ def get_chain(query=None,
         docs = []
         scores = []
         use_docs_planned = False
-        have_any_docs = False
+        num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     if LangChainAgent.CSV.value in langchain_agents and len(document_choice) == 1 and document_choice[0].endswith(
             '.csv'):
@@ -3864,9 +3871,9 @@ def get_chain(query=None,
         docs = []
         scores = []
         use_docs_planned = False
-        have_any_docs = False
+        num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     # determine whether use of context out of docs is planned
     if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
@@ -3939,8 +3946,7 @@ def get_chain(query=None,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
-    have_any_docs = (db is not None or
-                     text_context_list is not None and len(text_context_list) > 0)
+    num_docs_before_cut = 0
     use_template = not use_openai_model and prompt_type not in ['plain'] or langchain_only_model
     got_db_docs = False  # not yet at least
     template, template_if_no_docs, auto_reduce_chunks, query = \
@@ -4055,6 +4061,8 @@ def get_chain(query=None,
             # similar to langchain's chroma's _results_to_docs_and_scores
             docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                                for result in zip(db_documents, db_metadatas)]
+            # set in metadata original order of docs
+            [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
 
             # order documents
             doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
@@ -4082,7 +4090,7 @@ def get_chain(query=None,
             docs_with_score = docs_with_score[:top_k_docs]
             docs = [x[0] for x in docs_with_score]
             scores = [x[1] for x in docs_with_score]
-            have_any_docs |= len(docs) > 0
+            num_docs_before_cut = len(docs)
         else:
             with filelock.FileLock(lock_file):
                 docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
@@ -4153,9 +4161,9 @@ def get_chain(query=None,
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
-            if docs_ordering_type in ['', None]:
+            if docs_ordering_type in ['best_first', '', None]:
                 pass
-            elif docs_ordering_type == 'reverse_sort':
+            elif docs_ordering_type in ['best_near_prompt', 'reverse_sort']:
                 docs_with_score.reverse()
             elif docs_ordering_type == 'reverse_ucurve_sort':
                 docs_with_score = reverse_ucurve_list(docs_with_score)
@@ -4163,7 +4171,7 @@ def get_chain(query=None,
                 raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
 
             # cut off so no high distance docs/sources considered
-            have_any_docs |= len(docs_with_score) > 0  # before cut
+            num_docs_before_cut = len(docs_with_score)
             docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
             scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
             if len(scores) > 0 and verbose:
@@ -4175,11 +4183,11 @@ def get_chain(query=None,
 
     if not docs and use_docs_planned and not langchain_only_model:
         # if HF type and have no docs, can bail out
-        return docs, None, [], False, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     if document_subset in non_query_commands:
         # no LLM use
-        return docs, None, [], False, have_any_docs, use_llm_if_no_docs, llm_mode
+        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode
 
     # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
@@ -4275,7 +4283,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_docs_planned, have_any_docs, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+    return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
 
 def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
@@ -4412,6 +4420,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
                        docs_ordering_type='reverse_ucurve_sort',
+                       num_docs_before_cut=0,
                        verbose=False,
                        t_run=None,
                        count_input_tokens=None, count_output_tokens=None):
@@ -4425,11 +4434,9 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         return ret, extra
 
     if answer_with_sources == -1:
-        extra = [dict(score=score, content=get_doc(x), source=get_source(x)) for score, x in zip(scores, docs)][
+        extra = [dict(score=score, content=get_doc(x), source=get_source(x), orig_index=x.metadata.get('orig_index', 0))
+                 for score, x in zip(scores, docs)][
                 :top_k_docs_max_show]
-        if docs_ordering_type == 'reverse_sort':
-            # undo reverse for context filling since not using scores here
-            extra.reverse()
         if append_sources_to_answer:
             extra_str = [str(x) for x in extra]
             ret = answer + '\n\n' + '\n'.join(extra_str)

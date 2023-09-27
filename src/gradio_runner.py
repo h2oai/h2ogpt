@@ -51,7 +51,7 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent
+    LangChainAgent, docs_ordering_types
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -1064,6 +1064,11 @@ def go_gradio(**kwargs):
                                                visible=kwargs['langchain_mode'] != 'Disabled',
                                                interactive=not is_public,
                                                precision=0)
+                        docs_ordering_type = gr.Radio(
+                            docs_ordering_types,
+                            value=kwargs['docs_ordering_type'],
+                            label="Document Sorting in LLM Context",
+                            visible=True)
                         chunk = gr.components.Checkbox(value=kwargs['chunk'],
                                                        label="Whether to chunk documents",
                                                        info="For LangChain",

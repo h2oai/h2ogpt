@@ -1516,6 +1516,8 @@ def get_token_count(x, tokenizer, token_count_fun=None):
 def reverse_ucurve_list(lst):
     if not lst:
         return []
+    if len(lst) == 1:
+        return lst
     if len(lst) == 2:
         return [lst[1], lst[0]]
 
@@ -1529,3 +1531,29 @@ def reverse_ucurve_list(lst):
             front_list.append(item)
 
     return front_list + end_list[::-1]
+
+
+def undo_reverse_ucurve_list(lst):
+    if not lst:
+        return []
+    if len(lst) == 1:
+        return lst
+    if len(lst) == 2:
+        return [lst[1], lst[0]]
+
+    # Split the list into two halves: the first half and the second half (reversed)
+    mid = len(lst) // 2
+    first_half = lst[:mid]
+    second_half = lst[mid:][::-1]
+
+    # Merge the two halves by taking elements alternatively from the second half and then the first half
+    result = []
+    for i in range(mid):
+        result.append(second_half[i])
+        result.append(first_half[i])
+
+    # If the length of the list is odd, append the last element of the second half
+    if len(lst) % 2 != 0:
+        result.append(second_half[-1])
+
+    return result

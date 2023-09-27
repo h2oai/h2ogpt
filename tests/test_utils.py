@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list
+from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list
 from tests.utils import wrap_test_forked
 import subprocess as sp
 
@@ -152,7 +152,23 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
 
 @wrap_test_forked
 def test_reverse_ucurve():
-    assert reverse_ucurve_list([1, 2, 3, 4, 5, 6, 7, 8]) == [2, 4, 6, 8, 7, 5, 3, 1]
-    assert reverse_ucurve_list([1]) == [1]
-    assert reverse_ucurve_list([1, 2]) == [2, 1]
-    assert reverse_ucurve_list([1, 2, 3]) == [2, 3, 1]
+    ab = []
+    a = [1, 2, 3, 4, 5, 6, 7, 8]
+    b = [2, 4, 6, 8, 7, 5, 3, 1]
+    ab.append([a, b])
+    a = [1]
+    b = [1]
+    ab.append([a, b])
+    a = [1, 2]
+    b = [2, 1]
+    ab.append([a, b])
+    a = [1, 2, 3]
+    b = [2, 3, 1]
+    ab.append([a, b])
+    a = [1, 2, 3, 4]
+    b = [2, 4, 3, 1]
+    ab.append([a, b])
+
+    for a, b in ab:
+        assert reverse_ucurve_list(a) == b
+        assert undo_reverse_ucurve_list(b) == a
