@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from src.utils import get_list_or_str, read_popen_pipes, get_token_count
+from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list
 from tests.utils import wrap_test_forked
 import subprocess as sp
 
@@ -148,3 +148,11 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
     else:
         text_context_list = []
     assert sum([get_token_count(x, tokenizer) for x in text_context_list]) <= model_max_length
+
+
+@wrap_test_forked
+def test_reverse_ucurve():
+    assert reverse_ucurve_list([1, 2, 3, 4, 5, 6, 7, 8]) == [2, 4, 6, 8, 7, 5, 3, 1]
+    assert reverse_ucurve_list([1]) == [1]
+    assert reverse_ucurve_list([1, 2]) == [2, 1]
+    assert reverse_ucurve_list([1, 2, 3]) == [2, 3, 1]

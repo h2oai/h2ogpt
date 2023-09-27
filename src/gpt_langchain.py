@@ -39,7 +39,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count
+    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
@@ -3278,7 +3278,7 @@ def _run_qa_db(query=None,
                llamacpp_dict=None,
                verbose=False,
                cli=False,
-               reverse_docs=True,
+               docs_ordering_type='reverse_ucurve_sort',
                lora_weights='',
                auto_reduce_chunks=True,
                max_chunks=100,
@@ -3421,7 +3421,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         get_answer_kwargs = dict(show_accordions=show_accordions,
                                  show_link_in_sources=show_link_in_sources,
                                  top_k_docs_max_show=top_k_docs_max_show,
-                                 reverse_docs=reverse_docs,
+                                 docs_ordering_type=docs_ordering_type,
                                  verbose=verbose)
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
@@ -3525,7 +3525,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
-                             reverse_docs=reverse_docs,
+                             docs_ordering_type=docs_ordering_type,
                              verbose=verbose,
                              t_run=t_run,
                              count_input_tokens=llm.count_input_tokens
@@ -3678,7 +3678,7 @@ def get_chain(query=None,
               llm=None,
               tokenizer=None,
               verbose=False,
-              reverse_docs=True,
+              docs_ordering_type='reverse_ucurve_sort',
               stream_output=True,
               async_output=True,
 
@@ -4153,8 +4153,15 @@ def get_chain(query=None,
             # put most relevant chunks closest to question,
             # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
             # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
-            if reverse_docs:
+            if docs_ordering_type in ['', None]:
+                pass
+            elif docs_ordering_type == 'reverse_sort':
                 docs_with_score.reverse()
+            elif docs_ordering_type == 'reverse_ucurve_sort':
+                docs_with_score = reverse_ucurve_list(docs_with_score)
+            else:
+                raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
+
             # cut off so no high distance docs/sources considered
             have_any_docs |= len(docs_with_score) > 0  # before cut
             docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
@@ -4404,7 +4411,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                        show_accordions=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
-                       reverse_docs=True,
+                       docs_ordering_type='reverse_ucurve_sort',
                        verbose=False,
                        t_run=None,
                        count_input_tokens=None, count_output_tokens=None):
@@ -4420,7 +4427,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
     if answer_with_sources == -1:
         extra = [dict(score=score, content=get_doc(x), source=get_source(x)) for score, x in zip(scores, docs)][
                 :top_k_docs_max_show]
-        if reverse_docs:
+        if docs_ordering_type == 'reverse_sort':
             # undo reverse for context filling since not using scores here
             extra.reverse()
         if append_sources_to_answer:

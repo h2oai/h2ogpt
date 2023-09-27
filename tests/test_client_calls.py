@@ -349,7 +349,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 user_path=None,
                                 langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
                                 model_path_llama='llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                reverse_docs=True):
+                                docs_ordering_type='reverse_ucurve_sort'):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -363,7 +363,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         reverse_docs=reverse_docs)
+         docs_ordering_type=docs_ordering_type)
 
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
@@ -385,7 +385,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                   langchain_agents=[],
                                   user_path=None,
                                   langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
-                                  reverse_docs=True):
+                                  docs_ordering_type='reverse_ucurve_sort'):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -398,7 +398,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
          langchain_mode=langchain_mode, langchain_action=langchain_action, langchain_agents=langchain_agents,
          user_path=user_path,
          langchain_modes=langchain_modes,
-         reverse_docs=reverse_docs)
+         docs_ordering_type=docs_ordering_type)
 
     from src.client_test import run_client_nochat_gen
     res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
@@ -423,7 +423,7 @@ def test_client_chat_stream_langchain():
     res_dict, client = run_client_chat_with_server(prompt=prompt, stream_output=True, langchain_mode="UserData",
                                                    user_path=user_path,
                                                    langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
-                                                   reverse_docs=False,  # for 6_9 dumb model for testing
+                                                   docs_ordering_type=None,  # for 6_9 dumb model for testing
                                                    )
     # below wouldn't occur if didn't use LangChain with README.md,
     # raw LLM tends to ramble about H2O.ai and what it does regardless of question.
@@ -456,7 +456,7 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
          top_k_docs=top_k_docs,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         reverse_docs=False,  # for 6_9
+         docs_ordering_type=None,  # for 6_9
          )
 
     from src.client_test import get_client, get_args, run_client
@@ -716,7 +716,7 @@ def test_doc_hash():
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
          score_model='None',
-         reverse_docs=False,  # for 6_9
+         docs_ordering_type=None,  # for 6_9
          )
 
     # repeat, shouldn't reload
@@ -729,7 +729,7 @@ def test_doc_hash():
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
          score_model='None',
-         reverse_docs=False,  # for 6_9
+         docs_ordering_type=None,  # for 6_9
          )
 
 
@@ -754,7 +754,7 @@ def test_autogptq():
     langchain_agents = []
     user_path = None
     langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled']
-    reverse_docs = True
+    docs_ordering_type = 'reverse_sort'
     from src.gen import main
     main(base_model=base_model, load_gptq=load_gptq,
          use_safetensors=use_safetensors,
@@ -763,7 +763,7 @@ def test_autogptq():
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         reverse_docs=reverse_docs)
+         docs_ordering_type=docs_ordering_type)
 
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
@@ -788,7 +788,7 @@ def test_exllama():
     langchain_agents = []
     user_path = None
     langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled']
-    reverse_docs = True
+    docs_ordering_type = 'reverse_ucurve_sort'
     from src.gen import main
     main(base_model=base_model, load_exllama=load_exllama,
          prompt_type=prompt_type, chat=True,
@@ -796,7 +796,7 @@ def test_exllama():
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         reverse_docs=reverse_docs)
+         docs_ordering_type=docs_ordering_type)
 
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,

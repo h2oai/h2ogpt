@@ -258,7 +258,7 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         top_k_docs: int = None,
-        reverse_docs: bool = True,
+        docs_ordering_type: str = 'reverse_ucurve_sort',
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         headsize: int = 50,
@@ -616,9 +616,14 @@ def main(
                        For langchain_action summarize: number of document parts, like pages for PDF.
                        There's no such thing as chunks for summarization.
                        -1 : auto-fills context up to max_seq_len
-    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+    :param docs_ordering_type:
+        Type of ordering of docs.
+        '' or None : Order by score so score is worst match near prompt
+        'reverse_sort' : reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
+        'reverse_ucurve_sort' : Sort so most relevant is either near start or near end
+           Best to avoid "lost in middle" as well as avoid hallucinating off starting content that LLM focuses on alot.
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param headsize: Maximum number of characters for head of document document for UI to show
@@ -2074,7 +2079,7 @@ def evaluate(
         show_link_in_sources=None,
         verbose=False,
         cli=False,
-        reverse_docs=True,
+        docs_ordering_type=True,
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
@@ -2376,7 +2381,7 @@ def evaluate(
                 verbose=verbose,
                 cli=cli,
                 sanitize_bot_response=sanitize_bot_response,
-                reverse_docs=reverse_docs,
+                docs_ordering_type=docs_ordering_type,
 
                 lora_weights=lora_weights,
 

@@ -1513,3 +1513,19 @@ def get_token_count(x, tokenizer, token_count_fun=None):
     return n_tokens
 
 
+def reverse_ucurve_list(lst):
+    if not lst:
+        return []
+    if len(lst) == 2:
+        return [lst[1], lst[0]]
+
+    front_list = []
+    end_list = []
+
+    for i, item in enumerate(lst):
+        if i % 2 == 0:
+            end_list.append(item)
+        else:
+            front_list.append(item)
+
+    return front_list + end_list[::-1]
