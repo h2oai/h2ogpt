@@ -55,6 +55,7 @@ while not job.done():
             print(new_text, end='', flush=True)
             text_old = text
         time.sleep(0.01)
+# handle case if never got streaming response and already done
 res_final = job.outputs()
 if len(res_final) > 0:
     res = res_final[-1]
