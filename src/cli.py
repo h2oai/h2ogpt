@@ -47,6 +47,7 @@ def run_cli(  # for local function:
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        keep_sources_in_context=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
         max_max_new_tokens=None,
