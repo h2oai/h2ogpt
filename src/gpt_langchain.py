@@ -1077,14 +1077,23 @@ def get_llm(use_openai_model=False,
             # FIXME: Support context, iinput
             # if inf_type == 'vllm_chat':
             #    kwargs_extra.update(dict(tokenizer=tokenizer))
+            openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
             # FIXME: Support context, iinput
+            if os.getenv('OPENAI_AZURE_KEY') is not None:
+                openai_api_key = os.getenv('OPENAI_AZURE_KEY')
+            else:
+                openai_api_key = openai.api_key
         elif inf_type == 'openai_azure':
             cls = H2OAzureOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
             # FIXME: Support context, iinput
+            if os.getenv('OPENAI_AZURE_KEY') is not None:
+                openai_api_key = os.getenv('OPENAI_AZURE_KEY')
+            else:
+                openai_api_key = openai.api_key
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
@@ -1098,6 +1107,7 @@ def get_llm(use_openai_model=False,
                                          client=None))
             else:
                 assert inf_type == 'openai' or use_openai_model
+            openai_api_key = openai.api_key
 
         if deployment_name:
             kwargs_extra.update(dict(deployment_name=deployment_name))
@@ -1121,9 +1131,9 @@ def get_llm(use_openai_model=False,
                   frequency_penalty=0,
                   presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                   callbacks=callbacks if stream_output else None,
-                  openai_api_key=openai.api_key,
+                  openai_api_key=openai_api_key,
                   logit_bias=None if inf_type == 'vllm' else {},
-                  max_retries=2,
+                  max_retries=6,
                   streaming=stream_output,
                   **kwargs_extra
                   )

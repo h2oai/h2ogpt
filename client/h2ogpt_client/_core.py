@@ -1,7 +1,7 @@
 import ast
 import asyncio
 import typing
-from typing import Any, Dict, List, Optional, OrderedDict, Tuple, ValuesView, Union
+from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union, ValuesView
 
 import gradio_client  # type: ignore
 
@@ -17,17 +17,24 @@ from h2ogpt_client._h2ogpt_enums import (
 class Client:
     """h2oGPT Client."""
 
-    def __init__(self, src: str, huggingface_token: Optional[str] = None):
+    def __init__(
+        self,
+        src: str,
+        h2ogpt_key: Optional[str] = None,
+        huggingface_token: Optional[str] = None,
+    ):
         """
         Creates a GPT client.
         :param src: either the full URL to the hosted h2oGPT
             (e.g. "http://0.0.0.0:7860", "https://fc752f297207f01c32.gradio.live")
             or name of the Hugging Face Space to load, (e.g. "h2oai/h2ogpt-chatbot")
+        :param h2ogpt_key: access key to connect with a h2oGPT server
         :param huggingface_token: Hugging Face token to use to access private Spaces
         """
         self._client = gradio_client.Client(
             src=src, hf_token=huggingface_token, serialize=False, verbose=False
         )
+        self._h2ogpt_key = h2ogpt_key
         self._text_completion = TextCompletionCreator(self)
         self._chat_completion = ChatCompletionCreator(self)
 
@@ -75,7 +82,6 @@ class TextCompletionCreator:
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
-        h2ogpt_key: str = None,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
         docs_ordering_type: str = None,
@@ -109,7 +115,6 @@ class TextCompletionCreator:
                               prompt
                               If pass 'None' or 'auto' or None, then automatic per-model value used
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
-        :param h2ogpt_key: Key for access to API on keyed endpoints
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
@@ -142,7 +147,7 @@ class TextCompletionCreator:
         params["url_loaders"] = None
         params["jq_schema"] = None
         params["visible_models"] = visible_models
-        params["h2ogpt_key"] = h2ogpt_key
+        params["h2ogpt_key"] = self._client._h2ogpt_key
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
         params["docs_ordering_type"] = docs_ordering_type
@@ -217,7 +222,6 @@ class ChatCompletionCreator:
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
-        h2ogpt_key: str = None,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
         docs_ordering_type: str = None,
@@ -248,7 +252,6 @@ class ChatCompletionCreator:
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
-        :param h2ogpt_key: Key for access to API on keyed endpoints
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
@@ -281,7 +284,7 @@ class ChatCompletionCreator:
         params["url_loaders"] = None
         params["jq_schema"] = None
         params["visible_models"] = visible_models
-        params["h2ogpt_key"] = h2ogpt_key
+        params["h2ogpt_key"] = self._client._h2ogpt_key
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
         params["docs_ordering_type"] = docs_ordering_type
