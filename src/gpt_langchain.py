@@ -448,6 +448,8 @@ class GradioInference(LLM):
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
+    min_max_new_tokens: Any = 256
+
     class Config:
         """Configuration for this pydantic object."""
 
@@ -542,6 +544,7 @@ class GradioInference(LLM):
                              visible_models=None,  # FIXME: control?
                              h2ogpt_key=self.h2ogpt_key,
                              docs_ordering_type=None,
+                             min_max_new_tokens=self.min_max_new_tokens,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -1007,6 +1010,7 @@ def get_llm(use_openai_model=False,
             sanitize_bot_response=False,
             system_prompt='',
             h2ogpt_key=None,
+            min_max_new_tokens=None,
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
@@ -1216,6 +1220,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 h2ogpt_key=h2ogpt_key,
+                min_max_new_tokens=min_max_new_tokens,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -3284,12 +3289,13 @@ def _run_qa_db(query=None,
                text_context_list=None,
                chat_conversation=None,
                h2ogpt_key=None,
+               docs_ordering_type='reverse_ucurve_sort',
+               min_max_new_tokens=None,
 
                n_jobs=-1,
                llamacpp_dict=None,
                verbose=False,
                cli=False,
-               docs_ordering_type='reverse_ucurve_sort',
                lora_weights='',
                auto_reduce_chunks=True,
                max_chunks=100,
@@ -3391,6 +3397,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
                 h2ogpt_key=h2ogpt_key,
+                min_max_new_tokens=min_max_new_tokens,
                 n_jobs=n_jobs,
                 llamacpp_dict=llamacpp_dict,
                 cli=cli,
@@ -3707,6 +3714,7 @@ def get_chain(query=None,
               tokenizer=None,
               verbose=False,
               docs_ordering_type='reverse_ucurve_sort',
+              min_max_new_tokens=256,
               stream_output=True,
               async_output=True,
 
@@ -4164,6 +4172,7 @@ def get_chain(query=None,
                                        memory_restriction_level=memory_restriction_level,
                                        langchain_mode=langchain_mode,
                                        add_chat_history_to_context=add_chat_history_to_context,
+                                       min_max_new_tokens=min_max_new_tokens,
                                        )
                 # avoid craziness
                 if 0 < top_k_docs_trial < max_chunks:

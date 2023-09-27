@@ -85,6 +85,7 @@ class TextCompletionCreator:
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
         docs_ordering_type: str = None,
+        min_max_new_tokens: int = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -118,6 +119,7 @@ class TextCompletionCreator:
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
+        :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -151,6 +153,7 @@ class TextCompletionCreator:
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
         params["docs_ordering_type"] = docs_ordering_type
+        params["min_max_new_tokens"] = min_max_new_tokens
         return TextCompletion(self._client, params)
 
 
@@ -225,6 +228,7 @@ class ChatCompletionCreator:
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
         docs_ordering_type: str = None,
+        min_max_new_tokens: int = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -255,6 +259,7 @@ class ChatCompletionCreator:
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
+        :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -288,6 +293,7 @@ class ChatCompletionCreator:
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
         params["docs_ordering_type"] = docs_ordering_type
+        params["min_max_new_tokens"] = min_max_new_tokens
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 

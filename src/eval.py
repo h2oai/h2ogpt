@@ -56,6 +56,7 @@ def run_eval(  # for local function:
         chat_conversation=None,
         text_context_list=None,
         docs_ordering_type=None,
+        min_max_new_tokens=None,
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,
