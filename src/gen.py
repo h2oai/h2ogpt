@@ -2319,7 +2319,8 @@ def evaluate(
                                  pix2struct_loader=pix2struct_loader,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
-        prompt_basic = prompter.generate_prompt(data_point)
+        # no longer stuff chat history directly into context this early
+        prompt_basic = prompter.generate_prompt(data_point, context_from_history=False)
         prompt = prompt_basic
         num_prompt_tokens = 0
         for r in run_qa_db(
@@ -3693,7 +3694,11 @@ def get_limited_prompt(instruction,
                             system_prompt=system_prompt)
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt = prompter.generate_prompt(data_point)
+    # handle promptA/promptB addition if really from history.
+    # if not from history, then reduced=False inside correct
+    # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
+    context_from_history = len(history) > 0 and len(context1) > 0
+    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history)
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \

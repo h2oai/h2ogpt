@@ -880,20 +880,25 @@ class Prompter(object):
         stop_sequences = [x for x in stop_sequences if x]
         return stop_sequences
 
-    def generate_prompt(self, data_point, reduced=False):
+    def generate_prompt(self, data_point, reduced=False, context_from_history=None):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
         :param data_point:
         :param reduced:
+        :param context_from_history: whether context is from reduced=True version of history in prompt form
+           In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
+        if context_from_history is None and data_point.get('context'):
+            context_from_history = True
+            reduced = True
         making_context = False  # whether really making final prompt or just generating context
         prompt, _, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, self.chat, reduced,
                                              making_context, histi=-1, system_prompt=self.system_prompt)
         if self.debug:
             print("prompt: %s" % prompt, flush=True)
         # if have context, should have always reduced and only preappend promptA/B here
-        if data_point.get('context'):
+        if data_point.get('context') and context_from_history:
             if data_point.get('input') and self.promptA:
                 prompt = self.promptA + prompt
             elif self.promptB:
