@@ -716,6 +716,12 @@ def go_gradio(**kwargs):
                         label="Action",
                         visible=True)
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
+                    if os.getenv('OPENAI_API_KEY') is None and LangChainAgent.JSON.value in allowed_agents:
+                        allowed_agents.remove(LangChainAgent.JSON.value)
+                    if os.getenv('OPENAI_API_KEY') is None and LangChainAgent.PYTHON.value in allowed_agents:
+                        allowed_agents.remove(LangChainAgent.PYTHON.value)
+                    if LangChainAgent.PANDAS.value in allowed_agents:
+                        allowed_agents.remove(LangChainAgent.PANDAS.value)
                     langchain_agents = gr.Dropdown(
                         langchain_agents_list,
                         value=None,

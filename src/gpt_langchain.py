@@ -5,6 +5,7 @@ import functools
 import glob
 import gzip
 import inspect
+import json
 import os
 import pathlib
 import pickle
@@ -1585,8 +1586,9 @@ def try_as_html(file):
 def json_metadata_func(record: dict, metadata: dict) -> dict:
     # Define the metadata extraction function.
 
-    metadata["sender_name"] = record.get("sender_name")
-    metadata["timestamp_ms"] = record.get("timestamp_ms")
+    if isinstance(record, dict):
+        metadata["sender_name"] = record.get("sender_name")
+        metadata["timestamp_ms"] = record.get("timestamp_ms")
 
     if "source" in metadata:
         metadata["source_json"] = metadata['source']
@@ -3875,10 +3877,20 @@ def get_chain(query=None,
         use_llm_if_no_docs = True
         return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
-    if LangChainAgent.JSON.value in langchain_agents and inference_server.startswith('openai_chat'):
-        # FIXME: DATA
-        with open('src/openai.yaml') as f:
-            data = yaml.load(f, Loader=yaml.FullLoader)
+    if document_choice[0] == DocumentChoice.ALL.value:
+        document_choice_agent = document_choice[1:]
+    else:
+        document_choice_agent = document_choice
+    document_choice_agent = [x for x in document_choice_agent if x.endswith('.json')]
+    if LangChainAgent.JSON.value in \
+            langchain_agents and \
+            inference_server.startswith('openai_chat') and \
+            len(document_choice_agent) == 1 and \
+            document_choice_agent[0].endswith('.json'):
+        #with open('src/openai.yaml') as f:
+        #    data = yaml.load(f, Loader=yaml.FullLoader)
+        with open(document_choice[0], 'rt') as f:
+            data = json.loads(f.read())
         json_spec = JsonSpec(dict_=data, max_value_length=4000)
         json_toolkit = JsonToolkit(spec=json_spec)
 
@@ -3896,7 +3908,12 @@ def get_chain(query=None,
         use_llm_if_no_docs = True
         return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
-    if LangChainAgent.CSV.value in langchain_agents and len(document_choice) == 1 and document_choice[0].endswith(
+    if document_choice[0] == DocumentChoice.ALL.value:
+        document_choice_agent = document_choice[1:]
+    else:
+        document_choice_agent = document_choice
+    document_choice_agent = [x for x in document_choice_agent if x.endswith('.csv')]
+    if LangChainAgent.CSV.value in langchain_agents and len(document_choice_agent) == 1 and document_choice_agent[0].endswith(
             '.csv'):
         data_file = document_choice[0]
         if inference_server.startswith('openai_chat'):
@@ -3904,14 +3921,14 @@ def get_chain(query=None,
                 llm,
                 data_file,
                 verbose=True,
-                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+                agent_type=AgentType.OPENAI_FUNCTIONS,
             )
         else:
             chain = create_csv_agent(
                 llm,
                 data_file,
                 verbose=True,
-                agent_type=AgentType.OPENAI_FUNCTIONS,
+                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             )
         chain_kwargs = dict(input=query)
         target = wrapped_partial(chain, chain_kwargs)
@@ -4390,7 +4407,7 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
         return llm.tokenizer
     elif inference_server in ['openai', 'openai_chat', 'openai_azure',
                               'openai_azure_chat']:
-        raise RuntimeError("Shouldn't be here")
+        return tokenizer
     elif isinstance(tokenizer, FakeTokenizer):
         return tokenizer
     elif use_openai_model:
