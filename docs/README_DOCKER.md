@@ -379,11 +379,11 @@ For a more detailed description of other parameters of the make_db script, check
 
 ```bash
 # build image
-make docker_build_deps
 touch build_info.txt
 docker build -t h2ogpt .
 ```
 then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0` with `h2ogpt:latest` in above run command.
+when any of the prebuilt dependencies are changed, e.g. duckdb or auto-gptq, you need to run `make docker_build_deps` or similar code what's in that Makefile target.
 
 ## Docker Compose Setup & Inference
 
