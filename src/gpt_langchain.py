@@ -3710,10 +3710,10 @@ def get_chain(query=None,
             template_if_no_docs = template = """{context}{question}"""
         else:
             template = """%s
-    \"\"\"
-    {context}
-    \"\"\"
-    %s{question}""" % (pre_prompt_query, prompt_query)
+\"\"\"
+{context}
+\"\"\"
+%s{question}""" % (pre_prompt_query, prompt_query)
             template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
         none = ['', '\n', None]
