@@ -20,6 +20,8 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Easy Windows Installer** for Windows 10 64-bit
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
+- **Web-Search** integration with Chat and Document Q/A
+- **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
 - **Evaluate** performance using reward models
 - **Quality** maintained with over 1000 unit and integration tests taking over 4 GPU-hours
 
@@ -153,11 +155,9 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 ### Roadmap
 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
-- Complement h2oGPT chatbot with search and other APIs
-- High-performance distributed training of larger models on trillion tokens
+- Complement h2oGPT chatbot with other APIs like ToolBench
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
-- Add other tools like search
-- Add agents for SQL and CSV question/answer
+- Add better agents for SQL and CSV question/answer
 
 ### Development
 
