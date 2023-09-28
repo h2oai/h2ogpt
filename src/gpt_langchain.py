@@ -15,6 +15,7 @@ import time
 import traceback
 import types
 import typing
+import urllib.error
 import uuid
 import zipfile
 from collections import defaultdict
@@ -1709,7 +1710,16 @@ def file_to_doc(file,
             else:
                 raise RuntimeError("Unexpected arxiv error for %s" % file)
             if have_arxiv:
-                docs1 = ArxivLoader(query=query, load_max_docs=20, load_all_available_meta=True).load()
+                trials = 3
+                docs1 = []
+                for trial in range(trials):
+                    try:
+                        docs1 = ArxivLoader(query=query, load_max_docs=20, load_all_available_meta=True).load()
+                        break
+                    except urllib.error.URLError:
+                        pass
+                if not docs1:
+                    print("Failed to get arxiv %s" % query, flush=True)
                 # ensure string, sometimes None
                 [[x.metadata.update({k: str(v)}) for k, v in x.metadata.items()] for x in docs1]
                 query_url = f"https://arxiv.org/abs/{query}"
