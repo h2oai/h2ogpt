@@ -50,7 +50,8 @@ def fix_pydantic_duplicate_validators_error():
 fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
-    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg
+    DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
+    LangChainAgent, docs_ordering_types
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -61,7 +62,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
-    evaluate_fake
+    evaluate_fake, merge_chat_conversation_history
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -701,6 +702,8 @@ def go_gradio(**kwargs):
                         min_width=100)
                     add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                               value=kwargs['add_chat_history_to_context'])
+                    add_search_to_context = gr.Checkbox(label="Web Search",
+                                                        value=kwargs['add_search_to_context'])
                     document_subset = gr.Radio([x.name for x in DocumentSubset],
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,
@@ -715,11 +718,13 @@ def go_gradio(**kwargs):
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     langchain_agents = gr.Dropdown(
                         langchain_agents_list,
-                        value=kwargs['langchain_agents'],
+                        value=None,
                         label="Agents",
                         multiselect=True,
                         interactive=True,
-                        visible=False)  # WIP
+                        visible=True,
+                        elem_id="langchain_agents",
+                        filterable=False)
                 visible_doc_track = upload_visible and kwargs['visible_doc_track']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:
@@ -817,6 +822,7 @@ def go_gradio(**kwargs):
                                                              multiselect=True,
                                                              visible=visible_model_choice,
                                                              elem_id="visible-models",
+                                                             filterable=False,
                                                              )
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
@@ -1058,6 +1064,11 @@ def go_gradio(**kwargs):
                                                visible=kwargs['langchain_mode'] != 'Disabled',
                                                interactive=not is_public,
                                                precision=0)
+                        docs_ordering_type = gr.Radio(
+                            docs_ordering_types,
+                            value=kwargs['docs_ordering_type'],
+                            label="Document Sorting in LLM Context",
+                            visible=True)
                         chunk = gr.components.Checkbox(value=kwargs['chunk'],
                                                        label="Whether to chunk documents",
                                                        info="For LangChain",
@@ -1117,6 +1128,10 @@ def go_gradio(**kwargs):
                             minimum=0, maximum=max_max_new_tokens, step=1,
                             value=min(max_max_new_tokens, kwargs['min_new_tokens']), label="Min output length 2",
                             visible=False and not kwargs['model_lock'],
+                        )
+                        min_max_new_tokens = gr.Slider(
+                            minimum=1, maximum=max_max_new_tokens, step=1,
+                            value=min(max_max_new_tokens, kwargs['min_max_new_tokens']), label="Min. of Max output length",
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
@@ -2476,26 +2491,7 @@ def go_gradio(**kwargs):
                         model_state1['tokenizer'].model_max_length - buffer)
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
-            context1 = args_list[eval_func_param_names.index('context')]
-            add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
-            prompt_type1 = args_list[eval_func_param_names.index('prompt_type')] or model_state1['prompt_type']
-            prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')] or model_state1['prompt_dict']
-            chat1 = args_list[eval_func_param_names.index('chat')]
-            model_max_length1 = get_model_max_length(model_state1)
-            system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
-            chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
-            history = []
-            langchain_mode1 = user_kwargs['langchain_mode']
-            context2 = history_to_context(history, langchain_mode1,
-                                          add_chat_history_to_context1,
-                                          prompt_type1, prompt_dict1, chat1,
-                                          model_max_length1, memory_restriction_level,
-                                          kwargs['keep_sources_in_context'],
-                                          system_prompt1,
-                                          chat_conversation1)
-            # replace
-            args_list[eval_func_param_names.index('context')] = context1 + context2
-
+            # final full evaluate args list
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
             # NOTE: Don't allow UI-like access, in case modify state via API
@@ -2849,13 +2845,9 @@ def go_gradio(**kwargs):
                 history = []
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
-            system_prompt1 = args_list[eval_func_param_names.index('system_prompt')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
-            add_chat_history_to_context1 = args_list[eval_func_param_names.index('add_chat_history_to_context')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
-            langchain_agents1 = args_list[eval_func_param_names.index('langchain_agents')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
-            document_choice1 = args_list[eval_func_param_names.index('document_choice')]
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
             chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
@@ -2894,17 +2886,11 @@ def go_gradio(**kwargs):
             args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
             context1 = args_list[eval_func_param_names.index('context')]
 
-            chat1 = args_list[eval_func_param_names.index('chat')]
-            model_max_length1 = get_model_max_length(model_state1)
-            context2 = history_to_context(history, langchain_mode1,
-                                          add_chat_history_to_context1,
-                                          prompt_type1, prompt_dict1, chat1,
-                                          model_max_length1, memory_restriction_level,
-                                          kwargs['keep_sources_in_context'],
-                                          system_prompt1,
-                                          chat_conversation1)
+            chat_conversation1 = merge_chat_conversation_history(chat_conversation1, history)
+            args_list[eval_func_param_names.index('chat_conversation')] = chat_conversation1
+
             args_list[0] = instruction1  # override original instruction with history from user
-            args_list[2] = context1 + context2
+            args_list[2] = context1
 
             fun1 = partial(evaluate_local,
                            model_state1,
@@ -3961,13 +3947,17 @@ def go_gradio(**kwargs):
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
                 model_max_length1 = tokenizer.model_max_length
-                context1 = history_to_context(chat1, langchain_mode1,
-                                              add_chat_history_to_context1,
-                                              prompt_type1, prompt_dict1, chat1,
-                                              model_max_length1,
-                                              memory_restriction_level1, keep_sources_in_context1,
-                                              system_prompt1,
-                                              chat_conversation1)
+                context1 = history_to_context(chat1,
+                                              langchain_mode=langchain_mode1,
+                                              add_chat_history_to_context=add_chat_history_to_context1,
+                                              prompt_type=prompt_type1,
+                                              prompt_dict=prompt_dict1,
+                                              chat=True,
+                                              model_max_length=model_max_length1,
+                                              memory_restriction_level=memory_restriction_level1,
+                                              keep_sources_in_context=keep_sources_in_context1,
+                                              system_prompt=system_prompt1,
+                                              chat_conversation=chat_conversation1)
                 tokens = tokenizer(context1, return_tensors="pt")['input_ids']
                 if len(tokens.shape) == 1:
                     return str(tokens.shape[0])

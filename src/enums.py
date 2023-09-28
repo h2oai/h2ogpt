@@ -98,6 +98,11 @@ class LangChainAgent(Enum):
     """LangChain agents"""
 
     SEARCH = "Search"
+    COLLECTION = "Collection"
+    PYTHON = "Python"
+    CSV = "CSV"
+    PANDAS = "Pandas"
+    JSON = 'JSON'
     # CSV = "csv"  # WIP
 
 
@@ -161,7 +166,7 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         prompt_query1 = ""
 
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
-    prompt_summary1 = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
 
     if pre_prompt_query is None:
         pre_prompt_query = pre_prompt_query1
@@ -216,3 +221,5 @@ def gr_to_lg(image_loaders,
 
 
 invalid_key_msg = 'Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai'
+
+docs_ordering_types = ['best_first', 'best_near_prompt', 'reverse_ucurve_sort']

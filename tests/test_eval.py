@@ -75,6 +75,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         min_new_tokens=0, early_stopping=False, max_time=180, repetition_penalty=1.07,
         num_return_sequences=1, do_sample=True, chat=False,
         langchain_mode='Disabled', add_chat_history_to_context=True,
+        add_search_to_context=False,
         langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
         chunk=True, chunk_size=512,
         load_half=False, load_4bit=False, load_8bit=False,
@@ -132,6 +133,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'h2ogpt_key': None,
                  'chat_conversation': None,
                  'text_context_list': None,
+                 'docs_ordering_type': 'reverse_ucurve_sort',
+                 'min_max_new_tokens': 256,
                  }
     if cpu and bits == 32:
         expected1.update({'image_loaders': np.array([], dtype=object)})

@@ -26,7 +26,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                                  langchain_agents=[],
                                  user_path=None,
                                  langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                                 reverse_docs=True):
+                                 docs_ordering_type='reverse_sort'):
     if enforce_h2ogpt_api_key and base_model != 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         # no need for so many cases
         return
@@ -57,7 +57,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs,
+                       docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate)
 
     # inference server
@@ -362,7 +362,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              langchain_agents=[],
                              user_path=None,
                              langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                             reverse_docs=True):
+                             docs_ordering_type='reverse_sort'):
     # HF inference server
     gradio_port = get_inf_port()
     inf_port = gradio_port + 1
@@ -406,7 +406,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs,
+                       docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate,
                        inference_server=inference_server,
                        model_lock=model_lock)
@@ -487,7 +487,7 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                                  langchain_agents=[],
                                  user_path=None,
                                  langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                                 reverse_docs=True):
+                                 docs_ordering_type='reverse_sort'):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
     if inference_server == 'openai_azure_chat':
@@ -507,7 +507,7 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
                        system_prompt='auto',
-                       reverse_docs=reverse_docs)
+                       docs_ordering_type=docs_ordering_type)
 
     # server that consumes inference server
     from src.gen import main
@@ -688,7 +688,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                     langchain_agents=[],
                                     user_path=None,
                                     langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                                    reverse_docs=True):
+                                    docs_ordering_type='reverse_sort'):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
 
@@ -700,7 +700,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs)
+                       docs_ordering_type=docs_ordering_type)
 
     # server that consumes inference server
     from src.gen import main

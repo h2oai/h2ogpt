@@ -53,8 +53,11 @@ def run_eval(  # for local function:
         jq_schema=None,
         visible_models=None,
         h2ogpt_key=None,
+        add_search_to_context=None,
         chat_conversation=None,
         text_context_list=None,
+        docs_ordering_type=None,
+        min_max_new_tokens=None,
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,
@@ -64,6 +67,7 @@ def run_eval(  # for local function:
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        keep_sources_in_context=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
         max_max_new_tokens=None,
@@ -82,9 +86,9 @@ def run_eval(  # for local function:
         show_link_in_sources=None,
         add_chat_history_to_context=None,
         context=None, iinput=None,
-        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
+        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None,
         use_cache=None,
-        auto_reduce_chunks=None, max_chunks=None,
+        auto_reduce_chunks=None, max_chunks=None, headsize=None,
         model_lock=None, force_langchain_evaluate=None,
         model_state_none=None,
 ):
@@ -230,7 +234,7 @@ def run_eval(  # for local function:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
                         prompter = Prompter(prompt_type, prompt_dict,
                                             debug=debug, chat=chat, stream_output=stream_output)
-                        prompt = prompter.generate_prompt(data_point)
+                        prompt = prompter.generate_prompt(data_point, context_from_history=False)
                     else:
                         # just raw input and output
                         if eval_prompts_only_num > 0:

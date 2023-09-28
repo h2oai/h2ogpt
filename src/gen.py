@@ -40,6 +40,7 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
+import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -47,7 +48,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count
 
 start_faulthandler()
 import_matplotlib()
@@ -245,6 +246,7 @@ def main(
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
         add_chat_history_to_context: bool = True,
+        add_search_to_context: bool = False,
         context: str = '',
         iinput: str = '',
         allow_upload_to_user_data: bool = True,
@@ -256,9 +258,11 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         top_k_docs: int = None,
-        reverse_docs: bool = True,
+        docs_ordering_type: str = 'reverse_ucurve_sort',
+        min_max_new_tokens=256,
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
+        headsize: int = 50,
         n_jobs: int = -1,
 
         # urls
@@ -477,10 +481,11 @@ def main(
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
-    :param h2ogpt_key: Placeholder for default access key, not usually used
+    :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+    :param min_max_new_tokens: Minimum of max_new_tokens, when auto-scaling down to handle more docs/prompt, but still let generation have some tokens
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -583,6 +588,7 @@ def main(
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
+           If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
@@ -594,6 +600,7 @@ def main(
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
+    :param add_search_to_context: Include web search in context as augmented prompt
     :param context: Default context to use (for system pre-context in gradio UI)
            context comes before chat_conversation and any document Q/A from text_context_list
     :param iinput: Default input for instruction-based prompts
@@ -611,11 +618,17 @@ def main(
                        For langchain_action summarize: number of document parts, like pages for PDF.
                        There's no such thing as chunks for summarization.
                        -1 : auto-fills context up to max_seq_len
-    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+    :param docs_ordering_type:
+        Type of ordering of docs.
+        'best_first': Order by score so score is worst match near prompt
+        'best_near_prompt' or 'reverse_sort' : reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
+        '' or None (i.e. default) or 'reverse_ucurve_sort' : Sort so most relevant is either near start or near end
+           Best to avoid "lost in middle" as well as avoid hallucinating off starting content that LLM focuses on alot.
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
+    :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
 
     :param use_unstructured: Enable unstructured URL loader
@@ -690,6 +703,9 @@ def main(
         llamacpp_dict['n_gpu_layers'] = 100
     if 'n_gqa' not in llamacpp_dict:
         llamacpp_dict['n_gqa'] = 0
+
+    if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
+        visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
@@ -1001,6 +1017,8 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
+                            docs_ordering_type,
+                            min_max_new_tokens,
                             verbose,
                             )
 
@@ -2022,8 +2040,11 @@ def evaluate(
         jq_schema,
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
         h2ogpt_key,
+        add_search_to_context,
         chat_conversation,
         text_context_list,
+        docs_ordering_type,
+        min_max_new_tokens,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2064,10 +2085,10 @@ def evaluate(
         show_link_in_sources=None,
         verbose=False,
         cli=False,
-        reverse_docs=True,
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        headsize=None,
         model_lock=None,
         force_langchain_evaluate=None,
         model_state_none=None,
@@ -2078,6 +2099,7 @@ def evaluate(
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        keep_sources_in_context=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -2095,6 +2117,7 @@ def evaluate(
     assert n_jobs is not None
     assert first_para is not None
     assert isinstance(add_chat_history_to_context, bool)
+    assert isinstance(add_search_to_context, bool)
     assert load_exllama is not None
     # for lazy client (even chat client)
     if image_loaders is None:
@@ -2105,6 +2128,13 @@ def evaluate(
         url_loaders = url_loaders_options0
     if jq_schema is None:
         jq_schema = jq_schema0
+    if isinstance(langchain_agents, str):
+        if langchain_agents.strip().startswith('['):
+            # already list, but as string
+            langchain_agents = str_to_list(langchain_agents)
+        else:
+            # just 1 item and make list
+            langchain_agents = [langchain_agents]
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
 
@@ -2202,6 +2232,11 @@ def evaluate(
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
                                                 max_max_new_tokens=max_max_new_tokens)
+    if min_max_new_tokens is None:
+        # default for nochat api
+        min_max_new_tokens = 256
+    if docs_ordering_type is None:
+        docs_ordering_type = 'reverse_ucurve_sort'
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
@@ -2209,32 +2244,19 @@ def evaluate(
     repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
     num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
     min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    # limit total tokens processed, e.g. for summarization, if public instance
+    if is_public:
+        total_tokens_for_docs = min(2 * model_max_length, 16384)
+    else:
+        total_tokens_for_docs = None
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
         context = ''
 
-    # restrict instruction, typically what has large input
-    from h2oai_pipeline import H2OTextGenerationPipeline
-    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
-    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
-    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
-    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
-
-    if inference_server and inference_server.startswith('http'):
-        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
-        pass
-    else:
-        # limit so max_new_tokens = prompt + new < max
-        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-        max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
-        max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
-
-    # get prompt
+    # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                         system_prompt=system_prompt)
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt = prompter.generate_prompt(data_point)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -2269,6 +2291,13 @@ def evaluate(
                         langchain_only_model or \
                         force_langchain_evaluate or \
                         len(text_context_list) > 0
+
+    if len(langchain_agents) > 0:
+        do_langchain_path = True
+    if add_search_to_context:
+        # easier to manage prompt etc. by doing full langchain path
+        do_langchain_path = True
+
     if do_langchain_path:
         text = ''
         sources = ''
@@ -2298,6 +2327,11 @@ def evaluate(
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
                                  ))
+        data_point = dict(context=context, instruction=instruction, input=iinput)
+        # no longer stuff chat history directly into context this early
+        prompt_basic = prompter.generate_prompt(data_point, context_from_history=False)
+        prompt = prompt_basic
+        num_prompt_tokens = 0
         for r in run_qa_db(
                 inference_server=inference_server,
                 model_name=base_model, model=model, tokenizer=tokenizer,
@@ -2315,6 +2349,9 @@ def evaluate(
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
                 add_chat_history_to_context=add_chat_history_to_context,
+                add_search_to_context=add_search_to_context,
+                keep_sources_in_context=keep_sources_in_context,
+                memory_restriction_level=memory_restriction_level,
                 system_prompt=system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
@@ -2350,7 +2387,10 @@ def evaluate(
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
                 text_context_list=text_context_list,
+                chat_conversation=chat_conversation,
                 h2ogpt_key=h2ogpt_key,
+                docs_ordering_type=docs_ordering_type,
+                min_max_new_tokens=min_max_new_tokens,
 
                 **gen_hyper_langchain,
 
@@ -2359,14 +2399,19 @@ def evaluate(
                 verbose=verbose,
                 cli=cli,
                 sanitize_bot_response=sanitize_bot_response,
-                reverse_docs=reverse_docs,
 
                 lora_weights=lora_weights,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
+                total_tokens_for_docs=total_tokens_for_docs,
+                headsize=headsize,
         ):
-            response, sources = r  # doesn't accumulate, new answer every yield, so only save that full answer
+            # doesn't accumulate, new answer every yield, so only save that full answer
+            response = r['response']
+            sources = r['sources']
+            prompt = r['prompt']
+            num_prompt_tokens = r['num_prompt_tokens']
             yield dict(response=response, sources=sources, save_dict=dict())
         if save_dir:
             # estimate using tiktoken
@@ -2378,6 +2423,8 @@ def evaluate(
                               langchain_agents=langchain_agents,
                               document_subset=document_subset,
                               document_choice=document_choice,
+                              chat_conversation=chat_conversation,
+                              add_search_to_context=add_search_to_context,
                               num_prompt_tokens=num_prompt_tokens,
                               instruction=instruction,
                               iinput=iinput,
@@ -2402,6 +2449,32 @@ def evaluate(
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
             return
+
+    # NOT LANGCHAIN PATH, raw LLM
+    # restrict instruction + , typically what has large input
+    prompt, \
+        instruction, iinput, context, \
+        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, top_k_docs_trial, one_doc_size = \
+        get_limited_prompt(instruction,
+                           iinput,
+                           tokenizer,
+                           prompter=prompter,
+                           inference_server=inference_server,
+                           # prompt_type=prompt_type,
+                           # prompt_dict=prompt_dict,
+                           # chat=chat,
+                           max_new_tokens=max_new_tokens,
+                           # system_prompt=system_prompt,
+                           context=context,
+                           chat_conversation=chat_conversation,
+                           keep_sources_in_context=keep_sources_in_context,
+                           model_max_length=model_max_length,
+                           memory_restriction_level=memory_restriction_level,
+                           langchain_mode=langchain_mode,
+                           add_chat_history_to_context=add_chat_history_to_context,
+                           min_max_new_tokens=min_max_new_tokens,
+                           )
 
     if inference_server.startswith('vllm') or \
             inference_server.startswith('openai') or \
@@ -2509,6 +2582,7 @@ def evaluate(
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
                 client_add_chat_history_to_context = True
+                client_add_search_to_context = False
                 client_langchain_action = LangChainAction.QUERY.value
                 client_langchain_agents = []
                 gen_server_kwargs = dict(temperature=temperature,
@@ -2581,6 +2655,9 @@ def evaluate(
                                      jq_schema=jq_schema,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
+                                     add_search_to_context=client_add_search_to_context,
+                                     docs_ordering_type=None,
+                                     min_max_new_tokens=min_max_new_tokens,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -2723,7 +2800,8 @@ def evaluate(
         tokenizer.src_lang = languages_covered()[src_lang]
 
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
-                                     model_max_length=tokenizer.model_max_length)
+                                     model_max_length=model_max_length,
+                                     prompter=prompter)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
@@ -3056,6 +3134,8 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
+                        docs_ordering_type,
+                        min_max_new_tokens,
                         verbose,
                         ):
     use_defaults = False
@@ -3232,8 +3312,11 @@ y = np.random.randint(0, 1, 100)
                     jq_schema,
                     None,
                     None,
+                    False,
                     None,
                     None,
+                    docs_ordering_type,
+                    min_max_new_tokens,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3361,7 +3444,7 @@ def get_max_max_new_tokens(model_state, **kwargs):
 def get_minmax_top_k_docs(is_public):
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = 3
+        max_top_k_docs = 8
         label_top_k_docs = "Number of document chunks"
     else:
         min_top_k_docs = -1
@@ -3370,26 +3453,8 @@ def get_minmax_top_k_docs(is_public):
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
 
-def history_to_context(history, langchain_mode1,
-                       add_chat_history_to_context,
-                       prompt_type1, prompt_dict1, chat1, model_max_length1,
-                       memory_restriction_level1, keep_sources_in_context1,
-                       system_prompt1, chat_conversation1):
-    """
-    consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
-    :param history:
-    :param langchain_mode1:
-    :param add_chat_history_to_context:
-    :param prompt_type1:
-    :param prompt_dict1:
-    :param chat1:
-    :param model_max_length1:
-    :param memory_restriction_level1:
-    :param keep_sources_in_context1:
-    :param system_prompt1:
-    :param chat_conversation1:
-    :return:
-    """
+def merge_chat_conversation_history(chat_conversation1, history):
+    # chat_conversation and history ordered so largest index of list is most recent
     if chat_conversation1:
         chat_conversation1 = str_to_list(chat_conversation1)
         for conv1 in chat_conversation1:
@@ -3399,11 +3464,37 @@ def history_to_context(history, langchain_mode1,
     if isinstance(history, list):
         # make copy so only local change
         if chat_conversation1:
+            # so priority will be newest that comes from actual chat history from UI, then chat_conversation
             history = chat_conversation1 + history.copy()
     elif chat_conversation1:
         history = chat_conversation1
     else:
         history = []
+    return history
+
+
+def history_to_context(history, langchain_mode=None,
+                       add_chat_history_to_context=None,
+                       prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
+                       memory_restriction_level=None, keep_sources_in_context=None,
+                       system_prompt=None, chat_conversation=None):
+    """
+    consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
+    :param history:
+    :param langchain_mode:
+    :param add_chat_history_to_context:
+    :param prompt_type:
+    :param prompt_dict:
+    :param chat:
+    :param model_max_length:
+    :param memory_restriction_level:
+    :param keep_sources_in_context:
+    :param system_prompt:
+    :param chat_conversation:
+    :return:
+    """
+    history = merge_chat_conversation_history(chat_conversation, history)
+
     if len(history) >= 1 and len(history[-1]) >= 2 and not history[-1][1]:
         len_history = len(history) - 1
     else:
@@ -3411,8 +3502,8 @@ def history_to_context(history, langchain_mode1,
         len_history = len(history)
 
     # ensure output will be unique to models
-    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
-                                             for_context=True, model_max_length=model_max_length1)
+    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
+                                             for_context=True, model_max_length=model_max_length)
     context1 = ''
     if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
@@ -3421,15 +3512,15 @@ def history_to_context(history, langchain_mode1,
             data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,
-                                prompt_type1,
-                                prompt_dict1,
-                                chat1,
+                                prompt_type,
+                                prompt_dict,
+                                chat,
                                 reduced=True,
                                 making_context=True,
-                                system_prompt=system_prompt1,
+                                system_prompt=system_prompt,
                                 histi=histi)
             # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(super_source_prefix) >= 0:
+            if not keep_sources_in_context and langchain_mode != 'Disabled' and prompt.find(super_source_prefix) >= 0:
                 # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
                 import re
                 prompt = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', prompt,
@@ -3446,14 +3537,221 @@ def history_to_context(history, langchain_mode1,
             context1 += prompt
 
         _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
-            generate_prompt({}, prompt_type1, prompt_dict1,
-                            chat1, reduced=True,
+            generate_prompt({}, prompt_type, prompt_dict,
+                            chat, reduced=True,
                             making_context=True,
-                            system_prompt=system_prompt1,
+                            system_prompt=system_prompt,
                             histi=-1)
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
+
+
+def get_limited_prompt(instruction,
+                       iinput,
+                       tokenizer,
+                       prompter=None,
+                       inference_server=None,
+                       prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
+                       system_prompt='',
+                       context='', chat_conversation=None, text_context_list=None,
+                       keep_sources_in_context=False,
+                       model_max_length=None, memory_restriction_level=0,
+                       langchain_mode=None, add_chat_history_to_context=True,
+                       verbose=False,
+                       doc_importance=0.5,
+                       min_max_new_tokens=256,
+                       ):
+    if prompter:
+        prompt_type = prompter.prompt_type
+        prompt_dict = prompter.prompt_dict
+        chat = prompter.chat
+        stream_output = prompter.stream_output
+        system_prompt = prompter.system_prompt
+
+    # merge handles if chat_conversation is None
+    history = []
+    history = merge_chat_conversation_history(chat_conversation, history)
+    history_to_context_func = functools.partial(history_to_context,
+                                                langchain_mode=langchain_mode,
+                                                add_chat_history_to_context=add_chat_history_to_context,
+                                                prompt_type=prompt_type,
+                                                prompt_dict=prompt_dict,
+                                                chat=chat,
+                                                model_max_length=model_max_length,
+                                                memory_restriction_level=memory_restriction_level,
+                                                keep_sources_in_context=keep_sources_in_context,
+                                                system_prompt=system_prompt)
+    context2 = history_to_context_func(history)
+    context1 = context
+    if context1 is None:
+        context1 = ''
+
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    data_point_just_instruction = dict(context='', instruction=instruction, input='')
+    prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
+    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
+    num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+
+    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
+    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
+    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    if text_context_list is None:
+        text_context_list = []
+    num_doc_tokens = sum([get_token_count(x + '\n\n', tokenizer) for x in text_context_list])
+
+    num_prompt_tokens0 = (num_instruction_tokens or 0) + \
+                         (num_context1_tokens or 0) + \
+                         (num_context2_tokens or 0) + \
+                         (num_iinput_tokens or 0) + \
+                         (num_doc_tokens or 0)
+
+    # go down to no less than 256, about 1 paragraph
+    # use max_new_tokens before use num_prompt_tokens0 else would be negative or ~0
+    min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
+    # by default assume can handle all chat and docs
+    chat_index = 0
+
+    # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
+    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
+    # to doc first then non-doc, shouldn't matter much either way
+    doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
+    top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
+                                                               max_input_tokens=doc_max_length)
+    non_doc_max_length = max(model_max_length - num_doc_tokens, (1.0 - doc_importance) * model_max_length)
+
+    if num_non_doc_tokens > non_doc_max_length:
+        # need to limit in some way, keep portion of history but all of context and instruction
+        # 1) drop iinput (unusual to include anyways)
+        # 2) reduce history
+        # 3) reduce context1
+        # 4) limit instruction so will fit
+        diff1 = non_doc_max_length - (
+                num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens + min_max_new_tokens)
+        diff3 = non_doc_max_length - (num_instruction_tokens + min_max_new_tokens)
+        diff4 = non_doc_max_length - min_max_new_tokens
+        if diff1 > 0:
+            # then should be able to do #1
+            iinput = ''
+            num_iinput_tokens = 0
+        elif diff2 > 0 > diff1:
+            # then may be able to do #1 + #2
+            iinput = ''
+            num_iinput_tokens = 0
+            chat_index_final = len(history)
+            for chat_index in range(len(history)):
+                # NOTE: history and chat_conversation are older for first entries
+                # FIXME: This is a slow for many short conversations
+                context2 = history_to_context_func(history[chat_index:])
+                num_context2_tokens = get_token_count(context2, tokenizer)
+                diff1 = non_doc_max_length - (
+                        num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+                if diff1 > 0:
+                    chat_index_final = chat_index
+                    if verbose:
+                        print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
+                    break
+            chat_index = chat_index_final  # i.e. if chat_index == len(history), then nothing can be consumed
+        elif diff3 > 0 > diff2:
+            # then may be able to do #1 + #2 + #3
+            iinput = ''
+            num_iinput_tokens = 0
+            context2 = ''
+            num_context2_tokens = 0
+            context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+                                                                                   max_prompt_length=diff3)
+            if num_context1_tokens <= diff3:
+                pass
+            else:
+                print("failed to reduce", flush=True)
+        else:
+            # then must be able to do #1 + #2 + #3 + #4
+            iinput = ''
+            num_iinput_tokens = 0
+            context2 = ''
+            num_context2_tokens = 0
+            context1 = ''
+            num_context1_tokens = 0
+            # diff4 accounts for real prompting for instruction
+            # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
+            instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                         max_prompt_length=diff4)
+            # get actual tokens
+            data_point_just_instruction = dict(context='', instruction=instruction, input='')
+            prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
+            num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
+            num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+
+    # update full context
+    context = context1 + context2
+    # update token counts (docs + non-docs, all tokens)
+    num_prompt_tokens = (num_instruction_tokens or 0) + \
+                        (num_context1_tokens or 0) + \
+                        (num_context2_tokens or 0) + \
+                        (num_iinput_tokens or 0) + \
+                        (num_doc_tokens or 0)
+
+    # update max_new_tokens
+    if inference_server and inference_server.startswith('http'):
+        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
+        pass
+    else:
+        # limit so max_new_tokens = prompt + new < max
+        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+
+    if prompter is None:
+        # get prompter
+        debug = False
+        stream_output = False  # doesn't matter
+        prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+                            system_prompt=system_prompt)
+
+    data_point = dict(context=context, instruction=instruction, input=iinput)
+    # handle promptA/promptB addition if really from history.
+    # if not from history, then reduced=False inside correct
+    # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
+    context_from_history = len(history) > 0 and len(context1) > 0
+    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history)
+    num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
+
+    return prompt, \
+        instruction, iinput, context, \
+        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, top_k_docs, one_doc_size
+
+
+def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
+    if text_context_list is None or len(text_context_list) == 0:
+        return 0, None, 0
+    if max_input_tokens is None:
+        max_input_tokens = tokenizer.model_max_length
+    tokens = [get_token_count(x + '\n\n', tokenizer) for x in text_context_list]
+    tokens_cumsum = np.cumsum(tokens)
+    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+    # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
+    if where_res.shape[0] > 0:
+        top_k_docs = 1 + where_res[-1]
+        one_doc_size = None
+        num_doc_tokens = tokens_cumsum[top_k_docs - 1]  # by index
+    else:
+        # if here, means 0 and just do best with 1 doc
+        top_k_docs = 1
+        text_context_list = text_context_list[:top_k_docs]
+        # critical protection
+        from src.h2oai_pipeline import H2OTextGenerationPipeline
+        doc_content = text_context_list[0]
+        doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
+                                                                          tokenizer,
+                                                                          max_prompt_length=max_input_tokens)
+        text_context_list[0] = doc_content
+        one_doc_size = len(doc_content)
+        num_doc_tokens = get_token_count(doc_content + '\n\n', tokenizer)
+        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
+            tokens[0], new_tokens0), flush=True)
+    return top_k_docs, one_doc_size, num_doc_tokens
 
 
 def entrypoint_main():

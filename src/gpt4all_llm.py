@@ -149,6 +149,12 @@ def get_llm_gpt4all(model_name,
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
                                  prompter=prompter, context=context, iinput=iinput))
+
+        # migration to  new langchain fix:
+        odd_keys = ['model_kwargs', 'grammar_path', 'grammar']
+        for key in odd_keys:
+            model_kwargs.pop(key, None)
+
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
         inner_model = llm.client

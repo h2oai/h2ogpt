@@ -81,8 +81,11 @@ class TextCompletionCreator:
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
+        add_search_to_context: bool = False,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
+        docs_ordering_type: str = None,
+        min_max_new_tokens: int = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -112,8 +115,11 @@ class TextCompletionCreator:
                               prompt
                               If pass 'None' or 'auto' or None, then automatic per-model value used
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param add_search_to_context: Whether to add web search of query to context
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
+        :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
+        :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -137,14 +143,17 @@ class TextCompletionCreator:
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
         params["system_prompt"] = ""
-        params["image_loaders"] = None
-        params["pdf_loaders"] = None
-        params["url_loaders"] = None
-        params["jq_schema"] = None
+        params["image_loaders"] = []
+        params["pdf_loaders"] = []
+        params["url_loaders"] = []
+        params["jq_schema"] = '.[]'
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = self._client._h2ogpt_key
+        params["add_search_to_context"] = add_search_to_context
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
+        params["docs_ordering_type"] = docs_ordering_type
+        params["min_max_new_tokens"] = min_max_new_tokens
         return TextCompletion(self._client, params)
 
 
@@ -216,8 +225,11 @@ class ChatCompletionCreator:
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
+        add_search_to_context: bool= False,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
+        docs_ordering_type: str = None,
+        min_max_new_tokens: int = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -245,8 +257,11 @@ class ChatCompletionCreator:
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param add_search_to_context: Whether to add web search of query to context
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
+        :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
+        :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -270,14 +285,18 @@ class ChatCompletionCreator:
         params["prompt_query"] = ""
         params["pre_prompt_summary"] = ""
         params["prompt_summary"] = ""
-        params["image_loaders"] = None
-        params["pdf_loaders"] = None
-        params["url_loaders"] = None
-        params["jq_schema"] = None
+        params["system_prompt"] = ""
+        params["image_loaders"] = []
+        params["pdf_loaders"] = []
+        params["url_loaders"] = []
+        params["jq_schema"] = '.[]'
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = self._client._h2ogpt_key
+        params["add_search_to_context"] = add_search_to_context
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
+        params["docs_ordering_type"] = docs_ordering_type
+        params["min_max_new_tokens"] = min_max_new_tokens
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 

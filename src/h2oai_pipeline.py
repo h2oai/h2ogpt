@@ -4,7 +4,7 @@ from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
 from stopping import get_stopping
-from prompter import Prompter, PromptType
+from prompter import Prompter
 
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
@@ -15,6 +15,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  prompt_type=None, prompt_dict=None,
                  max_input_tokens=2048 - 256,
                  base_model=None,
+                 stop=None,
                  **kwargs):
         """
         HF-like pipeline, but handle instruction prompting and stopping (for some models)
@@ -54,12 +55,29 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             self.human = None
             self.bot = None
             self.can_stop = False
+        self.stop = stop
         self.sanitize_bot_response = sanitize_bot_response
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
         self.base_model = base_model
 
     @staticmethod
+    def get_token_count(x, tokenizer):
+        # NOTE: Somewhat duplicates get_token_count()
+        # handle ambiguity in if get dict or list
+        if hasattr(tokenizer, 'encode'):
+            tokens = tokenizer.encode(x)
+        else:
+            tokens = tokenizer(x)
+        if isinstance(tokens, dict) and 'input_ids' in tokens:
+            n_tokens = len(tokenizer.encode(x)['input_ids'])
+        else:
+            n_tokens = len(tokenizer.encode(x))
+        return n_tokens
+
+    @staticmethod
     def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
+        if prompt_text is None:
+            prompt_text = ''
         verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
 
         if hasattr(tokenizer, 'model_max_length'):
@@ -74,6 +92,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 prompt_text = prompt_text[-model_max_length * 10:]
                 if verbose:
                     print("Cut of input: %s -> %s" % (len0, len(prompt_text)), flush=True)
+        elif max_prompt_length is not None:
+            model_max_length = max_prompt_length
         else:
             # unknown
             model_max_length = None
@@ -84,10 +104,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # For https://github.com/h2oai/h2ogpt/issues/192
             for trial in range(0, 5):
                 if prompt_text:
-                    prompt_tokens = tokenizer(prompt_text)['input_ids']
+                    num_prompt_tokens = H2OTextGenerationPipeline.get_token_count(prompt_text, tokenizer)
                 else:
-                    prompt_tokens = []
-                num_prompt_tokens = len(prompt_tokens)
+                    num_prompt_tokens = 0
                 if num_prompt_tokens > model_max_length:
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
@@ -106,23 +125,6 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     "Failed to reduce %s tokens with %s chars: %s" % (num_prompt_tokens, len(prompt_text), prompt_text),
                     flush=True)
 
-            # Why Below False: don't limit max_new_tokens more, just rely upon stopping to reach limit of model
-            if False:
-                # if input prompt is some number of tokens, despite user request, can't have max_new_tokens more
-                #
-                assert num_prompt_tokens is not None
-                if self.prompt_type not in [PromptType.plain.name, PromptType.plain.value]:
-                    # then give room for prompt
-                    fudge = 20
-                else:
-                    fudge = 0
-                max_new_tokens = max(0, min(generate_kwargs['max_new_tokens'],
-                                            model_max_length - (num_prompt_tokens + fudge)))
-                if max_new_tokens < generate_kwargs['max_new_tokens']:
-                    if verbose:
-                        print("Reduced max_new_tokens from %s -> %s" % (
-                            generate_kwargs['max_new_tokens'], max_new_tokens))
-                    generate_kwargs['max_new_tokens'] = max_new_tokens
         return prompt_text, num_prompt_tokens
 
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
@@ -222,13 +224,22 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
-        if self.can_stop:
-            stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
+        stop = []
+        if generate_kwargs.get('stop'):
+            stop += generate_kwargs['stop']
+        if self.stop:
+            stop += self.stop
+            stop = sorted(set(self.stop))
+        if self.can_stop or stop:
+            self.stopping_criteria = get_stopping(self.prompt_type, self.prompt_dict,
                                              self.tokenizer, self.device,
                                              self.base_model,
                                              human=self.human, bot=self.bot,
-                                             model_max_length=self.tokenizer.model_max_length)
-            generate_kwargs['stopping_criteria'] = stopping_criteria
+                                             model_max_length=self.tokenizer.model_max_length,
+                                             prompter=self.prompter,
+                                             stop=stop)
+            generate_kwargs['stopping_criteria'] = self.stopping_criteria
+        generate_kwargs.pop('stop', None)
         # return super()._forward(model_inputs, **generate_kwargs)
         return self.__forward(model_inputs, **generate_kwargs)
 

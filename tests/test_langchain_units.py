@@ -1552,46 +1552,52 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 2 and (
-                                        'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
+                                assert len(rets1) == 4 and (
+                                        'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
+                                        rets1['response'])
                             else:
-                                assert len(rets1) == 2 and (
-                                        'h2oGPT' in rets1[0] or 'H2O GPT' in rets1[0] or 'H2O.ai' in rets1[0])
+                                assert len(rets1) == 4 and (
+                                        'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
+                                        rets1['response'])
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'h2oGPT' in rets1[1]
+                                    assert 'h2oGPT' in rets1['sources']
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 2 and (
-                                        'whisper' in rets1[0].lower() or
-                                        'phase' in rets1[0].lower() or
-                                        'generate' in rets1[0].lower() or
-                                        'statistic' in rets1[0].lower() or
-                                        '.pdf' in rets1[0].lower())
+                                assert len(rets1) == 4 and (
+                                        'whisper' in rets1['response'].lower() or
+                                        'phase' in rets1['response'].lower() or
+                                        'generate' in rets1['response'].lower() or
+                                        'statistic' in rets1['response'].lower() or
+                                        'a chat bot that' in rets1['response'].lower() or
+                                        'non-centrality parameter' in rets1['response'].lower() or
+                                        '.pdf' in rets1['response'].lower())
                             else:
-                                assert len(rets1) == 2 and (
-                                        'whisper' in rets1[0].lower() or
-                                        'phase' in rets1[0].lower() or
-                                        'generate' in rets1[0].lower() or
-                                        'statistic' in rets1[0].lower() or
-                                        '.pdf' in rets1[0].lower())
+                                assert len(rets1) == 4 and (
+                                        'whisper' in rets1['response'].lower() or
+                                        'phase' in rets1['response'].lower() or
+                                        'generate' in rets1['response'].lower() or
+                                        'statistic' in rets1['response'].lower() or
+                                        '.pdf' in rets1['response'].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in rets1[1] or 'unbiased' in rets1[1] or 'approximate' in rets1[1]
+                                    assert 'whisper' in rets1['sources'] or 'unbiased' in rets1[
+                                        'sources'] or 'approximate' in rets1['sources']
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
-                                assert 'score' in rets1[1][0] and 'content' in rets1[1][0] and 'source' in rets1[1][0]
+                                assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
+                                    0] and 'source' in rets1['sources'][0]
                                 if doc_choice in [1, 2]:
-                                    assert len(set([x['source'] for x in rets1[1]])) == doc_choice
+                                    assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
                                 else:
-                                    assert len(set([x['source'] for x in rets1[1]])) >= 1
+                                    assert len(set([x['source'] for x in rets1['sources']])) >= 1
                             elif document_subset == DocumentSubset.RelSources.name:
                                 if doc_choice in [1, 2]:
-                                    assert len(set([x['source'] for x in rets1[1]])) <= doc_choice
+                                    assert len(set([x['source'] for x in rets1['sources']])) <= doc_choice
                                 else:
-                                    assert len(set([x['source'] for x in rets1[1]])) >= 2
+                                    assert len(set([x['source'] for x in rets1['sources']])) >= 2
                             else:
                                 # TopK may just be 1 doc because of many chunks from that doc
                                 # if top_k_docs=-1 might get more
-                                assert len(set([x['source'] for x in rets1[1]])) >= 1
+                                assert len(set([x['source'] for x in rets1['sources']])) >= 1
 
         # SHOW DOC
         single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]

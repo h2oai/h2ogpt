@@ -81,6 +81,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              h2ogpt_key=None,
              visible_models=None,
              system_prompt='',  # default of no system prompt tiggered by empty string
+             add_search_to_context=False,
              chat_conversation=None,
              text_context_list=None,
              ):
@@ -127,8 +128,11 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          jq_schema=None,
                          visible_models=visible_models,
                          h2ogpt_key=h2ogpt_key,
+                         add_search_to_context=add_search_to_context,
                          chat_conversation=chat_conversation,
                          text_context_list=text_context_list,
+                         docs_ordering_type=None,
+                         min_max_new_tokens=None,
                          )
     diff = 0
     if version is None:
@@ -311,6 +315,7 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         document_subset=DocumentSubset.Relevant.name,
         document_choice=[],
         h2ogpt_key=h2ogpt_key,
+        add_search_to_context=False,
     )
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
