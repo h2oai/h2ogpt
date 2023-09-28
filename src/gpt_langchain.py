@@ -1617,12 +1617,12 @@ def file_to_doc(file,
                 use_selenium=False,
 
                 # pdfs
-                use_pymupdf=True,
-                use_unstructured_pdf=False,
-                use_pypdf=False,
+                use_pymupdf='auto',
+                use_unstructured_pdf='auto',
+                use_pypdf='auto',
                 enable_pdf_ocr='auto',
-                try_pdf_as_html=True,
-                enable_pdf_doctr=False,
+                try_pdf_as_html='auto',
+                enable_pdf_doctr='auto',
 
                 # images
                 enable_ocr=False,
@@ -1986,12 +1986,40 @@ def file_to_doc(file,
         add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
         fix_json_meta(doc1)
     elif file.lower().endswith('.pdf'):
+        # migration
+        if isinstance(use_pymupdf, bool):
+            if use_pymupdf == False:
+                use_pymupdf = 'off'
+            if use_pymupdf == True:
+                use_pymupdf = 'on'
+        if isinstance(use_unstructured_pdf, bool):
+            if use_unstructured_pdf == False:
+                use_unstructured_pdf = 'off'
+            if use_unstructured_pdf == True:
+                use_unstructured_pdf = 'on'
+        if isinstance(use_pypdf, bool):
+            if use_pypdf == False:
+                use_pypdf = 'off'
+            if use_pypdf == True:
+                use_pypdf = 'on'
+        if isinstance(enable_pdf_ocr, bool):
+            if enable_pdf_ocr == False:
+                enable_pdf_ocr = 'off'
+            if enable_pdf_ocr == True:
+                enable_pdf_ocr = 'on'
+        if isinstance(try_pdf_as_html, bool):
+            if try_pdf_as_html == False:
+                try_pdf_as_html = 'off'
+            if try_pdf_as_html == True:
+                try_pdf_as_html = 'on'
+
         doc1 = []
+        tried_others = False
         handled = False
         did_pymupdf = False
         did_unstructured = False
         e = None
-        if have_pymupdf and use_pymupdf:
+        if have_pymupdf and (len(doc1) == 0 and use_pymupdf == 'auto' or use_pymupdf == 'on'):
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
@@ -2008,7 +2036,8 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
-        if len(doc1) == 0 or use_unstructured_pdf:
+        if len(doc1) == 0 and use_unstructured_pdf == 'auto' or use_unstructured_pdf == 'on':
+            tried_others = True
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
                 did_unstructured = True
@@ -2022,7 +2051,8 @@ def file_to_doc(file,
             add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
-        if len(doc1) == 0 or use_pypdf:
+        if len(doc1) == 0 and use_pypdf == 'auto' or use_pypdf == 'on':
+            tried_others = True
             # open-source fallback
             # load() still chunks by pages, but every page has title at start to help
             try:
@@ -2037,7 +2067,7 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyPDFLoader')
             doc1.extend(doc1a)
-        if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and (have_pymupdf and use_pymupdf)):
+        if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and tried_others):
             # try again in case only others used, but only if didn't already try (2nd part of and)
             # GPL, only use if installed
             from langchain.document_loaders import PyMuPDFLoader
@@ -2054,11 +2084,7 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader2')
             doc1.extend(doc1a)
-        if try_pdf_as_html:
-            doc1a = try_as_html(file)
-            add_parser(doc1a, 'try_as_html')
-            doc1.extend(doc1a)
-        if len(doc1) == 0 and (enable_pdf_ocr == 'auto' and not enable_pdf_doctr) or enable_pdf_ocr == 'on':
+        if len(doc1) == 0 and (enable_pdf_ocr == 'auto' and enable_pdf_doctr != 'on') or enable_pdf_ocr == 'on':
             # no did_unstructured condition here because here we do OCR, and before we did not
             # try OCR in end since slowest, but works on pure image pages well
             doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
@@ -2069,7 +2095,7 @@ def file_to_doc(file,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        if len(doc1) == 0 or enable_pdf_doctr:
+        if len(doc1) == 0 and enable_pdf_doctr == 'auto' or enable_pdf_doctr == 'on':
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
@@ -2089,6 +2115,10 @@ def file_to_doc(file,
             doc1.extend(doc1a)
             if verbose:
                 print("END: DocTR", flush=True)
+        if try_pdf_as_html in ['auto', 'on']:
+            doc1a = try_as_html(file)
+            add_parser(doc1a, 'try_as_html')
+            doc1.extend(doc1a)
 
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
@@ -2210,12 +2240,12 @@ def path_to_doc1(file,
                  use_selenium=False,
 
                  # pdfs
-                 use_pymupdf=True,
-                 use_unstructured_pdf=False,
-                 use_pypdf=False,
+                 use_pymupdf='auto',
+                 use_unstructured_pdf='auto',
+                 use_pypdf='auto',
                  enable_pdf_ocr='auto',
-                 enable_pdf_doctr=False,
-                 try_pdf_as_html=True,
+                 enable_pdf_doctr='auto',
+                 try_pdf_as_html='auto',
 
                  # images
                  enable_ocr=False,
@@ -2312,12 +2342,12 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  use_selenium=False,
 
                  # pdfs
-                 use_pymupdf=True,
-                 use_unstructured_pdf=False,
-                 use_pypdf=False,
+                 use_pymupdf='auto',
+                 use_unstructured_pdf='auto',
+                 use_pypdf='auto',
                  enable_pdf_ocr='auto',
-                 enable_pdf_doctr=False,
-                 try_pdf_as_html=True,
+                 enable_pdf_doctr='auto',
+                 try_pdf_as_html='auto',
 
                  # images
                  enable_ocr=False,
@@ -2937,12 +2967,12 @@ def _make_db(use_openai_embedding=False,
              use_selenium=False,
 
              # pdfs
-             use_pymupdf=True,
-             use_unstructured_pdf=False,
-             use_pypdf=False,
+             use_pymupdf='auto',
+             use_unstructured_pdf='auto',
+             use_pypdf='auto',
              enable_pdf_ocr='auto',
-             enable_pdf_doctr=False,
-             try_pdf_as_html=True,
+             enable_pdf_doctr='auto',
+             try_pdf_as_html='auto',
 
              # images
              enable_ocr=False,
@@ -3239,12 +3269,12 @@ def _run_qa_db(query=None,
                use_selenium=False,
 
                # pdfs
-               use_pymupdf=True,
-               use_unstructured_pdf=False,
-               use_pypdf=False,
+               use_pymupdf='auto',
+               use_unstructured_pdf='auto',
+               use_pypdf='auto',
                enable_pdf_ocr='auto',
-               enable_pdf_doctr=False,
-               try_pdf_as_html=True,
+               enable_pdf_doctr='auto',
+               try_pdf_as_html='auto',
 
                # images
                enable_ocr=False,
@@ -3676,12 +3706,12 @@ def get_chain(query=None,
               use_selenium=False,
 
               # pdfs
-              use_pymupdf=True,
-              use_unstructured_pdf=False,
-              use_pypdf=False,
+              use_pymupdf='auto',
+              use_unstructured_pdf='auto',
+              use_pypdf='auto',
               enable_pdf_ocr='auto',
-              enable_pdf_doctr=False,
-              try_pdf_as_html=True,
+              enable_pdf_doctr='auto',
+              try_pdf_as_html='auto',
 
               # images
               enable_ocr=False,
@@ -3894,7 +3924,7 @@ def get_chain(query=None,
             inference_server.startswith('openai_chat') and \
             len(document_choice_agent) == 1 and \
             document_choice_agent[0].endswith('.json'):
-        #with open('src/openai.yaml') as f:
+        # with open('src/openai.yaml') as f:
         #    data = yaml.load(f, Loader=yaml.FullLoader)
         with open(document_choice[0], 'rt') as f:
             data = json.loads(f.read())
@@ -3920,7 +3950,8 @@ def get_chain(query=None,
     else:
         document_choice_agent = document_choice
     document_choice_agent = [x for x in document_choice_agent if x.endswith('.csv')]
-    if LangChainAgent.CSV.value in langchain_agents and len(document_choice_agent) == 1 and document_choice_agent[0].endswith(
+    if LangChainAgent.CSV.value in langchain_agents and len(document_choice_agent) == 1 and document_choice_agent[
+        0].endswith(
             '.csv'):
         data_file = document_choice[0]
         if inference_server.startswith('openai_chat'):
@@ -4812,12 +4843,12 @@ def _update_user_db(file,
                     use_selenium=False,
 
                     # pdfs
-                    use_pymupdf=True,
-                    use_unstructured_pdf=False,
-                    use_pypdf=False,
+                    use_pymupdf='auto',
+                    use_unstructured_pdf='auto',
+                    use_pypdf='auto',
                     enable_pdf_ocr='auto',
-                    enable_pdf_doctr=False,
-                    try_pdf_as_html=True,
+                    enable_pdf_doctr='auto',
+                    try_pdf_as_html='auto',
 
                     # images
                     enable_ocr=False,
@@ -5178,12 +5209,12 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      use_selenium=False,
 
                                                      # pdfs
-                                                     use_pymupdf=True,
-                                                     use_unstructured_pdf=False,
-                                                     use_pypdf=False,
+                                                     use_pymupdf='auto',
+                                                     use_unstructured_pdf='auto',
+                                                     use_pypdf='auto',
                                                      enable_pdf_ocr='auto',
-                                                     enable_pdf_doctr=False,
-                                                     try_pdf_as_html=True,
+                                                     enable_pdf_doctr='auto',
+                                                     try_pdf_as_html='auto',
 
                                                      # images
                                                      enable_ocr=False,

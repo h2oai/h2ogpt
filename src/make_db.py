@@ -20,12 +20,12 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                use_selenium=False,
 
                # pdfs
-               use_pymupdf=True,
-               use_unstructured_pdf=False,
-               use_pypdf=False,
+               use_pymupdf='auto',
+               use_unstructured_pdf='auto',
+               use_pypdf='auto',
                enable_pdf_ocr='auto',
-               try_pdf_as_html=True,
-               enable_pdf_doctr=False,
+               try_pdf_as_html='auto',
+               enable_pdf_doctr='auto',
 
                # images
                enable_ocr=False,
@@ -102,12 +102,12 @@ def make_db_main(use_openai_embedding: bool = False,
                  use_selenium=False,
 
                  # pdfs
-                 use_pymupdf=True,
-                 use_unstructured_pdf=False,
-                 use_pypdf=False,
+                 use_pymupdf='auto',
+                 use_unstructured_pdf='auto',
+                 use_pypdf='auto',
                  enable_pdf_ocr='auto',
-                 try_pdf_as_html=True,
-                 enable_pdf_doctr=False,
+                 enable_pdf_doctr='auto',
+                 try_pdf_as_html='auto',
 
                  # images
                  enable_ocr=False,

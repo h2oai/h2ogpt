@@ -198,12 +198,12 @@ def gr_to_lg(image_loaders,
         use_selenium='Selenium' in url_loaders,
 
         # pdfs
-        use_pymupdf='PyMuPDF' in pdf_loaders,
-        use_unstructured_pdf='Unstructured' in pdf_loaders,
-        use_pypdf='PyPDF' in pdf_loaders,
+        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'auto',
+        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'auto',
+        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'auto',
         enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'auto',
-        enable_pdf_doctr='DocTR' in pdf_loaders,
-        try_pdf_as_html='TryHTML' in pdf_loaders,
+        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'auto',
+        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'auto',
 
         # images
         enable_ocr='OCR' in image_loaders,

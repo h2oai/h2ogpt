@@ -271,12 +271,12 @@ def main(
         use_selenium=False,
 
         # pdfs
-        use_pymupdf=True,
-        use_unstructured_pdf=False,
-        use_pypdf=False,
+        use_pymupdf='auto',
+        use_unstructured_pdf='auto',
+        use_pypdf='auto',
         enable_pdf_ocr='auto',
-        enable_pdf_doctr=False,
-        try_pdf_as_html=True,
+        enable_pdf_doctr='auto',
+        try_pdf_as_html='auto',
 
         # images
         enable_ocr=False,
@@ -635,13 +635,14 @@ def main(
     :param use_playwright: Enable PlayWright URL loader
     :param use_selenium: Enable Selenium URL loader
 
-    :param use_pymupdf: enable PyMUPDF
-    :param use_unstructured_pdf: enable Unstructured PDF loader
-    :param use_pypdf: enable PyPDF loader
-    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
+    :param use_pymupdf: enable PyMUPDF 'auto' means use first, use others if they are 'auto' if no result
+    :param use_unstructured_pdf: enable Unstructured PDF loader, 'auto' means use if pymupdf fails to get doc result
+    :param use_pypdf: enable PyPDF loader 'auto' means use if unstructured fails to get doc result
+    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text.
+                                  if enable_pdf_doctr == 'on' then don't do.
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
-    :param enable_pdf_doctr: Whether to support doctr on pdfs
+    :param enable_pdf_doctr: Whether to support doctr on pdfs, 'auto' means use do if failed to get doc result so far
     :param try_pdf_as_html: Try "PDF" as if HTML file, in case web link has .pdf extension but really is just HTML
 
     :param enable_ocr: Whether to support OCR on images
