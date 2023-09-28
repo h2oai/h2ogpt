@@ -723,7 +723,7 @@ def go_gradio(**kwargs):
                     if LangChainAgent.PANDAS.value in allowed_agents:
                         allowed_agents.remove(LangChainAgent.PANDAS.value)
                     langchain_agents = gr.Dropdown(
-                        langchain_agents_list,
+                        allowed_agents,
                         value=None,
                         label="Agents",
                         multiselect=True,
