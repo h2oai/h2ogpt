@@ -16,6 +16,9 @@ spec:
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}
+  {{- if .Values.h2ogpt.updateStrategy }}
+  strategy: {{- toYaml .Values.h2ogpt.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.h2ogpt.podAnnotations }}
@@ -160,6 +163,9 @@ spec:
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+  {{- if .Values.tgi.updateStrategy }}
+  strategy: {{- toYaml .Values.tgi.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.tgi.podAnnotations }}
@@ -263,6 +269,9 @@ spec:
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  {{- if .Values.vllm.updateStrategy }}
+  strategy: {{- toYaml .Values.vllm.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.vllm.podAnnotations }}
