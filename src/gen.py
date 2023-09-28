@@ -2637,7 +2637,6 @@ def evaluate(
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
                                      add_chat_history_to_context=client_add_chat_history_to_context,
-                                     add_search_to_context=client_add_search_to_context,
                                      langchain_action=client_langchain_action,
                                      langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
@@ -2656,6 +2655,7 @@ def evaluate(
                                      jq_schema=jq_schema,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
+                                     add_search_to_context=client_add_search_to_context,
                                      docs_ordering_type=None,
                                      min_max_new_tokens=min_max_new_tokens,
                                      )

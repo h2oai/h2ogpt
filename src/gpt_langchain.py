@@ -493,6 +493,7 @@ class GradioInference(LLM):
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = True
         client_add_search_to_context = False
+        client_chat_conversation = []
         client_langchain_action = LangChainAction.QUERY.value
         client_langchain_agents = []
         top_k_docs = 1
@@ -524,7 +525,6 @@ class GradioInference(LLM):
                              iinput_nochat=self.iinput if not self.chat_client else '',
                              langchain_mode=client_langchain_mode,
                              add_chat_history_to_context=client_add_chat_history_to_context,
-                             add_search_to_context=client_add_search_to_context,
                              langchain_action=client_langchain_action,
                              langchain_agents=client_langchain_agents,
                              top_k_docs=top_k_docs,
@@ -543,6 +543,9 @@ class GradioInference(LLM):
                              jq_schema=None,  # don't need to further do doc specific things
                              visible_models=None,  # FIXME: control?
                              h2ogpt_key=self.h2ogpt_key,
+                             add_search_to_context=client_add_search_to_context,
+                             chat_conversation=client_chat_conversation,
+                             text_context_list=None,
                              docs_ordering_type=None,
                              min_max_new_tokens=self.min_max_new_tokens,
                              )

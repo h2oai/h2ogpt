@@ -78,10 +78,10 @@ class TextCompletionCreator:
         number_returns: int = 1,
         system_pre_context: str = "",
         add_chat_history_to_context: bool = False,
-        add_search_to_context: bool = False,
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
+        add_search_to_context: bool = False,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
         docs_ordering_type: str = None,
@@ -111,11 +111,11 @@ class TextCompletionCreator:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
         :param add_chat_history_to_context: Whether to add chat history to context
-        :param add_search_to_context: Whether to add web search to context
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
                               If pass 'None' or 'auto' or None, then automatic per-model value used
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param add_search_to_context: Whether to add web search of query to context
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
@@ -131,7 +131,6 @@ class TextCompletionCreator:
         params["instruction_nochat"] = None  # future prompt
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = False  # relevant only for the UI
-        params["add_search_to_context"] = False
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
         params["top_k_docs"] = 4  # langchain: number of document chunks
@@ -150,6 +149,7 @@ class TextCompletionCreator:
         params["jq_schema"] = None
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = self._client._h2ogpt_key
+        params["add_search_to_context"] = add_search_to_context
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
         params["docs_ordering_type"] = docs_ordering_type
@@ -225,6 +225,7 @@ class ChatCompletionCreator:
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
         visible_models: Union[str, list] = [],
+        add_search_to_context: bool= False,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
         docs_ordering_type: str = None,
@@ -256,6 +257,7 @@ class ChatCompletionCreator:
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
         :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param add_search_to_context: Whether to add web search of query to context
         :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
@@ -271,7 +273,6 @@ class ChatCompletionCreator:
         params["instruction_nochat"] = ""  # empty when chat_mode is True
         params["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params["add_chat_history_to_context"] = False  # relevant only for the UI
-        params["add_search_to_context"] = False
         params["system_prompt"] = ""
         params["langchain_action"] = LangChainAction.QUERY.value
         params["langchain_agents"] = []
@@ -290,6 +291,7 @@ class ChatCompletionCreator:
         params["jq_schema"] = None
         params["visible_models"] = visible_models
         params["h2ogpt_key"] = self._client._h2ogpt_key
+        params["add_search_to_context"] = add_search_to_context
         params["chat_conversation"] = chat_conversation
         params["text_context_list"] = text_context_list
         params["docs_ordering_type"] = docs_ordering_type
