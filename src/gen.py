@@ -2021,7 +2021,6 @@ def evaluate(
         iinput_nochat,
         langchain_mode,
         add_chat_history_to_context,
-        add_search_to_context,
         langchain_action,
         langchain_agents,
         top_k_docs,
@@ -2041,6 +2040,7 @@ def evaluate(
         jq_schema,
         visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
         h2ogpt_key,
+        add_search_to_context,
         chat_conversation,
         text_context_list,
         docs_ordering_type,
