@@ -572,6 +572,11 @@ class GradioInference(LLM):
             job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
             text0 = ''
             while not job.done():
+                if job.communicator.job.latest_status.code.name == 'FINISHED':
+                    break
+                e = job.future._exception
+                if e is not None:
+                    break
                 outputs_list = job.communicator.job.outputs
                 if outputs_list:
                     res = job.communicator.job.outputs[-1]
@@ -581,6 +586,8 @@ class GradioInference(LLM):
                                                       sanitize_bot_response=self.sanitize_bot_response)
                     # FIXME: derive chunk from full for now
                     text_chunk = text[len(text0):]
+                    if not text_chunk:
+                        continue
                     # save old
                     text0 = text
 

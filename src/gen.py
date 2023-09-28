@@ -2674,7 +2674,13 @@ def evaluate(
                 else:
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = dict(response=text, sources=sources, save_dict=dict())
+                    text0 = ''
                     while not job.done():
+                        if job.communicator.job.latest_status.code.name == 'FINISHED':
+                            break
+                        e = job.future._exception
+                        if e is not None:
+                            break
                         outputs_list = job.communicator.job.outputs
                         if outputs_list:
                             res = job.communicator.job.outputs[-1]
@@ -2688,6 +2694,11 @@ def evaluate(
                                 prompt_and_text = prompt + text
                             response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
+                            text_chunk = response[len(text0):]
+                            if not text_chunk:
+                                continue
+                            # save old
+                            text0 = response
                             yield dict(response=response, sources=sources, save_dict=dict())
                         time.sleep(0.01)
                     # ensure get last output to avoid race
