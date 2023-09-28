@@ -3300,7 +3300,7 @@ y = np.random.randint(0, 1, 100)
 
     # move to correct position
     for example in examples:
-        example += [chat, '', '', LangChainMode.DISABLED.value, True, False,
+        example += [chat, '', '', LangChainMode.DISABLED.value, True,
                     LangChainAction.QUERY.value, [],
                     top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [],
                     pre_prompt_query, prompt_query,
@@ -3312,6 +3312,7 @@ y = np.random.randint(0, 1, 100)
                     jq_schema,
                     None,
                     None,
+                    False,
                     None,
                     None,
                     docs_ordering_type,
