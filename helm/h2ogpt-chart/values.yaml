@@ -27,6 +27,8 @@ h2ogpt:
     webPort: 80
     gptPort: 8888
 
+  updateStrategy:
+    type: RollingUpdate
 
   podSecurityContext:
     runAsNonRoot: true
@@ -72,6 +74,9 @@ tgi:
     type: ClusterIP
     port: 8080
 
+  updateStrategy:
+    type: RollingUpdate
+
   podSecurityContext:
   securityContext:
 
@@ -82,7 +87,6 @@ tgi:
   podAnnotations: {}
   podLabels: {}
   autoscaling: {}
-
 
 vllm:
   enabled: false
@@ -114,6 +118,9 @@ vllm:
   service:
     type: ClusterIP
     port: 5000
+
+  updateStrategy:
+    type: RollingUpdate
 
   podSecurityContext:
     runAsNonRoot: true
