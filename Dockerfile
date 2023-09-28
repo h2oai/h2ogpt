@@ -16,7 +16,7 @@ COPY . /workspace/
 
 RUN cd /workspace && ./docker_build_script_ubuntu.sh
 
-RUN mkdir -p /workspace && chmod -R a+rwx /workspace
+RUN chmod -R a+rwx /workspace
 
 ARG user=h2ogpt
 ARG group=h2ogpt
