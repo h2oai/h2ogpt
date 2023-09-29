@@ -3201,8 +3201,8 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None)
     db_metadatas = []
 
     if text_context_list:
-        db_documents += [x.page_content for x in text_context_list]
-        db_metadatas += [x.metadata for x in text_context_list]
+        db_documents += [x.page_content if hasattr(x, 'page_content') else x for x in text_context_list]
+        db_metadatas += [x.metadata if hasattr(x, 'metadata') else {} for x in text_context_list]
 
     from langchain.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
