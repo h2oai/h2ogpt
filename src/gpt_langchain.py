@@ -3950,6 +3950,8 @@ def get_chain(query=None,
         use_llm_if_no_docs = True
         return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
+    if isinstance(document_choice, str):
+        document_choice = [document_choice]
     if document_choice[0] == DocumentChoice.ALL.value:
         document_choice_agent = document_choice[1:]
     else:
