@@ -1037,7 +1037,12 @@ def get_llm(use_openai_model=False,
         inference_server = ''
     if inference_server.startswith('replicate'):
         model_string = ':'.join(inference_server.split(':')[1:])
-        gen_kwargs = dict(temperature=temperature if do_sample else 0,
+        if 'meta/llama' in model_string:
+            temperature = max(0.01, temperature if do_sample else 0)
+        else:
+            temperature =temperature if do_sample else 0
+        gen_kwargs = dict(temperature=temperature,
+                          seed=1234,
                           max_length=max_new_tokens,  # langchain
                           max_new_tokens=max_new_tokens,  # replicate docs
                           top_p=top_p if do_sample else 1,
