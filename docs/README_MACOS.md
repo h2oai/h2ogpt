@@ -18,11 +18,8 @@ Supports CPU and MPS (Metal M1/M2).
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
     
-    # CPU only:
+    # Install Torch:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
-    
-    # GPU only:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
 * Install document question-answer dependencies:
     ```bash
@@ -45,11 +42,7 @@ Supports CPU and MPS (Metal M1/M2).
     brew install tesseract
     brew install tesseract-lang
     ```
-* Metal M1/M2 Only: Install newer Torch for GPU support:
-   ```bash
-   pip uninstall -y torch
-   pip install --pre torch --extra-index-url https://download.pytorch.org/whl/nightly/cpu
-   ```
+* Metal M1/M2 Only:
    Verify whether torch uses MPS, run below python script:
      ```python
       import torch
@@ -89,7 +82,7 @@ Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or 
 
 * CLI mode:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli=True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
     ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
