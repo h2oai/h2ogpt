@@ -137,6 +137,7 @@ def go_gradio(**kwargs):
     auto_migrate_db = kwargs['auto_migrate_db']
     captions_model = kwargs['captions_model']
     caption_loader = kwargs['caption_loader']
+    doctr_loader = kwargs['doctr_loader']
 
     n_jobs = kwargs['n_jobs']
     verbose = kwargs['verbose']
@@ -1544,6 +1545,7 @@ def go_gradio(**kwargs):
                                            auto_migrate_db=auto_migrate_db,
                                            captions_model=captions_model,
                                            caption_loader=caption_loader,
+                                           doctr_loader=doctr_loader,
                                            verbose=kwargs['verbose'],
                                            n_jobs=kwargs['n_jobs'],
                                            get_userid_auth=get_userid_auth,
@@ -1838,6 +1840,7 @@ def go_gradio(**kwargs):
         refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode_gr,
                                              captions_model=captions_model,
                                              caption_loader=caption_loader,
+                                             doctr_loader=doctr_loader,
                                              dbs=dbs,
                                              first_para=kwargs['first_para'],
                                              hf_embedding_model=hf_embedding_model,
@@ -2461,7 +2464,17 @@ def go_gradio(**kwargs):
             if 'iinput' in user_kwargs and 'iinput_nochat' not in user_kwargs:
                 user_kwargs['iinput_nochat'] = user_kwargs['iinput']
             if 'visible_models' not in user_kwargs:
-                user_kwargs['visible_models'] = [0]
+                if kwargs['visible_models']:
+                    if isinstance(kwargs['visible_models'], int):
+                        user_kwargs['visible_models'] = [kwargs['visible_models']]
+                    elif isinstance(kwargs['visible_models'], list):
+                        # only take first one
+                        user_kwargs['visible_models'] = [kwargs['visible_models'][0]]
+                    else:
+                        user_kwargs['visible_models'] = [0]
+                else:
+                    # if no user version or default version, then just take first
+                    user_kwargs['visible_models'] = [0]
 
             if 'h2ogpt_key' not in user_kwargs:
                 user_kwargs['h2ogpt_key'] = None
@@ -2474,6 +2487,14 @@ def go_gradio(**kwargs):
             assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
             # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
             model_state1 = args_list[0]
+            # override overall visible_models and h2ogpt_key if have model_specific one
+            if 'visible_models' in model_state1 and model_state1['visible_models']:
+                assert isinstance(model_state1['visible_models'], int)
+                user_kwargs['visible_models'] = [model_state1['visible_models']]
+            if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key']:
+                assert isinstance(model_state1['h2ogpt_key'], str)
+                user_kwargs['h2ogpt_key'] = [model_state1['h2ogpt_key']]
+
             my_db_state1 = args_list[1]
             selection_docs_state1 = args_list[2]
             requests_state1 = args_list[3]
@@ -2894,6 +2915,13 @@ def go_gradio(**kwargs):
 
             chat_conversation1 = merge_chat_conversation_history(chat_conversation1, history)
             args_list[eval_func_param_names.index('chat_conversation')] = chat_conversation1
+
+            if 'visible_models' in model_state1 and model_state1['visible_models']:
+                assert isinstance(model_state1['visible_models'], int)
+                args_list[eval_func_param_names.index('visible_models')] = model_state1['visible_models']
+            if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key']:
+                assert isinstance(model_state1['h2ogpt_key'], str)
+                args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
@@ -4348,6 +4376,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
 
                       captions_model=None,
                       caption_loader=None,
+                      doctr_loader=None,
 
                       dbs=None,
                       get_userid_auth=None,
@@ -4367,6 +4396,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
         jq_schema = kwargs['jq_schema0']
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
+                             doctr_loader=doctr_loader,
                              jq_schema=jq_schema,
                              ))
     kwargs.pop('image_loaders_options0', None)
@@ -4489,6 +4519,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
 
                                                         captions_model=None,
                                                         caption_loader=None,
+                                                        doctr_loader=None,
 
                                                         dbs=None, first_para=None,
                                                         hf_embedding_model=None,
@@ -4516,6 +4547,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
         jq_schema = jq_schema0
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
+                             doctr_loader=doctr_loader,
                              jq_schema=jq_schema,
                              ))
 

@@ -287,6 +287,7 @@ def main(
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
+        doctr_gpu: bool = True,
 
         # json
         jq_schema='.[]',
@@ -661,6 +662,8 @@ def main(
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
            Disabled for CPU since BLIP requires CUDA
     :param caption_gpu: If support caption, then use GPU if exists
+
+    :param doctr_gpu: If support doctr, then use GPU if exists
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -1083,6 +1086,7 @@ def main(
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
+                            visible_models=None, h2ogpt_key=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
@@ -1113,7 +1117,8 @@ def main(
         # get default model
         model_states = []
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
-                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
+                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                           visible_models=None, h2ogpt_key=None)]
         model_list[0].update(other_model_state_defaults)
         # FIXME: hyper per model, not about model loading
         # for k in gen_hyper:
@@ -1193,7 +1198,8 @@ def main(
                 continue
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
-            assert len(model_state_none) == len(model_state_trial)
+            diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
+            assert len(model_state_none) == len(model_state_trial), diff_keys
             print("Model %s" % model_dict, flush=True)
             if model_lock:
                 # last in iteration will be first
@@ -1231,7 +1237,7 @@ def main(
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
             else:
-                caption_loader = 'gpu' if caption_gpu else 'cpu'
+                caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             caption_loader = False
 
@@ -1240,6 +1246,10 @@ def main(
             hf_embedding_model = dict(name=hf_embedding_model,
                                       model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
                                                           preload=True))
+        if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
+            doctr_loader = 'gpu' if n_gpus > 0 and doctr_gpu else 'cpu'
+        else:
+            doctr_loader = False
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -2039,7 +2049,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
-        visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
+        visible_models,
         h2ogpt_key,
         add_search_to_context,
         chat_conversation,
@@ -2324,9 +2334,9 @@ def evaluate(
                                                 )
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
-                                 jq_schema=jq_schema,
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
+                                 jq_schema=jq_schema,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
         # no longer stuff chat history directly into context this early
@@ -2389,6 +2399,7 @@ def evaluate(
                 prompt_summary=prompt_summary,
                 text_context_list=text_context_list,
                 chat_conversation=chat_conversation,
+                visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 docs_ordering_type=docs_ordering_type,
                 min_max_new_tokens=min_max_new_tokens,

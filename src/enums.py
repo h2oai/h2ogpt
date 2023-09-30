@@ -191,6 +191,7 @@ def gr_to_lg(image_loaders,
     if url_loaders is None:
         url_loaders = kwargs['url_loaders_options0']
     # translate:
+    # 'auto' wouldn't be used here
     ret = dict(
         # urls
         use_unstructured='Unstructured' in url_loaders,
@@ -198,12 +199,12 @@ def gr_to_lg(image_loaders,
         use_selenium='Selenium' in url_loaders,
 
         # pdfs
-        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'auto',
-        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'auto',
-        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'auto',
-        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'auto',
-        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'auto',
-        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'auto',
+        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'off',
+        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'off',
+        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'off',
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'off',
+        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'off',
+        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'off',
 
         # images
         enable_ocr='OCR' in image_loaders,

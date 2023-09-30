@@ -445,6 +445,7 @@ class GradioInference(LLM):
     tokenizer: Any = None
 
     system_prompt: Any = None
+    visible_models: Any = None
     h2ogpt_key: Any = None
 
     count_input_tokens: Any = 0
@@ -543,7 +544,7 @@ class GradioInference(LLM):
                              pdf_loaders=None,  # don't need to further do doc specific things
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
-                             visible_models=None,  # FIXME: control?
+                             visible_models=self.visible_models,
                              h2ogpt_key=self.h2ogpt_key,
                              add_search_to_context=client_add_search_to_context,
                              chat_conversation=client_chat_conversation,
@@ -1021,6 +1022,7 @@ def get_llm(use_openai_model=False,
             iinput=None,
             sanitize_bot_response=False,
             system_prompt='',
+            visible_models=0,
             h2ogpt_key=None,
             min_max_new_tokens=None,
             n_jobs=None,
@@ -1236,6 +1238,7 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
+                visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
             )
@@ -2089,7 +2092,9 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader2')
             doc1.extend(doc1a)
+        did_pdf_ocr = False
         if len(doc1) == 0 and (enable_pdf_ocr == 'auto' and enable_pdf_doctr != 'on') or enable_pdf_ocr == 'on':
+            did_pdf_ocr = True
             # no did_unstructured condition here because here we do OCR, and before we did not
             # try OCR in end since slowest, but works on pure image pages well
             doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
@@ -2451,7 +2456,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         n_jobs_image = 1
     else:
         n_jobs_image = n_jobs
-    if enable_pdf_doctr:
+    if enable_doctr or enable_pdf_doctr in [True, 'auto', 'on']:
         if doctr_loader and not isinstance(doctr_loader, (bool, str)) and doctr_loader.device != 'cpu':
             # can't fork cuda context
             n_jobs = 1
@@ -3347,6 +3352,7 @@ def _run_qa_db(query=None,
                prompt_summary=None,
                text_context_list=None,
                chat_conversation=None,
+               visible_models=None,
                h2ogpt_key=None,
                docs_ordering_type='reverse_ucurve_sort',
                min_max_new_tokens=256,
@@ -3455,6 +3461,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 iinput=iinput,
                 sanitize_bot_response=sanitize_bot_response,
                 system_prompt=system_prompt,
+                visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
                 n_jobs=n_jobs,
@@ -3919,6 +3926,8 @@ def get_chain(query=None,
         use_llm_if_no_docs = True
         return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
 
+    if isinstance(document_choice, str):
+        document_choice = [document_choice]
     if document_choice[0] == DocumentChoice.ALL.value:
         document_choice_agent = document_choice[1:]
     else:
@@ -4890,6 +4899,7 @@ def _update_user_db(file,
     assert migrate_embedding_model is not None
     assert auto_migrate_db is not None
     assert caption_loader is not None
+    assert doctr_loader is not None
     assert enable_captions is not None
     assert captions_model is not None
     assert enable_ocr is not None

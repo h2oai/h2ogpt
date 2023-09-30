@@ -500,6 +500,7 @@ def test_make_add_db(repeat, db_type):
                                   migrate_embedding_model=True,
                                   auto_migrate_db=False,
                                   caption_loader=False,
+                                  doctr_loader=False,
                                   enable_captions=False,
                                   enable_doctr=False,
                                   enable_pix2struct=False,
@@ -923,18 +924,40 @@ def test_pptx_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+@pytest.mark.parametrize("use_pypdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_unstructured_pdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_pymupdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("enable_pdf_doctr", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
-def test_pdf_add(db_type):
+def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_unstructured_pdf, use_pypdf):
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            url = 'https://www.africau.edu/images/default/sample.pdf'
-            test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
-            download_simple(url, dest=test_file1)
+            if False:
+                url = 'https://www.africau.edu/images/default/sample.pdf'
+                test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
+                download_simple(url, dest=test_file1)
+            else:
+                if False:
+                    name = 'CityofTshwaneWater.pdf'
+                    location = "tests"
+                else:
+                    name = '555_593.pdf'
+                    location = '/home/jon/Downloads/'
+
+                test_file1 = os.path.join(location, name)
+                shutil.copy(test_file1, tmp_user_path)
+                test_file1 = os.path.join(tmp_user_path, name)
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
+                                               use_pymupdf=use_pymupdf,
+                                               enable_pdf_ocr=enable_pdf_ocr,
+                                               enable_pdf_doctr=enable_pdf_doctr,
+                                               use_unstructured_pdf=use_unstructured_pdf,
+                                               use_pypdf=use_pypdf,
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Suggestions")
@@ -943,24 +966,33 @@ def test_pdf_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@pytest.mark.parametrize("enable_pdf_doctr", [False, True])
+@pytest.mark.parametrize("use_pypdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_unstructured_pdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_pymupdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("enable_pdf_doctr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
-def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr):
+def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_unstructured_pdf, use_pypdf):
     if enable_pdf_ocr == 'off' and not enable_pdf_doctr:
         return
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            test_file1 = os.path.join('tests', 'CityofTshwaneWater.pdf')
+            name = 'CityofTshwaneWater.pdf'
+            location = "tests"
+            test_file1 = os.path.join(location, name)
             shutil.copy(test_file1, tmp_user_path)
-            test_file1 = os.path.join(tmp_user_path, 'CityofTshwaneWater.pdf')
+            test_file1 = os.path.join(tmp_user_path, name)
+
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
+                                               use_pymupdf=use_pymupdf,
                                                enable_pdf_ocr=enable_pdf_ocr,
                                                enable_pdf_doctr=enable_pdf_doctr,
+                                               use_unstructured_pdf=use_unstructured_pdf,
+                                               use_pypdf=use_pypdf,
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("List Tshwane's concerns about water.")

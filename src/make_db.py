@@ -34,6 +34,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                enable_captions=True,
                captions_model=None,
                caption_loader=None,
+               doctr_loader=None,
 
                # json
                jq_schema='.[]',
@@ -66,6 +67,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             enable_captions=enable_captions,
                             captions_model=captions_model,
                             caption_loader=caption_loader,
+                            doctr_loader=doctr_loader,
 
                             # json
                             jq_schema=jq_schema,
@@ -118,7 +120,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  pre_load_caption_model: bool = False,
                  caption_gpu: bool = True,
                  # caption_loader=None,  # set internally
-                 # doctr_loader=None,  #  unused
+                 # doctr_loader=None,  # set internally
 
                  # json
                  jq_schema='.[]',
@@ -261,9 +263,13 @@ def make_db_main(use_openai_embedding: bool = False,
                                                ).load_model()
     else:
         if enable_captions:
-            caption_loader = 'gpu' if caption_gpu else 'cpu'
+            caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             caption_loader = False
+    if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
+        doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
+    else:
+        doctr_loader = False
 
     if verbose:
         print("Getting sources", flush=True)
@@ -293,6 +299,7 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_captions=enable_captions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
+                         doctr_loader=doctr_loader,
                          # Note: we don't reload doctr model
 
                          # json
