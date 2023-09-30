@@ -2490,10 +2490,10 @@ def go_gradio(**kwargs):
             # override overall visible_models and h2ogpt_key if have model_specific one
             if 'visible_models' in model_state1 and model_state1['visible_models']:
                 assert isinstance(model_state1['visible_models'], int)
-                user_kwargs['visible_models'] = [model_state1['visible_models']]
+                user_kwargs['visible_models'] = model_state1['visible_models']
             if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key']:
                 assert isinstance(model_state1['h2ogpt_key'], str)
-                user_kwargs['h2ogpt_key'] = [model_state1['h2ogpt_key']]
+                user_kwargs['h2ogpt_key'] = model_state1['h2ogpt_key']
 
             my_db_state1 = args_list[1]
             selection_docs_state1 = args_list[2]
