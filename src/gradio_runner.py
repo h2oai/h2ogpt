@@ -619,6 +619,8 @@ def go_gradio(**kwargs):
                     elif not os.listdir(persist_directory3):
                         if db_type == 'chroma':
                             chroma_version_dict[langchain_mode3] = 'ChromaDB>=0.4'  # will be
+                        elif db_type == 'chroma_old':
+                            chroma_version_dict[langchain_mode3] = 'ChromaDB<0.4'  # will be
                         else:
                             chroma_version_dict[langchain_mode3] = 'Weaviate'  # will be
                         if isinstance(hf_embedding_model, dict):
@@ -961,7 +963,7 @@ def go_gradio(**kwargs):
                                 info_view_raw += " (Up to %s chunks in public portal)" % kwargs['max_raw_chunks']
                             view_raw_text_checkbox = gr.Checkbox(label="View Database Text", value=False,
                                                                  info=info_view_raw,
-                                                                 visible=kwargs['db_type'] == 'chroma')
+                                                                 visible=kwargs['db_type'] in ['chroma', 'chroma_old'])
                         with gr.Column(scale=4):
                             pass
                     doc_view = gr.HTML(visible=False)
@@ -2998,7 +3000,7 @@ def go_gradio(**kwargs):
 
         def clear_embeddings(langchain_mode1, db1s):
             # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
-            if db_type == 'chroma' and langchain_mode1 not in ['LLM', 'Disabled', None, '']:
+            if db_type in ['chroma', 'chroma_old'] and langchain_mode1 not in ['LLM', 'Disabled', None, '']:
                 from gpt_langchain import clear_embedding, length_db1
                 db = dbs.get('langchain_mode1')
                 if db is not None and not isinstance(db, str):
@@ -4143,7 +4145,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     content = None
     db_documents = []
     db_metadatas = []
-    if db_type1 == 'chroma':
+    if db_type1 in ['chroma', 'chroma_old']:
         assert langchain_mode1 is not None
         langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
         langchain_mode_types = selection_docs_state1['langchain_mode_types']

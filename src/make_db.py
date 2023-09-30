@@ -189,7 +189,10 @@ def make_db_main(use_openai_embedding: bool = False,
     :param pre_load_caption_model: See generate.py
     :param caption_gpu: Caption images on GPU if present
 
-    :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
+    :param db_type: 'faiss' for in-memory
+                    'chroma' (for chroma >= 0.4)
+                    'chroma_old' (for chroma < 0.4) -- recommended for large collections
+                    'weaviate' for persisted on disk
     :param selected_file_types: File types (by extension) to include if passing user_path
        For a list of possible values, see:
        https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md#shoosing-document-types

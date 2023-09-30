@@ -122,7 +122,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
-    elif db_type == 'chroma':
+    elif db_type in ['chroma', 'chroma_old']:
         assert persist_directory is not None
         # use_base already handled when making persist_directory, unless was passed into get_db()
         makedirs(persist_directory, exist_ok=True)
@@ -138,28 +138,36 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         if db is None:
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
-            from chromadb.config import Settings
+            if db_type == 'chroma':
+                from chromadb.config import Settings
+                settings_extra_kwargs = dict(is_persistent=True)
+            else:
+                from chromamigdb.config import Settings
+                settings_extra_kwargs = dict(chroma_db_impl="duckdb+parquet")
             client_settings = Settings(anonymized_telemetry=False,
-                                       is_persistent=True,
-                                       persist_directory=persist_directory)
+                                       persist_directory=persist_directory,
+                                       **settings_extra_kwargs)
             if n_jobs in [None, -1]:
                 n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
                 num_threads = max(1, min(n_jobs, 8))
             else:
                 num_threads = max(1, n_jobs)
             collection_metadata = {"hnsw:num_threads": num_threads}
-            import chromadb
-            api = chromadb.PersistentClient(path=persist_directory)
-            max_batch_size = api._producer.max_batch_size
-            sources_batches = split_list(sources, max_batch_size)
             from_kwargs = dict(embedding=embedding,
                                persist_directory=persist_directory,
                                collection_name=collection_name,
                                client_settings=client_settings,
                                collection_metadata=collection_metadata)
-            for sources_batch in sources_batches:
-                db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
-                db.persist()
+            if db_type == 'chroma':
+                import chromadb
+                api = chromadb.PersistentClient(path=persist_directory)
+                max_batch_size = api._producer.max_batch_size
+                sources_batches = split_list(sources, max_batch_size)
+                for sources_batch in sources_batches:
+                    db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
+                    db.persist()
+            else:
+                db = ChromaMig.from_documents(documents=sources, **from_kwargs)
             clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
@@ -190,7 +198,7 @@ def _get_unique_sources_in_weaviate(db):
 
 
 def del_from_db(db, sources, db_type=None):
-    if db_type == 'chroma' and db is not None:
+    if db_type in ['chroma', 'chroma_old'] and db is not None:
         # sources should be list of x.metadata['source'] from document metadatas
         if isinstance(sources, str):
             sources = [sources]
@@ -227,7 +235,7 @@ def add_to_db(db, sources, db_type='faiss',
         if num_new_sources == 0:
             return db, num_new_sources, []
         db.add_documents(documents=sources)
-    elif db_type == 'chroma':
+    elif db_type in ['chroma', 'chroma_old']:
         collection = get_documents(db)
         # files we already have:
         metadata_files = set([x['source'] for x in collection['metadatas']])
@@ -317,7 +325,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             client.schema.delete_class(index_name)
             if verbose:
                 print("Removing %s" % index_name, flush=True)
-    elif db_type == 'chroma':
+    elif db_type in ['chroma', 'chroma_old']:
         pass
 
     if not add_if_exists:
@@ -2148,7 +2156,7 @@ def file_to_doc(file,
         if isinstance(doc1, list):
             # each row is a Document, identify
             [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(doc1)]
-            if db_type == 'chroma':
+            if db_type in ['chroma', 'chroma_old']:
                 # then separate summarize list
                 sdoc1 = clone_documents(doc1)
                 [x.metadata.update(dict(chunk_id=-1)) for chunk_id, x in enumerate(sdoc1)]
@@ -2635,7 +2643,9 @@ class FakeConsumer(object):
 posthog.Consumer = FakeConsumer
 
 
-def check_update_chroma_embedding(db, use_openai_embedding,
+def check_update_chroma_embedding(db,
+                                  db_type,
+                                  use_openai_embedding,
                                   hf_embedding_model, migrate_embedding_model, auto_migrate_db,
                                   langchain_mode, langchain_mode_paths, langchain_mode_types,
                                   n_jobs=-1):
@@ -2652,7 +2662,7 @@ def check_update_chroma_embedding(db, use_openai_embedding,
         # delete index, has to be redone
         persist_directory = db._persist_directory
         shutil.move(persist_directory, persist_directory + "_" + str(uuid.uuid4()) + ".bak")
-        db_type = 'chroma'
+        assert db_type in ['chroma', 'chroma_old']
         load_db_if_exists = False
         db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                     persist_directory=persist_directory, load_db_if_exists=load_db_if_exists,
@@ -2700,7 +2710,7 @@ def get_existing_db(db, persist_directory,
                     auto_migrate_db=False,
                     verbose=False, check_embedding=True, migrate_meta=True,
                     n_jobs=-1):
-    if load_db_if_exists and db_type == 'chroma' and os.path.isdir(persist_directory):
+    if load_db_if_exists and db_type in ['chroma', 'chroma_old'] and os.path.isdir(persist_directory):
         if os.path.isfile(os.path.join(persist_directory, 'chroma.sqlite3')):
             must_migrate = False
         elif os.path.isdir(os.path.join(persist_directory, 'index')):
@@ -2774,7 +2784,9 @@ def get_existing_db(db, persist_directory,
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if check_embedding:
-            db_trial, changed_db = check_update_chroma_embedding(db, use_openai_embedding,
+            db_trial, changed_db = check_update_chroma_embedding(db,
+                                                                 db_type,
+                                                                 use_openai_embedding,
                                                                  hf_embedding_model,
                                                                  migrate_embedding_model,
                                                                  auto_migrate_db,
@@ -3378,7 +3390,10 @@ def _run_qa_db(query=None,
     :param chunk:
     :param chunk_size:
     :param langchain_mode_paths: dict of langchain_mode -> user path to glob recursively from
-    :param db_type: 'faiss' for in-memory db or 'chroma' or 'weaviate' for persistent db
+    :param db_type: 'faiss' for in-memory
+                    'chroma' (for chroma >= 0.4)
+                    'chroma_old' (for chroma < 0.4)
+                    'weaviate' for persisted on disk
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
     :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
@@ -3673,7 +3688,7 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                                 ]
         got_db_docs |= len(docs_with_score_fake) > 0
         docs_with_score += docs_with_score_fake
-    elif db is not None and db_type == 'chroma':
+    elif db is not None and db_type in ['chroma', 'chroma_old']:
         while True:
             try:
                 docs_with_score_chroma = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
@@ -4008,10 +4023,10 @@ def get_chain(query=None,
     # Chroma collection MyData contains fewer than 4 elements.
     # type logger error
     if top_k_docs == -1:
-        k_db = 1000 if db_type == 'chroma' else 100
+        k_db = 1000 if db_type in ['chroma', 'chroma_old'] else 100
     else:
         # top_k_docs=100 works ok too
-        k_db = 1000 if db_type == 'chroma' else top_k_docs
+        k_db = 1000 if db_type in ['chroma', 'chroma_old'] else top_k_docs
 
     # FIXME: For All just go over all dbs instead of a separate db for All
     if not detect_user_path_changes_every_query and db is not None:
@@ -4912,7 +4927,6 @@ def _update_user_db(file,
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
-    # assert db_type in ['faiss', 'chroma'], "db_type %s not supported" % db_type
     # handle case of list of temp buffer
     if isinstance(file, str) and file.strip().startswith('['):
         try:
