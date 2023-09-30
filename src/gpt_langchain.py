@@ -3928,7 +3928,7 @@ def get_chain(query=None,
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
-    if document_choice[0] == DocumentChoice.ALL.value:
+    if document_choice and document_choice[0] == DocumentChoice.ALL.value:
         document_choice_agent = document_choice[1:]
     else:
         document_choice_agent = document_choice
@@ -3961,7 +3961,7 @@ def get_chain(query=None,
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
-    if document_choice[0] == DocumentChoice.ALL.value:
+    if document_choice and document_choice[0] == DocumentChoice.ALL.value:
         document_choice_agent = document_choice[1:]
     else:
         document_choice_agent = document_choice

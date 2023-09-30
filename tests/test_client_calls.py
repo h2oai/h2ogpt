@@ -988,6 +988,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
             url_loaders_options0, url_loaders_options = \
             lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True,
                      enable_pdf_doctr=True,
+                     use_pymupdf=True,
                      enable_doctr=True,
                      enable_pix2struct=True,
                      max_quality=True)
