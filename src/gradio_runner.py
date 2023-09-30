@@ -4056,11 +4056,12 @@ def go_gradio(**kwargs):
             load_event2 = load_event.then(load_login_func,
                                           inputs=login_inputs,
                                           outputs=login_outputs)
-            load_event3 = load_event2.then(**get_sources_kwargs)
-            load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-            load_event5 = load_event4.then(**show_sources_kwargs)
-            load_event6 = load_event5.then(**get_viewable_sources_args)
-            load_event7 = load_event6.then(**viewable_kwargs)
+            if not kwargs['large_file_count_mode']:
+                load_event3 = load_event2.then(**get_sources_kwargs)
+                load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+                load_event5 = load_event4.then(**show_sources_kwargs)
+                load_event6 = load_event5.then(**get_viewable_sources_args)
+                load_event7 = load_event6.then(**viewable_kwargs)
 
     demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
