@@ -734,7 +734,7 @@ def go_gradio(**kwargs):
                         visible=True,
                         elem_id="langchain_agents",
                         filterable=False)
-                visible_doc_track = upload_visible and kwargs['visible_doc_track']
+                visible_doc_track = upload_visible and kwargs['visible_doc_track'] and not kwargs['large_file_count_mode']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:
                     if kwargs['langchain_mode'] in langchain_modes_non_db:
