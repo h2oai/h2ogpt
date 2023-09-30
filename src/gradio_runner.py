@@ -2487,14 +2487,6 @@ def go_gradio(**kwargs):
             assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
             # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
             model_state1 = args_list[0]
-            # override overall visible_models and h2ogpt_key if have model_specific one
-            if 'visible_models' in model_state1 and model_state1['visible_models']:
-                assert isinstance(model_state1['visible_models'], int)
-                user_kwargs['visible_models'] = model_state1['visible_models']
-            if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key']:
-                assert isinstance(model_state1['h2ogpt_key'], str)
-                user_kwargs['h2ogpt_key'] = model_state1['h2ogpt_key']
-
             my_db_state1 = args_list[1]
             selection_docs_state1 = args_list[2]
             requests_state1 = args_list[3]
@@ -2516,6 +2508,20 @@ def go_gradio(**kwargs):
                     args_list[eval_func_param_names.index('max_new_tokens')] = min(
                         args_list[eval_func_param_names.index('max_new_tokens')],
                         model_state1['tokenizer'].model_max_length - buffer)
+
+            # override overall visible_models and h2ogpt_key if have model_specific one
+            # NOTE: only applicable if len(model_states) > 1 at moment
+            # else controlled by evaluate()
+            if 'visible_models' in model_state1 and model_state1['visible_models'] is not None:
+                assert isinstance(model_state1['visible_models'], int)
+                args_list[eval_func_param_names.index('visible_models')] = model_state1['visible_models']
+            if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
+                # remote server key if present
+                # i.e. may be '' and used to override overall local key
+                assert isinstance(model_state1['h2ogpt_key'], str)
+                args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
+
+            # local key, not for remote server unless same, will be passed through
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
             # final full evaluate args list
@@ -2916,10 +2922,11 @@ def go_gradio(**kwargs):
             chat_conversation1 = merge_chat_conversation_history(chat_conversation1, history)
             args_list[eval_func_param_names.index('chat_conversation')] = chat_conversation1
 
-            if 'visible_models' in model_state1 and model_state1['visible_models']:
+            if 'visible_models' in model_state1 and model_state1['visible_models'] is not None:
                 assert isinstance(model_state1['visible_models'], int)
                 args_list[eval_func_param_names.index('visible_models')] = model_state1['visible_models']
-            if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key']:
+            if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
+                # i.e. may be '' and used to override overall local key
                 assert isinstance(model_state1['h2ogpt_key'], str)
                 args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 

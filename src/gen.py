@@ -2206,6 +2206,10 @@ def evaluate(
     tokenizer_base_model = chosen_model_state['tokenizer_base_model']
     lora_weights = chosen_model_state['lora_weights']
     inference_server = chosen_model_state['inference_server']
+    visible_models = chosen_model_state['visible_models']
+    # use overall key if have, so key for this gradio and any inner gradio
+    if chosen_model_state['h2ogpt_key'] is not None:
+        h2ogpt_key = chosen_model_state['h2ogpt_key']
     # prefer use input from API over model state
     prompt_type = prompt_type or chosen_model_state['prompt_type']
     prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
