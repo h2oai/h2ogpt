@@ -994,6 +994,14 @@ except (PackageNotFoundError, AssertionError):
     pass
 
 
+have_serpapi = False
+try:
+    assert distribution('google-search-results') is not None
+    have_serpapi = True
+except (PackageNotFoundError, AssertionError):
+    pass
+
+
 def hash_file(file):
     try:
         import hashlib
