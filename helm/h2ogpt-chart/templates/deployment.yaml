@@ -2,18 +2,6 @@
   {{- fail "Both TGI and vLLM cannot be enabled at the same time. Enable only one and try again" }}
 {{- end }}
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: h2ogpt-cache-volume-shared
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: {{ .Values.h2ogpt.storage.size | quote }}
-  storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
----
 {{- if .Values.h2ogpt.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -144,16 +132,23 @@ spec:
             value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
 {{- end }}
           volumeMounts:
-            - name: h2ogpt-cache-volume-shared
+            - name: h2ogpt-volume
               mountPath: /workspace/.cache
               subPath: cache
-            - name: h2ogpt-cache-volume-shared
+            - name: h2ogpt-volume
               mountPath: /workspace/save
               subPath: save
       volumes:
-        - name: h2ogpt-cache-volume-shared
-          persistentVolumeClaim:
-            claimName: h2ogpt-cache-volume-shared
+        - name: h2ogpt-volume
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: 
+                  - ReadWriteOnce
+                resources:
+                  requests: 
+                    storage: {{ .Values.h2ogpt.storage.size | quote }}
+                storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
 {{- end }}
 ---
 {{- if .Values.tgi.enabled }}
@@ -251,9 +246,10 @@ spec:
               subPath: data
             - name: h2ogpt-tgi-inference-volume
               mountPath: /dev/shm
+              subPath: shm
       volumes:
         - name: h2ogpt-tgi-inference-volume
-          persistentVolumeClaim:
+          ephemeral:
             volumeClaimTemplate:
               spec:
                 accessModes: 
@@ -360,24 +356,22 @@ spec:
           - name: NCCL_IGNORE_DISABLED_P2P
             value: "1"
           volumeMounts:
-            - name: h2ogpt-cache-volume-shared
+            - name: h2ogpt-vllm-inference-volume
               mountPath: /workspace/.cache
               subPath: cache
             - name: h2ogpt-vllm-inference-volume
               mountPath: /dev/shm
+              subPath: shm
       volumes:
-        - name: h2ogpt-cache-volume-shared
-          persistentVolumeClaim:
-            claimName: h2ogpt-cache-volume-shared
         - name: h2ogpt-vllm-inference-volume
           ephemeral:
             volumeClaimTemplate:
               spec:
-                accessModes:
+                accessModes: 
                   - ReadWriteOnce
                 resources:
-                  requests:
-                    storage: { { .Values.vllm.storage.size | quote } }
-                storageClassName: { { .Values.vllm.storage.class | quote } }
+                  requests: 
+                    storage: {{ .Values.vllm.storage.size | quote }}
+                storageClassName: {{ .Values.vllm.storage.class | quote }}
 {{- end }}
 
