@@ -1,0 +1,17 @@
+{
+  "builds": [
+    {
+      "name": "googlecompute",
+      "builder_type": "googlecompute",
+      "build_time": 1695815874,
+      "files": null,
+      "artifact_id": "h2ogpt-test",
+      "packer_run_uuid": "3490ce87-1437-6b5f-3f9e-e2cb5c8cafc9",
+      "custom_data": {
+        "base_image": "GCP Ubuntu 20.04",
+        "h2ogpt_version": "test"
+      }
+    }
+  ],
+  "last_run_uuid": "3490ce87-1437-6b5f-3f9e-e2cb5c8cafc9"
+}

@@ -40,25 +40,68 @@
     {
       "type": "shell",
       "script": "setup_environment.sh",
-      "pause_before": "50s",
-      "pause_after": "50s"
+      "pause_before": "10s",
+      "pause_after": "10s"
     },
     {
       "type": "shell",
       "inline": ["sudo reboot now"],
-      "pause_after": "50s",
+      "pause_after": "10s",
       "expect_disconnect": true
     },
     {
       "type": "shell",
       "environment_vars": ["BRANCH_TAG={{user `branch_tag`}}"],
       "script": "install_h2ogpt.sh",
-      "pause_after": "50s"
+      "pause_after": "10s"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo chown -R ubuntu:ubuntu /etc/nginx/conf.d",
+        "sudo chown -R ubuntu:ubuntu /etc/systemd/system/"
+      ],
+      "pause_before": "10s"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/run_nginx.sh",
+      "destination": "/workspace/run_nginx.sh"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/run_vllm.sh",
+      "destination": "/workspace/run_vllm.sh"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/run_h2ogpt.sh",
+      "destination": "/workspace/run_h2ogpt.sh"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/h2ogpt_nginx.service",
+      "destination": "/etc/systemd/system/h2ogpt_nginx.service"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/vllm.service",
+      "destination": "/etc/systemd/system/vllm.service"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/h2ogpt.service",
+      "destination": "/etc/systemd/system/h2ogpt.service"
+    },
+    {
+      "type":  "file",
+      "source": "./startup-scripts/temp.conf",
+      "destination": "/workspace/temp.conf"
     },
     {
       "type": "shell",
       "script": "{{user `base_model`}}.sh",
-      "pause_after": "50s"
+      "pause_after": "10s"
     }
   ]
 }

@@ -1,0 +1,12 @@
+[Unit]
+Description=h2oGPT Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/workspace
+ExecStart=/usr/bin/bash /workspace/run_h2ogpt.sh
+
+[Install]
+WantedBy=multi-user.target

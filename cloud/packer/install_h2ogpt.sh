@@ -1,8 +1,12 @@
 #!/bin/bash -e
 
 export PATH=$PATH:/home/ubuntu/.local/bin
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
+sudo mkdir -p /workspace && cd /workspace
+sudo chmod a+rwx .
+
+git config --global --add safe.directory /workspace
+git config --global advice.detachedHead false
+git clone https://github.com/h2oai/h2ogpt.git .
 
 if [ -z "$BRANCH_TAG" ]; then
   echo "BRANCH_TAG environment variable is not set."
@@ -11,5 +15,5 @@ fi
 
 git checkout $BRANCH_TAG
 
-# Setup h2oGPT
-./docker_build_script_ubuntu.sh
+ls -la
+sudo ./docker_build_script_ubuntu.sh
