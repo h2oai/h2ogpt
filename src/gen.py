@@ -3631,7 +3631,7 @@ def get_limited_prompt(instruction,
 
     generate_prompt_type = prompt_type
     external_handle_chat_conversation = False
-    if any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
+    if inference_server and any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
         # Chat APIs do not take prompting
         # Replicate does not need prompting if no chat history, but in general can take prompting
         # if using prompter, prompter.system_prompt will already be filled with automatic (e.g. from llama-2),

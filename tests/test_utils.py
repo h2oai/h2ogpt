@@ -117,10 +117,12 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
     model_max_length = 4096
 
     from src.gen import get_limited_prompt
-    prompt, \
+    estimated_full_prompt, \
         instruction, iinput, context, \
-        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
-        chat_index, top_k_docs_trial, one_doc_size = \
+        num_prompt_tokens, max_new_tokens, \
+        num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, external_handle_chat_conversation, \
+        top_k_docs_trial, one_doc_size = \
         get_limited_prompt(instruction, iinput, tokenizer,
                            prompter=prompter,
                            max_new_tokens=max_new_tokens,
