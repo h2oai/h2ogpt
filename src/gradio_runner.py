@@ -737,7 +737,8 @@ def go_gradio(**kwargs):
                         visible=True,
                         elem_id="langchain_agents",
                         filterable=False)
-                visible_doc_track = upload_visible and kwargs['visible_doc_track'] and not kwargs['large_file_count_mode']
+                visible_doc_track = upload_visible and kwargs['visible_doc_track'] and not kwargs[
+                    'large_file_count_mode']
                 row_doc_track = gr.Row(visible=visible_doc_track)
                 with row_doc_track:
                     if kwargs['langchain_mode'] in langchain_modes_non_db:
@@ -784,6 +785,9 @@ def go_gradio(**kwargs):
                         text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                             show_copy_button=True)
 
+                        visible_upload = (allow_upload_to_user_data or
+                                          allow_upload_to_my_data) and \
+                                         kwargs['langchain_mode'] != 'Disabled'
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
                         with col_chat:
@@ -806,7 +810,8 @@ def go_gradio(**kwargs):
                                             size="sm",
                                             min_width=24,
                                             file_types=['.' + x for x in file_types],
-                                            file_count="multiple")
+                                            file_count="multiple",
+                                            visible=visible_upload)
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
@@ -886,11 +891,9 @@ def go_gradio(**kwargs):
                                                             visible=sources_visible and allow_upload_to_user_data)
                         with gr.Column(scale=4):
                             pass
+                    visible_add_remove_collection = visible_upload
                     with gr.Row():
                         with gr.Column(scale=1):
-                            visible_add_remove_collection = (allow_upload_to_user_data or
-                                                             allow_upload_to_my_data) and \
-                                                            kwargs['langchain_mode'] != 'Disabled'
                             add_placeholder = "e.g. UserData2, shared, user_path2" \
                                 if not is_public else "e.g. MyData2, personal (optional)"
                             remove_placeholder = "e.g. UserData2" if not is_public else "e.g. MyData2"
@@ -1143,7 +1146,8 @@ def go_gradio(**kwargs):
                         )
                         min_max_new_tokens = gr.Slider(
                             minimum=1, maximum=max_max_new_tokens, step=1,
-                            value=min(max_max_new_tokens, kwargs['min_max_new_tokens']), label="Min. of Max output length",
+                            value=min(max_max_new_tokens, kwargs['min_max_new_tokens']),
+                            label="Min. of Max output length",
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
