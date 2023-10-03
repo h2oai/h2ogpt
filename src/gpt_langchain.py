@@ -37,6 +37,8 @@ from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
 
+from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
+    set_userid_direct
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
@@ -4653,57 +4655,6 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
     else:
         ret = answer
     return ret, extra
-
-
-def set_userid(db1s, requests_state1, get_userid_auth):
-    db1 = db1s[LangChainMode.MY_DATA.value]
-    assert db1 is not None and len(db1) == length_db1()
-    if not db1[1]:
-        db1[1] = get_userid_auth(requests_state1)
-    if not db1[2]:
-        username1 = None
-        if 'username' in requests_state1:
-            username1 = requests_state1['username']
-        db1[2] = username1
-
-
-def set_userid_direct(db1s, userid, username):
-    db1 = db1s[LangChainMode.MY_DATA.value]
-    db1[1] = userid
-    db1[2] = username
-
-
-def get_userid_direct(db1s):
-    return db1s[LangChainMode.MY_DATA.value][1] if db1s is not None else ''
-
-
-def get_username_direct(db1s):
-    return db1s[LangChainMode.MY_DATA.value][2] if db1s is not None else ''
-
-
-def get_dbid(db1):
-    return db1[1]
-
-
-def set_dbid(db1):
-    # can only call this after function called so for specific user, not in gr.State() that occurs during app init
-    assert db1 is not None and len(db1) == length_db1()
-    if db1[1] is None:
-        #  uuid in db is used as user ID
-        db1[1] = str(uuid.uuid4())
-
-
-def length_db1():
-    # For MyData:
-    # 0: db
-    # 1: userid and dbid
-    # 2: username
-
-    # For others:
-    # 0: db
-    # 1: dbid
-    # 2: None
-    return 3
 
 
 def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
