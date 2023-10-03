@@ -58,8 +58,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   
 * Install dependencies:
     ```bash
-    git clone https://github.com/h2oai/h2ogpt.git
-    cd h2ogpt
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
     # broad support, but no training-time or data creation dependencies
@@ -73,7 +71,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * Install document question-answer dependencies:
     ```bash
     # May be required for jq package:
-    sudo apt-get install autoconf libtool
+    sudo apt-get -y install autoconf libtool
     # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
@@ -85,7 +83,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Improved OCR with DocTR:
-    conda install -c conda-forge pygobject
+    conda install -y -c conda-forge pygobject
     pip install -r reqs_optional/requirements_optional_doctr.txt
     # go back to older onnx so Tesseract OCR still works
     pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
@@ -94,7 +92,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional but required for PlayWright
     playwright install --with-deps
 * GPU Optional: For AutoGPTQ support on x86_64 linux
-    Try H2O.ai's pre-built wheel:
     ```bash
     pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ
