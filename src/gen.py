@@ -779,6 +779,10 @@ def main(
     # always allow DISABLED
     if LangChainMode.DISABLED.value not in langchain_modes:
         langchain_modes.append(LangChainMode.DISABLED.value)
+    if not have_langchain:
+        # only allow disabled, not even LLM that is langchain related
+        langchain_mode = LangChainMode.DISABLED.value
+        langchain_modes = [langchain_mode]
 
     # update
     langchain_mode_paths = str_to_dict(langchain_mode_paths)
@@ -1036,7 +1040,7 @@ def main(
         print(f"Generating model with params:\n{locals_print}", flush=True)
         print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), git_hash), flush=True)
 
-    if langchain_mode != "Disabled":
+    if langchain_mode != LangChainMode.DISABLED.value:
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
         from gpt_langchain import prep_langchain, get_some_dbs_from_hf, get_persist_directory
         if is_hf:
@@ -1245,7 +1249,9 @@ def main(
         else:
             caption_loader = False
 
-        if pre_load_embedding_model and langchain_mode != 'Disabled' and not use_openai_embedding:
+        if pre_load_embedding_model and \
+                langchain_mode != LangChainMode.DISABLED.value and \
+                not use_openai_embedding:
             from src.gpt_langchain import get_embedding
             hf_embedding_model = dict(name=hf_embedding_model,
                                       model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
