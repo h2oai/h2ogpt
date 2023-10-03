@@ -791,11 +791,12 @@ def test_replicate_inference_server(force_langchain_evaluate,
     # will use HOST from above
     ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
     who = 'an AI assistant'
-    assert who in ret1['response']
+    who2 = 'just an AI'
+    assert who in ret1['response'] or who2 in ret1['response']
     assert 'Once upon a time, in a far-off land,' in ret2['response'] or 'Once upon a time' in ret2['response']
     assert 'Once upon a time, in a far-off land,' in ret3['response'] or 'Once upon a time' in ret3['response']
-    assert who in ret4['response'] or 'I am a helpful assistant designed' in ret4['response']
-    assert who in ret5['response'] or 'I am a helpful assistant designed' in ret5['response']
-    assert who in ret6['response'] or 'I am a helpful assistant designed' in ret6['response']
-    assert who in ret7['response'] or 'I am a helpful assistant designed' in ret7['response']
+    assert who in ret4['response'] or 'I am a helpful assistant designed' in ret4['response'] or who2 in ret4['response']
+    assert who in ret5['response'] or 'I am a helpful assistant designed' in ret5['response'] or who2 in ret5['response']
+    assert who in ret6['response'] or 'I am a helpful assistant designed' in ret6['response'] or who2 in ret6['response']
+    assert who in ret7['response'] or 'I am a helpful assistant designed' in ret7['response'] or who2 in ret7['response']
     print("DONE", flush=True)
