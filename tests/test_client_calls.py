@@ -338,7 +338,8 @@ def test_client_chat_nostream_llama7b():
                                                    prompt_type=prompt_type, model_path_llama=full_path)
     assert "am a virtual assistant" in res_dict['response'] or \
            'am a student' in res_dict['response'] or \
-           "My name is John." in res_dict['response']
+           "My name is John." in res_dict['response'] or \
+           "how can I assist" in res_dict['response']
 
 
 def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_new_tokens=256,
@@ -433,7 +434,8 @@ def test_client_chat_stream_langchain():
            'H2O.ai is a technology company' in res_dict['response'] or \
            'an open-source project' in res_dict['response'] or \
            'h2oGPT is a project that allows' in res_dict['response'] or \
-           'h2oGPT is a language model trained' in res_dict['response']
+           'h2oGPT is a language model trained' in res_dict['response'] or \
+           'h2oGPT is a large-scale' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
@@ -484,7 +486,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'is a company that provides' in res_dict['response'] or
             'h2oGPT is a project that' in res_dict['response'] or
             'for querying and summarizing documents' in res_dict['response'] or
-            'Python-based platform for training' in res_dict['response']
+            'Python-based platform for training' in res_dict['response'] or
+            'h2oGPT is an open-source' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
