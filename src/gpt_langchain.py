@@ -29,10 +29,11 @@ import yaml
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
+from langchain.callbacks.base import Callbacks
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
-from langchain.schema import LLMResult, Generation
+from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
@@ -951,20 +952,98 @@ class H2OReplicate(Replicate):
         # return _get_token_ids_default_method(text)
 
 
-class H2OChatOpenAI(ChatOpenAI):
+class ExtraChat:
+    def get_messages(self, prompts):
+        from langchain.schema import AIMessage, SystemMessage, HumanMessage
+        from langchain.prompts.chat import ChatPromptValue
+        messages = []
+        if self.system_prompt:
+            messages.append(SystemMessage(content=self.system_prompt))
+        if self.chat_conversation:
+            for messages1 in self.chat_conversation:
+                messages.append(HumanMessage(content=messages1[0] if messages1[0] is not None else ''))
+                messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
+        assert len(prompts) == 1, "Not implemented"
+        messages.append(HumanMessage(content=prompts[0].text if prompts[0].text is not None else ''))
+        return [messages]
+
+
+class H2OChatOpenAI(ChatOpenAI, ExtraChat):
+    tokenizer: Any = None  # for vllm_chat
+    system_prompt: Any = None
+    chat_conversation: Any = []
+
     @classmethod
     def _all_required_field_names(cls) -> Set:
         _all_required_field_names = super(ChatOpenAI, cls)._all_required_field_names()
         _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
         return _all_required_field_names
 
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            # OpenAI uses tiktoken
+            return super().get_token_ids(text)
 
-class H2OAzureChatOpenAI(AzureChatOpenAI):
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
+
+class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+
     @classmethod
     def _all_required_field_names(cls) -> Set:
         _all_required_field_names = super(AzureChatOpenAI, cls)._all_required_field_names()
         _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
         return _all_required_field_names
+
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
 
 
 class H2OAzureOpenAI(AzureOpenAI):
@@ -1050,7 +1129,7 @@ def get_llm(use_openai_model=False,
         if 'meta/llama' in model_string:
             temperature = max(0.01, temperature if do_sample else 0)
         else:
-            temperature =temperature if do_sample else 0
+            temperature = temperature if do_sample else 0
         gen_kwargs = dict(temperature=temperature,
                           seed=1234,
                           max_length=max_new_tokens,  # langchain
@@ -1106,8 +1185,8 @@ def get_llm(use_openai_model=False,
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
-            # if inf_type == 'vllm_chat':
-            #    kwargs_extra.update(dict(tokenizer=tokenizer))
+            if inf_type == 'vllm_chat':
+                kwargs_extra.update(dict(tokenizer=tokenizer))
             openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
@@ -1166,6 +1245,8 @@ def get_llm(use_openai_model=False,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
+                  system_prompt=system_prompt,
+                  # chat_conversation=chat_conversation,  # don't do here, not token aware
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3498,7 +3579,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=chat, stream_output=stream_output,
                             system_prompt=system_prompt)
 
-    use_docs_planned = False
     scores = []
     chain = None
 
@@ -3515,8 +3595,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, \
-        use_docs_planned, num_docs_before_cut, \
-        use_llm_if_no_docs, llm_mode, top_k_docs_max_show = \
+        num_docs_before_cut, \
+        use_llm_if_no_docs, top_k_docs_max_show = \
         get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
@@ -3537,23 +3617,21 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
         return
-    if not use_llm_if_no_docs:
-        if not docs and langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                             LangChainAction.SUMMARIZE_ALL.value,
-                                             LangChainAction.SUMMARIZE_REFINE.value]:
-            ret = 'No relevant documents to summarize.' if num_docs_before_cut else 'No documents to summarize.'
-            extra = ''
-            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
-            return
-        if not docs and not llm_mode:
-            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
+    if langchain_mode not in langchain_modes_intrinsic and not use_llm_if_no_docs:
+        if not docs:
+            if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                    LangChainAction.SUMMARIZE_ALL.value,
+                                    LangChainAction.SUMMARIZE_REFINE.value]:
+                ret = 'No relevant documents to summarize.' if num_docs_before_cut else 'No documents to summarize.'
+            else:
+                ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
             extra = ''
             yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
             return
 
-    if chain is None and not langchain_only_model:
-        # here if no docs at all and not HF type
-        # can only return if HF type
+    # NOTE: If chain=None, could return if HF type (i.e. not langchain_only_model), but makes code too complex
+    # only return now if no chain at all, e.g. when only returning sources
+    if chain is None:
         return
 
     # context stuff similar to used in evaluate()
@@ -3654,7 +3732,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         prompt = prompt_basic
     num_prompt_tokens = get_token_count(prompt, tokenizer)
 
-    if not use_docs_planned:
+    if len(docs) == 0:
+        # if no docs, then no sources to cite
         ret = answer
         extra = ''
         yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens)
@@ -3813,8 +3892,7 @@ def get_chain(query=None,
     if text_context_list is None:
         text_context_list = []
 
-    # default value:
-    llm_mode = langchain_mode in ['Disabled', 'LLM'] and len(text_context_list) == 0
+    # NOTE: Could try to establish if pure llm mode or not, but makes code too complex
     query_action = langchain_action == LangChainAction.QUERY.value
     summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                                             LangChainAction.SUMMARIZE_ALL.value,
@@ -3846,8 +3924,6 @@ def get_chain(query=None,
         add_search_to_context &= len(docs_search) > 0
         top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
 
-    if len(text_context_list) > 0:
-        llm_mode = False
     use_llm_if_no_docs = True
 
     from src.output_parser import H2OMRKLOutputParser
@@ -3875,10 +3951,9 @@ def get_chain(query=None,
 
         docs = []
         scores = []
-        use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -3897,10 +3972,9 @@ def get_chain(query=None,
 
         docs = []
         scores = []
-        use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
         chain = create_python_agent(
@@ -3916,10 +3990,9 @@ def get_chain(query=None,
 
         docs = []
         scores = []
-        use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -3936,10 +4009,9 @@ def get_chain(query=None,
 
         docs = []
         scores = []
-        use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -3969,10 +4041,9 @@ def get_chain(query=None,
 
         docs = []
         scores = []
-        use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -3983,7 +4054,7 @@ def get_chain(query=None,
     document_choice_agent = [x for x in document_choice_agent if x.endswith('.csv')]
     if LangChainAgent.CSV.value in langchain_agents and len(document_choice_agent) == 1 and document_choice_agent[
         0].endswith(
-            '.csv'):
+        '.csv'):
         data_file = document_choice[0]
         if inference_server.startswith('openai_chat'):
             chain = create_csv_agent(
@@ -4004,19 +4075,9 @@ def get_chain(query=None,
 
         docs = []
         scores = []
-        use_docs_planned = False
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
-
-    # determine whether use of context out of docs is planned
-    if not use_openai_model and prompt_type not in ['plain'] or langchain_only_model:
-        if llm_mode:
-            use_docs_planned = False
-        else:
-            use_docs_planned = True
-    else:
-        use_docs_planned = True
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     # https://github.com/hwchase17/langchain/issues/1946
     # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
@@ -4088,8 +4149,7 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
-                     llm_mode,
-                     use_docs_planned,
+                     True,  # just to overestimate prompting
                      auto_reduce_chunks,
                      got_db_docs,
                      add_search_to_context)
@@ -4097,239 +4157,236 @@ def get_chain(query=None,
     max_input_tokens = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                             model_name=model_name, max_new_tokens=max_new_tokens)
 
-    if (db or text_context_list) and use_docs_planned:
-        if hasattr(db, '_persist_directory'):
-            lock_file = get_db_lock_file(db, lock_type='sim')
-        else:
-            base_path = 'locks'
-            base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-            name_path = "sim.lock"
-            lock_file = os.path.join(base_path, name_path)
+    if hasattr(db, '_persist_directory'):
+        lock_file = get_db_lock_file(db, lock_type='sim')
+    else:
+        base_path = 'locks'
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        name_path = "sim.lock"
+        lock_file = os.path.join(base_path, name_path)
 
-        if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
-            # only chroma supports filtering
-            filter_kwargs = {}
-            filter_kwargs_backup = {}
-        else:
-            import logging
-            logging.getLogger("chromadb").setLevel(logging.ERROR)
-            assert document_choice is not None, "Document choice was None"
-            if isinstance(db, Chroma):
-                filter_kwargs_backup = {}  # shouldn't ever need backup
-                # chroma >= 0.4
-                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
-                    0] == DocumentChoice.ALL.value:
-                    filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
-                        {"filter": {"chunk_id": {"$eq": -1}}}
-                else:
-                    if document_choice[0] == DocumentChoice.ALL.value:
-                        document_choice = document_choice[1:]
-                    if len(document_choice) == 0:
-                        filter_kwargs = {}
-                    elif len(document_choice) > 1:
-                        or_filter = [
-                            {"$and": [dict(source={"$eq": x}), dict(chunk_id={"$gte": 0})]} if query_action else {
-                                "$and": [dict(source={"$eq": x}), dict(chunk_id={"$eq": -1})]}
-                            for x in document_choice]
-                        filter_kwargs = dict(filter={"$or": or_filter})
-                    else:
-                        # still chromadb UX bug, have to do different thing for 1 vs. 2+ docs when doing filter
-                        one_filter = \
-                            [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {
-                                "source": {"$eq": x},
-                                "chunk_id": {
-                                    "$eq": -1}}
-                             for x in document_choice][0]
-
-                        filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
-                                                              dict(chunk_id=one_filter['chunk_id'])]})
+    if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
+        # only chroma supports filtering
+        filter_kwargs = {}
+        filter_kwargs_backup = {}
+    else:
+        import logging
+        logging.getLogger("chromadb").setLevel(logging.ERROR)
+        assert document_choice is not None, "Document choice was None"
+        if isinstance(db, Chroma):
+            filter_kwargs_backup = {}  # shouldn't ever need backup
+            # chroma >= 0.4
+            if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
+                0] == DocumentChoice.ALL.value:
+                filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
+                    {"filter": {"chunk_id": {"$eq": -1}}}
             else:
-                # migration for chroma < 0.4
-                if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
-                    0] == DocumentChoice.ALL.value:
-                    filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
-                        {"filter": {"chunk_id": {"$eq": -1}}}
-                    filter_kwargs_backup = {"filter": {"chunk_id": {"$gte": 0}}}
-                elif len(document_choice) >= 2:
-                    if document_choice[0] == DocumentChoice.ALL.value:
-                        document_choice = document_choice[1:]
+                if document_choice[0] == DocumentChoice.ALL.value:
+                    document_choice = document_choice[1:]
+                if len(document_choice) == 0:
+                    filter_kwargs = {}
+                elif len(document_choice) > 1:
                     or_filter = [
-                        {"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                              "chunk_id": {
-                                                                                                  "$eq": -1}}
+                        {"$and": [dict(source={"$eq": x}), dict(chunk_id={"$gte": 0})]} if query_action else {
+                            "$and": [dict(source={"$eq": x}), dict(chunk_id={"$eq": -1})]}
                         for x in document_choice]
                     filter_kwargs = dict(filter={"$or": or_filter})
-                    or_filter_backup = [
-                        {"source": {"$eq": x}} if query_action else {"source": {"$eq": x}}
-                        for x in document_choice]
-                    filter_kwargs_backup = dict(filter={"$or": or_filter_backup})
-                elif len(document_choice) == 1:
-                    # degenerate UX bug in chroma
-                    one_filter = \
-                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
-                                                                                               "chunk_id": {
-                                                                                                   "$eq": -1}}
-                         for x in document_choice][0]
-                    filter_kwargs = dict(filter=one_filter)
-                    one_filter_backup = \
-                        [{"source": {"$eq": x}} if query_action else {"source": {"$eq": x}}
-                         for x in document_choice][0]
-                    filter_kwargs_backup = dict(filter=one_filter_backup)
                 else:
-                    # shouldn't reach
-                    filter_kwargs = {}
-                    filter_kwargs_backup = {}
+                    # still chromadb UX bug, have to do different thing for 1 vs. 2+ docs when doing filter
+                    one_filter = \
+                        [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {
+                            "source": {"$eq": x},
+                            "chunk_id": {
+                                "$eq": -1}}
+                         for x in document_choice][0]
 
-        if llm_mode:
-            docs = []
-            scores = []
-        elif document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
-            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
-                                                           text_context_list=text_context_list)
-            if len(db_documents) == 0 and filter_kwargs_backup:
-                db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup,
-                                                               text_context_list=text_context_list)
-
-            if top_k_docs == -1:
-                top_k_docs = len(db_documents)
-            # similar to langchain's chroma's _results_to_docs_and_scores
-            docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
-                               for result in zip(db_documents, db_metadatas)]
-            # set in metadata original order of docs
-            [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
-
-            # order documents
-            doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
-            if query_action:
-                doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
-                docs_with_score2 = [x for hx, cx, x in
-                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                                    if cx >= 0]
-            else:
-                assert summarize_action
-                doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
-                docs_with_score2 = [x for hx, cx, x in
-                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
-                                    if cx == -1
-                                    ]
-                if len(docs_with_score2) == 0 and len(docs_with_score) > 0:
-                    # old database without chunk_id, migration added 0 but didn't make -1 as that would be expensive
-                    # just do again and relax filter, let summarize operate on actual chunks if nothing else
-                    docs_with_score2 = [x for hx, cx, x in
-                                        sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score),
-                                               key=lambda x: (x[0], x[1]))
-                                        ]
-            docs_with_score = docs_with_score2
-
-            docs_with_score = docs_with_score[:top_k_docs]
-            docs = [x[0] for x in docs_with_score]
-            scores = [x[1] for x in docs_with_score]
-            num_docs_before_cut = len(docs)
+                    filter_kwargs = dict(filter={"$and": [dict(source=one_filter['source']),
+                                                          dict(chunk_id=one_filter['chunk_id'])]})
         else:
-            with filelock.FileLock(lock_file):
-                docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+            # migration for chroma < 0.4
+            if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
+                0] == DocumentChoice.ALL.value:
+                filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
+                    {"filter": {"chunk_id": {"$eq": -1}}}
+                filter_kwargs_backup = {"filter": {"chunk_id": {"$gte": 0}}}
+            elif len(document_choice) >= 2:
+                if document_choice[0] == DocumentChoice.ALL.value:
+                    document_choice = document_choice[1:]
+                or_filter = [
+                    {"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                          "chunk_id": {
+                                                                                              "$eq": -1}}
+                    for x in document_choice]
+                filter_kwargs = dict(filter={"$or": or_filter})
+                or_filter_backup = [
+                    {"source": {"$eq": x}} if query_action else {"source": {"$eq": x}}
+                    for x in document_choice]
+                filter_kwargs_backup = dict(filter={"$or": or_filter_backup})
+            elif len(document_choice) == 1:
+                # degenerate UX bug in chroma
+                one_filter = \
+                    [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
+                                                                                           "chunk_id": {
+                                                                                               "$eq": -1}}
+                     for x in document_choice][0]
+                filter_kwargs = dict(filter=one_filter)
+                one_filter_backup = \
+                    [{"source": {"$eq": x}} if query_action else {"source": {"$eq": x}}
+                     for x in document_choice][0]
+                filter_kwargs_backup = dict(filter=one_filter_backup)
+            else:
+                # shouldn't reach
+                filter_kwargs = {}
+                filter_kwargs_backup = {}
+
+    if document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
+        db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                                       text_context_list=text_context_list)
+        if len(db_documents) == 0 and filter_kwargs_backup:
+            db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup,
+                                                           text_context_list=text_context_list)
+
+        if top_k_docs == -1:
+            top_k_docs = len(db_documents)
+        # similar to langchain's chroma's _results_to_docs_and_scores
+        docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
+                           for result in zip(db_documents, db_metadatas)]
+        # set in metadata original order of docs
+        [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
+
+        # order documents
+        doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
+        if query_action:
+            doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
+            docs_with_score2 = [x for hx, cx, x in
+                                sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                if cx >= 0]
+        else:
+            assert summarize_action
+            doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+            docs_with_score2 = [x for hx, cx, x in
+                                sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
+                                if cx == -1
+                                ]
+            if len(docs_with_score2) == 0 and len(docs_with_score) > 0:
+                # old database without chunk_id, migration added 0 but didn't make -1 as that would be expensive
+                # just do again and relax filter, let summarize operate on actual chunks if nothing else
+                docs_with_score2 = [x for hx, cx, x in
+                                    sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score),
+                                           key=lambda x: (x[0], x[1]))
+                                    ]
+        docs_with_score = docs_with_score2
+
+        docs_with_score = docs_with_score[:top_k_docs]
+        docs = [x[0] for x in docs_with_score]
+        scores = [x[1] for x in docs_with_score]
+        num_docs_before_cut = len(docs)
+    else:
+        # for db=None too
+        with filelock.FileLock(lock_file):
+            docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                               text_context_list=text_context_list,
+                                                               verbose=verbose)
+            if len(docs_with_score) == 0 and filter_kwargs_backup:
+                docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
+                                                                   db_type,
                                                                    text_context_list=text_context_list,
                                                                    verbose=verbose)
-                if len(docs_with_score) == 0 and filter_kwargs_backup:
-                    docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
-                                                                       db_type,
-                                                                       text_context_list=text_context_list,
-                                                                       verbose=verbose)
 
-            tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                      use_openai_model=use_openai_model,
-                                      db_type=db_type)
-            # NOTE: if map_reduce, then no need to auto reduce chunks
-            if query_action and (top_k_docs == -1 or auto_reduce_chunks):
-                top_k_docs_tokenize = 100
-                docs_with_score = docs_with_score[:top_k_docs_tokenize]
+        tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                  use_openai_model=use_openai_model,
+                                  db_type=db_type)
+        # NOTE: if map_reduce, then no need to auto reduce chunks
+        if query_action and (top_k_docs == -1 or auto_reduce_chunks):
+            top_k_docs_tokenize = 100
+            docs_with_score = docs_with_score[:top_k_docs_tokenize]
 
-                prompt_no_docs = template.format(context='', question=query)
+            prompt_no_docs = template.format(context='', question=query)
 
-                model_max_length = tokenizer.model_max_length
-                chat = True  # FIXME?
+            model_max_length = tokenizer.model_max_length
+            chat = True  # FIXME?
 
-                # first docs_with_score are most important with highest score
-                full_prompt, \
-                    instruction, iinput, context, \
-                    num_prompt_tokens, max_new_tokens, \
-                    num_prompt_tokens0, num_prompt_tokens_actual, \
-                    chat_index, top_k_docs_trial, one_doc_size = \
-                    get_limited_prompt(prompt_no_docs,
-                                       iinput,
-                                       tokenizer,
-                                       prompter=prompter,
-                                       inference_server=inference_server,
-                                       prompt_type=prompt_type,
-                                       prompt_dict=prompt_dict,
-                                       chat=chat,
-                                       max_new_tokens=max_new_tokens,
-                                       system_prompt=system_prompt,
-                                       context=context,
-                                       chat_conversation=chat_conversation,
-                                       text_context_list=[x[0].page_content for x in docs_with_score],
-                                       keep_sources_in_context=keep_sources_in_context,
-                                       model_max_length=model_max_length,
-                                       memory_restriction_level=memory_restriction_level,
-                                       langchain_mode=langchain_mode,
-                                       add_chat_history_to_context=add_chat_history_to_context,
-                                       min_max_new_tokens=min_max_new_tokens,
-                                       )
+            # first docs_with_score are most important with highest score
+            full_prompt, \
+                instruction, iinput, context, \
+                num_prompt_tokens, max_new_tokens, \
+                num_prompt_tokens0, num_prompt_tokens_actual, \
+                chat_index, external_handle_chat_conversation, \
+                top_k_docs_trial, one_doc_size = \
+                get_limited_prompt(prompt_no_docs,
+                                   iinput,
+                                   tokenizer,
+                                   prompter=prompter,
+                                   inference_server=inference_server,
+                                   prompt_type=prompt_type,
+                                   prompt_dict=prompt_dict,
+                                   chat=chat,
+                                   max_new_tokens=max_new_tokens,
+                                   system_prompt=system_prompt,
+                                   context=context,
+                                   chat_conversation=chat_conversation,
+                                   text_context_list=[x[0].page_content for x in docs_with_score],
+                                   keep_sources_in_context=keep_sources_in_context,
+                                   model_max_length=model_max_length,
+                                   memory_restriction_level=memory_restriction_level,
+                                   langchain_mode=langchain_mode,
+                                   add_chat_history_to_context=add_chat_history_to_context,
+                                   min_max_new_tokens=min_max_new_tokens,
+                                   )
+            if hasattr(llm, 'chat_conversation'):
+                # means LLM will handle
+                assert external_handle_chat_conversation, "Should be handling only externally"
+                llm.chat_conversation = chat_conversation[chat_index:]
+            # avoid craziness
+            if 0 < top_k_docs_trial < max_chunks:
                 # avoid craziness
-                if 0 < top_k_docs_trial < max_chunks:
-                    # avoid craziness
-                    if top_k_docs == -1:
-                        top_k_docs = top_k_docs_trial
-                    else:
-                        top_k_docs = min(top_k_docs, top_k_docs_trial)
-                elif top_k_docs_trial >= max_chunks:
-                    top_k_docs = max_chunks
-                if top_k_docs > 0:
-                    docs_with_score = docs_with_score[:top_k_docs]
-                elif one_doc_size is not None:
-                    docs_with_score = [docs_with_score[0][:one_doc_size]]
+                if top_k_docs == -1:
+                    top_k_docs = top_k_docs_trial
                 else:
-                    docs_with_score = []
-            else:
-                if total_tokens_for_docs is not None:
-                    # used to limit tokens for summarization, e.g. public instance
-                    top_k_docs, one_doc_size, num_doc_tokens = \
-                        get_docs_tokens(tokenizer,
-                                        text_context_list=[x[0].page_content for x in docs_with_score],
-                                        max_input_tokens=total_tokens_for_docs)
-
+                    top_k_docs = min(top_k_docs, top_k_docs_trial)
+            elif top_k_docs_trial >= max_chunks:
+                top_k_docs = max_chunks
+            if top_k_docs > 0:
                 docs_with_score = docs_with_score[:top_k_docs]
-
-            # put most relevant chunks closest to question,
-            # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
-            # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
-            if docs_ordering_type in ['best_first']:
-                pass
-            elif docs_ordering_type in ['best_near_prompt', 'reverse_sort']:
-                docs_with_score.reverse()
-            elif docs_ordering_type in ['', None, 'reverse_ucurve_sort']:
-                docs_with_score = reverse_ucurve_list(docs_with_score)
+            elif one_doc_size is not None:
+                docs_with_score = [docs_with_score[0][:one_doc_size]]
             else:
-                raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
+                docs_with_score = []
+        else:
+            if total_tokens_for_docs is not None:
+                # used to limit tokens for summarization, e.g. public instance
+                top_k_docs, one_doc_size, num_doc_tokens = \
+                    get_docs_tokens(tokenizer,
+                                    text_context_list=[x[0].page_content for x in docs_with_score],
+                                    max_input_tokens=total_tokens_for_docs)
 
-            # cut off so no high distance docs/sources considered
-            num_docs_before_cut = len(docs_with_score)
-            docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
-            scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
-            if len(scores) > 0 and verbose:
-                print("Distance: min: %s max: %s mean: %s median: %s" %
-                      (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
-    else:
-        docs = []
-        scores = []
+            docs_with_score = docs_with_score[:top_k_docs]
 
-    if not docs and use_docs_planned and not langchain_only_model:
-        # if HF type and have no docs, can bail out
-        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        # put most relevant chunks closest to question,
+        # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
+        # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
+        if docs_ordering_type in ['best_first']:
+            pass
+        elif docs_ordering_type in ['best_near_prompt', 'reverse_sort']:
+            docs_with_score.reverse()
+        elif docs_ordering_type in ['', None, 'reverse_ucurve_sort']:
+            docs_with_score = reverse_ucurve_list(docs_with_score)
+        else:
+            raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
+
+        # cut off so no high distance docs/sources considered
+        num_docs_before_cut = len(docs_with_score)
+        docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
+        scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
+        if len(scores) > 0 and verbose:
+            print("Distance: min: %s max: %s mean: %s median: %s" %
+                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+
+    # if HF type and have no docs, could bail out, but makes code too complex
 
     if document_subset in non_query_commands:
-        # no LLM use
-        return docs, None, [], False, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+        # no LLM use at all, just sources
+        return docs, None, [], num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
     # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
@@ -4347,7 +4404,6 @@ def get_chain(query=None,
 
     if len(docs) == 0:
         # avoid context == in prompt then
-        use_docs_planned = False
         template = template_if_no_docs
 
     got_db_docs = got_db_docs and len(text_context_list) < len(docs)
@@ -4359,8 +4415,7 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
-                     llm_mode,
-                     use_docs_planned,
+                     got_db_docs,
                      auto_reduce_chunks,
                      got_db_docs,
                      add_search_to_context)
@@ -4378,10 +4433,7 @@ def get_chain(query=None,
         else:
             # only if use_openai_model = True, unused normally except in testing
             chain = load_qa_with_sources_chain(llm)
-        if not use_docs_planned:
-            chain_kwargs = dict(input_documents=[], question=query)
-        else:
-            chain_kwargs = dict(input_documents=docs, question=query)
+        chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
     elif langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.SUMMARIZE_REFINE,
@@ -4425,7 +4477,7 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, use_docs_planned, num_docs_before_cut, use_llm_if_no_docs, llm_mode, top_k_docs_max_show
+    return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
 
 
 def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
@@ -4471,11 +4523,11 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'tokenizer'):
         # more accurate
         return llm.pipeline.tokenizer
-    elif hasattr(llm, 'tokenizer'):
+    elif hasattr(llm, 'tokenizer') and llm.tokenizer is not None:
         # e.g. TGI client mode etc.
         return llm.tokenizer
     elif inference_server in ['openai', 'openai_chat', 'openai_azure',
-                              'openai_azure_chat']:
+                              'openai_azure_chat'] and tokenizer is not None:
         return tokenizer
     elif isinstance(tokenizer, FakeTokenizer):
         return tokenizer
@@ -4498,8 +4550,7 @@ def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
                  langchain_action,
-                 llm_mode,
-                 use_docs_planned,
+                 got_docs,
                  auto_reduce_chunks,
                  got_db_docs,
                  add_search_to_context):
@@ -4521,7 +4572,7 @@ def get_template(query, iinput,
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
-        if llm_mode or not use_docs_planned:
+        if not got_docs:
             template_if_no_docs = template = """{context}{question}"""
         else:
             template = """%s

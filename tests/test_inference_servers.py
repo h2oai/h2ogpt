@@ -7,7 +7,7 @@ import pytest
 from src.utils import get_ngpus_vis, makedirs
 from tests.utils import wrap_test_forked, get_inf_port, get_inf_server
 from tests.test_langchain_units import have_openai_key, have_replicate_key
-from src.client_test import run_client_many
+from src.client_test import run_client_many, test_client_basic_api_lean
 from src.enums import PromptType, LangChainAction
 
 
@@ -108,7 +108,8 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
         assert 'Invalid Access Key' in ret7['response']
 
     # try normal or with key if enforcing
-    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, h2ogpt_key=h2ogpt_key)  # client shouldn't have to specify
+    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None,
+                                                               h2ogpt_key=h2ogpt_key)  # client shouldn't have to specify
     if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         assert 'h2oGPT' in ret1['response']
         assert 'Birds' in ret2['response']
@@ -235,10 +236,10 @@ def gpus_cmd():
     elif n_gpus > 2:
         # note below if joined loses ' needed
         return ['--gpus', '\"device=%s\"' % os.getenv('CUDA_VISIBLE_DEVICES',
-                                                    str(list(range(0, n_gpus))).replace(']', '').replace('[',
-                                                                                                         '').replace(
-                                                        ' ', '')
-                                                    )]
+                                                      str(list(range(0, n_gpus))).replace(']', '').replace('[',
+                                                                                                           '').replace(
+                                                          ' ', '')
+                                                      )]
 
 
 def run_vllm_docker(inf_port, base_model, tokenizer=None):
@@ -265,15 +266,15 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '/etc/group:/etc/group:ro',
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
               '-v', '%s/.cache:/workspace/.cache' % home_dir,
-              #'--network', 'host',
+              # '--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
               # 'docker.io/library/h2ogpt',  # use when built locally with vLLM just freshly added
               '-m', 'vllm.entrypoints.openai.api_server',
               '--port=5000',
               '--host=0.0.0.0',
-              '--model=%s' % base_model,
-              '--tensor-parallel-size=%s' % n_gpus,
+                    '--model=%s' % base_model,
+                    '--tensor-parallel-size=%s' % n_gpus,
               '--seed', '1234',
               '--trust-remote-code',
               '--download-dir=/workspace/.cache/huggingface/hub',
@@ -320,7 +321,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
               '--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
-              #'h2ogpt',  # use when built locally with vLLM just freshly added
+              # 'h2ogpt',  # use when built locally with vLLM just freshly added
               '/workspace/generate.py',
                     '--base_model=%s' % base_model,
               '--use_safetensors=True',
@@ -475,11 +476,18 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         os.system("docker stop %s" % docker_hash)
 
 
+chat_conversation1 = [['Who are you?',
+                       'I am an AI language model created by OpenAI, designed to assist with various tasks such as answering questions, generating text, and providing information.']]
+
+
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
+@pytest.mark.parametrize("system_prompt", ['You are a baby cat who likes to talk to people.', ''])
+@pytest.mark.parametrize("chat_conversation", [chat_conversation1, []])
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("inference_server", ['openai_chat', 'openai_azure_chat'])
 @wrap_test_forked
-def test_openai_inference_server(inference_server, force_langchain_evaluate,
+def test_openai_inference_server(inference_server, force_langchain_evaluate, chat_conversation,
+                                 system_prompt,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  base_model='gpt-3.5-turbo',
                                  langchain_mode='Disabled',
@@ -507,19 +515,48 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
                        system_prompt='auto',
-                       docs_ordering_type=docs_ordering_type)
+                       docs_ordering_type=docs_ordering_type,
+                       # chat_conversation=chat_conversation # not enough if API passes [], API will override
+                       )
 
     # server that consumes inference server
     from src.gen import main
     main(**main_kwargs, inference_server=inference_server)
 
+    if chat_conversation:
+        prompt = 'What did I ask?'
+
     # client test to server that only consumes inference server
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type='openai_chat', stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents,
+                                       chat_conversation=chat_conversation,
+                                       system_prompt=system_prompt)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
+
+    if chat_conversation and system_prompt:
+        # TODO: don't check yet, system_prompt ignored if response from LLM is as if no system prompt
+        return
+
+    if chat_conversation or system_prompt:
+        ret6, _ = test_client_basic_api_lean(prompt=prompt, prompt_type=None,
+                                             chat_conversation=chat_conversation,
+                                             system_prompt=system_prompt)
+        if system_prompt:
+            assert 'baby cat' in res_dict['response'] and 'meow' in res_dict['response'].lower()
+            assert 'baby cat' in ret6['response'] and 'meow' in ret6['response'].lower()
+        else:
+            options_response = ['You asked "Who are you?"', """You asked, \"Who are you?\""""]
+            assert res_dict['response'] in options_response
+            assert ret6['response'] in options_response
+
+        return
+
+    if system_prompt:
+        # don't test rest, too many cases
+        return
 
     # will use HOST from above
     ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify

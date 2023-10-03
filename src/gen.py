@@ -335,7 +335,7 @@ def main(
 
                              Or Address can be for vLLM:
                               Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
-                              Note: vllm_chat not supported by vLLM project.
+                              Use: "vllm_chat:IP:port" for OpenAI-Chat-compliant vLLM endpoint
 
                              Or Address can be replicate:
                              Use:
@@ -2229,6 +2229,13 @@ def evaluate(
         instruction = instruction_nochat
         iinput = iinput_nochat
 
+    # avoid instruction in chat_conversation itself, since always used as additional context to prompt in what follows
+    if isinstance(chat_conversation, list) and \
+            len(chat_conversation) > 0 and \
+            len(chat_conversation[-1]) == 2 and \
+            chat_conversation[-1][0] == instruction:
+        chat_conversation = chat_conversation[:-1]
+
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
     model_lower = base_model.lower()
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
@@ -2474,7 +2481,8 @@ def evaluate(
     prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
-        chat_index, top_k_docs_trial, one_doc_size = \
+        chat_index, external_handle_chat_conversation, \
+            top_k_docs_trial, one_doc_size = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -2542,8 +2550,6 @@ def evaluate(
                                                          sanitize_bot_response=sanitize_bot_response)
                         yield dict(response=response, sources=sources, save_dict=dict())
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
-                if inf_type == 'vllm_chat':
-                    raise NotImplementedError('%s not supported by vLLM' % inf_type)
                 if system_prompt in [None, 'None', 'auto']:
                     openai_system_prompt = "You are a helpful assistant."
                 else:
@@ -2551,7 +2557,14 @@ def evaluate(
                 messages0 = []
                 if openai_system_prompt:
                     messages0.append({"role": "system", "content": openai_system_prompt})
-                messages0.append({'role': 'user', 'content': prompt})
+                if chat_conversation and add_chat_history_to_context:
+                    assert external_handle_chat_conversation, "Should be handling only externally"
+                    # chat_index handles token counting issues
+                    for message1 in chat_conversation[chat_index:]:
+                        if len(message1) == 2:
+                            messages0.append({'role': 'user', 'content': message1[0] if message1[0] is not None else ''})
+                            messages0.append({'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
+                messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
                 responses = openai.ChatCompletion.create(
                     model=base_model,
                     messages=messages0,
@@ -3599,13 +3612,26 @@ def get_limited_prompt(instruction,
         stream_output = prompter.stream_output
         system_prompt = prompter.system_prompt
 
+    generate_prompt_type = prompt_type
+    if any(inference_server.startswith(x) for x in ['openai_chat', 'replicate']):
+        # OpenAI Chat and Replicate do not take prompting
+        # if using prompter, prompter.system_prompt will already be filled with automatic (e.g. from llama-2),
+        # so if replicate final prompt with system prompt still correct because only access prompter.system_prompt that was already set
+        generate_prompt_type = 'plain'
+    external_handle_chat_conversation = False
+    if any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
+        # OpenAI Chat doesn't handle chat history via single prompt, but in messages,
+        # so assume handled outside this function
+        chat_conversation = []
+        external_handle_chat_conversation = True
+
     # merge handles if chat_conversation is None
     history = []
     history = merge_chat_conversation_history(chat_conversation, history)
     history_to_context_func = functools.partial(history_to_context,
                                                 langchain_mode=langchain_mode,
                                                 add_chat_history_to_context=add_chat_history_to_context,
-                                                prompt_type=prompt_type,
+                                                prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
                                                 chat=chat,
                                                 model_max_length=model_max_length,
@@ -3738,6 +3764,9 @@ def get_limited_prompt(instruction,
         stream_output = False  # doesn't matter
         prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
                             system_prompt=system_prompt)
+        if prompt_type != generate_prompt_type:
+            # override just this attribute, keep system_prompt etc. from original prompt_type
+            prompter.prompt_type = generate_prompt_type
 
     data_point = dict(context=context, instruction=instruction, input=iinput)
     # handle promptA/promptB addition if really from history.
@@ -3750,7 +3779,8 @@ def get_limited_prompt(instruction,
     return prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
-        chat_index, top_k_docs, one_doc_size
+        chat_index, external_handle_chat_conversation, \
+        top_k_docs, one_doc_size
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):

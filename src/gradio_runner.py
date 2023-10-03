@@ -2880,6 +2880,7 @@ def go_gradio(**kwargs):
             history = args_list[-1]
             if not history:
                 history = []
+            # NOTE: For these, could check if None, then automatically use CLI values, but too complex behavior
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
