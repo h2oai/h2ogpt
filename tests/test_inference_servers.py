@@ -723,7 +723,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                     system_prompt,
                                     prompt='Who are you?', stream_output=False,
                                     max_new_tokens=128,  # limit cost
-                                    base_model='TheBloke/Llama-2-7b-Chat-GPTQ',
+                                    base_model='h2oai/h2ogpt-4096-llama2-7b-chat',
                                     langchain_mode='Disabled',
                                     langchain_action=LangChainAction.QUERY.value,
                                     langchain_agents=[],
