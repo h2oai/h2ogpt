@@ -152,6 +152,13 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
 
+### Experimental features
+
+These are not part of normal installation instructions and are experimental.
+
+* [SerpAPI web search augmentation](docs/README_SerpAPI.md) -- in Beta testing. Working well but hits file closed failure under intense use.
+* [Agents](docs/README_Agents.md) -- in Alpha testing.  Optimal for OpenAI, but that also fails sometimes.
+
 ### Roadmap
 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
