@@ -955,7 +955,6 @@ class H2OReplicate(Replicate):
 class ExtraChat:
     def get_messages(self, prompts):
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
-        from langchain.prompts.chat import ChatPromptValue
         messages = []
         if self.system_prompt:
             messages.append(SystemMessage(content=self.system_prompt))

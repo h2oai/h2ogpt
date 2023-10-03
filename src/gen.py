@@ -2486,7 +2486,7 @@ def evaluate(
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         chat_index, external_handle_chat_conversation, \
-            top_k_docs_trial, one_doc_size = \
+        top_k_docs_trial, one_doc_size = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -2566,8 +2566,10 @@ def evaluate(
                     # chat_index handles token counting issues
                     for message1 in chat_conversation[chat_index:]:
                         if len(message1) == 2:
-                            messages0.append({'role': 'user', 'content': message1[0] if message1[0] is not None else ''})
-                            messages0.append({'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
+                            messages0.append(
+                                {'role': 'user', 'content': message1[0] if message1[0] is not None else ''})
+                            messages0.append(
+                                {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
                 messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
                 responses = openai.ChatCompletion.create(
                     model=base_model,
