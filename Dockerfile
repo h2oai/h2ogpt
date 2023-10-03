@@ -11,10 +11,12 @@ ENV CUDA_HOME=/usr/local/cuda-11.8
 ENV VLLM_CACHE=/workspace/.vllm_cache
 
 WORKDIR /workspace
-RUN mkdir -p /workspace && chmod -R a+rwx /workspace
 
 COPY . /workspace/
+
 RUN cd /workspace && ./docker_build_script_ubuntu.sh
+
+RUN chmod -R a+rwx /workspace
 
 ARG user=h2ogpt
 ARG group=h2ogpt

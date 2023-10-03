@@ -30,15 +30,15 @@ jobs:
           run: |
             python3.10 -m pip install --upgrade pip
             python3.10 -m pip install setuptools wheel twine --upgrade
-
-        - name: Build Wheel
-          run: make clean dist
         
         - name: Modify Version
           if: ${{ inputs.version != ''}}
           run: |
             echo ${{ inputs.version}} > version.txt
             echo "h2ogpt-wheel-version  = $(cat version.txt)"
+        
+        - name: Build Wheel
+          run: make clean dist
         
         - name: Publish to Test-PyPI
           if: ${{ inputs.pypi-index == 'Test-PyPI' }}

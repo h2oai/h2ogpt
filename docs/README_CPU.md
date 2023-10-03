@@ -27,7 +27,7 @@ For another llama.cpp model:
   ```
   For `llama.cpp` based models on CPU, for computers with low system RAM or slow CPUs, we recommend running:
   ```bash
-   python generate.py --base_model=llama --model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin --llamacpp_dict="{use_mlock:False,n_batch:256}" --max_seq_len=512 --score_model=None --langchain_mode='UserData' --user_path=user_path
+   python generate.py --base_model=llama --model_path_llama=WizardLM-7B-uncensored.ggmlv3.q8_0.bin --llamacpp_dict="{'use_mlock':False,'n_batch':256}" --max_seq_len=512 --score_model=None --langchain_mode='UserData' --user_path=user_path
   ```
 
 ### GPT4ALL

@@ -98,7 +98,11 @@ class LangChainAgent(Enum):
     """LangChain agents"""
 
     SEARCH = "Search"
-    # CSV = "csv"  # WIP
+    COLLECTION = "Collection"
+    PYTHON = "Python"
+    CSV = "CSV"
+    PANDAS = "Pandas"
+    JSON = 'JSON'
 
 
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'
@@ -151,17 +155,17 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
                        model_path_llama and 'llama-2' in model_path_llama.lower()) or \
             model_name in [None, '']:
         # use when no model, like no --base_model
-        pre_prompt_query1 = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.\n"
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
         prompt_query1 = "According to only the information in the document sources provided within the context above, "
     elif inference_server and inference_server.startswith('openai'):
-        pre_prompt_query1 = "Pay attention and remember information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
         prompt_query1 = "According to (primarily) the information in the document sources provided within context above, "
     else:
         pre_prompt_query1 = ""
         prompt_query1 = ""
 
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
-    prompt_summary1 = "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
 
     if pre_prompt_query is None:
         pre_prompt_query = pre_prompt_query1
@@ -187,6 +191,7 @@ def gr_to_lg(image_loaders,
     if url_loaders is None:
         url_loaders = kwargs['url_loaders_options0']
     # translate:
+    # 'auto' wouldn't be used here
     ret = dict(
         # urls
         use_unstructured='Unstructured' in url_loaders,
@@ -194,12 +199,12 @@ def gr_to_lg(image_loaders,
         use_selenium='Selenium' in url_loaders,
 
         # pdfs
-        use_pymupdf='PyMuPDF' in pdf_loaders,
-        use_unstructured_pdf='Unstructured' in pdf_loaders,
-        use_pypdf='PyPDF' in pdf_loaders,
-        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'auto',
-        enable_pdf_doctr='DocTR' in pdf_loaders,
-        try_pdf_as_html='TryHTML' in pdf_loaders,
+        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'off',
+        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'off',
+        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'off',
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'off',
+        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'off',
+        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'off',
 
         # images
         enable_ocr='OCR' in image_loaders,
@@ -213,3 +218,8 @@ def gr_to_lg(image_loaders,
     else:
         captions_model = kwargs['captions_model']
     return ret, captions_model
+
+
+invalid_key_msg = 'Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai'
+
+docs_ordering_types = ['best_first', 'best_near_prompt', 'reverse_ucurve_sort']

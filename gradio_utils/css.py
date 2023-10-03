@@ -12,13 +12,28 @@ def get_css(kwargs) -> str:
 
 
 def make_css_base() -> str:
-    css1 = """
-        #col_container {margin-left: auto; margin-right: auto; text-align: left;}
-        """
-    return css1 + """
+    return """
+    #col_container {margin-left: auto; margin-right: auto; text-align: left;}
+
     @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap');
     
     body.dark{#warning {background-color: #555555};}
+    
+    #sidebar {
+        order: 1;
+        
+        @media (max-width: 463px) {
+          order: 2;
+        }
+    }
+    
+    #col-tabs {
+        order: 2;
+        
+        @media (max-width: 463px) {
+          order: 1;
+        }
+    }
     
     #small_btn {
         margin: 0.6em 0em 0.55em 0;
@@ -84,6 +99,10 @@ def make_css_base() -> str:
         display: flex;
         justify-content: center;
         border: 1px solid var(--primary-500) !important;
+        
+        @media (max-width: 463px) {
+          width: 56px;
+        }
     }
     
     #attach-button > img {
@@ -91,6 +110,39 @@ def make_css_base() -> str:
     }
     
     #prompt-form > label > textarea {
-        padding-right: 40px;
+        padding-right: 104px;
+        
+        @media (max-width: 463px) {
+          min-height: 94px;
+          padding-right: 70px;
+        }
+    }
+
+    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
+        display: none !important;
+    }
+    
+    #visible-models > label > div.wrap > div.wrap-inner > div.token {
+        display: none !important;
+    }
+    
+    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
+        content: "Select";
+        padding: 0 4px;
+        margin-right: 2px;
+    }
+
+    #langchain_agents > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
+        display: none !important;
+    }
+
+    #langchain_agents > label > div.wrap > div.wrap-inner > div.token {
+        display: none !important;
+    }
+
+    #langchain_agents > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
+        content: "Select";
+        padding: 0 4px;
+        margin-right: 2px;
     }
     """

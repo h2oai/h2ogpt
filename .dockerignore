@@ -3,11 +3,15 @@
 .dockerignore
 .pytest_cache
 .cache
+.local
 .github
 .nv
 .benchmarks
+.bash_history
+.gitignore
 h2ogpt.egg-info
 venv
 build
 dist
+prebuilt_deps
 Dockerfile

@@ -1,5 +1,5 @@
 # optional for chat with PDF
-langchain==0.0.250
+langchain==0.0.300
 pypdf==3.14.0
 # avoid textract, requires old six
 #textract==1.6.5
@@ -13,7 +13,14 @@ openai==0.27.8
 replicate==0.10.0
 
 # local vector db
-chromadb==0.3.25
+chromadb==0.4.10
+
+# chroma migration
+chroma-migrate==0.0.7
+duckdb==0.7.1
+https://h2o-release.s3.amazonaws.com/h2ogpt/chromamigdb-0.3.25-py3-none-any.whl
+https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
+
 # server vector db
 #pymilvus==2.2.8
 

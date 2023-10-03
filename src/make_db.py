@@ -7,7 +7,7 @@ if os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))) not in sys.pat
     sys.path.append(os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))))
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
-    get_persist_directory
+    get_persist_directory, get_existing_db
 from utils import get_ngpus_vis, H2O_Fire, makedirs
 
 
@@ -20,12 +20,12 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                use_selenium=False,
 
                # pdfs
-               use_pymupdf=True,
-               use_unstructured_pdf=False,
-               use_pypdf=False,
+               use_pymupdf='auto',
+               use_unstructured_pdf='auto',
+               use_pypdf='auto',
                enable_pdf_ocr='auto',
-               try_pdf_as_html=True,
-               enable_pdf_doctr=False,
+               try_pdf_as_html='auto',
+               enable_pdf_doctr='auto',
 
                # images
                enable_ocr=False,
@@ -34,6 +34,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                enable_captions=True,
                captions_model=None,
                caption_loader=None,
+               doctr_loader=None,
 
                # json
                jq_schema='.[]',
@@ -66,6 +67,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             enable_captions=enable_captions,
                             captions_model=captions_model,
                             caption_loader=caption_loader,
+                            doctr_loader=doctr_loader,
 
                             # json
                             jq_schema=jq_schema,
@@ -79,6 +81,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = None,
                  migrate_embedding_model=False,
+                 auto_migrate_db=False,
                  persist_directory: str = None,
                  user_path: str = 'user_path',
                  langchain_type: str = 'shared',
@@ -101,12 +104,12 @@ def make_db_main(use_openai_embedding: bool = False,
                  use_selenium=False,
 
                  # pdfs
-                 use_pymupdf=True,
-                 use_unstructured_pdf=False,
-                 use_pypdf=False,
+                 use_pymupdf='auto',
+                 use_unstructured_pdf='auto',
+                 use_pypdf='auto',
                  enable_pdf_ocr='auto',
-                 try_pdf_as_html=True,
-                 enable_pdf_doctr=False,
+                 enable_pdf_doctr='auto',
+                 try_pdf_as_html='auto',
 
                  # images
                  enable_ocr=False,
@@ -117,7 +120,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  pre_load_caption_model: bool = False,
                  caption_gpu: bool = True,
                  # caption_loader=None,  # set internally
-                 # doctr_loader=None,  #  unused
+                 # doctr_loader=None,  # set internally
 
                  # json
                  jq_schema='.[]',
@@ -147,6 +150,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
+    :param auto_migrate_db: whether to migrate database for chroma<0.4 -> >0.4
     :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
            If making personal database for user, set persistent_directory to users/<username>/db_dir_<collection name>
            and pass --langchain_type=personal
@@ -155,6 +159,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param url: url (or urls) to generate documents from (None means user_path is not None)
     :param add_if_exists: Add to db if already exists, but will not add duplicate sources
     :param collection_name: Collection name for new db if not adding
+           Normally same as langchain_mode
     :param verbose: whether to show verbose messages
     :param chunk: whether to chunk data
     :param chunk_size: chunk size for chunking
@@ -184,7 +189,10 @@ def make_db_main(use_openai_embedding: bool = False,
     :param pre_load_caption_model: See generate.py
     :param caption_gpu: Caption images on GPU if present
 
-    :param db_type: Type of db to create. Currently only 'chroma' and 'weaviate' is supported.
+    :param db_type: 'faiss' for in-memory
+                    'chroma' (for chroma >= 0.4)
+                    'chroma_old' (for chroma < 0.4) -- recommended for large collections
+                    'weaviate' for persisted on disk
     :param selected_file_types: File types (by extension) to include if passing user_path
        For a list of possible values, see:
        https://github.com/h2oai/h2ogpt/blob/main/docs/README_LangChain.md#shoosing-document-types
@@ -211,23 +219,39 @@ def make_db_main(use_openai_embedding: bool = False,
             # if still None, then set default
             hf_embedding_model = 'hkunlp/instructor-large'
 
+    existing_db = False
+
     if download_all:
         print("Downloading all (and unzipping): %s" % all_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=all_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return db, collection_name
+        existing_db = True
     elif download_some:
         print("Downloading some (and unzipping): %s" % some_db_zips, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=some_db_zips)
         if verbose:
             print("DONE", flush=True)
-        return db, collection_name
+        existing_db = True
     elif download_one:
         print("Downloading %s (and unzipping)" % download_one, flush=True)
         get_some_dbs_from_hf(download_dest, db_zips=[[download_one, '', 'Unknown License']])
         if verbose:
             print("DONE", flush=True)
+        existing_db = True
+
+    if existing_db:
+        load_db_if_exists = True
+        langchain_mode = collection_name
+        langchain_mode_paths = dict(langchain_mode=None)
+        langchain_mode_types = dict(langchain_mode='shared')
+        db, use_openai_embedding, hf_embedding_model = \
+            get_existing_db(None, persist_directory, load_db_if_exists, db_type,
+                            use_openai_embedding,
+                            langchain_mode, langchain_mode_paths, langchain_mode_types,
+                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            verbose=False,
+                            n_jobs=n_jobs)
         return db, collection_name
 
     if enable_captions and pre_load_caption_model:
@@ -242,9 +266,13 @@ def make_db_main(use_openai_embedding: bool = False,
                                                ).load_model()
     else:
         if enable_captions:
-            caption_loader = 'gpu' if caption_gpu else 'cpu'
+            caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             caption_loader = False
+    if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
+        doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
+    else:
+        doctr_loader = False
 
     if verbose:
         print("Getting sources", flush=True)
@@ -274,6 +302,7 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_captions=enable_captions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
+                         doctr_loader=doctr_loader,
                          # Note: we don't reload doctr model
 
                          # json
@@ -290,7 +319,7 @@ def make_db_main(use_openai_embedding: bool = False,
     db = create_or_update_db(db_type, persist_directory,
                              collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
-                             hf_embedding_model, migrate_embedding_model,
+                             hf_embedding_model, migrate_embedding_model, auto_migrate_db,
                              n_jobs=n_jobs)
 
     assert db is not None or not fail_if_no_sources

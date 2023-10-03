@@ -4,11 +4,13 @@ import json
 import os
 import shutil
 import tempfile
+import uuid
+
 import pytest
 
-from tests.utils import wrap_test_forked, kill_weaviate
-from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes
-from src.gpt_langchain import get_persist_directory
+from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
+from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
@@ -80,6 +82,7 @@ def check_ret(ret):
         rets.append(ret1)
         print(ret1)
     assert rets
+    return rets
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -242,10 +245,7 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     check_ret(ret)
 
 
-@pytest.mark.need_gpu
-@pytest.mark.parametrize("db_type", ['chroma'])
-@wrap_test_forked
-def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
+def get_test_model():
     # need to get model externally, so don't OOM
     from src.gen import get_model
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
@@ -280,6 +280,14 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
                       verbose=False)
     model, tokenizer, device = get_model(reward_type=False,
                                          **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
+    return model, tokenizer, base_model, prompt_type
+
+
+@pytest.mark.need_gpu
+@pytest.mark.parametrize("db_type", ['chroma'])
+@wrap_test_forked
+def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
+    model, tokenizer, base_model, prompt_type = get_test_model()
 
     langchain_mode = 'DriverlessAI docs'
     langchain_action = LangChainAction.QUERY.value
@@ -490,7 +498,9 @@ def test_make_add_db(repeat, db_type):
                     kwargs = dict(use_openai_embedding=False,
                                   hf_embedding_model='hkunlp/instructor-large',
                                   migrate_embedding_model=True,
+                                  auto_migrate_db=False,
                                   caption_loader=False,
+                                  doctr_loader=False,
                                   enable_captions=False,
                                   enable_doctr=False,
                                   enable_pix2struct=False,
@@ -506,13 +516,13 @@ def test_make_add_db(repeat, db_type):
                                                  langchain_mode_types={})
                     requests_state2 = dict()
                     z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2_my, db1,
-                                                                            selection_docs_state2,
-                                                                            requests_state2,
-                                                                            langchain_mode2,
-                                                                            chunk=chunk,
-                                                                            chunk_size=chunk_size,
-                                                                            dbs={}, db_type=db_type,
-                                                                            **kwargs)
+                                                                                       selection_docs_state2,
+                                                                                       requests_state2,
+                                                                                       langchain_mode2,
+                                                                                       chunk=chunk,
+                                                                                       chunk_size=chunk_size,
+                                                                                       dbs={}, db_type=db_type,
+                                                                                       **kwargs)
                     assert z1 is None
                     assert 'MyData' == z2
                     assert 'test2my' in str(source_files_added)
@@ -523,14 +533,14 @@ def test_make_add_db(repeat, db_type):
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
                                                  langchain_mode_types={langchain_mode: LangChainTypes.SHARED.value})
                     z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2, db1,
-                                                                            selection_docs_state1,
-                                                                            requests_state1,
-                                                                            langchain_mode,
-                                                                            chunk=chunk,
-                                                                            chunk_size=chunk_size,
-                                                                            dbs={langchain_mode: db},
-                                                                            db_type=db_type,
-                                                                            **kwargs)
+                                                                                       selection_docs_state1,
+                                                                                       requests_state1,
+                                                                                       langchain_mode,
+                                                                                       chunk=chunk,
+                                                                                       chunk_size=chunk_size,
+                                                                                       dbs={langchain_mode: db},
+                                                                                       db_type=db_type,
+                                                                                       **kwargs)
                     assert 'test2' in str(source_files_added)
                     assert langchain_mode == z2
                     assert z1 is None
@@ -544,6 +554,7 @@ def test_make_add_db(repeat, db_type):
                                    db_type=db_type,
                                    hf_embedding_model=kwargs['hf_embedding_model'],
                                    migrate_embedding_model=kwargs['migrate_embedding_model'],
+                                   auto_migrate_db=kwargs['auto_migrate_db'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
                     update_and_get_source_files_given_langchain_mode(db1,
@@ -913,18 +924,40 @@ def test_pptx_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
+@pytest.mark.parametrize("use_pypdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_unstructured_pdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_pymupdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("enable_pdf_doctr", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
-def test_pdf_add(db_type):
+def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_unstructured_pdf, use_pypdf):
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            url = 'https://www.africau.edu/images/default/sample.pdf'
-            test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
-            download_simple(url, dest=test_file1)
+            if True:
+                url = 'https://www.africau.edu/images/default/sample.pdf'
+                test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
+                download_simple(url, dest=test_file1)
+            else:
+                if False:
+                    name = 'CityofTshwaneWater.pdf'
+                    location = "tests"
+                else:
+                    name = '555_593.pdf'
+                    location = '/home/jon/Downloads/'
+
+                test_file1 = os.path.join(location, name)
+                shutil.copy(test_file1, tmp_user_path)
+                test_file1 = os.path.join(tmp_user_path, name)
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
+                                               use_pymupdf=use_pymupdf,
+                                               enable_pdf_ocr=enable_pdf_ocr,
+                                               enable_pdf_doctr=enable_pdf_doctr,
+                                               use_unstructured_pdf=use_unstructured_pdf,
+                                               use_pypdf=use_pypdf,
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Suggestions")
@@ -933,24 +966,33 @@ def test_pdf_add(db_type):
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
-@pytest.mark.parametrize("enable_pdf_doctr", [False, True])
+@pytest.mark.parametrize("use_pypdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_unstructured_pdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("use_pymupdf", ['auto', 'on', 'off'])
+@pytest.mark.parametrize("enable_pdf_doctr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("enable_pdf_ocr", ['auto', 'on', 'off'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
-def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr):
+def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_unstructured_pdf, use_pypdf):
     if enable_pdf_ocr == 'off' and not enable_pdf_doctr:
         return
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            test_file1 = os.path.join('tests', 'CityofTshwaneWater.pdf')
+            name = 'CityofTshwaneWater.pdf'
+            location = "tests"
+            test_file1 = os.path.join(location, name)
             shutil.copy(test_file1, tmp_user_path)
-            test_file1 = os.path.join(tmp_user_path, 'CityofTshwaneWater.pdf')
+            test_file1 = os.path.join(tmp_user_path, name)
+
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
+                                               use_pymupdf=use_pymupdf,
                                                enable_pdf_ocr=enable_pdf_ocr,
                                                enable_pdf_doctr=enable_pdf_doctr,
+                                               use_unstructured_pdf=use_unstructured_pdf,
+                                               use_pypdf=use_pypdf,
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("List Tshwane's concerns about water.")
@@ -1056,7 +1098,8 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
         # nothing enabled for images
         return
     # FIXME (too many permutations):
-    if enable_pix2struct and (pre_load_caption_model or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
+    if enable_pix2struct and (
+            pre_load_caption_model or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
         return
     if enable_pix2struct and 'kowalievska' in file:
         # FIXME: Not good for this
@@ -1202,7 +1245,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # because search can't find DRIVERLICENSE from DocTR one
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 1)
                     check_content_ocr(docs)
-                    #check_content_doctr(docs)
+                    # check_content_doctr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
             else:
@@ -1229,7 +1272,7 @@ def check_content_doctr(docs):
 
 def check_content_ocr(docs):
     # hi_res
-    #assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
+    # assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
     # ocr_only
     assert any(['DRIVER LICENSE A' in docs[ix].page_content for ix in range(len(docs))])
 
@@ -1402,6 +1445,216 @@ def test_url_more_subunit():
     docs1 = SeleniumURLLoader(urls=[url]).load()
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
+
+
+@wrap_test_forked
+@pytest.mark.parametrize("db_type", db_types_full)
+@pytest.mark.parametrize("num", [1000, 100000])
+def test_many_text(db_type, num):
+    from langchain.docstore.document import Document
+
+    sources = [Document(page_content=str(i)) for i in range(0, num)]
+    hf_embedding_model = "fake"
+    # hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+    # hf_embedding_model = 'hkunlp/instructor-large'
+    db = get_db(sources, db_type=db_type, langchain_mode='ManyTextData', hf_embedding_model=hf_embedding_model)
+    documents = get_documents(db)['documents']
+    assert len(documents) == num
+
+
+@wrap_test_forked
+def test_chroma_filtering():
+    # get test model so don't have to reload it each time
+    model, tokenizer, base_model, prompt_type = get_test_model()
+
+    # generic settings true for all cases
+    requests_state1 = {'username': 'foo'}
+    verbose1 = True
+    max_raw_chunks = None
+    api = False
+    n_jobs = -1
+    db_type1 = 'chroma'
+    load_db_if_exists1 = True
+    use_openai_embedding1 = False
+    migrate_embedding_model_or_db1 = False
+    auto_migrate_db1 = False
+
+    def get_userid_auth_fake(requests_state1, auth_filename=None, auth_access=None, guest_name=None, **kwargs):
+        return str(uuid.uuid4())
+
+    other_kwargs = dict(load_db_if_exists1=load_db_if_exists1,
+                        db_type1=db_type1,
+                        use_openai_embedding1=use_openai_embedding1,
+                        migrate_embedding_model_or_db1=migrate_embedding_model_or_db1,
+                        auto_migrate_db1=auto_migrate_db1,
+                        verbose1=verbose1,
+                        get_userid_auth1=get_userid_auth_fake,
+                        max_raw_chunks=max_raw_chunks,
+                        api=api,
+                        n_jobs=n_jobs,
+                        )
+    mydata_mode1 = LangChainMode.MY_DATA.value
+    from src.make_db import make_db_main
+
+    for chroma_new in [False, True]:
+        print("chroma_new: %s" % chroma_new, flush=True)
+        if chroma_new:
+            # fresh, so chroma >= 0.4
+            user_path = make_user_path_test()
+            from langchain.vectorstores import Chroma
+            db, collection_name = make_db_main(user_path=user_path)
+            assert isinstance(db, Chroma)
+
+            hf_embedding_model = 'hkunlp/instructor-xl'
+            langchain_mode1 = collection_name
+            query = 'What is h2oGPT?'
+        else:
+            # old, was with chroma < 0.4
+            # has no user_path
+            db, collection_name = make_db_main(download_some=True)
+            from src.gpt_langchain import ChromaMig
+            assert isinstance(db, ChromaMig)
+            assert ChromaMig.__name__ in str(db)
+            query = 'What is whisper?'
+
+            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+            langchain_mode1 = collection_name
+
+        db1s = {langchain_mode1: [None] * length_db1(), mydata_mode1: [None] * length_db1()}
+
+        dbs1 = {langchain_mode1: db}
+        langchain_modes = [langchain_mode1]
+        langchain_mode_paths = dict(langchain_mode1=None)
+        langchain_mode_types = dict(langchain_modes='shared')
+        selection_docs_state1 = dict(langchain_modes=langchain_modes,
+                                     langchain_mode_paths=langchain_mode_paths,
+                                     langchain_mode_types=langchain_mode_types)
+
+        run_db_kwargs = dict(query=query,
+                             db=db,
+                             use_openai_model=False, use_openai_embedding=False, text_limit=None,
+                             hf_embedding_model=hf_embedding_model,
+                             db_type=db_type1,
+                             langchain_mode_paths=langchain_mode_paths,
+                             langchain_mode_types=langchain_mode_types,
+                             langchain_mode=langchain_mode1,
+                             langchain_agents=[],
+                             llamacpp_dict={},
+
+                             model=model,
+                             tokenizer=tokenizer,
+                             model_name=base_model,
+                             prompt_type=prompt_type,
+
+                             top_k_docs=10,  # 4 leaves out docs for test in some cases, so use 10
+                             cut_distance=1.8,  # default leaves out some docs in some cases
+                             )
+
+        # GET_CHAIN etc.
+        for answer_with_sources in [-1, True]:
+            print("answer_with_sources: %s" % answer_with_sources, flush=True)
+            # mimic nochat-API or chat-UI
+            append_sources_to_answer = answer_with_sources != -1
+            for doc_choice in ['All', 1, 2]:
+                if doc_choice == 'All':
+                    document_choice = [DocumentChoice.ALL.value]
+                else:
+                    docs = [x['source'] for x in db.get()['metadatas']]
+                    if doc_choice == 1:
+                        document_choice = docs[:doc_choice]
+                    else:
+                        # ensure don't get dup
+                        docs = sorted(set(docs))
+                        document_choice = docs[:doc_choice]
+                print("doc_choice: %s" % doc_choice, flush=True)
+                for langchain_action in [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value]:
+                    print("langchain_action: %s" % langchain_action, flush=True)
+                    for document_subset in [DocumentSubset.Relevant.name, DocumentSubset.TopKSources.name,
+                                            DocumentSubset.RelSources.name]:
+                        print("document_subset: %s" % document_subset, flush=True)
+
+                        ret = _run_qa_db(**run_db_kwargs,
+                                         langchain_action=langchain_action,
+                                         document_subset=document_subset,
+                                         document_choice=document_choice,
+                                         answer_with_sources=answer_with_sources,
+                                         append_sources_to_answer=append_sources_to_answer,
+                                         )
+                        rets = check_ret(ret)
+                        rets1 = rets[0]
+                        if chroma_new:
+                            if answer_with_sources == -1:
+                                assert len(rets1) == 4 and (
+                                        'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
+                                        rets1['response'])
+                            else:
+                                assert len(rets1) == 4 and (
+                                        'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
+                                        rets1['response'])
+                                if document_subset == DocumentSubset.Relevant.name:
+                                    assert 'h2oGPT' in rets1['sources']
+                        else:
+                            if answer_with_sources == -1:
+                                assert len(rets1) == 4 and (
+                                        'whisper' in rets1['response'].lower() or
+                                        'phase' in rets1['response'].lower() or
+                                        'generate' in rets1['response'].lower() or
+                                        'statistic' in rets1['response'].lower() or
+                                        'a chat bot that' in rets1['response'].lower() or
+                                        'non-centrality parameter' in rets1['response'].lower() or
+                                        '.pdf' in rets1['response'].lower())
+                            else:
+                                assert len(rets1) == 4 and (
+                                        'whisper' in rets1['response'].lower() or
+                                        'phase' in rets1['response'].lower() or
+                                        'generate' in rets1['response'].lower() or
+                                        'statistic' in rets1['response'].lower() or
+                                        '.pdf' in rets1['response'].lower())
+                                if document_subset == DocumentSubset.Relevant.name:
+                                    assert 'whisper' in rets1['sources'] or 'unbiased' in rets1[
+                                        'sources'] or 'approximate' in rets1['sources']
+                        if answer_with_sources == -1:
+                            if document_subset == DocumentSubset.Relevant.name:
+                                assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
+                                    0] and 'source' in rets1['sources'][0]
+                                if doc_choice in [1, 2]:
+                                    assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
+                                else:
+                                    assert len(set([x['source'] for x in rets1['sources']])) >= 1
+                            elif document_subset == DocumentSubset.RelSources.name:
+                                if doc_choice in [1, 2]:
+                                    assert len(set([x['source'] for x in rets1['sources']])) <= doc_choice
+                                else:
+                                    assert len(set([x['source'] for x in rets1['sources']])) >= 2
+                            else:
+                                # TopK may just be 1 doc because of many chunks from that doc
+                                # if top_k_docs=-1 might get more
+                                assert len(set([x['source'] for x in rets1['sources']])) >= 1
+
+        # SHOW DOC
+        single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]
+        text_context_list1 = []
+        for view_raw_text_checkbox1 in [True, False]:
+            print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
+            from src.gradio_runner import show_doc
+            show_ret = show_doc(db1s, selection_docs_state1, requests_state1,
+                                langchain_mode1,
+                                single_document_choice1,
+                                view_raw_text_checkbox1,
+                                text_context_list1,
+                                dbs1=dbs1,
+                                hf_embedding_model1=hf_embedding_model,
+                                **other_kwargs
+                                )
+            assert len(show_ret) == 5
+            if chroma_new:
+                assert1 = show_ret[4]['value'] is not None and 'README.md' in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
+                assert assert1 or assert2
+            else:
+                assert1 = show_ret[4]['value'] is not None and single_document_choice1 in show_ret[4]['value']
+                assert2 = show_ret[3]['value'] is not None and single_document_choice1 in show_ret[3]['value']
+                assert assert1 or assert2
 
 
 if __name__ == '__main__':

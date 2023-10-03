@@ -40,14 +40,15 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
+import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count
 
 start_faulthandler()
 import_matplotlib()
@@ -88,7 +89,6 @@ def main(
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
         system_prompt: str = '',
-        use_system_prompt: bool = False,
 
         # llama and gpt4all settings
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
@@ -130,6 +130,7 @@ def main(
         src_lang: str = "English",
         tgt_lang: str = "Russian",
 
+        prepare_offline_level: int = 0,
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
@@ -137,7 +138,8 @@ def main(
         server_name: str = "0.0.0.0",
         root_path: str = "",
         chat: bool = True,
-        chat_context: bool = False,
+        chat_conversation: typing.List[typing.Tuple[str, str]] = None,
+        text_context_list: typing.List[str] = None,
         stream_output: bool = True,
         async_output: bool = True,
         num_async: int = 3,
@@ -166,6 +168,9 @@ def main(
         auth_freeze: bool = False,
         auth_message: str = None,
         guest_name: str = "guest",
+        enforce_h2ogpt_api_key: bool = None,
+        h2ogpt_api_keys: Union[list, str] = [],
+        h2ogpt_key: str = None,
 
         max_max_time=None,
         max_max_new_tokens=None,
@@ -229,6 +234,7 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         migrate_embedding_model: str = False,
+        auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = True,
@@ -240,6 +246,7 @@ def main(
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
         add_chat_history_to_context: bool = True,
+        add_search_to_context: bool = False,
         context: str = '',
         iinput: str = '',
         allow_upload_to_user_data: bool = True,
@@ -251,9 +258,11 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         top_k_docs: int = None,
-        reverse_docs: bool = True,
+        docs_ordering_type: str = 'reverse_ucurve_sort',
+        min_max_new_tokens=256,
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
+        headsize: int = 50,
         n_jobs: int = -1,
 
         # urls
@@ -262,12 +271,12 @@ def main(
         use_selenium=False,
 
         # pdfs
-        use_pymupdf=True,
-        use_unstructured_pdf=False,
-        use_pypdf=False,
+        use_pymupdf='auto',
+        use_unstructured_pdf='auto',
+        use_pypdf='auto',
         enable_pdf_ocr='auto',
-        enable_pdf_doctr=False,
-        try_pdf_as_html=True,
+        enable_pdf_doctr='auto',
+        try_pdf_as_html='auto',
 
         # images
         enable_ocr=False,
@@ -278,6 +287,7 @@ def main(
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
         captions_model: str = "Salesforce/blip-image-captioning-base",
+        doctr_gpu: bool = True,
 
         # json
         jq_schema='.[]',
@@ -319,12 +329,12 @@ def main(
                              e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=text-davinci-003
                              Optionals (Replace with None or just leave empty but keep :)
                                  <deployment_name> of some deployment name
-                                 <baseurl>: e.g. "https://<endpoint>.openai.azure.com" for some <endpoint>
+                                 <baseurl>: e.g. "<endpoint>.openai.azure.com" for some <endpoint> without https://
                                  <api_version> of some api, e.g. 2023-05-15
                                  <model_version> e.g. 0613
 
                              Or Address can be for vLLM:
-                              Use: "vllm:IP:port" or "vllm:IP:port" for OpenAI-compliant vLLM endpoint
+                              Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
                               Note: vllm_chat not supported by vLLM project.
 
                              Or Address can be replicate:
@@ -332,12 +342,18 @@ def main(
                               --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
                               e.g. <model name string> looks like "a16z-infra/llama13b-v2-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5"
 
+                             Or Address can be for AWS SageMaker:
+                              Use: "sagemaker_chat:<endpoint name>" for chat models that AWS sets up as dialog
+                              Use: "sagemaker:<endpoint name>" for foundation models that AWS only text as inputs
+
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
     :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
            Useful for langchain case to control behavior, or OpenAI and Replicate.
-    :param use_system_prompt: Whether to use system prompt (e.g. llama2 safe system prompt) present in prompt_type itself
-           Independent of system_prompt, which is used for OpenAI, Replicate.
+           If None, 'None', or 'auto', then for LLaMa or other models that internally have system_prompt, will use default for each model
+           If '', then no system prompt (no empty template given to model either, just no system part added at all)
+           If some string not in ['None', 'auto'], then use that as system prompt
+           Default is '', no system_prompt, because often it hurts performance/accuracy
 
     :param llamacpp_dict:
            n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
@@ -394,6 +410,12 @@ def main(
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
+
+    :param prepare_offline_level:
+           Whether to just prepare for offline use, do not go into cli, eval, or gradio run modes
+           0 : no prep
+           1: prepare just h2oGPT with exact same setup as passed to CLI and ensure all artifacts for h2oGPT alone added to ~/.cache/
+           2: prepare h2oGPT + all inference servers so h2oGPT+inference servers can use the ~/.cache/
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
@@ -411,7 +433,11 @@ def main(
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
            the `root_path` should be set to "/myapp".
     :param chat: whether to enable chat mode with chat history
-    :param chat_context: whether to use extra helpful context if human_bot
+    :param chat_conversation: list of tuples of (human, bot) conversation pre-appended to existing chat when using instruct/chat models
+           Requires also add_chat_history_to_context = True
+           It does *not* require chat=True, so works with nochat_api etc.
+    :param text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
+           Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
     :param stream_output: whether to stream output
     :param async_output: Whether to do asyncio handling
            For summarization
@@ -454,9 +480,13 @@ def main(
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
+    :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
+    :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
+    :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
+    :param min_max_new_tokens: Minimum of max_new_tokens, when auto-scaling down to handle more docs/prompt, but still let generation have some tokens
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -539,7 +569,10 @@ def main(
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
     :param keep_sources_in_context: Whether to keep url sources in context, not helpful usually
-    :param db_type: 'faiss' for in-memory or 'chroma' or 'weaviate' for persisted on disk
+    :param db_type: 'faiss' for in-memory
+                    'chroma' (for chroma >= 0.4)
+                    'chroma_old' (for chroma < 0.4) -- recommended for large collections
+                    'weaviate' for persisted on disk
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db
@@ -551,6 +584,7 @@ def main(
            used to migrate all embeddings to a new one, but will take time to re-embed.
            Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
            If had old database without embedding saved, then hf_embedding_model is also used.
+    :param auto_migrate_db: whether to automatically migrate any chroma<0.4 database from duckdb -> sqlite version
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -558,6 +592,7 @@ def main(
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
+           If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
@@ -569,7 +604,9 @@ def main(
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
+    :param add_search_to_context: Include web search in context as augmented prompt
     :param context: Default context to use (for system pre-context in gradio UI)
+           context comes before chat_conversation and any document Q/A from text_context_list
     :param iinput: Default input for instruction-based prompts
     :param allow_upload_to_user_data: Whether to allow file uploads to update shared vector db (UserData or custom user dbs)
            Ensure pass user_path for the files uploaded to be moved to this location for linking.
@@ -585,24 +622,31 @@ def main(
                        For langchain_action summarize: number of document parts, like pages for PDF.
                        There's no such thing as chunks for summarization.
                        -1 : auto-fills context up to max_seq_len
-    :param reverse_docs: whether to reverse docs order so most relevant is closest to question.
+    :param docs_ordering_type:
+        Type of ordering of docs.
+        'best_first': Order by score so score is worst match near prompt
+        'best_near_prompt' or 'reverse_sort' : reverse docs order so most relevant is closest to question.
            Best choice for sufficiently smart model, and truncation occurs for oldest context, so best then too.
            But smaller 6_9 models fail to use newest context and can get stuck on old information.
+        '' or None (i.e. default) or 'reverse_ucurve_sort' : Sort so most relevant is either near start or near end
+           Best to avoid "lost in middle" as well as avoid hallucinating off starting content that LLM focuses on alot.
     :param auto_reduce_chunks: Whether to automatically reduce top_k_docs to fit context given prompt
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
+    :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
 
     :param use_unstructured: Enable unstructured URL loader
     :param use_playwright: Enable PlayWright URL loader
     :param use_selenium: Enable Selenium URL loader
 
-    :param use_pymupdf: enable PyMUPDF
-    :param use_unstructured_pdf: enable Unstructured PDF loader
-    :param use_pypdf: enable PyPDF loader
-    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text
+    :param use_pymupdf: enable PyMUPDF 'auto' means use first, use others if they are 'auto' if no result
+    :param use_unstructured_pdf: enable Unstructured PDF loader, 'auto' means use if pymupdf fails to get doc result
+    :param use_pypdf: enable PyPDF loader 'auto' means use if unstructured fails to get doc result
+    :param enable_pdf_ocr: 'auto' means only use OCR if normal text extraction fails.  Useful for pure image-based PDFs with text.
+                                  if enable_pdf_doctr == 'on' then don't do.
                             'on' means always do OCR as additional parsing of same documents
                             'off' means don't do OCR (e.g. because it's slow even if 'auto' only would trigger if nothing else worked)
-    :param enable_pdf_doctr: Whether to support doctr on pdfs
+    :param enable_pdf_doctr: Whether to support doctr on pdfs, 'auto' means use do if failed to get doc result so far
     :param try_pdf_as_html: Try "PDF" as if HTML file, in case web link has .pdf extension but really is just HTML
 
     :param enable_ocr: Whether to support OCR on images
@@ -621,6 +665,8 @@ def main(
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
            Disabled for CPU since BLIP requires CUDA
     :param caption_gpu: If support caption, then use GPU if exists
+
+    :param doctr_gpu: If support doctr, then use GPU if exists
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -648,8 +694,10 @@ def main(
     model_lock = os.getenv('model_lock', str(model_lock))
     model_lock = ast.literal_eval(model_lock)
 
-    if isinstance(llamacpp_dict, str):
-        llamacpp_dict = ast.literal_eval(llamacpp_dict)
+    chat_conversation = str_to_list(chat_conversation)
+    text_context_list = str_to_list(text_context_list)
+
+    llamacpp_dict = str_to_dict(llamacpp_dict)
     # add others to single dict
     llamacpp_dict['model_path_llama'] = model_path_llama
     llamacpp_dict['model_name_gptj'] = model_name_gptj
@@ -662,6 +710,9 @@ def main(
         llamacpp_dict['n_gpu_layers'] = 100
     if 'n_gqa' not in llamacpp_dict:
         llamacpp_dict['n_gqa'] = 0
+
+    if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
+        visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
@@ -680,6 +731,13 @@ def main(
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
     if is_public:
         visible_tos_tab = visible_hosts_tab = True
+        if enforce_h2ogpt_api_key is None:
+            enforce_h2ogpt_api_key = True
+    else:
+        if enforce_h2ogpt_api_key is None:
+            enforce_h2ogpt_api_key = False
+    if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
+        h2ogpt_api_keys = str_to_list(h2ogpt_api_keys)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:
@@ -694,12 +752,11 @@ def main(
     # but becomes unrecoverable sometimes if raise, so just be silent for now
     raise_generate_gpu_exceptions = True
 
-    if isinstance(rope_scaling, str):
-        rope_scaling = ast.literal_eval(rope_scaling)
+    rope_scaling = str_to_dict(rope_scaling)
 
     if isinstance(auth, str):
         if auth.strip().startswith('['):
-            auth = ast.literal_eval(auth.strip())
+            auth = str_to_list(auth)
     if isinstance(auth, str) and auth:
         auth_filename = auth
     if not auth_filename:
@@ -722,14 +779,14 @@ def main(
     # always allow DISABLED
     if LangChainMode.DISABLED.value not in langchain_modes:
         langchain_modes.append(LangChainMode.DISABLED.value)
+    if not have_langchain:
+        # only allow disabled, not even LLM that is langchain related
+        langchain_mode = LangChainMode.DISABLED.value
+        langchain_modes = [langchain_mode]
 
     # update
-    if isinstance(langchain_mode_paths, str):
-        langchain_mode_paths = ast.literal_eval(langchain_mode_paths)
-        assert isinstance(langchain_mode_paths, dict)
-    if isinstance(langchain_mode_types, str):
-        langchain_mode_types = ast.literal_eval(langchain_mode_types)
-        assert isinstance(langchain_mode_types, dict)
+    langchain_mode_paths = str_to_dict(langchain_mode_paths)
+    langchain_mode_types = str_to_dict(langchain_mode_types)
     for lmode in [LangChainMode.GITHUB_H2OGPT.value,
                   LangChainMode.H2O_DAI_DOCS.value,
                   LangChainMode.WIKI.value,
@@ -772,12 +829,14 @@ def main(
             # infer even if don't pass which langchain_mode, just langchain_modes.
             langchain_mode = langchain_modes[0]
         if allow_upload_to_user_data and not is_public and langchain_mode_paths['UserData']:
-            print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
+            if verbose:
+                print("Auto set langchain_mode=%s.  Could use UserData instead." % langchain_mode, flush=True)
         elif allow_upload_to_my_data:
-            print("Auto set langchain_mode=%s.  Could use MyData instead."
-                  "  To allow UserData to pull files from disk,"
-                  " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
-                  flush=True)
+            if verbose:
+                print("Auto set langchain_mode=%s.  Could use MyData instead."
+                      "  To allow UserData to pull files from disk,"
+                      " set user_path or langchain_mode_paths, and ensure allow_upload_to_user_data=True" % langchain_mode,
+                      flush=True)
         else:
             raise RuntimeError("Please pass --langchain_mode=<chosen mode> out of %s" % langchain_modes)
     if not have_langchain and langchain_mode not in [None, LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
@@ -955,9 +1014,9 @@ def main(
                             chat,
                             stream_output, show_examples,
                             prompt_type, prompt_dict,
+                            system_prompt,
                             pre_prompt_query, prompt_query,
                             pre_prompt_summary, prompt_summary,
-                            system_prompt,
                             temperature, top_p, top_k, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -969,7 +1028,8 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
-                            use_system_prompt,
+                            docs_ordering_type,
+                            min_max_new_tokens,
                             verbose,
                             )
 
@@ -980,7 +1040,7 @@ def main(
         print(f"Generating model with params:\n{locals_print}", flush=True)
         print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), git_hash), flush=True)
 
-    if langchain_mode != "Disabled":
+    if langchain_mode != LangChainMode.DISABLED.value:
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
         from gpt_langchain import prep_langchain, get_some_dbs_from_hf, get_persist_directory
         if is_hf:
@@ -1003,7 +1063,9 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
-                                    kwargs_make_db=locals())
+                                    auto_migrate_db,
+                                    kwargs_make_db=locals(),
+                                    verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
                 clear_torch_cache()
@@ -1031,6 +1093,7 @@ def main(
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
+                            visible_models=None, h2ogpt_key=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
@@ -1054,14 +1117,15 @@ def main(
     elif not gradio:
         from eval import run_eval
         return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
-    elif gradio:
+    elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
 
         # get default model
         model_states = []
         model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
-                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)]
+                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                           visible_models=None, h2ogpt_key=None)]
         model_list[0].update(other_model_state_defaults)
         # FIXME: hyper per model, not about model loading
         # for k in gen_hyper:
@@ -1080,6 +1144,10 @@ def main(
             model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
             model_dict['lora_weights'] = model_dict.get('lora_weights', '')
             model_dict['inference_server'] = model_dict.get('inference_server', '')
+            if prepare_offline_level >= 2:
+                if 'openai' not in model_dict['inference_server'] and 'replicate' not in model_dict['inference_server']:
+                    # assume want locally, but OpenAI and replicate are never local for model part
+                    model_dict['inference_server'] = ''
             prompt_type_infer = not model_dict.get('prompt_type')
             model_dict['prompt_type'] = model_dict.get('prompt_type',
                                                        model_list0[0]['prompt_type'])  # don't use mutated value
@@ -1111,7 +1179,8 @@ def main(
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    chat=False, context='', reduced=False,
                                                                    making_context=False,
-                                                                   return_dict=True)
+                                                                   return_dict=True,
+                                                                   system_prompt=system_prompt)
                 else:
                     model_dict['prompt_dict'] = prompt_dict
             else:
@@ -1136,7 +1205,8 @@ def main(
                 continue
             model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
             model_state_trial.update(model_dict)
-            assert len(model_state_none) == len(model_state_trial)
+            diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
+            assert len(model_state_none) == len(model_state_trial), diff_keys
             print("Model %s" % model_dict, flush=True)
             if model_lock:
                 # last in iteration will be first
@@ -1147,9 +1217,7 @@ def main(
                 model_state0 = model_state_trial.copy()
             assert len(model_state_none) == len(model_state0)
 
-        if isinstance(visible_models, str):
-            visible_models = ast.literal_eval(visible_models)
-        assert isinstance(visible_models, (type(None), list))
+        visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
         all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
         visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
                                  visible_models is None or
@@ -1169,21 +1237,29 @@ def main(
                                                                    **all_kwargs))
         score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
                                   base_model=score_model, tokenizer_base_model='', lora_weights='',
-                                  inference_server='', prompt_type='', prompt_dict='')
+                                  inference_server='', prompt_type='', prompt_dict='',
+                                  visible_models=None, h2ogpt_key=None)
 
         if enable_captions:
             if pre_load_caption_model:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
             else:
-                caption_loader = 'gpu' if caption_gpu else 'cpu'
+                caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             caption_loader = False
 
-        if pre_load_embedding_model and langchain_mode != 'Disabled' and not use_openai_embedding:
+        if pre_load_embedding_model and \
+                langchain_mode != LangChainMode.DISABLED.value and \
+                not use_openai_embedding:
             from src.gpt_langchain import get_embedding
-            hf_embedding_model = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                               preload=True)
+            hf_embedding_model = dict(name=hf_embedding_model,
+                                      model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                                          preload=True))
+        if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
+            doctr_loader = 'gpu' if n_gpus > 0 and doctr_gpu else 'cpu'
+        else:
+            doctr_loader = False
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -1541,18 +1617,25 @@ def get_model(
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
             tokenizer.model_max_length = tokenizer.model_max_length - 50
     else:
-        tokenizer = FakeTokenizer()
+        tokenizer = None
 
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                   base_model=base_model)
         client = gr_client or hf_client
         # Don't return None, None for model, tokenizer so triggers
+        if tokenizer is None:
+            # FIXME: Could use only tokenizer from llama etc. but hard to detatch from model, just use fake for now
+            if os.getenv("HARD_ASSERTS") and base_model not in non_hf_types:
+                raise RuntimeError("Unexpected tokenizer=None")
+            tokenizer = FakeTokenizer()
         return client, tokenizer, 'http'
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
-            inference_server.startswith('replicate')):
+            inference_server.startswith('replicate') or
+            inference_server.startswith('sagemaker')
+    ):
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
@@ -1569,9 +1652,17 @@ def get_model(
                     "Could not import replicate python package. "
                     "Please install it with `pip install replicate`."
                 )
+        if inference_server.startswith('sagemaker'):
+            assert len(
+                inference_server.split(
+                    ':')) >= 3, "Expected sagemaker_chat:<endpoint name>:<region>, got %s" % inference_server
+            assert os.getenv('AWS_ACCESS_KEY_ID'), "Set environment for AWS_ACCESS_KEY_ID"
+            assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
+        if inference_server.startswith('openai') or tokenizer is None:
+            # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -1918,6 +2009,11 @@ def get_score_model(score_model: str = None,
     return smodel, stokenizer, sdevice
 
 
+def evaluate_fake(*args, **kwargs):
+    yield dict(response=invalid_key_msg, sources='')
+    return
+
+
 def evaluate(
         model_state,
         my_db_state,
@@ -1963,7 +2059,13 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
-        visible_models,  # not used but just here for code to be simpler for knowing what wrapper to evaluate needs
+        visible_models,
+        h2ogpt_key,
+        add_search_to_context,
+        chat_conversation,
+        text_context_list,
+        docs_ordering_type,
+        min_max_new_tokens,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -1984,7 +2086,6 @@ def evaluate(
         is_public=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
-        chat_context=None,
         lora_weights=None,
         use_llm_if_no_docs=True,
         load_db_if_exists=True,
@@ -1994,6 +2095,7 @@ def evaluate(
         use_openai_model=None,
         hf_embedding_model=None,
         migrate_embedding_model=None,
+        auto_migrate_db=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -2004,10 +2106,10 @@ def evaluate(
         show_link_in_sources=None,
         verbose=False,
         cli=False,
-        reverse_docs=True,
         use_cache=None,
         auto_reduce_chunks=None,
         max_chunks=None,
+        headsize=None,
         model_lock=None,
         force_langchain_evaluate=None,
         model_state_none=None,
@@ -2018,17 +2120,17 @@ def evaluate(
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
-        use_system_prompt=None,
+        keep_sources_in_context=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
     assert memory_restriction_level is not None
     assert raise_generate_gpu_exceptions is not None
-    assert chat_context is not None
     assert use_openai_embedding is not None
     assert use_openai_model is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
+    assert auto_migrate_db is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -2036,6 +2138,7 @@ def evaluate(
     assert n_jobs is not None
     assert first_para is not None
     assert isinstance(add_chat_history_to_context, bool)
+    assert isinstance(add_search_to_context, bool)
     assert load_exllama is not None
     # for lazy client (even chat client)
     if image_loaders is None:
@@ -2046,6 +2149,15 @@ def evaluate(
         url_loaders = url_loaders_options0
     if jq_schema is None:
         jq_schema = jq_schema0
+    if isinstance(langchain_agents, str):
+        if langchain_agents.strip().startswith('['):
+            # already list, but as string
+            langchain_agents = str_to_list(langchain_agents)
+        else:
+            # just 1 item and make list
+            langchain_agents = [langchain_agents]
+    chat_conversation = str_to_list(chat_conversation)
+    text_context_list = str_to_list(text_context_list)
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
@@ -2104,6 +2216,10 @@ def evaluate(
     tokenizer_base_model = chosen_model_state['tokenizer_base_model']
     lora_weights = chosen_model_state['lora_weights']
     inference_server = chosen_model_state['inference_server']
+    visible_models = chosen_model_state['visible_models']
+    # use overall key if have, so key for this gradio and any inner gradio
+    if chosen_model_state['h2ogpt_key'] is not None:
+        h2ogpt_key = chosen_model_state['h2ogpt_key']
     # prefer use input from API over model state
     prompt_type = prompt_type or chosen_model_state['prompt_type']
     prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
@@ -2141,6 +2257,11 @@ def evaluate(
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
                                                 max_max_new_tokens=max_max_new_tokens)
+    if min_max_new_tokens is None:
+        # default for nochat api
+        min_max_new_tokens = 256
+    if docs_ordering_type is None:
+        docs_ordering_type = 'reverse_ucurve_sort'
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
@@ -2148,29 +2269,19 @@ def evaluate(
     repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
     num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
     min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    # limit total tokens processed, e.g. for summarization, if public instance
+    if is_public:
+        total_tokens_for_docs = min(2 * model_max_length, 16384)
+    else:
+        total_tokens_for_docs = None
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
-        # get hidden context if have one
-        context = get_context(chat_context, prompt_type)
+        context = ''
 
-    # restrict instruction, typically what has large input
-    from h2oai_pipeline import H2OTextGenerationPipeline
-    instruction, num_prompt_tokens1 = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
-    context, num_prompt_tokens2 = H2OTextGenerationPipeline.limit_prompt(context, tokenizer)
-    iinput, num_prompt_tokens3 = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
-    num_prompt_tokens = (num_prompt_tokens1 or 0) + (num_prompt_tokens2 or 0) + (num_prompt_tokens3 or 0)
-
-    # limit so max_new_tokens = prompt + new < max
-    # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    max_max_tokens = tokenizer.model_max_length if hasattr(tokenizer, 'model_max_length') else 2048
-    max_new_tokens = min(max_new_tokens, max_max_tokens - num_prompt_tokens)
-
-    # get prompt
+    # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
-                        use_system_prompt=use_system_prompt)
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    prompt = prompter.generate_prompt(data_point)
+                        system_prompt=system_prompt)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -2180,28 +2291,41 @@ def evaluate(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
     # get db, but also fill db state so return already has my_db_state and dbs filled so faster next query
-    from src.gpt_langchain import get_any_db
-    db = get_any_db(my_db_state, langchain_mode, langchain_mode_paths, langchain_mode_types,
-                    dbs=dbs,
-                    load_db_if_exists=load_db_if_exists,
-                    db_type=db_type,
-                    use_openai_embedding=use_openai_embedding,
-                    hf_embedding_model=hf_embedding_model,
-                    migrate_embedding_model=migrate_embedding_model,
-                    for_sources_list=True,
-                    verbose=verbose,
-                    n_jobs=n_jobs,
-                    )
+    if langchain_mode != LangChainMode.DISABLED.value:
+        from src.gpt_langchain import get_any_db
+        db = get_any_db(my_db_state, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                        dbs=dbs,
+                        load_db_if_exists=load_db_if_exists,
+                        db_type=db_type,
+                        use_openai_embedding=use_openai_embedding,
+                        hf_embedding_model=hf_embedding_model,
+                        migrate_embedding_model=migrate_embedding_model,
+                        auto_migrate_db=auto_migrate_db,
+                        for_sources_list=True,
+                        verbose=verbose,
+                        n_jobs=n_jobs,
+                        )
+    else:
+        db = None
 
     t_generate = time.time()
     langchain_only_model = base_model in non_hf_types or \
                            load_exllama or \
                            inference_server.startswith('replicate') or \
+                           inference_server.startswith('sagemaker') or \
                            inference_server.startswith('openai_azure_chat') or \
                            inference_server.startswith('openai_azure')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
-                        force_langchain_evaluate
+                        force_langchain_evaluate or \
+                        len(text_context_list) > 0
+
+    if len(langchain_agents) > 0:
+        do_langchain_path = True
+    if add_search_to_context:
+        # easier to manage prompt etc. by doing full langchain path
+        do_langchain_path = True
+
     if do_langchain_path:
         text = ''
         sources = ''
@@ -2227,10 +2351,15 @@ def evaluate(
                                                 )
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
-                                 jq_schema=jq_schema,
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
+                                 jq_schema=jq_schema,
                                  ))
+        data_point = dict(context=context, instruction=instruction, input=iinput)
+        # no longer stuff chat history directly into context this early
+        prompt_basic = prompter.generate_prompt(data_point, context_from_history=False)
+        prompt = prompt_basic
+        num_prompt_tokens = 0
         for r in run_qa_db(
                 inference_server=inference_server,
                 model_name=base_model, model=model, tokenizer=tokenizer,
@@ -2248,11 +2377,15 @@ def evaluate(
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
                 add_chat_history_to_context=add_chat_history_to_context,
+                add_search_to_context=add_search_to_context,
+                keep_sources_in_context=keep_sources_in_context,
+                memory_restriction_level=memory_restriction_level,
                 system_prompt=system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
+                auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,
@@ -2281,6 +2414,12 @@ def evaluate(
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
+                text_context_list=text_context_list,
+                chat_conversation=chat_conversation,
+                visible_models=visible_models,
+                h2ogpt_key=h2ogpt_key,
+                docs_ordering_type=docs_ordering_type,
+                min_max_new_tokens=min_max_new_tokens,
 
                 **gen_hyper_langchain,
 
@@ -2289,14 +2428,19 @@ def evaluate(
                 verbose=verbose,
                 cli=cli,
                 sanitize_bot_response=sanitize_bot_response,
-                reverse_docs=reverse_docs,
 
                 lora_weights=lora_weights,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
+                total_tokens_for_docs=total_tokens_for_docs,
+                headsize=headsize,
         ):
-            response, sources = r  # doesn't accumulate, new answer every yield, so only save that full answer
+            # doesn't accumulate, new answer every yield, so only save that full answer
+            response = r['response']
+            sources = r['sources']
+            prompt = r['prompt']
+            num_prompt_tokens = r['num_prompt_tokens']
             yield dict(response=response, sources=sources, save_dict=dict())
         if save_dir:
             # estimate using tiktoken
@@ -2308,6 +2452,8 @@ def evaluate(
                               langchain_agents=langchain_agents,
                               document_subset=document_subset,
                               document_choice=document_choice,
+                              chat_conversation=chat_conversation,
+                              add_search_to_context=add_search_to_context,
                               num_prompt_tokens=num_prompt_tokens,
                               instruction=instruction,
                               iinput=iinput,
@@ -2326,12 +2472,38 @@ def evaluate(
                     'Post-Generate Langchain: %s decoded_output: %s' %
                     (str(datetime.now()), len(response) if response else -1),
                     flush=True)
-        if response or langchain_only_model:
+        if response or sources or langchain_only_model:
             # if got no response (e.g. not showing sources and got no sources,
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
             return
+
+    # NOT LANGCHAIN PATH, raw LLM
+    # restrict instruction + , typically what has large input
+    prompt, \
+        instruction, iinput, context, \
+        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, top_k_docs_trial, one_doc_size = \
+        get_limited_prompt(instruction,
+                           iinput,
+                           tokenizer,
+                           prompter=prompter,
+                           inference_server=inference_server,
+                           # prompt_type=prompt_type,
+                           # prompt_dict=prompt_dict,
+                           # chat=chat,
+                           max_new_tokens=max_new_tokens,
+                           # system_prompt=system_prompt,
+                           context=context,
+                           chat_conversation=chat_conversation,
+                           keep_sources_in_context=keep_sources_in_context,
+                           model_max_length=model_max_length,
+                           memory_restriction_level=memory_restriction_level,
+                           langchain_mode=langchain_mode,
+                           add_chat_history_to_context=add_chat_history_to_context,
+                           min_max_new_tokens=min_max_new_tokens,
+                           )
 
     if inference_server.startswith('vllm') or \
             inference_server.startswith('openai') or \
@@ -2382,15 +2554,17 @@ def evaluate(
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if inf_type == 'vllm_chat':
                     raise NotImplementedError('%s not supported by vLLM' % inf_type)
-                openai_system_prompt = system_prompt or "You are a helpful assistant."
+                if system_prompt in [None, 'None', 'auto']:
+                    openai_system_prompt = "You are a helpful assistant."
+                else:
+                    openai_system_prompt = system_prompt
+                messages0 = []
+                if openai_system_prompt:
+                    messages0.append({"role": "system", "content": openai_system_prompt})
+                messages0.append({'role': 'user', 'content': prompt})
                 responses = openai.ChatCompletion.create(
                     model=base_model,
-                    messages=[
-                        {"role": "system", "content": openai_system_prompt},
-                        {'role': 'user',
-                         'content': prompt,
-                         }
-                    ],
+                    messages=messages0,
                     stream=stream_output,
                     **gen_server_kwargs,
                 )
@@ -2437,6 +2611,7 @@ def evaluate(
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
                 client_add_chat_history_to_context = True
+                client_add_search_to_context = False
                 client_langchain_action = LangChainAction.QUERY.value
                 client_langchain_agents = []
                 gen_server_kwargs = dict(temperature=temperature,
@@ -2498,6 +2673,20 @@ def evaluate(
                                      chunk_size=chunk_size,
                                      document_subset=DocumentSubset.Relevant.name,
                                      document_choice=[DocumentChoice.ALL.value],
+                                     pre_prompt_query=pre_prompt_query,
+                                     prompt_query=prompt_query,
+                                     pre_prompt_summary=pre_prompt_summary,
+                                     prompt_summary=prompt_summary,
+                                     system_prompt=system_prompt,
+                                     image_loaders=image_loaders,
+                                     pdf_loaders=pdf_loaders,
+                                     url_loaders=url_loaders,
+                                     jq_schema=jq_schema,
+                                     visible_models=visible_models,
+                                     h2ogpt_key=h2ogpt_key,
+                                     add_search_to_context=client_add_search_to_context,
+                                     docs_ordering_type=None,
+                                     min_max_new_tokens=min_max_new_tokens,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -2514,7 +2703,13 @@ def evaluate(
                 else:
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = dict(response=text, sources=sources, save_dict=dict())
+                    text0 = ''
                     while not job.done():
+                        if job.communicator.job.latest_status.code.name == 'FINISHED':
+                            break
+                        e = job.future._exception
+                        if e is not None:
+                            break
                         outputs_list = job.communicator.job.outputs
                         if outputs_list:
                             res = job.communicator.job.outputs[-1]
@@ -2528,6 +2723,11 @@ def evaluate(
                                 prompt_and_text = prompt + text
                             response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
+                            text_chunk = response[len(text0):]
+                            if not text_chunk:
+                                continue
+                            # save old
+                            text0 = response
                             yield dict(response=response, sources=sources, save_dict=dict())
                         time.sleep(0.01)
                     # ensure get last output to avoid race
@@ -2640,7 +2840,8 @@ def evaluate(
         tokenizer.src_lang = languages_covered()[src_lang]
 
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
-                                     model_max_length=tokenizer.model_max_length)
+                                     model_max_length=model_max_length,
+                                     prompter=prompter)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
@@ -2973,7 +3174,8 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
-                        use_system_prompt,
+                        docs_ordering_type,
+                        min_max_new_tokens,
                         verbose,
                         ):
     use_defaults = False
@@ -3149,6 +3351,12 @@ y = np.random.randint(0, 1, 100)
                     url_loaders,
                     jq_schema,
                     None,
+                    None,
+                    False,
+                    None,
+                    None,
+                    docs_ordering_type,
+                    min_max_new_tokens,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3167,7 +3375,7 @@ y = np.random.randint(0, 1, 100)
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
                                      chat=False, context='', reduced=False, making_context=False, return_dict=True,
-                                     use_system_prompt=use_system_prompt)
+                                     system_prompt=system_prompt)
     if error0:
         raise RuntimeError("Prompt wrong: %s" % error0)
 
@@ -3189,15 +3397,6 @@ def languages_covered():
     covered = covered.split(', ')
     covered = {x.split(' ')[0]: x.split(' ')[1].replace(')', '').replace('(', '') for x in covered}
     return covered
-
-
-def get_context(chat_context, prompt_type):
-    if chat_context and prompt_type == 'human_bot':
-        context0 = """<bot>: I am an intelligent, helpful, truthful, and fair assistant named h2oGPT, who will give accurate, balanced, and reliable responses.  I will not respond with I don't know or I don't understand.
-<human>: I am a human person seeking useful assistance and request all questions be answered completely, and typically expect detailed responses.  Give answers in numbered list format if several distinct but related items are being listed."""
-    else:
-        context0 = ''
-    return context0
 
 
 def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len):
@@ -3285,7 +3484,7 @@ def get_max_max_new_tokens(model_state, **kwargs):
 def get_minmax_top_k_docs(is_public):
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = 3
+        max_top_k_docs = 8
         label_top_k_docs = "Number of document chunks"
     else:
         min_top_k_docs = -1
@@ -3294,45 +3493,74 @@ def get_minmax_top_k_docs(is_public):
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
 
-def history_to_context(history, langchain_mode1,
-                       add_chat_history_to_context,
-                       prompt_type1, prompt_dict1, chat1, model_max_length1,
-                       memory_restriction_level1, keep_sources_in_context1,
-                       use_system_prompt1):
+def merge_chat_conversation_history(chat_conversation1, history):
+    # chat_conversation and history ordered so largest index of list is most recent
+    if chat_conversation1:
+        chat_conversation1 = str_to_list(chat_conversation1)
+        for conv1 in chat_conversation1:
+            assert isinstance(conv1, (list, tuple))
+            assert len(conv1) == 2
+
+    if isinstance(history, list):
+        # make copy so only local change
+        if chat_conversation1:
+            # so priority will be newest that comes from actual chat history from UI, then chat_conversation
+            history = chat_conversation1 + history.copy()
+    elif chat_conversation1:
+        history = chat_conversation1
+    else:
+        history = []
+    return history
+
+
+def history_to_context(history, langchain_mode=None,
+                       add_chat_history_to_context=None,
+                       prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
+                       memory_restriction_level=None, keep_sources_in_context=None,
+                       system_prompt=None, chat_conversation=None):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
-    :param langchain_mode1:
+    :param langchain_mode:
     :param add_chat_history_to_context:
-    :param prompt_type1:
-    :param prompt_dict1:
-    :param chat1:
-    :param model_max_length1:
-    :param memory_restriction_level1:
-    :param keep_sources_in_context1:
-    :param use_system_prompt1:
+    :param prompt_type:
+    :param prompt_dict:
+    :param chat:
+    :param model_max_length:
+    :param memory_restriction_level:
+    :param keep_sources_in_context:
+    :param system_prompt:
+    :param chat_conversation:
     :return:
     """
+    history = merge_chat_conversation_history(chat_conversation, history)
+
+    if len(history) >= 1 and len(history[-1]) >= 2 and not history[-1][1]:
+        len_history = len(history) - 1
+    else:
+        # full history
+        len_history = len(history)
+
     # ensure output will be unique to models
-    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level1,
-                                             for_context=True, model_max_length=model_max_length1)
+    _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
+                                             for_context=True, model_max_length=model_max_length)
     context1 = ''
     if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
         # - 1 below because current instruction already in history from user()
-        for histi in range(0, len(history) - 1):
+        for histi in range(0, len_history):
             data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,
-                                prompt_type1,
-                                prompt_dict1,
-                                chat1,
+                                prompt_type,
+                                prompt_dict,
+                                chat,
                                 reduced=True,
                                 making_context=True,
-                                use_system_prompt=use_system_prompt1,
+                                system_prompt=system_prompt,
                                 histi=histi)
             # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context1 and langchain_mode1 != 'Disabled' and prompt.find(super_source_prefix) >= 0:
+            if not keep_sources_in_context and langchain_mode != 'Disabled' and prompt.find(super_source_prefix) >= 0:
                 # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
                 import re
                 prompt = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', prompt,
@@ -3349,14 +3577,221 @@ def history_to_context(history, langchain_mode1,
             context1 += prompt
 
         _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
-            generate_prompt({}, prompt_type1, prompt_dict1,
-                            chat1, reduced=True,
+            generate_prompt({}, prompt_type, prompt_dict,
+                            chat, reduced=True,
                             making_context=True,
-                            use_system_prompt=use_system_prompt1,
+                            system_prompt=system_prompt,
                             histi=-1)
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
+
+
+def get_limited_prompt(instruction,
+                       iinput,
+                       tokenizer,
+                       prompter=None,
+                       inference_server=None,
+                       prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
+                       system_prompt='',
+                       context='', chat_conversation=None, text_context_list=None,
+                       keep_sources_in_context=False,
+                       model_max_length=None, memory_restriction_level=0,
+                       langchain_mode=None, add_chat_history_to_context=True,
+                       verbose=False,
+                       doc_importance=0.5,
+                       min_max_new_tokens=256,
+                       ):
+    if prompter:
+        prompt_type = prompter.prompt_type
+        prompt_dict = prompter.prompt_dict
+        chat = prompter.chat
+        stream_output = prompter.stream_output
+        system_prompt = prompter.system_prompt
+
+    # merge handles if chat_conversation is None
+    history = []
+    history = merge_chat_conversation_history(chat_conversation, history)
+    history_to_context_func = functools.partial(history_to_context,
+                                                langchain_mode=langchain_mode,
+                                                add_chat_history_to_context=add_chat_history_to_context,
+                                                prompt_type=prompt_type,
+                                                prompt_dict=prompt_dict,
+                                                chat=chat,
+                                                model_max_length=model_max_length,
+                                                memory_restriction_level=memory_restriction_level,
+                                                keep_sources_in_context=keep_sources_in_context,
+                                                system_prompt=system_prompt)
+    context2 = history_to_context_func(history)
+    context1 = context
+    if context1 is None:
+        context1 = ''
+
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    data_point_just_instruction = dict(context='', instruction=instruction, input='')
+    prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
+    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
+    num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+
+    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
+    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
+    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    if text_context_list is None:
+        text_context_list = []
+    num_doc_tokens = sum([get_token_count(x + '\n\n', tokenizer) for x in text_context_list])
+
+    num_prompt_tokens0 = (num_instruction_tokens or 0) + \
+                         (num_context1_tokens or 0) + \
+                         (num_context2_tokens or 0) + \
+                         (num_iinput_tokens or 0) + \
+                         (num_doc_tokens or 0)
+
+    # go down to no less than 256, about 1 paragraph
+    # use max_new_tokens before use num_prompt_tokens0 else would be negative or ~0
+    min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
+    # by default assume can handle all chat and docs
+    chat_index = 0
+
+    # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
+    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
+    # to doc first then non-doc, shouldn't matter much either way
+    doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
+    top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
+                                                               max_input_tokens=doc_max_length)
+    non_doc_max_length = max(model_max_length - num_doc_tokens, (1.0 - doc_importance) * model_max_length)
+
+    if num_non_doc_tokens > non_doc_max_length:
+        # need to limit in some way, keep portion of history but all of context and instruction
+        # 1) drop iinput (unusual to include anyways)
+        # 2) reduce history
+        # 3) reduce context1
+        # 4) limit instruction so will fit
+        diff1 = non_doc_max_length - (
+                num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens + min_max_new_tokens)
+        diff3 = non_doc_max_length - (num_instruction_tokens + min_max_new_tokens)
+        diff4 = non_doc_max_length - min_max_new_tokens
+        if diff1 > 0:
+            # then should be able to do #1
+            iinput = ''
+            num_iinput_tokens = 0
+        elif diff2 > 0 > diff1:
+            # then may be able to do #1 + #2
+            iinput = ''
+            num_iinput_tokens = 0
+            chat_index_final = len(history)
+            for chat_index in range(len(history)):
+                # NOTE: history and chat_conversation are older for first entries
+                # FIXME: This is a slow for many short conversations
+                context2 = history_to_context_func(history[chat_index:])
+                num_context2_tokens = get_token_count(context2, tokenizer)
+                diff1 = non_doc_max_length - (
+                        num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+                if diff1 > 0:
+                    chat_index_final = chat_index
+                    if verbose:
+                        print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
+                    break
+            chat_index = chat_index_final  # i.e. if chat_index == len(history), then nothing can be consumed
+        elif diff3 > 0 > diff2:
+            # then may be able to do #1 + #2 + #3
+            iinput = ''
+            num_iinput_tokens = 0
+            context2 = ''
+            num_context2_tokens = 0
+            context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+                                                                                   max_prompt_length=diff3)
+            if num_context1_tokens <= diff3:
+                pass
+            else:
+                print("failed to reduce", flush=True)
+        else:
+            # then must be able to do #1 + #2 + #3 + #4
+            iinput = ''
+            num_iinput_tokens = 0
+            context2 = ''
+            num_context2_tokens = 0
+            context1 = ''
+            num_context1_tokens = 0
+            # diff4 accounts for real prompting for instruction
+            # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
+            instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                         max_prompt_length=diff4)
+            # get actual tokens
+            data_point_just_instruction = dict(context='', instruction=instruction, input='')
+            prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
+            num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
+            num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+
+    # update full context
+    context = context1 + context2
+    # update token counts (docs + non-docs, all tokens)
+    num_prompt_tokens = (num_instruction_tokens or 0) + \
+                        (num_context1_tokens or 0) + \
+                        (num_context2_tokens or 0) + \
+                        (num_iinput_tokens or 0) + \
+                        (num_doc_tokens or 0)
+
+    # update max_new_tokens
+    if inference_server and inference_server.startswith('http'):
+        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
+        pass
+    else:
+        # limit so max_new_tokens = prompt + new < max
+        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+
+    if prompter is None:
+        # get prompter
+        debug = False
+        stream_output = False  # doesn't matter
+        prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+                            system_prompt=system_prompt)
+
+    data_point = dict(context=context, instruction=instruction, input=iinput)
+    # handle promptA/promptB addition if really from history.
+    # if not from history, then reduced=False inside correct
+    # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
+    context_from_history = len(history) > 0 and len(context1) > 0
+    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history)
+    num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
+
+    return prompt, \
+        instruction, iinput, context, \
+        num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
+        chat_index, top_k_docs, one_doc_size
+
+
+def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
+    if text_context_list is None or len(text_context_list) == 0:
+        return 0, None, 0
+    if max_input_tokens is None:
+        max_input_tokens = tokenizer.model_max_length
+    tokens = [get_token_count(x + '\n\n', tokenizer) for x in text_context_list]
+    tokens_cumsum = np.cumsum(tokens)
+    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+    # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
+    if where_res.shape[0] > 0:
+        top_k_docs = 1 + where_res[-1]
+        one_doc_size = None
+        num_doc_tokens = tokens_cumsum[top_k_docs - 1]  # by index
+    else:
+        # if here, means 0 and just do best with 1 doc
+        top_k_docs = 1
+        text_context_list = text_context_list[:top_k_docs]
+        # critical protection
+        from src.h2oai_pipeline import H2OTextGenerationPipeline
+        doc_content = text_context_list[0]
+        doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
+                                                                          tokenizer,
+                                                                          max_prompt_length=max_input_tokens)
+        text_context_list[0] = doc_content
+        one_doc_size = len(doc_content)
+        num_doc_tokens = get_token_count(doc_content + '\n\n', tokenizer)
+        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
+            tokens[0], new_tokens0), flush=True)
+    return top_k_docs, one_doc_size, num_doc_tokens
 
 
 def entrypoint_main():

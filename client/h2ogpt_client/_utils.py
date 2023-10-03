@@ -41,6 +41,12 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     url_loaders="url_loaders",
     jq_schema="jq_schema",
     visible_models="visible_models",
+    h2ogpt_key="h2ogpt_key",
+    add_search_to_context="add_search_to_context",
+    chat_conversation="chat_conversation",
+    text_context_list="text_context_list",
+    docs_ordering_type="docs_ordering_type",
+    min_max_new_tokens="min_max_new_tokens",
 )
 
 

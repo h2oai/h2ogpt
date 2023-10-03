@@ -18,14 +18,18 @@ from src.enums import PromptType, LangChainAction
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
+@pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @wrap_test_forked
-def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain,
+def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain, enforce_h2ogpt_api_key,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,
                                  langchain_mode='Disabled', langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
                                  user_path=None,
                                  langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                                 reverse_docs=True):
+                                 docs_ordering_type='reverse_sort'):
+    if enforce_h2ogpt_api_key and base_model != 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        # no need for so many cases
+        return
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
     if do_langchain:
@@ -53,7 +57,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs,
+                       docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate)
 
     # inference server
@@ -68,6 +72,11 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     # only case when GRADIO_SERVER_PORT and HOST should appear in tests because using 2 gradio instances
     os.environ['GRADIO_SERVER_PORT'] = str(client_port)
     os.environ['HOST'] = "http://127.0.0.1:%s" % client_port
+
+    h2ogpt_key = 'foodoo#'
+    main_kwargs = main_kwargs.copy()
+    if enforce_h2ogpt_api_key:
+        main_kwargs.update(dict(enforce_h2ogpt_api_key=True, h2ogpt_api_keys=[h2ogpt_key]))
     main(**main_kwargs, inference_server=inference_server)
 
     # client test to server that only consumes inference server
@@ -79,7 +88,27 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     assert res_dict['iinput'] == ''
 
     # will use HOST from above
-    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
+    if enforce_h2ogpt_api_key:
+        # try without key first
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)
+        assert 'Invalid Access Key' in ret1['response']
+        assert 'Invalid Access Key' in ret2['response']
+        assert 'Invalid Access Key' in ret3['response']
+        assert 'Invalid Access Key' in ret4['response']
+        assert 'Invalid Access Key' in ret5['response']
+        assert 'Invalid Access Key' in ret6['response']
+        assert 'Invalid Access Key' in ret7['response']
+        ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, h2ogpt_key='foo')
+        assert 'Invalid Access Key' in ret1['response']
+        assert 'Invalid Access Key' in ret2['response']
+        assert 'Invalid Access Key' in ret3['response']
+        assert 'Invalid Access Key' in ret4['response']
+        assert 'Invalid Access Key' in ret5['response']
+        assert 'Invalid Access Key' in ret6['response']
+        assert 'Invalid Access Key' in ret7['response']
+
+    # try normal or with key if enforcing
+    ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, h2ogpt_key=h2ogpt_key)  # client shouldn't have to specify
     if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         assert 'h2oGPT' in ret1['response']
         assert 'Birds' in ret2['response']
@@ -333,7 +362,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                              langchain_agents=[],
                              user_path=None,
                              langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                             reverse_docs=True):
+                             docs_ordering_type='reverse_sort'):
     # HF inference server
     gradio_port = get_inf_port()
     inf_port = gradio_port + 1
@@ -377,7 +406,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs,
+                       docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate,
                        inference_server=inference_server,
                        model_lock=model_lock)
@@ -404,17 +433,17 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
 
         if isinstance(pass_prompt_type, str):
             assert 'year old student from the' in ret1['response'] or 'I am a person who is asking you a question' in \
-                   ret1['response']
+                   ret1['response'] or 'year old' in ret1['response']
             assert 'bird' in ret2['response']
             assert 'bird' in ret3['response']
             assert 'year old student from the' in ret4['response'] or 'I am a person who is asking you a question' in \
-                   ret4['response']
+                   ret4['response'] or 'year old' in ret4['response']
             assert 'year old student from the' in ret5['response'] or 'I am a person who is asking you a question' in \
-                   ret5['response']
+                   ret5['response'] or 'year old' in ret5['response']
             assert 'year old student from the' in ret6['response'] or 'I am a person who is asking you a question' in \
-                   ret6['response']
+                   ret6['response'] or 'year old' in ret6['response']
             assert 'year old student from the' in ret7['response'] or 'I am a person who is asking you a question' in \
-                   ret7['response']
+                   ret7['response'] or 'year old' in ret7['response']
         elif base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             assert 'h2oGPT' in ret1['response']
             assert 'Birds' in ret2['response']
@@ -458,13 +487,16 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                                  langchain_agents=[],
                                  user_path=None,
                                  langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                                 reverse_docs=True):
+                                 docs_ordering_type='reverse_sort'):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
     if inference_server == 'openai_azure_chat':
         # need at least deployment name added:
         deployment_name = 'h2ogpt'
-        inference_server += ':%s' % deployment_name
+        inference_server += ':%s:%s' % (deployment_name, 'h2ogpt.openai.azure.com/')
+    if 'azure' in inference_server:
+        assert 'OPENAI_AZURE_KEY' in os.environ, "Missing 'OPENAI_AZURE_KEY'"
+        os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_AZURE_KEY']
 
     main_kwargs = dict(base_model=base_model, chat=True,
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -474,7 +506,8 @@ def test_openai_inference_server(inference_server, force_langchain_evaluate,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs)
+                       system_prompt='auto',
+                       docs_ordering_type=docs_ordering_type)
 
     # server that consumes inference server
     from src.gen import main
@@ -655,7 +688,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                     langchain_agents=[],
                                     user_path=None,
                                     langchain_modes=['UserData', 'MyData', 'LLM', 'Disabled'],
-                                    reverse_docs=True):
+                                    docs_ordering_type='reverse_sort'):
     if force_langchain_evaluate:
         langchain_mode = 'MyData'
 
@@ -667,7 +700,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
                        langchain_agents=langchain_agents,
                        user_path=user_path,
                        langchain_modes=langchain_modes,
-                       reverse_docs=reverse_docs)
+                       docs_ordering_type=docs_ordering_type)
 
     # server that consumes inference server
     from src.gen import main

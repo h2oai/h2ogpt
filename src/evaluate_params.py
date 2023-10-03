@@ -48,7 +48,14 @@ eval_func_param_names = ['instruction',
                          'system_prompt',
                          ] + \
                         reader_names + \
-                        ['visible_models']
+                        ['visible_models',
+                         'h2ogpt_key',
+                         'add_search_to_context',
+                         'chat_conversation',
+                         'text_context_list',
+                         'docs_ordering_type',
+                         'min_max_new_tokens',
+                         ]
 
 # form evaluate defaults for submit_nochat_api
 eval_func_param_names_defaults = eval_func_param_names.copy()

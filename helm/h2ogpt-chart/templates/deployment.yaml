@@ -16,6 +16,9 @@ spec:
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}
+  {{- if .Values.h2ogpt.updateStrategy }}
+  strategy: {{- toYaml .Values.h2ogpt.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.h2ogpt.podAnnotations }}
@@ -77,6 +80,10 @@ spec:
                 sleep 5;
               done
 {{- end }}
+      {{- with .Values.vllm.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "h2ogpt.fullname" . }}
           securityContext:
@@ -127,8 +134,10 @@ spec:
           volumeMounts:
             - name: h2ogpt-volume
               mountPath: /workspace/.cache
+              subPath: cache
             - name: h2ogpt-volume
               mountPath: /workspace/save
+              subPath: save
       volumes:
         - name: h2ogpt-volume
           ephemeral:
@@ -156,6 +165,9 @@ spec:
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+  {{- if .Values.tgi.updateStrategy }}
+  strategy: {{- toYaml .Values.tgi.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.tgi.podAnnotations }}
@@ -191,7 +203,7 @@ spec:
         - name: {{ include "h2ogpt.fullname" . }}-tgi-inference
           securityContext:
             {{- toYaml .Values.tgi.securityContext | nindent 12 }}
-          image: "{{ .Values.tgi.image.repository }}:{{ .Values.tgi.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.tgi.image.repository }}:{{ .Values.tgi.image.tag }}"
           imagePullPolicy: {{ .Values.tgi.image.pullPolicy }}
           command: []
           args: 
@@ -228,10 +240,13 @@ spec:
           volumeMounts:
             - name: h2ogpt-tgi-inference-volume
               mountPath: /app/cache
+              subPath: cache
             - name: h2ogpt-tgi-inference-volume
               mountPath: /data
+              subPath: data
             - name: h2ogpt-tgi-inference-volume
               mountPath: /dev/shm
+              subPath: shm
       volumes:
         - name: h2ogpt-tgi-inference-volume
           ephemeral:
@@ -259,6 +274,9 @@ spec:
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  {{- if .Values.vllm.updateStrategy }}
+  strategy: {{- toYaml .Values.vllm.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.vllm.podAnnotations }}
@@ -340,10 +358,10 @@ spec:
           volumeMounts:
             - name: h2ogpt-vllm-inference-volume
               mountPath: /workspace/.cache
-            - name: h2ogpt-vllm-inference-volume
-              mountPath: /workspace/.cache/huggingface/hub
+              subPath: cache
             - name: h2ogpt-vllm-inference-volume
               mountPath: /dev/shm
+              subPath: shm
       volumes:
         - name: h2ogpt-vllm-inference-volume
           ephemeral:

@@ -241,9 +241,16 @@ Assuming torch was installed with CUDA 11.7, and you have installed cuda locally
 CUDA_HOME=/usr/local/cuda-11.7 pip install vllm ray pandas
 export NCCL_IGNORE_DISABLED_P2P=1
 export CUDA_VISIBLE_DEVICESs=0,1
-python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-research-oasst1-llama-65b --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234
+python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-research-oasst1-llama-65b --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234 --max-num-batched-tokens=2048
 ```
-which takes about 3 minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
+or for LLaMa-2 70b on 4 GPUs:
+```bash
+export NCCL_IGNORE_DISABLED_P2P=1
+export CUDA_VISIBLE_DEVICESs=0,1,2,3
+python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-4096-llama2-70b-chat --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=4 --seed 1234 --max-num-batched-tokens=8192
+```
+
+The startup may take few minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
 ```text
 INFO 07-15 02:56:41 llm_engine.py:131] # GPU blocks: 496, # CPU blocks: 204
 INFO 07-15 02:56:43 tokenizer.py:28] For some LLaMA-based models, initializing the fast tokenizer may take a long time. To eliminate the initialization time, consider using 'hf-internal-testing/llama-tokenizer' instead of the original tokenizer.
@@ -362,7 +369,23 @@ Replicate is **not** recommended for private document question-answer, but suffi
 
 Issues:
 * `requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)`
-  * Sometimes Replicate sends back bad json, seems randomly occurs.
+* Sometimes Replicate sends back bad json, seems randomly occurs.
+
+
+## AWS SageMaker Endpoint
+
+h2oGPT code is based upon [LangChain Code](https://python.langchain.com/docs/integrations/llms/sagemaker) but with various fixes, handling of access keys, and handling for LLama-2 Chat type model.  See also https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html .
+
+This presumes one has set up an [AWS SageMaker endpoint](aws_sagemaker_endpoint_setup.pdf) (from [here](https://medium.com/@mudassir.aqeel24/deploy-llama2-7b-on-aws-easiest-method-f76d71a51684)) and that you are able to view events in the AWS console to confirm things are working or debug if not.
+
+Streaming is not yet supported in LangChain version of SageMaker, see [Streaming Docs](https://aws.amazon.com/blogs/machine-learning/elevating-the-generative-ai-experience-introducing-streaming-support-in-amazon-sagemaker-hosting/).
+
+To use AWS SageMaker Chat endpoint, e.g. with LLaMa-2 Chat, pass to h2oGPT `--inference_server=sagemaker_chat:<endpointname>:<region>` for `<endpointname>` of the endpoint's name and `<region>` the region (e.g. `us-east-2`), e.g.
+```bash
+export AWS_ACCESS_KEY_ID=<...>
+export AWS_SECRET_ACCESS_KEY=<...>
+python generate.py --inference_server=sagemaker_chat:<endpointname>:<region> --base_model=h2oai/h2ogpt-4096-llama2-7b-chat
+```
 
 ## h2oGPT start-up vs. in-app selection
 

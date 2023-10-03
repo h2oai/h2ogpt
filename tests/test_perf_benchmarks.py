@@ -155,9 +155,11 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             langchain_mode = 'MyData'
             embed = True
             loaders = tuple([None, None, None, None])
+            h2ogpt_key = ''
             res = client.predict(test_file_server,
                                  chunk, chunk_size, langchain_mode, embed,
                                  *loaders,
+                                 h2ogpt_key,
                                  api_name='/add_file_api')
             assert res[0] is None
             assert res[1] == langchain_mode

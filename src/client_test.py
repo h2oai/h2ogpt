@@ -78,7 +78,13 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              langchain_agents=[],
              prompt_dict=None,
              version=None,
-             visible_models=None):
+             h2ogpt_key=None,
+             visible_models=None,
+             system_prompt='',  # default of no system prompt tiggered by empty string
+             add_search_to_context=False,
+             chat_conversation=None,
+             text_context_list=None,
+             ):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
                          iinput='',  # only for chat=True
@@ -115,12 +121,18 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          prompt_query=None,
                          pre_prompt_summary=None,
                          prompt_summary=None,
-                         system_prompt="",
+                         system_prompt=system_prompt,
                          image_loaders=None,
                          pdf_loaders=None,
                          url_loaders=None,
                          jq_schema=None,
                          visible_models=visible_models,
+                         h2ogpt_key=h2ogpt_key,
+                         add_search_to_context=add_search_to_context,
+                         chat_conversation=chat_conversation,
+                         text_context_list=text_context_list,
+                         docs_ordering_type=None,
+                         min_max_new_tokens=None,
                          )
     diff = 0
     if version is None:
@@ -129,7 +141,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
     if version == 0:
         diff = 1
     if version >= 1:
-        kwargs.update(dict(system_prompt=''))
+        kwargs.update(dict(system_prompt=system_prompt))
         diff = 0
 
     from evaluate_params import eval_func_param_names
@@ -142,15 +154,18 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic(prompt_type='human_bot', version=None, visible_models=None, prompt='Who are you?'):
+def test_client_basic(prompt_type='human_bot', version=None, visible_models=None, prompt='Who are you?',
+                      h2ogpt_key=None):
     return run_client_nochat(prompt=prompt, prompt_type=prompt_type, max_new_tokens=50, version=version,
-                             visible_models=visible_models)
+                             visible_models=visible_models, h2ogpt_key=h2ogpt_key)
 
 
 """
 time HOST=https://gpt-internal.h2o.ai PYTHONPATH=. pytest -n 20 src/client_test.py::test_client_basic_benchmark
 32 seconds to answer 20 questions at once with 70B llama2 on 4x A100 80GB using TGI 0.9.3
 """
+
+
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
 @pytest.mark.parametrize("id", range(20))
 def test_client_basic_benchmark(id, prompt_type='human_bot', version=None):
@@ -199,9 +214,9 @@ What happened?
 """, prompt_type=prompt_type, max_new_tokens=100, version=version)
 
 
-def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None, visible_models=None):
+def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None, h2ogpt_key=None, visible_models=None):
     kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version,
-                            visible_models=visible_models)
+                            visible_models=visible_models, h2ogpt_key=h2ogpt_key)
 
     api_name = '/submit_nochat'
     client = get_client(serialize=True)
@@ -217,12 +232,14 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None, visible
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api(prompt_type='human_bot', version=None):
-    return run_client_nochat_api(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version)
+def test_client_basic_api(prompt_type='human_bot', version=None, h2ogpt_key=None):
+    return run_client_nochat_api(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50, version=version,
+                                 h2ogpt_key=h2ogpt_key)
 
 
-def run_client_nochat_api(prompt, prompt_type, max_new_tokens, version=None):
-    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version)
+def run_client_nochat_api(prompt, prompt_type, max_new_tokens, version=None, h2ogpt_key=None):
+    kwargs, args = get_args(prompt, prompt_type, chat=False, max_new_tokens=max_new_tokens, version=version,
+                            h2ogpt_key=h2ogpt_key)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     client = get_client(serialize=True)
@@ -239,13 +256,13 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens, version=None):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api_lean(prompt_type='human_bot', version=None):
+def test_client_basic_api_lean(prompt_type='human_bot', version=None, h2ogpt_key=None):
     return run_client_nochat_api_lean(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50,
-                                      version=version)
+                                      version=version, h2ogpt_key=h2ogpt_key)
 
 
-def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens, version=None):
-    kwargs = dict(instruction_nochat=prompt)
+def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens, version=None, h2ogpt_key=None):
+    kwargs = dict(instruction_nochat=prompt, h2ogpt_key=h2ogpt_key)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     client = get_client(serialize=True)
@@ -256,18 +273,20 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens, version=None
     print("Raw client result: %s" % res, flush=True)
     res_dict = dict(prompt=kwargs['instruction_nochat'],
                     response=md_to_text(ast.literal_eval(res)['response']),
-                    sources=ast.literal_eval(res)['sources'])
+                    sources=ast.literal_eval(res)['sources'],
+                    h2ogpt_key=h2ogpt_key)
     print(res_dict)
     return res_dict, client
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_basic_api_lean_morestuff(prompt_type='human_bot', version=None):
+def test_client_basic_api_lean_morestuff(prompt_type='human_bot', version=None, h2ogpt_key=None):
     return run_client_nochat_api_lean_morestuff(prompt='Who are you?', prompt_type=prompt_type, max_new_tokens=50,
-                                                version=version)
+                                                version=version, h2ogpt_key=h2ogpt_key)
 
 
-def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_new_tokens=512, version=None):
+def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_new_tokens=512, version=None,
+                                         h2ogpt_key=None):
     kwargs = dict(
         instruction='',
         iinput='',
@@ -295,6 +314,8 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         top_k_docs=4,
         document_subset=DocumentSubset.Relevant.name,
         document_choice=[],
+        h2ogpt_key=h2ogpt_key,
+        add_search_to_context=False,
     )
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -306,28 +327,31 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
     print("Raw client result: %s" % res, flush=True)
     res_dict = dict(prompt=kwargs['instruction_nochat'],
                     response=md_to_text(ast.literal_eval(res)['response']),
-                    sources=ast.literal_eval(res)['sources'])
+                    sources=ast.literal_eval(res)['sources'],
+                    h2ogpt_key=h2ogpt_key)
     print(res_dict)
     return res_dict, client
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_chat(prompt_type='human_bot', version=None):
+def test_client_chat(prompt_type='human_bot', version=None, h2ogpt_key=None):
     return run_client_chat(prompt='Who are you?', prompt_type=prompt_type, stream_output=False, max_new_tokens=50,
                            langchain_mode='Disabled',
                            langchain_action=LangChainAction.QUERY.value,
                            langchain_agents=[],
-                           version=version)
+                           version=version,
+                           h2ogpt_key=h2ogpt_key)
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_chat_stream(prompt_type='human_bot', version=None):
+def test_client_chat_stream(prompt_type='human_bot', version=None, h2ogpt_key=None):
     return run_client_chat(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                            stream_output=True, max_new_tokens=512,
                            langchain_mode='Disabled',
                            langchain_action=LangChainAction.QUERY.value,
                            langchain_agents=[],
-                           version=version)
+                           version=version,
+                           h2ogpt_key=h2ogpt_key)
 
 
 def run_client_chat(prompt='',
@@ -337,7 +361,8 @@ def run_client_chat(prompt='',
                     langchain_action=LangChainAction.QUERY.value,
                     langchain_agents=[],
                     prompt_type=None, prompt_dict=None,
-                    version=None):
+                    version=None,
+                    h2ogpt_key=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
@@ -346,7 +371,8 @@ def run_client_chat(prompt='',
                             langchain_action=langchain_action,
                             langchain_agents=langchain_agents,
                             prompt_dict=prompt_dict,
-                            version=version)
+                            version=version,
+                            h2ogpt_key=h2ogpt_key)
     return run_client(client, prompt, args, kwargs)
 
 
@@ -386,23 +412,25 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
-def test_client_nochat_stream(prompt_type='human_bot', version=None):
+def test_client_nochat_stream(prompt_type='human_bot', version=None, h2ogpt_key=None):
     return run_client_nochat_gen(prompt="Tell a very long kid's story about birds.", prompt_type=prompt_type,
                                  stream_output=True, max_new_tokens=512,
                                  langchain_mode='Disabled',
                                  langchain_action=LangChainAction.QUERY.value,
                                  langchain_agents=[],
-                                 version=version)
+                                 version=version,
+                                 h2ogpt_key=h2ogpt_key)
 
 
 def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens,
-                          langchain_mode, langchain_action, langchain_agents, version=None):
+                          langchain_mode, langchain_action, langchain_agents, version=None,
+                          h2ogpt_key=None):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=False, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
                             langchain_action=langchain_action, langchain_agents=langchain_agents,
-                            version=version)
+                            version=version, h2ogpt_key=h2ogpt_key)
     return run_client_gen(client, prompt, args, kwargs)
 
 
@@ -440,14 +468,15 @@ def md_to_text(md, do_md_to_text=True):
     return soup.get_text()
 
 
-def run_client_many(prompt_type='human_bot', version=None):
-    ret1, _ = test_client_chat(prompt_type=prompt_type, version=version)
-    ret2, _ = test_client_chat_stream(prompt_type=prompt_type, version=version)
-    ret3, _ = test_client_nochat_stream(prompt_type=prompt_type, version=version)
-    ret4, _ = test_client_basic(prompt_type=prompt_type, version=version)
-    ret5, _ = test_client_basic_api(prompt_type=prompt_type, version=version)
-    ret6, _ = test_client_basic_api_lean(prompt_type=prompt_type, version=version)
-    ret7, _ = test_client_basic_api_lean_morestuff(prompt_type=prompt_type, version=version)
+def run_client_many(prompt_type='human_bot', version=None, h2ogpt_key=None):
+    kwargs = dict(prompt_type=prompt_type, version=version, h2ogpt_key=h2ogpt_key)
+    ret1, _ = test_client_chat(**kwargs)
+    ret2, _ = test_client_chat_stream(**kwargs)
+    ret3, _ = test_client_nochat_stream(**kwargs)
+    ret4, _ = test_client_basic(**kwargs)
+    ret5, _ = test_client_basic_api(**kwargs)
+    ret6, _ = test_client_basic_api_lean(**kwargs)
+    ret7, _ = test_client_basic_api_lean_morestuff(**kwargs)
     return ret1, ret2, ret3, ret4, ret5, ret6, ret7
 
 

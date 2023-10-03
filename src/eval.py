@@ -6,7 +6,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from evaluate_params import eval_func_param_names, eval_extra_columns
-from gen import get_context, get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
@@ -14,7 +14,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 def run_eval(  # for local function:
         base_model=None, lora_weights=None, inference_server=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
-        debug=None, chat=False, chat_context=None,
+        debug=None, chat=False,
         stream_output=None, async_output=None, num_async=None,
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
@@ -52,8 +52,13 @@ def run_eval(  # for local function:
         url_loaders=None,
         jq_schema=None,
         visible_models=None,
+        h2ogpt_key=None,
+        add_search_to_context=None,
+        chat_conversation=None,
+        text_context_list=None,
+        docs_ordering_type=None,
+        min_max_new_tokens=None,
         # for evaluate kwargs:
-        use_system_prompt=None,
         captions_model=None,
         caption_loader=None,
         doctr_loader=None,
@@ -62,6 +67,7 @@ def run_eval(  # for local function:
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        keep_sources_in_context=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
         max_max_new_tokens=None,
@@ -71,7 +77,7 @@ def run_eval(  # for local function:
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None,
-        hf_embedding_model=None, migrate_embedding_model=None,
+        hf_embedding_model=None, migrate_embedding_model=None, auto_migrate_db=None,
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
@@ -80,17 +86,16 @@ def run_eval(  # for local function:
         show_link_in_sources=None,
         add_chat_history_to_context=None,
         context=None, iinput=None,
-        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None, reverse_docs=None,
+        db_type=None, first_para=None, text_limit=None, verbose=None, cli=None,
         use_cache=None,
-        auto_reduce_chunks=None, max_chunks=None,
+        auto_reduce_chunks=None, max_chunks=None, headsize=None,
         model_lock=None, force_langchain_evaluate=None,
         model_state_none=None,
 ):
     check_locals(**locals())
 
     if not context:
-        # get hidden context if have one
-        context = get_context(chat_context, prompt_type)
+        context = ''
 
     if eval_prompts_only_num > 0:
         np.random.seed(eval_prompts_only_seed)
@@ -180,7 +185,8 @@ def run_eval(  # for local function:
                                                  **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
             model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model,
                               lora_weights=lora_weights,
-                              inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
+                              inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                              visible_models=None, h2ogpt_key=None)
             model_state = dict(model=model, tokenizer=tokenizer, device=device)
             model_state.update(model_dict)
             requests_state0 = {}
@@ -229,14 +235,12 @@ def run_eval(  # for local function:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
                         prompter = Prompter(prompt_type, prompt_dict,
                                             debug=debug, chat=chat, stream_output=stream_output)
-                        prompt = prompter.generate_prompt(data_point)
+                        prompt = prompter.generate_prompt(data_point, context_from_history=False)
                     else:
                         # just raw input and output
                         if eval_prompts_only_num > 0:
                             # only our own examples have this filled at moment
                             assert iinput in [None, ''], iinput  # should be no iinput
-                        if not (chat_context and prompt_type == 'human_bot'):
-                            assert context in [None, ''], context  # should be no context
                         prompt = instruction
                     if memory_restriction_level > 0:
                         cutoff_len = 768 if memory_restriction_level <= 2 else 512

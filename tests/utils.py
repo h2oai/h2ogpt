@@ -11,7 +11,7 @@ if os.path.dirname('src') not in sys.path:
 
 os.environ['HARD_ASSERTS'] = "1"
 
-from src.utils import call_subprocess_onetask, makedirs
+from src.utils import call_subprocess_onetask, makedirs, FakeTokenizer
 
 
 def get_inf_port():
@@ -159,3 +159,75 @@ def kill_weaviate(db_type):
     """
     if db_type == 'weaviate':
         os.system('pkill --signal 9 -f weaviate-embedded/weaviate')
+
+
+def count_tokens_llm(prompt, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', tokenizer=None):
+    import time
+    if tokenizer is None:
+        assert base_model is not None
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+    t0 = time.time()
+    a = len(tokenizer(prompt)['input_ids'])
+    print('llm: ', a, time.time() - t0)
+    return dict(llm=a)
+
+
+def count_tokens(prompt, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b'):
+    tokenizer = FakeTokenizer()
+    num_tokens = tokenizer.num_tokens_from_string(prompt)
+    print(num_tokens)
+
+    from transformers import AutoTokenizer
+
+    t = AutoTokenizer.from_pretrained("distilgpt2")
+    llm_tokenizer = AutoTokenizer.from_pretrained(base_model)
+
+    from InstructorEmbedding import INSTRUCTOR
+    emb = INSTRUCTOR('hkunlp/instructor-large')
+
+    import nltk
+
+
+    def nltkTokenize(text):
+        words = nltk.word_tokenize(text)
+        return words
+
+
+    import re
+
+    WORD = re.compile(r'\w+')
+
+
+    def regTokenize(text):
+        words = WORD.findall(text)
+        return words
+
+    counts = {}
+    import time
+    t0 = time.time()
+    a = len(regTokenize(prompt))
+    print('reg: ', a, time.time() - t0)
+    counts.update(dict(reg=a))
+
+    t0 = time.time()
+    a = len(nltkTokenize(prompt))
+    print('nltk: ', a, time.time() - t0)
+    counts.update(dict(nltk=a))
+
+    t0 = time.time()
+    a = len(t(prompt)['input_ids'])
+    print('tiktoken: ', a, time.time() - t0)
+    counts.update(dict(tiktoken=a))
+
+    t0 = time.time()
+    a = len(llm_tokenizer(prompt)['input_ids'])
+    print('llm: ', a, time.time() - t0)
+    counts.update(dict(llm=a))
+
+    t0 = time.time()
+    a = emb.tokenize([prompt])['input_ids'].shape[1]
+    print('instructor-large: ', a, time.time() - t0)
+    counts.update(dict(instructor=a))
+
+    return counts
