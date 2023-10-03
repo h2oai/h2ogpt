@@ -937,9 +937,13 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
             if True:
-                url = 'https://www.africau.edu/images/default/sample.pdf'
-                test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
-                download_simple(url, dest=test_file1)
+                if False:
+                    url = 'https://www.africau.edu/images/default/sample.pdf'
+                    test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
+                    download_simple(url, dest=test_file1)
+                else:
+                    test_file1 = os.path.join(tmp_user_path, 'sample.pdf')
+                    shutil.copy(os.path.join('tests', 'sample.pdf'), tmp_user_path)
             else:
                 if False:
                     name = 'CityofTshwaneWater.pdf'
