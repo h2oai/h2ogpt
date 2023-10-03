@@ -2235,6 +2235,10 @@ def evaluate(
             len(chat_conversation[-1]) == 2 and \
             chat_conversation[-1][0] == instruction:
         chat_conversation = chat_conversation[:-1]
+    if not add_chat_history_to_context:
+        # make it easy to ignore without needing add_chat_history_to_context
+        # some langchain or unit test may need to then handle more general case
+        chat_conversation = []
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
     model_lower = base_model.lower()
