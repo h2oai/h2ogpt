@@ -3617,8 +3617,8 @@ def get_limited_prompt(instruction,
         system_prompt = prompter.system_prompt
 
     generate_prompt_type = prompt_type
-    if any(inference_server.startswith(x) for x in ['openai_chat', 'replicate']):
-        # OpenAI Chat and Replicate do not take prompting
+    if any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat', 'replicate']):
+        # Chat APIs and Replicate do not take prompting
         # if using prompter, prompter.system_prompt will already be filled with automatic (e.g. from llama-2),
         # so if replicate final prompt with system prompt still correct because only access prompter.system_prompt that was already set
         generate_prompt_type = 'plain'
@@ -3626,6 +3626,7 @@ def get_limited_prompt(instruction,
     if any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
         # OpenAI Chat doesn't handle chat history via single prompt, but in messages,
         # so assume handled outside this function
+        # FIXME: unsure about replicate
         chat_conversation = []
         external_handle_chat_conversation = True
 
