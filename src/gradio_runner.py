@@ -804,7 +804,7 @@ def go_gradio(**kwargs):
                                             container=True,
                                         )
                                         attach_button = gr.UploadButton(
-                                            elem_id="attach-button",
+                                            elem_id="attach-button" if visible_upload else None,
                                             value="",
                                             label="Upload File(s)",
                                             size="sm",
