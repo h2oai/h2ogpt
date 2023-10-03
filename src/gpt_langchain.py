@@ -943,7 +943,10 @@ class H2OReplicate(Replicate):
         assert self.tokenizer is not None
         from h2oai_pipeline import H2OTextGenerationPipeline
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
-        # Note Replicate handles the prompting of the specific model
+        # Note Replicate handles the prompting of the specific model, but not if history, so just do it all on our side
+        data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
+        prompt = self.prompter.generate_prompt(data_point)
+
         return super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
@@ -1144,8 +1147,7 @@ def get_llm(use_openai_model=False,
         if system_prompt:
             gen_kwargs.update(dict(system_prompt=system_prompt))
 
-        # replicate handles prompting, so avoid get_response() filter
-        prompter.prompt_type = 'plain'
+        # replicate handles prompting if no conversation, but in general has no chat API, so do all handling of prompting in h2oGPT
         if stream_output:
             callbacks = [StreamingGradioCallbackHandler()]
             streamer = callbacks[0] if stream_output else None
@@ -4299,20 +4301,22 @@ def get_chain(query=None,
         if query_action and (top_k_docs == -1 or auto_reduce_chunks):
             top_k_docs_tokenize = 100
             docs_with_score = docs_with_score[:top_k_docs_tokenize]
-
-            prompt_no_docs = template.format(context='', question=query)
+            if docs_with_score:
+                estimated_prompt_no_docs = template.format(context='', question=query)
+            else:
+                estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
 
             model_max_length = tokenizer.model_max_length
             chat = True  # FIXME?
 
             # first docs_with_score are most important with highest score
-            full_prompt, \
+            estimated_full_prompt, \
                 instruction, iinput, context, \
                 num_prompt_tokens, max_new_tokens, \
                 num_prompt_tokens0, num_prompt_tokens_actual, \
                 chat_index, external_handle_chat_conversation, \
                 top_k_docs_trial, one_doc_size = \
-                get_limited_prompt(prompt_no_docs,
+                get_limited_prompt(estimated_prompt_no_docs,
                                    iinput,
                                    tokenizer,
                                    prompter=prompter,
@@ -4336,6 +4340,10 @@ def get_chain(query=None,
                 # means LLM will handle
                 assert external_handle_chat_conversation, "Should be handling only externally"
                 llm.chat_conversation = chat_conversation[chat_index:]
+            if hasattr(llm, 'context'):
+                llm.context = context
+            if hasattr(llm, 'iinput'):
+                llm.iinput = iinput
             # avoid craziness
             if 0 < top_k_docs_trial < max_chunks:
                 # avoid craziness

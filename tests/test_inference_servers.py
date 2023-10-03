@@ -714,9 +714,13 @@ def test_gradio_vllm_docker(base_model):
 
 
 @pytest.mark.skipif(not have_replicate_key, reason="requires Replicate key to run")
+@pytest.mark.parametrize("system_prompt", ['You are a baby cat who likes to talk to people.', ''])
+@pytest.mark.parametrize("chat_conversation", [chat_conversation1, []])
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @wrap_test_forked
 def test_replicate_inference_server(force_langchain_evaluate,
+                                    chat_conversation,
+                                    system_prompt,
                                     prompt='Who are you?', stream_output=False,
                                     max_new_tokens=128,  # limit cost
                                     base_model='TheBloke/Llama-2-7b-Chat-GPTQ',
@@ -742,16 +746,47 @@ def test_replicate_inference_server(force_langchain_evaluate,
     # server that consumes inference server
     from src.gen import main
     # https://replicate.com/lucataco/llama-2-7b-chat
-    model_string = "lucataco/llama-2-7b-chat:6ab580ab4eef2c2b440f2441ec0fc0ace5470edaf2cbea50b8550aec0b3fbd38"
+    #model_string = "lucataco/llama-2-7b-chat:6ab580ab4eef2c2b440f2441ec0fc0ace5470edaf2cbea50b8550aec0b3fbd38"
+    model_string = "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e"
     main(**main_kwargs, inference_server='replicate:%s' % model_string)
+
+    if chat_conversation:
+        prompt = 'What did I ask?'
 
     # client test to server that only consumes inference server
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type='llama2', stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents,
+                                       chat_conversation=chat_conversation,
+                                       system_prompt=system_prompt)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
+
+    if chat_conversation and system_prompt:
+        # TODO: don't check yet, system_prompt ignored if response from LLM is as if no system prompt
+        return
+
+    if chat_conversation or system_prompt:
+        ret6, _ = test_client_basic_api_lean(prompt=prompt, prompt_type=None,
+                                             chat_conversation=chat_conversation,
+                                             system_prompt=system_prompt)
+        if system_prompt:
+            assert 'baby cat' in res_dict['response'] and 'meow' in res_dict['response'].lower()
+            assert 'baby cat' in ret6['response'] and 'meow' in ret6['response'].lower()
+        else:
+            options_response = ['You asked "Who are you?"',
+                                """You asked, \"Who are you?\"""",
+                                """You asked: \"Who are you?\"""",
+                                ]
+            assert res_dict['response'] in options_response
+            assert ret6['response'] in options_response
+
+        return
+
+    if system_prompt:
+        # don't test rest, too many cases
+        return
 
     # will use HOST from above
     ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None)  # client shouldn't have to specify
