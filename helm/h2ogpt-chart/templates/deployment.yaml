@@ -134,8 +134,10 @@ spec:
           volumeMounts:
             - name: h2ogpt-volume
               mountPath: /workspace/.cache
+              subPath: cache
             - name: h2ogpt-volume
               mountPath: /workspace/save
+              subPath: save
       volumes:
         - name: h2ogpt-volume
           ephemeral:
@@ -238,10 +240,13 @@ spec:
           volumeMounts:
             - name: h2ogpt-tgi-inference-volume
               mountPath: /app/cache
+              subPath: cache
             - name: h2ogpt-tgi-inference-volume
               mountPath: /data
+              subPath: data
             - name: h2ogpt-tgi-inference-volume
               mountPath: /dev/shm
+              subPath: shm
       volumes:
         - name: h2ogpt-tgi-inference-volume
           ephemeral:
@@ -353,10 +358,10 @@ spec:
           volumeMounts:
             - name: h2ogpt-vllm-inference-volume
               mountPath: /workspace/.cache
-            - name: h2ogpt-vllm-inference-volume
-              mountPath: /workspace/.cache/huggingface/hub
+              subPath: cache
             - name: h2ogpt-vllm-inference-volume
               mountPath: /dev/shm
+              subPath: shm
       volumes:
         - name: h2ogpt-vllm-inference-volume
           ephemeral:
