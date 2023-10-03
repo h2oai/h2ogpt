@@ -185,7 +185,8 @@ def run_eval(  # for local function:
                                                  **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
             model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model,
                               lora_weights=lora_weights,
-                              inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict)
+                              inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                              visible_models=None, h2ogpt_key=None)
             model_state = dict(model=model, tokenizer=tokenizer, device=device)
             model_state.update(model_dict)
             requests_state0 = {}

@@ -1233,7 +1233,8 @@ def main(
                                                                    **all_kwargs))
         score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
                                   base_model=score_model, tokenizer_base_model='', lora_weights='',
-                                  inference_server='', prompt_type='', prompt_dict='')
+                                  inference_server='', prompt_type='', prompt_dict='',
+                                  visible_models=None, h2ogpt_key=None)
 
         if enable_captions:
             if pre_load_caption_model:
