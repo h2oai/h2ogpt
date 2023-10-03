@@ -20,6 +20,7 @@ from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots
+from src.db_utils import set_userid, get_username_direct
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -459,7 +460,6 @@ def go_gradio(**kwargs):
             if not requests_state1.get('host2', '') and hasattr(request, 'client') and hasattr(request.client, 'host'):
                 requests_state1.update(dict(host2=request.client.host))
             if not requests_state1.get('username', '') and hasattr(request, 'username'):
-                from src.gpt_langchain import get_username_direct
                 # use already-defined username instead of keep changing to new uuid
                 # should be same as in requests_state1
                 db_username = get_username_direct(db1s)
@@ -469,7 +469,6 @@ def go_gradio(**kwargs):
 
     def user_state_setup(db1s, requests_state1, request: gr.Request, *args):
         requests_state1 = get_request_state(requests_state1, request, db1s)
-        from src.gpt_langchain import set_userid
         set_userid(db1s, requests_state1, get_userid_auth)
         args_list = [db1s, requests_state1] + list(args)
         return tuple(args_list)
@@ -500,6 +499,8 @@ def go_gradio(**kwargs):
                  inference_server=kwargs['inference_server'],
                  prompt_type=kwargs['prompt_type'],
                  prompt_dict=kwargs['prompt_dict'],
+                 visible_models=kwargs['visible_models'],
+                 h2ogpt_key=kwargs['h2ogpt_key'],
                  )
         )
 
@@ -3747,6 +3748,8 @@ def go_gradio(**kwargs):
                                    base_model=model_name, tokenizer_base_model=tokenizer_base_model,
                                    lora_weights=lora_weights, inference_server=server_name,
                                    prompt_type=prompt_type1, prompt_dict=prompt_dict1,
+                                   # FIXME: not typically required, unless want to expose adding h2ogpt endpoint in UI
+                                   visible_models=None, h2ogpt_key=None,
                                    )
 
             max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
