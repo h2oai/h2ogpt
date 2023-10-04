@@ -839,7 +839,7 @@ def go_gradio(**kwargs):
                                                              interactive=True,
                                                              multiselect=True,
                                                              visible=visible_model_choice,
-                                                             elem_id="visible-models",
+                                                             elem_id="multi-selection",
                                                              filterable=False,
                                                              )
 
@@ -870,6 +870,7 @@ def go_gradio(**kwargs):
                                                   interactive=True,
                                                   multiselect=True,
                                                   visible=kwargs['langchain_mode'] != 'Disabled',
+                                                  elem_id="multi-selection",
                                                   )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
@@ -964,6 +965,7 @@ def go_gradio(**kwargs):
                                                                interactive=True,
                                                                multiselect=False,
                                                                visible=True,
+                                                               elem_id="single-selection",
                                                                )
                             info_view_raw = "Raw text shown if render of original doc fails"
                             if is_public:

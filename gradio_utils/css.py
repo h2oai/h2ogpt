@@ -118,16 +118,30 @@ def make_css_base() -> str:
         }
     }
 
-    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
+    #multi-selection > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
         display: none !important;
     }
     
-    #visible-models > label > div.wrap > div.wrap-inner > div.token {
+    #multi-selection > label > div.wrap > div.wrap-inner > div.token {
         display: none !important;
     }
     
-    #visible-models > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
-        content: "Select";
+    #multi-selection > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
+        content: "Select_Any";
+        padding: 0 4px;
+        margin-right: 2px;
+    }
+
+    #single-selection > label > div.wrap > div.wrap-inner > div.secondary-wrap > div.remove-all {
+        display: none !important;
+    }
+
+    #single-selection > label > div.wrap > div.wrap-inner > div.token {
+        display: none !important;
+    }
+
+    #single-selection > label > div.wrap > div.wrap-inner > div.secondary-wrap::before {
+        content: "Select_One";
         padding: 0 4px;
         margin-right: 2px;
     }
