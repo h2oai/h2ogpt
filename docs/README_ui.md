@@ -188,6 +188,16 @@ One can add `--visible_h2ogpt_header=False` to remove the h2oGPT header, which l
 ![chat_headerless.png](chat_headerless.png)
 
 
+For Windows, one can show only the chat view by doing:
+```winbatch
+"C:\Program Files\h2oGPT\Python\pythonw.exe" "C:\Program Files\h2oGPT\h2oGPT.launch.pyw" --base_model='llama' --prompt_type=llama2 --visible_side_bar=False --visible_chat_tab=True --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --visible_h2ogpt_header=False --visible_login_tab=False
+```
+
+which looks like:
+
+![image](https://github.com/squidwardthetentacles/h2ogpt/assets/15376332/10d1e8a4-a7bf-48a0-b3f8-3ca39adf7378)
+
+
 ## Login Tab
 
 ![image](https://github.com/h2oai/h2ogpt/assets/15376332/973199b4-6769-4ad3-84c1-a61f81f0ed3d)
