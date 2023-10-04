@@ -1193,7 +1193,7 @@ def get_llm(use_openai_model=False,
         openai, inf_type, deployment_name, base_url, api_version = set_openai(inference_server)
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
-            kwargs_extra.update(dict(system_prompt=system_prompt))
+            kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
@@ -1201,7 +1201,7 @@ def get_llm(use_openai_model=False,
             openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            kwargs_extra.update(dict(openai_api_type='azure', system_prompt=system_prompt))
+            kwargs_extra.update(dict(openai_api_type='azure', system_prompt=system_prompt, chat_conversation=chat_conversation))
             # FIXME: Support context, iinput
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 openai_api_key = os.getenv('OPENAI_AZURE_KEY')
@@ -1256,7 +1256,6 @@ def get_llm(use_openai_model=False,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
-                  chat_conversation=chat_conversation,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
