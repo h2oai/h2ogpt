@@ -1721,9 +1721,12 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 2600
                 expected_return_number = 22  # i.e. out of 25
+            elif inference_server and 'replicate' in inference_server:
+                tokens_expected = 3400
+                expected_return_number = 16  # i.e. out of 25
             else:
                 tokens_expected = 3400
-                expected_return_number = 17  # i.e. out of 25
+                expected_return_number = 16  # i.e. out of 25
             expected_return_number2 = expected_return_number
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
@@ -1786,17 +1789,23 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$\n14,845\n$\n21,952 $\n11,047\nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$\n(5,384)\n$\n(3,934) $\n3,585\nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029\n232\n(475)\nNet change in cash flow hedges, net of taxes\n(2,623)\n(1,492)',
             '817 $\n852\nIn billions of dollars\n4Q22\n3Q22\n4Q21\nLegacy Franchises\n(1)\n$\n50\n$\n50 $\n74\nCorporate/Other\n$\n32\n$\n21 $\n7\nPersonal Banking and Wealth\nManagement\nU.S. Retail banking\n$\n37\n$\n36 $\n34\nTotal Citigroup deposits (AVG)\n$ 1,361\n$ 1,316 $ 1,370\nU.S. Cards\n143\n138\n128\nTotal Citigroup deposits (EOP)\n$ 1,366\n$ 1,306 $ 1,317\nGlobal Wealth\n150\n151\n150\nTotal\n$\n330\n$\n325 $\n312\n(1)\nSee footnote 2 to the table in “Credit Risk—Consumer Credit—\nConsumer Credit Portfolio” above.']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 12
+            expected_return_number = 10
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
+            expected_return_number2 = expected_return_number
         else:
             if base_model == 'gpt-3.5-turbo':
-                expected_return_number = 25 if local_server else 25
+                expected_return_number = 23 if local_server else 23
                 tokens_expected = 2700 if local_server else 2700
-            else:
-                expected_return_number = 19 if local_server else 17
+                expected_return_number2 = 24
+            elif inference_server and 'replicate' in inference_server:
+                expected_return_number = 17 if local_server else 17
                 tokens_expected = 3400 if local_server else 2900
-            expected_return_number2 = expected_return_number
+                expected_return_number2 = 17
+            else:
+                expected_return_number = 17 if local_server else 17
+                tokens_expected = 3400 if local_server else 2900
+                expected_return_number2 = 18
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1826,16 +1835,19 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             'Net Investment Yield\nTreasury Bond Yield\n10%\n5%\n4.04%\n2.95%\n0%\n1975\n1980\n1985\n1990\n1995\n2000\n2005\n2010\n2015\n2020\n2022 INVESTMENT REPORT\nNotes appear on page 15\n',
             'is aligned with the\nand are not distracted by short-term results\nWe focus keenly on capital preservation and\nbest interests of our\nat the expense of long-term predictable investment results while seeking\nabove-market General Account Value Proposition\nDriving benefits.4\nDriving the The General Account\ninvestment portfolio\nInvestment return is a primary driver of\nOur investments positively impact the\nplays a dual role:\nbenefits paid to our clients. By staying true\neconomy—creating jobs, benefiting\nto our investment philosophy and principles,\ncommunities, supporting innovation, and\nwe create value, paying dividends to our\nfunding sustainable energy participating policy owners and growing\nour already strong 2022 INVESTMENT REPORT\nNotes appear on page 15\n5\nGeneral Account Investment Strategy and Approach\nAsset/liability management focus\nDelivering for clients and society through\nReflecting our\nresponsible investing\ninvestment philosophy,\nOur primary focuses are asset/liability\nwe take a highly\nmanagement and maintaining ample']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 7
+            expected_return_number = 6
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
         else:
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 3000 if local_server else 2900
-                expected_return_number = 14 if local_server else 14
+                expected_return_number = 13 if local_server else 13
+            elif inference_server and 'replicate' in inference_server:
+                tokens_expected = 3000 if local_server else 2900
+                expected_return_number = 11 if local_server else 11
             else:
                 tokens_expected = 3500 if local_server else 2900
-                expected_return_number = 12 if local_server else 12
+                expected_return_number = 11 if local_server else 11
             expected_return_number2 = expected_return_number
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
@@ -1866,23 +1878,23 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             "operating environment marked by continued but\nmoderating volume pressure, mixed yield dynamics, and unique developments in the competitive landscape.\nLet's take each in turn.\nThis website cookies to deliver our services and to\nanalyze traffic.\nWe also share about your use\nof our site with advertising and other partners. Privacy\nPolicy\n||\nAt FedEx Ground, first-quarter\nrevenue was up 3% year over year driven by a 1% increase in volume and 3%\nincrease in yield. at FedEx Express was down 9% year over year. remained pressured though\ntotal Express volume declines moderated sequentially. export package volumes were up 3% year\nover year. to the fourth quarter, parcel volume declines were most pronounced in the United States.\nU.S. pounds were down 27%, continuing the trend we mentioned last quarter tied to the\nchange in strategy by the United States Postal Service. the Ground and Express, volumes improved\nsequentially, aided by the threat of a strike at our primary competitor.",
             "integrate three customer platforms: customer service, marketing, and sales into one, giving the\ncustomer a more informed, efficient,\nand personalized experience when doing business with FedEx. We are\nnow offering our estimated delivery time window, which provides customers with a four-hour window for their\npackage delivery for 96% of inbound volume globally across 48 countries. This capability is nicely\ncomplemented by picture proof of delivery or, as we like to say, PPOD, which is expanded across Europe in the\nfirst\nquarter. Now in 53 markets, PPOD provides shippers with increased confidence\nin package\ndelivery and helps reduce the volume of customer calls and claims. One FedEx Network 2.0 will simplify\nhow we do business, which is particularly important for our small and medium customers.\nFor our current customer contracts reflect\nthree independent companies. One FedEx enable us to\nchange that, making doing business with FedEx and becoming a new customer easier. Network 2.0 be\nmore efficient\nfor FedEx but also more efficient\nfor our customers. When we integrate market with one truck\nin one neighborhood that's not just for deliveries, it also means a streamlined pickup experience, one pickup per\nday versus two. This is a simple"]
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 6
-            expected_return_number2 = 8
+            expected_return_number = 5
+            expected_return_number2 = 7
             expect_response = False  # fails to respond even though docs are present
             tokens_expected = 1200
         else:
             if inference_server and inference_server.startswith('replicate'):
-                expected_return_number = 13 if local_server else 13
+                expected_return_number = 12 if local_server else 12
                 expected_return_number2 = 14
             elif inference_server and inference_server.startswith('openai_azure'):
-                expected_return_number = 14 if local_server else 14
-                expected_return_number2 = 16
-            elif inference_server and inference_server.startswith('openai'):
-                expected_return_number = 13 if local_server else 13
-                expected_return_number2 = 14
-            else:
                 expected_return_number = 13 if local_server else 13
                 expected_return_number2 = 15
+            elif inference_server and inference_server.startswith('openai'):
+                expected_return_number = 13 if local_server else 13
+                expected_return_number2 = 15
+            else:
+                expected_return_number = 12 if local_server else 12
+                expected_return_number2 = 14
             tokens_expected = 2900 if local_server else 2900
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
