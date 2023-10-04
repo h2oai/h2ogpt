@@ -3756,7 +3756,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
 
 def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None, verbose=False):
     docs_with_score = []
-    got_db_docs = False
 
     if text_context_list:
         docs_with_score += [(x, x.metadata.get('score', 1.0)) for x in text_context_list]
@@ -3776,7 +3775,6 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                                 sorted(zip(doc_file_ids, doc_chunk_ids, docs_with_score_fake),
                                        key=lambda x: (x[0], x[1]))
                                 ]
-        got_db_docs |= len(docs_with_score_fake) > 0
         docs_with_score += docs_with_score_fake
     elif db is not None and db_type in ['chroma', 'chroma_old']:
         while True:
@@ -3798,17 +3796,15 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                 else:
                     k_db -= 1
                 k_db = max(1, k_db)
-        got_db_docs |= len(docs_with_score_chroma) > 0
         docs_with_score += docs_with_score_chroma
     elif db is not None:
         docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
-        got_db_docs |= len(docs_with_score_other) > 0
         docs_with_score += docs_with_score_other
 
     # set in metadata original order of docs
     [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
 
-    return docs_with_score, got_db_docs
+    return docs_with_score
 
 
 def get_chain(query=None,
@@ -4164,7 +4160,6 @@ def get_chain(query=None,
                                                         verbose=verbose)
     num_docs_before_cut = 0
     use_template = not use_openai_model and prompt_type not in ['plain'] or langchain_only_model
-    got_db_docs = False  # not yet at least
     template, template_if_no_docs, auto_reduce_chunks, query = \
         get_template(query, iinput,
                      pre_prompt_query, prompt_query,
@@ -4172,7 +4167,6 @@ def get_chain(query=None,
                      langchain_action,
                      True,  # just to overestimate prompting
                      auto_reduce_chunks,
-                     got_db_docs,
                      add_search_to_context)
 
     max_input_tokens = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -4305,14 +4299,14 @@ def get_chain(query=None,
     else:
         # for db=None too
         with filelock.FileLock(lock_file):
-            docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
-                                                               text_context_list=text_context_list,
-                                                               verbose=verbose)
+            docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                  text_context_list=text_context_list,
+                                                  verbose=verbose)
             if len(docs_with_score) == 0 and filter_kwargs_backup:
-                docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
-                                                                   db_type,
-                                                                   text_context_list=text_context_list,
-                                                                   verbose=verbose)
+                docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
+                                                      db_type,
+                                                      text_context_list=text_context_list,
+                                                      verbose=verbose)
 
         tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                   use_openai_model=use_openai_model,
@@ -4434,7 +4428,7 @@ def get_chain(query=None,
         # avoid context == in prompt then
         template = template_if_no_docs
 
-    got_db_docs = got_db_docs and len(text_context_list) < len(docs)
+    got_any_docs = len(docs) > 0
     # update template in case situation changed or did get docs
     # then no new documents from database or not used, redo template
     # got template earlier as estimate of template token size, here is final used version
@@ -4443,9 +4437,8 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
-                     got_db_docs,
+                     got_any_docs,
                      auto_reduce_chunks,
-                     got_db_docs,
                      add_search_to_context)
 
     if langchain_action == LangChainAction.QUERY.value:
@@ -4579,19 +4572,18 @@ def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
                  langchain_action,
-                 got_docs,
+                 got_any_docs,
                  auto_reduce_chunks,
-                 got_db_docs,
                  add_search_to_context):
-    if got_db_docs and add_search_to_context:
+    if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
                                             'information in the document and web search sources (and their source dates and website source)')
         prompt_summary = prompt_summary.replace('information in the document sources',
                                                 'information in the document and web search sources (and their source dates and website source)')
-    elif got_db_docs and not add_search_to_context:
+    elif got_any_docs and not add_search_to_context:
         pass
-    elif not got_db_docs and add_search_to_context:
+    elif not got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
                                             'information in the web search sources (and their source dates and website source)')
@@ -4601,7 +4593,7 @@ def get_template(query, iinput,
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
-        if not got_docs:
+        if not got_any_docs:
             template_if_no_docs = template = """{context}{question}"""
         else:
             template = """%s
