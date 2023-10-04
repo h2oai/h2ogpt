@@ -11,7 +11,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
-from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr
+from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer
 
 
 @wrap_test_forked
@@ -1504,7 +1504,8 @@ def test_client_chat_stream_langchain_fake_embeddings_stress(repeat):
     data_kind = 'helium3'
     base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
     local_server = False
-    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
+    inference_server = None
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server)
 
 
 # pip install pytest-timeout
@@ -1516,8 +1517,9 @@ def test_client_upload_simple(repeat):
     data_kind = 'helium3'
     base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # fake, just for tokenizer
     local_server = False
+    inference_server = None
     # used with go_upload_gradio (say on remote machine) to test add_text
-    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=True)
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server, simple=True)
 
 
 # pip install pytest-timeout
@@ -1530,7 +1532,8 @@ def test_client_chat_stream_langchain_fake_embeddings_stress_no_llm(repeat):
     base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
     local_server = False
     chat = False
-    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, chat=chat)
+    inference_server = None
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server, chat=chat)
 
 
 def go_upload_gradio():
@@ -1583,6 +1586,11 @@ def go_upload_gradio():
 
 
 # NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
+@pytest.mark.parametrize("inference_server", [None, 'openai_chat', 'openai_azure_chat', 'replicate'])
+# local_server=True
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat', 'gpt-3.5-turbo'])
+# local_server=False or True if inference_server used
+# @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @pytest.mark.parametrize("data_kind", [
     'simple',
     'helium1',
@@ -1591,18 +1599,14 @@ def go_upload_gradio():
     'helium4',
     'helium5',
 ])
-# local_server=True
-@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat'])
-# local_server=False or True if inference_server used
-# @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
 @wrap_test_forked
-def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model):
+def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, inference_server):
     # local_server = False  # set to False to test local server, e.g. gradio connected to TGI server
     local_server = True  # for gradio connected to TGI, or if pass inference_server too then some remote vLLM/TGI using local server
-    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server)
+    return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server)
 
 
-def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, simple=False, chat=True):
+def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server, simple=False, chat=True):
     t0 = time.time()
 
     os.environ['VERBOSE_PIPELINE'] = '1'
@@ -1613,19 +1617,50 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
     # base_model = 'distilgpt2'
     if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type = 'human_bot'
-    else:
+    elif base_model == 'h2oai/h2ogpt-4096-llama2-7b-chat':
         prompt_type = 'llama2'
+    else:
+        prompt_type = ''
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
+    if inference_server == 'replicate':
+        model_string = "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e"
+        inference_server = 'replicate:%s' % model_string
+        base_model0 = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+        if base_model != base_model0:
+            return
+    elif inference_server and inference_server.startswith('openai'):
+        base_model0 = 'gpt-3.5-turbo'
+        if base_model != base_model0:
+            return
+
+        if inference_server == 'openai_azure_chat':
+            # need at least deployment name added:
+            deployment_name = 'h2ogpt'
+            inference_server += ':%s:%s' % (deployment_name, 'h2ogpt.openai.azure.com/')
+            if 'azure' in inference_server:
+                assert 'OPENAI_AZURE_KEY' in os.environ, "Missing 'OPENAI_AZURE_KEY'"
+                os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_AZURE_KEY']
+    else:
+        if base_model == 'gpt-3.5-turbo':
+            return
+        assert inference_server is None
+
     assert base_model is not None
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    if inference_server and inference_server.startswith('openai'):
+        tokenizer = FakeTokenizer()
+    else:
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
 
     if local_server:
+
         assert not simple
         from src.gen import main
-        main(base_model=base_model, prompt_type=prompt_type, chat=True,
+        main(base_model=base_model,
+             inference_server=inference_server,
+             prompt_type=prompt_type, chat=True,
              # inference_server='vllm:....',
              stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
              max_new_tokens=max_new_tokens,
@@ -1679,13 +1714,20 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             'During 2022, emerging markets revenues accounted for \napproximately 37% of Citi’s total revenues (Citi generally \ndefines emerging markets as countries in Latin America, Asia \n(other than Japan, Australia and New Zealand), and central \nand Eastern Europe, the Middle East and Africa in EMEA). \nCiti’s presence in the emerging markets subjects it to various \nrisks, such as limitations or unavailability of hedges on foreign \ninvestments; foreign currency volatility, including',
             'On November 1, 2022, Citi completed the sale of its Thailand consumer banking business, which was part of \nLegacy Franchises\n. The business had approximately \n$2.7 billion in assets, including $2.4 billion of loans (net of allowance of $67 million) and excluding goodwill. The total amount of liabilities was $1.0 billion, \nincluding $0.8 billion in deposits. The sale resulted in a pretax gain on sale of approximately $209 million ($115 million after-tax), subject to closing adjustments, \nrecorded in']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 11
+            expected_return_number = 10
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
         else:
-            expected_return_number = 17  # i.e. out of 25
+            if base_model == 'gpt-3.5-turbo':
+                tokens_expected = 2600
+                expected_return_number = 24  # i.e. out of 25
+            elif inference_server and 'replicate' in inference_server:
+                tokens_expected = 3400
+                expected_return_number = 16  # i.e. out of 25
+            else:
+                tokens_expected = 3400
+                expected_return_number = 16  # i.e. out of 25
             expected_return_number2 = expected_return_number
-            tokens_expected = 3400
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1747,13 +1789,23 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             'CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME\nCitigroup Inc. and Subsidiaries\nYears ended December 31,\nIn millions of dollars\n2022\n2021\n2020\nCitigroup’s net income\n$\n14,845\n$\n21,952 $\n11,047\nAdd: Citigroup’s other comprehensive income (loss)\n(1)\nNet change in unrealized gains and losses on debt securities, net of taxes\n(2)\n$\n(5,384)\n$\n(3,934) $\n3,585\nNet change in debt valuation adjustment (DVA), net of taxes\n(3)\n2,029\n232\n(475)\nNet change in cash flow hedges, net of taxes\n(2,623)\n(1,492)',
             '817 $\n852\nIn billions of dollars\n4Q22\n3Q22\n4Q21\nLegacy Franchises\n(1)\n$\n50\n$\n50 $\n74\nCorporate/Other\n$\n32\n$\n21 $\n7\nPersonal Banking and Wealth\nManagement\nU.S. Retail banking\n$\n37\n$\n36 $\n34\nTotal Citigroup deposits (AVG)\n$ 1,361\n$ 1,316 $ 1,370\nU.S. Cards\n143\n138\n128\nTotal Citigroup deposits (EOP)\n$ 1,366\n$ 1,306 $ 1,317\nGlobal Wealth\n150\n151\n150\nTotal\n$\n330\n$\n325 $\n312\n(1)\nSee footnote 2 to the table in “Credit Risk—Consumer Credit—\nConsumer Credit Portfolio” above.']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 12
+            expected_return_number = 10
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
-        else:
-            expected_return_number = 19 if local_server else 17
             expected_return_number2 = expected_return_number
-            tokens_expected = 3400 if local_server else 2900
+        else:
+            if base_model == 'gpt-3.5-turbo':
+                expected_return_number = 25 if local_server else 25
+                tokens_expected = 2700 if local_server else 2700
+                expected_return_number2 = 25
+            elif inference_server and 'replicate' in inference_server:
+                expected_return_number = 17 if local_server else 17
+                tokens_expected = 3400 if local_server else 2900
+                expected_return_number2 = 17
+            else:
+                expected_return_number = 17 if local_server else 17
+                tokens_expected = 3400 if local_server else 2900
+                expected_return_number2 = 18
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1783,13 +1835,23 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             'Net Investment Yield\nTreasury Bond Yield\n10%\n5%\n4.04%\n2.95%\n0%\n1975\n1980\n1985\n1990\n1995\n2000\n2005\n2010\n2015\n2020\n2022 INVESTMENT REPORT\nNotes appear on page 15\n',
             'is aligned with the\nand are not distracted by short-term results\nWe focus keenly on capital preservation and\nbest interests of our\nat the expense of long-term predictable investment results while seeking\nabove-market General Account Value Proposition\nDriving benefits.4\nDriving the The General Account\ninvestment portfolio\nInvestment return is a primary driver of\nOur investments positively impact the\nplays a dual role:\nbenefits paid to our clients. By staying true\neconomy—creating jobs, benefiting\nto our investment philosophy and principles,\ncommunities, supporting innovation, and\nwe create value, paying dividends to our\nfunding sustainable energy participating policy owners and growing\nour already strong 2022 INVESTMENT REPORT\nNotes appear on page 15\n5\nGeneral Account Investment Strategy and Approach\nAsset/liability management focus\nDelivering for clients and society through\nReflecting our\nresponsible investing\ninvestment philosophy,\nOur primary focuses are asset/liability\nwe take a highly\nmanagement and maintaining ample']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 7
+            expected_return_number = 6
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
-        else:
-            expected_return_number = 12 if local_server else 12
             expected_return_number2 = expected_return_number
-            tokens_expected = 3500 if local_server else 2900
+        else:
+            if base_model == 'gpt-3.5-turbo':
+                tokens_expected = 3000 if local_server else 2900
+                expected_return_number = 14 if local_server else 14
+                expected_return_number2 = 15
+            elif inference_server and 'replicate' in inference_server:
+                tokens_expected = 3000 if local_server else 2900
+                expected_return_number = 11 if local_server else 11
+                expected_return_number2 = expected_return_number
+            else:
+                tokens_expected = 3500 if local_server else 2900
+                expected_return_number = 11 if local_server else 11
+                expected_return_number2 = expected_return_number
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1819,13 +1881,23 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             "operating environment marked by continued but\nmoderating volume pressure, mixed yield dynamics, and unique developments in the competitive landscape.\nLet's take each in turn.\nThis website cookies to deliver our services and to\nanalyze traffic.\nWe also share about your use\nof our site with advertising and other partners. Privacy\nPolicy\n||\nAt FedEx Ground, first-quarter\nrevenue was up 3% year over year driven by a 1% increase in volume and 3%\nincrease in yield. at FedEx Express was down 9% year over year. remained pressured though\ntotal Express volume declines moderated sequentially. export package volumes were up 3% year\nover year. to the fourth quarter, parcel volume declines were most pronounced in the United States.\nU.S. pounds were down 27%, continuing the trend we mentioned last quarter tied to the\nchange in strategy by the United States Postal Service. the Ground and Express, volumes improved\nsequentially, aided by the threat of a strike at our primary competitor.",
             "integrate three customer platforms: customer service, marketing, and sales into one, giving the\ncustomer a more informed, efficient,\nand personalized experience when doing business with FedEx. We are\nnow offering our estimated delivery time window, which provides customers with a four-hour window for their\npackage delivery for 96% of inbound volume globally across 48 countries. This capability is nicely\ncomplemented by picture proof of delivery or, as we like to say, PPOD, which is expanded across Europe in the\nfirst\nquarter. Now in 53 markets, PPOD provides shippers with increased confidence\nin package\ndelivery and helps reduce the volume of customer calls and claims. One FedEx Network 2.0 will simplify\nhow we do business, which is particularly important for our small and medium customers.\nFor our current customer contracts reflect\nthree independent companies. One FedEx enable us to\nchange that, making doing business with FedEx and becoming a new customer easier. Network 2.0 be\nmore efficient\nfor FedEx but also more efficient\nfor our customers. When we integrate market with one truck\nin one neighborhood that's not just for deliveries, it also means a streamlined pickup experience, one pickup per\nday versus two. This is a simple"]
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 6
-            expected_return_number2 = 8
+            expected_return_number = 5
+            expected_return_number2 = 7
             expect_response = False  # fails to respond even though docs are present
             tokens_expected = 1200
         else:
-            expected_return_number = 13 if local_server else 13
-            expected_return_number2 = 15
+            if inference_server and inference_server.startswith('replicate'):
+                expected_return_number = 12 if local_server else 12
+                expected_return_number2 = 14
+            elif inference_server and inference_server.startswith('openai_azure'):
+                expected_return_number = 14 if local_server else 14
+                expected_return_number2 = 16
+            elif inference_server and inference_server.startswith('openai'):
+                expected_return_number = 14 if local_server else 14
+                expected_return_number2 = 16
+            else:
+                expected_return_number = 12 if local_server else 12
+                expected_return_number2 = 14
             tokens_expected = 2900 if local_server else 2900
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
@@ -1880,7 +1952,10 @@ Rating: 5 (most positive)"""
         else:
             expected_return_number = min(len(texts), 12) if local_server else min(len(texts), 12)
             expected_return_number2 = min(len(texts), 14)
-            tokens_expected = 2900 if local_server else 2900
+            if base_model == 'gpt-3.5-turbo':
+                tokens_expected = 2500 if local_server else 2500
+            else:
+                tokens_expected = 2900 if local_server else 2900
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1949,7 +2024,7 @@ Rating: 5 (most positive)"""
     texts_out = [x for _, x in sorted(zip(orig_indices, texts_out))]
     texts_expected = texts[:expected_return_number]
     assert len(texts_expected) == len(texts_out), "%s vs. %s" % (len(texts_expected), len(texts_out))
-    if data_kind == 'helium5' and base_model != 'h2oai/h2ogpt-4096-llama2-7b-chat':
+    if data_kind == 'helium5' and base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         assert len(texts_out) == 1
         assert len(texts_expected[0]) >= len(texts_out[0])
     else:
@@ -2031,16 +2106,31 @@ Rating: 5 (most positive)"""
     print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
+@pytest.mark.parametrize("inference_server", [None, 'openai_chat', 'openai_azure_chat'])
 @pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_client_summarization(prompt_summary):
+def test_client_summarization(prompt_summary, inference_server):
     # launch server
     local_server = True
     if local_server:
-        base_model = 'meta-llama/Llama-2-7b-chat-hf'
+        if not inference_server:
+            base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+        else:
+            base_model = 'gpt-3.5-turbo'
+
+        if inference_server == 'openai_azure_chat':
+            # need at least deployment name added:
+            deployment_name = 'h2ogpt'
+            inference_server += ':%s:%s' % (deployment_name, 'h2ogpt.openai.azure.com/')
+            if 'azure' in inference_server:
+                assert 'OPENAI_AZURE_KEY' in os.environ, "Missing 'OPENAI_AZURE_KEY'"
+                os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_AZURE_KEY']
+
         from src.gen import main
-        main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+        main(base_model=base_model,
+             inference_server=inference_server,
+             chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
              use_auth_token=True,
              )
         check_hashes = True

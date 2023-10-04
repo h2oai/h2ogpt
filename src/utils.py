@@ -1056,9 +1056,12 @@ class FakeTokenizer:
     2) For when model doesn't directly expose tokenizer but need to count tokens
     """
 
-    def __init__(self, model_max_length=2048, encoding_name="cl100k_base"):
-        # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
-        self.model_max_length = model_max_length - 250
+    def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False):
+        self.is_openai = is_openai
+        self.model_max_length = model_max_length
+        if not self.is_openai:
+            # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
+            self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
         import tiktoken

@@ -967,9 +967,12 @@ class ExtraChat:
             for messages1 in self.chat_conversation:
                 messages.append(HumanMessage(content=messages1[0] if messages1[0] is not None else ''))
                 messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
-        assert len(prompts) == 1, "Not implemented"
-        messages.append(HumanMessage(content=prompts[0].text if prompts[0].text is not None else ''))
-        return [messages]
+        prompt_messages = []
+        for prompt in prompts:
+            prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
+            prompt_message = messages + [prompt_message]
+            prompt_messages.append(prompt_message)
+        return prompt_messages
 
 
 class H2OChatOpenAI(ChatOpenAI, ExtraChat):
@@ -1111,6 +1114,7 @@ def get_llm(use_openai_model=False,
             prompter=None,
             context=None,
             iinput=None,
+            chat_conversation=None,
             sanitize_bot_response=False,
             system_prompt='',
             visible_models=0,
@@ -1123,6 +1127,9 @@ def get_llm(use_openai_model=False,
             ):
     # currently all but h2oai_pipeline case return prompt + new text, but could change
     only_new_text = False
+
+    if chat_conversation is None:
+        chat_conversation = []
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -1249,7 +1256,7 @@ def get_llm(use_openai_model=False,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
-                  # chat_conversation=chat_conversation,  # don't do here, not token aware
+                  chat_conversation=chat_conversation,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3533,41 +3540,41 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
-    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
-        get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                model=model,
-                tokenizer=tokenizer,
-                inference_server=inference_server,
-                langchain_only_model=langchain_only_model,
-                stream_output=stream_output,
-                async_output=async_output,
-                num_async=num_async,
-                do_sample=do_sample,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                num_beams=num_beams,
-                max_new_tokens=max_new_tokens,
-                min_new_tokens=min_new_tokens,
-                early_stopping=early_stopping,
-                max_time=max_time,
-                repetition_penalty=repetition_penalty,
-                num_return_sequences=num_return_sequences,
-                prompt_type=prompt_type,
-                prompt_dict=prompt_dict,
-                prompter=prompter,
-                context=context,
-                iinput=iinput,
-                sanitize_bot_response=sanitize_bot_response,
-                system_prompt=system_prompt,
-                visible_models=visible_models,
-                h2ogpt_key=h2ogpt_key,
-                min_max_new_tokens=min_max_new_tokens,
-                n_jobs=n_jobs,
-                llamacpp_dict=llamacpp_dict,
-                cli=cli,
-                verbose=verbose,
-                )
+    llm_kwargs = dict(use_openai_model=use_openai_model, model_name=model_name,
+                      model=model,
+                      tokenizer=tokenizer,
+                      inference_server=inference_server,
+                      langchain_only_model=langchain_only_model,
+                      stream_output=stream_output,
+                      async_output=async_output,
+                      num_async=num_async,
+                      do_sample=do_sample,
+                      temperature=temperature,
+                      top_k=top_k,
+                      top_p=top_p,
+                      num_beams=num_beams,
+                      max_new_tokens=max_new_tokens,
+                      min_new_tokens=min_new_tokens,
+                      early_stopping=early_stopping,
+                      max_time=max_time,
+                      repetition_penalty=repetition_penalty,
+                      num_return_sequences=num_return_sequences,
+                      prompt_type=prompt_type,
+                      prompt_dict=prompt_dict,
+                      prompter=prompter,
+                      context=context,
+                      iinput=iinput,
+                      sanitize_bot_response=sanitize_bot_response,
+                      system_prompt=system_prompt,
+                      visible_models=visible_models,
+                      h2ogpt_key=h2ogpt_key,
+                      min_max_new_tokens=min_max_new_tokens,
+                      n_jobs=n_jobs,
+                      llamacpp_dict=llamacpp_dict,
+                      cli=cli,
+                      verbose=verbose,
+                      )
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
     # in case change, override original prompter
     if hasattr(llm, 'prompter'):
         prompter = llm.prompter
@@ -3599,7 +3606,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, \
         num_docs_before_cut, \
-        use_llm_if_no_docs, top_k_docs_max_show = \
+        use_llm_if_no_docs, top_k_docs_max_show, \
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
         get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
@@ -3748,7 +3756,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
 
 def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None, verbose=False):
     docs_with_score = []
-    got_db_docs = False
 
     if text_context_list:
         docs_with_score += [(x, x.metadata.get('score', 1.0)) for x in text_context_list]
@@ -3768,7 +3775,6 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                                 sorted(zip(doc_file_ids, doc_chunk_ids, docs_with_score_fake),
                                        key=lambda x: (x[0], x[1]))
                                 ]
-        got_db_docs |= len(docs_with_score_fake) > 0
         docs_with_score += docs_with_score_fake
     elif db is not None and db_type in ['chroma', 'chroma_old']:
         while True:
@@ -3790,17 +3796,15 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                 else:
                     k_db -= 1
                 k_db = max(1, k_db)
-        got_db_docs |= len(docs_with_score_chroma) > 0
         docs_with_score += docs_with_score_chroma
     elif db is not None:
         docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
-        got_db_docs |= len(docs_with_score_other) > 0
         docs_with_score += docs_with_score_other
 
     # set in metadata original order of docs
     [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
 
-    return docs_with_score, got_db_docs
+    return docs_with_score
 
 
 def get_chain(query=None,
@@ -3874,6 +3878,10 @@ def get_chain(query=None,
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
+              llm_kwargs=None,
+              streamer=None,
+              prompt_type_out=None,
+              only_new_text=None,
               tokenizer=None,
               verbose=False,
               docs_ordering_type='reverse_ucurve_sort',
@@ -3956,7 +3964,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -3977,7 +3986,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
         chain = create_python_agent(
@@ -3995,7 +4005,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -4014,7 +4025,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -4046,7 +4058,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -4080,7 +4093,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     # https://github.com/hwchase17/langchain/issues/1946
     # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
@@ -4146,7 +4160,6 @@ def get_chain(query=None,
                                                         verbose=verbose)
     num_docs_before_cut = 0
     use_template = not use_openai_model and prompt_type not in ['plain'] or langchain_only_model
-    got_db_docs = False  # not yet at least
     template, template_if_no_docs, auto_reduce_chunks, query = \
         get_template(query, iinput,
                      pre_prompt_query, prompt_query,
@@ -4154,7 +4167,6 @@ def get_chain(query=None,
                      langchain_action,
                      True,  # just to overestimate prompting
                      auto_reduce_chunks,
-                     got_db_docs,
                      add_search_to_context)
 
     max_input_tokens = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -4287,14 +4299,14 @@ def get_chain(query=None,
     else:
         # for db=None too
         with filelock.FileLock(lock_file):
-            docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
-                                                               text_context_list=text_context_list,
-                                                               verbose=verbose)
+            docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+                                                  text_context_list=text_context_list,
+                                                  verbose=verbose)
             if len(docs_with_score) == 0 and filter_kwargs_backup:
-                docs_with_score, got_db_docs = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
-                                                                   db_type,
-                                                                   text_context_list=text_context_list,
-                                                                   verbose=verbose)
+                docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
+                                                      db_type,
+                                                      text_context_list=text_context_list,
+                                                      verbose=verbose)
 
         tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                   use_openai_model=use_openai_model,
@@ -4338,14 +4350,14 @@ def get_chain(query=None,
                                    add_chat_history_to_context=add_chat_history_to_context,
                                    min_max_new_tokens=min_max_new_tokens,
                                    )
-            if hasattr(llm, 'chat_conversation'):
-                # means LLM will handle
-                assert external_handle_chat_conversation, "Should be handling only externally"
-                llm.chat_conversation = chat_conversation[chat_index:]
-            if hasattr(llm, 'context'):
-                llm.context = context
-            if hasattr(llm, 'iinput'):
-                llm.iinput = iinput
+            # get updated llm
+            llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
+            if external_handle_chat_conversation:
+                # should already have attribute, checking sanity
+                assert hasattr(llm, 'chat_conversation')
+                llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+
             # avoid craziness
             if 0 < top_k_docs_trial < max_chunks:
                 # avoid craziness
@@ -4395,7 +4407,8 @@ def get_chain(query=None,
 
     if document_subset in non_query_commands:
         # no LLM use at all, just sources
-        return docs, None, [], num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, None, [], num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
@@ -4415,7 +4428,7 @@ def get_chain(query=None,
         # avoid context == in prompt then
         template = template_if_no_docs
 
-    got_db_docs = got_db_docs and len(text_context_list) < len(docs)
+    got_any_docs = len(docs) > 0
     # update template in case situation changed or did get docs
     # then no new documents from database or not used, redo template
     # got template earlier as estimate of template token size, here is final used version
@@ -4424,9 +4437,8 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
-                     got_db_docs,
+                     got_any_docs,
                      auto_reduce_chunks,
-                     got_db_docs,
                      add_search_to_context)
 
     if langchain_action == LangChainAction.QUERY.value:
@@ -4486,7 +4498,8 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+    return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
 
 def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
@@ -4541,7 +4554,7 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
     elif isinstance(tokenizer, FakeTokenizer):
         return tokenizer
     elif use_openai_model:
-        return FakeTokenizer()
+        return FakeTokenizer(is_openai=True)
     elif (hasattr(db, '_embedding_function') and
           hasattr(db._embedding_function, 'client') and
           hasattr(db._embedding_function.client, 'tokenize')):
@@ -4559,19 +4572,18 @@ def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
                  langchain_action,
-                 got_docs,
+                 got_any_docs,
                  auto_reduce_chunks,
-                 got_db_docs,
                  add_search_to_context):
-    if got_db_docs and add_search_to_context:
+    if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
                                             'information in the document and web search sources (and their source dates and website source)')
         prompt_summary = prompt_summary.replace('information in the document sources',
                                                 'information in the document and web search sources (and their source dates and website source)')
-    elif got_db_docs and not add_search_to_context:
+    elif got_any_docs and not add_search_to_context:
         pass
-    elif not got_db_docs and add_search_to_context:
+    elif not got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
                                             'information in the web search sources (and their source dates and website source)')
@@ -4581,7 +4593,7 @@ def get_template(query, iinput,
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
-        if not got_docs:
+        if not got_any_docs:
             template_if_no_docs = template = """{context}{question}"""
         else:
             template = """%s

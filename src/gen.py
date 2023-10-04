@@ -1662,7 +1662,7 @@ def get_model(
         # include small token cushion
         if inference_server.startswith('openai') or tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
-            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50)
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -3688,7 +3688,7 @@ def get_limited_prompt(instruction,
     chat_index = 0
 
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
-    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
+    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens + min_max_new_tokens
     # to doc first then non-doc, shouldn't matter much either way
     doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
@@ -3775,6 +3775,10 @@ def get_limited_prompt(instruction,
         # limit so max_new_tokens = prompt + new < max
         # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
         max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+
+    if os.getenv('HARD_ASSERTS'):
+        if max_new_tokens < min_max_new_tokens:
+            raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
 
     if prompter is None:
         # get prompter
