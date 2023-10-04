@@ -1720,7 +1720,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
         else:
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 2600
-                expected_return_number = 22  # i.e. out of 25
+                expected_return_number = 24  # i.e. out of 25
             elif inference_server and 'replicate' in inference_server:
                 tokens_expected = 3400
                 expected_return_number = 16  # i.e. out of 25
@@ -1795,9 +1795,9 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             expected_return_number2 = expected_return_number
         else:
             if base_model == 'gpt-3.5-turbo':
-                expected_return_number = 23 if local_server else 23
+                expected_return_number = 25 if local_server else 25
                 tokens_expected = 2700 if local_server else 2700
-                expected_return_number2 = 24
+                expected_return_number2 = 25
             elif inference_server and 'replicate' in inference_server:
                 expected_return_number = 17 if local_server else 17
                 tokens_expected = 3400 if local_server else 2900
@@ -1838,17 +1838,20 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             expected_return_number = 6
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
+            expected_return_number2 = expected_return_number
         else:
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 3000 if local_server else 2900
-                expected_return_number = 13 if local_server else 13
+                expected_return_number = 14 if local_server else 14
+                expected_return_number2 = 15
             elif inference_server and 'replicate' in inference_server:
                 tokens_expected = 3000 if local_server else 2900
                 expected_return_number = 11 if local_server else 11
+                expected_return_number2 = expected_return_number
             else:
                 tokens_expected = 3500 if local_server else 2900
                 expected_return_number = 11 if local_server else 11
-            expected_return_number2 = expected_return_number
+                expected_return_number2 = expected_return_number
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1887,11 +1890,11 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
                 expected_return_number = 12 if local_server else 12
                 expected_return_number2 = 14
             elif inference_server and inference_server.startswith('openai_azure'):
-                expected_return_number = 13 if local_server else 13
-                expected_return_number2 = 15
+                expected_return_number = 14 if local_server else 14
+                expected_return_number2 = 16
             elif inference_server and inference_server.startswith('openai'):
-                expected_return_number = 13 if local_server else 13
-                expected_return_number2 = 15
+                expected_return_number = 14 if local_server else 14
+                expected_return_number2 = 16
             else:
                 expected_return_number = 12 if local_server else 12
                 expected_return_number2 = 14
