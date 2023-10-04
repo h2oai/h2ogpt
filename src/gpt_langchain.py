@@ -2733,6 +2733,13 @@ class FakeConsumer(object):
 posthog.Consumer = FakeConsumer
 
 
+def get_hf_embedding_model_name(hf_embedding_model):
+    if isinstance(hf_embedding_model, dict):
+        # embedding itself preloaded globally
+        hf_embedding_model = hf_embedding_model['name']
+    return hf_embedding_model
+
+
 def check_update_chroma_embedding(db,
                                   db_type,
                                   use_openai_embedding,
@@ -2741,6 +2748,10 @@ def check_update_chroma_embedding(db,
                                   n_jobs=-1):
     changed_db = False
     embed_tuple = load_embed(db=db)
+
+    # expect string comparison, if dict then model object with name and get name not dict or model
+    hf_embedding_model = get_hf_embedding_model_name(hf_embedding_model)
+
     if embed_tuple not in [(True, use_openai_embedding, hf_embedding_model),
                            (False, use_openai_embedding, hf_embedding_model)]:
         print("Detected new embedding %s vs. %s %s, updating db: %s" % (
@@ -5000,7 +5011,9 @@ def _update_user_db(file,
     # FIXME: could avoid even parsing, let alone embedding, same old files if upload same file again
     # FIXME: but assume nominally user isn't uploading all files over again from UI
 
-    if is_txt and hf_embedding_model == 'fake':
+    # expect string comparison, if dict then model object with name and get name not dict or model
+    hf_embedding_model_str = get_hf_embedding_model_name(hf_embedding_model)
+    if is_txt and hf_embedding_model_str == 'fake':
         # avoid parallel if fake embedding since assume trivial ingestion
         n_jobs = 1
 
