@@ -1059,7 +1059,7 @@ class FakeTokenizer:
     def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False):
         self.is_openai = is_openai
         self.model_max_length = model_max_length
-        if not self.is_openai or True:
+        if not self.is_openai:
             # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
             self.model_max_length -= 250
         self.encoding_name = encoding_name
