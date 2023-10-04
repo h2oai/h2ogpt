@@ -403,7 +403,8 @@ def go_gradio(**kwargs):
             username1 = requests_state1['username']
         return username1
 
-    def get_userid_auth_func(requests_state1, auth_filename=None, auth_access=None, guest_name=None, **kwargs):
+    def get_userid_auth_func(requests_state1, auth_filename=None, auth_access=None, guest_name=None, id0=None,
+                             **kwargs):
         if auth_filename and isinstance(auth_filename, str):
             username1 = get_username(requests_state1)
             if username1:
@@ -417,7 +418,7 @@ def go_gradio(**kwargs):
                             return auth_dict[username1]['userid']
         # if here, then not persistently associated with username1,
         # but should only be one-time asked if going to persist within a single session!
-        return str(uuid.uuid4())
+        return id0 or str(uuid.uuid4())
 
     get_userid_auth = functools.partial(get_userid_auth_func,
                                         auth_filename=kwargs['auth_filename'],
@@ -1928,6 +1929,9 @@ def go_gradio(**kwargs):
             else:
                 authorized1 = authf(username1, password1, selection_docs_state1=selection_docs_state1)
             if authorized1:
+                if not isinstance(requests_state1, dict):
+                    requests_state1 = {}
+                requests_state1['username'] = username1
                 set_userid_gr(db1s, requests_state1, get_userid_auth)
                 username2 = get_username(requests_state1)
                 text_outputs1 = list(text_outputs1)
@@ -1974,10 +1978,10 @@ def go_gradio(**kwargs):
                          radio_chats,
                          langchain_mode,
                          text_output, text_output2] + text_outputs
-        eventdb_logina.then(login_func,
-                            inputs=login_inputs,
-                            outputs=login_outputs,
-                            queue=False)
+        eventdb_loginb = eventdb_logina.then(login_func,
+                                             inputs=login_inputs,
+                                             outputs=login_outputs,
+                                             queue=not kwargs['large_file_count_mode'])
 
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
@@ -2043,9 +2047,11 @@ def go_gradio(**kwargs):
                     # unexpected in testing or normally
                     raise
 
-        def save_auth(requests_state1, auth_filename, auth_freeze,
-                      selection_docs_state1=None, chat_state1=None, langchain_mode1=None,
-                      text_output1=None, text_output21=None, text_outputs1=None):
+        def save_auth(selection_docs_state1, requests_state1,
+                      chat_state1, langchain_mode1,
+                      text_output1, text_output21, text_outputs1,
+                      auth_filename=None, auth_access=None, auth_freeze=None, guest_name=None,
+                      ):
             if auth_freeze:
                 return
             if not auth_filename:
@@ -2072,6 +2078,25 @@ def go_gradio(**kwargs):
                         if langchain_mode1:
                             auth_user['langchain_mode'] = langchain_mode1
                         save_auth_dict(auth_dict, auth_filename)
+
+        def save_auth_wrap(*args, **kwargs):
+            save_auth(args[0], args[1],
+                      args[2], args[3],
+                      args[4], args[5], args[6:], **kwargs
+                      )
+
+        save_auth_func = functools.partial(save_auth_wrap,
+                                           auth_filename=kwargs['auth_filename'],
+                                           auth_access=kwargs['auth_access'],
+                                           auth_freeze=kwargs['auth_freeze'],
+                                           guest_name=kwargs['guest_name'],
+                                           )
+
+        save_auth_kwargs = dict(fn=save_auth_func,
+                                inputs=[selection_docs_state, requests_state,
+                                        chat_state, langchain_mode, text_output, text_output2] + text_outputs
+                                )
+        lg_change_event_auth = lg_change_event.then(**save_auth_kwargs)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
                                auth_filename=None, auth_freeze=None, guest_name=None):
@@ -2152,8 +2177,12 @@ def go_gradio(**kwargs):
                 from src.gpt_langchain import length_db1
                 db1s[langchain_mode2] = [None] * length_db1()
             if valid:
-                save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
-                          langchain_mode1=langchain_mode2)
+                chat_state1 = None
+                text_output1, text_output21, text_outputs1 = None, None, None
+                save_auth_func(selection_docs_state1, requests_state1,
+                               chat_state1, langchain_mode2,
+                               text_output1, text_output21, text_outputs1,
+                               )
 
             return db1s, selection_docs_state1, gr.update(choices=choices,
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
@@ -2240,8 +2269,12 @@ def go_gradio(**kwargs):
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
 
             if changed_state:
-                save_auth(requests_state1, auth_filename, auth_freeze, selection_docs_state1=selection_docs_state1,
-                          langchain_mode1=langchain_mode2)
+                chat_state1 = None
+                text_output1, text_output21, text_outputs1 = None, None, None
+                save_auth_func(selection_docs_state1, requests_state1,
+                               chat_state1, langchain_mode2,
+                               text_output1, text_output21, text_outputs1,
+                               )
 
             return db1s, selection_docs_state1, \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
@@ -2310,7 +2343,8 @@ def go_gradio(**kwargs):
         # purge_langchain_mode_kwargs['fn'] = functools.partial(remove_langchain_mode_kwargs['fn'], purge=True)
         eventdb22b = eventdb22a.then(**purge_langchain_mode_kwargs,
                                      api_name='purge_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
-        db_events.extend([eventdb22a, eventdb22b])
+        eventdb22b_auth = eventdb22b.then(**save_auth_kwargs)
+        db_events.extend([eventdb22a, eventdb22b, eventdb22b_auth])
 
         def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1, auth_filename=None):
             load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1)
@@ -2336,7 +2370,7 @@ def go_gradio(**kwargs):
             # FIXME: Could add all these functions, inputs, outputs into single function for snappier GUI
             # all update events when not doing large file count mode
             # Note: Login touches langchain_mode, which triggers all these
-            lg_change_event2 = lg_change_event.then(**get_sources_kwargs)
+            lg_change_event2 = lg_change_event_auth.then(**get_sources_kwargs)
             lg_change_event3 = lg_change_event2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             lg_change_event4 = lg_change_event3.then(**show_sources_kwargs)
             lg_change_event5 = lg_change_event4.then(**get_viewable_sources_args)
@@ -2378,7 +2412,7 @@ def go_gradio(**kwargs):
             eventdb21f = eventdb21e.then(**get_viewable_sources_args)
             eventdb21g = eventdb21f.then(**viewable_kwargs)
 
-            eventdb22c = eventdb22b.then(**get_sources_kwargs)
+            eventdb22c = eventdb22b_auth.then(**get_sources_kwargs)
             eventdb22d = eventdb22c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb22e = eventdb22d.then(**show_sources_kwargs)
             eventdb22f = eventdb22e.then(**get_viewable_sources_args)
@@ -2396,13 +2430,14 @@ def go_gradio(**kwargs):
             sync5 = sync4.then(**get_viewable_sources_args)
             sync6 = sync5.then(**viewable_kwargs)
 
-            eventdb_loginb = eventdb_logina.then(**get_sources_kwargs)
-            eventdb_loginc = eventdb_loginb.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb_loginbb = eventdb_loginb.then(**get_sources_kwargs)
+            eventdb_loginc = eventdb_loginbb.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb_logind = eventdb_loginc.then(**show_sources_kwargs)
             eventdb_logine = eventdb_logind.then(**get_viewable_sources_args)
             eventdb_loginf = eventdb_logine.then(**viewable_kwargs)
 
-            db_events.extend([lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
+            db_events.extend([lg_change_event_auth,
+                              lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
                               lg_change_event6] +
                              [eventdb2c, eventdb2d, eventdb2e, eventdb2f, eventdb2g] +
                              [eventdb1c, eventdb1d, eventdb1e, eventdb1f, eventdb1g] +
@@ -2410,10 +2445,11 @@ def go_gradio(**kwargs):
                              [eventdb90ua, eventdb90ub, eventdb90uc, eventdb90ud, eventdb90ue] +
                              [eventdb20c, eventdb20d, eventdb20e, eventdb20f, eventdb20g] +
                              [eventdb21c, eventdb21d, eventdb21e, eventdb21f, eventdb21g] +
-                             [eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
+                             [eventdb22b_auth, eventdb22c, eventdb22d, eventdb22e, eventdb22f, eventdb22g] +
                              [event_attach3, event_attach4, event_attach5, event_attach6, event_attach7] +
                              [sync1, sync2, sync3, sync4, sync5, sync6] +
-                             [eventdb_logina, eventdb_loginb, eventdb_loginc, eventdb_logind, eventdb_logine,
+                             [eventdb_logina, eventdb_loginb, eventdb_loginbb,
+                              eventdb_loginc, eventdb_logind, eventdb_logine,
                               eventdb_loginf]
                              ,
                              )
@@ -3483,11 +3519,15 @@ def go_gradio(**kwargs):
             choices.reverse()
 
             # save saved chats and chatbots to auth file
+            selection_docs_state1 = None
+            langchain_mode2 = None
             text_output1 = chat_list[0]
             text_output21 = chat_list[1]
             text_outputs1 = chat_list[2:]
-            save_auth(requests_state1, auth_filename, auth_freeze, chat_state1=chat_state1,
-                      text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1)
+            save_auth_func(selection_docs_state1, requests_state1,
+                           chat_state1, langchain_mode2,
+                           text_output1, text_output21, text_outputs1,
+                           )
 
             return chat_state1, gr.update(choices=choices, value=None)
 
@@ -3562,7 +3602,13 @@ def go_gradio(**kwargs):
                     chat_exception_list.append(ex_str)
                     chat_exception_text1 = '\n'.join(chat_exception_list)
             # save chat to auth file
-            save_auth(requests_state1, auth_filename, auth_freeze, chat_state1=chat_state1)
+            selection_docs_state1 = None
+            langchain_mode2 = None
+            text_output1, text_output21, text_outputs1 = None, None, None
+            save_auth_func(selection_docs_state1, requests_state1,
+                           chat_state1, langchain_mode2,
+                           text_output1, text_output21, text_outputs1,
+                           )
             return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None), chat_exception_text1
 
         # note for update_user_db_func output is ignored for db
