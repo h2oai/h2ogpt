@@ -186,3 +186,13 @@ where one can still at least hit enter to submit queries. This looks like:
 
 One can add `--visible_h2ogpt_header=False` to remove the h2oGPT header, which looks like:
 ![chat_headerless.png](chat_headerless.png)
+
+
+## Login Tab
+
+![image](https://github.com/h2oai/h2ogpt/assets/15376332/973199b4-6769-4ad3-84c1-a61f81f0ed3d)
+
+One can add `--visible_login_tab=False` to remove the login tab.
+
+
+
