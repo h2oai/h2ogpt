@@ -967,9 +967,12 @@ class ExtraChat:
             for messages1 in self.chat_conversation:
                 messages.append(HumanMessage(content=messages1[0] if messages1[0] is not None else ''))
                 messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
-        assert len(prompts) == 1, "Not implemented"
-        messages.append(HumanMessage(content=prompts[0].text if prompts[0].text is not None else ''))
-        return [messages]
+        prompt_messages = []
+        for prompt in prompts:
+            prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
+            prompt_message = messages + [prompt_message]
+            prompt_messages.append(prompt_message)
+        return prompt_messages
 
 
 class H2OChatOpenAI(ChatOpenAI, ExtraChat):
