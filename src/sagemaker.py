@@ -5,6 +5,8 @@ from pydantic import root_validator
 from langchain.llms import SagemakerEndpoint
 from langchain.llms.sagemaker_endpoint import LLMContentHandler
 
+from src.utils import FakeTokenizer
+
 
 class ChatContentHandler(LLMContentHandler):
     content_type = "application/json"
@@ -40,6 +42,7 @@ class BaseContentHandler(LLMContentHandler):
 class H2OSagemakerEndpoint(SagemakerEndpoint):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
+    tokenizer: typing.Any = None
 
     @root_validator()
     def validate_environment(cls, values: typing.Dict) -> typing.Dict:
@@ -77,4 +80,10 @@ class H2OSagemakerEndpoint(SagemakerEndpoint):
             )
         return values
 
+    def get_token_ids(self, text: str) -> typing.List[int]:
+        tokenizer = self.tokenizer
+        if tokenizer is not None:
+            return tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
 

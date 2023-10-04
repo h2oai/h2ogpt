@@ -1088,6 +1088,13 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
             text = enforce_stop_tokens(text, stop)
         return text
 
+    def get_token_ids(self, text: str) -> List[int]:
+        tokenizer = self.pipeline.tokenizer
+        if tokenizer is not None:
+            return tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
+
 
 def get_llm(use_openai_model=False,
             model_name=None,
@@ -1201,7 +1208,8 @@ def get_llm(use_openai_model=False,
             openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            kwargs_extra.update(dict(openai_api_type='azure', system_prompt=system_prompt, chat_conversation=chat_conversation))
+            kwargs_extra.update(
+                dict(openai_api_type='azure', system_prompt=system_prompt, chat_conversation=chat_conversation))
             # FIXME: Support context, iinput
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 openai_api_key = os.getenv('OPENAI_AZURE_KEY')
@@ -1286,6 +1294,7 @@ def get_llm(use_openai_model=False,
             model_kwargs=model_kwargs,
             content_handler=content_handler,
             endpoint_kwargs={'CustomAttributes': 'accept_eula=true'},
+            tokenizer=tokenizer,  # for summarization and token counting
         )
     elif inference_server:
         assert inference_server.startswith(
