@@ -1114,6 +1114,7 @@ def get_llm(use_openai_model=False,
             prompter=None,
             context=None,
             iinput=None,
+            chat_conversation=None,
             sanitize_bot_response=False,
             system_prompt='',
             visible_models=0,
@@ -1126,6 +1127,9 @@ def get_llm(use_openai_model=False,
             ):
     # currently all but h2oai_pipeline case return prompt + new text, but could change
     only_new_text = False
+
+    if chat_conversation is None:
+        chat_conversation = []
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -1252,7 +1256,7 @@ def get_llm(use_openai_model=False,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
-                  # chat_conversation=chat_conversation,  # don't do here, not token aware
+                  chat_conversation=chat_conversation,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3536,41 +3540,41 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
     # can't pass through langchain in get_chain() to LLM: https://github.com/hwchase17/langchain/issues/6638
-    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
-        get_llm(use_openai_model=use_openai_model, model_name=model_name,
-                model=model,
-                tokenizer=tokenizer,
-                inference_server=inference_server,
-                langchain_only_model=langchain_only_model,
-                stream_output=stream_output,
-                async_output=async_output,
-                num_async=num_async,
-                do_sample=do_sample,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-                num_beams=num_beams,
-                max_new_tokens=max_new_tokens,
-                min_new_tokens=min_new_tokens,
-                early_stopping=early_stopping,
-                max_time=max_time,
-                repetition_penalty=repetition_penalty,
-                num_return_sequences=num_return_sequences,
-                prompt_type=prompt_type,
-                prompt_dict=prompt_dict,
-                prompter=prompter,
-                context=context,
-                iinput=iinput,
-                sanitize_bot_response=sanitize_bot_response,
-                system_prompt=system_prompt,
-                visible_models=visible_models,
-                h2ogpt_key=h2ogpt_key,
-                min_max_new_tokens=min_max_new_tokens,
-                n_jobs=n_jobs,
-                llamacpp_dict=llamacpp_dict,
-                cli=cli,
-                verbose=verbose,
-                )
+    llm_kwargs = dict(use_openai_model=use_openai_model, model_name=model_name,
+                      model=model,
+                      tokenizer=tokenizer,
+                      inference_server=inference_server,
+                      langchain_only_model=langchain_only_model,
+                      stream_output=stream_output,
+                      async_output=async_output,
+                      num_async=num_async,
+                      do_sample=do_sample,
+                      temperature=temperature,
+                      top_k=top_k,
+                      top_p=top_p,
+                      num_beams=num_beams,
+                      max_new_tokens=max_new_tokens,
+                      min_new_tokens=min_new_tokens,
+                      early_stopping=early_stopping,
+                      max_time=max_time,
+                      repetition_penalty=repetition_penalty,
+                      num_return_sequences=num_return_sequences,
+                      prompt_type=prompt_type,
+                      prompt_dict=prompt_dict,
+                      prompter=prompter,
+                      context=context,
+                      iinput=iinput,
+                      sanitize_bot_response=sanitize_bot_response,
+                      system_prompt=system_prompt,
+                      visible_models=visible_models,
+                      h2ogpt_key=h2ogpt_key,
+                      min_max_new_tokens=min_max_new_tokens,
+                      n_jobs=n_jobs,
+                      llamacpp_dict=llamacpp_dict,
+                      cli=cli,
+                      verbose=verbose,
+                      )
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
     # in case change, override original prompter
     if hasattr(llm, 'prompter'):
         prompter = llm.prompter
@@ -3602,7 +3606,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
     docs, chain, scores, \
         num_docs_before_cut, \
-        use_llm_if_no_docs, top_k_docs_max_show = \
+        use_llm_if_no_docs, top_k_docs_max_show, \
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
         get_chain(**sim_kwargs)
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
@@ -3877,6 +3882,10 @@ def get_chain(query=None,
               n_jobs=-1,
               # beyond run_db_query:
               llm=None,
+              llm_kwargs=None,
+              streamer=None,
+              prompt_type_out=None,
+              only_new_text=None,
               tokenizer=None,
               verbose=False,
               docs_ordering_type='reverse_ucurve_sort',
@@ -3959,7 +3968,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -3980,7 +3990,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
         chain = create_python_agent(
@@ -3998,7 +4009,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
         # FIXME: DATA
@@ -4017,7 +4029,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -4049,7 +4062,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -4083,7 +4097,8 @@ def get_chain(query=None,
         scores = []
         num_docs_before_cut = 0
         use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     # https://github.com/hwchase17/langchain/issues/1946
     # FIXME: Seems to way to get size of chroma db to limit top_k_docs to avoid
@@ -4341,14 +4356,14 @@ def get_chain(query=None,
                                    add_chat_history_to_context=add_chat_history_to_context,
                                    min_max_new_tokens=min_max_new_tokens,
                                    )
-            if hasattr(llm, 'chat_conversation'):
-                # means LLM will handle
-                assert external_handle_chat_conversation, "Should be handling only externally"
-                llm.chat_conversation = chat_conversation[chat_index:]
-            if hasattr(llm, 'context'):
-                llm.context = context
-            if hasattr(llm, 'iinput'):
-                llm.iinput = iinput
+            # get updated llm
+            llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
+            if external_handle_chat_conversation:
+                # should already have attribute, checking sanity
+                assert hasattr(llm, 'chat_conversation')
+                llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+
             # avoid craziness
             if 0 < top_k_docs_trial < max_chunks:
                 # avoid craziness
@@ -4398,7 +4413,8 @@ def get_chain(query=None,
 
     if document_subset in non_query_commands:
         # no LLM use at all, just sources
-        return docs, None, [], num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+        return docs, None, [], num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     # FIXME: WIP
     common_words_file = "data/NGSL_1.2_stats.csv.zip"
@@ -4489,7 +4505,8 @@ def get_chain(query=None,
     else:
         raise RuntimeError("No such langchain_action=%s" % langchain_action)
 
-    return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show
+    return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
 
 def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
@@ -4544,7 +4561,7 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
     elif isinstance(tokenizer, FakeTokenizer):
         return tokenizer
     elif use_openai_model:
-        return FakeTokenizer()
+        return FakeTokenizer(is_openai=True)
     elif (hasattr(db, '_embedding_function') and
           hasattr(db._embedding_function, 'client') and
           hasattr(db._embedding_function.client, 'tokenize')):

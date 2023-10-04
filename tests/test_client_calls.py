@@ -1617,8 +1617,10 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
     # base_model = 'distilgpt2'
     if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type = 'human_bot'
-    else:
+    elif base_model == 'h2oai/h2ogpt-4096-llama2-7b-chat':
         prompt_type = 'llama2'
+    else:
+        prompt_type = ''
     langchain_mode = 'UserData'
     langchain_modes = ['UserData', 'MyData', 'github h2oGPT', 'LLM', 'Disabled']
 
@@ -1712,13 +1714,13 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             'During 2022, emerging markets revenues accounted for \napproximately 37% of Citi’s total revenues (Citi generally \ndefines emerging markets as countries in Latin America, Asia \n(other than Japan, Australia and New Zealand), and central \nand Eastern Europe, the Middle East and Africa in EMEA). \nCiti’s presence in the emerging markets subjects it to various \nrisks, such as limitations or unavailability of hedges on foreign \ninvestments; foreign currency volatility, including',
             'On November 1, 2022, Citi completed the sale of its Thailand consumer banking business, which was part of \nLegacy Franchises\n. The business had approximately \n$2.7 billion in assets, including $2.4 billion of loans (net of allowance of $67 million) and excluding goodwill. The total amount of liabilities was $1.0 billion, \nincluding $0.8 billion in deposits. The sale resulted in a pretax gain on sale of approximately $209 million ($115 million after-tax), subject to closing adjustments, \nrecorded in']
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
-            expected_return_number = 11
+            expected_return_number = 10
             expected_return_number2 = expected_return_number
             tokens_expected = 1500
         else:
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 2600
-                expected_return_number = 24  # i.e. out of 25
+                expected_return_number = 22  # i.e. out of 25
             else:
                 tokens_expected = 3400
                 expected_return_number = 17  # i.e. out of 25
