@@ -3276,7 +3276,16 @@ def get_metadatas(db):
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
-        metadatas = get_documents(db)['metadatas']
+        db_get = get_documents(db)
+        documents = db_get['documents']
+        if documents is None:
+            documents = []
+        metadatas = db_get['metadatas']
+        if metadatas is None:
+            if documents is not None:
+                metadatas = [{}] * len(documents)
+            else:
+                metadatas = []
     elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
@@ -3307,17 +3316,20 @@ def get_documents(db):
 
 
 def _get_documents(db):
+    # returns not just documents, but full dict of documents, metadatas, ids, embeddings
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
-        documents = dict(documents=documents)
+        documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
     elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         documents = db.get()
+        if documents is None:
+            documents = dict(documents=[], metadatas=[], ids=[])
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
         documents = [x for x in db.similarity_search("", k=10000)]
-        documents = dict(documents=documents)
+        documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
     return documents
 
 
