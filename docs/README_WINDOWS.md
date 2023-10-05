@@ -125,9 +125,10 @@ For newer builds of windows versions of 10/11.
 
   * Click [Download LLaMa2 Model](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and place file in h2oGPT repo directory.  Any other TheBloke GGML v3 model can be used by changing value of `--model_path_llama` to path previously downloaded or URL.
        ```bash
-       python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+       python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
        ```
-    for an absolute windows path, change to `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.
+    Choose some other `model_path_llama` from TheBloke if desired, e.g. 13B.  If no model passed, the 7B LLaMa-2 GGML is used.
+    For an absolute windows path, change to `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.
       If llama-cpp-python was compiled with CUDA support, you should see in the output:
     ```text
     Starting get_model: llama

@@ -178,8 +178,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```
   UI using LLaMa.cpp LLaMa2 model:
   ```bash
-  wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
-  python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+  python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
   ```
   which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
 

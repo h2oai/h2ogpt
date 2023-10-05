@@ -78,18 +78,18 @@ Supports CPU and MPS (Metal M1/M2).
 
 * To run LLaMa.cpp model in CPU or GPU mode:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
     ```
 Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
 
-* Full Hugging Face Model (recommended for M1/M2 only):
+* Full Hugging Face Model -- slower than GGML in general:
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None --langchain_mode='UserData' --user_path=user_path
     ```
 
 * CLI mode:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
     ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
