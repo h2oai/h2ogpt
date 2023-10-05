@@ -2,17 +2,17 @@ version: '3'
 
 services:
   h2ogpt:
-    image: gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+    image: ${H2OGPT_RUNTIME}
     restart: always
     shm_size: '2gb'
     ports:
-      - '7860:7860'
+      - '${H2OGPT_PORT}:7860'
     volumes:
       - cache:/workspace/.cache
       - save:/workspace/save
     command:
       - /workspace/generate.py
-      - --base_model=h2oai/h2ogpt-4096-llama2-7b-chat
+      - --base_model=${H2OGPT_BASE_MODEL}
       - --use_safetensors=True
       - --prompt_type=llama2
       - --save_dir=/workspace/save/
