@@ -6,7 +6,8 @@ services:
     restart: always
     shm_size: '2gb'
     depends_on:
-      - vllm
+      vllm:
+        condition: service_healthy
     ports:
       - '${H2OGPT_PORT}:7860'
     volumes:
@@ -51,6 +52,11 @@ services:
       - --download-dir=/workspace/.cache/huggingface/hub
     environment:
       - NCCL_IGNORE_DISABLED_P2P=1
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://0.0.0.0:5000/v1/models" ]
+      interval: 30s
+      timeout: 5s
+      retries: 20
     deploy:
       resources:
         reservations:
