@@ -1165,9 +1165,13 @@ def set_openai(inference_server):
         import openai_vllm
         openai_vllm.api_key = "EMPTY"
         inf_type = inference_server.split(':')[0]
-        ip_vllm = inference_server.split(':')[1]
-        port_vllm = inference_server.split(':')[2]
-        openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+        ip_port_vllm = ':'.join(inference_server.split(':')[1:])
+        if ip_port_vllm.startswith('https://') or ip_port_vllm.startswith('http://'):
+            openai_vllm.api_base = ip_port_vllm
+        else:
+            ip_vllm = inference_server.split(':')[1]
+            port_vllm = inference_server.split(':')[2]
+            openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
         return openai_vllm, inf_type, None, None, None
     else:
         import openai

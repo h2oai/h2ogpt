@@ -337,6 +337,12 @@ def main(
                               Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
                               Use: "vllm_chat:IP:port" for OpenAI-Chat-compliant vLLM endpoint
 
+                              Use: "vllm:http://IP:port/v1" for OpenAI-compliant vLLM endpoint
+                              Use: "vllm_chat:http://IP:port/v1" for OpenAI-Chat-compliant vLLM endpoint
+
+                              Use: "vllm:https://IP/v1" for OpenAI-compliant vLLM endpoint
+                              Use: "vllm_chat:https://IP/v1" for OpenAI-Chat-compliant vLLM endpoint
+
                              Or Address can be replicate:
                              Use:
                               --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.

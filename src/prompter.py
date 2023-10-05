@@ -113,6 +113,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-16k-codellama-7b-instruct',
         'h2oai/h2ogpt-16k-codellama-13b-instruct',
         'h2oai/h2ogpt-16k-codellama-34b-instruct',
+        'TheBloke/Llama-2-70B-chat-AWQ',
     ],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
