@@ -1668,6 +1668,7 @@ def get_model(
         # include small token cushion
         if inference_server.startswith('openai') or tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
+            assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
@@ -3639,7 +3640,8 @@ def get_limited_prompt(instruction,
 
     generate_prompt_type = prompt_type
     external_handle_chat_conversation = False
-    if inference_server and any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
+    if inference_server and any(
+            inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
         # Chat APIs do not take prompting
         # Replicate does not need prompting if no chat history, but in general can take prompting
         # if using prompter, prompter.system_prompt will already be filled with automatic (e.g. from llama-2),
