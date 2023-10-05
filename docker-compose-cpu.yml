@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  h2ogpt:
+    image: gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+    restart: always
+    shm_size: '2gb'
+    ports:
+      - '7860:7860'
+    volumes:
+      - cache:/workspace/.cache
+      - save:/workspace/save
+    command:
+      - /workspace/generate.py
+      - --base_model=llama
+      - --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
+      - --max_seq_len=4096
+
+volumes:
+  cache:
+  save:

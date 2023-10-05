@@ -1,29 +1,33 @@
 version: '3'
 
 services:
-  h2o-llm:
-    build:
-      context: ./
-      dockerfile: Dockerfile
-      args:
-        BUILDKIT_INLINE_CACHE: "0"
-    image: h2o-llm
-    shm_size: '64gb'
-    command: generate.py --load_8bit True --base_model 'EleutherAI/gpt-j-6B'
-    restart: unless-stopped
-    volumes:
-      - ./h2o-llm:/root/.cache # Location downloaded weights will be stored
-      - ./.cache:/workspace/.cache
+  h2ogpt:
+    image: gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+    restart: always
+    shm_size: '2gb'
     ports:
-      - 7860:7860
+      - '7860:7860'
+    volumes:
+      - cache:/workspace/.cache
+      - save:/workspace/save
+    command:
+      - /workspace/generate.py
+      - --base_model=h2oai/h2ogpt-4096-llama2-7b-chat
+      - --use_safetensors=True
+      - --prompt_type=llama2
+      - --save_dir=/workspace/save/
+      - --use_gpu_id=False
+      - --score_model=None
+      - --max_max_new_tokens=2048
+      - --max_new_tokens=1024
     deploy:
       resources:
         reservations:
           devices:
-            - driver: nvidia
-              count: all
-              capabilities: [ gpu ]
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
 
 volumes:
-  h2o-llm:
-    name: h2o-llm
+  cache:
+  save:
