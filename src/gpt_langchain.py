@@ -599,6 +599,8 @@ class GradioInference(LLM):
                     # FIXME: derive chunk from full for now
                     text_chunk = text[len(text0):]
                     if not text_chunk:
+                        # just need some sleep for threads to switch
+                        time.sleep(0.001)
                         continue
                     # save old
                     text0 = text

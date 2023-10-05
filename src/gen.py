@@ -2745,6 +2745,8 @@ def evaluate(
                                                              sanitize_bot_response=sanitize_bot_response)
                             text_chunk = response[len(text0):]
                             if not text_chunk:
+                                # just need some sleep for threads to switch
+                                time.sleep(0.001)
                                 continue
                             # save old
                             text0 = response
