@@ -1496,7 +1496,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
 
 
 # pip install pytest-timeout
-# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings_stress 2> stress1.log
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
 @pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
@@ -1505,11 +1505,12 @@ def test_client_chat_stream_langchain_fake_embeddings_stress(repeat):
     base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # presumes remote server is llama-2 chat based
     local_server = False
     inference_server = None
+    # inference_server = 'http://localhost:7860'
     return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server)
 
 
 # pip install pytest-timeout
-# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_upload_simple 2> stress1.log
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
 @pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
@@ -1523,7 +1524,7 @@ def test_client_upload_simple(repeat):
 
 
 # pip install pytest-timeout
-# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings 2> stress1.log
+# HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings_stress_no_llm 2> stress1.log
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
 @pytest.mark.parametrize("repeat", list(range(0, 100)))
 @wrap_test_forked
@@ -1645,7 +1646,8 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
     else:
         if base_model == 'gpt-3.5-turbo':
             return
-        assert inference_server is None
+        if local_server:
+            assert inference_server is None
 
     assert base_model is not None
     if inference_server and inference_server.startswith('openai'):
@@ -1661,7 +1663,6 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
         main(base_model=base_model,
              inference_server=inference_server,
              prompt_type=prompt_type, chat=True,
-             # inference_server='vllm:....',
              stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
              max_new_tokens=max_new_tokens,
              langchain_mode=langchain_mode,
