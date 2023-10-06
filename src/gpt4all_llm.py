@@ -30,7 +30,7 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llama
                             max_seq_len=max_seq_len,
                             llamacpp_dict=llamacpp_dict,
                             )
-    return model, FakeTokenizer(), 'cpu'
+    return model, FakeTokenizer(model_max_length=max_seq_len), 'cpu'
 
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler

@@ -1057,6 +1057,8 @@ class FakeTokenizer:
     """
 
     def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False):
+        if model_max_length is None:
+            model_max_length = 2048
         self.is_openai = is_openai
         self.model_max_length = model_max_length
         if not self.is_openai:
