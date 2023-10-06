@@ -10,11 +10,7 @@ services:
     volumes:
       - cache:/workspace/.cache
       - save:/workspace/save
-    command:
-      - /workspace/generate.py
-      - --base_model=llama
-      - --model_path_llama=${MODEL_PATH_LLAMA}
-      - --max_seq_len=4096
+    command: ${H2OGPT_CPU_ARGS}
 
 volumes:
   cache:

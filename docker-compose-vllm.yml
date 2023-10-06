@@ -39,17 +39,7 @@ services:
     networks:
       - h2ogpt
     entrypoint: /h2ogpt_conda/vllm_env/bin/python3.10
-    command:
-      - -m
-      - vllm.entrypoints.openai.api_server
-      - --port=5000
-      - --host=0.0.0.0
-      - --model=${H2OGPT_BASE_MODEL}
-      - --tokenizer=${VLLM_TOKENIZER}
-      - --tensor-parallel-size=2
-      - --seed=1234
-      - --trust-remote-code
-      - --download-dir=/workspace/.cache/huggingface/hub
+    command: -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 ${H2OGPT_VLLM_ARGS}
     environment:
       - NCCL_IGNORE_DISABLED_P2P=1
     healthcheck:

@@ -10,16 +10,7 @@ services:
     volumes:
       - cache:/workspace/.cache
       - save:/workspace/save
-    command:
-      - /workspace/generate.py
-      - --base_model=${H2OGPT_BASE_MODEL}
-      - --use_safetensors=True
-      - --prompt_type=llama2
-      - --save_dir=/workspace/save/
-      - --use_gpu_id=False
-      - --score_model=None
-      - --max_max_new_tokens=2048
-      - --max_new_tokens=1024
+    command: ${H2OGPT_ARGS}
     deploy:
       resources:
         reservations:
