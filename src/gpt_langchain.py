@@ -3363,7 +3363,7 @@ def get_metadatas(db, full_required=True, k_max=10000):
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif is_chroma_db(db):
-        if full_required or not large_chroma_db(db):
+        if full_required or not (large_chroma_db(db) and is_new_chroma_db(db)):
             db_get = get_documents(db)
             documents = db_get['documents']
             if documents is None:
