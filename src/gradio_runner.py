@@ -2560,7 +2560,7 @@ def go_gradio(**kwargs):
             # NOTE: only applicable if len(model_states) > 1 at moment
             # else controlled by evaluate()
             if 'visible_models' in model_state1 and model_state1['visible_models'] is not None:
-                assert isinstance(model_state1['visible_models'], int)
+                assert isinstance(model_state1['visible_models'], (int, str))
                 args_list[eval_func_param_names.index('visible_models')] = model_state1['visible_models']
             if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
                 # remote server key if present
@@ -2971,7 +2971,7 @@ def go_gradio(**kwargs):
             args_list[eval_func_param_names.index('chat_conversation')] = chat_conversation1
 
             if 'visible_models' in model_state1 and model_state1['visible_models'] is not None:
-                assert isinstance(model_state1['visible_models'], int)
+                assert isinstance(model_state1['visible_models'], (int, str))
                 args_list[eval_func_param_names.index('visible_models')] = model_state1['visible_models']
             if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
                 # i.e. may be '' and used to override overall local key
