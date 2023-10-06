@@ -3504,14 +3504,14 @@ def get_max_max_new_tokens(model_state, **kwargs):
 
 
 def get_minmax_top_k_docs(is_public):
+    label_top_k_docs = "Number of document chunks (query) or pages/parts (summarize)"
     if is_public:
         min_top_k_docs = 1
         max_top_k_docs = 8
-        label_top_k_docs = "Number of document chunks"
     else:
         min_top_k_docs = -1
         max_top_k_docs = 100
-        label_top_k_docs = "Number of document chunks (-1 = auto fill model context)"
+        label_top_k_docs = label_top_k_docs + " (-1 = auto fill model context, all pages/docs for summarize)"
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
 
