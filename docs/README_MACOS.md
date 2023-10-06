@@ -18,11 +18,8 @@ Supports CPU and MPS (Metal M1/M2).
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
     
-    # CPU only:
+    # Install Torch:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
-    
-    # GPU only:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
 * Install document question-answer dependencies:
     ```bash
@@ -45,11 +42,7 @@ Supports CPU and MPS (Metal M1/M2).
     brew install tesseract
     brew install tesseract-lang
     ```
-* Metal M1/M2 Only: Install newer Torch for GPU support:
-   ```bash
-   pip uninstall -y torch
-   pip install --pre torch --extra-index-url https://download.pytorch.org/whl/nightly/cpu
-   ```
+* Metal M1/M2 Only:
    Verify whether torch uses MPS, run below python script:
      ```python
       import torch
@@ -76,10 +69,16 @@ Supports CPU and MPS (Metal M1/M2).
 
 ## Run
 
-* To run LLaMa.cpp model in CPU or GPU mode:
-    ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-    ```
+* To run LLaMa.cpp model in CPU or GPU mode (NOTE: if you haven't compiled llama-cpp-python for M1/M2 as mentioned above you can simply run without `--llamacpp_dict` arg, which will run on CPU):
+    
+    * CPU Mode: To run in CPU mode, specify the `'n_gpu_layers':0` in `--llamacpp_dict` arg
+      ```bash
+      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096 --llamacpp_dict="{'n_gpu_layers':0,'n_batch':128}"
+      ```
+    * GPU Mode: To run in GPU mode, specify the number of gpus needed to be used `'n_gpu_layers: 2'` in `--llamacpp_dict` arg, by default it is set to higher value to use all the available gpus
+       ```bash
+      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+      ```
 Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
 
 * Full Hugging Face Model -- slower than GGML in general:
@@ -89,7 +88,7 @@ Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or 
 
 * CLI mode:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli==True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli=True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
     ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.

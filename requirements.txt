@@ -7,6 +7,7 @@ appdirs==1.4.4
 fire==0.5.0
 docutils==0.20.1
 torch==2.0.1; sys_platform != "darwin" and platform_machine != "arm64"
+torch==2.1.0; sys_platform == "darwin" and platform_machine == "arm64"
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
