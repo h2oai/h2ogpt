@@ -1206,7 +1206,9 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
-                kwargs_extra.update(dict(tokenizer=tokenizer))
+                kwargs_extra.update(dict(tokenizer=tokenizer,
+                                         batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         ))
             openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
@@ -1235,6 +1237,7 @@ def get_llm(use_openai_model=False,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
                                          openai_api_base=openai.api_base,
+                                         batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=None))
             else:
                 assert inf_type == 'openai' or use_openai_model
