@@ -475,8 +475,8 @@ class GradioInference(LLM):
 
         try:
             if values['client'] is None:
-                import gradio_client
-                values["client"] = gradio_client.Client(
+                from gradio_utils.grclient import GradioClient
+                values["client"] = GradioClient(
                     values["inference_server_url"]
                 )
         except ImportError:
