@@ -6,7 +6,7 @@ No special docker instructions are required, just follow [these instructions](ht
 ```bash
 newgrp docker
 ```
-which avoids having to reboot.  Or just reboot to have docker access.
+which avoids having to reboot.  Or just reboot to have docker access.  If this cannot be done without entering root access, then edit the `/etc/group` and add your user to group `docker`.
 
 ## Setup Docker for GPU Inference
 

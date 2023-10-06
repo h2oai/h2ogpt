@@ -61,7 +61,7 @@ See [GPU Manager](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/gett
 ### Install and run Fabric Manager if have multiple A100/100s
 
 ```bash
-sudo apt-get install cuda-drivers-fabricmanager
+sudo apt-get install -y cuda-drivers-fabricmanager
 sudo systemctl start nvidia-fabricmanager
 sudo systemctl status nvidia-fabricmanager
 ```

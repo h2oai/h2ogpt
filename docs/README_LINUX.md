@@ -21,6 +21,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   
   Alternatively, on newer Ubuntu systems you can get Python 3.10 environment setup by doing:
   ```bash
+  sudo apt-get update
   sudo apt-get install -y build-essential gcc python3.10-dev
   virtualenv -p python3 h2ogpt
   source h2ogpt/bin/activate
@@ -50,11 +51,14 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   export CUDA_HOME=/usr/local/cuda-11.7
   ```
+  This is also required for A100/H100+ and use CUDA 11.8+.
+
   If you do not plan to use one of those packages, you can just use the non-dev version:
   ```bash
   conda install cudatoolkit=11.7 -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX 
   ```
+  Choose cu118 for A100/H100+.
   
 * Install dependencies:
     ```bash
@@ -68,25 +72,26 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
+    Choose cu118 for A100/H100+.
 * Install document question-answer dependencies:
     ```bash
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index https://download.pytorch.org/whl/cu117
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index https://download.pytorch.org/whl/cu117
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index https://download.pytorch.org/whl/cu117
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index https://download.pytorch.org/whl/cu117
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Improved OCR with DocTR:
     conda install -y -c conda-forge pygobject
-    pip install -r reqs_optional/requirements_optional_doctr.txt
+    pip install -r reqs_optional/requirements_optional_doctr.txt --extra-index https://download.pytorch.org/whl/cu117
     # go back to older onnx so Tesseract OCR still works
-    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
+    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index https://download.pytorch.org/whl/cu117
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional but required for PlayWright
