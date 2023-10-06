@@ -2225,7 +2225,7 @@ def go_gradio(**kwargs):
                 if can_purge and purge:
                     # remove source files
                     from src.gpt_langchain import get_sources, del_from_db
-                    sources_file, source_list, num_chunks, db = \
+                    sources_file, source_list, num_chunks, num_sources_str, db = \
                         get_sources(db1s, selection_docs_state1,
                                     requests_state1, langchain_mode2, dbs=dbsu,
                                     docs_state0=docs_state0,
@@ -2434,6 +2434,7 @@ def go_gradio(**kwargs):
 
             eventdb_loginbb = eventdb_loginb.then(**get_sources_kwargs)
             eventdb_loginc = eventdb_loginbb.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            # FIXME: Fix redundancy
             eventdb_logind = eventdb_loginc.then(**show_sources_kwargs)
             eventdb_logine = eventdb_logind.then(**get_viewable_sources_args)
             eventdb_loginf = eventdb_logine.then(**viewable_kwargs)
@@ -4497,7 +4498,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    api=False,
                    n_jobs=-1):
     from src.gpt_langchain import get_sources
-    sources_file, source_list, num_chunks, db = \
+    sources_file, source_list, num_chunks, num_sources_str, db = \
         get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     dbs=dbs, docs_state0=docs_state0,
                     load_db_if_exists=load_db_if_exists,
@@ -4515,7 +4516,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
     if langchain_mode in langchain_modes_non_db:
         doc_counts_str = "LLM Mode\nNo Collection"
     else:
-        doc_counts_str = "Collection: %s\nDocs: %d\nChunks: %d" % (langchain_mode, len(source_list), num_chunks)
+        doc_counts_str = "Collection: %s\nDocs: %s\nChunks: %d" % (langchain_mode, num_sources_str, num_chunks)
     return sources_file, source_list, doc_counts_str
 
 

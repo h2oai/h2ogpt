@@ -44,7 +44,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list
+    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
@@ -2795,20 +2795,35 @@ def check_update_chroma_embedding(db,
 
 def migrate_meta_func(db, langchain_mode):
     changed_db = False
-    db_get = get_documents(db)
-    # just check one doc
-    if len(db_get['metadatas']) > 0 and 'chunk_id' not in db_get['metadatas'][0]:
-        print("Detected old metadata, adding additional information", flush=True)
+    if db is None:
+        return db, changed_db
+
+    if is_new_chroma_db(db):
+        # when added new chroma db, already had chunk_id
+        # so never need to migrate new db that does expensive db.get() because chunk_id always in new db
+        return db, changed_db
+
+    # full db.get() expensive, do faster trial with sim search
+    # so can just check one doc as consistent or not
+    docs1 = db.similarity_search("", k=1)
+    if len(docs1) == 0:
+        return db, changed_db
+    doc1 = docs1[0]
+    metadata1 = doc1.metadata
+    if 'chunk_id' not in metadata1:
+        print("Detected old metadata without chunk_id, adding additional information", flush=True)
         t0 = time.time()
+        db_get = get_documents(db)
         # handle meta changes
+        changed_db = True
         [x.update(dict(chunk_id=x.get('chunk_id', 0))) for x in db_get['metadatas']]
         client_collection = db._client.get_collection(name=db._collection.name,
                                                       embedding_function=db._collection._embedding_function)
         client_collection.update(ids=db_get['ids'], metadatas=db_get['metadatas'])
-        # check
-        db_get = get_documents(db)
-        assert 'chunk_id' in db_get['metadatas'][0], "Failed to add meta"
-        changed_db = True
+        if os.getenv('HARD_ASSERTS'):
+            # check
+            db_get = get_documents(db)
+            assert 'chunk_id' in db_get['metadatas'][0], "Failed to add meta"
         print("Done updating db for new meta: %s in %s seconds" % (langchain_mode, time.time() - t0), flush=True)
 
     return db, changed_db
@@ -2913,7 +2928,7 @@ def get_existing_db(db, persist_directory,
                     db.persist()
                     clear_embedding(db)
         save_embed(db, use_openai_embedding, hf_embedding_model)
-        if migrate_meta and db is not None:
+        if migrate_meta:
             db_trial, changed_db = migrate_meta_func(db, langchain_mode)
             if changed_db:
                 db = db_trial
@@ -3177,6 +3192,8 @@ def _make_db(use_openai_embedding=False,
             # NOTE: Ignore file names for now, only go by hash ids
             # existing_files = get_existing_files(db)
             existing_files = []
+            # full scan below, but only at start-up or when adding files from disk in UI, will be slow for large dbs
+            # FIXME: Could have option to just add, not delete old ones
             existing_hash_ids = get_existing_hash_ids(db)
         else:
             # pretend no existing files so won't filter
@@ -3270,26 +3287,103 @@ def _make_db(use_openai_embedding=False,
     return db, len(new_sources_metadata), new_sources_metadata
 
 
-def get_metadatas(db):
-    metadatas = []
+def is_chroma_db(db):
+    return isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)
+
+
+def is_new_chroma_db(db):
+    if isinstance(db, Chroma):
+        return True
+    if isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
+        return False
+    if os.getenv('HARD_ASSERTS'):
+        raise RuntimeError("Shouldn't reach here, unknown db: %s" % str(db))
+    return False
+
+
+def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk_id_filter=None, verbose=False):
+    if is_chroma_db(db) and large_chroma_db(db) and chunk_id_filter is not None:
+        # try to avoid filter if just doing chunk_id -1 or >= 0
+        docs = _sim_search(db, query=query, k=k * 4, with_score=with_score, verbose=verbose)
+        if with_score:
+            if chunk_id_filter >= 0:
+                docs = [x for x in docs if x[0].metadata.get('chunk_id', chunk_id_filter) >= chunk_id_filter]
+            else:
+                docs = [x for x in docs if x[0].metadata.get('chunk_id', chunk_id_filter) == chunk_id_filter]
+        else:
+            if chunk_id_filter >= 0:
+                docs = [x for x in docs if x.metadata.get('chunk_id', chunk_id_filter) >= chunk_id_filter]
+            else:
+                docs = [x for x in docs if x.metadata.get('chunk_id', chunk_id_filter) == chunk_id_filter]
+        if len(docs) < max(1, k // 4):
+            # full search if failed to find enough
+            docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
+        return docs
+    else:
+        return _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
+
+
+def _sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, verbose=False):
+    if k == -1:
+        k = 1000
+    if filter_kwargs is None:
+        filter_kwargs = {}
+    docs = []
+    while True:
+        try:
+            if with_score:
+                docs = db.similarity_search_with_score(query, k=k, **filter_kwargs)
+            else:
+                docs = db.similarity_search(query, k=k, **filter_kwargs)
+            break
+        except (RuntimeError, AttributeError) as e:
+            # AttributeError is for people with wrong version of langchain
+            if verbose:
+                print("chroma bug: %s" % str(e), flush=True)
+            if k == 1:
+                raise
+            if k > 500:
+                k -= 200
+            elif k > 100:
+                k -= 50
+            elif k > 10:
+                k -= 5
+            else:
+                k -= 1
+            k = max(1, k)
+    return docs
+
+
+def large_chroma_db(db):
+    return get_size(db._persist_directory) >= 500 * 1024 ** 2
+
+
+def get_metadatas(db, full_required=True, k_max=10000):
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
-    elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
-        db_get = get_documents(db)
-        documents = db_get['documents']
-        if documents is None:
-            documents = []
-        metadatas = db_get['metadatas']
-        if metadatas is None:
-            if documents is not None:
-                metadatas = [{}] * len(documents)
-            else:
-                metadatas = []
+    elif is_chroma_db(db):
+        if full_required or not (large_chroma_db(db) and is_new_chroma_db(db)):
+            db_get = get_documents(db)
+            documents = db_get['documents']
+            if documents is None:
+                documents = []
+            metadatas = db_get['metadatas']
+            if metadatas is None:
+                if documents is not None:
+                    metadatas = [{}] * len(documents)
+                else:
+                    metadatas = []
+        else:
+            # just use sim search, since too many
+            docs1 = sim_search(db, k=k_max, with_score=False)
+            metadatas = [x.metadata for x in docs1]
     elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
-        metadatas = [x.metadata for x in db.similarity_search("", k=10000)]
+        metadatas = [x.metadata for x in db.similarity_search("", k=k_max)]
+    else:
+        metadatas = []
     return metadatas
 
 
@@ -3333,16 +3427,21 @@ def _get_documents(db):
     return documents
 
 
-def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None):
+def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, chunk_id_filter=None):
     if hasattr(db, '_persist_directory'):
         lock_file = get_db_lock_file(db)
         with filelock.FileLock(lock_file):
-            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs, text_context_list=text_context_list)
+            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                      text_context_list=text_context_list,
+                                      chunk_id_filter=chunk_id_filter)
     else:
-        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs, text_context_list=text_context_list)
+        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
+                                  text_context_list=text_context_list,
+                                  chunk_id_filter=chunk_id_filter,
+                                  )
 
 
-def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None):
+def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, chunk_id_filter=None, k_max=1000):
     db_documents = []
     db_metadatas = []
 
@@ -3352,7 +3451,11 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None)
 
     from langchain.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
-        db_get = db._collection.get(where=filter_kwargs.get('filter'))
+        if top_k_docs == -1:
+            limit = k_max
+        else:
+            limit = max(top_k_docs, k_max)
+        db_get = db._collection.get(where=filter_kwargs.get('filter'), limit=limit)
         db_metadatas += db_get['metadatas']
         db_documents += db_get['documents']
     elif isinstance(db, FAISS):
@@ -3372,6 +3475,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None)
 
 
 def get_existing_files(db):
+    # Note: Below full scan if used, but this function not used yet
     metadatas = get_metadatas(db)
     metadata_sources = set([x['source'] for x in metadatas])
     return metadata_sources
@@ -3787,7 +3891,9 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     return
 
 
-def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None, verbose=False):
+def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None,
+                        chunk_id_filter=None,
+                        verbose=False):
     docs_with_score = []
 
     if text_context_list:
@@ -3810,26 +3916,14 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                                 ]
         docs_with_score += docs_with_score_fake
     elif db is not None and db_type in ['chroma', 'chroma_old']:
-        while True:
-            try:
-                docs_with_score_chroma = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
-                break
-            except (RuntimeError, AttributeError) as e:
-                # AttributeError is for people with wrong version of langchain
-                if verbose:
-                    print("chroma bug: %s" % str(e), flush=True)
-                if k_db == 1:
-                    raise
-                if k_db > 500:
-                    k_db -= 200
-                elif k_db > 100:
-                    k_db -= 50
-                elif k_db > 10:
-                    k_db -= 5
-                else:
-                    k_db -= 1
-                k_db = max(1, k_db)
+        t0 = time.time()
+        docs_with_score_chroma = sim_search(db, query=query, k=k_db, with_score=True,
+                                            filter_kwargs=filter_kwargs,
+                                            chunk_id_filter=chunk_id_filter,
+                                            verbose=verbose)
         docs_with_score += docs_with_score_chroma
+        if verbose:
+            print("sim_search in %s" % (time.time() - t0), flush=True)
     elif db is not None:
         docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
         docs_with_score += docs_with_score_other
@@ -4215,6 +4309,7 @@ def get_chain(query=None,
 
     if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
         # only chroma supports filtering
+        chunk_id_filter = None
         filter_kwargs = {}
         filter_kwargs_backup = {}
     else:
@@ -4226,20 +4321,24 @@ def get_chain(query=None,
             # chroma >= 0.4
             if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
                 0] == DocumentChoice.ALL.value:
+                chunk_id_filter = 0 if query_action else -1
                 filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                     {"filter": {"chunk_id": {"$eq": -1}}}
             else:
                 if document_choice[0] == DocumentChoice.ALL.value:
                     document_choice = document_choice[1:]
                 if len(document_choice) == 0:
+                    chunk_id_filter = None
                     filter_kwargs = {}
                 elif len(document_choice) > 1:
+                    chunk_id_filter = None
                     or_filter = [
                         {"$and": [dict(source={"$eq": x}), dict(chunk_id={"$gte": 0})]} if query_action else {
                             "$and": [dict(source={"$eq": x}), dict(chunk_id={"$eq": -1})]}
                         for x in document_choice]
                     filter_kwargs = dict(filter={"$or": or_filter})
                 else:
+                    chunk_id_filter = None
                     # still chromadb UX bug, have to do different thing for 1 vs. 2+ docs when doing filter
                     one_filter = \
                         [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {
@@ -4254,12 +4353,14 @@ def get_chain(query=None,
             # migration for chroma < 0.4
             if len(document_choice) == 0 or len(document_choice) >= 1 and document_choice[
                 0] == DocumentChoice.ALL.value:
+                chunk_id_filter = 0 if query_action else -1
                 filter_kwargs = {"filter": {"chunk_id": {"$gte": 0}}} if query_action else \
                     {"filter": {"chunk_id": {"$eq": -1}}}
                 filter_kwargs_backup = {"filter": {"chunk_id": {"$gte": 0}}}
             elif len(document_choice) >= 2:
                 if document_choice[0] == DocumentChoice.ALL.value:
                     document_choice = document_choice[1:]
+                chunk_id_filter = None
                 or_filter = [
                     {"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
                                                                                           "chunk_id": {
@@ -4271,6 +4372,7 @@ def get_chain(query=None,
                     for x in document_choice]
                 filter_kwargs_backup = dict(filter={"$or": or_filter_backup})
             elif len(document_choice) == 1:
+                chunk_id_filter = None
                 # degenerate UX bug in chroma
                 one_filter = \
                     [{"source": {"$eq": x}, "chunk_id": {"$gte": 0}} if query_action else {"source": {"$eq": x},
@@ -4283,16 +4385,19 @@ def get_chain(query=None,
                      for x in document_choice][0]
                 filter_kwargs_backup = dict(filter=one_filter_backup)
             else:
+                chunk_id_filter = None
                 # shouldn't reach
                 filter_kwargs = {}
                 filter_kwargs_backup = {}
 
     if document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
         db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
-                                                       text_context_list=text_context_list)
+                                                       text_context_list=text_context_list,
+                                                       chunk_id_filter=chunk_id_filter)
         if len(db_documents) == 0 and filter_kwargs_backup:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup,
-                                                           text_context_list=text_context_list)
+                                                           text_context_list=text_context_list,
+                                                           chunk_id_filter=chunk_id_filter)
 
         if top_k_docs == -1:
             top_k_docs = len(db_documents)
@@ -4334,11 +4439,13 @@ def get_chain(query=None,
         with filelock.FileLock(lock_file):
             docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
                                                   text_context_list=text_context_list,
+                                                  chunk_id_filter=chunk_id_filter,
                                                   verbose=verbose)
             if len(docs_with_score) == 0 and filter_kwargs_backup:
                 docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
                                                       db_type,
                                                       text_context_list=text_context_list,
+                                                      chunk_id_filter=chunk_id_filter,
                                                       verbose=verbose)
 
         tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -4842,20 +4949,30 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
         source_files_added = "NA"
         source_list = []
         num_chunks = 0
+        num_sources_str = str(0)
     elif langchain_mode in ['wiki_full']:
         source_files_added = "Not showing wiki_full, takes about 20 seconds and makes 4MB file." \
                              "  Ask jon.mckinney@h2o.ai for file if required."
         source_list = []
         num_chunks = 0
+        num_sources_str = str(0)
     elif db is not None:
-        metadatas = get_metadatas(db)
+        metadatas = get_metadatas(db, full_required=False)
         source_list = sorted(set([x['source'] for x in metadatas]))
         source_files_added = '\n'.join(source_list)
         num_chunks = len(metadatas)
+        num_sources_str = ">=%d" % len(source_list)
+        if is_chroma_db(db):
+            num_chunks_real = db._collection.count()
+            if num_chunks_real == num_chunks:
+                num_sources_str = "=%d" % len(source_list)
+            else:
+                num_chunks = num_chunks_real
     else:
         source_list = []
         source_files_added = "None"
         num_chunks = 0
+        num_sources_str = str(0)
     sources_dir = "sources_dir"
     sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
     sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
@@ -4864,7 +4981,7 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     source_list = docs_state0 + source_list
     if DocumentChoice.ALL.value in source_list:
         source_list.remove(DocumentChoice.ALL.value)
-    return sources_file, source_list, num_chunks, db
+    return sources_file, source_list, num_chunks, num_sources_str, db
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
@@ -5207,7 +5324,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     if metadatas is None:
         source_label = "Sources:"
         if db is not None:
-            metadatas = get_metadatas(db)
+            metadatas = get_metadatas(db, full_required=False)
         else:
             metadatas = []
         adding_new = False
