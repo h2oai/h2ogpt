@@ -3916,11 +3916,14 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
                                 ]
         docs_with_score += docs_with_score_fake
     elif db is not None and db_type in ['chroma', 'chroma_old']:
+        t0 = time.time()
         docs_with_score_chroma = sim_search(db, query=query, k=k_db, with_score=True,
                                             filter_kwargs=filter_kwargs,
                                             chunk_id_filter=chunk_id_filter,
                                             verbose=verbose)
         docs_with_score += docs_with_score_chroma
+        if verbose:
+            print("sim_search in %s" % (time.time() - t0), flush=True)
     elif db is not None:
         docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
         docs_with_score += docs_with_score_other
