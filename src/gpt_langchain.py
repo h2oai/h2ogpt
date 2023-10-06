@@ -3315,7 +3315,7 @@ def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk
                 docs = [x for x in docs if x.metadata.get('chunk_id', chunk_id_filter) >= chunk_id_filter]
             else:
                 docs = [x for x in docs if x.metadata.get('chunk_id', chunk_id_filter) == chunk_id_filter]
-        if len(docs) < max(1, k // 2):
+        if len(docs) < max(1, k // 4):
             # full search if failed to find enough
             docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
         return docs
