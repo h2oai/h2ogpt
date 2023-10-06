@@ -277,10 +277,11 @@ output = llm.generate("San Franciso is a")
 See [vLLM docs](https://vllm.readthedocs.io/en/latest/getting_started/quickstart.html).
 ```text
 (h2ollm) ubuntu@cloudvm:~/h2ogpt$ python -m vllm.entrypoints.openai.api_server --help
-usage: api_server.py [-h] [--host HOST] [--port PORT] [--allow-credentials] [--allowed-origins ALLOWED_ORIGINS] [--allowed-methods ALLOWED_METHODS] [--allowed-headers ALLOWED_HEADERS] [--served-model-name SERVED_MODEL_NAME] [--model MODEL] [--tokenizer TOKENIZER]
-                     [--tokenizer-mode {auto,slow}] [--download-dir DOWNLOAD_DIR] [--use-np-weights] [--use-dummy-weights] [--dtype {auto,half,bfloat16,float}] [--worker-use-ray] [--pipeline-parallel-size PIPELINE_PARALLEL_SIZE]
-                     [--tensor-parallel-size TENSOR_PARALLEL_SIZE] [--block-size {8,16,32}] [--seed SEED] [--swap-space SWAP_SPACE] [--gpu-memory-utilization GPU_MEMORY_UTILIZATION] [--max-num-batched-tokens MAX_NUM_BATCHED_TOKENS] [--max-num-seqs MAX_NUM_SEQS]
-                     [--disable-log-stats] [--engine-use-ray] [--disable-log-requests]
+usage: api_server.py [-h] [--host HOST] [--port PORT] [--allow-credentials] [--allowed-origins ALLOWED_ORIGINS] [--allowed-methods ALLOWED_METHODS] [--allowed-headers ALLOWED_HEADERS] [--served-model-name SERVED_MODEL_NAME] [--model MODEL]
+                     [--tokenizer TOKENIZER] [--revision REVISION] [--tokenizer-mode {auto,slow}] [--trust-remote-code] [--download-dir DOWNLOAD_DIR] [--load-format {auto,pt,safetensors,npcache,dummy}]
+                     [--dtype {auto,half,float16,bfloat16,float,float32}] [--max-model-len MAX_MODEL_LEN] [--worker-use-ray] [--pipeline-parallel-size PIPELINE_PARALLEL_SIZE] [--tensor-parallel-size TENSOR_PARALLEL_SIZE] [--block-size {8,16,32}]
+                     [--seed SEED] [--swap-space SWAP_SPACE] [--gpu-memory-utilization GPU_MEMORY_UTILIZATION] [--max-num-batched-tokens MAX_NUM_BATCHED_TOKENS] [--max-num-seqs MAX_NUM_SEQS] [--disable-log-stats] [--quantization {awq,None}]
+                     [--engine-use-ray] [--disable-log-requests] [--max-log-len MAX_LOG_LEN]
 
 vLLM OpenAI-Compatible RESTful API server.
 
@@ -300,14 +301,20 @@ options:
   --model MODEL         name or path of the huggingface model to use
   --tokenizer TOKENIZER
                         name or path of the huggingface tokenizer to use
+  --revision REVISION   the specific model version to use. It can be a branch name, a tag name, or a commit id. If unspecified, will use the default version.
   --tokenizer-mode {auto,slow}
                         tokenizer mode. "auto" will use the fast tokenizer if available, and "slow" will always use the slow tokenizer.
+  --trust-remote-code   trust remote code from huggingface
   --download-dir DOWNLOAD_DIR
                         directory to download and load the weights, default to the default cache dir of huggingface
-  --use-np-weights      save a numpy copy of model weights for faster loading. This can increase the disk usage by up to 2x.
-  --use-dummy-weights   use dummy values for model weights
-  --dtype {auto,half,bfloat16,float}
+  --load-format {auto,pt,safetensors,npcache,dummy}
+                        The format of the model weights to load. "auto" will try to load the weights in the safetensors format and fall back to the pytorch bin format if safetensors format is not available. "pt" will load the weights in the pytorch
+                        bin format. "safetensors" will load the weights in the safetensors format. "npcache" will load the weights in pytorch format and store a numpy cache to speed up the loading. "dummy" will initialize the weights with random
+                        values, which is mainly for profiling.
+  --dtype {auto,half,float16,bfloat16,float,float32}
                         data type for model weights and activations. The "auto" option will use FP16 precision for FP32 and FP16 models, and BF16 precision for BF16 models.
+  --max-model-len MAX_MODEL_LEN
+                        model context length. If unspecified, will be automatically derived from the model.
   --worker-use-ray      use Ray for distributed serving, will be automatically set when using more than 1 GPU
   --pipeline-parallel-size PIPELINE_PARALLEL_SIZE, -pp PIPELINE_PARALLEL_SIZE
                         number of pipeline stages
@@ -325,9 +332,13 @@ options:
   --max-num-seqs MAX_NUM_SEQS
                         maximum number of sequences per iteration
   --disable-log-stats   disable logging statistics
+  --quantization {awq,None}, -q {awq,None}
+                        Method used to quantize the weights
   --engine-use-ray      use Ray to start the LLM engine in a separate process as the server process.
   --disable-log-requests
                         disable logging requests
+  --max-log-len MAX_LOG_LEN
+                        max number of prompt characters or prompt ID numbers being printed in log. Default: unlimited.
 ```
 
 CURL test:
