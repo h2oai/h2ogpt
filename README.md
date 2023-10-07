@@ -51,6 +51,11 @@ We recommend quantized (e.g. GGML) models for most small-GPU systems, e.g. [LLaM
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-click Installers
+    Oct 6, 2023:
+    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
+    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_cpu.exe) (755MB file)
+
+    Aug 19, 2023:
     * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
     * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
 
