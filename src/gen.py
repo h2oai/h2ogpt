@@ -1858,6 +1858,8 @@ def get_hf_model(load_8bit: bool = False,
                                                gpu_id=gpu_id,
                                                )
                 else:
+                    model_kwargs['use_safetensors'] = use_safetensors
+                    model_kwargs['revision'] = revision
                     config, _, max_seq_len = get_config(base_model, **config_kwargs)
                     if load_half and not (load_8bit or load_4bit or load_gptq):
                         model = model_loader(
@@ -1867,10 +1869,21 @@ def get_hf_model(load_8bit: bool = False,
                         if not getattr(model, "is_quantized", False):
                             model = model.half()
                     else:
-                        model = model_loader(
-                            base_model,
-                            config=config,
-                            **model_kwargs)
+                        if load_gptq:
+                            if 'Llama-2-70B-chat-GPTQ' in base_model:
+                                model_kwargs.update(dict(inject_fused_attention=False))
+                            model_kwargs.pop('torch_dtype', None)
+                            model_kwargs.pop('device_map')
+                            model = model_loader(
+                                model_name_or_path=base_model,
+                                model_basename=load_gptq,
+                                **model_kwargs,
+                            )
+                        else:
+                            model = model_loader(
+                                base_model,
+                                config=config,
+                                **model_kwargs)
         elif load_8bit or load_4bit:
             config, _, max_seq_len = get_config(base_model, **config_kwargs)
             model = model_loader(

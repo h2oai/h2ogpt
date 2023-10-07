@@ -84,7 +84,7 @@ docker run \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=TheBloke/Llama-2-7b-Chat-GPTQ \
-          --load_gptq="model" \
+          --load_gptq=model \
           --use_safetensors=True \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
