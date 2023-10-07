@@ -91,7 +91,7 @@ prompt_type_to_model_name = {
     # "wizard2": [],
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
-    "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5'],
+    "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5', 'lmsys/vicuna-13b-v1.5-16k'],
     "one_shot": ['lmsys/fastchat-t5-3b-v1.0'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-7b-instruct'],
     "llama2": [
