@@ -1,5 +1,13 @@
 ## Frequently asked questions
 
+### RoPE scaling and Long Context Models
+
+For long context models that have been tuned for a specific size, you have to only use that specific size by setting the `--rope_scaling` exactly correctly, e.g:
+
+```bash
+python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lmsys/vicuna-13b-v1.5-16k --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --load_8bit=True --langchain_mode=UserData --user_path=user_path --prompt_type=vicuna11 --h2ocolors=False
+````
+
 ### Migration from Chroma < 0.4 to > 0.4
 
 #### Option 1: Use old Chroma for old DBs

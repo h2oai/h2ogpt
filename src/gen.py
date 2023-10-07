@@ -410,7 +410,11 @@ def main(
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
     :param trust_remote_code: whether to use trust any code needed for HF model
     :param rope_scaling:
-           For HF transformers model: scaling for rope-based models, e.g. --rope_scaling="{'type':'dynamic', 'factor':4}"
+           For HF transformers model: scaling for rope-based models.
+           For long context models that have been tuned for a specific size, you have to only use that specific size by setting the `--rope_scaling` exactly correctly
+            e.g. --rope_scaling="{'type':'dynamic', 'factor':4}"
+            e.g. --rope_scaling="{'type':'linear', 'factor':4}"
+            e.g. python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lmsys/vicuna-13b-v1.5-16k --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --load_8bit=True --langchain_mode=UserData --user_path=user_path --prompt_type=vicuna11 --h2ocolors=False
            For exllama model: --rope_scaling="{'alpha_value':4}" .  This automatically scales max_seq_len for exllama
     :param max_seq_len: Manually set maximum sequence length for the LLM
     :param offload_folder: path for spilling model onto disk
@@ -2007,6 +2011,7 @@ def get_score_model(score_model: str = None,
         inference_server = ''
         llama_type = False
         max_seq_len = None
+        rope_scaling = {}
         compile_model = False
         llamacpp_dict = {}
         smodel, stokenizer, sdevice = get_model(reward_type=True,
