@@ -44,7 +44,7 @@ CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=Llama-2-70B-chat-GPTQ --l
 ```
 which gives about 12 tokens/sec.  For 7b run:
 ```bash
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='save`
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir='save`
 ```
 For full 16-bit with 16k context across all GPUs:
 ```bash
@@ -55,7 +55,7 @@ and running on 4xA6000 gives about 4tokens/sec consuming about 35GB per GPU of 4
 Or for GPTQ with RoPE:
 ```bash
 pip install transformers==4.31.0  # breaks load_in_8bit=True in some cases (https://github.com/huggingface/transformers/issues/25026)
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --score_model=None --save_dir='7bgptqrope4` --rope_scaling="{'type':'dynamic', 'factor':4}"
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --score_model=None --save_dir='7bgptqrope4` --rope_scaling="{'type':'dynamic', 'factor':4}"
 --max_max_new_tokens=15000 --max_new_tokens=15000 --max_time=12000
 ```
 for which the GPU only uses 5.5GB.  One can add (e.g.) ` --min_new_tokens=4096` to force generation to continue beyond model's training norms, although this may give lower quality responses.
@@ -66,12 +66,12 @@ Currently, Hugging Face transformers does not support GPTQ directly except in te
 Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.
 To run RoPE scaling the LLaMa-2 7B model for 16k context:
 ```bash
-python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
 which shows how to control `alpha_value` and the `revision` for a given model on [TheBloke/Llama-2-7b-Chat-GPTQ](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GPTQ).  Be careful as setting `alpha_value` higher consumes substantially more GPU memory.  Also, some models have wrong config values for `max_position_embeddings` or `max_sequence_length`, and we try to fix those for LLaMa2 if `llama-2` appears in the lower-case version of the model name.
 Another type of model is
 ```bash
-python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="gptq_model-4bit-128g" --use_safetensors=True --prompt_type=llama2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
+python generate.py --base_model=TheBloke/Nous-Hermes-Llama2-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir='save' --load_exllama=True --revision=gptq-4bit-32g-actorder_True --rope_scaling="{'alpha_value':4}"
 ```
 and note the different `prompt_type`.  For LLaMa2 70B run:
 ```bash
