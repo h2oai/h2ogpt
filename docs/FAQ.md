@@ -226,6 +226,12 @@ python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf
 ```
 This uses 5800MB to startup, then soon drops to 5075MB after torch cache is cleared. Asking a simple question uses up to 6050MB. Adding a document uses no more new GPU memory.  Asking a question uses up to 6312MB for a few chunks (default), then drops back down to 5600MB.
 
+For some models, you can restrict the use of context to use less memory.  This does not work for long context models trained with static/linear RoPE scaling, for which the full static scaling should be used.  Otherwise, e.g. for LLaMa-2 you can use
+```bash
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=2048
+```
+even though normal value is `--max_seq_len=4096` if the option is not passed as inferred from the model `config.json`.
+
 On CPU case, a good model that's still low memory is to run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
