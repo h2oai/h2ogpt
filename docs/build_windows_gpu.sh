@@ -40,6 +40,7 @@ pip wheel https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/dow
 pip wheel https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
 pip wheel PyPika==0.48.9
 pip wheel tabula==1.0.5
+pip wheel chroma-hnswlib==0.7.1
 
 mkdir wheels
 move *.whl wheels
