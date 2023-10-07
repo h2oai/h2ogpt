@@ -1375,7 +1375,7 @@ def get_config(base_model,
                 # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
                 max_seq_len *= rope_scaling.get('alpha_value')
             max_seq_len = int(max_seq_len)
-            print("Automatically setting max_seq_len=%d for RoPE scaling" % max_seq_len, flush=True)
+            print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model), flush=True)
 
     return config, model, max_seq_len
 
