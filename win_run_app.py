@@ -4,7 +4,7 @@ import time
 import webbrowser
 
 # ensure CPU install only uses CPU
-# os.environ['CUDA_VISIBLE_DEVICES'] = ''
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 print('__file__: %s' % __file__)
 path1 = os.path.dirname(os.path.abspath(__file__))
