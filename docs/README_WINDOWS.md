@@ -24,7 +24,7 @@ For newer builds of windows versions of 10/11.
   * Go to installation tab, then apply changes.
 * Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html)
 * Run Miniconda shell (not powershell!) as Administrator
-* Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
+* Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path.  In some cases it may be instead correct to use `set path=%path%;c:\MinGW\bin\`
 * Download latest nvidia driver for windows if one has old drivers before CUDA 11.7 supported
 * Confirm can run `nvidia-smi` and see driver version
 * Setup Conda Environment:
