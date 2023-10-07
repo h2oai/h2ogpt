@@ -4397,7 +4397,7 @@ def get_chain(query=None,
         db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
                                                        text_context_list=text_context_list,
                                                        chunk_id_filter=chunk_id_filter)
-        if len(db_documents) == 0 and filter_kwargs_backup:
+        if len(db_documents) == 0 and filter_kwargs_backup != filter_kwargs:
             db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs_backup,
                                                            text_context_list=text_context_list,
                                                            chunk_id_filter=chunk_id_filter)
@@ -4444,7 +4444,7 @@ def get_chain(query=None,
                                                   text_context_list=text_context_list,
                                                   chunk_id_filter=chunk_id_filter,
                                                   verbose=verbose)
-            if len(docs_with_score) == 0 and filter_kwargs_backup:
+            if len(docs_with_score) == 0 and filter_kwargs != filter_kwargs_backup:
                 docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
                                                       db_type,
                                                       text_context_list=text_context_list,
