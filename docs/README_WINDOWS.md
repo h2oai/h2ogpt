@@ -60,11 +60,15 @@ For newer builds of windows versions of 10/11.
       ```bash
       pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
        ```
-    Optional: for bitsandbytes 4-bit and 8-bit:
-       ```bash
-       pip uninstall bitsandbytes -y
-       pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
+    In some cases this may lead to the message `No GPU` and in which case you can run next something like:
+      ```bash
+      pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu117
        ```
+ * Optional: for bitsandbytes 4-bit and 8-bit:
+   ```bash
+   pip uninstall bitsandbytes -y
+   pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
+   ```
 * Install document question-answer dependencies:
    ```bash
     # Required for Doc Q/A: LangChain:
