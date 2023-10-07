@@ -83,15 +83,10 @@ docker run \
        -v "${HOME}"/save:/workspace/save \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
-          --base_model=TheBloke/Llama-2-7b-Chat-GPTQ \
-          --load_gptq="gptq_model-4bit-128g" \
+          --base_model=TheBloke/Llama-2-7B-chat-GPTQ \
+          --load_gptq=model \
           --use_safetensors=True \
-          --prompt_type=llama2 \
-          --save_dir='/workspace/save/' \
-          --use_gpu_id=False \
-          --score_model=None \
-          --max_max_new_tokens=2048 \
-          --max_new_tokens=1024
+          --prompt_type=llama2 
 ```
 Use `docker run -d` to run in detached background.  Then go to http://localhost:7860/ or http://127.0.0.1:7860/.
 
