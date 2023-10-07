@@ -164,7 +164,10 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             if db_type == 'chroma':
                 import chromadb
                 api = chromadb.PersistentClient(path=persist_directory)
-                max_batch_size = api._producer.max_batch_size
+                if hasattr(api._producer, 'max_batch_size'):
+                    max_batch_size = api._producer.max_batch_size
+                else:
+                    max_batch_size = 1000
                 sources_batches = split_list(sources, max_batch_size)
                 for sources_batch in sources_batches:
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
@@ -284,7 +287,10 @@ def add_to_db(db, sources, db_type='faiss',
             # else see RuntimeError: Index seems to be corrupted or unsupported
             import chromadb
             api = chromadb.PersistentClient(path=db._persist_directory)
-            max_batch_size = api._producer.max_batch_size
+            if hasattr(api._producer, 'max_batch_size'):
+                max_batch_size = api._producer.max_batch_size
+            else:
+                max_batch_size = 1000
             sources_batches = split_list(sources, max_batch_size)
             for sources_batch in sources_batches:
                 db.add_documents(documents=sources_batch)

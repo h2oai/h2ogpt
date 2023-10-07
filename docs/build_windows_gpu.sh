@@ -37,6 +37,10 @@ pip wheel https://github.com/jllllll/bitsandbytes-windows-webui/releases/downloa
 pip wheel https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
 pip wheel https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl
 pip wheel https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
+pip wheel https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
+pip wheel PyPika==0.48.9
+pip wheel tabula==1.0.5
+pip wheel chroma-hnswlib==0.7.3
 
 mkdir wheels
 move *.whl wheels
@@ -76,6 +80,7 @@ playwright install
 xcopy C:\Users\pseud\AppData\Local\ms-playwright ms-playwright /s /e /h  # say specifies Directory
 
 # build
+# for CPU, ensure win_rup_app.py sets CVD=''
 python -m nsist windows_installer.cfg
 
 # test

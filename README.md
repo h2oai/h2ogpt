@@ -51,13 +51,18 @@ We recommend quantized (e.g. GGML) models for most small-GPU systems, e.g. [LLaM
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-click Installers
+    Oct 6, 2023:
+    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
+    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_cpu.exe) (755MB file)
+
+    Aug 19, 2023:
     * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
     * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
 
     The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables (in system properties->advanced->environment variables) to control things:
       * `n_jobs`: number of cores for various tasks
       * `OMP_NUM_THREADS` thread count for LLaMa
-      * `CUDA_VISIBLE_DEVICES` which GPUs are visible
+      * `CUDA_VISIBLE_DEVICES` which GPUs are used.  Recommend set to single fast GPU, e.g. `CUDA_VISIBLE_DEVICES=0` if have multiple GPUs.  Note that UI cannot control which GPUs (or CPU mode) for LLaMa models.
       * Any CLI argument from `python generate.py --help` with environment variable set as `h2ogpt_x`, e.g. `h2ogpt_h2ocolors` to `False`.
       * Set env `h2ogpt_server_name` to actual IP address for LAN to see app, e.g. `h2ogpt_server_name` to `192.168.1.172` and allow access through firewall if have Windows Defender activated.
   * [Windows 10/11 Manual Install and Run Docs](docs/README_WINDOWS.md)

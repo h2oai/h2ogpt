@@ -24,7 +24,7 @@ For newer builds of windows versions of 10/11.
   * Go to installation tab, then apply changes.
 * Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html)
 * Run Miniconda shell (not powershell!) as Administrator
-* Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path
+* Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path.  In some cases it may be instead correct to use `set path=%path%;c:\MinGW\bin\`
 * Download latest nvidia driver for windows if one has old drivers before CUDA 11.7 supported
 * Confirm can run `nvidia-smi` and see driver version
 * Setup Conda Environment:
@@ -68,13 +68,13 @@ For newer builds of windows versions of 10/11.
 * Install document question-answer dependencies:
    ```bash
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index-url https://download.pytorch.org/whl/cu117
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index-url https://download.pytorch.org/whl/cu117
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index-url https://download.pytorch.org/whl/cu117
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu117
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional but required for PlayWright

@@ -13,7 +13,7 @@ openai==0.27.8
 replicate==0.10.0
 
 # local vector db
-chromadb==0.4.10
+chromadb==0.4.13
 
 # chroma migration
 chroma-migrate==0.0.7
