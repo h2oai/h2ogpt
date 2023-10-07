@@ -1292,11 +1292,15 @@ def get_config(base_model,
     with init_empty_weights():
         from transformers import AutoConfig
         try:
+            if rope_scaling:
+                rope_kwargs = dict(rope_scaling=rope_scaling)
+            else:
+                rope_kwargs = {}
             config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
                                                 trust_remote_code=trust_remote_code,
                                                 offload_folder=offload_folder,
                                                 revision=revision,
-                                                rope_scaling=rope_scaling if rope_scaling else None)
+                                                **rope_kwargs)
         except OSError as e:
             if raise_exception:
                 raise
@@ -1338,6 +1342,9 @@ def get_config(base_model,
     else:
         if hasattr(config, 'max_seq_len'):
             max_seq_len = int(config.max_seq_len)
+        # Note https://huggingface.co/lmsys/vicuna-13b-v1.5-16k/blob/main/config.json has below, but here just want base size before rope
+        #elif hasattr(config, 'max_sequence_length'):
+        #    max_seq_len = int(config.max_sequence_length)
         elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
             # help automatically limit inputs to generate
             max_seq_len = config.max_position_embeddings
@@ -1355,6 +1362,10 @@ def get_config(base_model,
             # raise RuntimeError("Could not determine max_seq_len,"
             #                   " please pass --max_seq_len and set to some value, e.g. 2048.")
 
+        # listen to model if sets this and user passed nothing
+        if not rope_scaling and hasattr(config, 'rope_scaling'):
+            rope_scaling = config.rope_scaling
+
         if rope_scaling:
             if rope_scaling.get('factor'):
                 # HF transformers
@@ -1363,6 +1374,7 @@ def get_config(base_model,
                 # exllama
                 # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
                 max_seq_len *= rope_scaling.get('alpha_value')
+            max_seq_len = int(max_seq_len)
             print("Automatically setting max_seq_len=%d for RoPE scaling" % max_seq_len, flush=True)
 
     return config, model, max_seq_len
