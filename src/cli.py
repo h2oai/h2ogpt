@@ -40,6 +40,7 @@ def run_cli(  # for local function:
         text_context_list=None,
         docs_ordering_type=None,
         min_max_new_tokens=None,
+        max_input_tokens=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,

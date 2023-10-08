@@ -469,6 +469,7 @@ class GradioInference(LLM):
     count_output_tokens: Any = 0
 
     min_max_new_tokens: Any = 256
+    max_input_tokens: Any = -1
 
     class Config:
         """Configuration for this pydantic object."""
@@ -568,6 +569,7 @@ class GradioInference(LLM):
                              text_context_list=None,
                              docs_ordering_type=None,
                              min_max_new_tokens=self.min_max_new_tokens,
+                             max_input_tokens=self.max_input_tokens,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -1135,6 +1137,7 @@ def get_llm(use_openai_model=False,
             visible_models=0,
             h2ogpt_key=None,
             min_max_new_tokens=None,
+            max_input_tokens=None,
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
@@ -1359,6 +1362,7 @@ def get_llm(use_openai_model=False,
                 visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
+                max_input_tokens=max_input_tokens,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -3605,6 +3609,7 @@ def _run_qa_db(query=None,
                h2ogpt_key=None,
                docs_ordering_type='reverse_ucurve_sort',
                min_max_new_tokens=256,
+               max_input_tokens=-1,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -3715,6 +3720,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
+                      max_input_tokens=max_input_tokens,
                       n_jobs=n_jobs,
                       llamacpp_dict=llamacpp_dict,
                       cli=cli,
@@ -4022,6 +4028,7 @@ def get_chain(query=None,
               verbose=False,
               docs_ordering_type='reverse_ucurve_sort',
               min_max_new_tokens=256,
+              max_input_tokens=-1,
               stream_output=True,
               async_output=True,
 
@@ -4316,7 +4323,7 @@ def get_chain(query=None,
         name_path = "sim.lock"
         lock_file = os.path.join(base_path, name_path)
 
-    if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
+    if not is_chroma_db(db):
         # only chroma supports filtering
         chunk_id_filter = None
         filter_kwargs = {}
@@ -4498,7 +4505,9 @@ def get_chain(query=None,
                                    langchain_mode=langchain_mode,
                                    add_chat_history_to_context=add_chat_history_to_context,
                                    min_max_new_tokens=min_max_new_tokens,
+                                   max_input_tokens=max_input_tokens,
                                    )
+            # FIXME: merge chunks here based upon max_input_tokens?
             # get updated llm
             llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
             if external_handle_chat_conversation:
@@ -4623,7 +4632,7 @@ def get_chain(query=None,
                 chain_func = chain.arun
             else:
                 chain_func = chain
-            target = wrapped_partial(chain_func, {"input_documents": docs})  # , return_only_outputs=True)
+            target = wrapped_partial(chain_func, dict(input_documents=docs, token_max=max_input_tokens))  # , return_only_outputs=True)
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
             prompt = PromptTemplate(input_variables=["text"], template=template)

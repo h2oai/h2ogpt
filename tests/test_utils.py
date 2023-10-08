@@ -113,6 +113,7 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
                         system_prompt=system_prompt)
 
     min_max_new_tokens = 256  # like in get_limited_prompt()
+    max_input_tokens = -1
     max_new_tokens = 1024
     model_max_length = 4096
 
@@ -131,6 +132,7 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
                            text_context_list=text_context_list,
                            model_max_length=model_max_length,
                            min_max_new_tokens=min_max_new_tokens,
+                           max_input_tokens=max_input_tokens,
                            verbose=True)
     print('%s -> %s or %s: chat_index: %s top_k_docs_trial=%s one_doc_size: %s' % (num_prompt_tokens0,
                                                                                    num_prompt_tokens,

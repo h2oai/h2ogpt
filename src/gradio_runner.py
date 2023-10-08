@@ -1152,6 +1152,10 @@ def go_gradio(**kwargs):
                             value=min(max_max_new_tokens, kwargs['min_max_new_tokens']),
                             label="Min. of Max output length",
                         )
+                        max_input_tokens = gr.Number(
+                            minimum=-1, maximum=128*1024, step=1,
+                            value=-1, label="Max input length to use for control context-filling when top_k_docs=-1",
+                        )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
                         repetition_penalty = gr.Slider(minimum=0.01, maximum=3.0,

@@ -260,6 +260,7 @@ def main(
         top_k_docs: int = None,
         docs_ordering_type: str = 'reverse_ucurve_sort',
         min_max_new_tokens=256,
+        max_input_tokens=-1,
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         headsize: int = 50,
@@ -497,6 +498,7 @@ def main(
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param min_max_new_tokens: Minimum of max_new_tokens, when auto-scaling down to handle more docs/prompt, but still let generation have some tokens
+    :param max_input_tokens: Max input tokens to place into model context for each LLM call
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -1040,6 +1042,7 @@ def main(
                             jq_schema,
                             docs_ordering_type,
                             min_max_new_tokens,
+                            max_input_tokens,
                             verbose,
                             )
 
@@ -1099,6 +1102,8 @@ def main(
                                       model_name_gptj=model_name_gptj,
                                       model_name_gpt4all_llama=model_name_gpt4all_llama,
                                       model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                                      rope_scaling=rope_scaling,
+                                      max_seq_len=max_seq_len,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -2103,6 +2108,7 @@ def evaluate(
         text_context_list,
         docs_ordering_type,
         min_max_new_tokens,
+        max_input_tokens,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2309,6 +2315,8 @@ def evaluate(
     if min_max_new_tokens is None:
         # default for nochat api
         min_max_new_tokens = 256
+    if max_input_tokens is None:
+        max_input_tokens = -1
     if docs_ordering_type is None:
         docs_ordering_type = 'reverse_ucurve_sort'
     model_max_length = get_model_max_length(chosen_model_state)
@@ -2469,6 +2477,7 @@ def evaluate(
                 h2ogpt_key=h2ogpt_key,
                 docs_ordering_type=docs_ordering_type,
                 min_max_new_tokens=min_max_new_tokens,
+                max_input_tokens=max_input_tokens,
 
                 **gen_hyper_langchain,
 
@@ -2553,6 +2562,7 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            add_chat_history_to_context=add_chat_history_to_context,
                            min_max_new_tokens=min_max_new_tokens,
+                           max_input_tokens=max_input_tokens,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -2744,6 +2754,7 @@ def evaluate(
                                      add_search_to_context=client_add_search_to_context,
                                      docs_ordering_type=None,
                                      min_max_new_tokens=min_max_new_tokens,
+                                     max_input_tokens=max_input_tokens,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3235,6 +3246,7 @@ def get_generate_params(model_lower,
                         jq_schema,
                         docs_ordering_type,
                         min_max_new_tokens,
+                        max_input_tokens,
                         verbose,
                         ):
     use_defaults = False
@@ -3416,6 +3428,7 @@ y = np.random.randint(0, 1, 100)
                     None,
                     docs_ordering_type,
                     min_max_new_tokens,
+                    max_input_tokens,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3660,6 +3673,7 @@ def get_limited_prompt(instruction,
                        verbose=False,
                        doc_importance=0.5,
                        min_max_new_tokens=256,
+                       max_input_tokens=-1,
                        ):
     if prompter:
         prompt_type = prompter.prompt_type
@@ -3733,6 +3747,7 @@ def get_limited_prompt(instruction,
     doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
                                                                max_input_tokens=doc_max_length)
+    # FIXME: use max_input_tokens to merge chunks or merge all then split
     non_doc_max_length = max(model_max_length - num_doc_tokens, (1.0 - doc_importance) * model_max_length)
 
     if num_non_doc_tokens > non_doc_max_length:

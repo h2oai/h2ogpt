@@ -135,6 +135,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'text_context_list': None,
                  'docs_ordering_type': 'reverse_ucurve_sort',
                  'min_max_new_tokens': 256,
+                 'max_input_tokens': -1,
                  }
     if cpu and bits == 32:
         expected1.update({'image_loaders': np.array([], dtype=object)})
