@@ -41,6 +41,7 @@ def run_cli(  # for local function:
         docs_ordering_type=None,
         min_max_new_tokens=None,
         max_input_tokens=None,
+        docs_token_handling=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,

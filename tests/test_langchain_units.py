@@ -8,10 +8,13 @@ import uuid
 
 import pytest
 
+from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3, texts_helium4, texts_helium5, \
+    texts_simple
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice
-from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db
-from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
+from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
+    FakeTokenizer, get_token_count
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -1728,6 +1731,65 @@ def test_chroma_filtering():
                 assert1 = show_ret[4]['value'] is not None and single_document_choice1 in show_ret[4]['value']
                 assert2 = show_ret[3]['value'] is not None and single_document_choice1 in show_ret[3]['value']
                 assert assert1 or assert2
+
+
+@pytest.mark.parametrize("data_kind", [
+    'simple',
+    'helium1',
+    'helium2',
+    'helium3',
+    'helium4',
+    'helium5',
+])
+@wrap_test_forked
+def test_merge_docs(data_kind):
+    model_max_length = 4096
+    max_input_tokens = 1024
+    joiner = '\n\n'
+    tokenizer = FakeTokenizer(model_max_length=model_max_length)
+
+    from langchain.docstore.document import Document
+    if data_kind == 'simple':
+        texts = texts_simple
+    elif data_kind == 'helium1':
+        texts = texts_helium1
+    elif data_kind == 'helium2':
+        texts = texts_helium2
+    elif data_kind == 'helium3':
+        texts = texts_helium3
+    elif data_kind == 'helium4':
+        texts = texts_helium4
+    elif data_kind == 'helium5':
+        texts = texts_helium5
+    else:
+        raise RuntimeError("BAD")
+
+    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content in enumerate(texts)]
+
+    docs_with_score_new = split_merge_docs(tokenizer, docs_with_score=docs_with_score, max_input_tokens=max_input_tokens, docs_token_handling='split_or_merge', joiner=joiner, verbose=True)
+
+    text_context_list = [x[0].page_content for x in docs_with_score_new]
+    tokens = [get_token_count(x + joiner, tokenizer) for x in text_context_list]
+    print(tokens)
+
+    if data_kind == 'simple':
+        assert len(docs_with_score_new) == 1
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium1':
+        assert len(docs_with_score_new) == 4
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium2':
+        assert len(docs_with_score_new) == 8
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium3':
+        assert len(docs_with_score_new) == 5
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium4':
+        assert len(docs_with_score_new) == 5
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium5':
+        assert len(docs_with_score_new) == 3
+        assert all([x < max_input_tokens for x in tokens])
 
 
 if __name__ == '__main__':

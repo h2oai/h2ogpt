@@ -69,7 +69,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
     UnstructuredExcelLoader, JSONLoader
-from langchain.text_splitter import Language
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
@@ -570,6 +570,7 @@ class GradioInference(LLM):
                              docs_ordering_type=None,
                              min_max_new_tokens=self.min_max_new_tokens,
                              max_input_tokens=self.max_input_tokens,
+                             docs_token_handling=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -3613,6 +3614,7 @@ def _run_qa_db(query=None,
                docs_ordering_type='reverse_ucurve_sort',
                min_max_new_tokens=256,
                max_input_tokens=-1,
+               docs_token_handling=None,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -3952,6 +3954,88 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
     return docs_with_score
 
 
+def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
+    if top_k_docs > 0:
+        docs_with_score = docs_with_score[:top_k_docs]
+    elif one_doc_size is not None:
+        docs_with_score = [(docs_with_score[0][:one_doc_size], docs_with_score[0][1])]
+    else:
+        docs_with_score = []
+    return docs_with_score
+
+
+class H2ORecursiveCharacterTextSplitter(RecursiveCharacterTextSplitter):
+    @classmethod
+    def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
+        def _huggingface_tokenizer_length(text: str) -> int:
+            return get_token_count(text, tokenizer)
+
+        return cls(length_function=_huggingface_tokenizer_length, **kwargs)
+
+
+def split_merge_docs(tokenizer, docs_with_score=[], max_input_tokens=None, docs_token_handling=None,
+                     joiner='\n\n',
+                     do_split=True,
+                     verbose=False):
+    # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
+    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len
+    if docs_token_handling in ['chunk']:
+        return docs_with_score
+    elif docs_token_handling in [None, 'split_or_merge']:
+        if do_split:
+
+            if verbose:
+                tokens_before_split = [get_token_count(x + '\n\n', tokenizer) for x in
+                                       [x[0].page_content for x in docs_with_score]]
+                print('tokens_before_split=%s' % tokens_before_split, flush=True)
+
+            # see if need to split
+            text_splitter = H2ORecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+                tokenizer, chunk_size=max_input_tokens, chunk_overlap=0
+            )
+            [x[0].metadata.update(dict(docscore=x[1])) for x in docs_with_score]
+            docs = [x[0] for x in docs_with_score]
+            docs_new = text_splitter.split_documents(docs)
+            docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
+
+            if verbose:
+                tokens_after_split = [get_token_count(x + '\n\n', tokenizer) for x in
+                                      [x[0].page_content for x in docs_with_score]]
+                print('tokens_after_split=%s' % tokens_after_split, flush=True)
+
+        docs_with_score_new = []
+        k = 0
+        while k < len(docs_with_score):
+            # means use max_input_tokens to ensure model gets no more than max_input_tokens each map
+            top_k_docs, one_doc_size, num_doc_tokens = \
+                get_docs_tokens(tokenizer,
+                                text_context_list=[x[0].page_content for x in docs_with_score[k:]],
+                                max_input_tokens=max_input_tokens)
+            docs_with_score1 = select_docs_with_score(docs_with_score[k:], top_k_docs, one_doc_size)
+            new_score = docs_with_score1[0][1]
+            new_page_content = joiner.join([x[0].page_content for x in docs_with_score1])
+            new_metadata = docs_with_score1[0][0].metadata  # just use first chunk's metadata for now
+            doc1 = Document(page_content=new_page_content, metadata=new_metadata)
+            docs_with_score_new.append((doc1, new_score))
+
+            if do_split:
+                assert one_doc_size is None, "Split failed: %s" % one_doc_size
+            elif one_doc_size is not None:
+                # chopped
+                assert top_k_docs == 1
+            assert top_k_docs >= 1
+            k += top_k_docs
+
+        if verbose:
+            tokens_after_merge = [get_token_count(x + '\n\n', tokenizer) for x in
+                                  [x[0].page_content for x in docs_with_score_new]]
+            print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
+
+        return docs_with_score_new
+    else:
+        raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
+
+
 def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
@@ -4032,6 +4116,8 @@ def get_chain(query=None,
               docs_ordering_type='reverse_ucurve_sort',
               min_max_new_tokens=256,
               max_input_tokens=-1,
+              docs_token_handling=None,
+
               stream_output=True,
               async_output=True,
 
@@ -4317,10 +4403,12 @@ def get_chain(query=None,
 
     max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                                     model_name=model_name, max_new_tokens=max_new_tokens)
-    if max_input_tokens == -1:
-        max_input_tokens = max_input_tokens_default
-    else:
+    if max_input_tokens >= 0:
         max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+    else:
+        max_input_tokens = max_input_tokens_default
+    model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                            model_name=model_name)
 
     if hasattr(db, '_persist_directory'):
         lock_file = get_db_lock_file(db, lock_type='sim')
@@ -4482,16 +4570,6 @@ def get_chain(query=None,
                 estimated_prompt_no_docs = template.format(context='', question=query)
             else:
                 estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
-
-            model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                                    model_name=model_name)
-            max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer,
-                                                            inference_server=inference_server,
-                                                            model_name=model_name, max_new_tokens=max_new_tokens)
-            if max_input_tokens >= 0:
-                max_input_tokens = min(max_input_tokens_default, max_input_tokens)
-            else:
-                max_input_tokens = max_input_tokens_default
             chat = True  # FIXME?
 
             # first docs_with_score are most important with highest score
@@ -4522,7 +4600,6 @@ def get_chain(query=None,
                                    min_max_new_tokens=min_max_new_tokens,
                                    max_input_tokens=max_input_tokens,
                                    )
-            # FIXME: merge chunks here based upon max_input_tokens?
             # get updated llm
             llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
             if external_handle_chat_conversation:
@@ -4540,21 +4617,25 @@ def get_chain(query=None,
                     top_k_docs = min(top_k_docs, top_k_docs_trial)
             elif top_k_docs_trial >= max_chunks:
                 top_k_docs = max_chunks
-            if top_k_docs > 0:
-                docs_with_score = docs_with_score[:top_k_docs]
-            elif one_doc_size is not None:
-                docs_with_score = [docs_with_score[0][:one_doc_size]]
-            else:
-                docs_with_score = []
+            docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+        elif query_action:
+            # no limitation or auto-filling, just literal top_k_docs
+            docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, None)
         else:
+            assert not query_action and summarize_action, "Bad action"
+            one_doc_size = None
             if total_tokens_for_docs is not None:
                 # used to limit tokens for summarization, e.g. public instance
                 top_k_docs, one_doc_size, num_doc_tokens = \
                     get_docs_tokens(tokenizer,
                                     text_context_list=[x[0].page_content for x in docs_with_score],
                                     max_input_tokens=total_tokens_for_docs)
-
-            docs_with_score = docs_with_score[:top_k_docs]
+            # filter by top_k_docs and maybe one_doc_size
+            docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+            # group docs if desired/can to fill context
+            docs_with_score = split_merge_docs(docs_with_score, max_input_tokens=max_input_tokens,
+                                               docs_token_handling=docs_token_handling,
+                                               verbose=verbose)
 
         # put most relevant chunks closest to question,
         # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated

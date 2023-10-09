@@ -261,6 +261,7 @@ def main(
         docs_ordering_type: str = 'reverse_ucurve_sort',
         min_max_new_tokens=256,
         max_input_tokens=-1,
+        docs_token_handling: str = 'split_or_merge',
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         headsize: int = 50,
@@ -499,6 +500,11 @@ def main(
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param min_max_new_tokens: Minimum of max_new_tokens, when auto-scaling down to handle more docs/prompt, but still let generation have some tokens
     :param max_input_tokens: Max input tokens to place into model context for each LLM call
+                             -1 means auto, fully fill context for query, and fill by original docuemnt chunk for summarization
+                             >=0 means use that to limit context filling to that many tokens
+    :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
+                                                                     or top_k_docs original document chunks summarization
+                                None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -1043,6 +1049,7 @@ def main(
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
+                            docs_token_handling,
                             verbose,
                             )
 
@@ -2110,6 +2117,7 @@ def evaluate(
         docs_ordering_type,
         min_max_new_tokens,
         max_input_tokens,
+        docs_token_handling,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2320,6 +2328,8 @@ def evaluate(
         max_input_tokens = -1
     if docs_ordering_type is None:
         docs_ordering_type = 'reverse_ucurve_sort'
+    if docs_token_handling is None:
+        docs_token_handling = 'chunk'
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
@@ -2479,6 +2489,7 @@ def evaluate(
                 docs_ordering_type=docs_ordering_type,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
+                docs_token_handling=docs_token_handling,
 
                 **gen_hyper_langchain,
 
@@ -2753,9 +2764,10 @@ def evaluate(
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
-                                     docs_ordering_type=None,
+                                     docs_ordering_type=docs_ordering_type,
                                      min_max_new_tokens=min_max_new_tokens,
                                      max_input_tokens=max_input_tokens,
+                                     docs_token_handling=docs_token_handling,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -2921,10 +2933,10 @@ def evaluate(
     # CRITICAL LIMIT else will fail
     max_max_tokens = tokenizer.model_max_length
     max_input_tokens_default = max(0, int(max_max_tokens - min_new_tokens))
-    if max_input_tokens == -1:
-        max_input_tokens = max_input_tokens_default
-    else:
+    if max_input_tokens >= 0:
         max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+    else:
+        max_input_tokens = max_input_tokens_default
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
         max_input_tokens, type(max_input_tokens))
@@ -3252,6 +3264,7 @@ def get_generate_params(model_lower,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
+                        docs_token_handling,
                         verbose,
                         ):
     use_defaults = False
@@ -3434,6 +3447,7 @@ y = np.random.randint(0, 1, 100)
                     docs_ordering_type,
                     min_max_new_tokens,
                     max_input_tokens,
+                    docs_token_handling,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3773,7 +3787,6 @@ def get_limited_prompt(instruction,
     doc_max_length = max(max_input_tokens - num_non_doc_tokens, doc_importance * max_input_tokens)
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
                                                                max_input_tokens=doc_max_length)
-    # FIXME: use max_input_tokens to merge chunks or merge all then split
     non_doc_max_length = max(max_input_tokens - num_doc_tokens, (1.0 - doc_importance) * max_input_tokens)
 
     if num_non_doc_tokens > non_doc_max_length:
