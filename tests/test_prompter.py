@@ -161,6 +161,21 @@ User: Go to the market?
 Falcon:"""
 
 
+def get_mistral_prompt_with_context():
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
+    messages = [
+        {"role": "user", "content": "Hello!"},
+        {"role": "assistant", "content": "Hi!"},
+        {"role": "user", "content": "How are you?"},
+        {"role": "assistant", "content": "I'm good"},
+        {"role": "user", "content": "Go to the market?"},
+    ]
+
+    prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
+    return prompt_mistral
+
+
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,system_prompt,chat_conversation,expected",
                          [
@@ -179,6 +194,7 @@ Falcon:"""
                              ('beluga', 'auto', None, prompt_beluga_sys),
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
+                             ('mistral', '', None, get_mistral_prompt_with_context()),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -298,6 +314,17 @@ User: Go to the market?
 Falcon:"""
 
 
+def get_mistral_prompt():
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
+    messages = [
+        {"role": "user", "content": "Go to the market?"},
+    ]
+
+    prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
+    return prompt_mistral
+
+
 @pytest.mark.parametrize("prompt_type,system_prompt,expected",
                          [
                              ('vicuna11', '', prompt_fastchat1),
@@ -313,6 +340,7 @@ Falcon:"""
                              ('beluga', 'auto', prompt_beluga1_sys),
                              ('falcon_chat', '', prompt_falcon1801),
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
+                             ('mistral', '', get_mistral_prompt())
                          ]
                          )
 @wrap_test_forked

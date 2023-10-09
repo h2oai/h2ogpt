@@ -38,6 +38,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-16k-codellama-7b-python',
         'h2oai/h2ogpt-16k-codellama-13b-python',
         'h2oai/h2ogpt-16k-codellama-34b-python',
+        'mistralai/Mistral-7B-v0.1',
     ],
     'gptj': ['gptj', 'gpt4all_llama'],
     'prompt_answer': [
@@ -116,6 +117,7 @@ prompt_type_to_model_name = {
         'TheBloke/Llama-2-70B-chat-AWQ',
         'h2oai/h2ogpt-4096-llama2-70b-chat-4bit',
     ],
+    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
@@ -755,6 +757,21 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if making_context:
             # when making context, want it to appear as-if LLM generated, which starts with space after :
             PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.mistral.value, str(PromptType.mistral.value),
+                         PromptType.mistral.name]:
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "[INST] "
+        if making_context and histi == 0 or not making_context and not (chat and reduced):
+            PreInstruct = '<s>' + PreInstruct
+        PreResponse = "[/INST]"
+        terminate_response = ["[INST]", "</s>"]
+        chat_sep = ' '
+        chat_turn_sep = '</s> '
+        humanstr = '[INST]'
+        botstr = '[/INST]'
+        if making_context:
+            PreResponse += ""
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

@@ -1,0 +1,62 @@
+version: '3'
+
+services:
+  h2ogpt:
+    image: ${H2OGPT_RUNTIME}
+    restart: always
+    shm_size: '2gb'
+    depends_on:
+      vllm:
+        condition: service_healthy
+    ports:
+      - '${H2OGPT_PORT}:7860'
+    volumes:
+      - cache:/workspace/.cache
+      - save:/workspace/save
+    networks:
+      - h2ogpt
+    command:
+      - /workspace/generate.py
+      - --inference_server="vllm:vllm:5000"
+      - --base_model=${H2OGPT_BASE_MODEL}
+      - --langchain_mode=UserData
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['2', '3']
+            capabilities: [gpu]
+
+  vllm:
+    image: ${H2OGPT_RUNTIME}
+    restart: always
+    shm_size: '64gb'
+    expose:
+      - 5000
+    volumes:
+      - cache:/workspace/.cache
+    networks:
+      - h2ogpt
+    entrypoint: /h2ogpt_conda/vllm_env/bin/python3.10
+    command: -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 ${H2OGPT_VLLM_ARGS}
+    environment:
+      - NCCL_IGNORE_DISABLED_P2P=1
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://0.0.0.0:5000/v1/models" ]
+      interval: 30s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['0', '1']
+            capabilities: [gpu]
+
+volumes:
+  cache:
+  save:
+networks:
+  h2ogpt:

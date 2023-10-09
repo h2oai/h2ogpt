@@ -82,6 +82,9 @@ mkdir -p /h2ogpt_conda/envs/vllm/bin && \
 cd /workspace && make build_info.txt
 cp /workspace/build_info.txt /build_info.txt
 
+mkdir -p /workspace/save
+chmod -R a+rwx /workspace/save
+
 # Cleanup
 rm -rf /workspace/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
 rm -rf /workspace/.cache/pip
