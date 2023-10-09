@@ -1149,6 +1149,12 @@ def get_llm(use_openai_model=False,
     if chat_conversation is None:
         chat_conversation = []
 
+    model_max_length = tokenizer.model_max_length
+    if max_input_tokens >= 0:
+        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+    else:
+        max_input_tokens = model_max_length - min_max_new_tokens
+
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     if inference_server is None:
@@ -1410,7 +1416,6 @@ def get_llm(use_openai_model=False,
             prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
-        max_max_tokens = tokenizer.model_max_length
         llm = get_llm_gpt4all(model_name,
                               model=model,
                               max_new_tokens=max_new_tokens,
@@ -1425,7 +1430,7 @@ def get_llm(use_openai_model=False,
                               prompter=prompter,
                               context=context,
                               iinput=iinput,
-                              max_seq_len=max_max_tokens,
+                              max_seq_len=model_max_length,
                               llamacpp_dict=llamacpp_dict,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
@@ -1433,7 +1438,6 @@ def get_llm(use_openai_model=False,
         assert langchain_only_model
         callbacks = [StreamingGradioCallbackHandler()]
         streamer = callbacks[0] if stream_output else None
-        max_max_tokens = tokenizer.model_max_length
 
         from src.llm_exllama import Exllama
         llm = Exllama(streaming=stream_output,
@@ -1449,7 +1453,7 @@ def get_llm(use_openai_model=False,
                       stop_sequences=prompter.stop_sequences,
                       callbacks=callbacks,
                       verbose=verbose,
-                      max_seq_len=max_max_tokens,
+                      max_seq_len=model_max_length,
                       fused_attn=False,
                       # alpha_value = 1.0, #For use with any models
                       # compress_pos_emb = 4.0, #For use with superhot
@@ -1472,7 +1476,6 @@ def get_llm(use_openai_model=False,
             model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
                                                  inference_server=inference_server, gpu_id=0)
 
-        max_max_tokens = tokenizer.model_max_length
         only_new_text = True
         gen_kwargs = dict(do_sample=do_sample,
                           num_beams=num_beams,
@@ -1511,8 +1514,7 @@ def get_llm(use_openai_model=False,
                                          sanitize_bot_response=sanitize_bot_response,
                                          chat=False, stream_output=stream_output,
                                          tokenizer=tokenizer,
-                                         # leave some room for 1 paragraph, even if min_new_tokens=0
-                                         max_input_tokens=max_max_tokens - max(min_new_tokens, 256),
+                                         max_input_tokens=max_input_tokens,
                                          base_model=model_name,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
@@ -3330,7 +3332,8 @@ def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk
                 docs = [x for x in docs if x.metadata.get('chunk_id', chunk_id_filter) == chunk_id_filter]
         if len(docs) < max(1, k // 4):
             # full search if failed to find enough
-            docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
+            docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs,
+                               verbose=verbose)
         return docs
     else:
         return _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
@@ -4312,8 +4315,12 @@ def get_chain(query=None,
                      auto_reduce_chunks,
                      add_search_to_context)
 
-    max_input_tokens = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                            model_name=model_name, max_new_tokens=max_new_tokens)
+    max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                                    model_name=model_name, max_new_tokens=max_new_tokens)
+    if max_input_tokens == -1:
+        max_input_tokens = max_input_tokens_default
+    else:
+        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
 
     if hasattr(db, '_persist_directory'):
         lock_file = get_db_lock_file(db, lock_type='sim')
@@ -4476,7 +4483,15 @@ def get_chain(query=None,
             else:
                 estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
 
-            model_max_length = tokenizer.model_max_length
+            model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                                    model_name=model_name)
+            max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer,
+                                                            inference_server=inference_server,
+                                                            model_name=model_name, max_new_tokens=max_new_tokens)
+            if max_input_tokens >= 0:
+                max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+            else:
+                max_input_tokens = max_input_tokens_default
             chat = True  # FIXME?
 
             # first docs_with_score are most important with highest score
@@ -4632,7 +4647,8 @@ def get_chain(query=None,
                 chain_func = chain.arun
             else:
                 chain_func = chain
-            target = wrapped_partial(chain_func, dict(input_documents=docs, token_max=max_input_tokens))  # , return_only_outputs=True)
+            target = wrapped_partial(chain_func, dict(input_documents=docs,
+                                                      token_max=max_input_tokens))  # , return_only_outputs=True)
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
             prompt = PromptTemplate(input_variables=["text"], template=template)
@@ -4660,7 +4676,7 @@ def get_chain(query=None,
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
 
-def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
+def get_model_max_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
     if hasattr(tokenizer, 'model_max_length'):
         return tokenizer.model_max_length
     elif inference_server in ['openai', 'openai_azure']:
@@ -4675,7 +4691,7 @@ def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_
 
 
 def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_name=None, max_new_tokens=None):
-    model_max_length = get_max_model_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+    model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                             model_name=model_name)
 
     if any([inference_server.startswith(x) for x in

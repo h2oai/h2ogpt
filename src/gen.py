@@ -1348,7 +1348,7 @@ def get_config(base_model,
         if hasattr(config, 'max_seq_len'):
             max_seq_len = int(config.max_seq_len)
         # Note https://huggingface.co/lmsys/vicuna-13b-v1.5-16k/blob/main/config.json has below, but here just want base size before rope
-        #elif hasattr(config, 'max_sequence_length'):
+        # elif hasattr(config, 'max_sequence_length'):
         #    max_seq_len = int(config.max_sequence_length)
         elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
             # help automatically limit inputs to generate
@@ -1380,7 +1380,8 @@ def get_config(base_model,
                 # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
                 max_seq_len *= rope_scaling.get('alpha_value')
             max_seq_len = int(max_seq_len)
-            print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model), flush=True)
+            print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model),
+                  flush=True)
 
     return config, model, max_seq_len
 
@@ -2919,7 +2920,11 @@ def evaluate(
     input_ids = inputs["input_ids"].to(device)
     # CRITICAL LIMIT else will fail
     max_max_tokens = tokenizer.model_max_length
-    max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
+    max_input_tokens_default = max(0, int(max_max_tokens - min_new_tokens))
+    if max_input_tokens == -1:
+        max_input_tokens = max_input_tokens_default
+    else:
+        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
         max_input_tokens, type(max_input_tokens))
@@ -3084,7 +3089,7 @@ state_names = input_args_list.copy()  # doesn't have to be the same, but state_n
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
-def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048):
+def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048, min_max_new_tokens=256):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
@@ -3093,7 +3098,7 @@ def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=20
         max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
     else:
         # at least give room for 1 paragraph output
-        max_length_tokenize = model_max_length - 256
+        max_length_tokenize = model_max_length - min_max_new_tokens
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     max_prompt_length = cutoff_len - output_smallest
@@ -3532,6 +3537,13 @@ def get_model_max_length(model_state):
         return 2048
 
 
+def get_model_max_length_from_tokenizer(tokenizer):
+    if hasattr(tokenizer, 'model_max_length'):
+        return int(tokenizer.model_max_length)
+    else:
+        return 2048
+
+
 def get_max_max_new_tokens(model_state, **kwargs):
     if not isinstance(model_state['tokenizer'], (str, type(None))):
         max_max_new_tokens = model_state['tokenizer'].model_max_length
@@ -3589,7 +3601,8 @@ def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
                        memory_restriction_level=None, keep_sources_in_context=None,
-                       system_prompt=None, chat_conversation=None):
+                       system_prompt=None, chat_conversation=None,
+                       min_max_new_tokens=256):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -3603,6 +3616,7 @@ def history_to_context(history, langchain_mode=None,
     :param keep_sources_in_context:
     :param system_prompt:
     :param chat_conversation:
+    :param min_max_new_tokens:
     :return:
     """
     history = merge_chat_conversation_history(chat_conversation, history)
@@ -3615,7 +3629,8 @@ def history_to_context(history, langchain_mode=None,
 
     # ensure output will be unique to models
     _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
-                                             for_context=True, model_max_length=model_max_length)
+                                             for_context=True, model_max_length=model_max_length,
+                                             min_max_new_tokens=min_max_new_tokens)
     context1 = ''
     if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
@@ -3675,6 +3690,12 @@ def get_limited_prompt(instruction,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
                        ):
+    if max_input_tokens >= 0:
+        # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
+        max_input_tokens = min(model_max_length, max_input_tokens)
+    else:
+        max_input_tokens = model_max_length
+
     if prompter:
         prompt_type = prompter.prompt_type
         prompt_dict = prompter.prompt_dict
@@ -3706,10 +3727,11 @@ def get_limited_prompt(instruction,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
                                                 chat=chat,
-                                                model_max_length=model_max_length,
+                                                model_max_length=max_input_tokens,
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
-                                                system_prompt=system_prompt)
+                                                system_prompt=system_prompt,
+                                                min_max_new_tokens=min_max_new_tokens)
     context2 = history_to_context_func(history)
     context1 = context
     if context1 is None:
@@ -3718,13 +3740,17 @@ def get_limited_prompt(instruction,
     from h2oai_pipeline import H2OTextGenerationPipeline
     data_point_just_instruction = dict(context='', instruction=instruction, input='')
     prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
     num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
     num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
 
-    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
-    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
-    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+                                                                           max_prompt_length=max_input_tokens)
+    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                           max_prompt_length=max_input_tokens)
+    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
+                                                                       max_prompt_length=max_input_tokens)
     if text_context_list is None:
         text_context_list = []
     num_doc_tokens = sum([get_token_count(x + '\n\n', tokenizer) for x in text_context_list])
@@ -3744,11 +3770,11 @@ def get_limited_prompt(instruction,
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
     num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens + min_max_new_tokens
     # to doc first then non-doc, shouldn't matter much either way
-    doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
+    doc_max_length = max(max_input_tokens - num_non_doc_tokens, doc_importance * max_input_tokens)
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
                                                                max_input_tokens=doc_max_length)
     # FIXME: use max_input_tokens to merge chunks or merge all then split
-    non_doc_max_length = max(model_max_length - num_doc_tokens, (1.0 - doc_importance) * model_max_length)
+    non_doc_max_length = max(max_input_tokens - num_doc_tokens, (1.0 - doc_importance) * max_input_tokens)
 
     if num_non_doc_tokens > non_doc_max_length:
         # need to limit in some way, keep portion of history but all of context and instruction
@@ -3829,7 +3855,7 @@ def get_limited_prompt(instruction,
     else:
         # limit so max_new_tokens = prompt + new < max
         # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+        max_new_tokens = min(max_new_tokens, max_input_tokens - num_prompt_tokens)
 
     if os.getenv('HARD_ASSERTS'):
         if max_new_tokens < min_max_new_tokens:
