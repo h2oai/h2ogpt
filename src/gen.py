@@ -44,7 +44,8 @@ import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
+    docs_ordering_types_default, docs_token_handling_default
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -258,10 +259,11 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         top_k_docs: int = None,
-        docs_ordering_type: str = 'reverse_ucurve_sort',
+        docs_ordering_type: str = docs_ordering_types_default,
         min_max_new_tokens=256,
         max_input_tokens=-1,
-        docs_token_handling: str = 'split_or_merge',
+        docs_token_handling: str = docs_token_handling_default,
+        docs_joiner: str = docs_joiner_default,
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         headsize: int = 50,
@@ -500,12 +502,13 @@ def main(
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param min_max_new_tokens: Minimum of max_new_tokens, when auto-scaling down to handle more docs/prompt, but still let generation have some tokens
     :param max_input_tokens: Max input tokens to place into model context for each LLM call
-                             -1 means auto, fully fill context for query, and fill by original docuemnt chunk for summarization
+                             -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                              >=0 means use that to limit context filling to that many tokens
     :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                      or top_k_docs original document chunks summarization
                                 None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
 
+    :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
            Ignored if model_lock not used
@@ -1050,6 +1053,7 @@ def main(
                             min_max_new_tokens,
                             max_input_tokens,
                             docs_token_handling,
+                            docs_joiner,
                             verbose,
                             )
 
@@ -2118,6 +2122,7 @@ def evaluate(
         min_max_new_tokens,
         max_input_tokens,
         docs_token_handling,
+        docs_joiner,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2327,9 +2332,11 @@ def evaluate(
     if max_input_tokens is None:
         max_input_tokens = -1
     if docs_ordering_type is None:
-        docs_ordering_type = 'reverse_ucurve_sort'
+        docs_ordering_type = docs_ordering_types_default
     if docs_token_handling is None:
-        docs_token_handling = 'chunk'
+        docs_token_handling = docs_token_handling_default
+    if docs_joiner is None:
+        docs_joiner = docs_joiner_default
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
@@ -2490,6 +2497,7 @@ def evaluate(
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
                 docs_token_handling=docs_token_handling,
+                docs_joiner=docs_joiner,
 
                 **gen_hyper_langchain,
 
@@ -2768,6 +2776,7 @@ def evaluate(
                                      min_max_new_tokens=min_max_new_tokens,
                                      max_input_tokens=max_input_tokens,
                                      docs_token_handling=docs_token_handling,
+                                     docs_joiner=docs_joiner,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3265,6 +3274,7 @@ def get_generate_params(model_lower,
                         min_max_new_tokens,
                         max_input_tokens,
                         docs_token_handling,
+                        docs_joiner,
                         verbose,
                         ):
     use_defaults = False
@@ -3448,6 +3458,7 @@ y = np.random.randint(0, 1, 100)
                     min_max_new_tokens,
                     max_input_tokens,
                     docs_token_handling,
+                    docs_joiner,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3767,7 +3778,7 @@ def get_limited_prompt(instruction,
                                                                        max_prompt_length=max_input_tokens)
     if text_context_list is None:
         text_context_list = []
-    num_doc_tokens = sum([get_token_count(x + '\n\n', tokenizer) for x in text_context_list])
+    num_doc_tokens = sum([get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list])
 
     num_prompt_tokens0 = (num_instruction_tokens or 0) + \
                          (num_context1_tokens or 0) + \
@@ -3904,7 +3915,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
         return 0, None, 0
     if max_input_tokens is None:
         max_input_tokens = tokenizer.model_max_length
-    tokens = [get_token_count(x + '\n\n', tokenizer) for x in text_context_list]
+    tokens = [get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list]
     tokens_cumsum = np.cumsum(tokens)
     where_res = np.where(tokens_cumsum < max_input_tokens)[0]
     # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
@@ -3924,7 +3935,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
                                                                           max_prompt_length=max_input_tokens)
         text_context_list[0] = doc_content
         one_doc_size = len(doc_content)
-        num_doc_tokens = get_token_count(doc_content + '\n\n', tokenizer)
+        num_doc_tokens = get_token_count(doc_content + docs_joiner_default, tokenizer)
         print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
             tokens[0], new_tokens0), flush=True)
     return top_k_docs, one_doc_size, num_doc_tokens

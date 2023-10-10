@@ -135,6 +135,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          min_max_new_tokens=None,
                          max_input_tokens=None,
                          docs_token_handling=None,
+                         docs_joiner=None,
                          )
     diff = 0
     if version is None:

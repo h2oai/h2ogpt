@@ -88,6 +88,7 @@ class TextCompletionCreator:
         min_max_new_tokens: int = None,
         max_input_tokens: int = None,
         docs_token_handling: str = None,
+        docs_joiner: str = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -123,11 +124,12 @@ class TextCompletionCreator:
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
         :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
         :param max_input_tokens: Max input tokens to place into model context for each LLM call
-                                 -1 means auto, fully fill context for query, and fill by original docuemnt chunk for summarization
+                                 -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                                  >=0 means use that to limit context filling to that many tokens
         :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
+        :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -164,6 +166,7 @@ class TextCompletionCreator:
         params["min_max_new_tokens"] = min_max_new_tokens
         params["max_input_tokens"] = max_input_tokens
         params["docs_token_handling"] = docs_token_handling
+        params["docs_joiner"] = docs_joiner
         return TextCompletion(self._client, params)
 
 
@@ -242,6 +245,7 @@ class ChatCompletionCreator:
         min_max_new_tokens: int = None,
         max_input_tokens: int = None,
         docs_token_handling: str = None,
+        docs_joiner: str = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -275,11 +279,12 @@ class ChatCompletionCreator:
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
         :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
         :param max_input_tokens: Max input tokens to place into model context for each LLM call
-                                 -1 means auto, fully fill context for query, and fill by original docuemnt chunk for summarization
+                                 -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                                  >=0 means use that to limit context filling to that many tokens
         :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
+        :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -317,6 +322,7 @@ class ChatCompletionCreator:
         params["min_max_new_tokens"] = min_max_new_tokens
         params["max_input_tokens"] = max_input_tokens
         params["docs_token_handling"] = docs_token_handling
+        params["docs_joiner"] = docs_joiner
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 

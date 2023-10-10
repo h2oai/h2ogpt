@@ -11,7 +11,8 @@ import pytest
 from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3, texts_helium4, texts_helium5, \
     texts_simple
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
-from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice
+from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice, \
+    docs_joiner_default
 from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
     FakeTokenizer, get_token_count
@@ -1745,7 +1746,8 @@ def test_chroma_filtering():
 def test_merge_docs(data_kind):
     model_max_length = 4096
     max_input_tokens = 1024
-    joiner = '\n\n'
+    docs_joiner = docs_joiner_default
+    docs_token_handling = docs_token_handling_default
     tokenizer = FakeTokenizer(model_max_length=model_max_length)
 
     from langchain.docstore.document import Document
@@ -1766,10 +1768,11 @@ def test_merge_docs(data_kind):
 
     docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content in enumerate(texts)]
 
-    docs_with_score_new = split_merge_docs(tokenizer, docs_with_score=docs_with_score, max_input_tokens=max_input_tokens, docs_token_handling='split_or_merge', joiner=joiner, verbose=True)
+    docs_with_score_new = split_merge_docs(docs_with_score, tokenizer=tokenizer, max_input_tokens=max_input_tokens,
+                                           docs_token_handling=docs_token_handling, joiner=docs_joiner, verbose=True)
 
     text_context_list = [x[0].page_content for x in docs_with_score_new]
-    tokens = [get_token_count(x + joiner, tokenizer) for x in text_context_list]
+    tokens = [get_token_count(x + docs_joiner, tokenizer) for x in text_context_list]
     print(tokens)
 
     if data_kind == 'simple':

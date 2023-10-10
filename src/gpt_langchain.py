@@ -47,7 +47,8 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
+    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
+    docs_token_handling_default, docs_ordering_types_default
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -571,6 +572,7 @@ class GradioInference(LLM):
                              min_max_new_tokens=self.min_max_new_tokens,
                              max_input_tokens=self.max_input_tokens,
                              docs_token_handling=None,
+                             docs_joiner=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -3611,10 +3613,11 @@ def _run_qa_db(query=None,
                chat_conversation=None,
                visible_models=None,
                h2ogpt_key=None,
-               docs_ordering_type='reverse_ucurve_sort',
+               docs_ordering_type=docs_ordering_types_default,
                min_max_new_tokens=256,
                max_input_tokens=-1,
                docs_token_handling=None,
+               docs_joiner=None,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -3973,8 +3976,8 @@ class H2ORecursiveCharacterTextSplitter(RecursiveCharacterTextSplitter):
         return cls(length_function=_huggingface_tokenizer_length, **kwargs)
 
 
-def split_merge_docs(tokenizer, docs_with_score=[], max_input_tokens=None, docs_token_handling=None,
-                     joiner='\n\n',
+def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, docs_token_handling=None,
+                     joiner=docs_joiner_default,
                      do_split=True,
                      verbose=False):
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
@@ -3982,10 +3985,11 @@ def split_merge_docs(tokenizer, docs_with_score=[], max_input_tokens=None, docs_
     if docs_token_handling in ['chunk']:
         return docs_with_score
     elif docs_token_handling in [None, 'split_or_merge']:
+        assert tokenizer
         if do_split:
 
             if verbose:
-                tokens_before_split = [get_token_count(x + '\n\n', tokenizer) for x in
+                tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
                                        [x[0].page_content for x in docs_with_score]]
                 print('tokens_before_split=%s' % tokens_before_split, flush=True)
 
@@ -3999,7 +4003,7 @@ def split_merge_docs(tokenizer, docs_with_score=[], max_input_tokens=None, docs_
             docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
 
             if verbose:
-                tokens_after_split = [get_token_count(x + '\n\n', tokenizer) for x in
+                tokens_after_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
                                       [x[0].page_content for x in docs_with_score]]
                 print('tokens_after_split=%s' % tokens_after_split, flush=True)
 
@@ -4027,7 +4031,7 @@ def split_merge_docs(tokenizer, docs_with_score=[], max_input_tokens=None, docs_
             k += top_k_docs
 
         if verbose:
-            tokens_after_merge = [get_token_count(x + '\n\n', tokenizer) for x in
+            tokens_after_merge = [get_token_count(x + docs_joiner_default, tokenizer) for x in
                                   [x[0].page_content for x in docs_with_score_new]]
             print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
 
@@ -4113,10 +4117,11 @@ def get_chain(query=None,
               only_new_text=None,
               tokenizer=None,
               verbose=False,
-              docs_ordering_type='reverse_ucurve_sort',
+              docs_ordering_type=docs_ordering_types_default,
               min_max_new_tokens=256,
               max_input_tokens=-1,
               docs_token_handling=None,
+              docs_joiner=None,
 
               stream_output=True,
               async_output=True,
@@ -4418,6 +4423,8 @@ def get_chain(query=None,
         name_path = "sim.lock"
         lock_file = os.path.join(base_path, name_path)
 
+    # GET FILTER
+
     if not is_chroma_db(db):
         # only chroma supports filtering
         chunk_id_filter = None
@@ -4501,6 +4508,8 @@ def get_chain(query=None,
                 filter_kwargs = {}
                 filter_kwargs_backup = {}
 
+    # GET DOCS
+
     if document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
         db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
                                                        text_context_list=text_context_list,
@@ -4544,8 +4553,8 @@ def get_chain(query=None,
         docs_with_score = docs_with_score[:top_k_docs]
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
-        num_docs_before_cut = len(docs)
     else:
+        # have query
         # for db=None too
         with filelock.FileLock(lock_file):
             docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
@@ -4559,84 +4568,92 @@ def get_chain(query=None,
                                                       chunk_id_filter=chunk_id_filter,
                                                       verbose=verbose)
 
-        tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                  use_openai_model=use_openai_model,
-                                  db_type=db_type)
-        # NOTE: if map_reduce, then no need to auto reduce chunks
-        if query_action and (top_k_docs == -1 or auto_reduce_chunks):
-            top_k_docs_tokenize = 100
-            docs_with_score = docs_with_score[:top_k_docs_tokenize]
-            if docs_with_score:
-                estimated_prompt_no_docs = template.format(context='', question=query)
-            else:
-                estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
-            chat = True  # FIXME?
+    # SELECT PROMPT + DOCS
 
-            # first docs_with_score are most important with highest score
-            estimated_full_prompt, \
-                instruction, iinput, context, \
-                num_prompt_tokens, max_new_tokens, \
-                num_prompt_tokens0, num_prompt_tokens_actual, \
-                chat_index, external_handle_chat_conversation, \
-                top_k_docs_trial, one_doc_size = \
-                get_limited_prompt(estimated_prompt_no_docs,
-                                   iinput,
-                                   tokenizer,
-                                   prompter=prompter,
-                                   inference_server=inference_server,
-                                   prompt_type=prompt_type,
-                                   prompt_dict=prompt_dict,
-                                   chat=chat,
-                                   max_new_tokens=max_new_tokens,
-                                   system_prompt=system_prompt,
-                                   context=context,
-                                   chat_conversation=chat_conversation,
-                                   text_context_list=[x[0].page_content for x in docs_with_score],
-                                   keep_sources_in_context=keep_sources_in_context,
-                                   model_max_length=model_max_length,
-                                   memory_restriction_level=memory_restriction_level,
-                                   langchain_mode=langchain_mode,
-                                   add_chat_history_to_context=add_chat_history_to_context,
-                                   min_max_new_tokens=min_max_new_tokens,
-                                   max_input_tokens=max_input_tokens,
-                                   )
-            # get updated llm
-            llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
-            if external_handle_chat_conversation:
-                # should already have attribute, checking sanity
-                assert hasattr(llm, 'chat_conversation')
-                llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
-            llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
-
-            # avoid craziness
-            if 0 < top_k_docs_trial < max_chunks:
-                # avoid craziness
-                if top_k_docs == -1:
-                    top_k_docs = top_k_docs_trial
-                else:
-                    top_k_docs = min(top_k_docs, top_k_docs_trial)
-            elif top_k_docs_trial >= max_chunks:
-                top_k_docs = max_chunks
-            docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
-        elif query_action:
-            # no limitation or auto-filling, just literal top_k_docs
-            docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, None)
+    tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                              use_openai_model=use_openai_model,
+                              db_type=db_type)
+    # NOTE: if map_reduce, then no need to auto reduce chunks
+    if query_action and (top_k_docs == -1 or auto_reduce_chunks):
+        top_k_docs_tokenize = 100
+        docs_with_score = docs_with_score[:top_k_docs_tokenize]
+        if docs_with_score:
+            estimated_prompt_no_docs = template.format(context='', question=query)
         else:
-            assert not query_action and summarize_action, "Bad action"
-            one_doc_size = None
-            if total_tokens_for_docs is not None:
-                # used to limit tokens for summarization, e.g. public instance
-                top_k_docs, one_doc_size, num_doc_tokens = \
-                    get_docs_tokens(tokenizer,
-                                    text_context_list=[x[0].page_content for x in docs_with_score],
-                                    max_input_tokens=total_tokens_for_docs)
-            # filter by top_k_docs and maybe one_doc_size
-            docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
-            # group docs if desired/can to fill context
-            docs_with_score = split_merge_docs(docs_with_score, max_input_tokens=max_input_tokens,
-                                               docs_token_handling=docs_token_handling,
-                                               verbose=verbose)
+            estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
+        chat = True  # FIXME?
 
+        # first docs_with_score are most important with highest score
+        estimated_full_prompt, \
+            instruction, iinput, context, \
+            num_prompt_tokens, max_new_tokens, \
+            num_prompt_tokens0, num_prompt_tokens_actual, \
+            chat_index, external_handle_chat_conversation, \
+            top_k_docs_trial, one_doc_size = \
+            get_limited_prompt(estimated_prompt_no_docs,
+                               iinput,
+                               tokenizer,
+                               prompter=prompter,
+                               inference_server=inference_server,
+                               prompt_type=prompt_type,
+                               prompt_dict=prompt_dict,
+                               chat=chat,
+                               max_new_tokens=max_new_tokens,
+                               system_prompt=system_prompt,
+                               context=context,
+                               chat_conversation=chat_conversation,
+                               text_context_list=[x[0].page_content for x in docs_with_score],
+                               keep_sources_in_context=keep_sources_in_context,
+                               model_max_length=model_max_length,
+                               memory_restriction_level=memory_restriction_level,
+                               langchain_mode=langchain_mode,
+                               add_chat_history_to_context=add_chat_history_to_context,
+                               min_max_new_tokens=min_max_new_tokens,
+                               max_input_tokens=max_input_tokens,
+                               )
+        # get updated llm
+        llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
+        if external_handle_chat_conversation:
+            # should already have attribute, checking sanity
+            assert hasattr(llm, 'chat_conversation')
+            llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+
+        # avoid craziness
+        if 0 < top_k_docs_trial < max_chunks:
+            # avoid craziness
+            if top_k_docs == -1:
+                top_k_docs = top_k_docs_trial
+            else:
+                top_k_docs = min(top_k_docs, top_k_docs_trial)
+        elif top_k_docs_trial >= max_chunks:
+            top_k_docs = max_chunks
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+    elif query_action:
+        # no limitation or auto-filling, just literal top_k_docs
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, None)
+    else:
+        assert not query_action and summarize_action, "Bad action"
+        one_doc_size = None
+        if total_tokens_for_docs is not None:
+            # used to limit tokens for summarization, e.g. public instance
+            top_k_docs, one_doc_size, num_doc_tokens = \
+                get_docs_tokens(tokenizer,
+                                text_context_list=[x[0].page_content for x in docs_with_score],
+                                max_input_tokens=total_tokens_for_docs)
+        # filter by top_k_docs and maybe one_doc_size
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+        # group docs if desired/can to fill context
+        docs_with_score = split_merge_docs(docs_with_score,
+                                           tokenizer,
+                                           max_input_tokens=max_input_tokens,
+                                           docs_token_handling=docs_token_handling,
+                                           joiner=docs_joiner,
+                                           verbose=verbose)
+
+    # now done with all docs and their sizes, re-order docs if required
+    if query_action:
+        # not relevant for summarization, including in chunk mode, so process docs in order for summarization or extraction
         # put most relevant chunks closest to question,
         # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
         # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
@@ -4649,13 +4666,14 @@ def get_chain(query=None,
         else:
             raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
 
-        # cut off so no high distance docs/sources considered
-        num_docs_before_cut = len(docs_with_score)
-        docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
-        scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
-        if len(scores) > 0 and verbose:
-            print("Distance: min: %s max: %s mean: %s median: %s" %
-                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+    # cut off so no high distance docs/sources considered
+    # NOTE: If no query, then distance set was 0 and nothing will be cut
+    num_docs_before_cut = len(docs_with_score)
+    docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
+    scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
+    if len(scores) > 0 and verbose:
+        print("Distance: min: %s max: %s mean: %s median: %s" %
+              (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
 
     # if HF type and have no docs, could bail out, but makes code too complex
 
@@ -4890,7 +4908,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                        show_accordions=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
-                       docs_ordering_type='reverse_ucurve_sort',
+                       docs_ordering_type=docs_ordering_types_default,
                        num_docs_before_cut=0,
                        verbose=False,
                        t_run=None,
