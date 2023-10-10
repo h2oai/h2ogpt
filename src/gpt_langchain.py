@@ -32,8 +32,10 @@ from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
+from langchain.llms.openai import acompletion_with_retry, update_token_usage
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.schema import LLMResult, Generation, PromptValue
+from langchain.schema.output import GenerationChunk
 from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
@@ -897,12 +899,28 @@ class H2OOpenAI(OpenAI):
     ) -> LLMResult:
         try:
             # FIXME: debugging asyncio parallel behavior
-            #print("begin _agenerate", flush=True)
             prompts, stop = self.update_prompts_and_stops(prompts, stop)
-            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            if self.batch_size > 1 or self.streaming:
+                return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            else:
+                # self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+                tasks = [
+                    asyncio.ensure_future(super(H2OOpenAI, self)._agenerate([prompt], stop=stop, run_manager=run_manager, **kwargs))
+                    for prompt in prompts]
+                llm_results = await asyncio.gather(*tasks)
+                generations = [x.generations[0] for x in llm_results]
+
+                def reducer(accumulator, element):
+                    for key, value in element.items():
+                        accumulator[key] = accumulator.get(key, 0) + value
+                    return accumulator
+                collection = [x.llm_output['token_usage'] for x in llm_results]
+                token_usage = reduce(reducer, collection, {})
+
+                llm_output = {"token_usage": token_usage, "model_name": self.model_name}
+                return LLMResult(generations=generations, llm_output=llm_output)
         finally:
             pass
-            #print("end _agenerate", flush=True)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
