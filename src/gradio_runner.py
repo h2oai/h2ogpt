@@ -3136,8 +3136,8 @@ def go_gradio(**kwargs):
                                  which_model=chatboti)
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
-                        if stream_output1:
-                            gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
+                        # always use stream or not, so do not block any iterator/generator
+                        gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
                         # else timeout will truncate output for non-streaming case
                     else:
                         gen1 = gen1_fake(fun1, history)
