@@ -853,6 +853,9 @@ class H2OOpenAI(OpenAI):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     @classmethod
     def _all_required_field_names(cls) -> Set:
@@ -897,30 +900,39 @@ class H2OOpenAI(OpenAI):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> LLMResult:
-        try:
-            # FIXME: debugging asyncio parallel behavior
-            prompts, stop = self.update_prompts_and_stops(prompts, stop)
-            if self.batch_size > 1 or self.streaming:
-                return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
-            else:
-                # self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
-                tasks = [
-                    asyncio.ensure_future(super(H2OOpenAI, self)._agenerate([prompt], stop=stop, run_manager=run_manager, **kwargs))
-                    for prompt in prompts]
-                llm_results = await asyncio.gather(*tasks)
-                generations = [x.generations[0] for x in llm_results]
+        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        if self.batch_size > 1 or self.streaming:
+            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        else:
+            self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+            tasks = [
+                asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager, **kwargs))
+                for prompt in prompts]
+            llm_results = await asyncio.gather(*tasks)
+            generations = [x.generations[0] for x in llm_results]
 
-                def reducer(accumulator, element):
-                    for key, value in element.items():
-                        accumulator[key] = accumulator.get(key, 0) + value
-                    return accumulator
-                collection = [x.llm_output['token_usage'] for x in llm_results]
-                token_usage = reduce(reducer, collection, {})
+            def reducer(accumulator, element):
+                for key, value in element.items():
+                    accumulator[key] = accumulator.get(key, 0) + value
+                return accumulator
 
-                llm_output = {"token_usage": token_usage, "model_name": self.model_name}
-                return LLMResult(generations=generations, llm_output=llm_output)
-        finally:
-            pass
+            collection = [x.llm_output['token_usage'] for x in llm_results]
+            token_usage = reduce(reducer, collection, {})
+
+            llm_output = {"token_usage": token_usage, "model_name": self.model_name}
+            self.count_output_tokens += token_usage.get('completion_tokens', 0)
+            return LLMResult(generations=generations, llm_output=llm_output)
+
+    async def _agenerate_one(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        async_sem = NullContext() if self.async_sem is None else self.async_sem
+        async with async_sem:  # semaphore limits num of simultaneous downloads
+            return await super(H2OOpenAI, self)._agenerate([prompt], stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1222,8 +1234,10 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
+                async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         async_sem=async_sem,
                                          ))
             openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
@@ -1246,6 +1260,7 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
+                async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
                                          prompter=prompter,
@@ -1254,7 +1269,9 @@ def get_llm(use_openai_model=False,
                                          tokenizer=tokenizer,
                                          openai_api_base=openai.api_base,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
-                                         client=None))
+                                         client=None,
+                                         async_sem=async_sem,
+                                         ))
             else:
                 assert inf_type == 'openai' or use_openai_model
             openai_api_key = openai.api_key
