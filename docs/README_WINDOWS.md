@@ -51,7 +51,10 @@ For newer builds of windows versions of 10/11.
     cd h2ogpt
     ```
 * Install primary dependencies.
-
+  * Remove any bad dependencies that existed (required for new transformers it seems):
+      ```bash
+      pip uninstall flash-attn
+       ```
   * For CPU Only:
       ```bash
       pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
