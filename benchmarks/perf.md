@@ -1,4 +1,7 @@
 # Backend: transformers
+
+[Interactive visualization of the results](https://htmlpreview.github.io/?https://github.com/h2oai/h2ogpt/blob/main/benchmarks/llm_gpu_benchmark_transformers.html)
+
 ## Model: h2oai/h2ogpt-4096-llama2-7b-chat (transformers)
 ### Number of GPUs: 0
 |   bits | gpus   |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
@@ -132,6 +135,10 @@
 |      8 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    413.957 |                         2.22551 |             |
 |      4 | 4 x NVIDIA RTX A6000 (46068 MiB) |                    175.491 |                         6.5798  |             |
 # Backend: text-generation-inference
+
+[Interactive visualization of the results](https://htmlpreview.github.io/?https://github.com/h2oai/h2ogpt/blob/main/benchmarks/llm_gpu_benchmark_text-generation-inference.html)
+
+
 ## Model: h2oai/h2ogpt-4096-llama2-7b-chat (text-generation-inference)
 ### Number of GPUs: 1
 |   bits | gpus                                           |   summarization time [sec] |   generation speed [tokens/sec] | exception   |
