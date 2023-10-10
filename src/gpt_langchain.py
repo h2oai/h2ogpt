@@ -889,6 +889,7 @@ class H2OOpenAI(OpenAI):
         # Includes prompt, completion, and total tokens used.
         _keys = {"completion_tokens", "prompt_tokens", "total_tokens"}
         text = ''
+        stream_text = ''
         for _prompts in sub_prompts:
             if self.streaming:
                 text_with_prompt = ""
@@ -897,16 +898,13 @@ class H2OOpenAI(OpenAI):
                     raise ValueError("Cannot stream results with multiple prompts.")
                 params["stream"] = True
                 response = _streaming_response_template()
-                first = True
+                # print("Inner prompt: %s" % _prompts[0], flush=True)
                 for stream_resp in completion_with_retry(
                         self, prompt=_prompts, **params
                 ):
-                    if first:
-                        stream_resp["choices"][0]["text"] = prompt + stream_resp["choices"][0]["text"]
-                        first = False
                     text_chunk = stream_resp["choices"][0]["text"]
-                    text_with_prompt += text_chunk
-                    text = self.prompter.get_response(text_with_prompt, prompt=prompt,
+                    stream_text += text_chunk
+                    text = self.prompter.get_response(prompt + stream_text, prompt=prompt,
                                                       sanitize_bot_response=self.sanitize_bot_response)
                     if run_manager:
                         run_manager.on_llm_new_token(
@@ -962,7 +960,8 @@ class H2OReplicate(Replicate):
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
 
-        return super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        return response
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -1146,8 +1145,8 @@ def get_llm(use_openai_model=False,
             llamacpp_dict=None,
             verbose=False,
             ):
-    # currently all but h2oai_pipeline case return prompt + new text, but could change
-    only_new_text = False
+    # make all return only new text, so other uses work as expected, like summarization
+    only_new_text = True
 
     if chat_conversation is None:
         chat_conversation = []
@@ -1479,7 +1478,6 @@ def get_llm(use_openai_model=False,
             model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
                                                  inference_server=inference_server, gpu_id=0)
 
-        only_new_text = True
         gen_kwargs = dict(do_sample=do_sample,
                           num_beams=num_beams,
                           max_new_tokens=max_new_tokens,
