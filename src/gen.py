@@ -3289,7 +3289,7 @@ def get_generate_params(model_lower,
 
     min_new_tokens = min_new_tokens if min_new_tokens is not None else 0
     early_stopping = early_stopping if early_stopping is not None else False
-    max_time_defaults = 60 * 3
+    max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
