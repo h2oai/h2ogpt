@@ -435,7 +435,48 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun, AsyncCallbackM
 from langchain.llms.base import LLM
 
 
-class GradioInference(LLM):
+class H2Oagenerate:
+    async def _agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        """Run the LLM on the given prompt and input."""
+        if self.verbose:
+            print("_agenerate H2O", flush=True)
+        generations = []
+        new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        tasks = [
+            asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
+                                                      new_arg_supported=new_arg_supported, **kwargs))
+            for prompt in prompts
+        ]
+        texts = await asyncio.gather(*tasks)
+        self.count_output_tokens += sum([self.get_num_tokens(text) for text in texts])
+        [generations.append([Generation(text=text)]) for text in texts]
+        if self.verbose:
+            print("done _agenerate H2O", flush=True)
+        return LLMResult(generations=generations)
+
+    async def _agenerate_one(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            new_arg_supported=None,
+            **kwargs: Any,
+    ) -> str:
+        async_sem = NullContext() if self.async_sem is None else self.async_sem
+        async with async_sem:  # semaphore limits num of simultaneous downloads
+            return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
+                if new_arg_supported else \
+                await self._acall(prompt, stop=stop, **kwargs)
+
+
+class GradioInference(H2Oagenerate, LLM):
     """
     Gradio generation inference API.
     """
@@ -468,6 +509,7 @@ class GradioInference(LLM):
     visible_models: Any = None
     h2ogpt_key: Any = None
 
+    async_sem: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
@@ -501,19 +543,12 @@ class GradioInference(LLM):
         """Return type of llm."""
         return "gradio_inference"
 
-    def _call(
-            self,
-            prompt: str,
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> str:
+    def setup_call(self, prompt):
         # NOTE: prompt here has no prompt_type (e.g. human: bot:) prompt injection,
         # so server should get prompt_type or '', not plain
         # This is good, so gradio server can also handle stopping.py conditions
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
-        gr_client = self.client
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = True
         client_add_search_to_context = False
@@ -579,13 +614,29 @@ class GradioInference(LLM):
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
 
-        if not stream_output:
-            res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+        return client_kwargs, api_name
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_call", flush=True)
+
+        client_kwargs, api_name = self.setup_call(prompt)
+
+        if not self.stream_output:
+            res = self.client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
             self.count_output_tokens += self.get_num_tokens(ret)
+            if self.verbose:
+                print("end _call", flush=True)
             return ret
         else:
             text_callback = None
@@ -594,7 +645,7 @@ class GradioInference(LLM):
                     run_manager.on_llm_new_token, verbose=self.verbose
                 )
 
-            job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+            job = self.client.submit(str(dict(client_kwargs)), api_name=api_name)
             text0 = ''
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
@@ -639,7 +690,77 @@ class GradioInference(LLM):
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
             self.count_output_tokens += self.get_num_tokens(ret)
+            if self.verbose:
+                print("end _call", flush=True)
             return ret
+
+    # copy-paste of streaming part of _call() with asyncio.sleep instead
+    async def _acall(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_acall", flush=True)
+
+        client_kwargs, api_name = self.setup_call(prompt)
+
+        text_callback = None
+        if run_manager:
+            text_callback = partial(
+                run_manager.on_llm_new_token, verbose=self.verbose
+            )
+
+        job = self.client.submit(str(dict(client_kwargs)), api_name=api_name)
+        text0 = ''
+        while not job.done():
+            if job.communicator.job.latest_status.code.name == 'FINISHED':
+                break
+            e = job.future._exception
+            if e is not None:
+                break
+            outputs_list = job.communicator.job.outputs
+            if outputs_list:
+                res = job.communicator.job.outputs[-1]
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                text = self.prompter.get_response(prompt + text, prompt=prompt,
+                                                  sanitize_bot_response=self.sanitize_bot_response)
+                # FIXME: derive chunk from full for now
+                text_chunk = text[len(text0):]
+                if not text_chunk:
+                    # just need some sleep for threads to switch
+                    await asyncio.sleep(0.001)
+                    continue
+                # save old
+                text0 = text
+
+                if text_callback:
+                    await text_callback(text_chunk)
+
+            await asyncio.sleep(0.01)
+
+        # ensure get last output to avoid race
+        res_all = job.outputs()
+        if len(res_all) > 0:
+            res = res_all[-1]
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            # FIXME: derive chunk from full for now
+        else:
+            # go with old if failure
+            text = text0
+        text_chunk = text[len(text0):]
+        if text_callback:
+            await text_callback(text_chunk)
+        ret = self.prompter.get_response(prompt + text, prompt=prompt,
+                                         sanitize_bot_response=self.sanitize_bot_response)
+        self.count_output_tokens += self.get_num_tokens(ret)
+        if self.verbose:
+            print("end _acall", flush=True)
+        return ret
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -647,7 +768,7 @@ class GradioInference(LLM):
         # return _get_token_ids_default_method(text)
 
 
-class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
+class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     top_k: Optional[int] = None
@@ -765,7 +886,8 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
             run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> str:
-        # print("acall", flush=True)
+        if self.verbose:
+            print("acall", flush=True)
         if stop is None:
             stop = self.stop_sequences.copy()
         else:
@@ -792,42 +914,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         text = prompt + gen_text
         text = self.prompter.get_response(text, prompt=prompt,
                                           sanitize_bot_response=self.sanitize_bot_response)
-        # print("acall done", flush=True)
+        if self.verbose:
+            print("acall done", flush=True)
         return text
-
-    async def _agenerate(
-            self,
-            prompts: List[str],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        """Run the LLM on the given prompt and input."""
-        generations = []
-        new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
-        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
-        tasks = [
-            asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
-                                                      new_arg_supported=new_arg_supported, **kwargs))
-            for prompt in prompts
-        ]
-        texts = await asyncio.gather(*tasks)
-        self.count_output_tokens += sum([self.get_num_tokens(text) for text in texts])
-        [generations.append([Generation(text=text)]) for text in texts]
-        return LLMResult(generations=generations)
-
-    async def _agenerate_one(
-            self,
-            prompt: str,
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-            new_arg_supported=None,
-            **kwargs: Any,
-    ) -> str:
-        async with self.async_sem:  # semaphore limits num of simultaneous downloads
-            return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
-                if new_arg_supported else \
-                await self._acall(prompt, stop=stop, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -889,7 +978,8 @@ class H2OOpenAI(OpenAI):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> LLMResult:
-        print("Hit _generate", flush=True)
+        if self.verbose:
+            print("Hit _generate", flush=True)
         prompts, stop = self.update_prompts_and_stops(prompts, stop)
         return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
@@ -1208,6 +1298,7 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                verbose=verbose,
             )
         else:
             streamer = None
@@ -1221,6 +1312,7 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                verbose=verbose,
             )
     elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
         # supports async_output=True if chosen
@@ -1302,6 +1394,7 @@ def get_llm(use_openai_model=False,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
+                  verbose=verbose,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -1333,6 +1426,7 @@ def get_llm(use_openai_model=False,
             content_handler=content_handler,
             endpoint_kwargs={'CustomAttributes': 'accept_eula=true'},
             tokenizer=tokenizer,  # for summarization and token counting
+            verbose=verbose,
         )
     elif inference_server:
         assert inference_server.startswith(
@@ -1354,8 +1448,10 @@ def get_llm(use_openai_model=False,
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
         callbacks = [StreamingGradioCallbackHandler()]
 
+        async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
         if gr_client:
-            async_output = False  # FIXME: not implemented yet
+            # NOTE: No need for num_async semaphore because gradio should be setup to queue
+            # Async implemented via base LLM _agenerate() calling _generate() calling _call()
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
@@ -1387,10 +1483,11 @@ def get_llm(use_openai_model=False,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
+                async_sem=async_sem,
+                verbose=verbose,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
-            async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
@@ -1413,6 +1510,7 @@ def get_llm(use_openai_model=False,
                 timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
                 async_sem=async_sem,
+                verbose=verbose,
             )
         else:
             raise RuntimeError("No defined client")
@@ -1533,6 +1631,7 @@ def get_llm(use_openai_model=False,
                                          tokenizer=tokenizer,
                                          max_input_tokens=max_input_tokens,
                                          base_model=model_name,
+                                         verbose=verbose,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,

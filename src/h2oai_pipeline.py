@@ -16,6 +16,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  max_input_tokens=2048 - 256,
                  base_model=None,
                  stop=None,
+                 verbose=False,
                  **kwargs):
         """
         HF-like pipeline, but handle instruction prompting and stopping (for some models)
@@ -59,6 +60,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.sanitize_bot_response = sanitize_bot_response
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
         self.base_model = base_model
+        self.verbose = verbose
 
     @staticmethod
     def get_token_count(x, tokenizer):

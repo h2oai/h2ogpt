@@ -515,6 +515,9 @@ def main(
            For nochat API, this is single item within a list for model by name or by index in model_lock
                                 If None, then just use first model in model_lock list
                                 If model_lock not set, use model selected by CLI --base_model etc.
+           Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
+              and the value is not used to access the inference server.
+              If need a visible_models for an inference server, then use --model_lock and group together.
 
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up

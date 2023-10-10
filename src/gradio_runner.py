@@ -1542,12 +1542,12 @@ def go_gradio(**kwargs):
         def set_visible_models(visible_models1, num_model_lock=0, all_models=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
-                ret_list = [gr.update(visible=True)] * num_model_lock
+                ret_list = [gr.Textbox(visible=True)] * num_model_lock
             else:
                 assert isinstance(all_models, list)
                 assert num_model_lock == len(all_models)
                 visible_list = [False, False] + get_model_lock_visible_list(visible_models1, all_models)
-                ret_list = [gr.update(visible=x) for x in visible_list]
+                ret_list = [gr.Textbox(visible=x) for x in visible_list]
             return tuple(ret_list)
 
         visible_models_func = functools.partial(set_visible_models,
@@ -1628,7 +1628,7 @@ def go_gradio(**kwargs):
         # note for update_user_db_func output is ignored for db
 
         def clear_textbox():
-            return gr.Textbox.update(value='')
+            return gr.Textbox(value='')
 
         update_user_db_url_func = functools.partial(update_db_func, is_url=True)
 
@@ -1702,7 +1702,7 @@ def go_gradio(**kwargs):
                 label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
             return gr.Dropdown(choices=docs_state0, value=DocumentChoice.ALL.value,
-                                      label=label1), gr.Markdown.update(value=active_collection1)
+                                      label=label1), gr.Markdown(value=active_collection1)
 
         lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
                                                 outputs=[document_choice, active_collection],
@@ -3312,14 +3312,14 @@ def go_gradio(**kwargs):
                                   )
 
         def clear_instruct():
-            return gr.Textbox.update(value='')
+            return gr.Textbox(value='')
 
         def deselect_radio_chats():
             return gr.update(value=None)
 
         def clear_all():
-            return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None), \
-                gr.Textbox.update(value=''), gr.Textbox.update(value='')
+            return gr.Textbox(value=''), gr.Textbox(value=''), gr.update(value=None), \
+                gr.Textbox(value=''), gr.Textbox(value='')
 
         if kwargs['model_states']:
             submits1 = submits2 = submits3 = []
@@ -3570,12 +3570,12 @@ def go_gradio(**kwargs):
             return tuple(ret_chat)
 
         def clear_texts(*args):
-            return tuple([gr.Textbox.update(value='')] * len(args))
+            return tuple([gr.Textbox(value='')] * len(args))
 
         def clear_scores():
-            return gr.Textbox.update(value=res_value), \
-                gr.Textbox.update(value='Response Score: NA'), \
-                gr.Textbox.update(value='Response Score: NA')
+            return gr.Textbox(value=res_value), \
+                gr.Textbox(value='Response Score: NA'), \
+                gr.Textbox(value='Response Score: NA')
 
         switch_chat_fun = functools.partial(switch_chat, num_model_lock=len(text_outputs))
         radio_chats.input(switch_chat_fun,
@@ -3779,8 +3779,8 @@ def go_gradio(**kwargs):
                 server_name = no_server_str
                 return kwargs['model_state_none'].copy(), \
                     model_name, lora_weights, server_name, prompt_type_old, \
-                    gr.Slider.update(maximum=256), \
-                    gr.Slider.update(maximum=256)
+                    gr.Slider(maximum=256), \
+                    gr.Slider(maximum=256)
 
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
@@ -3837,8 +3837,8 @@ def go_gradio(**kwargs):
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
             return model_state_new, model_name, lora_weights, server_name, prompt_type1, \
-                gr.Slider.update(maximum=max_max_new_tokens1), \
-                gr.Slider.update(maximum=max_max_new_tokens1)
+                gr.Slider(maximum=max_max_new_tokens1), \
+                gr.Slider(maximum=max_max_new_tokens1)
 
         def get_prompt_str(prompt_type1, prompt_dict1, system_prompt1, which=0):
             if prompt_type1 in ['', None]:
@@ -3865,7 +3865,7 @@ def go_gradio(**kwargs):
             return gr.Dropdown(value=x)
 
         def chatbot_list(x, model_used_in):
-            return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
+            return gr.Textbox(label=f'h2oGPT [Model: {model_used_in}]')
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
@@ -3975,7 +3975,7 @@ def go_gradio(**kwargs):
             .then(**load_model_args, queue=False).then(**prompt_update_args, queue=False)
 
         def compare_textbox_fun(x):
-            return gr.Textbox.update(visible=x)
+            return gr.Textbox(visible=x)
 
         def compare_column_fun(x):
             return gr.Column.update(visible=x)
@@ -3984,7 +3984,7 @@ def go_gradio(**kwargs):
             return gr.Dropdown(visible=x)
 
         def slider_fun(x):
-            return gr.Slider.update(visible=x)
+            return gr.Slider(visible=x)
 
         compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2,
                                 api_name="compare_checkbox" if allow_api else None) \
@@ -4008,7 +4008,7 @@ def go_gradio(**kwargs):
         def get_system_info():
             if is_public:
                 time.sleep(10)  # delay to avoid spam since queue=False
-            return gr.Textbox.update(value=system_info_print())
+            return gr.Textbox(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
                                         api_name='system_info' if allow_api else None, queue=False)

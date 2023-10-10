@@ -94,3 +94,18 @@ def test_add_new_doc():
 @wrap_test_forked
 def test_model_lock():
     raise NotImplementedError("""MANUAL TEST FOR NOW  UI test of model lock""")
+
+
+@wrap_test_forked
+def test_async_gradio():
+    raise NotImplementedError("""MANUAL TEST FOR NOW
+    * point to gradio via model lock
+    * set --num_async=10 --verbose=True
+    * In UI, upload whisper.pdf paper
+    * choose resources->summarize action
+    * choose expert tab -> no streaming and top_k_docs=-1
+    * Click submit
+    * Confirm that multiple _acall's are printed together before any end _acall's so know they were launched at same time
+    
+    Repeat for vLLM and OpenAI and TGI endpoints
+    """)
