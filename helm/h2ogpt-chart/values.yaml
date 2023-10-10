@@ -49,6 +49,8 @@ h2ogpt:
   nodeSelector:
   tolerations:
 
+  env: {}
+
   podAnnotations: {}
   podLabels: {}
   autoscaling: {}
@@ -83,6 +85,8 @@ tgi:
   resources:
   nodeSelector:
   tolerations:
+
+  env: {}
 
   podAnnotations: {}
   podLabels: {}
@@ -135,6 +139,8 @@ vllm:
       drop:
         - ALL
     seccompProfile:
+
+  env: {}
 
   resources:
 
