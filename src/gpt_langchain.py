@@ -72,7 +72,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
     UnstructuredExcelLoader, JSONLoader
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter, CharacterTextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
@@ -3985,7 +3985,7 @@ def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
     return docs_with_score
 
 
-class H2ORecursiveCharacterTextSplitter(RecursiveCharacterTextSplitter):
+class H2OCharacterTextSplitter(CharacterTextSplitter):
     @classmethod
     def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
         def _huggingface_tokenizer_length(text: str) -> int:
@@ -4004,15 +4004,17 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
         return docs_with_score
     elif docs_token_handling in [None, 'split_or_merge']:
         assert tokenizer
+        tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+                               [x[0].page_content for x in docs_with_score]]
+        # skip split if not necessary, since expensive for some reason
+        do_split &= any([x > max_input_tokens for x in tokens_before_split])
         if do_split:
 
             if verbose:
-                tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
-                                       [x[0].page_content for x in docs_with_score]]
                 print('tokens_before_split=%s' % tokens_before_split, flush=True)
 
             # see if need to split
-            text_splitter = H2ORecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+            text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
                 tokenizer, chunk_size=max_input_tokens, chunk_overlap=0
             )
             [x[0].metadata.update(dict(docscore=x[1])) for x in docs_with_score]
