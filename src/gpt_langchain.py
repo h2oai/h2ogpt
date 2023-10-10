@@ -835,14 +835,15 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
 
 from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain.llms import OpenAI, AzureOpenAI, Replicate
-from langchain.llms.openai import _streaming_response_template, completion_with_retry, _update_response, \
-    update_token_usage
 
 
 class H2OOpenAI(OpenAI):
     """
     New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
     Handles prompting that OpenAI doesn't need, stopping as well
+
+    assume stop is used to keep out trailing text, and only generate new text,
+    so don't use self.prompter.get_response as becomes too complex
     """
     stop_sequences: Any = None
     sanitize_bot_response: bool = False
@@ -859,13 +860,7 @@ class H2OOpenAI(OpenAI):
              'tokenizer', 'logit_bias'})
         return _all_required_field_names
 
-    def _generate(
-            self,
-            prompts: List[str],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> LLMResult:
+    def update_prompts_and_stops(self, prompts, stop):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
         [stop.append(x) for x in stop_tmp if x not in stop]
@@ -880,49 +875,29 @@ class H2OOpenAI(OpenAI):
             prompt = self.prompter.generate_prompt(data_point)
             prompts[prompti] = prompt
 
-        params = self._invocation_params
-        params = {**params, **kwargs}
-        sub_prompts = self.get_sub_prompts(params, prompts, stop)
-        choices = []
-        token_usage: Dict[str, int] = {}
-        # Get the token usage from the response.
-        # Includes prompt, completion, and total tokens used.
-        _keys = {"completion_tokens", "prompt_tokens", "total_tokens"}
-        text = ''
-        stream_text = ''
-        for _prompts in sub_prompts:
-            if self.streaming:
-                text_with_prompt = ""
-                prompt = _prompts[0]
-                if len(_prompts) > 1:
-                    raise ValueError("Cannot stream results with multiple prompts.")
-                params["stream"] = True
-                response = _streaming_response_template()
-                # print("Inner prompt: %s" % _prompts[0], flush=True)
-                for stream_resp in completion_with_retry(
-                        self, prompt=_prompts, **params
-                ):
-                    text_chunk = stream_resp["choices"][0]["text"]
-                    stream_text += text_chunk
-                    text = self.prompter.get_response(prompt + stream_text, prompt=prompt,
-                                                      sanitize_bot_response=self.sanitize_bot_response)
-                    if run_manager:
-                        run_manager.on_llm_new_token(
-                            text_chunk,
-                            verbose=self.verbose,
-                            logprobs=stream_resp["choices"][0]["logprobs"],
-                        )
-                    _update_response(response, stream_resp)
-                choices.extend(response["choices"])
-            else:
-                response = completion_with_retry(self, prompt=_prompts, **params)
-                choices.extend(response["choices"])
-            if not self.streaming:
-                # Can't update token usage if streaming
-                update_token_usage(_keys, response, token_usage)
-        if self.streaming:
-            choices[0]['text'] = text
-        return self.create_llm_result(choices, prompts, token_usage)
+        return prompts, stop
+
+    def _generate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        print("Hit _generate", flush=True)
+        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        print("Hit _agenerate", flush=True)
+        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1213,6 +1188,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
             )
     elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
+        # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
         # FIXME: Will later import be ignored?  I think so, so should be fine
