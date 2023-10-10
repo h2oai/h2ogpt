@@ -1074,6 +1074,11 @@ def go_gradio(**kwargs):
                                                # info="For LangChain",
                                                visible=kwargs['langchain_mode'] != 'Disabled',
                                                interactive=not is_public)
+                        chunk = gr.components.Checkbox(value=kwargs['chunk'],
+                                                       label="Whether to chunk documents",
+                                                       info="For LangChain",
+                                                       visible=kwargs['langchain_mode'] != 'Disabled',
+                                                       interactive=not is_public)
                         chunk_size = gr.Number(value=kwargs['chunk_size'],
                                                label="Chunk size for document chunking",
                                                info="For LangChain (ignored if chunk=False)",
@@ -1090,15 +1095,10 @@ def go_gradio(**kwargs):
                         docs_token_handling = gr.Radio(
                             docs_token_handlings,
                             value=kwargs['docs_token_handling'],
-                            label="Document Handling Mode for filling in LLM Context",
+                            label="Document Handling Mode for filling LLM Context",
                             visible=True)
                         docs_joiner = gr.Textbox(label="String to join lists and documents", value=kwargs['docs_joiner'] or docs_joiner_default)
 
-                        chunk = gr.components.Checkbox(value=kwargs['chunk'],
-                                                       label="Whether to chunk documents",
-                                                       info="For LangChain",
-                                                       visible=kwargs['langchain_mode'] != 'Disabled',
-                                                       interactive=not is_public)
                         embed = gr.components.Checkbox(value=True,
                                                        label="Whether to embed text",
                                                        info="For LangChain",
@@ -1161,7 +1161,7 @@ def go_gradio(**kwargs):
                         )
                         max_input_tokens = gr.Number(
                             minimum=-1, maximum=128*1024, step=1,
-                            value=-1, label="Max input length to use for control context-filling when top_k_docs=-1",
+                            value=-1, label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
@@ -1701,7 +1701,7 @@ def go_gradio(**kwargs):
             else:
                 label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
-            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value,
+            return gr.Dropdown(choices=docs_state0, value=DocumentChoice.ALL.value,
                                       label=label1), gr.Markdown.update(value=active_collection1)
 
         lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
@@ -1730,7 +1730,7 @@ def go_gradio(**kwargs):
                             outputs=[row_llama, row_llama2, row_gpt4all, row_gpt4all2])
 
         def resize_col_tabs(x):
-            return gr.Dropdown.update(scale=x)
+            return gr.Dropdown(scale=x)
 
         col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, queue=False)
 
@@ -1749,7 +1749,7 @@ def go_gradio(**kwargs):
             if DocumentChoice.ALL.value in x:
                 x.remove(DocumentChoice.ALL.value)
             source_list = [DocumentChoice.ALL.value] + x
-            return gr.Dropdown.update(choices=source_list, value=[DocumentChoice.ALL.value])
+            return gr.Dropdown(choices=source_list, value=[DocumentChoice.ALL.value])
 
         get_sources_kwargs = dict(fn=get_sources1,
                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
@@ -1795,7 +1795,7 @@ def go_gradio(**kwargs):
                                   api_name='show_sources' if allow_api else None)
 
         def update_viewable_dropdown(x):
-            return gr.Dropdown.update(choices=x,
+            return gr.Dropdown(choices=x,
                                       value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
         get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0,
@@ -3846,7 +3846,7 @@ def go_gradio(**kwargs):
                             queue=False)
 
         def dropdown_prompt_type_list(x):
-            return gr.Dropdown.update(value=x)
+            return gr.Dropdown(value=x)
 
         def chatbot_list(x, model_used_in):
             return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
@@ -3910,8 +3910,8 @@ def go_gradio(**kwargs):
             model_new_options = [no_model_str] + sorted(model_new_options)
             x1 = model_x if model_used1 == no_model_str else model_used1
             x2 = model_x if model_used2 == no_model_str else model_used2
-            ret1 = [gr.Dropdown.update(value=x1, choices=model_new_options),
-                    gr.Dropdown.update(value=x2, choices=model_new_options),
+            ret1 = [gr.Dropdown(value=x1, choices=model_new_options),
+                    gr.Dropdown(value=x2, choices=model_new_options),
                     '', model_new_state]
 
             lora_new_state = [lora_list0[0] + [lora_x]]
@@ -3922,8 +3922,8 @@ def go_gradio(**kwargs):
             # don't switch drop-down to added lora if already have model loaded
             x1 = lora_x if model_used1 == no_model_str else lora_used1
             x2 = lora_x if model_used2 == no_model_str else lora_used2
-            ret2 = [gr.Dropdown.update(value=x1, choices=lora_new_options),
-                    gr.Dropdown.update(value=x2, choices=lora_new_options),
+            ret2 = [gr.Dropdown(value=x1, choices=lora_new_options),
+                    gr.Dropdown(value=x2, choices=lora_new_options),
                     '', lora_new_state]
 
             server_new_state = [server_list0[0] + [server_x]]
@@ -3934,8 +3934,8 @@ def go_gradio(**kwargs):
             # don't switch drop-down to added server if already have model loaded
             x1 = server_x if model_used1 == no_model_str else server_used1
             x2 = server_x if model_used2 == no_model_str else server_used2
-            ret3 = [gr.Dropdown.update(value=x1, choices=server_new_options),
-                    gr.Dropdown.update(value=x2, choices=server_new_options),
+            ret3 = [gr.Dropdown(value=x1, choices=server_new_options),
+                    gr.Dropdown(value=x2, choices=server_new_options),
                     '', server_new_state]
 
             return tuple(ret1 + ret2 + ret3)
@@ -3965,7 +3965,7 @@ def go_gradio(**kwargs):
             return gr.Column.update(visible=x)
 
         def compare_prompt_fun(x):
-            return gr.Dropdown.update(visible=x)
+            return gr.Dropdown(visible=x)
 
         def slider_fun(x):
             return gr.Slider.update(visible=x)
