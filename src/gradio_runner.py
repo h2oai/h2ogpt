@@ -2593,6 +2593,7 @@ def go_gradio(**kwargs):
 
             save_dict = dict()
             ret = {}
+            ret_old = None
             try:
                 for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
                     error = res_dict.get('error', '')
@@ -2635,9 +2636,13 @@ def go_gradio(**kwargs):
                         ret = fix_text_for_gradio(res_dict['response'])
                     else:
                         ret = '<br>' + fix_text_for_gradio(res_dict['response'])
-                    if stream_output1:
+                    if stream_output1 and ret != ret_old:
                         # yield as it goes, else need to wait since predict only returns first yield
                         yield ret
+                        if isinstance(ret, dict):
+                            ret_old = ret.copy()
+                        else:
+                            ret_old = ret
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
@@ -3073,11 +3078,19 @@ def go_gradio(**kwargs):
             save_dict = dict()
             error = ''
             extra = ''
+            history_str_old = ''
+            error_old = ''
             try:
                 for res in get_response(fun1, history):
+                    do_yield = False
                     history, error, extra, save_dict = res
                     # pass back to gradio only these, rest are consumed in this function
-                    yield history, error
+                    history_str = str(history)
+                    do_yield |= (history_str != history_str_old or error != error_old)
+                    if do_yield:
+                        yield history, error
+                        history_str_old = history_str
+                        error_old = error
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
@@ -3132,12 +3145,11 @@ def go_gradio(**kwargs):
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, valid_key, h2ogpt_key1, = \
-                        prep_bot(*tuple(args_list1), retry=retry,
-                                 which_model=chatboti)
+                        prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
                         # always use stream or not, so do not block any iterator/generator
-                        gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
+                        gen1 = TimeoutIterator(gen1, timeout=0.002, sentinel=None, raise_on_exception=False)
                         # else timeout will truncate output for non-streaming case
                     else:
                         gen1 = gen1_fake(fun1, history)
@@ -3149,12 +3161,14 @@ def go_gradio(**kwargs):
                 save_dicts_old = [{}] * len(bots_old)
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
+                    do_yield = False
                     if time.time() - tgen0 > max_time1:
                         print("Took too long: %s" % max_time1, flush=True)
                         break
 
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
                             for x, y in zip(res1, bots_old)]
+                    do_yield |= bots != bots_old
                     bots_old = bots.copy()
 
                     def larger_str(x, y):
@@ -3162,6 +3176,7 @@ def go_gradio(**kwargs):
 
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
+                    do_yield |= exceptions != exceptions_old
                     exceptions_old = exceptions.copy()
 
                     extras = [x[2] if x is not None and not isinstance(x, BaseException) else y
@@ -3183,10 +3198,11 @@ def go_gradio(**kwargs):
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                          x not in [None, '', 'None']])
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
-                    if len(bots) > 1:
-                        yield tuple(bots + [exceptions_str])
-                    else:
-                        yield bots[0], exceptions_str
+                    if do_yield:
+                        if len(bots) > 1:
+                            yield tuple(bots + [exceptions_str])
+                        else:
+                            yield bots[0], exceptions_str
                 if exceptions:
                     exceptions_reduced = [x for x in exceptions if x not in ['', None, 'None']]
                     if exceptions_reduced:

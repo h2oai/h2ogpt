@@ -895,9 +895,14 @@ class H2OOpenAI(OpenAI):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> LLMResult:
-        print("Hit _agenerate", flush=True)
-        prompts, stop = self.update_prompts_and_stops(prompts, stop)
-        return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        try:
+            # FIXME: debugging asyncio parallel behavior
+            #print("begin _agenerate", flush=True)
+            prompts, stop = self.update_prompts_and_stops(prompts, stop)
+            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        finally:
+            pass
+            #print("end _agenerate", flush=True)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -3798,6 +3803,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 thread = EThread(target=chain, streamer=streamer, bucket=bucket)
                 thread.start()
                 outputs = ""
+                output1_old = ''
                 try:
                     for new_text in streamer:
                         # print("new_text: %s" % new_text, flush=True)
@@ -3821,9 +3827,12 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
-                            yield dict(prompt=prompt, response=output1, sources='', num_prompt_tokens=0)
                         else:
-                            yield dict(prompt=prompt, response=outputs, sources='', num_prompt_tokens=0)
+                            output1 = outputs
+                        res_dict = dict(prompt=prompt, response=output1, sources='', num_prompt_tokens=0)
+                        if output1 != output1_old:
+                            yield res_dict
+                            output1_old = output1
                 except BaseException:
                     # if any exception, raise that exception if was from thread, first
                     if thread.exc:
