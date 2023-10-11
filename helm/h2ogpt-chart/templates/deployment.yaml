@@ -121,16 +121,19 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-config
-{{- if .Values.tgi.enabled }}
           env:
+          {{- if .Values.tgi.enabled }}
           - name: h2ogpt_inference_server
             value: "http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}"
-{{- end }}
-{{- if .Values.vllm.enabled }}
-          env:
+          {{- end }}
+          {{- if .Values.vllm.enabled }}
           - name: h2ogpt_inference_server
             value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
-{{- end }}
+          {{- end }}
+          {{- range $key, $value := .Values.h2ogpt.env }}
+          - name: "{{ $key }}"
+            value: "{{ $value }}"
+          {{- end }}
           volumeMounts:
             - name: h2ogpt-volume
               mountPath: /workspace/.cache
@@ -232,6 +235,11 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.tgi.resources | nindent 12 }}
+          env:
+          {{- range $key, $value := .Values.tgi.env }}
+          - name: "{{ $key }}"
+            value: "{{ $value }}"
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-tgi-inference-config
@@ -355,6 +363,10 @@ spec:
           env:
           - name: NCCL_IGNORE_DISABLED_P2P
             value: "1"
+          {{- range $key, $value := .Values.vllm.env }}
+          - name: "{{ $key }}"
+            value: "{{ $value }}"
+          {{- end }}
           volumeMounts:
             - name: h2ogpt-vllm-inference-volume
               mountPath: /workspace/.cache

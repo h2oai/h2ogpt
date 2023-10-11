@@ -117,7 +117,8 @@ prompt_type_to_model_name = {
         'TheBloke/Llama-2-70B-chat-AWQ',
         'h2oai/h2ogpt-4096-llama2-70b-chat-4bit',
     ],
-    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1'],
+    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF'],
+    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
@@ -772,6 +773,30 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = '[/INST]'
         if making_context:
             PreResponse += ""
+    elif prompt_type in [PromptType.zephyr.value, str(PromptType.zephyr.value),
+                         PromptType.zephyr.name]:
+        # https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha#intended-uses--limitations
+        # prompt_template = "<|system|>\n</s>\n<|user|>\n{query}</s>\n<|assistant|>\n"
+        if system_prompt in [None, 'None', 'auto']:
+            # automatic
+            system_prompt = "You are an AI that follows instructions extremely well and as helpful as possible."
+        if system_prompt:
+            sys_msg = """<|system|>\n%s""" % system_prompt
+        else:
+            sys_msg = ''
+        if sys_msg and not (chat and reduced):
+            # too much safety, hurts accuracy
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "</s>\n<|user|>\n"
+        PreResponse = "</s>\n<|assistant|>\n"
+        terminate_response = ['<|assistant|>', "</s>"]
+        chat_sep = '\n'
+        chat_turn_sep = '</s>\n'
+        humanstr = '<|user|>'
+        botstr = '<|assistant|>'
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
