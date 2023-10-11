@@ -11,6 +11,21 @@ h2ogpt:
   storage:
     size: 128Gi
     class: ebs-csi
+  
+  externalLLM:
+    enabled: false
+    secret:
+
+    modelLock:
+
+    openAIAzure:
+      enabled: false
+
+    openAI:
+      enabled: False
+
+    replicate: 
+      enabled: false
 
   overrideConfig:
     base_model: h2oai/h2ogpt-4096-llama2-7b-chat

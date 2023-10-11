@@ -134,6 +134,38 @@ spec:
           - name: "{{ $key }}"
             value: "{{ $value }}"
           {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.openAIAzure.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: OPENAI_AZURE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: OPENAI_AZURE_KEY
+          - name: OPENAI_AZURE_API_BASE
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: OPENAI_AZURE_API_BASE
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.openAI.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: OPENAI_API_KEY
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.replicate.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: REPLICATE_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: REPLICATE_API_TOKEN
+          {{- end }}
+          {{- if .Values.h2ogpt.externalLLM.enabled }}
+          - name: H2OGPT_MODEL_LOCK
+            value: {{ toJson .Values.h2ogpt.externalLLM.modelLock }}
+          - name: H2OGPT_SCORE_MODEL
+            value: None
+          {{- end }}
           volumeMounts:
             - name: h2ogpt-volume
               mountPath: /workspace/.cache
