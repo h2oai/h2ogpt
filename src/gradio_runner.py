@@ -4202,7 +4202,12 @@ def go_gradio(**kwargs):
                 prevent_thread_lock=True,
                 auth=auth,
                 auth_message=auth_message,
-                root_path=kwargs['root_path'])
+                root_path=kwargs['root_path'],
+                ssl_keyfile=kwargs['ssl_keyfile'],
+                ssl_verify=kwargs['ssl_verify'],
+                ssl_certfile=kwargs['ssl_certfile'],
+                ssl_keyfile_password=kwargs['ssl_keyfile_password'],
+                )
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
         print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (kwargs['server_name'], server_port),
               flush=True)

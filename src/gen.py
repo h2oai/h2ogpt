@@ -119,7 +119,6 @@ def main(
         memory_restriction_level: int = None,
         debug: bool = False,
         save_dir: str = None,
-        share: bool = False,
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
@@ -137,7 +136,13 @@ def main(
         gradio: bool = True,
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
+        share: bool = False,
         root_path: str = "",
+        ssl_verify: bool = True,
+        ssl_keyfile: str | None = None,
+        ssl_certfile: str | None = None,
+        ssl_keyfile_password: str | None = None,
+
         chat: bool = True,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
@@ -408,7 +413,6 @@ def main(
     :param memory_restriction_level: 0 = no restriction to tokens or model, 1 = some restrictions on token 2 = HF like restriction 3 = very low memory case
     :param debug: enable debug mode
     :param save_dir: directory chat data is saved to
-    :param share: whether to share the gradio app with sharable URL
     :param local_files_only: whether to only use local files instead of doing to HF for models
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
@@ -442,10 +446,16 @@ def main(
            Also set --share=False to avoid sharing a gradio live link.
     :param server_name: IP to use.  In linux 0.0.0.0 is good choice so exposed to outside host, else for only local use 127.0.0.1.
                         For windows/MAC 0.0.0.0 or 127.0.0.1 will work, but may need to specify actual LAN IP address for other LAN clients to see.
+    :param share: whether to share the gradio app with sharable URL
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
            the `root_path` should be set to "/myapp".
+    :param ssl_verify: passed go gradio launch
+    :param ssl_keyfile: passed go gradio launch
+    :param ssl_certfile: passed go gradio launch
+    :param ssl_keyfile_password: passed go gradio launch
+
     :param chat: whether to enable chat mode with chat history
     :param chat_conversation: list of tuples of (human, bot) conversation pre-appended to existing chat when using instruct/chat models
            Requires also add_chat_history_to_context = True
