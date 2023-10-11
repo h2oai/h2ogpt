@@ -4542,8 +4542,10 @@ def get_chain(query=None,
                      auto_reduce_chunks,
                      add_search_to_context)
 
+    # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
+    # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
     max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                                    model_name=model_name, max_new_tokens=max_new_tokens)
+                                                    model_name=model_name, max_new_tokens=min_max_new_tokens)
     if max_input_tokens >= 0:
         max_input_tokens = min(max_input_tokens_default, max_input_tokens)
     else:

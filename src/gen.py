@@ -3720,9 +3720,9 @@ def get_limited_prompt(instruction,
                        ):
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
-        max_input_tokens = min(model_max_length, max_input_tokens)
+        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
     else:
-        max_input_tokens = model_max_length
+        max_input_tokens = model_max_length - min_max_new_tokens
 
     if prompter:
         prompt_type = prompter.prompt_type
@@ -3796,7 +3796,7 @@ def get_limited_prompt(instruction,
     chat_index = 0
 
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
-    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens + min_max_new_tokens
+    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
     # to doc first then non-doc, shouldn't matter much either way
     doc_max_length = max(max_input_tokens - num_non_doc_tokens, doc_importance * max_input_tokens)
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
@@ -3810,10 +3810,10 @@ def get_limited_prompt(instruction,
         # 3) reduce context1
         # 4) limit instruction so will fit
         diff1 = non_doc_max_length - (
-                num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
-        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens + min_max_new_tokens)
-        diff3 = non_doc_max_length - (num_instruction_tokens + min_max_new_tokens)
-        diff4 = non_doc_max_length - min_max_new_tokens
+                num_instruction_tokens + num_context1_tokens + num_context2_tokens)
+        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens)
+        diff3 = non_doc_max_length - num_instruction_tokens
+        diff4 = non_doc_max_length
         if diff1 > 0:
             # then should be able to do #1
             iinput = ''
@@ -3829,7 +3829,7 @@ def get_limited_prompt(instruction,
                 context2 = history_to_context_func(history[chat_index:])
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
-                        num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+                        num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
                     chat_index_final = chat_index
                     if verbose:
@@ -3876,13 +3876,9 @@ def get_limited_prompt(instruction,
                         (num_doc_tokens or 0)
 
     # update max_new_tokens
-    if inference_server and inference_server.startswith('http'):
-        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
-        pass
-    else:
-        # limit so max_new_tokens = prompt + new < max
-        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-        max_new_tokens = min(max_new_tokens, max_input_tokens - num_prompt_tokens)
+    # limit so max_new_tokens = prompt + new < max
+    # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+    max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
 
     if os.getenv('HARD_ASSERTS'):
         if max_new_tokens < min_max_new_tokens:
