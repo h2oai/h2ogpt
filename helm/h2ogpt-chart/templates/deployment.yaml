@@ -118,9 +118,11 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.h2ogpt.resources | nindent 12 }}
+          {{- if not .Values.h2ogpt.externalLLM.enabled }}
           envFrom:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-config
+          {{- end }}
           env:
           {{- if .Values.tgi.enabled }}
           - name: h2ogpt_inference_server
@@ -133,6 +135,38 @@ spec:
           {{- range $key, $value := .Values.h2ogpt.env }}
           - name: "{{ $key }}"
             value: "{{ $value }}"
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.openAIAzure.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: OPENAI_AZURE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: OPENAI_AZURE_KEY
+          - name: OPENAI_AZURE_API_BASE
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: OPENAI_AZURE_API_BASE
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.openAI.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: OPENAI_API_KEY
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.replicate.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: REPLICATE_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: REPLICATE_API_TOKEN
+          {{- end }}
+          {{- if .Values.h2ogpt.externalLLM.enabled }}
+          - name: H2OGPT_MODEL_LOCK
+            value: {{ toJson .Values.h2ogpt.externalLLM.modelLock | quote }}
+          - name: H2OGPT_SCORE_MODEL
+            value: None
           {{- end }}
           volumeMounts:
             - name: h2ogpt-volume
