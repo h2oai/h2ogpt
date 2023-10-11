@@ -8,10 +8,14 @@ import uuid
 
 import pytest
 
+from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3, texts_helium4, texts_helium5, \
+    texts_simple
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
-from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice
-from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db
-from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs
+from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice, \
+    docs_joiner_default, docs_token_handling_default
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
+from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
+    FakeTokenizer, get_token_count
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -962,10 +966,10 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                            enable_pdf_doctr in ['off', 'auto'] and \
                            enable_pdf_ocr in ['off', 'auto']
             no_doc_mode = use_pymupdf in ['off'] and \
-                           use_pypdf in ['off'] and \
-                           use_unstructured_pdf in ['off'] and \
-                           enable_pdf_doctr in ['off'] and \
-                           enable_pdf_ocr in ['off', 'auto']
+                          use_pypdf in ['off'] and \
+                          use_unstructured_pdf in ['off'] and \
+                          enable_pdf_doctr in ['off'] and \
+                          enable_pdf_ocr in ['off', 'auto']
 
             try:
                 db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
@@ -977,7 +981,8 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                                                    use_pypdf=use_pypdf,
                                                    add_if_exists=False)
             except Exception as e:
-                if 'had no valid text and no meta data was parsed' in str(e) or 'had no valid text, but meta data was parsed' in str(e):
+                if 'had no valid text and no meta data was parsed' in str(
+                        e) or 'had no valid text, but meta data was parsed' in str(e):
                     if no_doc_mode:
                         return
                     else:
@@ -993,7 +998,8 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                 assert len(docs) >= 2
             assert 'And more text. And more text.' in docs[0].page_content
             if db_type == 'weaviate':
-                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(docs[0].metadata['source']) == os.path.basename(test_file1)
+                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(
+                    docs[0].metadata['source']) == os.path.basename(test_file1)
             else:
                 assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -1070,7 +1076,8 @@ def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, u
                 assert docs[0].page_content
                 assert docs[1].page_content
             if db_type == 'weaviate':
-                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(docs[0].metadata['source']) == os.path.basename(test_file1)
+                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(
+                    docs[0].metadata['source']) == os.path.basename(test_file1)
             else:
                 assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -1728,6 +1735,69 @@ def test_chroma_filtering():
                 assert1 = show_ret[4]['value'] is not None and single_document_choice1 in show_ret[4]['value']
                 assert2 = show_ret[3]['value'] is not None and single_document_choice1 in show_ret[3]['value']
                 assert assert1 or assert2
+
+
+@pytest.mark.parametrize("data_kind", [
+    'simple',
+    'helium1',
+    'helium2',
+    'helium3',
+    'helium4',
+    'helium5',
+])
+@wrap_test_forked
+def test_merge_docs(data_kind):
+    model_max_length = 4096
+    max_input_tokens = 1024
+    docs_joiner = docs_joiner_default
+    docs_token_handling = docs_token_handling_default
+    tokenizer = FakeTokenizer(model_max_length=model_max_length)
+
+    from langchain.docstore.document import Document
+    if data_kind == 'simple':
+        texts = texts_simple
+    elif data_kind == 'helium1':
+        texts = texts_helium1
+    elif data_kind == 'helium2':
+        texts = texts_helium2
+    elif data_kind == 'helium3':
+        texts = texts_helium3
+    elif data_kind == 'helium4':
+        texts = texts_helium4
+    elif data_kind == 'helium5':
+        texts = texts_helium5
+    else:
+        raise RuntimeError("BAD")
+
+    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content
+                       in enumerate(texts)]
+
+    docs_with_score_new, max_docs_tokens = (
+        split_merge_docs(docs_with_score, tokenizer=tokenizer, max_input_tokens=max_input_tokens,
+                         docs_token_handling=docs_token_handling, joiner=docs_joiner, verbose=True))
+
+    text_context_list = [x[0].page_content for x in docs_with_score_new]
+    tokens = [get_token_count(x + docs_joiner, tokenizer) for x in text_context_list]
+    print(tokens)
+
+    if data_kind == 'simple':
+        assert len(docs_with_score_new) == 1
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium1':
+        assert len(docs_with_score_new) == 4
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium2':
+        assert len(docs_with_score_new) == 8
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium3':
+        assert len(docs_with_score_new) == 5
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium4':
+        assert len(docs_with_score_new) == 5
+        assert all([x < max_input_tokens for x in tokens])
+    elif data_kind == 'helium5':
+        assert len(docs_with_score_new) == 3
+        assert all([x < max_input_tokens for x in tokens])
 
 
 if __name__ == '__main__':

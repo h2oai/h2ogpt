@@ -94,3 +94,10 @@ def test_add_new_doc():
 @wrap_test_forked
 def test_model_lock():
     raise NotImplementedError("""MANUAL TEST FOR NOW  UI test of model lock""")
+
+
+@wrap_test_forked
+def test_async_gradio():
+    raise NotImplementedError("""MANUAL TEST FOR NOW
+    run test_client_summarization and confirm see multiple _acalls at same time before ends for gpt.h2o.ai
+    """)

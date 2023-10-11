@@ -8,6 +8,8 @@ For long context models that have been tuned for a specific size, you have to on
 python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lmsys/vicuna-13b-v1.5-16k --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --load_8bit=True --langchain_mode=UserData --user_path=user_path --prompt_type=vicuna11 --h2ocolors=False
 ````
 
+If the model is Hugging Face based and already has a `config.json` entry with `rope_scaling` in it, we will use that if you do not pass `--rope_scaling`.
+
 ### Migration from Chroma < 0.4 to > 0.4
 
 #### Option 1: Use old Chroma for old DBs

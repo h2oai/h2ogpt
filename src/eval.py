@@ -58,6 +58,9 @@ def run_eval(  # for local function:
         text_context_list=None,
         docs_ordering_type=None,
         min_max_new_tokens=None,
+        max_input_tokens=None,
+        docs_token_handling=None,
+        docs_joiner=None,
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,

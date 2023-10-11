@@ -30,10 +30,13 @@ import yaml
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
+from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
+from langchain.llms.openai import acompletion_with_retry, update_token_usage
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.schema import LLMResult, Generation, PromptValue
+from langchain.schema.output import GenerationChunk
 from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
@@ -44,15 +47,18 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size
+    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
+    get_test_name_core
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
-    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent
+    super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
+    docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
-from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta
+from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
+    load_general_summarization_chain
 
 import_matplotlib()
 
@@ -69,7 +75,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
     UnstructuredExcelLoader, JSONLoader
-from langchain.text_splitter import Language
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter, CharacterTextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
@@ -432,7 +438,48 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun, AsyncCallbackM
 from langchain.llms.base import LLM
 
 
-class GradioInference(LLM):
+class H2Oagenerate:
+    async def _agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        """Run the LLM on the given prompt and input."""
+        if self.verbose:
+            print("_agenerate H2O", flush=True)
+        generations = []
+        new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        tasks = [
+            asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
+                                                      new_arg_supported=new_arg_supported, **kwargs))
+            for prompt in prompts
+        ]
+        texts = await asyncio.gather(*tasks)
+        self.count_output_tokens += sum([self.get_num_tokens(text) for text in texts])
+        [generations.append([Generation(text=text)]) for text in texts]
+        if self.verbose:
+            print("done _agenerate H2O", flush=True)
+        return LLMResult(generations=generations)
+
+    async def _agenerate_one(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            new_arg_supported=None,
+            **kwargs: Any,
+    ) -> str:
+        async_sem = NullContext() if self.async_sem is None else self.async_sem
+        async with async_sem:  # semaphore limits num of simultaneous downloads
+            return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
+                if new_arg_supported else \
+                await self._acall(prompt, stop=stop, **kwargs)
+
+
+class GradioInference(H2Oagenerate, LLM):
     """
     Gradio generation inference API.
     """
@@ -465,10 +512,12 @@ class GradioInference(LLM):
     visible_models: Any = None
     h2ogpt_key: Any = None
 
+    async_sem: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
     min_max_new_tokens: Any = 256
+    max_input_tokens: Any = -1
 
     class Config:
         """Configuration for this pydantic object."""
@@ -497,19 +546,12 @@ class GradioInference(LLM):
         """Return type of llm."""
         return "gradio_inference"
 
-    def _call(
-            self,
-            prompt: str,
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> str:
+    def setup_call(self, prompt):
         # NOTE: prompt here has no prompt_type (e.g. human: bot:) prompt injection,
         # so server should get prompt_type or '', not plain
         # This is good, so gradio server can also handle stopping.py conditions
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
-        gr_client = self.client
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = True
         client_add_search_to_context = False
@@ -568,17 +610,36 @@ class GradioInference(LLM):
                              text_context_list=None,
                              docs_ordering_type=None,
                              min_max_new_tokens=self.min_max_new_tokens,
+                             max_input_tokens=self.max_input_tokens,
+                             docs_token_handling=None,
+                             docs_joiner=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
 
-        if not stream_output:
-            res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+        return client_kwargs, api_name
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_call", flush=True)
+
+        client_kwargs, api_name = self.setup_call(prompt)
+
+        if not self.stream_output:
+            res = self.client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
             self.count_output_tokens += self.get_num_tokens(ret)
+            if self.verbose:
+                print("end _call", flush=True)
             return ret
         else:
             text_callback = None
@@ -587,7 +648,7 @@ class GradioInference(LLM):
                     run_manager.on_llm_new_token, verbose=self.verbose
                 )
 
-            job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+            job = self.client.submit(str(dict(client_kwargs)), api_name=api_name)
             text0 = ''
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
@@ -632,7 +693,77 @@ class GradioInference(LLM):
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
             self.count_output_tokens += self.get_num_tokens(ret)
+            if self.verbose:
+                print("end _call", flush=True)
             return ret
+
+    # copy-paste of streaming part of _call() with asyncio.sleep instead
+    async def _acall(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_acall", flush=True)
+
+        client_kwargs, api_name = self.setup_call(prompt)
+
+        text_callback = None
+        if run_manager:
+            text_callback = partial(
+                run_manager.on_llm_new_token, verbose=self.verbose
+            )
+
+        job = self.client.submit(str(dict(client_kwargs)), api_name=api_name)
+        text0 = ''
+        while not job.done():
+            if job.communicator.job.latest_status.code.name == 'FINISHED':
+                break
+            e = job.future._exception
+            if e is not None:
+                break
+            outputs_list = job.communicator.job.outputs
+            if outputs_list:
+                res = job.communicator.job.outputs[-1]
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                text = self.prompter.get_response(prompt + text, prompt=prompt,
+                                                  sanitize_bot_response=self.sanitize_bot_response)
+                # FIXME: derive chunk from full for now
+                text_chunk = text[len(text0):]
+                if not text_chunk:
+                    # just need some sleep for threads to switch
+                    await asyncio.sleep(0.001)
+                    continue
+                # save old
+                text0 = text
+
+                if text_callback:
+                    await text_callback(text_chunk)
+
+            await asyncio.sleep(0.01)
+
+        # ensure get last output to avoid race
+        res_all = job.outputs()
+        if len(res_all) > 0:
+            res = res_all[-1]
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            # FIXME: derive chunk from full for now
+        else:
+            # go with old if failure
+            text = text0
+        text_chunk = text[len(text0):]
+        if text_callback:
+            await text_callback(text_chunk)
+        ret = self.prompter.get_response(prompt + text, prompt=prompt,
+                                         sanitize_bot_response=self.sanitize_bot_response)
+        self.count_output_tokens += self.get_num_tokens(ret)
+        if self.verbose:
+            print("end _acall", flush=True)
+        return ret
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -640,7 +771,7 @@ class GradioInference(LLM):
         # return _get_token_ids_default_method(text)
 
 
-class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
+class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     top_k: Optional[int] = None
@@ -758,7 +889,8 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
             run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> str:
-        # print("acall", flush=True)
+        if self.verbose:
+            print("acall", flush=True)
         if stop is None:
             stop = self.stop_sequences.copy()
         else:
@@ -785,42 +917,9 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
         text = prompt + gen_text
         text = self.prompter.get_response(text, prompt=prompt,
                                           sanitize_bot_response=self.sanitize_bot_response)
-        # print("acall done", flush=True)
+        if self.verbose:
+            print("acall done", flush=True)
         return text
-
-    async def _agenerate(
-            self,
-            prompts: List[str],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        """Run the LLM on the given prompt and input."""
-        generations = []
-        new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
-        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
-        tasks = [
-            asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
-                                                      new_arg_supported=new_arg_supported, **kwargs))
-            for prompt in prompts
-        ]
-        texts = await asyncio.gather(*tasks)
-        self.count_output_tokens += sum([self.get_num_tokens(text) for text in texts])
-        [generations.append([Generation(text=text)]) for text in texts]
-        return LLMResult(generations=generations)
-
-    async def _agenerate_one(
-            self,
-            prompt: str,
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-            new_arg_supported=None,
-            **kwargs: Any,
-    ) -> str:
-        async with self.async_sem:  # semaphore limits num of simultaneous downloads
-            return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
-                if new_arg_supported else \
-                await self._acall(prompt, stop=stop, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -830,14 +929,15 @@ class H2OHuggingFaceTextGenInference(HuggingFaceTextGenInference):
 
 from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain.llms import OpenAI, AzureOpenAI, Replicate
-from langchain.llms.openai import _streaming_response_template, completion_with_retry, _update_response, \
-    update_token_usage
 
 
 class H2OOpenAI(OpenAI):
     """
     New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
     Handles prompting that OpenAI doesn't need, stopping as well
+
+    assume stop is used to keep out trailing text, and only generate new text,
+    so don't use self.prompter.get_response as becomes too complex
     """
     stop_sequences: Any = None
     sanitize_bot_response: bool = False
@@ -845,6 +945,9 @@ class H2OOpenAI(OpenAI):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     @classmethod
     def _all_required_field_names(cls) -> Set:
@@ -854,13 +957,7 @@ class H2OOpenAI(OpenAI):
              'tokenizer', 'logit_bias'})
         return _all_required_field_names
 
-    def _generate(
-            self,
-            prompts: List[str],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> LLMResult:
+    def update_prompts_and_stops(self, prompts, stop):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
         [stop.append(x) for x in stop_tmp if x not in stop]
@@ -875,51 +972,60 @@ class H2OOpenAI(OpenAI):
             prompt = self.prompter.generate_prompt(data_point)
             prompts[prompti] = prompt
 
-        params = self._invocation_params
-        params = {**params, **kwargs}
-        sub_prompts = self.get_sub_prompts(params, prompts, stop)
-        choices = []
-        token_usage: Dict[str, int] = {}
-        # Get the token usage from the response.
-        # Includes prompt, completion, and total tokens used.
-        _keys = {"completion_tokens", "prompt_tokens", "total_tokens"}
-        text = ''
-        for _prompts in sub_prompts:
-            if self.streaming:
-                text_with_prompt = ""
-                prompt = _prompts[0]
-                if len(_prompts) > 1:
-                    raise ValueError("Cannot stream results with multiple prompts.")
-                params["stream"] = True
-                response = _streaming_response_template()
-                first = True
-                for stream_resp in completion_with_retry(
-                        self, prompt=_prompts, **params
-                ):
-                    if first:
-                        stream_resp["choices"][0]["text"] = prompt + stream_resp["choices"][0]["text"]
-                        first = False
-                    text_chunk = stream_resp["choices"][0]["text"]
-                    text_with_prompt += text_chunk
-                    text = self.prompter.get_response(text_with_prompt, prompt=prompt,
-                                                      sanitize_bot_response=self.sanitize_bot_response)
-                    if run_manager:
-                        run_manager.on_llm_new_token(
-                            text_chunk,
-                            verbose=self.verbose,
-                            logprobs=stream_resp["choices"][0]["logprobs"],
-                        )
-                    _update_response(response, stream_resp)
-                choices.extend(response["choices"])
-            else:
-                response = completion_with_retry(self, prompt=_prompts, **params)
-                choices.extend(response["choices"])
-            if not self.streaming:
-                # Can't update token usage if streaming
-                update_token_usage(_keys, response, token_usage)
-        if self.streaming:
-            choices[0]['text'] = text
-        return self.create_llm_result(choices, prompts, token_usage)
+        return prompts, stop
+
+    def _generate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        if self.verbose:
+            print("Hit _generate", flush=True)
+        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        if self.batch_size > 1 or self.streaming:
+            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        else:
+            self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+            tasks = [
+                asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager, **kwargs))
+                for prompt in prompts]
+            llm_results = await asyncio.gather(*tasks)
+            generations = [x.generations[0] for x in llm_results]
+
+            def reducer(accumulator, element):
+                for key, value in element.items():
+                    accumulator[key] = accumulator.get(key, 0) + value
+                return accumulator
+
+            collection = [x.llm_output['token_usage'] for x in llm_results]
+            token_usage = reduce(reducer, collection, {})
+
+            llm_output = {"token_usage": token_usage, "model_name": self.model_name}
+            self.count_output_tokens += token_usage.get('completion_tokens', 0)
+            return LLMResult(generations=generations, llm_output=llm_output)
+
+    async def _agenerate_one(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        async_sem = NullContext() if self.async_sem is None else self.async_sem
+        async with async_sem:  # semaphore limits num of simultaneous downloads
+            return await super(H2OOpenAI, self)._agenerate([prompt], stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -957,7 +1063,8 @@ class H2OReplicate(Replicate):
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
 
-        return super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        return response
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.tokenizer.encode(text)
@@ -1135,16 +1242,30 @@ def get_llm(use_openai_model=False,
             visible_models=0,
             h2ogpt_key=None,
             min_max_new_tokens=None,
+            max_input_tokens=None,
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
             verbose=False,
             ):
-    # currently all but h2oai_pipeline case return prompt + new text, but could change
-    only_new_text = False
+    # make all return only new text, so other uses work as expected, like summarization
+    only_new_text = True
 
     if chat_conversation is None:
         chat_conversation = []
+
+    fake_for_tests = ['test_qa', 'test_make_add_db', 'test_many_text', 'test_chroma_filtering']
+    if os.getenv('HARD_ASSERTS') and tokenizer is None and any([x in get_test_name_core() for x in fake_for_tests]):
+        # allow certain tests to use fake one
+        tokenizer = FakeTokenizer()
+        max_input_tokens = 1024
+        min_max_new_tokens = 256
+
+    model_max_length = tokenizer.model_max_length
+    if max_input_tokens >= 0:
+        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+    else:
+        max_input_tokens = model_max_length - min_max_new_tokens
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -1187,6 +1308,7 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                verbose=verbose,
             )
         else:
             streamer = None
@@ -1200,8 +1322,10 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                verbose=verbose,
             )
     elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
+        # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
         # FIXME: Will later import be ignored?  I think so, so should be fine
@@ -1212,8 +1336,10 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
+                async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         async_sem=async_sem,
                                          ))
             openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
@@ -1236,6 +1362,7 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
+                async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
                                          prompter=prompter,
@@ -1244,7 +1371,9 @@ def get_llm(use_openai_model=False,
                                          tokenizer=tokenizer,
                                          openai_api_base=openai.api_base,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
-                                         client=None))
+                                         client=None,
+                                         async_sem=async_sem,
+                                         ))
             else:
                 assert inf_type == 'openai' or use_openai_model
             openai_api_key = openai.api_key
@@ -1275,6 +1404,7 @@ def get_llm(use_openai_model=False,
                   logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
+                  verbose=verbose,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -1306,6 +1436,7 @@ def get_llm(use_openai_model=False,
             content_handler=content_handler,
             endpoint_kwargs={'CustomAttributes': 'accept_eula=true'},
             tokenizer=tokenizer,  # for summarization and token counting
+            verbose=verbose,
         )
     elif inference_server:
         assert inference_server.startswith(
@@ -1327,8 +1458,10 @@ def get_llm(use_openai_model=False,
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
         callbacks = [StreamingGradioCallbackHandler()]
 
+        async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
         if gr_client:
-            async_output = False  # FIXME: not implemented yet
+            # NOTE: No need for num_async semaphore because gradio should be setup to queue
+            # Async implemented via base LLM _agenerate() calling _generate() calling _call()
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
@@ -1359,10 +1492,12 @@ def get_llm(use_openai_model=False,
                 visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
+                max_input_tokens=max_input_tokens,
+                async_sem=async_sem,
+                verbose=verbose,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
-            async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
@@ -1385,6 +1520,7 @@ def get_llm(use_openai_model=False,
                 timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
                 async_sem=async_sem,
+                verbose=verbose,
             )
         else:
             raise RuntimeError("No defined client")
@@ -1406,7 +1542,6 @@ def get_llm(use_openai_model=False,
             prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
-        max_max_tokens = tokenizer.model_max_length
         llm = get_llm_gpt4all(model_name,
                               model=model,
                               max_new_tokens=max_new_tokens,
@@ -1421,7 +1556,7 @@ def get_llm(use_openai_model=False,
                               prompter=prompter,
                               context=context,
                               iinput=iinput,
-                              max_seq_len=max_max_tokens,
+                              max_seq_len=model_max_length,
                               llamacpp_dict=llamacpp_dict,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
@@ -1429,7 +1564,6 @@ def get_llm(use_openai_model=False,
         assert langchain_only_model
         callbacks = [StreamingGradioCallbackHandler()]
         streamer = callbacks[0] if stream_output else None
-        max_max_tokens = tokenizer.model_max_length
 
         from src.llm_exllama import Exllama
         llm = Exllama(streaming=stream_output,
@@ -1445,7 +1579,7 @@ def get_llm(use_openai_model=False,
                       stop_sequences=prompter.stop_sequences,
                       callbacks=callbacks,
                       verbose=verbose,
-                      max_seq_len=max_max_tokens,
+                      max_seq_len=model_max_length,
                       fused_attn=False,
                       # alpha_value = 1.0, #For use with any models
                       # compress_pos_emb = 4.0, #For use with superhot
@@ -1468,8 +1602,6 @@ def get_llm(use_openai_model=False,
             model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
                                                  inference_server=inference_server, gpu_id=0)
 
-        max_max_tokens = tokenizer.model_max_length
-        only_new_text = True
         gen_kwargs = dict(do_sample=do_sample,
                           num_beams=num_beams,
                           max_new_tokens=max_new_tokens,
@@ -1507,9 +1639,9 @@ def get_llm(use_openai_model=False,
                                          sanitize_bot_response=sanitize_bot_response,
                                          chat=False, stream_output=stream_output,
                                          tokenizer=tokenizer,
-                                         # leave some room for 1 paragraph, even if min_new_tokens=0
-                                         max_input_tokens=max_max_tokens - max(min_new_tokens, 256),
+                                         max_input_tokens=max_input_tokens,
                                          base_model=model_name,
+                                         verbose=verbose,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -3326,7 +3458,8 @@ def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk
                 docs = [x for x in docs if x.metadata.get('chunk_id', chunk_id_filter) == chunk_id_filter]
         if len(docs) < max(1, k // 4):
             # full search if failed to find enough
-            docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
+            docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs,
+                               verbose=verbose)
         return docs
     else:
         return _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
@@ -3603,8 +3736,11 @@ def _run_qa_db(query=None,
                chat_conversation=None,
                visible_models=None,
                h2ogpt_key=None,
-               docs_ordering_type='reverse_ucurve_sort',
+               docs_ordering_type=docs_ordering_types_default,
                min_max_new_tokens=256,
+               max_input_tokens=-1,
+               docs_token_handling=None,
+               docs_joiner=None,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -3715,6 +3851,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
+                      max_input_tokens=max_input_tokens,
                       n_jobs=n_jobs,
                       llamacpp_dict=llamacpp_dict,
                       cli=cli,
@@ -3774,17 +3911,18 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
         return
-    if langchain_mode not in langchain_modes_intrinsic and not use_llm_if_no_docs:
-        if not docs:
-            if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                    LangChainAction.SUMMARIZE_ALL.value,
-                                    LangChainAction.SUMMARIZE_REFINE.value]:
-                ret = 'No relevant documents to summarize.' if num_docs_before_cut else 'No documents to summarize.'
-            else:
-                ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
-            extra = ''
-            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
-            return
+    if langchain_mode not in langchain_modes_non_db and not docs:
+        if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                LangChainAction.SUMMARIZE_ALL.value,
+                                LangChainAction.SUMMARIZE_REFINE.value]:
+            ret = 'No relevant documents to summarize.' if query or num_docs_before_cut > 0 else 'No documents to summarize.'
+        elif langchain_action in [LangChainAction.EXTRACT.value]:
+            ret = 'No relevant documents to extract from.' if query or num_docs_before_cut > 0 else 'No documents to extract from.'
+        elif not use_llm_if_no_docs:
+            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
+        extra = ''
+        yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
+        return
 
     # NOTE: If chain=None, could return if HF type (i.e. not langchain_only_model), but makes code too complex
     # only return now if no chain at all, e.g. when only returning sources
@@ -3810,6 +3948,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 thread = EThread(target=chain, streamer=streamer, bucket=bucket)
                 thread.start()
                 outputs = ""
+                output1_old = ''
                 try:
                     for new_text in streamer:
                         # print("new_text: %s" % new_text, flush=True)
@@ -3833,9 +3972,12 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1 = prompter.get_response(output_with_prompt, prompt=prompt,
                                                             only_new_text=only_new_text,
                                                             sanitize_bot_response=sanitize_bot_response)
-                            yield dict(prompt=prompt, response=output1, sources='', num_prompt_tokens=0)
                         else:
-                            yield dict(prompt=prompt, response=outputs, sources='', num_prompt_tokens=0)
+                            output1 = outputs
+                        res_dict = dict(prompt=prompt, response=output1, sources='', num_prompt_tokens=0)
+                        if output1 != output1_old:
+                            yield res_dict
+                            output1_old = output1
                 except BaseException:
                     # if any exception, raise that exception if was from thread, first
                     if thread.exc:
@@ -3943,6 +4085,103 @@ def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_li
     return docs_with_score
 
 
+def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
+    if top_k_docs > 0:
+        docs_with_score = docs_with_score[:top_k_docs]
+    elif one_doc_size is not None:
+        docs_with_score = [(docs_with_score[0][:one_doc_size], docs_with_score[0][1])]
+    else:
+        docs_with_score = []
+    return docs_with_score
+
+
+class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
+    @classmethod
+    def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
+        def _huggingface_tokenizer_length(text: str) -> int:
+            return get_token_count(text, tokenizer)
+
+        return cls(length_function=_huggingface_tokenizer_length, **kwargs)
+
+
+def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, docs_token_handling=None,
+                     joiner=docs_joiner_default,
+                     do_split=True,
+                     verbose=False):
+    # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
+    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len
+    if docs_token_handling in ['chunk']:
+        return docs_with_score, 0
+    elif docs_token_handling in [None, 'split_or_merge']:
+        assert tokenizer
+        tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+                               [x[0].page_content for x in docs_with_score]]
+        # skip split if not necessary, since expensive for some reason
+        do_split &= any([x > max_input_tokens for x in tokens_before_split])
+        if do_split:
+
+            if verbose:
+                print('tokens_before_split=%s' % tokens_before_split, flush=True)
+
+            # see if need to split
+            # account for joiner tokens
+            joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
+            chunk_size = max_input_tokens - joiner_tokens * len(docs_with_score)
+            text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
+                tokenizer, chunk_size=chunk_size, chunk_overlap=0
+            )
+            [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in
+             enumerate(docs_with_score)]
+            docs = [x[0] for x in docs_with_score]
+            # only split those that need to be split, else recursive splitter goes too nuts and takes too long
+            docs_to_split = [x for x in docs if x.metadata['ntokens'] > chunk_size]
+            docs_to_not_split = [x for x in docs if x.metadata['ntokens'] <= chunk_size]
+            docs_split_new = flatten_list([text_splitter.split_documents([x]) for x in docs_to_split])
+            docs_new = docs_to_not_split + docs_split_new
+            doci_new = [x.metadata['doci'] for x in docs_new]
+            # order back by doci
+            docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
+            docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
+
+            tokens_after_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+                                  [x[0].page_content for x in docs_with_score]]
+            if verbose:
+                print('tokens_after_split=%s' % tokens_after_split, flush=True)
+
+        docs_with_score_new = []
+        k = 0
+        while k < len(docs_with_score):
+            # means use max_input_tokens to ensure model gets no more than max_input_tokens each map
+            top_k_docs, one_doc_size, num_doc_tokens = \
+                get_docs_tokens(tokenizer,
+                                text_context_list=[x[0].page_content for x in docs_with_score[k:]],
+                                max_input_tokens=max_input_tokens)
+            docs_with_score1 = select_docs_with_score(docs_with_score[k:], top_k_docs, one_doc_size)
+            new_score = docs_with_score1[0][1]
+            new_page_content = joiner.join([x[0].page_content for x in docs_with_score1])
+            new_metadata = docs_with_score1[0][0].metadata  # just use first chunk's metadata for now
+            doc1 = Document(page_content=new_page_content, metadata=new_metadata)
+            docs_with_score_new.append((doc1, new_score))
+
+            if do_split:
+                assert one_doc_size is None, "Split failed: %s" % one_doc_size
+            elif one_doc_size is not None:
+                # chopped
+                assert top_k_docs == 1
+            assert top_k_docs >= 1
+            k += top_k_docs
+
+        tokens_after_merge = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+                              [x[0].page_content for x in docs_with_score_new]]
+        if verbose:
+            print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
+
+        max_tokens_after_merge = max(tokens_after_merge) if tokens_after_merge else 0
+        return docs_with_score_new, max_tokens_after_merge
+    else:
+        raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
+
+
 def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
@@ -4020,8 +4259,12 @@ def get_chain(query=None,
               only_new_text=None,
               tokenizer=None,
               verbose=False,
-              docs_ordering_type='reverse_ucurve_sort',
+              docs_ordering_type=docs_ordering_types_default,
               min_max_new_tokens=256,
+              max_input_tokens=-1,
+              docs_token_handling=None,
+              docs_joiner=None,
+
               stream_output=True,
               async_output=True,
 
@@ -4043,7 +4286,8 @@ def get_chain(query=None,
     query_action = langchain_action == LangChainAction.QUERY.value
     summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                                             LangChainAction.SUMMARIZE_ALL.value,
-                                            LangChainAction.SUMMARIZE_REFINE.value]
+                                            LangChainAction.SUMMARIZE_REFINE.value,
+                                            LangChainAction.EXTRACT.value]
 
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
@@ -4305,8 +4549,16 @@ def get_chain(query=None,
                      auto_reduce_chunks,
                      add_search_to_context)
 
-    max_input_tokens = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                            model_name=model_name, max_new_tokens=max_new_tokens)
+    # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
+    # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
+    max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                                    model_name=model_name, max_new_tokens=min_max_new_tokens)
+    if max_input_tokens >= 0:
+        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+    else:
+        max_input_tokens = max_input_tokens_default
+    model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                            model_name=model_name)
 
     if hasattr(db, '_persist_directory'):
         lock_file = get_db_lock_file(db, lock_type='sim')
@@ -4316,7 +4568,9 @@ def get_chain(query=None,
         name_path = "sim.lock"
         lock_file = os.path.join(base_path, name_path)
 
-    if not (isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)):
+    # GET FILTER
+
+    if not is_chroma_db(db):
         # only chroma supports filtering
         chunk_id_filter = None
         filter_kwargs = {}
@@ -4399,6 +4653,8 @@ def get_chain(query=None,
                 filter_kwargs = {}
                 filter_kwargs_backup = {}
 
+    # GET DOCS
+
     if document_subset == DocumentSubset.TopKSources.name or query in [None, '', '\n']:
         db_documents, db_metadatas = get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
                                                        text_context_list=text_context_list,
@@ -4442,8 +4698,8 @@ def get_chain(query=None,
         docs_with_score = docs_with_score[:top_k_docs]
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
-        num_docs_before_cut = len(docs)
     else:
+        # have query
         # for db=None too
         with filelock.FileLock(lock_file):
             docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
@@ -4457,81 +4713,106 @@ def get_chain(query=None,
                                                       chunk_id_filter=chunk_id_filter,
                                                       verbose=verbose)
 
-        tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                  use_openai_model=use_openai_model,
-                                  db_type=db_type)
-        # NOTE: if map_reduce, then no need to auto reduce chunks
-        if query_action and (top_k_docs == -1 or auto_reduce_chunks):
-            top_k_docs_tokenize = 100
-            docs_with_score = docs_with_score[:top_k_docs_tokenize]
-            if docs_with_score:
-                estimated_prompt_no_docs = template.format(context='', question=query)
-            else:
-                estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
+    # SELECT PROMPT + DOCS
 
-            model_max_length = tokenizer.model_max_length
-            chat = True  # FIXME?
-
-            # first docs_with_score are most important with highest score
-            estimated_full_prompt, \
-                instruction, iinput, context, \
-                num_prompt_tokens, max_new_tokens, \
-                num_prompt_tokens0, num_prompt_tokens_actual, \
-                chat_index, external_handle_chat_conversation, \
-                top_k_docs_trial, one_doc_size = \
-                get_limited_prompt(estimated_prompt_no_docs,
-                                   iinput,
-                                   tokenizer,
-                                   prompter=prompter,
-                                   inference_server=inference_server,
-                                   prompt_type=prompt_type,
-                                   prompt_dict=prompt_dict,
-                                   chat=chat,
-                                   max_new_tokens=max_new_tokens,
-                                   system_prompt=system_prompt,
-                                   context=context,
-                                   chat_conversation=chat_conversation,
-                                   text_context_list=[x[0].page_content for x in docs_with_score],
-                                   keep_sources_in_context=keep_sources_in_context,
-                                   model_max_length=model_max_length,
-                                   memory_restriction_level=memory_restriction_level,
-                                   langchain_mode=langchain_mode,
-                                   add_chat_history_to_context=add_chat_history_to_context,
-                                   min_max_new_tokens=min_max_new_tokens,
-                                   )
-            # get updated llm
-            llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
-            if external_handle_chat_conversation:
-                # should already have attribute, checking sanity
-                assert hasattr(llm, 'chat_conversation')
-                llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
-            llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
-
-            # avoid craziness
-            if 0 < top_k_docs_trial < max_chunks:
-                # avoid craziness
-                if top_k_docs == -1:
-                    top_k_docs = top_k_docs_trial
-                else:
-                    top_k_docs = min(top_k_docs, top_k_docs_trial)
-            elif top_k_docs_trial >= max_chunks:
-                top_k_docs = max_chunks
-            if top_k_docs > 0:
-                docs_with_score = docs_with_score[:top_k_docs]
-            elif one_doc_size is not None:
-                docs_with_score = [docs_with_score[0][:one_doc_size]]
-            else:
-                docs_with_score = []
+    tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                              use_openai_model=use_openai_model,
+                              db_type=db_type)
+    # NOTE: if map_reduce, then no need to auto reduce chunks
+    if query_action and (top_k_docs == -1 or auto_reduce_chunks):
+        top_k_docs_tokenize = 100
+        docs_with_score = docs_with_score[:top_k_docs_tokenize]
+        if docs_with_score:
+            estimated_prompt_no_docs = template.format(context='', question=query)
         else:
-            if total_tokens_for_docs is not None:
-                # used to limit tokens for summarization, e.g. public instance
-                top_k_docs, one_doc_size, num_doc_tokens = \
-                    get_docs_tokens(tokenizer,
-                                    text_context_list=[x[0].page_content for x in docs_with_score],
-                                    max_input_tokens=total_tokens_for_docs)
+            estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
+        chat = True  # FIXME?
 
-            docs_with_score = docs_with_score[:top_k_docs]
+        # first docs_with_score are most important with highest score
+        estimated_full_prompt, \
+            instruction, iinput, context, \
+            num_prompt_tokens, max_new_tokens, \
+            num_prompt_tokens0, num_prompt_tokens_actual, \
+            chat_index, external_handle_chat_conversation, \
+            top_k_docs_trial, one_doc_size = \
+            get_limited_prompt(estimated_prompt_no_docs,
+                               iinput,
+                               tokenizer,
+                               prompter=prompter,
+                               inference_server=inference_server,
+                               prompt_type=prompt_type,
+                               prompt_dict=prompt_dict,
+                               chat=chat,
+                               max_new_tokens=max_new_tokens,
+                               system_prompt=system_prompt,
+                               context=context,
+                               chat_conversation=chat_conversation,
+                               text_context_list=[x[0].page_content for x in docs_with_score],
+                               keep_sources_in_context=keep_sources_in_context,
+                               model_max_length=model_max_length,
+                               memory_restriction_level=memory_restriction_level,
+                               langchain_mode=langchain_mode,
+                               add_chat_history_to_context=add_chat_history_to_context,
+                               min_max_new_tokens=min_max_new_tokens,
+                               max_input_tokens=max_input_tokens,
+                               )
+        # get updated llm
+        llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
+        if external_handle_chat_conversation:
+            # should already have attribute, checking sanity
+            assert hasattr(llm, 'chat_conversation')
+            llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
 
+        # avoid craziness
+        if 0 < top_k_docs_trial < max_chunks:
+            # avoid craziness
+            if top_k_docs == -1:
+                top_k_docs = top_k_docs_trial
+            else:
+                top_k_docs = min(top_k_docs, top_k_docs_trial)
+        elif top_k_docs_trial >= max_chunks:
+            top_k_docs = max_chunks
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+    elif query_action:
+        # no limitation or auto-filling, just literal top_k_docs
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, None)
+    else:
+        assert not query_action and summarize_action, "Bad action"
+        one_doc_size = None
+        if total_tokens_for_docs is not None:
+            # used to limit tokens for summarization, e.g. public instance
+            top_k_docs, one_doc_size, num_doc_tokens = \
+                get_docs_tokens(tokenizer,
+                                text_context_list=[x[0].page_content for x in docs_with_score],
+                                max_input_tokens=total_tokens_for_docs)
+        # filter by top_k_docs and maybe one_doc_size
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+        # group docs if desired/can to fill context
+        docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
+                                                           tokenizer,
+                                                           max_input_tokens=max_input_tokens,
+                                                           docs_token_handling=docs_token_handling,
+                                                           joiner=docs_joiner,
+                                                           verbose=verbose)
+        # max_input_tokens used min_max_new_tokens as max_new_tokens, so need to assume filled up to that
+        # but use actual largest token count
+        data_point = dict(context=context, instruction=query, input=iinput)
+        prompt_basic = prompter.generate_prompt(data_point)
+        estimated_prompt_no_docs = template.format(text=prompt_basic)
+        num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
+
+        max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
+        if os.getenv('HARD_ASSERTS') is not None:
+            # imperfect calculation, so will see how testing does
+            assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
+        # get updated llm
+        llm_kwargs.update(max_new_tokens=max_new_tokens)
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+
+    # now done with all docs and their sizes, re-order docs if required
+    if query_action:
+        # not relevant for summarization, including in chunk mode, so process docs in order for summarization or extraction
         # put most relevant chunks closest to question,
         # esp. if truncation occurs will be "oldest" or "farthest from response" text that is truncated
         # BUT: for small models, e.g. 6_9 pythia, if sees some stuff related to h2oGPT first, it can connect that and not listen to rest
@@ -4544,13 +4825,14 @@ def get_chain(query=None,
         else:
             raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
 
-        # cut off so no high distance docs/sources considered
-        num_docs_before_cut = len(docs_with_score)
-        docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
-        scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
-        if len(scores) > 0 and verbose:
-            print("Distance: min: %s max: %s mean: %s median: %s" %
-                  (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
+    # cut off so no high distance docs/sources considered
+    # NOTE: If no query, then distance set was 0 and nothing will be cut
+    num_docs_before_cut = len(docs_with_score)
+    docs = [x[0] for x in docs_with_score if x[1] < cut_distance]
+    scores = [x[1] for x in docs_with_score if x[1] < cut_distance]
+    if len(scores) > 0 and verbose:
+        print("Distance: min: %s max: %s mean: %s median: %s" %
+              (scores[0], scores[-1], np.mean(scores), np.median(scores)), flush=True)
 
     # if HF type and have no docs, could bail out, but makes code too complex
 
@@ -4605,43 +4887,55 @@ def get_chain(query=None,
             chain = load_qa_with_sources_chain(llm)
         chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
-    elif langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                              LangChainAction.SUMMARIZE_REFINE,
-                              LangChainAction.SUMMARIZE_ALL.value]:
+    elif summarize_action:
         if async_output:
             return_intermediate_steps = False
         else:
             return_intermediate_steps = True
-        from langchain.chains.summarize import load_summarize_chain
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             prompt = PromptTemplate(input_variables=["text"], template=template)
-            chain = load_summarize_chain(llm, chain_type="map_reduce",
-                                         map_prompt=prompt, combine_prompt=prompt,
-                                         return_intermediate_steps=return_intermediate_steps,
-                                         token_max=max_input_tokens, verbose=verbose)
+            chain = load_general_summarization_chain(llm, chain_type="map_reduce",
+                                                     map_prompt=prompt, combine_prompt=prompt,
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     token_max=max_input_tokens, verbose=verbose)
             if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
-            target = wrapped_partial(chain_func, {"input_documents": docs})  # , return_only_outputs=True)
+            target = wrapped_partial(chain_func, dict(input_documents=docs,
+                                                      token_max=max_input_tokens))  # , return_only_outputs=True)
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
             prompt = PromptTemplate(input_variables=["text"], template=template)
-            chain = load_summarize_chain(llm, chain_type="stuff", prompt=prompt,
-                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            chain = load_general_summarization_chain(llm, chain_type="stuff", prompt=prompt,
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     verbose=verbose)
             if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
             target = wrapped_partial(chain_func)
         elif langchain_action == LangChainAction.SUMMARIZE_REFINE.value:
-            chain = load_summarize_chain(llm, chain_type="refine",
-                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            chain = load_general_summarization_chain(llm, chain_type="refine",
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     verbose=verbose)
             if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
             target = wrapped_partial(chain_func)
+        elif langchain_action == LangChainAction.EXTRACT.value:
+            prompt = PromptTemplate(input_variables=["text"], template=template)
+            chain = load_general_summarization_chain(llm, chain_type="map",
+                                                     map_prompt=prompt, combine_prompt=prompt,
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     token_max=max_input_tokens, verbose=verbose)
+            if async_output:
+                chain_func = chain.arun
+            else:
+                chain_func = chain
+            target = wrapped_partial(chain_func, dict(input_documents=docs,
+                                                      token_max=max_input_tokens))  # , return_only_outputs=True)
         else:
             raise RuntimeError("No such langchain_action=%s" % langchain_action)
     else:
@@ -4651,7 +4945,7 @@ def get_chain(query=None,
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
 
-def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
+def get_model_max_length(llm=None, tokenizer=None, inference_server=None, model_name=None):
     if hasattr(tokenizer, 'model_max_length'):
         return tokenizer.model_max_length
     elif inference_server in ['openai', 'openai_azure']:
@@ -4666,7 +4960,7 @@ def get_max_model_length(llm=None, tokenizer=None, inference_server=None, model_
 
 
 def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_name=None, max_new_tokens=None):
-    model_max_length = get_max_model_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+    model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                             model_name=model_name)
 
     if any([inference_server.startswith(x) for x in
@@ -4751,7 +5045,8 @@ def get_template(query, iinput,
 \"\"\"
 %s{question}""" % (pre_prompt_query, prompt_query)
             template_if_no_docs = """{context}{question}"""
-    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
+    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
+                              LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
 
         # modify prompt_summary if user passes query or iinput
@@ -4761,7 +5056,7 @@ def get_template(query, iinput,
             prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
         # don't auto reduce
         auto_reduce_chunks = False
-        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        if langchain_action in [LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value]:
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
@@ -4769,7 +5064,7 @@ def get_template(query, iinput,
 \"\"\"
 %s
 \"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
-        template_if_no_docs = "Exactly only say: There are no documents to summarize."
+        template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
         template_if_no_docs = ''  # unused
@@ -4784,7 +5079,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                        show_accordions=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
-                       docs_ordering_type='reverse_ucurve_sort',
+                       docs_ordering_type=docs_ordering_types_default,
                        num_docs_before_cut=0,
                        verbose=False,
                        t_run=None,

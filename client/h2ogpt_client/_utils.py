@@ -47,6 +47,9 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     text_context_list="text_context_list",
     docs_ordering_type="docs_ordering_type",
     min_max_new_tokens="min_max_new_tokens",
+    max_input_tokens="max_input_tokens",
+    docs_token_handling="docs_token_handling",
+    docs_joiner="docs_joiner",
 )
 
 

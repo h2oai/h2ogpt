@@ -44,7 +44,8 @@ import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
-    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg
+    super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
+    docs_ordering_types_default, docs_token_handling_default
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -220,7 +221,7 @@ def main(
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
 
-        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
+        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
 
         document_subset: str = DocumentSubset.Relevant.name,
@@ -258,8 +259,11 @@ def main(
         chunk: bool = True,
         chunk_size: int = 512,
         top_k_docs: int = None,
-        docs_ordering_type: str = 'reverse_ucurve_sort',
+        docs_ordering_type: str = docs_ordering_types_default,
         min_max_new_tokens=256,
+        max_input_tokens=-1,
+        docs_token_handling: str = docs_token_handling_default,
+        docs_joiner: str = docs_joiner_default,
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         headsize: int = 50,
@@ -497,13 +501,23 @@ def main(
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
     :param min_max_new_tokens: Minimum of max_new_tokens, when auto-scaling down to handle more docs/prompt, but still let generation have some tokens
+    :param max_input_tokens: Max input tokens to place into model context for each LLM call
+                             -1 means auto, fully fill context for query, and fill by original document chunk for summarization
+                             >=0 means use that to limit context filling to that many tokens
+    :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
+                                                                     or top_k_docs original document chunks summarization
+                                None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
 
+    :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
            Ignored if model_lock not used
            For nochat API, this is single item within a list for model by name or by index in model_lock
                                 If None, then just use first model in model_lock list
                                 If model_lock not set, use model selected by CLI --base_model etc.
+           Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
+              and the value is not used to access the inference server.
+              If need a visible_models for an inference server, then use --model_lock and group together.
 
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -566,6 +580,7 @@ def main(
             Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
             Summarize_all: Summarize document(s) using entire document at once
             Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
+            Extract: Extract information from document(s) via map (no reduce)
     :param langchain_agents: Which agents to use
             'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
@@ -606,9 +621,9 @@ def main(
     :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
-    :param pre_prompt_summary: prompt before documents to summarize, if None then use internal defaults
-    :param prompt_summary: prompt after documents to summarize, if None then use internal defaults
-           For summarize, normal to have empty query (nothing added in ask anything in UI or empty string in API)
+    :param pre_prompt_summary: prompt before documents to summarize/extract from, if None then use internal defaults
+    :param prompt_summary: prompt after documents to summarize/extract from, if None then use internal defaults
+           For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
     :param add_chat_history_to_context: Include chat context when performing action
@@ -629,7 +644,7 @@ def main(
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so needs to be in context length
     :param top_k_docs: For langchain_action query: number of chunks to give LLM
                        -1 : auto-fills context up to max_seq_len
-                       For langchain_action summarize: number of document parts, like pages for PDF.
+                       For langchain_action summarize/extract: number of document parts, like pages for PDF.
                        There's no such thing as chunks for summarization.
                        -1 : auto-fills context up to max_seq_len
     :param docs_ordering_type:
@@ -1040,6 +1055,9 @@ def main(
                             jq_schema,
                             docs_ordering_type,
                             min_max_new_tokens,
+                            max_input_tokens,
+                            docs_token_handling,
+                            docs_joiner,
                             verbose,
                             )
 
@@ -1099,6 +1117,8 @@ def main(
                                       model_name_gptj=model_name_gptj,
                                       model_name_gpt4all_llama=model_name_gpt4all_llama,
                                       model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                                      rope_scaling=rope_scaling,
+                                      max_seq_len=max_seq_len,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -1343,7 +1363,7 @@ def get_config(base_model,
         if hasattr(config, 'max_seq_len'):
             max_seq_len = int(config.max_seq_len)
         # Note https://huggingface.co/lmsys/vicuna-13b-v1.5-16k/blob/main/config.json has below, but here just want base size before rope
-        #elif hasattr(config, 'max_sequence_length'):
+        # elif hasattr(config, 'max_sequence_length'):
         #    max_seq_len = int(config.max_sequence_length)
         elif hasattr(config, 'max_position_embeddings') and isinstance(config.max_position_embeddings, int):
             # help automatically limit inputs to generate
@@ -1375,7 +1395,8 @@ def get_config(base_model,
                 # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
                 max_seq_len *= rope_scaling.get('alpha_value')
             max_seq_len = int(max_seq_len)
-            print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model), flush=True)
+            print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model),
+                  flush=True)
 
     return config, model, max_seq_len
 
@@ -2103,6 +2124,9 @@ def evaluate(
         text_context_list,
         docs_ordering_type,
         min_max_new_tokens,
+        max_input_tokens,
+        docs_token_handling,
+        docs_joiner,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2309,8 +2333,14 @@ def evaluate(
     if min_max_new_tokens is None:
         # default for nochat api
         min_max_new_tokens = 256
+    if max_input_tokens is None:
+        max_input_tokens = -1
     if docs_ordering_type is None:
-        docs_ordering_type = 'reverse_ucurve_sort'
+        docs_ordering_type = docs_ordering_types_default
+    if docs_token_handling is None:
+        docs_token_handling = docs_token_handling_default
+    if docs_joiner is None:
+        docs_joiner = docs_joiner_default
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
@@ -2469,6 +2499,9 @@ def evaluate(
                 h2ogpt_key=h2ogpt_key,
                 docs_ordering_type=docs_ordering_type,
                 min_max_new_tokens=min_max_new_tokens,
+                max_input_tokens=max_input_tokens,
+                docs_token_handling=docs_token_handling,
+                docs_joiner=docs_joiner,
 
                 **gen_hyper_langchain,
 
@@ -2553,6 +2586,7 @@ def evaluate(
                            langchain_mode=langchain_mode,
                            add_chat_history_to_context=add_chat_history_to_context,
                            min_max_new_tokens=min_max_new_tokens,
+                           max_input_tokens=max_input_tokens,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -2742,8 +2776,11 @@ def evaluate(
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
-                                     docs_ordering_type=None,
+                                     docs_ordering_type=docs_ordering_type,
                                      min_max_new_tokens=min_max_new_tokens,
+                                     max_input_tokens=max_input_tokens,
+                                     docs_token_handling=docs_token_handling,
+                                     docs_joiner=docs_joiner,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -2908,7 +2945,11 @@ def evaluate(
     input_ids = inputs["input_ids"].to(device)
     # CRITICAL LIMIT else will fail
     max_max_tokens = tokenizer.model_max_length
-    max_input_tokens = max(0, int(max_max_tokens - min_new_tokens))
+    max_input_tokens_default = max(0, int(max_max_tokens - min_new_tokens))
+    if max_input_tokens >= 0:
+        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+    else:
+        max_input_tokens = max_input_tokens_default
     # NOTE: Don't limit up front due to max_new_tokens, let go up to max or reach max_max_tokens in stopping.py
     assert isinstance(max_input_tokens, int), "Bad type for max_input_tokens=%s %s" % (
         max_input_tokens, type(max_input_tokens))
@@ -3073,7 +3114,7 @@ state_names = input_args_list.copy()  # doesn't have to be the same, but state_n
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
-def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048):
+def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048, min_max_new_tokens=256):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
@@ -3082,7 +3123,7 @@ def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=20
         max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
     else:
         # at least give room for 1 paragraph output
-        max_length_tokenize = model_max_length - 256
+        max_length_tokenize = model_max_length - min_max_new_tokens
     cutoff_len = max_length_tokenize * 4  # if reaches limit, then can't generate new tokens
     output_smallest = 30 * 4
     max_prompt_length = cutoff_len - output_smallest
@@ -3235,6 +3276,9 @@ def get_generate_params(model_lower,
                         jq_schema,
                         docs_ordering_type,
                         min_max_new_tokens,
+                        max_input_tokens,
+                        docs_token_handling,
+                        docs_joiner,
                         verbose,
                         ):
     use_defaults = False
@@ -3249,7 +3293,7 @@ def get_generate_params(model_lower,
 
     min_new_tokens = min_new_tokens if min_new_tokens is not None else 0
     early_stopping = early_stopping if early_stopping is not None else False
-    max_time_defaults = 60 * 3
+    max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
@@ -3416,6 +3460,9 @@ y = np.random.randint(0, 1, 100)
                     None,
                     docs_ordering_type,
                     min_max_new_tokens,
+                    max_input_tokens,
+                    docs_token_handling,
+                    docs_joiner,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3519,6 +3566,13 @@ def get_model_max_length(model_state):
         return 2048
 
 
+def get_model_max_length_from_tokenizer(tokenizer):
+    if hasattr(tokenizer, 'model_max_length'):
+        return int(tokenizer.model_max_length)
+    else:
+        return 2048
+
+
 def get_max_max_new_tokens(model_state, **kwargs):
     if not isinstance(model_state['tokenizer'], (str, type(None))):
         max_max_new_tokens = model_state['tokenizer'].model_max_length
@@ -3576,7 +3630,8 @@ def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
                        memory_restriction_level=None, keep_sources_in_context=None,
-                       system_prompt=None, chat_conversation=None):
+                       system_prompt=None, chat_conversation=None,
+                       min_max_new_tokens=256):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -3590,6 +3645,7 @@ def history_to_context(history, langchain_mode=None,
     :param keep_sources_in_context:
     :param system_prompt:
     :param chat_conversation:
+    :param min_max_new_tokens:
     :return:
     """
     history = merge_chat_conversation_history(chat_conversation, history)
@@ -3602,7 +3658,8 @@ def history_to_context(history, langchain_mode=None,
 
     # ensure output will be unique to models
     _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
-                                             for_context=True, model_max_length=model_max_length)
+                                             for_context=True, model_max_length=model_max_length,
+                                             min_max_new_tokens=min_max_new_tokens)
     context1 = ''
     if max_prompt_length is not None and add_chat_history_to_context:
         context1 = ''
@@ -3660,7 +3717,14 @@ def get_limited_prompt(instruction,
                        verbose=False,
                        doc_importance=0.5,
                        min_max_new_tokens=256,
+                       max_input_tokens=-1,
                        ):
+    if max_input_tokens >= 0:
+        # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
+        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+    else:
+        max_input_tokens = model_max_length - min_max_new_tokens
+
     if prompter:
         prompt_type = prompter.prompt_type
         prompt_dict = prompter.prompt_dict
@@ -3692,10 +3756,11 @@ def get_limited_prompt(instruction,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
                                                 chat=chat,
-                                                model_max_length=model_max_length,
+                                                model_max_length=max_input_tokens,
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
-                                                system_prompt=system_prompt)
+                                                system_prompt=system_prompt,
+                                                min_max_new_tokens=min_max_new_tokens)
     context2 = history_to_context_func(history)
     context1 = context
     if context1 is None:
@@ -3704,16 +3769,20 @@ def get_limited_prompt(instruction,
     from h2oai_pipeline import H2OTextGenerationPipeline
     data_point_just_instruction = dict(context='', instruction=instruction, input='')
     prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer)
+    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
     num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
     num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
 
-    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer)
-    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer)
-    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer)
+    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+                                                                           max_prompt_length=max_input_tokens)
+    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                           max_prompt_length=max_input_tokens)
+    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
+                                                                       max_prompt_length=max_input_tokens)
     if text_context_list is None:
         text_context_list = []
-    num_doc_tokens = sum([get_token_count(x + '\n\n', tokenizer) for x in text_context_list])
+    num_doc_tokens = sum([get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list])
 
     num_prompt_tokens0 = (num_instruction_tokens or 0) + \
                          (num_context1_tokens or 0) + \
@@ -3728,12 +3797,12 @@ def get_limited_prompt(instruction,
     chat_index = 0
 
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
-    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens + min_max_new_tokens
+    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
     # to doc first then non-doc, shouldn't matter much either way
-    doc_max_length = max(model_max_length - num_non_doc_tokens, doc_importance * model_max_length)
+    doc_max_length = max(max_input_tokens - num_non_doc_tokens, doc_importance * max_input_tokens)
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
                                                                max_input_tokens=doc_max_length)
-    non_doc_max_length = max(model_max_length - num_doc_tokens, (1.0 - doc_importance) * model_max_length)
+    non_doc_max_length = max(max_input_tokens - num_doc_tokens, (1.0 - doc_importance) * max_input_tokens)
 
     if num_non_doc_tokens > non_doc_max_length:
         # need to limit in some way, keep portion of history but all of context and instruction
@@ -3742,10 +3811,10 @@ def get_limited_prompt(instruction,
         # 3) reduce context1
         # 4) limit instruction so will fit
         diff1 = non_doc_max_length - (
-                num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
-        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens + min_max_new_tokens)
-        diff3 = non_doc_max_length - (num_instruction_tokens + min_max_new_tokens)
-        diff4 = non_doc_max_length - min_max_new_tokens
+                num_instruction_tokens + num_context1_tokens + num_context2_tokens)
+        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens)
+        diff3 = non_doc_max_length - num_instruction_tokens
+        diff4 = non_doc_max_length
         if diff1 > 0:
             # then should be able to do #1
             iinput = ''
@@ -3761,7 +3830,7 @@ def get_limited_prompt(instruction,
                 context2 = history_to_context_func(history[chat_index:])
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
-                        num_instruction_tokens + num_context1_tokens + num_context2_tokens + min_max_new_tokens)
+                        num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
                     chat_index_final = chat_index
                     if verbose:
@@ -3808,13 +3877,9 @@ def get_limited_prompt(instruction,
                         (num_doc_tokens or 0)
 
     # update max_new_tokens
-    if inference_server and inference_server.startswith('http'):
-        # assume TGI/Gradio setup to consume tokens and have long output too, even if exceeds model capacity.
-        pass
-    else:
-        # limit so max_new_tokens = prompt + new < max
-        # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+    # limit so max_new_tokens = prompt + new < max
+    # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
+    max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
 
     if os.getenv('HARD_ASSERTS'):
         if max_new_tokens < min_max_new_tokens:
@@ -3850,7 +3915,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
         return 0, None, 0
     if max_input_tokens is None:
         max_input_tokens = tokenizer.model_max_length
-    tokens = [get_token_count(x + '\n\n', tokenizer) for x in text_context_list]
+    tokens = [get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list]
     tokens_cumsum = np.cumsum(tokens)
     where_res = np.where(tokens_cumsum < max_input_tokens)[0]
     # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
@@ -3870,7 +3935,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
                                                                           max_prompt_length=max_input_tokens)
         text_context_list[0] = doc_content
         one_doc_size = len(doc_content)
-        num_doc_tokens = get_token_count(doc_content + '\n\n', tokenizer)
+        num_doc_tokens = get_token_count(doc_content + docs_joiner_default, tokenizer)
         print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
             tokens[0], new_tokens0), flush=True)
     return top_k_docs, one_doc_size, num_doc_tokens

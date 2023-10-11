@@ -52,7 +52,7 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent, docs_ordering_types
+    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -1074,6 +1074,11 @@ def go_gradio(**kwargs):
                                                # info="For LangChain",
                                                visible=kwargs['langchain_mode'] != 'Disabled',
                                                interactive=not is_public)
+                        chunk = gr.components.Checkbox(value=kwargs['chunk'],
+                                                       label="Whether to chunk documents",
+                                                       info="For LangChain",
+                                                       visible=kwargs['langchain_mode'] != 'Disabled',
+                                                       interactive=not is_public)
                         chunk_size = gr.Number(value=kwargs['chunk_size'],
                                                label="Chunk size for document chunking",
                                                info="For LangChain (ignored if chunk=False)",
@@ -1087,11 +1092,13 @@ def go_gradio(**kwargs):
                             value=kwargs['docs_ordering_type'],
                             label="Document Sorting in LLM Context",
                             visible=True)
-                        chunk = gr.components.Checkbox(value=kwargs['chunk'],
-                                                       label="Whether to chunk documents",
-                                                       info="For LangChain",
-                                                       visible=kwargs['langchain_mode'] != 'Disabled',
-                                                       interactive=not is_public)
+                        docs_token_handling = gr.Radio(
+                            docs_token_handlings,
+                            value=kwargs['docs_token_handling'],
+                            label="Document Handling Mode for filling LLM Context",
+                            visible=True)
+                        docs_joiner = gr.Textbox(label="String to join lists and documents", value=kwargs['docs_joiner'] or docs_joiner_default)
+
                         embed = gr.components.Checkbox(value=True,
                                                        label="Whether to embed text",
                                                        info="For LangChain",
@@ -1151,6 +1158,10 @@ def go_gradio(**kwargs):
                             minimum=1, maximum=max_max_new_tokens, step=1,
                             value=min(max_max_new_tokens, kwargs['min_max_new_tokens']),
                             label="Min. of Max output length",
+                        )
+                        max_input_tokens = gr.Number(
+                            minimum=-1, maximum=128*1024, step=1,
+                            value=-1, label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
@@ -1531,12 +1542,12 @@ def go_gradio(**kwargs):
         def set_visible_models(visible_models1, num_model_lock=0, all_models=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
-                ret_list = [gr.update(visible=True)] * num_model_lock
+                ret_list = [gr.Textbox(visible=True)] * num_model_lock
             else:
                 assert isinstance(all_models, list)
                 assert num_model_lock == len(all_models)
                 visible_list = [False, False] + get_model_lock_visible_list(visible_models1, all_models)
-                ret_list = [gr.update(visible=x) for x in visible_list]
+                ret_list = [gr.Textbox(visible=x) for x in visible_list]
             return tuple(ret_list)
 
         visible_models_func = functools.partial(set_visible_models,
@@ -1617,7 +1628,7 @@ def go_gradio(**kwargs):
         # note for update_user_db_func output is ignored for db
 
         def clear_textbox():
-            return gr.Textbox.update(value='')
+            return gr.Textbox(value='')
 
         update_user_db_url_func = functools.partial(update_db_func, is_url=True)
 
@@ -1690,8 +1701,8 @@ def go_gradio(**kwargs):
             else:
                 label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
-            return gr.Dropdown.update(choices=docs_state0, value=DocumentChoice.ALL.value,
-                                      label=label1), gr.Markdown.update(value=active_collection1)
+            return gr.Dropdown(choices=docs_state0, value=DocumentChoice.ALL.value,
+                                      label=label1), gr.Markdown(value=active_collection1)
 
         lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
                                                 outputs=[document_choice, active_collection],
@@ -1719,7 +1730,7 @@ def go_gradio(**kwargs):
                             outputs=[row_llama, row_llama2, row_gpt4all, row_gpt4all2])
 
         def resize_col_tabs(x):
-            return gr.Dropdown.update(scale=x)
+            return gr.Dropdown(scale=x)
 
         col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, queue=False)
 
@@ -1738,7 +1749,7 @@ def go_gradio(**kwargs):
             if DocumentChoice.ALL.value in x:
                 x.remove(DocumentChoice.ALL.value)
             source_list = [DocumentChoice.ALL.value] + x
-            return gr.Dropdown.update(choices=source_list, value=[DocumentChoice.ALL.value])
+            return gr.Dropdown(choices=source_list, value=[DocumentChoice.ALL.value])
 
         get_sources_kwargs = dict(fn=get_sources1,
                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
@@ -1784,7 +1795,7 @@ def go_gradio(**kwargs):
                                   api_name='show_sources' if allow_api else None)
 
         def update_viewable_dropdown(x):
-            return gr.Dropdown.update(choices=x,
+            return gr.Dropdown(choices=x,
                                       value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
         get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0,
@@ -2582,6 +2593,7 @@ def go_gradio(**kwargs):
 
             save_dict = dict()
             ret = {}
+            ret_old = None
             try:
                 for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
                     error = res_dict.get('error', '')
@@ -2624,9 +2636,13 @@ def go_gradio(**kwargs):
                         ret = fix_text_for_gradio(res_dict['response'])
                     else:
                         ret = '<br>' + fix_text_for_gradio(res_dict['response'])
-                    if stream_output1:
+                    if stream_output1 and ret != ret_old:
                         # yield as it goes, else need to wait since predict only returns first yield
                         yield ret
+                        if isinstance(ret, dict):
+                            ret_old = ret.copy()
+                        else:
+                            ret_old = ret
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
@@ -3062,11 +3078,19 @@ def go_gradio(**kwargs):
             save_dict = dict()
             error = ''
             extra = ''
+            history_str_old = ''
+            error_old = ''
             try:
                 for res in get_response(fun1, history):
+                    do_yield = False
                     history, error, extra, save_dict = res
                     # pass back to gradio only these, rest are consumed in this function
-                    yield history, error
+                    history_str = str(history)
+                    do_yield |= (history_str != history_str_old or error != error_old)
+                    if do_yield:
+                        yield history, error
+                        history_str_old = history_str
+                        error_old = error
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
@@ -3121,12 +3145,11 @@ def go_gradio(**kwargs):
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, valid_key, h2ogpt_key1, = \
-                        prep_bot(*tuple(args_list1), retry=retry,
-                                 which_model=chatboti)
+                        prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
-                        if stream_output1:
-                            gen1 = TimeoutIterator(gen1, timeout=0.01, sentinel=None, raise_on_exception=False)
+                        # always use stream or not, so do not block any iterator/generator
+                        gen1 = TimeoutIterator(gen1, timeout=0.002, sentinel=None, raise_on_exception=False)
                         # else timeout will truncate output for non-streaming case
                     else:
                         gen1 = gen1_fake(fun1, history)
@@ -3138,12 +3161,14 @@ def go_gradio(**kwargs):
                 save_dicts_old = [{}] * len(bots_old)
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
+                    do_yield = False
                     if time.time() - tgen0 > max_time1:
                         print("Took too long: %s" % max_time1, flush=True)
                         break
 
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
                             for x, y in zip(res1, bots_old)]
+                    do_yield |= bots != bots_old
                     bots_old = bots.copy()
 
                     def larger_str(x, y):
@@ -3151,6 +3176,7 @@ def go_gradio(**kwargs):
 
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
+                    do_yield |= exceptions != exceptions_old
                     exceptions_old = exceptions.copy()
 
                     extras = [x[2] if x is not None and not isinstance(x, BaseException) else y
@@ -3172,10 +3198,11 @@ def go_gradio(**kwargs):
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                          x not in [None, '', 'None']])
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
-                    if len(bots) > 1:
-                        yield tuple(bots + [exceptions_str])
-                    else:
-                        yield bots[0], exceptions_str
+                    if do_yield:
+                        if len(bots) > 1:
+                            yield tuple(bots + [exceptions_str])
+                        else:
+                            yield bots[0], exceptions_str
                 if exceptions:
                     exceptions_reduced = [x for x in exceptions if x not in ['', None, 'None']]
                     if exceptions_reduced:
@@ -3285,14 +3312,14 @@ def go_gradio(**kwargs):
                                   )
 
         def clear_instruct():
-            return gr.Textbox.update(value='')
+            return gr.Textbox(value='')
 
         def deselect_radio_chats():
             return gr.update(value=None)
 
         def clear_all():
-            return gr.Textbox.update(value=''), gr.Textbox.update(value=''), gr.update(value=None), \
-                gr.Textbox.update(value=''), gr.Textbox.update(value='')
+            return gr.Textbox(value=''), gr.Textbox(value=''), gr.update(value=None), \
+                gr.Textbox(value=''), gr.Textbox(value='')
 
         if kwargs['model_states']:
             submits1 = submits2 = submits3 = []
@@ -3543,12 +3570,12 @@ def go_gradio(**kwargs):
             return tuple(ret_chat)
 
         def clear_texts(*args):
-            return tuple([gr.Textbox.update(value='')] * len(args))
+            return tuple([gr.Textbox(value='')] * len(args))
 
         def clear_scores():
-            return gr.Textbox.update(value=res_value), \
-                gr.Textbox.update(value='Response Score: NA'), \
-                gr.Textbox.update(value='Response Score: NA')
+            return gr.Textbox(value=res_value), \
+                gr.Textbox(value='Response Score: NA'), \
+                gr.Textbox(value='Response Score: NA')
 
         switch_chat_fun = functools.partial(switch_chat, num_model_lock=len(text_outputs))
         radio_chats.input(switch_chat_fun,
@@ -3752,8 +3779,8 @@ def go_gradio(**kwargs):
                 server_name = no_server_str
                 return kwargs['model_state_none'].copy(), \
                     model_name, lora_weights, server_name, prompt_type_old, \
-                    gr.Slider.update(maximum=256), \
-                    gr.Slider.update(maximum=256)
+                    gr.Slider(maximum=256), \
+                    gr.Slider(maximum=256)
 
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
@@ -3810,8 +3837,8 @@ def go_gradio(**kwargs):
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
             return model_state_new, model_name, lora_weights, server_name, prompt_type1, \
-                gr.Slider.update(maximum=max_max_new_tokens1), \
-                gr.Slider.update(maximum=max_max_new_tokens1)
+                gr.Slider(maximum=max_max_new_tokens1), \
+                gr.Slider(maximum=max_max_new_tokens1)
 
         def get_prompt_str(prompt_type1, prompt_dict1, system_prompt1, which=0):
             if prompt_type1 in ['', None]:
@@ -3835,10 +3862,10 @@ def go_gradio(**kwargs):
                             queue=False)
 
         def dropdown_prompt_type_list(x):
-            return gr.Dropdown.update(value=x)
+            return gr.Dropdown(value=x)
 
         def chatbot_list(x, model_used_in):
-            return gr.Textbox.update(label=f'h2oGPT [Model: {model_used_in}]')
+            return gr.Textbox(label=f'h2oGPT [Model: {model_used_in}]')
 
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
@@ -3899,8 +3926,8 @@ def go_gradio(**kwargs):
             model_new_options = [no_model_str] + sorted(model_new_options)
             x1 = model_x if model_used1 == no_model_str else model_used1
             x2 = model_x if model_used2 == no_model_str else model_used2
-            ret1 = [gr.Dropdown.update(value=x1, choices=model_new_options),
-                    gr.Dropdown.update(value=x2, choices=model_new_options),
+            ret1 = [gr.Dropdown(value=x1, choices=model_new_options),
+                    gr.Dropdown(value=x2, choices=model_new_options),
                     '', model_new_state]
 
             lora_new_state = [lora_list0[0] + [lora_x]]
@@ -3911,8 +3938,8 @@ def go_gradio(**kwargs):
             # don't switch drop-down to added lora if already have model loaded
             x1 = lora_x if model_used1 == no_model_str else lora_used1
             x2 = lora_x if model_used2 == no_model_str else lora_used2
-            ret2 = [gr.Dropdown.update(value=x1, choices=lora_new_options),
-                    gr.Dropdown.update(value=x2, choices=lora_new_options),
+            ret2 = [gr.Dropdown(value=x1, choices=lora_new_options),
+                    gr.Dropdown(value=x2, choices=lora_new_options),
                     '', lora_new_state]
 
             server_new_state = [server_list0[0] + [server_x]]
@@ -3923,8 +3950,8 @@ def go_gradio(**kwargs):
             # don't switch drop-down to added server if already have model loaded
             x1 = server_x if model_used1 == no_model_str else server_used1
             x2 = server_x if model_used2 == no_model_str else server_used2
-            ret3 = [gr.Dropdown.update(value=x1, choices=server_new_options),
-                    gr.Dropdown.update(value=x2, choices=server_new_options),
+            ret3 = [gr.Dropdown(value=x1, choices=server_new_options),
+                    gr.Dropdown(value=x2, choices=server_new_options),
                     '', server_new_state]
 
             return tuple(ret1 + ret2 + ret3)
@@ -3948,16 +3975,16 @@ def go_gradio(**kwargs):
             .then(**load_model_args, queue=False).then(**prompt_update_args, queue=False)
 
         def compare_textbox_fun(x):
-            return gr.Textbox.update(visible=x)
+            return gr.Textbox(visible=x)
 
         def compare_column_fun(x):
             return gr.Column.update(visible=x)
 
         def compare_prompt_fun(x):
-            return gr.Dropdown.update(visible=x)
+            return gr.Dropdown(visible=x)
 
         def slider_fun(x):
-            return gr.Slider.update(visible=x)
+            return gr.Slider(visible=x)
 
         compare_checkbox.select(compare_textbox_fun, compare_checkbox, text_output2,
                                 api_name="compare_checkbox" if allow_api else None) \
@@ -3981,7 +4008,7 @@ def go_gradio(**kwargs):
         def get_system_info():
             if is_public:
                 time.sleep(10)  # delay to avoid spam since queue=False
-            return gr.Textbox.update(value=system_info_print())
+            return gr.Textbox(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
                                         api_name='system_info' if allow_api else None, queue=False)
