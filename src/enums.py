@@ -93,6 +93,7 @@ class LangChainAction(Enum):
     SUMMARIZE_MAP = "Summarize"
     SUMMARIZE_ALL = "Summarize_all"
     SUMMARIZE_REFINE = "Summarize_refine"
+    EXTRACT = "Extract"
 
 
 class LangChainAgent(Enum):

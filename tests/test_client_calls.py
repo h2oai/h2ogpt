@@ -2119,14 +2119,15 @@ Rating: 5 (most positive)"""
     print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
+@pytest.mark.parametrize("langchain_action", ['Extract', 'Summarize'])
 @pytest.mark.parametrize("instruction", ['', 'Technical key points'])
 @pytest.mark.parametrize("stream_output", [False, True])
-@pytest.mark.parametrize("top_k_docs", [-1, 4])
+@pytest.mark.parametrize("top_k_docs", [4, -1])
 @pytest.mark.parametrize("inference_server", ['https://gpt.h2o.ai', None, 'openai_chat', 'openai_azure_chat'])
 @pytest.mark.parametrize("prompt_summary", [None, '', 'Summarize into single paragraph'])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction):
+def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction, langchain_action):
     # launch server
     local_server = True
     num_async = 10
@@ -2206,7 +2207,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     # ask for summary, need to use same client if using MyData
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     kwargs = dict(langchain_mode=langchain_mode,
-                  langchain_action="Summarize",  # uses full document, not vectorDB chunks
+                  langchain_action=langchain_action,  # uses full document, not vectorDB chunks
                   top_k_docs=top_k_docs,  # -1 for entire pdf
                   document_subset='Relevant',
                   document_choice=DocumentChoice.ALL.value,
@@ -2224,8 +2225,14 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     res = ast.literal_eval(res)
     summary = res['response']
     sources = res['sources']
+    if langchain_action == 'Extract':
+        assert isinstance(summary, list)
+        summary = str(summary)  # for easy checking
     if instruction == 'Technical key points':
-        assert 'No relevant documents to summarize.' in summary
+        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+            assert 'No relevant documents to summarize.' in summary
+        else:
+            assert 'long-form transcription' in summary
     else:
         if prompt_summary == '':
             assert 'Whisper' in summary or \
@@ -2236,7 +2243,8 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         else:
             assert 'various techniques and approaches in speech recognition' in summary or \
                    'capabilities of speech processing systems' in summary or \
-                   'speech recognition' in summary
+                   'speech recognition' in summary or \
+                'capabilities of speech processing systems' in summary
         assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
         assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
 

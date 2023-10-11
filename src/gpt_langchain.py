@@ -30,6 +30,7 @@ import yaml
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
+from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.openai import acompletion_with_retry, update_token_usage
@@ -56,7 +57,8 @@ from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
-from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta
+from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
+    load_general_summarization_chain
 
 import_matplotlib()
 
@@ -3914,6 +3916,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                 LangChainAction.SUMMARIZE_ALL.value,
                                 LangChainAction.SUMMARIZE_REFINE.value]:
             ret = 'No relevant documents to summarize.' if query or num_docs_before_cut > 0 else 'No documents to summarize.'
+        elif langchain_action in [LangChainAction.EXTRACT.value]:
+            ret = 'No relevant documents to extract from.' if query or num_docs_before_cut > 0 else 'No documents to extract from.'
         elif not use_llm_if_no_docs:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
         extra = ''
@@ -4126,7 +4130,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
                 tokenizer, chunk_size=chunk_size, chunk_overlap=0
             )
-            [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in enumerate(docs_with_score)]
+            [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in
+             enumerate(docs_with_score)]
             docs = [x[0] for x in docs_with_score]
             # only split those that need to be split, else recursive splitter goes too nuts and takes too long
             docs_to_split = [x for x in docs if x.metadata['ntokens'] > chunk_size]
@@ -4280,7 +4285,8 @@ def get_chain(query=None,
     query_action = langchain_action == LangChainAction.QUERY.value
     summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                                             LangChainAction.SUMMARIZE_ALL.value,
-                                            LangChainAction.SUMMARIZE_REFINE.value]
+                                            LangChainAction.SUMMARIZE_REFINE.value,
+                                            LangChainAction.EXTRACT.value]
 
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
@@ -4866,20 +4872,17 @@ def get_chain(query=None,
             chain = load_qa_with_sources_chain(llm)
         chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
-    elif langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                              LangChainAction.SUMMARIZE_REFINE,
-                              LangChainAction.SUMMARIZE_ALL.value]:
+    elif summarize_action:
         if async_output:
             return_intermediate_steps = False
         else:
             return_intermediate_steps = True
-        from langchain.chains.summarize import load_summarize_chain
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             prompt = PromptTemplate(input_variables=["text"], template=template)
-            chain = load_summarize_chain(llm, chain_type="map_reduce",
-                                         map_prompt=prompt, combine_prompt=prompt,
-                                         return_intermediate_steps=return_intermediate_steps,
-                                         token_max=max_input_tokens, verbose=verbose)
+            chain = load_general_summarization_chain(llm, chain_type="map_reduce",
+                                                     map_prompt=prompt, combine_prompt=prompt,
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     token_max=max_input_tokens, verbose=verbose)
             if async_output:
                 chain_func = chain.arun
             else:
@@ -4889,21 +4892,35 @@ def get_chain(query=None,
         elif langchain_action == LangChainAction.SUMMARIZE_ALL.value:
             assert use_template
             prompt = PromptTemplate(input_variables=["text"], template=template)
-            chain = load_summarize_chain(llm, chain_type="stuff", prompt=prompt,
-                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            chain = load_general_summarization_chain(llm, chain_type="stuff", prompt=prompt,
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     verbose=verbose)
             if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
             target = wrapped_partial(chain_func)
         elif langchain_action == LangChainAction.SUMMARIZE_REFINE.value:
-            chain = load_summarize_chain(llm, chain_type="refine",
-                                         return_intermediate_steps=return_intermediate_steps, verbose=verbose)
+            chain = load_general_summarization_chain(llm, chain_type="refine",
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     verbose=verbose)
             if async_output:
                 chain_func = chain.arun
             else:
                 chain_func = chain
             target = wrapped_partial(chain_func)
+        elif langchain_action == LangChainAction.EXTRACT.value:
+            prompt = PromptTemplate(input_variables=["text"], template=template)
+            chain = load_general_summarization_chain(llm, chain_type="map",
+                                                     map_prompt=prompt, combine_prompt=prompt,
+                                                     return_intermediate_steps=return_intermediate_steps,
+                                                     token_max=max_input_tokens, verbose=verbose)
+            if async_output:
+                chain_func = chain.arun
+            else:
+                chain_func = chain
+            target = wrapped_partial(chain_func, dict(input_documents=docs,
+                                                      token_max=max_input_tokens))  # , return_only_outputs=True)
         else:
             raise RuntimeError("No such langchain_action=%s" % langchain_action)
     else:
@@ -5013,7 +5030,8 @@ def get_template(query, iinput,
 \"\"\"
 %s{question}""" % (pre_prompt_query, prompt_query)
             template_if_no_docs = """{context}{question}"""
-    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value]:
+    elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
+                              LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
 
         # modify prompt_summary if user passes query or iinput
@@ -5023,7 +5041,7 @@ def get_template(query, iinput,
             prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
         # don't auto reduce
         auto_reduce_chunks = False
-        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        if langchain_action in [LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value]:
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
@@ -5031,7 +5049,7 @@ def get_template(query, iinput,
 \"\"\"
 %s
 \"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
-        template_if_no_docs = "Exactly only say: There are no documents to summarize."
+        template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
         template_if_no_docs = ''  # unused

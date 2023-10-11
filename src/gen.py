@@ -221,7 +221,7 @@ def main(
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
 
-        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value],
+        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
 
         document_subset: str = DocumentSubset.Relevant.name,
@@ -580,6 +580,7 @@ def main(
             Summarize or Summarize_map_reduce: Summarize document(s) via map_reduce
             Summarize_all: Summarize document(s) using entire document at once
             Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
+            Extract: Extract information from document(s) via map (no reduce)
     :param langchain_agents: Which agents to use
             'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
@@ -620,9 +621,9 @@ def main(
     :param show_link_in_sources: Whether to show URL link to source document in references
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
-    :param pre_prompt_summary: prompt before documents to summarize, if None then use internal defaults
-    :param prompt_summary: prompt after documents to summarize, if None then use internal defaults
-           For summarize, normal to have empty query (nothing added in ask anything in UI or empty string in API)
+    :param pre_prompt_summary: prompt before documents to summarize/extract from, if None then use internal defaults
+    :param prompt_summary: prompt after documents to summarize/extract from, if None then use internal defaults
+           For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
     :param add_chat_history_to_context: Include chat context when performing action
@@ -643,7 +644,7 @@ def main(
     :param chunk_size: Size of chunks, with typically top-4 passed to LLM, so needs to be in context length
     :param top_k_docs: For langchain_action query: number of chunks to give LLM
                        -1 : auto-fills context up to max_seq_len
-                       For langchain_action summarize: number of document parts, like pages for PDF.
+                       For langchain_action summarize/extract: number of document parts, like pages for PDF.
                        There's no such thing as chunks for summarization.
                        -1 : auto-fills context up to max_seq_len
     :param docs_ordering_type:
