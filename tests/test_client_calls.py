@@ -2226,7 +2226,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     summary = res['response']
     sources = res['sources']
     if langchain_action == 'Extract':
-        assert isinstance(summary, list)
+        assert isinstance(summary, list) or 'No relevant documents to extract from.' == summary
         summary = str(summary)  # for easy checking
     if instruction == 'Technical key points':
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:

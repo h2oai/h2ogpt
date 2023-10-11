@@ -966,10 +966,10 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                            enable_pdf_doctr in ['off', 'auto'] and \
                            enable_pdf_ocr in ['off', 'auto']
             no_doc_mode = use_pymupdf in ['off'] and \
-                           use_pypdf in ['off'] and \
-                           use_unstructured_pdf in ['off'] and \
-                           enable_pdf_doctr in ['off'] and \
-                           enable_pdf_ocr in ['off', 'auto']
+                          use_pypdf in ['off'] and \
+                          use_unstructured_pdf in ['off'] and \
+                          enable_pdf_doctr in ['off'] and \
+                          enable_pdf_ocr in ['off', 'auto']
 
             try:
                 db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
@@ -981,7 +981,8 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                                                    use_pypdf=use_pypdf,
                                                    add_if_exists=False)
             except Exception as e:
-                if 'had no valid text and no meta data was parsed' in str(e) or 'had no valid text, but meta data was parsed' in str(e):
+                if 'had no valid text and no meta data was parsed' in str(
+                        e) or 'had no valid text, but meta data was parsed' in str(e):
                     if no_doc_mode:
                         return
                     else:
@@ -997,7 +998,8 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                 assert len(docs) >= 2
             assert 'And more text. And more text.' in docs[0].page_content
             if db_type == 'weaviate':
-                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(docs[0].metadata['source']) == os.path.basename(test_file1)
+                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(
+                    docs[0].metadata['source']) == os.path.basename(test_file1)
             else:
                 assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -1074,7 +1076,8 @@ def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, u
                 assert docs[0].page_content
                 assert docs[1].page_content
             if db_type == 'weaviate':
-                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(docs[0].metadata['source']) == os.path.basename(test_file1)
+                assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or os.path.basename(
+                    docs[0].metadata['source']) == os.path.basename(test_file1)
             else:
                 assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
@@ -1766,10 +1769,12 @@ def test_merge_docs(data_kind):
     else:
         raise RuntimeError("BAD")
 
-    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content in enumerate(texts)]
+    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content
+                       in enumerate(texts)]
 
-    docs_with_score_new = split_merge_docs(docs_with_score, tokenizer=tokenizer, max_input_tokens=max_input_tokens,
-                                           docs_token_handling=docs_token_handling, joiner=docs_joiner, verbose=True)
+    docs_with_score_new, max_docs_tokens = (
+        split_merge_docs(docs_with_score, tokenizer=tokenizer, max_input_tokens=max_input_tokens,
+                         docs_token_handling=docs_token_handling, joiner=docs_joiner, verbose=True))
 
     text_context_list = [x[0].page_content for x in docs_with_score_new]
     tokens = [get_token_count(x + docs_joiner, tokenizer) for x in text_context_list]

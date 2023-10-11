@@ -4111,7 +4111,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
     # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len
     if docs_token_handling in ['chunk']:
-        return docs_with_score
+        return docs_with_score, None
     elif docs_token_handling in [None, 'split_or_merge']:
         assert tokenizer
         tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
@@ -4143,9 +4143,9 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
             docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
 
+            tokens_after_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+                                  [x[0].page_content for x in docs_with_score]]
             if verbose:
-                tokens_after_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
-                                      [x[0].page_content for x in docs_with_score]]
                 print('tokens_after_split=%s' % tokens_after_split, flush=True)
 
         docs_with_score_new = []
@@ -4171,12 +4171,12 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             assert top_k_docs >= 1
             k += top_k_docs
 
+        tokens_after_merge = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+                              [x[0].page_content for x in docs_with_score_new]]
         if verbose:
-            tokens_after_merge = [get_token_count(x + docs_joiner_default, tokenizer) for x in
-                                  [x[0].page_content for x in docs_with_score_new]]
             print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
 
-        return docs_with_score_new
+        return docs_with_score_new, max(tokens_after_merge)
     else:
         raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
 
@@ -4788,12 +4788,26 @@ def get_chain(query=None,
         # filter by top_k_docs and maybe one_doc_size
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
         # group docs if desired/can to fill context
-        docs_with_score = split_merge_docs(docs_with_score,
-                                           tokenizer,
-                                           max_input_tokens=max_input_tokens,
-                                           docs_token_handling=docs_token_handling,
-                                           joiner=docs_joiner,
-                                           verbose=verbose)
+        docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
+                                                           tokenizer,
+                                                           max_input_tokens=max_input_tokens,
+                                                           docs_token_handling=docs_token_handling,
+                                                           joiner=docs_joiner,
+                                                           verbose=verbose)
+        # max_input_tokens used min_max_new_tokens as max_new_tokens, so need to assume filled up to that
+        # but use actual largest token count
+        data_point = dict(context=context, instruction=query, input=iinput)
+        prompt_basic = prompter.generate_prompt(data_point)
+        estimated_prompt_no_docs = template.format(text=prompt_basic)
+        num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
+
+        max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
+        if os.getenv('HARD_ASSERTS') is not None:
+            # imperfect calculation, so will see how testing does
+            assert max_new_tokens >= min_max_new_tokens
+        # get updated llm
+        llm_kwargs.update(max_new_tokens=max_new_tokens)
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
 
     # now done with all docs and their sizes, re-order docs if required
     if query_action:
