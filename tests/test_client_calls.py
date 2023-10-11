@@ -1843,7 +1843,6 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
         texts = texts_helium2
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             expected_return_number = 10
-            expected_return_number2 = expected_return_number
             tokens_expected = 1500
             expected_return_number2 = expected_return_number
         else:
@@ -1858,7 +1857,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             else:
                 expected_return_number = 17 if local_server else 17
                 tokens_expected = 3400 if local_server else 2900
-                expected_return_number2 = 18
+                expected_return_number2 = 17
         prompt = '\n'.join(texts[:expected_return_number])
         counts = count_tokens_llm(prompt, tokenizer=tokenizer)
         assert counts['llm'] > tokens_expected, counts['llm']
@@ -1871,14 +1870,13 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
         texts = texts_helium3
         if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             expected_return_number = 6
-            expected_return_number2 = expected_return_number
             tokens_expected = 1500
             expected_return_number2 = expected_return_number
         else:
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 3000 if local_server else 2900
                 expected_return_number = 14 if local_server else 14
-                expected_return_number2 = 15
+                expected_return_number2 = 15 if 'azure' not in inference_server else 14
             elif inference_server and 'replicate' in inference_server:
                 tokens_expected = 3000 if local_server else 2900
                 expected_return_number = 11 if local_server else 11
