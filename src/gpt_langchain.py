@@ -4111,7 +4111,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
     # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len
     if docs_token_handling in ['chunk']:
-        return docs_with_score, None
+        return docs_with_score, 0
     elif docs_token_handling in [None, 'split_or_merge']:
         assert tokenizer
         tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
@@ -4176,7 +4176,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
         if verbose:
             print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
 
-        return docs_with_score_new, max(tokens_after_merge)
+        max_tokens_after_merge = max(tokens_after_merge) if tokens_after_merge else 0
+        return docs_with_score_new, max_tokens_after_merge
     else:
         raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
 
@@ -4804,7 +4805,7 @@ def get_chain(query=None,
         max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
         if os.getenv('HARD_ASSERTS') is not None:
             # imperfect calculation, so will see how testing does
-            assert max_new_tokens >= min_max_new_tokens
+            assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)

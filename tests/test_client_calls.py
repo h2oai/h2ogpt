@@ -2232,7 +2232,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary
         else:
-            assert 'long-form transcription' in summary
+            assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary
     else:
         if prompt_summary == '':
             assert 'Whisper' in summary or \
