@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from tests.utils import wrap_test_forked
-from src.enums import DocumentSubset, LangChainAction
+from src.enums import DocumentSubset, LangChainAction, docs_joiner_default
 from src.utils import remove
 
 
@@ -137,7 +137,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'min_max_new_tokens': 256,
                  'max_input_tokens': -1,
                  'docs_token_handling': None,
-                 'docs_joiner': None,
+                 'docs_joiner': docs_joiner_default,
                  }
     if cpu and bits == 32:
         expected1.update({'image_loaders': np.array([], dtype=object)})

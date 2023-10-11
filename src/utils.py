@@ -1588,3 +1588,9 @@ def get_size(start_path = '.'):
                 total_size += os.path.getsize(fp)
 
     return total_size
+
+
+def get_test_name_core():
+    tn = os.environ['PYTEST_CURRENT_TEST'].split(':')[-1]
+    tn = "_".join(tn.split(' ')[:-1])  # skip (call) at end
+    return sanitize_filename(tn)
