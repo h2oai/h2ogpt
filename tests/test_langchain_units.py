@@ -12,7 +12,7 @@ from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3,
     texts_simple
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice, \
-    docs_joiner_default
+    docs_joiner_default, docs_token_handling_default
 from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
     FakeTokenizer, get_token_count

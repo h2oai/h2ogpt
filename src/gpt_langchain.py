@@ -50,7 +50,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
-    docs_token_handling_default, docs_ordering_types_default
+    docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -3901,17 +3901,16 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
         return
-    if langchain_mode not in langchain_modes_intrinsic and not use_llm_if_no_docs:
-        if not docs:
-            if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                    LangChainAction.SUMMARIZE_ALL.value,
-                                    LangChainAction.SUMMARIZE_REFINE.value]:
-                ret = 'No relevant documents to summarize.' if num_docs_before_cut else 'No documents to summarize.'
-            else:
-                ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
-            extra = ''
-            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
-            return
+    if langchain_mode not in langchain_modes_non_db and not docs:
+        if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                LangChainAction.SUMMARIZE_ALL.value,
+                                LangChainAction.SUMMARIZE_REFINE.value]:
+            ret = 'No relevant documents to summarize.' if query or num_docs_before_cut > 0 else 'No documents to summarize.'
+        elif not use_llm_if_no_docs:
+            ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
+        extra = ''
+        yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
+        return
 
     # NOTE: If chain=None, could return if HF type (i.e. not langchain_only_model), but makes code too complex
     # only return now if no chain at all, e.g. when only returning sources
@@ -4084,7 +4083,7 @@ def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
     return docs_with_score
 
 
-class H2OCharacterTextSplitter(CharacterTextSplitter):
+class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
     @classmethod
     def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
         def _huggingface_tokenizer_length(text: str) -> int:
@@ -4113,12 +4112,22 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
                 print('tokens_before_split=%s' % tokens_before_split, flush=True)
 
             # see if need to split
+            # account for joiner tokens
+            joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
+            chunk_size = max_input_tokens - joiner_tokens * len(docs_with_score)
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-                tokenizer, chunk_size=max_input_tokens, chunk_overlap=0
+                tokenizer, chunk_size=chunk_size, chunk_overlap=0
             )
-            [x[0].metadata.update(dict(docscore=x[1])) for x in docs_with_score]
+            [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in enumerate(docs_with_score)]
             docs = [x[0] for x in docs_with_score]
-            docs_new = text_splitter.split_documents(docs)
+            # only split those that need to be split, else recursive splitter goes too nuts and takes too long
+            docs_to_split = [x for x in docs if x.metadata['ntokens'] > chunk_size]
+            docs_to_not_split = [x for x in docs if x.metadata['ntokens'] <= chunk_size]
+            docs_split_new = flatten_list([text_splitter.split_documents([x]) for x in docs_to_split])
+            docs_new = docs_to_not_split + docs_split_new
+            doci_new = [x.metadata['doci'] for x in docs_new]
+            # order back by doci
+            docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
             docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
 
             if verbose:

@@ -1609,6 +1609,7 @@ def test_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, inf
     local_server = True  # for gradio connected to TGI, or if pass inference_server too then some remote vLLM/TGI using local server
     return run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, local_server, inference_server)
 
+
 texts_simple = ['first', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'last']
 
 texts_helium1 = [
@@ -2122,16 +2123,22 @@ Rating: 5 (most positive)"""
     print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
-@pytest.mark.parametrize("inference_server", [None, 'openai_chat', 'openai_azure_chat'])
-@pytest.mark.parametrize("prompt_summary", ['', 'Summarize into single paragraph'])
+@pytest.mark.parametrize("instruction", ['', 'Technical key points'])
+@pytest.mark.parametrize("stream_output", [False, True])
+@pytest.mark.parametrize("top_k_docs", [-1, 4])
+@pytest.mark.parametrize("inference_server", ['https://gpt.h2o.ai', None, 'openai_chat', 'openai_azure_chat'])
+@pytest.mark.parametrize("prompt_summary", [None, '', 'Summarize into single paragraph'])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_client_summarization(prompt_summary, inference_server):
+def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction):
     # launch server
     local_server = True
+    num_async = 10
     if local_server:
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+        elif inference_server == 'https://gpt.h2o.ai':
+            base_model = 'h2oai/h2ogpt-4096-llama2-13b-chat'
         else:
             base_model = 'gpt-3.5-turbo'
 
@@ -2143,11 +2150,21 @@ def test_client_summarization(prompt_summary, inference_server):
                 assert 'OPENAI_AZURE_KEY' in os.environ, "Missing 'OPENAI_AZURE_KEY'"
                 os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_AZURE_KEY']
 
+        if inference_server == 'https://gpt.h2o.ai':
+            model_lock = [
+                dict(inference_server=inference_server, base_model=base_model, visible_models=base_model,
+                     h2ogpt_key=os.getenv('H2OGPT_API_KEY'))]
+            base_model = inference_server = None
+        else:
+            model_lock = None
+
         from src.gen import main
         main(base_model=base_model,
              inference_server=inference_server,
              chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
              use_auth_token=True,
+             num_async=num_async,
+             model_lock=model_lock,
              )
         check_hashes = True
     else:
@@ -2194,13 +2211,15 @@ def test_client_summarization(prompt_summary, inference_server):
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     kwargs = dict(langchain_mode=langchain_mode,
                   langchain_action="Summarize",  # uses full document, not vectorDB chunks
-                  top_k_docs=4,  # -1 for entire pdf
+                  top_k_docs=top_k_docs,  # -1 for entire pdf
                   document_subset='Relevant',
                   document_choice=DocumentChoice.ALL.value,
-                  max_new_tokens=256,
-                  max_time=300,
+                  max_new_tokens=1024,
+                  max_time=1000,
                   do_sample=False,
                   prompt_summary=prompt_summary,
+                  stream_output=stream_output,
+                  instruction=instruction,
                   )
     res = client.predict(
         str(dict(kwargs)),
@@ -2209,18 +2228,21 @@ def test_client_summarization(prompt_summary, inference_server):
     res = ast.literal_eval(res)
     summary = res['response']
     sources = res['sources']
-    if prompt_summary == '':
-        assert 'Whisper' in summary or \
-               'robust speech recognition system' in summary or \
-               'Robust speech recognition' in summary or \
-               'speech processing' in summary or \
-               'LibriSpeech dataset with weak supervision' in summary
+    if instruction == 'Technical key points':
+        assert 'No relevant documents to summarize.' in summary
     else:
-        assert 'various techniques and approaches in speech recognition' in summary or \
-               'capabilities of speech processing systems' in summary or \
-               'speech recognition' in summary
-    assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
-    assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
+        if prompt_summary == '':
+            assert 'Whisper' in summary or \
+                   'robust speech recognition system' in summary or \
+                   'Robust speech recognition' in summary or \
+                   'speech processing' in summary or \
+                   'LibriSpeech dataset with weak supervision' in summary
+        else:
+            assert 'various techniques and approaches in speech recognition' in summary or \
+                   'capabilities of speech processing systems' in summary or \
+                   'speech recognition' in summary
+        assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+        assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
 
 
 @pytest.mark.need_tokens
