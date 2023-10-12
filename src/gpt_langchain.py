@@ -5164,14 +5164,14 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
             assert sorted_sources_urls.startswith(super_source_prefix)
             assert sorted_sources_urls.endswith(super_source_postfix)
 
-    if not answer.endswith('\n'):
+    if isinstance(answer, str) and not answer.endswith('\n'):
         answer += '\n'
 
     if answer_with_sources:
         extra = '\n' + sorted_sources_urls
     else:
         extra = ''
-    if append_sources_to_answer:
+    if isinstance(answer, str) and append_sources_to_answer:
         ret = answer + extra
     else:
         ret = answer

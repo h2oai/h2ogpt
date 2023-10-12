@@ -71,6 +71,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
+    if not isinstance(text, str):
+        # e.g. list for extraction
+        text = str(text)
+
     if fix_latex_dollars:
         ts = text.split('```')
         for parti, part in enumerate(ts):
