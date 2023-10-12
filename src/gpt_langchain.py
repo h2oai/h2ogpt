@@ -3928,9 +3928,13 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
             ret = 'No relevant documents to extract from.' if query or num_docs_before_cut > 0 else 'No documents to extract from.'
         elif not use_llm_if_no_docs:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
-        extra = ''
-        yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
-        return
+        else:
+            # if here then ok to continue using chain if exists.  E.g. use_llm_if_no_docs=True and doing query langchain_action
+            ret = None
+        if ret is not None:
+            extra = ''
+            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
+            return
 
     # NOTE: If chain=None, could return if HF type (i.e. not langchain_only_model), but makes code too complex
     # only return now if no chain at all, e.g. when only returning sources
