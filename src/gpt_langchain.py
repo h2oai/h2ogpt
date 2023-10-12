@@ -1461,8 +1461,6 @@ def get_llm(use_openai_model=False,
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
         if gr_client:
-            # NOTE: No need for num_async semaphore because gradio should be setup to queue
-            # Async implemented via base LLM _agenerate() calling _generate() calling _call()
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
