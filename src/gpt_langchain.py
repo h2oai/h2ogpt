@@ -858,9 +858,6 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
                 text_callback = partial(
                     run_manager.on_llm_new_token, verbose=self.verbose
                 )
-            # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
-            if text_callback:
-                text_callback(prompt)
             text = ""
             # Note: Streaming ignores return_full_text=True
             for response in self.client.generate_stream(prompt, **gen_server_kwargs):
