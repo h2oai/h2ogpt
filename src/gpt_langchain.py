@@ -1246,6 +1246,7 @@ def get_llm(use_openai_model=False,
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
+            exllama_dict=None,
             verbose=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
@@ -1565,6 +1566,9 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler()]
         streamer = callbacks[0] if stream_output else None
 
+        if exllama_dict is None:
+            exllama_dict = {}
+
         from src.llm_exllama import Exllama
         llm = Exllama(streaming=stream_output,
                       model_path=None,
@@ -1581,6 +1585,7 @@ def get_llm(use_openai_model=False,
                       verbose=verbose,
                       max_seq_len=model_max_length,
                       fused_attn=False,
+                      **exllama_dict,
                       # alpha_value = 1.0, #For use with any models
                       # compress_pos_emb = 4.0, #For use with superhot
                       # set_auto_map = "3, 2" #Gpu split, this will split 3gigs/2gigs
@@ -3639,6 +3644,7 @@ def run_qa_db(**kwargs):
     kwargs['show_link_in_sources'] = kwargs.get('show_link_in_sources', True)
     kwargs['top_k_docs_max_show'] = kwargs.get('top_k_docs_max_show', 10)
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
+    kwargs['exllama_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -3744,6 +3750,7 @@ def _run_qa_db(query=None,
 
                n_jobs=-1,
                llamacpp_dict=None,
+               exllama_dict=None,
                verbose=False,
                cli=False,
                lora_weights='',
@@ -3854,6 +3861,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       max_input_tokens=max_input_tokens,
                       n_jobs=n_jobs,
                       llamacpp_dict=llamacpp_dict,
+                      exllama_dict=exllama_dict,
                       cli=cli,
                       verbose=verbose,
                       )

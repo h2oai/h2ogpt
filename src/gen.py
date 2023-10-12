@@ -98,6 +98,7 @@ def main(
         model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
         model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
+        exllama_dict: typing.Dict = dict(),
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -381,6 +382,22 @@ def main(
     :param model_name_gptj: model path or URL (for auto-download)
     :param model_name_gpt4all_llama: model path or URL (for auto-download)
     :param model_name_exllama_if_no_config: exllama model's full path for model, tokenizer, generator for use when no HuggingFace config
+    :param exllama_dict for setting various things for Exllama class
+           E.g. compress_pos_emb,
+                set_auto_map,
+                gpu_peer_fix,
+                alpha_value,
+                matmul_recons_thd,
+                fused_mlp_thd
+                sdp_thd
+                fused_attn
+                matmul_fused_remap
+                rmsnorm_no_half2
+                rope_no_half2
+                matmul_no_half2
+                silu_no_half2
+                concurrent_streams
+           E.g. to set memory to be split across 2 GPUs, use --exllama_dict="{'set_auto_map':20,20}"
 
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
@@ -745,6 +762,8 @@ def main(
         llamacpp_dict['n_gpu_layers'] = 100
     if 'n_gqa' not in llamacpp_dict:
         llamacpp_dict['n_gqa'] = 0
+
+    exllama_dict = str_to_dict(exllama_dict)
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
@@ -1129,6 +1148,7 @@ def main(
                                       model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                                       rope_scaling=rope_scaling,
                                       max_seq_len=max_seq_len,
+                                      exllama_dict=exllama_dict,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -1571,6 +1591,7 @@ def get_model(
         max_seq_len: int = None,
         compile_model: bool = True,
         llamacpp_dict=None,
+        exllama_dict=None,
 
         verbose: bool = False,
 ):
@@ -1604,6 +1625,7 @@ def get_model(
     :param max_seq_len: if set, use as max_seq_len for model
     :param compile_model: whether to compile torch model
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
+    :param exllama_dict: dict of exllama options
     :param verbose:
     :return:
     """
@@ -1641,7 +1663,8 @@ def get_model(
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                     load_gptq=load_gptq, load_exllama=load_exllama, config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
-                    model_name_exllama_if_no_config=model_name_exllama_if_no_config))
+                    model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                    exllama_dict=exllama_dict))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1790,6 +1813,7 @@ def get_hf_model(load_8bit: bool = False,
     assert tokenizer_kwargs is not None
 
     load_exllama = False  # Never should be in HF code for exllama
+    exllama_dict = {}
 
     if lora_weights is not None and lora_weights.strip():
         if verbose:
@@ -1807,7 +1831,8 @@ def get_hf_model(load_8bit: bool = False,
 
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_exllama=load_exllama))
+                    load_gptq=load_gptq, load_exllama=load_exllama,
+                    exllama_dict=exllama_dict))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -2049,6 +2074,7 @@ def get_score_model(score_model: str = None,
                     rope_scaling: dict = None,
                     compile_model: bool = True,
                     llamacpp_dict: typing.Dict = None,
+                    exllama_dict: typing.Dict = None,
 
                     verbose: bool = False,
                     ):
@@ -2070,6 +2096,7 @@ def get_score_model(score_model: str = None,
         rope_scaling = {}
         compile_model = False
         llamacpp_dict = {}
+        exllama_dict = {}
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -2184,6 +2211,8 @@ def evaluate(
         model_lock=None,
         force_langchain_evaluate=None,
         model_state_none=None,
+        llamacpp_dict=None,
+        exllama_dict=None,
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
@@ -2522,6 +2551,8 @@ def evaluate(
                 sanitize_bot_response=sanitize_bot_response,
 
                 lora_weights=lora_weights,
+                llamacpp_dict=llamacpp_dict,
+                exllama_dict=exllama_dict,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,

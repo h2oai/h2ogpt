@@ -81,6 +81,11 @@ which uses about 48GB of memory on 1 GPU and runs at about 12 tokens/second on a
 
 With exllama, ensure `--concurrency_count=1` else the model will share states and mix-up concurrent requests.
 
+One can set other exllama options by passing `--exllama_dict`, E.g. for LLaMa-2-70B on 2 GPUs each using 20GB, do:
+```bash
+python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_exllama=True --use_safetensors=True --use_gpu_id=False --load_gptq=main --prompt_type=llama2 --exllama_dict="{'set_auto_map':'20,20'}"
+```
+
 ##### For LLaMa.cpp on GPU run:
 ```bash
 python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
