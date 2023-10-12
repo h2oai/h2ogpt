@@ -3142,6 +3142,8 @@ def go_gradio(**kwargs):
                     # if at start, have None in response still, replace with '' so client etc. acts like normal
                     # assumes other parts of code treat '' and None as if no response yet from bot
                     # can't do this later in bot code as racy with threaded generators
+                    if chatbot1 is None:
+                        chatbot1 = []
                     if len(chatbot1) > 0 and len(chatbot1[-1]) == 2 and chatbot1[-1][1] is None:
                         chatbot1[-1][1] = ''
                     args_list1.append(chatbot1)
