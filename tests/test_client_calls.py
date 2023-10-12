@@ -780,13 +780,23 @@ def test_autogptq():
     assert "am a virtual assistant" in res_dict['response']
 
 
+@pytest.mark.parametrize("mode", ['a', 'b', 'c'])
 @wrap_test_forked
-def test_exllama():
+def test_exllama(mode):
     prompt = 'Who are you?'
     stream_output = False
     max_new_tokens = 256
-    # base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
-    base_model = 'TheBloke/Llama-2-7B-chat-GPTQ'
+    if mode == 'c':
+        base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
+        exllama_dict = {}
+    elif mode == 'b':
+        base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
+        exllama_dict={'set_auto_map':'20,20'}
+    elif mode == 'a':
+        base_model = 'TheBloke/Llama-2-7B-chat-GPTQ'
+        exllama_dict = {}
+    else:
+        raise RuntimeError("Bad mode=%s" % mode)
     load_exllama = True
     prompt_type = 'llama2'
     langchain_mode = 'Disabled'
@@ -796,7 +806,8 @@ def test_exllama():
     langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled']
     docs_ordering_type = 'reverse_ucurve_sort'
     from src.gen import main
-    main(base_model=base_model, load_exllama=load_exllama,
+    main(base_model=base_model,
+         load_exllama=load_exllama, exllama_dict=exllama_dict,
          prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
          max_new_tokens=max_new_tokens,
@@ -810,7 +821,9 @@ def test_exllama():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "I'm LLaMA, an AI assistant" in res_dict['response'] or "I am LLaMA" in res_dict['response']
+    assert "I'm LLaMA, an AI assistant" in res_dict['response'] or \
+    "I am LLaMA" in res_dict['response'] or \
+    "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
 
 
 @pytest.mark.skip(reason="Local file required")
