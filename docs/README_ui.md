@@ -195,7 +195,7 @@ For Windows, one can show only the chat view by doing:
 
 which looks like:
 
-![image](https://github.com/squidwardthetentacles/h2ogpt/assets/15376332/10d1e8a4-a7bf-48a0-b3f8-3ca39adf7378)
+
 
 
 ## Login Tab
