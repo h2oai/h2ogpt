@@ -234,6 +234,7 @@ find openai_vllm -name '*.py' | xargs sed -i 's/from openai /from openai_vllm /g
 find openai_vllm -name '*.py' | xargs sed -i 's/openai\./openai_vllm./g'
 find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g'
 find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g'
+find openai_vllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
 ```
 
 Assuming torch was installed with CUDA 11.7, and you have installed cuda locally in `/usr/local/cuda-11.7`, then can start in OpenAI compliant mode.  E.g. for LLaMa 65B on 2*A100 GPUs:

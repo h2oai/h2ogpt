@@ -68,6 +68,7 @@ sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     find openai_vllm -name '*.py' | xargs sed -i 's/openai\./openai_vllm./g' && \
     find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g' && \
     find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g' && \
+    find openai_vllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g' && \
     cd /h2ogpt_conda && \
     python -m venv vllm_env --system-site-packages && \
     /h2ogpt_conda/vllm_env/bin/python -m pip install vllm ray pandas --extra-index-url https://download.pytorch.org/whl/cu118 && \
