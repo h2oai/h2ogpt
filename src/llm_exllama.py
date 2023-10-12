@@ -297,9 +297,10 @@ class Exllama(LLM):
             text_callback = partial(
                 run_manager.on_llm_new_token, verbose=self.verbose
             )
-        # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
-        if text_callback:
-            text_callback(prompt)
+        # No longer assume below, assume always just new text so various langchain things work
+        ##### parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+        #### text_callback:
+        ####    text_callback(prompt)
         text = ""
         while (generator.gen_num_tokens() <= (
                 self.max_seq_len - 4)):  # Slight extra padding space as we seem to occassionally get a few more than 1-2 tokens
