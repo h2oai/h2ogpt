@@ -55,6 +55,18 @@ playwright install --with-deps
 python3.10 -m pip uninstall -y pyduckdb duckdb && \
 python3.10 -m pip install https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/duckdb-0.8.2.dev4026%2Bgdcd8c1ffc5-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall
 
+# setup tiktoken cache
+export TIKTOKEN_CACHE_DIR=/workspace/tiktoken_cache
+python3.10 -c "
+import tiktoken
+from tiktoken_ext import openai_public
+# FakeTokenizer etc. needs tiktoken for general tasks
+for enc in openai_public.ENCODING_CONSTRUCTORS:
+    encoding = tiktoken.get_encoding(enc)
+encoding = tiktoken.encoding_for_model('gpt-3.5-turbo')
+print('Done!')
+"
+
 # Install vllm
 export VLLM_CACHE=/workspace/.vllm_cache
 cd /h2ogpt_conda && python -m venv vllm_env --system-site-packages
