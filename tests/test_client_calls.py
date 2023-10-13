@@ -246,9 +246,8 @@ def test_client1api_lean_lock_choose_model():
                                     'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
                                     'generates_leading_space': True, 'system_prompt': ''}, 'load_8bit': False,
                     'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
-                    'load_exllama': False,
-                    'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
-                    'use_cache': None,
+                    'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
+                    'compile_model': True, 'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
                                       'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
                                       'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
@@ -258,29 +257,38 @@ def test_client1api_lean_lock_choose_model():
                     'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                     'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                     'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
-                    'max_seq_len': None}, {'base_model': 'distilgpt2', 'prompt_type': 'plain',
-                                           'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ',
-                                                           'PreInput': None, 'PreResponse': '<bot>:',
-                                                           'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:',
-                                                                                  '<bot>:', '<bot>:'], 'chat_sep': '\n',
-                                                           'chat_turn_sep': '\n', 'humanstr': '<human>:',
-                                                           'botstr': '<bot>:', 'generates_leading_space': True,
-                                                           'system_prompt': ''}, 'load_8bit': False, 'load_4bit': False,
-                                           'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
-                                           'load_exllama': False,
-                                           'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
-                                           'compile_model': True, 'use_cache': None,
-                                           'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
-                                                             'n_gqa': 0,
-                                                             'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                             'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                             'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                             'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                                           'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                           'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                           'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                           'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ',
-                                           'rope_scaling': {}, 'max_seq_len': None}]
+                    'max_seq_len': None, 'exllama_dict': {}}, {'base_model': 'distilgpt2', 'prompt_type': 'plain',
+                                                               'prompt_dict': {'promptA': '', 'promptB': '',
+                                                                               'PreInstruct': '<human>: ',
+                                                                               'PreInput': None,
+                                                                               'PreResponse': '<bot>:',
+                                                                               'terminate_response': ['\n<human>:',
+                                                                                                      '\n<bot>:',
+                                                                                                      '<human>:',
+                                                                                                      '<bot>:',
+                                                                                                      '<bot>:'],
+                                                                               'chat_sep': '\n', 'chat_turn_sep': '\n',
+                                                                               'humanstr': '<human>:',
+                                                                               'botstr': '<bot>:',
+                                                                               'generates_leading_space': True,
+                                                                               'system_prompt': ''}, 'load_8bit': False,
+                                                               'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                                                               'load_gptq': '', 'load_awq': '', 'load_exllama': False,
+                                                               'use_safetensors': False, 'revision': None,
+                                                               'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
+                                                               'use_cache': None,
+                                                               'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True,
+                                                                                 'n_batch': 1024, 'n_gqa': 0,
+                                                                                 'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                                                 'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                                                                 'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                                                                 'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                                                               'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                               'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                                               'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                                               'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ',
+                                                               'rope_scaling': {}, 'max_seq_len': None,
+                                                               'exllama_dict': {}}]
 
 
 @wrap_test_forked
@@ -827,7 +835,7 @@ def test_exllama(mode):
         exllama_dict = {}
     elif mode == 'b':
         base_model = 'TheBloke/Llama-2-70B-chat-GPTQ'
-        exllama_dict={'set_auto_map':'20,20'}
+        exllama_dict = {'set_auto_map': '20,20'}
     elif mode == 'a':
         base_model = 'TheBloke/Llama-2-7B-chat-GPTQ'
         exllama_dict = {}
@@ -858,8 +866,8 @@ def test_exllama(mode):
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
     assert "I'm LLaMA, an AI assistant" in res_dict['response'] or \
-    "I am LLaMA" in res_dict['response'] or \
-    "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
+           "I am LLaMA" in res_dict['response'] or \
+           "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
 
 
 @pytest.mark.skip(reason="Local file required")
@@ -2177,7 +2185,8 @@ Rating: 5 (most positive)"""
 @pytest.mark.parametrize("prompt_summary", [None, '', 'Summarize into single paragraph'])
 @pytest.mark.need_tokens
 @wrap_test_forked
-def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction, langchain_action):
+def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction,
+                              langchain_action):
     # launch server
     local_server = True
     num_async = 10
@@ -2294,7 +2303,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
             assert 'various techniques and approaches in speech recognition' in summary or \
                    'capabilities of speech processing systems' in summary or \
                    'speech recognition' in summary or \
-                'capabilities of speech processing systems' in summary
+                   'capabilities of speech processing systems' in summary
         assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
         assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
 
