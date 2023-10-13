@@ -195,8 +195,7 @@ For Windows, one can show only the chat view by doing:
 
 which looks like:
 
-
-
+![chat_view.png](chat_view.png)
 
 ## Login Tab
 
