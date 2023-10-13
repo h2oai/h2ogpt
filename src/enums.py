@@ -115,11 +115,16 @@ no_server_str = no_lora_str = no_model_str = '[None/Remove]'
 model_token_mapping = {
     "gpt-4": 8192,
     "gpt-4-0314": 8192,
+    "gpt-4-0613": 8192,  # supports function tools
     "gpt-4-32k": 32768,
     "gpt-4-32k-0314": 32768,
+    "gpt-4-32k-0613": 32768,  # supports function tools
     "gpt-3.5-turbo": 4096,
-    "gpt-3.5-turbo-16k": 16 * 1024,
     "gpt-3.5-turbo-0301": 4096,
+    "gpt-3.5-turbo-0613": 4096,  # supports function tools
+    "gpt-3.5-turbo-16k": 16385,
+    "gpt-3.5-turbo-16k-0613": 16385,  # supports function tools
+    "gpt-3.5-turbo-instruct": 4096,
     "text-ada-001": 2049,
     "ada": 2049,
     "text-babbage-001": 2040,
@@ -134,6 +139,19 @@ model_token_mapping = {
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
 }
+
+openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613"]
+
+
+def does_support_functiontools(inference_server, model_name):
+    if any([inference_server.startswith(x) for x in ['openai_azure', 'openai_azure_chat']]):
+        return model_name.lower() in openai_supports_functiontools
+    elif any([inference_server.startswith(x) for x in ['openai', 'openai_chat']]):
+        # assume OpenAI serves updated models
+        return True
+    else:
+        return False
+
 
 font_size = 2
 head_acc = 40  # 40 for 6-way

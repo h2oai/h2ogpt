@@ -1191,6 +1191,9 @@ def set_openai(inference_server):
             base_url = 'https://' + base_url
         if len(inference_server.split(':')) >= 4:
             api_version = inference_server.split(':')[3]
+        if 'openai_azure_chat' in inference_server and api_version is None:
+            # for function tools support
+            api_version = "2023-09-01-preview"
 
         if deployment_type == 'None':
             deployment_type = None

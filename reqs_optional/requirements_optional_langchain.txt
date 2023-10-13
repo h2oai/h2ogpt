@@ -9,7 +9,7 @@ pypdfium2==4.19.0
 sentence_transformers==2.2.2
 
 # optional: for OpenAI endpoint or embeddings (requires key)
-openai==0.27.8
+openai==0.28.1
 replicate==0.10.0
 
 # local vector db

@@ -52,7 +52,8 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
-    docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db
+    docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db, openai_supports_functiontools, \
+    does_support_functiontools
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -1383,7 +1384,8 @@ def get_llm(use_openai_model=False,
         elif openai.api_version:
             kwargs_extra.update(dict(openai_api_version=openai.api_version))
         elif inf_type in ['openai_azure', 'openai_azure_chat']:
-            kwargs_extra.update(dict(openai_api_version="2023-05-15"))
+            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview
+            kwargs_extra.update(dict(openai_api_version="2023-09-01-preview"))
         if base_url:
             kwargs_extra.update(dict(openai_api_base=base_url))
         else:
@@ -3900,7 +3902,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
         if not formatted_doc_chunks and not use_llm_if_no_docs:
             yield dict(prompt=prompt_basic, response="No sources", sources='', num_prompt_tokens=0)
             return
-        # if no souces, outside gpt_langchain, LLM will be used with '' input
+        # if no sources, outside gpt_langchain, LLM will be used with '' input
         scores = [1] * len(docs)
         get_answer_args = tuple([query, docs, formatted_doc_chunks, scores, show_rank,
                                  answer_with_sources,
@@ -3913,6 +3915,11 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  verbose=verbose)
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
+        return
+    if langchain_agents and not chain:
+        ret = '%s not supported by this model' % langchain_agents[0]
+        extra = ''
+        yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
         return
     if langchain_mode not in langchain_modes_non_db and not docs:
         if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -4189,6 +4196,30 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
         raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
 
 
+def get_single_document(document_choice, db, extension=None):
+    if isinstance(document_choice, str):
+        document_choice = [document_choice]
+    if document_choice and document_choice[0] == DocumentChoice.ALL.value:
+        document_choice.remove(DocumentChoice.ALL.value)
+    if document_choice is None:
+        return None
+
+    if len(document_choice) > 0:
+        # then choose what user gave, first if have to choose
+        document_choice_agent = [x for x in document_choice if x.endswith(extension)]
+    elif len(document_choice) == 0:
+        # means user didn't choose, see if can auto-choose
+        document_choice_agent = sorted(set([x['source'] for x in get_metadatas(db, k_max=1000) if
+                                            extension is None or x['source'].endswith(extension)]))
+    else:
+        document_choice_agent = document_choice
+    document_choice_agent = [x for x in document_choice_agent if x.endswith(extension)]
+    if len(document_choice_agent) > 0:
+        return document_choice_agent[0]
+    else:
+        return None
+
+
 def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
@@ -4289,6 +4320,13 @@ def get_chain(query=None,
     if text_context_list is None:
         text_context_list = []
 
+    # default nothing
+    docs = []
+    target = None
+    scores = []
+    num_docs_before_cut = 0
+    use_llm_if_no_docs = True
+
     # NOTE: Could try to establish if pure llm mode or not, but makes code too complex
     query_action = langchain_action == LangChainAction.QUERY.value
     summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -4322,8 +4360,6 @@ def get_chain(query=None,
         add_search_to_context &= len(docs_search) > 0
         top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
 
-    use_llm_if_no_docs = True
-
     from src.output_parser import H2OMRKLOutputParser
     from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
         create_pandas_dataframe_agent, create_json_agent, create_csv_agent
@@ -4331,7 +4367,7 @@ def get_chain(query=None,
     if LangChainAgent.SEARCH.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
         tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
-        if inference_server.startswith('openai'):
+        if does_support_functiontools(inference_server, model_name):
             agent_type = AgentType.OPENAI_FUNCTIONS
             agent_executor_kwargs = {"handle_parsing_errors": True, 'output_parser': output_parser}
         else:
@@ -4355,131 +4391,111 @@ def get_chain(query=None,
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
-        output_parser = H2OMRKLOutputParser()
-        vectorstore_info = VectorStoreInfo(
-            name=langchain_mode,
-            description="DataBase of text from PDFs, Image Captions, or web URL content",
-            vectorstore=db,
-        )
-        toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info)
-        chain = create_vectorstore_agent(llm=llm, toolkit=toolkit,
-                                         agent_executor_kwargs=dict(output_parser=output_parser),
-                                         verbose=True)
+        if db:
+            output_parser = H2OMRKLOutputParser()
+            vectorstore_info = VectorStoreInfo(
+                name=langchain_mode,
+                description="DataBase of text from PDFs, Image Captions, or web URL content",
+                vectorstore=db,
+            )
+            toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info)
+            chain = create_vectorstore_agent(llm=llm, toolkit=toolkit,
+                                             agent_executor_kwargs=dict(output_parser=output_parser),
+                                             verbose=True)
 
-        chain_kwargs = dict(input=query)
-        target = wrapped_partial(chain, chain_kwargs)
+            chain_kwargs = dict(input=query)
+            target = wrapped_partial(chain, chain_kwargs)
 
-        docs = []
-        scores = []
-        num_docs_before_cut = 0
-        use_llm_if_no_docs = True
+            use_llm_if_no_docs = True
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
-    if LangChainAgent.PYTHON.value in langchain_agents and inference_server.startswith('openai'):
-        chain = create_python_agent(
-            llm=llm,
-            tool=PythonREPLTool(),
-            verbose=True,
-            agent_type=AgentType.OPENAI_FUNCTIONS,
-            agent_executor_kwargs={"handle_parsing_errors": True},
-        )
+    if LangChainAgent.PYTHON.value in langchain_agents:
+        if does_support_functiontools(inference_server, model_name):
+            chain = create_python_agent(
+                llm=llm,
+                tool=PythonREPLTool(),
+                verbose=True,
+                agent_type=AgentType.OPENAI_FUNCTIONS,
+                agent_executor_kwargs={"handle_parsing_errors": True},
+            )
 
-        chain_kwargs = dict(input=query)
-        target = wrapped_partial(chain, chain_kwargs)
+            chain_kwargs = dict(input=query)
+            target = wrapped_partial(chain, chain_kwargs)
 
-        docs = []
-        scores = []
-        num_docs_before_cut = 0
-        use_llm_if_no_docs = True
+            use_llm_if_no_docs = True
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
-    if LangChainAgent.PANDAS.value in langchain_agents and inference_server.startswith('openai_chat'):
-        # FIXME: DATA
-        df = pd.DataFrame(None)
-        chain = create_pandas_dataframe_agent(
-            llm,
-            df,
-            verbose=True,
-            agent_type=AgentType.OPENAI_FUNCTIONS,
-        )
-
-        chain_kwargs = dict(input=query)
-        target = wrapped_partial(chain, chain_kwargs)
-
-        docs = []
-        scores = []
-        num_docs_before_cut = 0
-        use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
-            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
-
-    if isinstance(document_choice, str):
-        document_choice = [document_choice]
-    if document_choice and document_choice[0] == DocumentChoice.ALL.value:
-        document_choice_agent = document_choice[1:]
-    else:
-        document_choice_agent = document_choice
-    document_choice_agent = [x for x in document_choice_agent if x.endswith('.json')]
-    if LangChainAgent.JSON.value in \
-            langchain_agents and \
-            inference_server.startswith('openai_chat') and \
-            len(document_choice_agent) == 1 and \
-            document_choice_agent[0].endswith('.json'):
-        # with open('src/openai.yaml') as f:
-        #    data = yaml.load(f, Loader=yaml.FullLoader)
-        with open(document_choice[0], 'rt') as f:
-            data = json.loads(f.read())
-        json_spec = JsonSpec(dict_=data, max_value_length=4000)
-        json_toolkit = JsonToolkit(spec=json_spec)
-
-        chain = create_json_agent(
-            llm=llm, toolkit=json_toolkit, verbose=True
-        )
-
-        chain_kwargs = dict(input=query)
-        target = wrapped_partial(chain, chain_kwargs)
-
-        docs = []
-        scores = []
-        num_docs_before_cut = 0
-        use_llm_if_no_docs = True
-        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
-            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
-
-    if isinstance(document_choice, str):
-        document_choice = [document_choice]
-    if document_choice and document_choice[0] == DocumentChoice.ALL.value:
-        document_choice_agent = document_choice[1:]
-    else:
-        document_choice_agent = document_choice
-    document_choice_agent = [x for x in document_choice_agent if x.endswith('.csv')]
-    if LangChainAgent.CSV.value in langchain_agents and len(document_choice_agent) == 1 and document_choice_agent[
-        0].endswith(
-        '.csv'):
-        data_file = document_choice[0]
-        if inference_server.startswith('openai_chat'):
-            chain = create_csv_agent(
+    if LangChainAgent.PANDAS.value in langchain_agents:
+        document_choice = get_single_document(document_choice, db, extension='csv')
+        if document_choice and does_support_functiontools(inference_server, model_name):
+            df = pd.read_csv(document_choice)
+            chain = create_pandas_dataframe_agent(
                 llm,
-                data_file,
+                df,
                 verbose=True,
                 agent_type=AgentType.OPENAI_FUNCTIONS,
             )
-        else:
-            chain = create_csv_agent(
-                llm,
-                data_file,
-                verbose=True,
-                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-            )
-        chain_kwargs = dict(input=query)
-        target = wrapped_partial(chain, chain_kwargs)
 
-        docs = []
-        scores = []
-        num_docs_before_cut = 0
-        use_llm_if_no_docs = True
+            chain_kwargs = dict(input=query)
+            target = wrapped_partial(chain, chain_kwargs)
+
+            docs = []
+            scores = []
+            num_docs_before_cut = 0
+            use_llm_if_no_docs = True
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
+
+    if LangChainAgent.JSON.value in langchain_agents:
+        document_choice = get_single_document(document_choice, db, extension='json')
+        if document_choice and does_support_functiontools(inference_server, model_name):
+            # with open('src/openai.yaml') as f:
+            #    data = yaml.load(f, Loader=yaml.FullLoader)
+            with open(document_choice[0], 'rt') as f:
+                data = json.loads(f.read())
+            json_spec = JsonSpec(dict_=data, max_value_length=4000)
+            json_toolkit = JsonToolkit(spec=json_spec)
+
+            chain = create_json_agent(
+                llm=llm, toolkit=json_toolkit, verbose=True
+            )
+
+            chain_kwargs = dict(input=query)
+            target = wrapped_partial(chain, chain_kwargs)
+
+            docs = []
+            scores = []
+            num_docs_before_cut = 0
+            use_llm_if_no_docs = True
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
+
+    if LangChainAgent.CSV.value in langchain_agents:
+        document_choice = get_single_document(document_choice, db, extension='csv')
+        if document_choice:
+            if does_support_functiontools(inference_server, model_name):
+                chain = create_csv_agent(
+                    llm,
+                    document_choice,
+                    verbose=True,
+                    agent_type=AgentType.OPENAI_FUNCTIONS,
+                )
+            else:
+                chain = create_csv_agent(
+                    llm,
+                    document_choice,
+                    verbose=True,
+                    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+                )
+            chain_kwargs = dict(input=query)
+            target = wrapped_partial(chain, chain_kwargs)
+
+            docs = []
+            scores = []
+            num_docs_before_cut = 0
+            use_llm_if_no_docs = True
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
@@ -4998,8 +5014,9 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
     elif hasattr(llm, 'tokenizer') and llm.tokenizer is not None:
         # e.g. TGI client mode etc.
         return llm.tokenizer
-    elif inference_server in ['openai', 'openai_chat', 'openai_azure',
-                              'openai_azure_chat'] and tokenizer is not None:
+    elif inference_server and any([inference_server.startswith(x) for x in ['openai', 'openai_chat', 'openai_azure',
+                                                                            'openai_azure_chat']]) and \
+            tokenizer is not None:
         return tokenizer
     elif isinstance(tokenizer, FakeTokenizer):
         return tokenizer
