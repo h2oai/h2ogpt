@@ -11,6 +11,7 @@ import pathlib
 import pickle
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import traceback
@@ -3647,7 +3648,13 @@ def run_qa_db(**kwargs):
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
     try:
-        return _run_qa_db(**kwargs)
+        if kwargs.get('verbose', False):
+            # maybe helps avoid sys.stdout getting closed
+            from contextlib import redirect_stdout
+            with redirect_stdout(None):
+                return _run_qa_db(**kwargs)
+        else:
+            return _run_qa_db(**kwargs)
     finally:
         clear_torch_cache()
 
