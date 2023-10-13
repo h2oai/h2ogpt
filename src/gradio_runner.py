@@ -4225,6 +4225,14 @@ def go_gradio(**kwargs):
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
         print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (kwargs['server_name'], server_port),
               flush=True)
+
+    if kwargs['open_browser']:
+        # Open URL in a new tab, if a browser window is already open.
+        if server_port is None:
+            server_port = '7860'
+        import webbrowser
+        webbrowser.open_new_tab('http://localhost:%s' % server_port)
+
     if kwargs['block_gradio_exit']:
         demo.block_thread()
 

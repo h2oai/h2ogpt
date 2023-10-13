@@ -139,6 +139,7 @@ def main(
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
         share: bool = False,
+        open_browser: bool = False,
         root_path: str = "",
         ssl_verify: bool = True,
         ssl_keyfile: str | None = None,
@@ -467,6 +468,7 @@ def main(
     :param server_name: IP to use.  In linux 0.0.0.0 is good choice so exposed to outside host, else for only local use 127.0.0.1.
                         For windows/MAC 0.0.0.0 or 127.0.0.1 will work, but may need to specify actual LAN IP address for other LAN clients to see.
     :param share: whether to share the gradio app with sharable URL
+    :param open_browser: whether to automatically open browser tab with gradio UI
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
