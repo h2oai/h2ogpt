@@ -61,6 +61,50 @@ python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model
 for which the GPU only uses 5.5GB.  One can add (e.g.) ` --min_new_tokens=4096` to force generation to continue beyond model's training norms, although this may give lower quality responses.
 Currently, Hugging Face transformers does not support GPTQ directly except in text-generation-inference (TGI) server, but TGI does not support RoPE scaling.  Also, vLLM supports LLaMa2 and AutoGPTQ but not RoPE scaling.  Only exllama supports AutoGPTQ with RoPE scaling.
 
+##### AutoAWQ
+
+For 13B on 1 24GB board using about 14GB:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --score_model=None --load_awq=model --use_safetensors=True --prompt_type=llama2
+```
+or for 70B on 1 48GB board using about 39GB:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Llama-2-70B-chat-AWQ --score_model=None --load_awq=model --use_safetensors=True --prompt_type=llama2
+```
+or for 70B on 2 24GB boards:
+```bash
+CUDA_VISIBLE_DEVICES=2,3 python generate.py --base_model=TheBloke/Llama-2-70B-chat-AWQ --score_model=None --load_awq=model --use_safetensors=True --prompt_type=llama2
+```
+
+See [for more details](https://github.com/casper-hansen/AutoAWQ).
+
+To run vLLM with 70B on 2 A100's using h2oGPT docker with vLLM built-in do:
+```bash
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=0,1"' \
+    --shm-size=10.24gb \
+    -p 5000:5000 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5002 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
+        --tensor-parallel-size=2 \
+        --seed 1234 \
+        --trust-remote-code \
+	      --max-num-batched-tokens 8192 \
+	      --quantization awq \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.70b_awq.txt
+```
+Can run same thing with 4 GPUs (to be safe) on 4*A10G like more available on AWS.
+
 ##### exllama
 
 Currently, only [exllama](https://github.com/turboderp/exllama) supports AutoGPTQ with RoPE scaling.

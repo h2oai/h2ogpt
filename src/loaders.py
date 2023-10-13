@@ -4,7 +4,8 @@ import json
 from src.enums import t5_type
 
 
-def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exllama=False, config=None,
+def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq='', load_exllama=False,
+                config=None,
                 rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config='',
                 exllama_dict=None):
     # NOTE: Some models need specific new prompt_type
@@ -77,6 +78,13 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_exl
         use_triton = False
         model_loader = functools.partial(AutoGPTQForCausalLM.from_quantized,
                                          quantize_config=None, use_triton=use_triton,
+                                         )
+        return model_loader, AutoTokenizer, False
+    if load_awq:
+        from transformers import AutoTokenizer
+        from awq import AutoAWQForCausalLM
+        model_loader = functools.partial(AutoAWQForCausalLM.from_quantized,
+                                         fuse_layers=True,
                                          )
         return model_loader, AutoTokenizer, False
     if llama_type is None:

@@ -76,6 +76,7 @@ def main(
         low_bit_mode: int = 1,
         load_half: bool = None,
         load_gptq: str = '',
+        load_awq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
         revision: str = None,
@@ -227,7 +228,8 @@ def main(
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
 
-        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value],
+        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
+                                           LangChainAction.EXTRACT.value],
         visible_langchain_agents: list = langchain_agents_list.copy(),
 
         document_subset: str = DocumentSubset.Relevant.name,
@@ -317,6 +319,7 @@ def main(
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
+    :param load_awq: load model with AWQ, often 'model' for TheBloke models
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
     :param revision: Which HF revision to use
@@ -986,6 +989,7 @@ def main(
             # wouldn't work if specified True, but respect
             load_half = False
         load_gptq = ''
+        load_awq = ''
         load_exllama = False
         use_gpu_id = False
         if get_device() == "cuda":
@@ -1138,7 +1142,8 @@ def main(
 
     other_model_state_defaults = dict(load_8bit=load_8bit, load_4bit=load_4bit, low_bit_mode=low_bit_mode,
                                       load_half=load_half,
-                                      load_gptq=load_gptq, load_exllama=load_exllama, use_safetensors=use_safetensors,
+                                      load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
+                                      use_safetensors=use_safetensors,
                                       revision=revision, use_gpu_id=use_gpu_id, gpu_id=gpu_id,
                                       compile_model=compile_model,
                                       use_cache=use_cache,
@@ -1433,6 +1438,7 @@ def get_config(base_model,
 
 def get_non_lora_model(base_model, model_loader, load_half,
                        load_gptq,
+                       load_awq,
                        load_exllama,
                        use_safetensors,
                        revision,
@@ -1500,6 +1506,23 @@ def get_non_lora_model(base_model, model_loader, load_half,
             model_basename=load_gptq,
             **model_kwargs,
         )
+    elif load_awq:
+        allowed_dict = dict(max_new_tokens=None,
+                            trust_remote_code=True, fuse_layers=True,
+                            batch_size=1, safetensors=False,
+                            max_memory=None, offload_folder=None)
+        for k in model_kwargs.copy():
+            if k not in allowed_dict:
+                model_kwargs.pop(k)
+        if load_awq.endswith('.pt'):
+            args = tuple([base_model, load_awq])
+        else:
+            args = tuple([base_model])
+        model = model_loader(
+            *args,
+            safetensors=use_safetensors,
+            **model_kwargs,
+        )
     elif load_in_8bit or load_in_4bit or not load_half:
         model = model_loader(
             base_model,
@@ -1507,7 +1530,6 @@ def get_non_lora_model(base_model, model_loader, load_half,
             **model_kwargs,
         )
     else:
-
         model = model_loader(
             base_model,
             config=config,
@@ -1570,6 +1592,7 @@ def get_model(
         low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
+        load_awq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
         revision: str = None,
@@ -1602,6 +1625,7 @@ def get_model(
     :param low_bit_mode: See gen.py
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
+    :param load_awq: AWQ model_basename
     :param load_exllama: whether to use exllama
     :param use_safetensors: use safetensors file
     :param revision:
@@ -1661,7 +1685,8 @@ def get_model(
                                                                                      '')
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_exllama=load_exllama, config=config,
+                    load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
+                    config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                     exllama_dict=exllama_dict))
@@ -1757,6 +1782,7 @@ def get_model(
                         low_bit_mode=low_bit_mode,
                         load_half=load_half,
                         load_gptq=load_gptq,
+                        load_awq=load_awq,
                         use_safetensors=use_safetensors,
                         revision=revision,
                         use_gpu_id=use_gpu_id,
@@ -1786,6 +1812,7 @@ def get_hf_model(load_8bit: bool = False,
                  low_bit_mode: int = 1,
                  load_half: bool = True,
                  load_gptq: str = '',
+                 load_awq: str = '',
                  use_safetensors: bool = False,
                  revision: str = None,
                  use_gpu_id: bool = True,
@@ -1831,7 +1858,7 @@ def get_hf_model(load_8bit: bool = False,
 
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_exllama=load_exllama,
+                    load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
                     exllama_dict=exllama_dict))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
@@ -1917,7 +1944,8 @@ def get_hf_model(load_8bit: bool = False,
                 if use_gpu_id:
                     config, model, max_seq_len = get_config(base_model,
                                                             return_model=True, raise_exception=True, **config_kwargs)
-                    model = get_non_lora_model(base_model, model_loader, load_half, load_gptq,
+                    model = get_non_lora_model(base_model, model_loader, load_half,
+                                               load_gptq, load_awq,
                                                load_exllama,
                                                use_safetensors,
                                                revision,
@@ -1945,6 +1973,23 @@ def get_hf_model(load_8bit: bool = False,
                             model = model_loader(
                                 model_name_or_path=base_model,
                                 model_basename=load_gptq,
+                                **model_kwargs,
+                            )
+                        elif load_awq:
+                            allowed_dict = dict(max_new_tokens=None,
+                                                trust_remote_code=True, fuse_layers=True,
+                                                batch_size=1, safetensors=False,
+                                                max_memory=None, offload_folder=None)
+                            for k in model_kwargs.copy():
+                                if k not in allowed_dict:
+                                    model_kwargs.pop(k)
+                            if load_awq.endswith('.pt'):
+                                args = tuple([base_model, load_awq])
+                            else:
+                                args = tuple([base_model])
+                            model = model_loader(
+                                *args,
+                                safetensors=use_safetensors,
                                 **model_kwargs,
                             )
                         else:
@@ -1994,7 +2039,7 @@ def get_hf_model(load_8bit: bool = False,
                     rope_scaling=rope_scaling,
                     device_map="auto",
                 )
-                if load_half and not load_gptq:
+                if load_half and not (load_gptq or load_awq):
                     if not getattr(model, "is_quantized", False):
                         model = model.half()
 
@@ -2056,6 +2101,7 @@ def get_score_model(score_model: str = None,
                     low_bit_mode=1,
                     load_half: bool = True,
                     load_gptq: str = '',
+                    load_awq: str = '',
                     load_exllama: bool = False,
                     use_gpu_id: bool = True,
                     base_model: str = '',
@@ -2084,6 +2130,7 @@ def get_score_model(score_model: str = None,
         low_bit_mode = 1
         load_half = False
         load_gptq = ''
+        load_awq = ''
         load_exllama = False
         use_safetensors = False
         revision = None

@@ -245,7 +245,8 @@ def test_client1api_lean_lock_choose_model():
                                     'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:', '<bot>:', '<bot>:'],
                                     'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
                                     'generates_leading_space': True, 'system_prompt': ''}, 'load_8bit': False,
-                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_exllama': False,
+                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
+                    'load_exllama': False,
                     'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
                     'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
@@ -265,7 +266,8 @@ def test_client1api_lean_lock_choose_model():
                                                            'chat_turn_sep': '\n', 'humanstr': '<human>:',
                                                            'botstr': '<bot>:', 'generates_leading_space': True,
                                                            'system_prompt': ''}, 'load_8bit': False, 'load_4bit': False,
-                                           'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_exllama': False,
+                                           'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
+                                           'load_exllama': False,
                                            'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
                                            'compile_model': True, 'use_cache': None,
                                            'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024,
@@ -763,6 +765,40 @@ def test_autogptq():
     docs_ordering_type = 'reverse_sort'
     from src.gen import main
     main(base_model=base_model, load_gptq=load_gptq,
+         use_safetensors=use_safetensors,
+         prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         langchain_mode=langchain_mode, user_path=user_path,
+         langchain_modes=langchain_modes,
+         docs_ordering_type=docs_ordering_type)
+
+    from src.client_test import run_client_chat
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
+    assert res_dict['prompt'] == prompt
+    assert res_dict['iinput'] == ''
+    assert "am a virtual assistant" in res_dict['response']
+
+
+@wrap_test_forked
+def test_autoawq():
+    prompt = 'Who are you?'
+    stream_output = False
+    max_new_tokens = 256
+    base_model = 'TheBloke/Llama-2-13B-chat-AWQ'
+    load_awq = 'model'
+    use_safetensors = True
+    prompt_type = 'llama2'
+    langchain_mode = 'Disabled'
+    langchain_action = LangChainAction.QUERY.value
+    langchain_agents = []
+    user_path = None
+    langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled']
+    docs_ordering_type = 'reverse_sort'
+    from src.gen import main
+    main(base_model=base_model, load_awq=load_awq,
          use_safetensors=use_safetensors,
          prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,

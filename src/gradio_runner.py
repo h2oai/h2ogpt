@@ -1101,7 +1101,8 @@ def go_gradio(**kwargs):
                             value=kwargs['docs_token_handling'],
                             label="Document Handling Mode for filling LLM Context",
                             visible=True)
-                        docs_joiner = gr.Textbox(label="String to join lists and documents", value=kwargs['docs_joiner'] or docs_joiner_default)
+                        docs_joiner = gr.Textbox(label="String to join lists and documents",
+                                                 value=kwargs['docs_joiner'] or docs_joiner_default)
 
                         embed = gr.components.Checkbox(value=True,
                                                        label="Whether to embed text",
@@ -1164,8 +1165,9 @@ def go_gradio(**kwargs):
                             label="Min. of Max output length",
                         )
                         max_input_tokens = gr.Number(
-                            minimum=-1, maximum=128*1024, step=1,
-                            value=-1, label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
+                            minimum=-1, maximum=128 * 1024, step=1,
+                            value=-1,
+                            label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
@@ -1262,6 +1264,8 @@ def go_gradio(**kwargs):
                                                                    label="low_bit_mode")
                                     model_load_gptq = gr.Textbox(label="gptq", value=kwargs['load_gptq'],
                                                                  interactive=not is_public)
+                                    model_load_awq = gr.Textbox(label="awq", value=kwargs['load_awq'],
+                                                                interactive=not is_public)
                                     model_load_exllama_checkbox = gr.components.Checkbox(
                                         label="Load load_exllama [requires support]",
                                         value=kwargs['load_exllama'], interactive=not is_public)
@@ -1360,6 +1364,8 @@ def go_gradio(**kwargs):
                                                                     label="low_bit_mode (Model 2)")
                                     model_load_gptq2 = gr.Textbox(label="gptq (Model 2)", value='',
                                                                   interactive=not is_public)
+                                    model_load_awq2 = gr.Textbox(label="awq", value='',
+                                                                 interactive=not is_public)
                                     model_load_exllama_checkbox2 = gr.components.Checkbox(
                                         label="Load load_exllama (Model 2) [requires support]",
                                         value=False, interactive=not is_public)
@@ -1706,7 +1712,7 @@ def go_gradio(**kwargs):
                 label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
             return gr.Dropdown(choices=docs_state0, value=DocumentChoice.ALL.value,
-                                      label=label1), gr.Markdown(value=active_collection1)
+                               label=label1), gr.Markdown(value=active_collection1)
 
         lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
                                                 outputs=[document_choice, active_collection],
@@ -1800,7 +1806,7 @@ def go_gradio(**kwargs):
 
         def update_viewable_dropdown(x):
             return gr.Dropdown(choices=x,
-                                      value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
+                               value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
         get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0,
                                                   load_db_if_exists=load_db_if_exists,
@@ -3726,7 +3732,7 @@ def go_gradio(**kwargs):
 
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
-                       load_gptq, load_exllama, use_safetensors, revision,
+                       load_gptq, load_awq, load_exllama, use_safetensors, revision,
                        use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
@@ -3795,6 +3801,7 @@ def go_gradio(**kwargs):
             all_kwargs1['load_4bit'] = load_4bit
             all_kwargs1['low_bit_mode'] = low_bit_mode
             all_kwargs1['load_gptq'] = load_gptq
+            all_kwargs1['load_awq'] = load_awq
             all_kwargs1['load_exllama'] = load_exllama
             all_kwargs1['use_safetensors'] = use_safetensors
             all_kwargs1['revision'] = None if not revision else revision  # transcribe, don't pass ''
@@ -3877,7 +3884,7 @@ def go_gradio(**kwargs):
         load_model_args = dict(fn=load_model,
                                inputs=[model_choice, lora_choice, server_choice, model_state, prompt_type,
                                        model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
-                                       model_load_gptq, model_load_exllama_checkbox,
+                                       model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                                        model_safetensors_checkbox, model_revision,
                                        model_use_gpu_id_checkbox, model_gpu,
                                        max_seq_len, rope_scaling,
@@ -3901,7 +3908,7 @@ def go_gradio(**kwargs):
         load_model_args2 = dict(fn=load_model,
                                 inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
                                         model_load8bit_checkbox2, model_load4bit_checkbox2, model_low_bit_mode2,
-                                        model_load_gptq2, model_load_exllama_checkbox2,
+                                        model_load_gptq2, model_load_awq2, model_load_exllama_checkbox2,
                                         model_safetensors_checkbox2, model_revision2,
                                         model_use_gpu_id_checkbox2, model_gpu2,
                                         max_seq_len2, rope_scaling2,
