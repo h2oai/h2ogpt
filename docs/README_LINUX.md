@@ -108,6 +108,17 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
     If one sees `CUDA extension not installed` in output after loading model, one needs to compile AutoGPTQ, else will use double memory and be slower on GPU.
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
+* GPU Optional: For AutoAWQ support on x86_64 linux
+    ```bash
+    pip uninstall -y autoawq ; pip install autoawq
+    ```
+    If this has issues, you need to build:
+    ```bash
+    pip uninstall -y autoawq
+    git clone https://github.com/casper-hansen/AutoAWQ
+    cd AutoAWQ
+    pip install .
+    ```
 * GPU Optional: For exllama support on x86_64 linux
     ```bash
     pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
