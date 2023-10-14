@@ -2593,6 +2593,8 @@ def go_gradio(**kwargs):
             # local key, not for remote server unless same, will be passed through
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
+            max_time1 = args_list[eval_func_param_names.index('max_time')]
+
             # final full evaluate args list
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
@@ -2605,6 +2607,7 @@ def go_gradio(**kwargs):
             ret = {}
             ret_old = None
             try:
+                tgen0 = time.time()
                 for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
                     error = res_dict.get('error', '')
                     extra = res_dict.get('extra', '')
@@ -2653,13 +2656,19 @@ def go_gradio(**kwargs):
                             ret_old = ret.copy()
                         else:
                             ret_old = ret
+                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if verbose:
+                            print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
+                        break
+
+                # yield if anything left over as can happen (FIXME: Understand better)
+                # return back last ret
+                yield ret
+
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
             save_generate_output(**save_dict)
-            if not stream_output1:
-                # return back last ret
-                yield ret
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
@@ -2953,6 +2962,8 @@ def go_gradio(**kwargs):
             # NOTE: For these, could check if None, then automatically use CLI values, but too complex behavior
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            max_time1 = args_list[eval_func_param_names.index('max_time')]
+            stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
@@ -2961,14 +2972,17 @@ def go_gradio(**kwargs):
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
                                      requests_state1=requests_state1)
 
-            dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, valid_key, h2ogpt_key1
+            dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1, stream_output1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
 
             args_list = args_list[:-isize]  # only keep rest needed for evaluate()
             if not history:
-                print("No history", flush=True)
+                if verbose:
+                    print("No history", flush=True)
                 return dummy_return
             instruction1 = history[-1][0]
             if retry and history:
@@ -3016,7 +3030,9 @@ def go_gradio(**kwargs):
                            *tuple(args_list),
                            **kwargs_evaluate)
 
-            return history, fun1, langchain_mode1, my_db_state1, requests_state1, valid_key, h2ogpt_key1
+            return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1, stream_output1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3084,26 +3100,39 @@ def go_gradio(**kwargs):
                         clear_embedding(db1[0])
 
         def bot(*args, retry=False):
-            history, fun1, langchain_mode1, db1, requests_state1, valid_key, h2ogpt_key1 = prep_bot(*args, retry=retry)
+            history, fun1, langchain_mode1, db1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1, stream_output1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
             history_str_old = ''
             error_old = ''
             try:
+                tgen0 = time.time()
                 for res in get_response(fun1, history):
                     do_yield = False
                     history, error, extra, save_dict = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
-                    if do_yield:
+                    if stream_output1 and do_yield:
                         yield history, error
                         history_str_old = history_str
                         error_old = error
+
+                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if verbose:
+                            print("Took too long bot: %s" % (time.time() - tgen0), flush=True)
+                        break
+
+                # yield if anything left over
+                yield history, error
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
+
+            # save
             if 'extra_dict' not in save_dict:
                 save_dict['extra_dict'] = {}
             save_dict['valid_key'] = valid_key
@@ -3141,6 +3170,7 @@ def go_gradio(**kwargs):
             save_dicts = []
             try:
                 gen_list = []
+                num_visible_bots = sum(visible_list)
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
                     args_list1.insert(-isize + 2,
@@ -3156,32 +3186,52 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
-                    history, fun1, langchain_mode1, db1s, requests_state1, valid_key, h2ogpt_key1, = \
+                    history, fun1, langchain_mode1, db1s, requests_state1, \
+                        valid_key, h2ogpt_key1, \
+                        max_time1, stream_output1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
+                    if num_visible_bots == 1:
+                        # no need to lag, will be faster this way
+                        lag = 0
+                    else:
+                        lag = 1e-3
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
                         # always use stream or not, so do not block any iterator/generator
-                        gen1 = TimeoutIterator(gen1, timeout=0.002, sentinel=None, raise_on_exception=False)
+                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=False)
                         # else timeout will truncate output for non-streaming case
                     else:
                         gen1 = gen1_fake(fun1, history)
                     gen_list.append(gen1)
+            finally:
+                pass
 
-                bots_old = chatbots.copy()
-                exceptions_old = [''] * len(bots_old)
-                extras_old = [''] * len(bots_old)
-                save_dicts_old = [{}] * len(bots_old)
-                tgen0 = time.time()
+            def choose_exc(x):
+                # don't expose ports etc. to exceptions window
+                if is_public:
+                    return "Endpoint unavailable or failed"
+                else:
+                    return x
+
+            bots = bots_old = chatbots.copy()
+            bots_str = bots_old_str = str(chatbots)
+            exceptions = exceptions_old = [''] * len(bots_old)
+            exceptions_str = '\n'.join(
+                ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
+                 x not in [None, '', 'None']])
+            exceptions_old_str = exceptions_str
+            extras = extras_old = [''] * len(bots_old)
+            save_dicts = save_dicts_old = [{}] * len(bots_old)
+
+            tgen0 = time.time()
+            try:
                 for res1 in itertools.zip_longest(*gen_list):
                     do_yield = False
-                    if time.time() - tgen0 > max_time1:
-                        print("Took too long: %s" % max_time1, flush=True)
-                        break
-
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
                             for x, y in zip(res1, bots_old)]
-                    do_yield |= bots != bots_old
-                    bots_old = bots.copy()
+                    bots_str = str(bots)
+                    do_yield |= bots_str != bots_old_str
+                    bots_old_str = bots_str
 
                     def larger_str(x, y):
                         return x if len(x) > len(y) else y
@@ -3199,29 +3249,37 @@ def go_gradio(**kwargs):
                                   for x, y in zip(res1, save_dicts_old)]
                     save_dicts_old = save_dicts.copy()
 
-                    def choose_exc(x):
-                        # don't expose ports etc. to exceptions window
-                        if is_public:
-                            return "Endpoint unavailable or failed"
-                        else:
-                            return x
-
                     exceptions_str = '\n'.join(
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                          x not in [None, '', 'None']])
+                    do_yield |= exceptions_str != exceptions_old_str
+                    exceptions_old_str = exceptions_str
+
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
-                    if do_yield:
+                    if stream_output1 and do_yield:
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str])
                         else:
                             yield bots[0], exceptions_str
+                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if verbose:
+                            print("Took too long all_bot: %s" % (time.time() - tgen0), flush=True)
+                        break
                 if exceptions:
                     exceptions_reduced = [x for x in exceptions if x not in ['', None, 'None']]
                     if exceptions_reduced:
                         print("Generate exceptions: %s" % exceptions_reduced, flush=True)
+
+                # yield if anything left over as can happen (FIXME: Understand better)
+                if len(bots) > 1:
+                    yield tuple(bots + [exceptions_str])
+                else:
+                    yield bots[0], exceptions_str
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
+
+            # save
             for extra, error, save_dict, model_name in zip(extras, exceptions, save_dicts, all_models):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}

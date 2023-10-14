@@ -1553,7 +1553,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
             print("GR Client Begin: %s %s" % (inference_server, base_model), flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-            gr_client = GradioClient(inference_server)
+            gr_client = GradioClient(inference_server).setup()
             print("GR Client End: %s" % inference_server, flush=True)
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
@@ -2252,6 +2252,7 @@ def evaluate(
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         verbose=False,
+        gradio=True,
         cli=False,
         use_cache=None,
         auto_reduce_chunks=None,
@@ -2445,6 +2446,11 @@ def evaluate(
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
         context = ''
+
+    # NOTE!!!!!!!!!!  Choice of developer.  But only possible to force stream if num_beams=1
+    # stream if can, so can control task iteration and time of iteration
+    # not required, but helpful for max_time control etc.
+    stream_output = gradio and num_beams == 1
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
@@ -2718,6 +2724,7 @@ def evaluate(
                     yield dict(response=response, sources=sources, save_dict=dict())
                 else:
                     collected_events = []
+                    tgen0 = time.time()
                     for event in responses:
                         collected_events.append(event)  # save the event response
                         event_text = event['choices'][0]['text']  # extract the text
@@ -2725,6 +2732,10 @@ def evaluate(
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         yield dict(response=response, sources=sources, save_dict=dict())
+                        if time.time() - tgen0 > max_time:
+                            if verbose:
+                                print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
+                            break
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if system_prompt in [None, 'None', 'auto']:
                     openai_system_prompt = "You are a helpful assistant."
@@ -2758,6 +2769,7 @@ def evaluate(
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                 else:
+                    tgen0 = time.time()
                     for chunk in responses:
                         delta = chunk["choices"][0]["delta"]
                         if 'content' in delta:
@@ -2765,6 +2777,10 @@ def evaluate(
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict())
+                        if time.time() - tgen0 > max_time:
+                            if verbose:
+                                print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
+                            break
             else:
                 raise RuntimeError("No such OpenAI mode: %s" % inference_server)
         elif inference_server.startswith('http'):
@@ -2772,7 +2788,7 @@ def evaluate(
             from gradio_utils.grclient import GradioClient
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient):
-                gr_client = model
+                gr_client = model.clone()
                 hf_client = None
             elif isinstance(model, HFClient):
                 gr_client = None
@@ -2888,6 +2904,7 @@ def evaluate(
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = dict(response=text, sources=sources, save_dict=dict())
                     text0 = ''
+                    tgen0 = time.time()
                     while not job.done():
                         if job.communicator.job.latest_status.code.name == 'FINISHED':
                             break
@@ -2915,6 +2932,10 @@ def evaluate(
                             # save old
                             text0 = response
                             yield dict(response=response, sources=sources, save_dict=dict())
+                            if time.time() - tgen0 > max_time:
+                                if verbose:
+                                    print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                                break
                         time.sleep(0.01)
                     # ensure get last output to avoid race
                     res_all = job.outputs()
@@ -2981,6 +3002,7 @@ def evaluate(
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                 else:
+                    tgen0 = time.time()
                     text = ""
                     for responses in hf_client.generate_stream(prompt, **gen_server_kwargs):
                         if not responses.token.special:
@@ -2991,6 +3013,10 @@ def evaluate(
                                                              sanitize_bot_response=sanitize_bot_response)
                             sources = ''
                             yield dict(response=response, sources=sources, save_dict=dict())
+                        if time.time() - tgen0 > max_time:
+                            if verbose:
+                                print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
+                            break
             else:
                 raise RuntimeError("Failed to get client: %s" % inference_server)
         else:
@@ -3137,6 +3163,7 @@ def evaluate(
                     ret = dict(response='', sources='', save_dict=dict())
                     outputs = ""
                     sources = ''
+                    tgen0 = time.time()
                     try:
                         for new_text in streamer:
                             if bucket.qsize() > 0 or thread.exc:
@@ -3148,8 +3175,12 @@ def evaluate(
                             ret = dict(response=response, sources=sources, save_dict=dict())
                             if stream_output:
                                 yield ret
-                        if not stream_output:
-                            yield ret
+                            if time.time() - tgen0 > max_time:
+                                if verbose:
+                                    print("Took too long for Torch: %s" % (time.time() - tgen0), flush=True)
+                                break
+                        # yield if anything left over as can happen (FIXME: Understand better)
+                        yield ret
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:

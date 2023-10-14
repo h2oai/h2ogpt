@@ -1551,6 +1551,104 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert got_embedding
 
 
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_clone(stream_output):
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model, block_gradio_exit=False, verbose=True)
+
+    from gradio_utils.grclient import GradioClient
+    client1 = GradioClient(get_inf_server())
+    client1.setup()
+    client2 = client1.clone()
+
+    for client in [client1, client2]:
+        prompt = "Who are you?"
+        kwargs = dict(stream_output=stream_output, instruction=prompt)
+        res_dict, client = run_client_gen(client, prompt, None, kwargs)
+        response = res_dict['response']
+        assert len(response) > 0
+        sources = res_dict['sources']
+        assert sources == ''
+
+
+@pytest.mark.parametrize("max_time", [1, 5])
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_timeout(stream_output, max_time):
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model, block_gradio_exit=False, verbose=True)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    prompt = "Tell a very long kid's story about birds"
+    kwargs = dict(stream_output=stream_output, instruction=prompt, max_time=max_time)
+    t0 = time.time()
+    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    response = res_dict['response']
+    assert len(response) > 0
+    assert time.time() - t0 < max_time * 2
+    sources = res_dict['sources']
+    assert sources == ''
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    h2ogpt_key = ''
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         None, None, None, None,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    instruction = "Give a very long detailed step-by-step description of what is Whisper paper about."
+    kwargs = dict(langchain_mode=langchain_mode,
+                  langchain_action="Query",
+                  top_k_docs=4,
+                  document_subset='Relevant',
+                  document_choice=DocumentChoice.ALL.value,
+                  max_new_tokens=1024,
+                  max_time=max_time,
+                  do_sample=False,
+                  stream_output=stream_output,
+                  )
+    t0 = time.time()
+    res_dict, client = run_client_gen(client, instruction, None, kwargs)
+    response = res_dict['response']
+    assert len(response) > 0
+    # assert len(response) < max_time * 20  # 20 tokens/sec
+    assert time.time() - t0 < max_time * 2
+    sources = [x['source'] for x in res_dict['sources']]
+    # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
+    # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
+    assert 'my_test_pdf.pdf' in sources[0]
+
+
+
 # pip install pytest-timeout
 # HOST=http://192.168.1.46:9999 STRESS=1 pytest -s -v -n 8 --timeout=1000 tests/test_client_calls.py::test_client_chat_stream_langchain_fake_embeddings_stress 2> stress1.log
 @pytest.mark.skipif(not os.getenv('STRESS'), reason="Only for stress testing already-running server")
