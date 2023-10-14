@@ -1553,7 +1553,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
             print("GR Client Begin: %s %s" % (inference_server, base_model), flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-            gr_client = GradioClient(inference_server)
+            gr_client = GradioClient(inference_server).setup()
             print("GR Client End: %s" % inference_server, flush=True)
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
@@ -2788,7 +2788,7 @@ def evaluate(
             from gradio_utils.grclient import GradioClient
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient):
-                gr_client = model
+                gr_client = model.clone()
                 hf_client = None
             elif isinstance(model, HFClient):
                 gr_client = None

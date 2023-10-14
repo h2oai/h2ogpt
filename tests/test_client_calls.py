@@ -1551,6 +1551,29 @@ def test_client_chat_stream_langchain_openai_embeddings():
     assert got_embedding
 
 
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_client_clone(stream_output):
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model, block_gradio_exit=False, verbose=True)
+
+    from gradio_utils.grclient import GradioClient
+    client1 = GradioClient(get_inf_server())
+    client1.setup()
+    client2 = client1.clone()
+
+    for client in [client1, client2]:
+        prompt = "Who are you?"
+        kwargs = dict(stream_output=stream_output, instruction=prompt)
+        res_dict, client = run_client_gen(client, prompt, None, kwargs)
+        response = res_dict['response']
+        assert len(response) > 0
+        sources = res_dict['sources']
+        assert sources == ''
+
+
 @pytest.mark.parametrize("max_time", [1, 5])
 @pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.need_tokens

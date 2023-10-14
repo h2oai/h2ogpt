@@ -535,7 +535,7 @@ class GradioInference(H2Oagenerate, LLM):
                 from gradio_utils.grclient import GradioClient
                 values["client"] = GradioClient(
                     values["inference_server_url"]
-                )
+                ).setup()
         except ImportError:
             raise ImportError(
                 "Could not import gradio_client python package. "
@@ -1446,7 +1446,7 @@ def get_llm(use_openai_model=False,
         from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
         if isinstance(model, GradioClient):
-            gr_client = model
+            gr_client = model.clone()
             hf_client = None
         else:
             gr_client = None
