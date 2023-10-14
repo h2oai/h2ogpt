@@ -3245,7 +3245,6 @@ def go_gradio(**kwargs):
                             yield tuple(bots + [exceptions_str])
                         else:
                             yield bots[0], exceptions_str
-                    print("all_bot: %s %s" % (time.time() - tgen0, bots), flush=True)
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
                         if verbose:
                             print("Took too long all_bot: %s" % (time.time() - tgen0), flush=True)
@@ -3271,7 +3270,6 @@ def go_gradio(**kwargs):
                 save_dict['h2ogpt_key'] = h2ogpt_key1
                 save_generate_output(**save_dict)
             # yield if anything left over as can happen (FIXME: Understand better)
-            print("DONE all_bot: %s %s" % (time.time() - tgen0, bots), flush=True)
             if len(bots) > 1:
                 yield tuple(bots + [exceptions_str])
             else:
