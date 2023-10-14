@@ -81,7 +81,7 @@ However, in some cases, you need to add a new prompt structure because the model
 
 * **Option 1**: Use custom prompt
 
-    In CLI you can pass `--prompt_type=custom --prompt_dict="{....}"` for some dict {....}.  The dictionary doesn't need to contain all the things mentioned below, but should contain primary ones.
+    In CLI you can pass `--prompt_type=custom --prompt_dict="{....}"` for some dict {....}.  The dictionary doesn't need to contain all of the keys mentioned below, but should contain the primary ones.
 
     You can also choose `prompt_type=custom` in expert settings and change `prompt_dict` in the UI under `Models tab`.  Not all of these dictionary keys need to be set:
     ```
@@ -98,20 +98,18 @@ However, in some cases, you need to add a new prompt structure because the model
     ```
     i.e. see how consumed:  https://github.com/h2oai/h2ogpt/blob/a51576cd174e9fda61f00c3889a26888a604172c/src/prompter.py#L130-L142
 
-    The ones that are most crucial are:
+    The following are the most crucial items:
     ```
     PreInstruct
     PreResponse
     humanstr
     botstr
     ```
-    and often `humanstr` just equals `PreInstruct` and `botstr` just equals `PreResponse`.
-
-    If so, then really only have to set 2 things.
+    Note that it is often the case that `humanstr` equals `PreInstruct` and `botstr` equals `PreResponse`. If this is the case, then you only have to set two keys.
 
 * **Option 2**: Tweak or Edit code
 
-   You can change the code itself if that seems easier than using CLI or UI.  For that case you'd do:
+   The following steps describe how you can edit the code itself if you don't want to use the CLI or UI:
 
    1) In `prompter.py`, add new key (`prompt_type` name) and value (model name) into `prompt_type_to_model_name`
    2) In `enums.py`, add a new name and value for the new `prompt_type`
@@ -145,22 +143,31 @@ However, in some cases, you need to add a new prompt structure because the model
     ```
     You can start by changing each thing that appears in the model card that tells about the prompting.  You can always ask for help in a GitHub issue or Discord.
 
-In either case, if the model card doesn't have that information, you'll need to ask around.  Sometimes, prompt information will be in their pipeline file or in a GitHub repository associated with the model with training of inference code.  Or sometimes the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
+In either case, if the model card doesn't have that information, you'll need to ask around. In some cases, prompt information is included in their pipeline file or in a GitHub repository associated with the model with training of inference code. It may also be the case that the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
 
 ### Add new Embedding Model
 
-The option `--use_openai_embedding` set to `True` or `False` controls whether use OpenAI embedding, `--hf_embedding_model` set to some HuggingFace model name sets that as embedding model if not using OpenAI.  The setting `--migrate_embedding_model` as `True` or `False` chooses whether to migrate to new chosen embeddings or stick with existing/original embedding for a given database.  The option `--cut_distance` as float chooses the distance above which to avoid using document sources.  The default is 1.64, tuned for  Mini and instructor-large.  One can pass `--cut_distance=100000` to avoid any filter.  E.g.
-```bash
-python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
-```
+This section describes how to add a new embedding model.
+
+- The `--use_openai_embedding` option set to `True` or `False` controls whether to use OpenAI embedding.
+
+- `--hf_embedding_model` set to some HuggingFace model name sets that as embedding model if not using OpenAI
+
+- The setting `--migrate_embedding_model` set to `True` or `False` specifies whether to migrate to new chosen embeddings or stick with existing/original embedding for a given database
+
+- The option `--cut_distance` as float specifies the distance above which to avoid using document sources.  The default is 1.64, tuned for  Mini and instructor-large. You can pass `--cut_distance=100000` to avoid any filter. For example:
+
+  ```bash
+  python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
+  ```
 
 ### In-Context learning via Prompt Engineering
 
-For arbitrary tasks, good to use uncensored models like [Falcon 40 GM](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2).  If censored is ok, then [LLama-2 Chat](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) are ok. Choose model size according to your system specs.
+For arbitrary tasks, using uncensored models like [Falcon 40 GM](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) is recommended. If censored is ok, then [LLama-2 Chat](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) are ok. Choose model size according to your system specs.
 
-For the UI, CLI, or EVAL this means editing the `System Pre-Context` text box in expert settings.  When starting h2oGPT, one can pass `--system_prompt` to give a model a system prompt if it supports that, `--context` to pre-append some raw context, `--chat_conversation` to pre-append a conversation for instruct/chat models, `--text_context_list` to fill context up to possible allowed `max_seq_len` with strings, with first most relevant to appear near prompt, or `--iinput` for a default input (to instruction for pure instruct models) choice.
+For the UI, CLI, or EVAL, this means editing the `System Pre-Context` text box in expert settings.  When starting h2oGPT, you can pass `--system_prompt` to give a model a system prompt if it supports that, `--context` to pre-append some raw context, `--chat_conversation` to pre-append a conversation for instruct/chat models, `--text_context_list` to fill context up to possible allowed `max_seq_len` with strings, with first most relevant to appear near prompt, or `--iinput` for a default input (to instruction for pure instruct models) choice.
 
-Or for API, passing `context` variable.  This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then need to put in prompts like:
+Or for API, you can pass the `context` variable. This can be filled with arbitrary things, including actual conversations to prime the model, although if a conversation then you need to put in prompts as follows:
 ```python
 from gradio_client import Client
 import ast
@@ -181,11 +188,11 @@ res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 response = ast.literal_eval(res)['response']
 print(response)
 ```
-See for example: https://github.com/h2oai/h2ogpt/blob/d3334233ca6de6a778707feadcadfef4249240ad/tests/test_prompter.py#L47 .
+For example, see: https://github.com/h2oai/h2ogpt/blob/d3334233ca6de6a778707feadcadfef4249240ad/tests/test_prompter.py#L47 .
 
 Note that even if the prompting is not perfect or matches the model, smarter models will still do quite well, as long as you give their answers as part of context.
 
-If just wanting to pre-append a conversation, then use `chat_conversation` instead and h2oGPT will generate the context for the given instruct/chat model:
+If you just want to pre-append a conversation, then use `chat_conversation` instead and h2oGPT will generate the context for the given instruct/chat model:
 ```python
 from gradio_client import Client
 import ast
@@ -204,7 +211,7 @@ response = ast.literal_eval(res)['response']
 print(response)
 ```
 
-Note that if give `context` and `chat_conversation` and `text_context_list`, then `context` is put first, then `chat_conversation`, then `text_context_list` as part of document Q/A prompting.  A `system_prompt` can also be passed, which can overpower any `context` or `chat_conversation` depending upon details.
+Note that when providing `context`, `chat_conversation`, and `text_context_list`, the order in which they are integrated into the document Q/A prompting is: `context` first, followed by `chat_conversation`, and finally `text_context_list`. A `system_prompt` can also be passed, which can overpower any `context` or `chat_conversation` depending upon details.
 
 ### Token access to Hugging Face models:
 
