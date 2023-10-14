@@ -2593,6 +2593,8 @@ def go_gradio(**kwargs):
             # local key, not for remote server unless same, will be passed through
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
 
+            max_time1 = args_list[eval_func_param_names.index('max_time')]
+
             # final full evaluate args list
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
@@ -2605,6 +2607,7 @@ def go_gradio(**kwargs):
             ret = {}
             ret_old = None
             try:
+                tgen0 = time.time()
                 for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
                     error = res_dict.get('error', '')
                     extra = res_dict.get('extra', '')
@@ -2653,6 +2656,11 @@ def go_gradio(**kwargs):
                             ret_old = ret.copy()
                         else:
                             ret_old = ret
+                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if verbose:
+                            print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
+                        break
+
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
@@ -2953,6 +2961,7 @@ def go_gradio(**kwargs):
             # NOTE: For these, could check if None, then automatically use CLI values, but too complex behavior
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
+            max_time1 = args_list[eval_func_param_names.index('max_time')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
@@ -2961,7 +2970,9 @@ def go_gradio(**kwargs):
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
                                      requests_state1=requests_state1)
 
-            dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, valid_key, h2ogpt_key1
+            dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
@@ -3016,7 +3027,9 @@ def go_gradio(**kwargs):
                            *tuple(args_list),
                            **kwargs_evaluate)
 
-            return history, fun1, langchain_mode1, my_db_state1, requests_state1, valid_key, h2ogpt_key1
+            return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3084,13 +3097,16 @@ def go_gradio(**kwargs):
                         clear_embedding(db1[0])
 
         def bot(*args, retry=False):
-            history, fun1, langchain_mode1, db1, requests_state1, valid_key, h2ogpt_key1 = prep_bot(*args, retry=retry)
+            history, fun1, langchain_mode1, db1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
             history_str_old = ''
             error_old = ''
             try:
+                tgen0 = time.time()
                 for res in get_response(fun1, history):
                     do_yield = False
                     history, error, extra, save_dict = res
@@ -3101,6 +3117,12 @@ def go_gradio(**kwargs):
                         yield history, error
                         history_str_old = history_str
                         error_old = error
+
+                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if verbose:
+                            print("Took too long bot: %s" % (time.time() - tgen0), flush=True)
+                        break
+
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
@@ -3156,7 +3178,9 @@ def go_gradio(**kwargs):
                     # so consistent with prep_bot()
                     # with model_state1 at -3, my_db_state1 at -2, and history(chatbot) at -1
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
-                    history, fun1, langchain_mode1, db1s, requests_state1, valid_key, h2ogpt_key1, = \
+                    history, fun1, langchain_mode1, db1s, requests_state1, \
+                        valid_key, h2ogpt_key1, \
+                        max_time1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
@@ -3174,10 +3198,6 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res1 in itertools.zip_longest(*gen_list):
                     do_yield = False
-                    if time.time() - tgen0 > max_time1:
-                        print("Took too long: %s" % max_time1, flush=True)
-                        break
-
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
                             for x, y in zip(res1, bots_old)]
                     do_yield |= bots != bots_old
@@ -3215,6 +3235,10 @@ def go_gradio(**kwargs):
                             yield tuple(bots + [exceptions_str])
                         else:
                             yield bots[0], exceptions_str
+                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if verbose:
+                            print("Took too long all_bot: %s" % (time.time() - tgen0), flush=True)
+                        break
                 if exceptions:
                     exceptions_reduced = [x for x in exceptions if x not in ['', None, 'None']]
                     if exceptions_reduced:

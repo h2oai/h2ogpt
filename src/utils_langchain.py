@@ -28,17 +28,21 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
     Similar to H2OTextIteratorStreamer that is for HF backend, but here LangChain backend
     """
 
-    def __init__(self, timeout: Optional[float] = None, block=True):
+    def __init__(self, timeout: Optional[float] = None, block=True, max_time=None, verbose=False):
         super().__init__()
         self.text_queue = queue.SimpleQueue()
         self.stop_signal = None
         self.do_stop = False
         self.timeout = timeout
         self.block = block
+        self.max_time = max_time
+        self.tgen0 = None
+        self.verbose = verbose
 
     def on_llm_start(
             self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> None:
+        self.tgen0 = time.time()
         """Run when LLM starts running. Clean the queue."""
         while not self.text_queue.empty():
             try:
@@ -48,7 +52,12 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Run on new LLM token. Only available when streaming is enabled."""
-        self.text_queue.put(token)
+        if self.tgen0 is not None and (time.time() - self.tgen0) > self.max_time:
+            if self.verbose:
+                print("Took too long in StreamingGradioCallbackHandler: %s" % (time.time() - self.tgen0), flush=True)
+            self.text_queue.put(self.stop_signal)
+        else:
+            self.text_queue.put(token)
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         """Run when LLM ends running."""

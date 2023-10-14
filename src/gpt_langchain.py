@@ -1294,7 +1294,7 @@ def get_llm(use_openai_model=False,
 
         # replicate handles prompting if no conversation, but in general has no chat API, so do all handling of prompting in h2oGPT
         if stream_output:
-            callbacks = [StreamingGradioCallbackHandler()]
+            callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
             streamer = callbacks[0] if stream_output else None
             llm = H2OReplicate(
                 streaming=True,
@@ -1392,7 +1392,7 @@ def get_llm(use_openai_model=False,
         else:
             kwargs_extra.update(dict(openai_api_base=openai.api_base))
 
-        callbacks = [StreamingGradioCallbackHandler()]
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
@@ -1415,7 +1415,7 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server and inference_server.startswith('sagemaker'):
-        callbacks = [StreamingGradioCallbackHandler()]  # FIXME
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]  # FIXME
         streamer = None
 
         endpoint_name = ':'.join(inference_server.split(':')[1:2])
@@ -1457,7 +1457,7 @@ def get_llm(use_openai_model=False,
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-        callbacks = [StreamingGradioCallbackHandler()]
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
         if gr_client:
@@ -1528,7 +1528,7 @@ def get_llm(use_openai_model=False,
         async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
         if model_name == 'llama':
-            callbacks = [StreamingGradioCallbackHandler()]
+            callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
             streamer = callbacks[0] if stream_output else None
         else:
             # stream_output = False
@@ -1561,7 +1561,7 @@ def get_llm(use_openai_model=False,
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
-        callbacks = [StreamingGradioCallbackHandler()]
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         streamer = callbacks[0] if stream_output else None
 
         if exllama_dict is None:
@@ -3971,6 +3971,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 outputs = ""
                 output1_old = ''
                 try:
+                    tgen0 = time.time()
                     for new_text in streamer:
                         # print("new_text: %s" % new_text, flush=True)
                         if bucket.qsize() > 0 or thread.exc:
@@ -3999,6 +4000,10 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                         if output1 != output1_old:
                             yield res_dict
                             output1_old = output1
+                        if time.time() - tgen0 > max_time:
+                            if verbose:
+                                print("Took too long ETHread for %s %s: %s" % (model_name, langchain_action, time.time() - tgen0), flush=True)
+                            break
                 except BaseException:
                     # if any exception, raise that exception if was from thread, first
                     if thread.exc:
@@ -4319,6 +4324,7 @@ def get_chain(query=None,
               total_tokens_for_docs=None,
               use_llm_if_no_docs=None,
               headsize=50,
+              max_time=None,
               ):
     if inference_server is None:
         inference_server = ''
@@ -4386,6 +4392,7 @@ def get_chain(query=None,
                                                    format_instructions=output_parser.get_format_instructions()),
                                  output_parser=output_parser,
                                  max_iterations=10,
+                                 max_execution_time=max_time,
                                  verbose=True)
         chain_kwargs = dict(input=query)
         target = wrapped_partial(chain, chain_kwargs)
@@ -4408,7 +4415,7 @@ def get_chain(query=None,
             toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info)
             chain = create_vectorstore_agent(llm=llm, toolkit=toolkit,
                                              agent_executor_kwargs=dict(output_parser=output_parser),
-                                             verbose=True)
+                                             verbose=True, max_execution_time=max_time)
 
             chain_kwargs = dict(input=query)
             target = wrapped_partial(chain, chain_kwargs)
@@ -4424,7 +4431,8 @@ def get_chain(query=None,
                 tool=PythonREPLTool(),
                 verbose=True,
                 agent_type=AgentType.OPENAI_FUNCTIONS,
-                agent_executor_kwargs={"handle_parsing_errors": True},
+                agent_executor_kwargs={"handle_parsing_errors": True, 'max_execution_time': max_time},
+                max_execution_time=max_time,
             )
 
             chain_kwargs = dict(input=query)
@@ -4443,6 +4451,7 @@ def get_chain(query=None,
                 df,
                 verbose=True,
                 agent_type=AgentType.OPENAI_FUNCTIONS,
+                max_execution_time=max_time,
             )
 
             chain_kwargs = dict(input=query)
@@ -4466,7 +4475,7 @@ def get_chain(query=None,
             json_toolkit = JsonToolkit(spec=json_spec)
 
             chain = create_json_agent(
-                llm=llm, toolkit=json_toolkit, verbose=True
+                llm=llm, toolkit=json_toolkit, verbose=True, max_execution_time=max_time,
             )
 
             chain_kwargs = dict(input=query)
@@ -4486,14 +4495,14 @@ def get_chain(query=None,
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    verbose=True,
+                    verbose=True, max_execution_time=max_time,
                     agent_type=AgentType.OPENAI_FUNCTIONS,
                 )
             else:
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    verbose=True,
+                    verbose=True, max_execution_time=max_time,
                     agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                 )
             chain_kwargs = dict(input=query)
