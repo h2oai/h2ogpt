@@ -2450,6 +2450,7 @@ def evaluate(
     # NOTE!!!!!!!!!!  Choice of developer.  But only possible to force stream if num_beams=1
     # stream if can, so can control task iteration and time of iteration
     # not required, but helpful for max_time control etc.
+    stream_output0 = stream_output
     stream_output = gradio and num_beams == 1
 
     # get prompter
@@ -2569,6 +2570,7 @@ def evaluate(
                 query=instruction,
                 iinput=iinput,
                 context=context,
+                stream_output0=stream_output0,
                 stream_output=stream_output,
                 chunk=chunk,
                 chunk_size=chunk_size,

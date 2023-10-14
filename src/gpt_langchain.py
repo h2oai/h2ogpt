@@ -3700,6 +3700,7 @@ def _run_qa_db(query=None,
                hf_embedding_model=None,
                migrate_embedding_model=False,
                auto_migrate_db=False,
+               stream_output0=False,
                stream_output=False,
                async_output=True,
                num_async=3,
@@ -3785,12 +3786,16 @@ def _run_qa_db(query=None,
     :return:
     """
     t_run = time.time()
-    if stream_output:
-        # threads and asyncio don't mix
-        async_output = False
     if langchain_action in [LangChainAction.QUERY.value]:
         # only summarization supported
         async_output = False
+    else:
+        if stream_output0:
+            # threads and asyncio don't mix
+            async_output = False
+        else:
+            # go back to not streaming for summarization/extraction to be parallel
+            stream_output = stream_output0
 
     # in case None, e.g. lazy client, then set based upon actual model
     pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
