@@ -2,42 +2,42 @@
 
 ### RoPE scaling and Long Context Models
 
-For long context models that have been tuned for a specific size, you have to only use that specific size by setting the `--rope_scaling` exactly correctly, e.g:
+For long context models that have been tuned for a specific size, ensure that you set the `--rope_scaling` configuration to match that exact size. For example:
 
 ```bash
 python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lmsys/vicuna-13b-v1.5-16k --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --load_8bit=True --langchain_mode=UserData --user_path=user_path --prompt_type=vicuna11 --h2ocolors=False
 ````
 
-If the model is Hugging Face based and already has a `config.json` entry with `rope_scaling` in it, we will use that if you do not pass `--rope_scaling`.
+If the model is Hugging Face-based and already has a `config.json` entry with `rope_scaling` in it, we will use that if you do not pass `--rope_scaling`.
 
 ### Migration from Chroma < 0.4 to > 0.4
 
 #### Option 1: Use old Chroma for old DBs
 
-Do nothing as user.  h2oGPT will by default not migrate for old databases.  This is the default way handled internally by requirements added in `requirements_optional_langchain.txt` by adding special wheels for old versions of chromadb and hnswlib, handling migration better than chromadb itself.
+No action is required from the user. By default, h2oGPT will not migrate for old databases. This is managed internally through requirements added in `requirements_optional_langchain.txt`, which adds special wheels for old versions of `chromadb` and `hnswlib`. This ensures smooth migration handling better than `chromadb` itself.
 
 #### Option 2: Automatically Migrate
 
-h2oGPT by default does not migrate automatically with `--auto_migrate_db=False` for `generate.py`.  One can set this to `True` for auto-migration, which may time some time for larger databases.  This will occur on-demand when accessing a database.  This takes about 0.03s per chunk.
+By default, h2oGPT does not migrate automatically with `--auto_migrate_db=False` for `generate.py`. You can set this to `True` for auto-migration, which may take some time for larger databases.  This will occur on-demand when accessing a database.  This takes about 0.03s per chunk.
 
 #### Option 3: Manually Migrate
 
-One can set that to False and manually migrate databases by doing the following.
+You can set `--auto_migrate_db=False` and manually migrate databases by doing the following.
 
 * Install and run migration tool
-```
-pip install chroma-migrate
-chroma-migrate
-```
+  ```
+  pip install chroma-migrate
+  chroma-migrate
+  ```
 * Choose DuckDB
 * Choose "Files I can use ..."
 * Choose your collection path, e.g. `db_dir_UserData` for collection name `UserData`
 
 ### Adding Models
 
-One can choose any Hugging Face model or quantized GGML model file in h2oGPT.
+You can choose any Hugging Face model or quantized GGML model file in h2oGPT.
 
-Hugging Face models are passed via `--base_model` in all cases, with an extra `--load_gptq` for GPTQ models or an extra `--load_awq` for AWQ models, e.g., by [TheBloke](https://huggingface.co/TheBloke).  E.g. for AutoGPTQ:
+Hugging Face models are passed via `--base_model` in all cases, with an extra `--load_gptq` for GPTQ models or an extra `--load_awq` for AWQ models, e.g., by [TheBloke](https://huggingface.co/TheBloke). For example, for AutoGPTQ:
 ```bash
 python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=instruct
 ```
@@ -52,14 +52,14 @@ GGML v3 quantized models are supported, and [TheBloke](https://huggingface.co/Th
 ```bash
 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
 ```
-For GGML models, always good to pass `--max_seq_len` directly.  When passing the filename like above, we assume one has previously downloaded the model to the local path, but if one passes a URL, then we download the file for you.
-You can also pass a URL for automatic downloading (which will not re-download if file already exists):
+For GGML models, passing `--max_seq_len` directly is always recommended. When you pass the filename as shown in the preceding example, we assume you have previously downloaded the model to the local path, but if you pass a URL, then we download the file for you.
+You can also pass a URL for automatic downloading (which will not re-download if the file already exists):
 ```bash
 python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
 ```
 for any TheBloke GGML v3 models.
 
-GPT4All models are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder).  E.g.
+GPT4All models are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder). For example:
 ```bash
 python generate.py --base_model=gptj --model_name_gptj=ggml-gpt4all-j-v1.3-groovy.bin
 ```
@@ -69,15 +69,15 @@ python generate.py --base_model=gpt4all_llama --model_name_gpt4all_llama=ggml-wi
 ```
 for GPT4All LLaMa models.
 
-See [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md) for more information on controlling these parameters.
+For more information on controlling these parameters, see [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md).
 
 ### Adding Prompt Templates
 
-After specifying a model, one needs to consider if an existing `prompt_type` will work or a new one is required.  E.g. for Vicuna models, a well-defined `prompt_type` is used which we support automatically for specific model names.  If the model is in `prompter.py` as associated with some `prompt_type` name, then we added it already.  See models that are currently supported in this automatic way in [prompter.py](../src/prompter.py) and [enums.py](../src/enums.py).
+After specifying a model, you need to consider if an existing `prompt_type` will work or if a new one is required. For example, for Vicuna models, a well-defined `prompt_type` is used, which we support automatically for specific model names.  If the model is in `prompter.py` as associated with some `prompt_type` name, then we added it already. You can view the models that are currently supported in this automatic way in [prompter.py](../src/prompter.py) and [enums.py](../src/enums.py).
 
 If we do not list the model in `prompter.py`, then if you find a `prompt_type` by name that works for your new model, you can pass `--prompt_type=<NAME>` for some prompt_type `<NAME>`, and we will use that for the new model.
 
-However, in some cases, you need to add a new prompt structure because the model does not conform at all (or exactly enough) to the template given in, e.g., the Hugging Face model card or elsewhere.  In that case you have two options:
+However, in some cases, you need to add a new prompt structure because the model does not conform at all (or exactly enough) to the template given in, e.g., the Hugging Face model card or elsewhere.  In that case, you have two options:
 
 * **Option 1**: Use custom prompt
 
