@@ -2665,9 +2665,9 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
             save_generate_output(**save_dict)
-            if not stream_output1:
-                # return back last ret
-                yield ret
+            # yield if anything left over as can happen (FIXME: Understand better)
+            # return back last ret
+            yield ret
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
@@ -2962,6 +2962,7 @@ def go_gradio(**kwargs):
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
+            stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
@@ -2972,7 +2973,7 @@ def go_gradio(**kwargs):
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1
+                max_time1, stream_output1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
@@ -3029,7 +3030,7 @@ def go_gradio(**kwargs):
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1
+                max_time1, stream_output1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3099,7 +3100,7 @@ def go_gradio(**kwargs):
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1 = prep_bot(*args, retry=retry)
+                max_time1, stream_output1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
@@ -3113,7 +3114,7 @@ def go_gradio(**kwargs):
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
-                    if do_yield:
+                    if stream_output1 and do_yield:
                         yield history, error
                         history_str_old = history_str
                         error_old = error
@@ -3138,6 +3139,8 @@ def go_gradio(**kwargs):
             save_dict['extra'] = extra
             save_dict['which_api'] = 'bot'
             save_generate_output(**save_dict)
+            # yield if anything left over as can happen (FIXME: Understand better)
+            yield history, error
 
         def all_bot(*args, retry=False, model_states1=None, all_models=None):
             args_list = list(args).copy()
@@ -3180,7 +3183,7 @@ def go_gradio(**kwargs):
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, \
                         valid_key, h2ogpt_key1, \
-                        max_time1 = \
+                        max_time1, stream_output1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history)
@@ -3190,12 +3193,26 @@ def go_gradio(**kwargs):
                     else:
                         gen1 = gen1_fake(fun1, history)
                     gen_list.append(gen1)
+            finally:
+                pass
 
-                bots_old = chatbots.copy()
-                exceptions_old = [''] * len(bots_old)
-                extras_old = [''] * len(bots_old)
-                save_dicts_old = [{}] * len(bots_old)
-                tgen0 = time.time()
+            def choose_exc(x):
+                # don't expose ports etc. to exceptions window
+                if is_public:
+                    return "Endpoint unavailable or failed"
+                else:
+                    return x
+
+            bots = bots_old = chatbots.copy()
+            exceptions = exceptions_old = [''] * len(bots_old)
+            exceptions_str = '\n'.join(
+                ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
+                 x not in [None, '', 'None']])
+            extras = extras_old = [''] * len(bots_old)
+            save_dicts = save_dicts_old = [{}] * len(bots_old)
+
+            tgen0 = time.time()
+            try:
                 for res1 in itertools.zip_longest(*gen_list):
                     do_yield = False
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
@@ -3219,18 +3236,11 @@ def go_gradio(**kwargs):
                                   for x, y in zip(res1, save_dicts_old)]
                     save_dicts_old = save_dicts.copy()
 
-                    def choose_exc(x):
-                        # don't expose ports etc. to exceptions window
-                        if is_public:
-                            return "Endpoint unavailable or failed"
-                        else:
-                            return x
-
                     exceptions_str = '\n'.join(
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                          x not in [None, '', 'None']])
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
-                    if do_yield:
+                    if stream_output1 and do_yield:
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str])
                         else:
@@ -3259,6 +3269,11 @@ def go_gradio(**kwargs):
                 save_dict['valid_key'] = valid_key
                 save_dict['h2ogpt_key'] = h2ogpt_key1
                 save_generate_output(**save_dict)
+            # yield if anything left over as can happen (FIXME: Understand better)
+            if len(bots) > 1:
+                yield tuple(bots + [exceptions_str])
+            else:
+                yield bots[0], exceptions_str
 
         # NORMAL MODEL
         user_args = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),

@@ -2252,6 +2252,7 @@ def evaluate(
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         verbose=False,
+        gradio=True,
         cli=False,
         use_cache=None,
         auto_reduce_chunks=None,
@@ -2446,11 +2447,10 @@ def evaluate(
     if not context:
         context = ''
 
-    if num_beams == 1:
-        # NOTE!!!!!!!!!!  Choice of developer.  But only possible to force stream if num_beams=1
-        # stream if can, so can control task iteration and time of iteration
-        # not required, but helpful for max_time control etc.
-        stream_output = True
+    # NOTE!!!!!!!!!!  Choice of developer.  But only possible to force stream if num_beams=1
+    # stream if can, so can control task iteration and time of iteration
+    # not required, but helpful for max_time control etc.
+    stream_output = gradio and num_beams == 1
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
@@ -3015,7 +3015,7 @@ def evaluate(
                             yield dict(response=response, sources=sources, save_dict=dict())
                         if time.time() - tgen0 > max_time:
                             if verbose:
-                                print("Took too long for TGI or VLLM: %s" % (time.time() - tgen0), flush=True)
+                                print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
                             break
             else:
                 raise RuntimeError("Failed to get client: %s" % inference_server)
@@ -3179,8 +3179,8 @@ def evaluate(
                                 if verbose:
                                     print("Took too long for Torch: %s" % (time.time() - tgen0), flush=True)
                                 break
-                        if not stream_output:
-                            yield ret
+                        # yield if anything left over as can happen (FIXME: Understand better)
+                        yield ret
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:

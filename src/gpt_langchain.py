@@ -3970,6 +3970,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 thread.start()
                 outputs = ""
                 output1_old = ''
+                res_dict = dict(prompt=query, response='', sources='', num_prompt_tokens=0)
                 try:
                     tgen0 = time.time()
                     for new_text in streamer:
@@ -3996,7 +3997,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                                             sanitize_bot_response=sanitize_bot_response)
                         else:
                             output1 = outputs
-                        res_dict = dict(prompt=prompt, response=output1, sources='', num_prompt_tokens=0)
+                        res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0)
                         if output1 != output1_old:
                             yield res_dict
                             output1_old = output1
@@ -4004,6 +4005,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             if verbose:
                                 print("Took too long ETHread for %s %s: %s" % (model_name, langchain_action, time.time() - tgen0), flush=True)
                             break
+                    # yield if anything left over as can happen (FIXME: Understand better)
+                    yield res_dict
                 except BaseException:
                     # if any exception, raise that exception if was from thread, first
                     if thread.exc:
