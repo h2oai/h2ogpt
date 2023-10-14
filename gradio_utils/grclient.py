@@ -169,6 +169,7 @@ class GradioClient(Client):
         for k, v in self.__dict__.items():
             setattr(client, k, v)
         client.reset_session()
+        client.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers)
         return client
 
     def submit(
@@ -185,7 +186,7 @@ class GradioClient(Client):
             self.refresh_client_if_should()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
         except Exception as e:
-            print("Hit e=%s" % str(e), flush=True)
+            print("Hit e=%s\n\n%s" % (str(e), traceback.format_exc()), flush=True)
             # force reconfig in case only that
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
