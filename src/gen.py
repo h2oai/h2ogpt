@@ -2731,11 +2731,14 @@ def evaluate(
                         text += event_text  # append the text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        print(response, flush=True)
                         yield dict(response=response, sources=sources, save_dict=dict())
+                        print("time %s for %s" % (time.time() - tgen0, response), flush=True)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                             break
+                    print("DONE time %s for %s" % (time.time() - tgen0, response), flush=True)
             elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
                 if system_prompt in [None, 'None', 'auto']:
                     openai_system_prompt = "You are a helpful assistant."
