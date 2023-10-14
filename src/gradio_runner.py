@@ -2661,13 +2661,14 @@ def go_gradio(**kwargs):
                             print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
                         break
 
+                # yield if anything left over as can happen (FIXME: Understand better)
+                # return back last ret
+                yield ret
+
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
             save_generate_output(**save_dict)
-            # yield if anything left over as can happen (FIXME: Understand better)
-            # return back last ret
-            yield ret
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily

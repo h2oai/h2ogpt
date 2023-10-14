@@ -4003,7 +4003,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1_old = output1
                         if time.time() - tgen0 > max_time:
                             if verbose:
-                                print("Took too long ETHread for %s %s: %s" % (model_name, langchain_action, time.time() - tgen0), flush=True)
+                                print("Took too long EThread for %s %s: %s" % (model_name, langchain_action, time.time() - tgen0), flush=True)
                             break
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
