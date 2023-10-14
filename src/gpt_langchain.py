@@ -1595,7 +1595,7 @@ def get_llm(use_openai_model=False,
         async_output = False  # FIXME: not implemented yet
         if model is None:
             # only used if didn't pass model in
-            assert tokenizer is None
+            assert tokenizer is None or isinstance(tokenizer, FakeTokenizer)
             prompt_type = 'human_bot'
             if model_name is None:
                 model_name = 'h2oai/h2ogpt-oasst1-512-12b'
