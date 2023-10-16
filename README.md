@@ -2,7 +2,7 @@
 
 Turn ★ into ⭐ (top-right corner) if you like the project!
 
-Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
+Query and summarize your documents, or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
 - **Private** offline database of any documents [(PDFs, Excel, Word, Images, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
   - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
@@ -51,7 +51,7 @@ We recommend quantized (e.g. GGML) models for most small-GPU systems, e.g. [LLaM
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-click Installers
-    Oct 6, 2023:
+    Oct 06, 2023:
     * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
     * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_cpu.exe) (755MB file)
 
@@ -59,7 +59,7 @@ We recommend quantized (e.g. GGML) models for most small-GPU systems, e.g. [LLaM
     * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
     * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
 
-    The installers include all dependencies for document Q/A, except models (LLM, embedding, reward) that are downloadable via UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables (in system properties->advanced->environment variables) to control things:
+    The installers include all dependencies for document Q/A except for models (LLM, embedding, reward), which you can download through the UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables (in system properties->advanced->environment variables) to control things:
       * `n_jobs`: number of cores for various tasks
       * `OMP_NUM_THREADS` thread count for LLaMa
       * `CUDA_VISIBLE_DEVICES` which GPUs are used.  Recommend set to single fast GPU, e.g. `CUDA_VISIBLE_DEVICES=0` if have multiple GPUs.  Note that UI cannot control which GPUs (or CPU mode) for LLaMa models.
@@ -167,7 +167,7 @@ These are not part of normal installation instructions and are experimental.
 ### Roadmap
 
 - Integration of code and resulting LLMs with downstream applications and low/no-code platforms
-- Complement h2oGPT chatbot with other APIs like ToolBench
+- Complement h2oGPT chatbot with other APIs like [ToolBench](https://github.com/OpenBMB/ToolBench)
 - Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
 - Add better agents for SQL and CSV question/answer
 
@@ -193,9 +193,7 @@ These are not part of normal installation instructions and are experimental.
 
 - [README for LangChain](docs/README_LangChain.md)
 
-- Flash attention support, see [Flash Attention](docs/INSTALL.md#flash-attention)
-
-- More [Links](docs/LINKS.md), context, competitors, models, datasets
+- Useful [links](docs/LINKS.md) for additional context, competitors, models, and datasets
 
 ### Acknowledgements
 
