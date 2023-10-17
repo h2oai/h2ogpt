@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
-os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 from huggingface_hub import SpaceStage
 from huggingface_hub.utils import (
@@ -28,13 +28,13 @@ class GradioClient(Client):
     """
 
     def __init__(
-            self,
-            src: str,
-            hf_token: str | None = None,
-            max_workers: int = 40,
-            serialize: bool = True,
-            output_dir: str | Path | None = DEFAULT_TEMP_DIR,
-            verbose: bool = True,
+        self,
+        src: str,
+        hf_token: str | None = None,
+        max_workers: int = 40,
+        serialize: bool = True,
+        output_dir: str | Path | None = DEFAULT_TEMP_DIR,
+        verbose: bool = True,
     ):
         """
         Parameters:
@@ -46,8 +46,13 @@ class GradioClient(Client):
             verbose: Whether the client should print statements to the console.
         """
         self.args = tuple([src])
-        self.kwargs = dict(hf_token=hf_token, max_workers=max_workers, serialize=serialize, output_dir=output_dir,
-                           verbose=verbose)
+        self.kwargs = dict(
+            hf_token=hf_token,
+            max_workers=max_workers,
+            serialize=serialize,
+            output_dir=output_dir,
+            verbose=verbose,
+        )
 
         self.verbose = verbose
         self.hf_token = hf_token
@@ -117,7 +122,9 @@ class GradioClient(Client):
         ]
 
         # Create a pool of threads to handle the requests
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers)
+        self.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.max_workers
+        )
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
         # threading.Thread(target=self._telemetry_thread).start()
@@ -133,21 +140,23 @@ class GradioClient(Client):
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
-        return super().submit(api_name='/system_hash').result()
+        return super().submit(api_name="/system_hash").result()
 
-    def refresh_client_if_should(self):
+    def refresh_client_if_should(self, persist=True):
         if self.config is None:
             self.setup()
         # get current hash in order to update api_name -> fn_index map in case gradio server changed
         # FIXME: Could add cli api as hash
         server_hash = self.get_server_hash()
         if self.server_hash != server_hash:
-            self.refresh_client()
+            # risky to persist if hash changed
+            self.refresh_client(persist=False)
             self.server_hash = server_hash
         else:
-            self.reset_session()
+            if not persist:
+                self.reset_session()
 
-    def refresh_client(self):
+    def refresh_client(self, persist=True):
         """
         Ensure every client call is independent
         Also ensure map between api_name and fn_index is updated in case server changed (e.g. restarted with new code)
@@ -155,8 +164,9 @@ class GradioClient(Client):
         """
         if self.config is None:
             self.setup()
-        # need session hash to be new every time, to avoid "generator already executing"
-        self.reset_session()
+        if not persist:
+            # need session hash to be new every time, to avoid "generator already executing"
+            self.reset_session()
 
         client = Client(*self.args, **self.kwargs)
         for k, v in client.__dict__.items():
@@ -165,19 +175,25 @@ class GradioClient(Client):
     def clone(self):
         if self.config is None:
             self.setup()
-        client = GradioClient('')
+        client = GradioClient("")
         for k, v in self.__dict__.items():
             setattr(client, k, v)
         client.reset_session()
-        client.executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers)
+        client.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.max_workers
+        )
+        client.endpoints = [
+            Endpoint(client, fn_index, dependency)
+            for fn_index, dependency in enumerate(client.config["dependencies"])
+        ]
         return client
 
     def submit(
-            self,
-            *args,
-            api_name: str | None = None,
-            fn_index: int | None = None,
-            result_callbacks: Callable | list[Callable] | None = None,
+        self,
+        *args,
+        api_name: str | None = None,
+        fn_index: int | None = None,
+        result_callbacks: Callable | list[Callable] | None = None,
     ) -> Job:
         if self.config is None:
             self.setup()
@@ -194,13 +210,20 @@ class GradioClient(Client):
         # see if immediately failed
         e = job.future._exception
         if e is not None:
-            print("GR job failed: %s %s" % (str(e), ''.join(traceback.format_tb(e.__traceback__))), flush=True)
+            print(
+                "GR job failed: %s %s"
+                % (str(e), "".join(traceback.format_tb(e.__traceback__))),
+                flush=True,
+            )
             # force reconfig in case only that
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
             e2 = job.future._exception
             if e2 is not None:
-                print("GR job failed again: %s\n%s" % (str(e2), ''.join(traceback.format_tb(e2.__traceback__))),
-                      flush=True)
+                print(
+                    "GR job failed again: %s\n%s"
+                    % (str(e2), "".join(traceback.format_tb(e2.__traceback__))),
+                    flush=True,
+                )
 
         return job
