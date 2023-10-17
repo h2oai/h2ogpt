@@ -2608,7 +2608,10 @@ def go_gradio(**kwargs):
             ret_old = None
             try:
                 tgen0 = time.time()
-                for res_dict in evaluate_local(*tuple(args_list), **kwargs1):
+                gen1 = evaluate_local(*tuple(args_list), **kwargs1)
+                # NOTE: could use iterator with timeout=0 but not required unless some other reason found
+                # gen1 = TimeoutIterator(gen1, timeout=0, sentinel=None, raise_on_exception=True)
+                for res_dict in gen1:
                     error = res_dict.get('error', '')
                     extra = res_dict.get('extra', '')
                     save_dict = res_dict.get('save_dict', {})
