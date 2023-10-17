@@ -1,5 +1,95 @@
 ## Frequently asked questions
 
+### HTTPS access for server and client
+
+Have files `private_key.pem` and `cert.pem` from your own SSL, or if do not have such files, generate by doing:
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout private_key.pem -out cert.pem -days 3650 -nodes -subj '/O=H2OGPT'
+```
+
+Consider the server (not h2oGPT but gradio based) for end-to-end example:
+```python
+import gradio as gr
+import random
+import time
+
+with gr.Blocks() as demo:
+    chatbot = gr.Chatbot()
+    msg = gr.Textbox()
+    clear = gr.ClearButton([msg, chatbot])
+
+    def respond(message, chat_history):
+        bot_message = random.choice(["How are you?", "I love you", "I'm very hungry"])
+        chat_history.append((message, bot_message))
+        time.sleep(2)
+        return "", chat_history
+
+    msg.submit(respond, [msg, chatbot], [msg, chatbot], api_name='chat')
+
+demo.launch(ssl_verify=False, ssl_keyfile='private_key.pem', ssl_certfile='cert.pem', share=False)
+```
+The key and cert files are passed to the server, with `ssl_verify=False` to avoid asking a known source to verify.  This is required to have http but allow the server to talk to itself and via the UI in the browser.  The browser will warn about ssl key not being verified, just proceed anyways.
+
+Then the client needs to also not verify when talking to the server running https, which gradio client does not handle itself.  One can use a context manager as follows:
+```python
+import contextlib
+import warnings
+import requests
+from urllib3.exceptions import InsecureRequestWarning
+
+old_merge_environment_settings = requests.Session.merge_environment_settings
+
+
+@contextlib.contextmanager
+def no_ssl_verification():
+    opened_adapters = set()
+
+    def merge_environment_settings(self, url, proxies, stream, verify, cert):
+        # Verification happens only once per connection so we need to close
+        # all the opened adapters once we're done. Otherwise, the effects of
+        # verify=False persist beyond the end of this context manager.
+        opened_adapters.add(self.get_adapter(url))
+
+        settings = old_merge_environment_settings(self, url, proxies, stream, verify, cert)
+        settings['verify'] = False
+
+        return settings
+
+    requests.Session.merge_environment_settings = merge_environment_settings
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', InsecureRequestWarning)
+            yield
+    finally:
+        requests.Session.merge_environment_settings = old_merge_environment_settings
+
+        for adapter in opened_adapters:
+            try:
+                adapter.close()
+            except:
+                pass
+```
+Then with this one is able to talk to the server using https:
+
+```python
+from gradio_client import Client
+HOST_URL ="https://localhost:7860"
+
+with no_ssl_verification():
+    client = Client(HOST_URL, serialize=False)
+    chatbot = [['foo', 'doo']]
+    res = client.predict('Hello', chatbot, api_name='/chat')
+    print(res)
+```
+which prints out something like:
+```text
+Loaded as API: https://localhost:7860/ ✔
+('', [['foo', 'doo'], ['Hello', 'I love you']])
+```
+
+For h2oGPT, run the server as `python generate.py --ssl_verify=False --ssl_keyfile=<KEYFILE> --ssl_certfile=<CERTFILE> --share=False` for key file `<KEYFILE>` and cert file `<CERTFILE>`, then use gradio client code with context manager as above but use the gradio client endpoints as [documented in readme or test code](README_CLIENT.md).
+
 ### RoPE scaling and Long Context Models
 
 For long context models that have been tuned for a specific size, ensure that you set the `--rope_scaling` configuration to match that exact size. For example:
