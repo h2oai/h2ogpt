@@ -632,9 +632,11 @@ class GradioInference(H2Oagenerate, LLM):
             print("_call", flush=True)
 
         client_kwargs, api_name = self.setup_call(prompt)
+        # new client for each call
+        client = self.client.clone()
 
         if not self.stream_output:
-            res = self.client.predict(str(dict(client_kwargs)), api_name=api_name)
+            res = client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
@@ -650,7 +652,7 @@ class GradioInference(H2Oagenerate, LLM):
                     run_manager.on_llm_new_token, verbose=self.verbose
                 )
 
-            job = self.client.submit(str(dict(client_kwargs)), api_name=api_name)
+            job = client.submit(str(dict(client_kwargs)), api_name=api_name)
             text0 = ''
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
@@ -717,8 +719,9 @@ class GradioInference(H2Oagenerate, LLM):
             text_callback = partial(
                 run_manager.on_llm_new_token, verbose=self.verbose
             )
-
-        job = self.client.submit(str(dict(client_kwargs)), api_name=api_name)
+        # new client for each acall
+        client = self.client.clone()
+        job = client.submit(str(dict(client_kwargs)), api_name=api_name)
         text0 = ''
         while not job.done():
             if job.communicator.job.latest_status.code.name == 'FINISHED':
