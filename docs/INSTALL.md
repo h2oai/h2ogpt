@@ -11,7 +11,7 @@ sudo apt-get update
 sudo apt-get -y install nvidia-headless-535-server nvidia-fabricmanager-535 nvidia-headless-no-dkms-535-servers nvidia-utils-535-server
 ```
 
-Note that if you run the preceding commands, you don't need to use the NVIDIA developer downloads in the following section.
+Note that if you run the preceding commands, you don't need to use the NVIDIA developer downloads in the following sections.
 
 ### Install CUDA Toolkit
 
