@@ -1711,7 +1711,7 @@ def go_gradio(**kwargs):
             else:
                 label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
-            return gr.Dropdown(choices=docs_state0, value=DocumentChoice.ALL.value,
+            return gr.Dropdown(choices=docs_state0, value=[DocumentChoice.ALL.value],
                                label=label1), gr.Markdown(value=active_collection1)
 
         lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
@@ -1834,8 +1834,8 @@ def go_gradio(**kwargs):
 
         eventdb_viewa = view_document_choice.select(user_state_setup,
                                                     inputs=[my_db_state, requests_state,
-                                                            view_document_choice, view_document_choice],
-                                                    outputs=[my_db_state, requests_state, view_document_choice],
+                                                            view_document_choice],
+                                                    outputs=[my_db_state, requests_state],
                                                     show_progress='minimal')
         show_doc_func = functools.partial(show_doc,
                                           dbs1=dbs,
