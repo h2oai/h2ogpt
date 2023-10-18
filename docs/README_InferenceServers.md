@@ -229,7 +229,9 @@ then ensure openai global key/base are not changed in race if used together:
 cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
 rm -rf openai_vllm*
 cp -a openai openai_vllm
-cp -a openai-0.27.8.dist-info openai_vllm-0.27.8.dist-info
+file0=`ls|grep openai|grep dist-info`
+file1=`echo $file0|sed 's/openai-/openai_vllm-/g'`
+cp -a $file0 $file1
 find openai_vllm -name '*.py' | xargs sed -i 's/from openai /from openai_vllm /g'
 find openai_vllm -name '*.py' | xargs sed -i 's/openai\./openai_vllm./g'
 find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g'
