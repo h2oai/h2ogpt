@@ -4,7 +4,7 @@ The following sections describe how to get a working Python environment on a Lin
 
 ### Install for A100+
 
-E.g. for Ubuntu 20.04, install driver if already done so:
+E.g. for Ubuntu 20.04, install driver if you haven't already done so:
 
 ```bash
 sudo apt-get update
