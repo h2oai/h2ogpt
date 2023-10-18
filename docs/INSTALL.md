@@ -2,6 +2,16 @@
 
 Follow these instructions to get a working Python environment on a Linux system.
 
+### Installing for A100+
+
+E.g. for Ubuntu 20.04, install driver if not already done:
+```bash
+sudo apt-get update
+sudo apt-get -y install nvidia-headless-535-server nvidia-fabricmanager-535 nvidia-headless-no-dkms-535-servers nvidia-utils-535-server
+```
+
+With this one does not need to use nvidia developer downloads below
+
 ### Installing CUDA Toolkit
 
 E.g. CUDA 12.1 [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
@@ -52,7 +62,8 @@ wget https://developer.download.nvidia.com/compute/cuda/repos/$distribution/x86_
 sudo dpkg -i cuda-keyring_1.0-1_all.deb
 sudo apt-get update
 sudo apt-get install -y datacenter-gpu-manager
-sudo apt-get install -y libnvidia-nscq-530
+# if use 535 drivers, then use 535 below
+sudo apt-get install -y libnvidia-nscq-535
 sudo systemctl --now enable nvidia-dcgm
 dcgmi discovery -l
 ```
