@@ -2048,7 +2048,7 @@ def file_to_doc(file,
     elif is_txt:
         base_path = "user_paste"
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        source_file = os.path.join(base_path, "_%s" % str(uuid.uuid4())[:10])
+        source_file = os.path.join(base_path, "_%s.txt" % str(uuid.uuid4())[:10])
         with open(source_file, "wt") as f:
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
