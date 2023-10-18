@@ -451,6 +451,14 @@ python generate.py --model_lock="[{'inference_server':'http://192.168.1.xx:5000'
 ```
 where be sure to replace `192.168.1.xx` with your IP address.  Note the ampersand so the first call is in background.  The sleep gives time for the first one to come up.  The above is as if ran on single system, but you can run on any other system separate generates of any number.
 
+### Visible Models
+
+At startup, models can be selected as visible out of all those in the model lock, e.g.:
+```
+export vis="['h2oai/h2ogpt-4096-llama2-70b-chat','h2oai/h2ogpt-4096-llama2-13b-chat','HuggingFaceH4/zephyr-7b-alpha','gpt-3.5-turbo-0613']"
+python generate.py --save_dir=saveall_gpt --model_lock="$MODEL_LOCK" --model_lock_columns=3 --auth_filename=all_auth.json --gradio_size=small --height=400 --score_model=None --max_max_new_tokens=2048 --max_new_tokens=1024 --visible_models="$vis" &>> logs.all.gradio_chat.txt &
+```
+
 ### System info from gradio server
 
 ```python
