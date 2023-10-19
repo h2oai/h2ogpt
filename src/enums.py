@@ -251,3 +251,6 @@ docs_token_handlings = ['chunk', 'split_or_merge']
 docs_ordering_types_default = 'reverse_ucurve_sort'
 docs_token_handling_default = 'split_or_merge'
 docs_joiner_default = '\n\n'
+
+db_types = ['chroma', 'weaviate']
+db_types_full = ['chroma', 'weaviate', 'faiss']

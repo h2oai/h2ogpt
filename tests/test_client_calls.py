@@ -10,7 +10,8 @@ import pytest
 from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens, \
     count_tokens_llm
 from src.client_test import get_client, get_args, run_client_gen
-from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice
+from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
+    db_types_full
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer
 
 
@@ -2275,6 +2276,7 @@ Rating: 5 (most positive)"""
     print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
+@pytest.mark.parametrize("db_type", db_types_full)
 @pytest.mark.parametrize("langchain_action", ['Extract', 'Summarize'])
 @pytest.mark.parametrize("instruction", ['', 'Technical key points'])
 @pytest.mark.parametrize("stream_output", [False, True])
@@ -2284,7 +2286,7 @@ Rating: 5 (most positive)"""
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction,
-                              langchain_action):
+                              langchain_action, db_type):
     # launch server
     local_server = True
     num_async = 10
@@ -2319,6 +2321,8 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
              use_auth_token=True,
              num_async=num_async,
              model_lock=model_lock,
+             db_type=db_type,
+             h2ogpt_key=os.getenv('H2OGPT_KEY') or os.getenv('H2OGPT_H2OGPT_KEY'),
              )
         check_hashes = True
     else:

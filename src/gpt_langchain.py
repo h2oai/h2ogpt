@@ -3559,6 +3559,7 @@ def get_documents(db):
 
 def _get_documents(db):
     # returns not just documents, but full dict of documents, metadatas, ids, embeddings
+    # documents['documents] should be list of texts, not Document() type
     from langchain.vectorstores import FAISS
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
@@ -3570,8 +3571,11 @@ def _get_documents(db):
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
-        documents = [x for x in db.similarity_search("", k=10000)]
-        documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
+        docs_from_search = [x for x in db.similarity_search("", k=10000)]
+        # Don't filter out by content etc. here, might use get_metadatas too separately
+        documents = [x.page_content for x in docs_from_search]
+        metadatas = [x.metadata for x in docs_from_search]
+        documents = dict(documents=documents, metadatas=metadatas, ids=[0] * len(documents))
     return documents
 
 
@@ -3590,6 +3594,8 @@ def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, 
 
 
 def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, chunk_id_filter=None, k_max=1000):
+    # db_documents should be list of texts
+    # db_metadatas should be list of dicts
     db_documents = []
     db_metadatas = []
 
@@ -4719,19 +4725,21 @@ def get_chain(query=None,
         # similar to langchain's chroma's _results_to_docs_and_scores
         docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                            for result in zip(db_documents, db_metadatas)]
+        # remove empty content, e.g. from exception version of document, so don't include empty stuff in summarization
+        docs_with_score = [x for x in docs_with_score if x[0].page_content]
         # set in metadata original order of docs
         [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
 
         # order documents
-        doc_hashes = [x.get('doc_hash', 'None') for x in db_metadatas]
+        doc_hashes = [x.get('doc_hash', 'None') if x.get('doc_hash', 'None') is not None else 'None' for x in db_metadatas]
         if query_action:
-            doc_chunk_ids = [x.get('chunk_id', 0) for x in db_metadatas]
+            doc_chunk_ids = [x.get('chunk_id', 0) if x.get('chunk_id', 0) is not None else 0 for x in db_metadatas]
             docs_with_score2 = [x for hx, cx, x in
                                 sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                 if cx >= 0]
         else:
             assert summarize_action
-            doc_chunk_ids = [x.get('chunk_id', -1) for x in db_metadatas]
+            doc_chunk_ids = [x.get('chunk_id', -1) if x.get('chunk_id', -1) is not None else -1 for x in db_metadatas]
             docs_with_score2 = [x for hx, cx, x in
                                 sorted(zip(doc_hashes, doc_chunk_ids, docs_with_score), key=lambda x: (x[0], x[1]))
                                 if cx == -1
