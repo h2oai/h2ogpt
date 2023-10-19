@@ -131,7 +131,12 @@ Hugging Face models are passed via `--base_model` in all cases, with an extra `-
 ```bash
 python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=instruct
 ```
-or for AWQ models:
+and in some cases one has to disable certain features that are not automatically handled by AutoGPTQ package, e.g.
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Xwin-LM-13B-v0.2-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=xwin --langchain_mode=UserData --score_model=None --share=False --gradio_offline_level=1 --gptq_dict="{'disable_exllama': True}"
+```
+
+For AWQ models:
 ```bash
 python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model --use_safetensors=True --prompt_type=llama2
 ```

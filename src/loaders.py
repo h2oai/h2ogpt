@@ -7,7 +7,7 @@ from src.enums import t5_type
 def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq='', load_exllama=False,
                 config=None,
                 rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config='',
-                exllama_dict=None):
+                exllama_dict=None, gptq_dict=None):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if load_exllama:
@@ -73,11 +73,17 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
         generator = H2OExLlamaGenerator(model, tokenizer, cache)  # create generator
         return generator, tokenizer, False
     if load_gptq:
+        if gptq_dict is None:
+            gptq_dict = {}
         from transformers import AutoTokenizer
         from auto_gptq import AutoGPTQForCausalLM
-        use_triton = False
+        if 'use_triton' not in gptq_dict:
+            gptq_dict['use_triton'] = False
+        if 'llama-2-70B-chat-GPTQ' in model_name.lower() and 'inject_fused_attention' not in gptq_dict:
+            gptq_dict.update(dict(inject_fused_attention=False))
         model_loader = functools.partial(AutoGPTQForCausalLM.from_quantized,
-                                         quantize_config=None, use_triton=use_triton,
+                                         quantize_config=None,
+                                         **gptq_dict,
                                          )
         return model_loader, AutoTokenizer, False
     if load_awq:

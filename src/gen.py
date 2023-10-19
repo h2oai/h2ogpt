@@ -100,6 +100,7 @@ def main(
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
         model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
         exllama_dict: typing.Dict = dict(),
+        gptq_dict: typing.Dict = dict(),
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -402,6 +403,10 @@ def main(
                 silu_no_half2
                 concurrent_streams
            E.g. to set memory to be split across 2 GPUs, use --exllama_dict="{'set_auto_map':20,20}"
+    :param gptq_dict: Choices for AutoGPTQ, e.g. one can change defaults to these non-defaults:
+         inject_fused_attention=False
+         disable_exllama=True
+         use_triton=True
 
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
@@ -769,6 +774,7 @@ def main(
         llamacpp_dict['n_gqa'] = 0
 
     exllama_dict = str_to_dict(exllama_dict)
+    gptq_dict = str_to_dict(gptq_dict)
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
@@ -1156,6 +1162,7 @@ def main(
                                       rope_scaling=rope_scaling,
                                       max_seq_len=max_seq_len,
                                       exllama_dict=exllama_dict,
+                                      gptq_dict=gptq_dict,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -1499,8 +1506,6 @@ def get_non_lora_model(base_model, model_loader, load_half,
     if load_exllama:
         model = model_loader
     elif load_gptq:
-        if 'Llama-2-70B-chat-GPTQ' in base_model:
-            model_kwargs.update(dict(inject_fused_attention=False))
         model_kwargs.pop('torch_dtype', None)
         model_kwargs.pop('device_map')
         model = model_loader(
@@ -1617,6 +1622,7 @@ def get_model(
         compile_model: bool = True,
         llamacpp_dict=None,
         exllama_dict=None,
+        gptq_dict=None,
 
         verbose: bool = False,
 ):
@@ -1652,6 +1658,7 @@ def get_model(
     :param compile_model: whether to compile torch model
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param exllama_dict: dict of exllama options
+    :param gptq_dict: dict of AutoGPTQ options
     :param verbose:
     :return:
     """
@@ -1691,7 +1698,7 @@ def get_model(
                     config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
-                    exllama_dict=exllama_dict))
+                    exllama_dict=exllama_dict, gptq_dict=gptq_dict))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1805,6 +1812,7 @@ def get_model(
                         llama_type=llama_type,
                         config_kwargs=config_kwargs,
                         tokenizer_kwargs=tokenizer_kwargs,
+                        gptq_dict=gptq_dict,
 
                         verbose=verbose)
 
@@ -1835,6 +1843,7 @@ def get_hf_model(load_8bit: bool = False,
                  llama_type: bool = False,
                  config_kwargs=None,
                  tokenizer_kwargs=None,
+                 gptq_dict=None,
 
                  verbose: bool = False,
                  ):
@@ -1861,7 +1870,7 @@ def get_hf_model(load_8bit: bool = False,
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                     load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
-                    exllama_dict=exllama_dict))
+                    exllama_dict=exllama_dict, gptq_dict=gptq_dict))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -1968,8 +1977,6 @@ def get_hf_model(load_8bit: bool = False,
                             model = model.half()
                     else:
                         if load_gptq:
-                            if 'Llama-2-70B-chat-GPTQ' in base_model:
-                                model_kwargs.update(dict(inject_fused_attention=False))
                             model_kwargs.pop('torch_dtype', None)
                             model_kwargs.pop('device_map')
                             model = model_loader(
@@ -2123,6 +2130,7 @@ def get_score_model(score_model: str = None,
                     compile_model: bool = True,
                     llamacpp_dict: typing.Dict = None,
                     exllama_dict: typing.Dict = None,
+                    gptq_dict: typing.Dict = None,
 
                     verbose: bool = False,
                     ):
@@ -2146,6 +2154,7 @@ def get_score_model(score_model: str = None,
         compile_model = False
         llamacpp_dict = {}
         exllama_dict = {}
+        gptq_dict = {}
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -2263,6 +2272,7 @@ def evaluate(
         model_state_none=None,
         llamacpp_dict=None,
         exllama_dict=None,
+        gptq_dict=None,
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
@@ -2610,6 +2620,7 @@ def evaluate(
                 lora_weights=lora_weights,
                 llamacpp_dict=llamacpp_dict,
                 exllama_dict=exllama_dict,
+                gptq_dict=gptq_dict,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,

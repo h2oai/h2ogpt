@@ -3870,6 +3870,7 @@ def go_gradio(**kwargs):
             all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
             all_kwargs1['exllama_dict'] = kwargs['exllama_dict']  # no control in UI/API yet
+            all_kwargs1['gptq_dict'] = kwargs['gptq_dict']  # no control in UI/API yet
             all_kwargs1['max_seq_len'] = max_seq_len1
             try:
                 all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
