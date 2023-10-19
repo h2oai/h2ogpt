@@ -101,6 +101,7 @@ def main(
         model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
         exllama_dict: typing.Dict = dict(),
         gptq_dict: typing.Dict = dict(),
+        attention_sinks: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -407,6 +408,8 @@ def main(
          inject_fused_attention=False
          disable_exllama=True
          use_triton=True
+    :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
+         git clone https://github.com/tomaarsen/attention_sinks.git
 
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
@@ -1163,6 +1166,7 @@ def main(
                                       max_seq_len=max_seq_len,
                                       exllama_dict=exllama_dict,
                                       gptq_dict=gptq_dict,
+                                      attention_sinks=attention_sinks,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -1623,6 +1627,7 @@ def get_model(
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
+        attention_sinks=None,
 
         verbose: bool = False,
 ):
@@ -1659,6 +1664,7 @@ def get_model(
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param exllama_dict: dict of exllama options
     :param gptq_dict: dict of AutoGPTQ options
+    :param attention_sinks: whether to use attention_sinks package
     :param verbose:
     :return:
     """
@@ -1698,7 +1704,7 @@ def get_model(
                     config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
-                    exllama_dict=exllama_dict, gptq_dict=gptq_dict))
+                    exllama_dict=exllama_dict, gptq_dict=gptq_dict, attention_sinks=attention_sinks))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1813,6 +1819,7 @@ def get_model(
                         config_kwargs=config_kwargs,
                         tokenizer_kwargs=tokenizer_kwargs,
                         gptq_dict=gptq_dict,
+                        attention_sinks=attention_sinks,
 
                         verbose=verbose)
 
@@ -1844,6 +1851,7 @@ def get_hf_model(load_8bit: bool = False,
                  config_kwargs=None,
                  tokenizer_kwargs=None,
                  gptq_dict=None,
+                 attention_sinks=None,
 
                  verbose: bool = False,
                  ):
@@ -1870,7 +1878,7 @@ def get_hf_model(load_8bit: bool = False,
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                     load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
-                    exllama_dict=exllama_dict, gptq_dict=gptq_dict))
+                    exllama_dict=exllama_dict, gptq_dict=gptq_dict, attention_sinks=attention_sinks))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -2131,6 +2139,7 @@ def get_score_model(score_model: str = None,
                     llamacpp_dict: typing.Dict = None,
                     exllama_dict: typing.Dict = None,
                     gptq_dict: typing.Dict = None,
+                    attention_sinks: bool = False,
 
                     verbose: bool = False,
                     ):
@@ -2155,6 +2164,7 @@ def get_score_model(score_model: str = None,
         llamacpp_dict = {}
         exllama_dict = {}
         gptq_dict = {}
+        attention_sinks = False
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -2273,6 +2283,7 @@ def evaluate(
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
+        attention_sinks=None,
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
@@ -2428,6 +2439,7 @@ def evaluate(
     max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
+                                                attention_sinks=attention_sinks,
                                                 max_max_new_tokens=max_max_new_tokens)
     if min_max_new_tokens is None:
         # default for nochat api
@@ -2621,6 +2633,7 @@ def evaluate(
                 llamacpp_dict=llamacpp_dict,
                 exllama_dict=exllama_dict,
                 gptq_dict=gptq_dict,
+                attention_sinks=attention_sinks,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
@@ -2696,6 +2709,7 @@ def evaluate(
                            add_chat_history_to_context=add_chat_history_to_context,
                            min_max_new_tokens=min_max_new_tokens,
                            max_input_tokens=max_input_tokens,
+                           attention_sinks=attention_sinks,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -3086,6 +3100,7 @@ def evaluate(
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
         use_cache = False if 'falcon' in base_model else True
+    bad_word_ids = [tokenizer.eos_token_id]
     gen_config_kwargs = dict(num_beams=num_beams,
                              do_sample=do_sample,
                              repetition_penalty=float(repetition_penalty),
@@ -3093,6 +3108,7 @@ def evaluate(
                              renormalize_logits=True,
                              remove_invalid_values=True,
                              use_cache=use_cache,
+                             max_new_tokens=max_new_tokens,  # unsure if required here
                              )
     if do_sample:
         gen_config_kwargs.update(dict(temperature=float(temperature),
@@ -3708,6 +3724,9 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
+    if kwargs.get('attention_sinks'):
+        # no restriction
+        return kwargs['max_new_tokens']
     if not isinstance(model_state['tokenizer'], (str, type(None))):
         max_max_new_tokens = model_state['tokenizer'].model_max_length
     else:
@@ -3852,6 +3871,7 @@ def get_limited_prompt(instruction,
                        doc_importance=0.5,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
+                       attention_sinks=False,
                        ):
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
@@ -4013,11 +4033,12 @@ def get_limited_prompt(instruction,
     # update max_new_tokens
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+    if not attention_sinks:
+        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
 
-    if os.getenv('HARD_ASSERTS'):
-        if max_new_tokens < min_max_new_tokens:
-            raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
+        if os.getenv('HARD_ASSERTS'):
+            if max_new_tokens < min_max_new_tokens:
+                raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
 
     if prompter is None:
         # get prompter

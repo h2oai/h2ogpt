@@ -3740,6 +3740,7 @@ def _run_qa_db(query=None,
                num_beams=1,
                max_new_tokens=512,
                min_new_tokens=1,
+               attention_sinks=False,
                early_stopping=False,
                max_time=180,
                repetition_penalty=1.0,
@@ -4330,6 +4331,7 @@ def get_chain(query=None,
               docs_ordering_type=docs_ordering_types_default,
               min_max_new_tokens=256,
               max_input_tokens=-1,
+              attention_sinks=False,
               docs_token_handling=None,
               docs_joiner=None,
 
@@ -4814,6 +4816,7 @@ def get_chain(query=None,
                                add_chat_history_to_context=add_chat_history_to_context,
                                min_max_new_tokens=min_max_new_tokens,
                                max_input_tokens=max_input_tokens,
+                               attention_sinks=attention_sinks,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
@@ -4861,10 +4864,11 @@ def get_chain(query=None,
         estimated_prompt_no_docs = template.format(text=prompt_basic)
         num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
 
-        max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
-        if os.getenv('HARD_ASSERTS') is not None:
-            # imperfect calculation, so will see how testing does
-            assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
+        if not attention_sinks:
+            max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
+            if os.getenv('HARD_ASSERTS') is not None:
+                # imperfect calculation, so will see how testing does
+                assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
