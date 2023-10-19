@@ -161,6 +161,9 @@ User: Go to the market?
 Falcon:"""
 
 
+prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
+
+
 def get_mistral_prompt_with_context():
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
@@ -195,6 +198,7 @@ def get_mistral_prompt_with_context():
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
                              ('mistral', '', None, get_mistral_prompt_with_context()),
+                             ('xwin', '', None, prompt_xwin),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -314,6 +318,9 @@ User: Go to the market?
 Falcon:"""
 
 
+prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market? ASSISTANT:"""
+
+
 def get_mistral_prompt():
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
@@ -340,7 +347,8 @@ def get_mistral_prompt():
                              ('beluga', 'auto', prompt_beluga1_sys),
                              ('falcon_chat', '', prompt_falcon1801),
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
-                             ('mistral', '', get_mistral_prompt())
+                             ('mistral', '', get_mistral_prompt()),
+                             ('xwin', '', prompt_xwin1),
                          ]
                          )
 @wrap_test_forked

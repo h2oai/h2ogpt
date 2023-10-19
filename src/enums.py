@@ -39,6 +39,7 @@ class PromptType(Enum):
     falcon_chat = 33
     mistral = 34
     zephyr = 35
+    xwin = 36
 
 
 class DocumentSubset(Enum):

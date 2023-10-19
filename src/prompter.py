@@ -124,6 +124,7 @@ prompt_type_to_model_name = {
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
+    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -799,6 +800,23 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '</s>\n'
         humanstr = '<|user|>'
         botstr = '<|assistant|>'
+    elif prompt_type in [PromptType.xwin.value, str(PromptType.xwin.value),
+                         PromptType.xwin.name]:
+        # https://huggingface.co/Xwin-LM/Xwin-LM-13B-V0.1#huggingface-example
+        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. """ if not (
+                chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT:"""
+        terminate_response = [PreResponse, 'USER:', 'ASSISTANT:']
+        chat_turn_sep = '</s>'
+        chat_sep = ' '
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ' '
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
