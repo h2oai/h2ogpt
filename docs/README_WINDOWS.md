@@ -108,9 +108,12 @@ For newer builds of windows versions of 10/11.
       pip uninstall -y llama-cpp-python llama_cpp_python_cuda
       # GGMLv3 ONLY:
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
-      # GGUF ONLY:
+      # GGUF ONLY for GPU:
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-win_amd64.whl
+      # GGUF ONLY for CPU for AVX2:
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.1.83+cpuavx2-cp310-cp310-win_amd64.whl
     ```
+    See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
     pip uninstall -y llama-cpp-python

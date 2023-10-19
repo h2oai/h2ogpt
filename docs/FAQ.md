@@ -161,6 +161,26 @@ for GPT4All LLaMa models.
 
 For more information on controlling these parameters, see [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md).
 
+For GGUF model support or CPU llama.cpp support, see [README_LINUX.md](README_LINUX.md) or [README_WINDOWS.md](README_WINDOWS.md) for uninstalling GGML package in favor of GGUF.  As complete example, here is for GPU and CPU using GGUF model.
+
+GGUF using GPU on x86_64 linux:
+```bash
+pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-linux_x86_64.whl
+python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+```
+That is, currently, for GPU case, the latest llama_cpp_python only uses GGUF, so version number selects GGML vs. GGUF just like for llama.cpp itself.
+
+GGUF using AVX2 on x86_64 linux:
+```bash
+pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.1.83+cpuavx2-cp310-cp310-linux_x86_64.whl
+CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+```
+Similarly version of llama cpp python package selects support for GGMLv3 vs. GGUF.  Later versions of llama_cpp_python than shown here may not be supported in h2oGPT, that is untested.
+
+[Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
+
 ### Adding Prompt Templates
 
 After specifying a model, you need to consider if an existing `prompt_type` will work or if a new one is required. For example, for Vicuna models, a well-defined `prompt_type` is used, which we support automatically for specific model names.  If the model is in `prompter.py` as associated with some `prompt_type` name, then we added it already. You can view the models that are currently supported in this automatic way in [prompter.py](../src/prompter.py) and [enums.py](../src/enums.py).

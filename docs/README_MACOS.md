@@ -65,6 +65,14 @@ Supports CPU and MPS (Metal M1/M2).
     - Pass difference value of `--model_path_llama` if download a different GGML v3 model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and placed in repo folder or give this URL.
     - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 
+* GGUF and GGML:
+  See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.  One roughly follows:
+  ```
+  pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+  # GGUF:
+  pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.10-cp310-cp310-macosx_11_0_arm64.whl
+  ```
+
 ---
 
 ## Run

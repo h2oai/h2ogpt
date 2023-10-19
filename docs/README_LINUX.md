@@ -131,9 +131,15 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     # GGMLv3 ONLY:
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-linux_x86_64.whl
-    # GGUF ONLY:
+    # GGUF ONLY for GPU:
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-linux_x86_64.whl
+    # GGUF ONLY for CPU (AVX2):
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.1.83+cpuavx2-cp310-cp310-linux_x86_64.whl
     ```
+     For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
+     ```bash
+      CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+     ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
