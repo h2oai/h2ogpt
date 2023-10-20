@@ -4060,6 +4060,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                 answer = answer['output_text']
                             elif 'output' in answer:
                                 answer = answer['output']
+                            elif 'resolution' in answer:
+                                answer = answer['resolution']
                 # in case raise StopIteration or broke queue loop in streamer, but still have exception
                 if thread.exc:
                     raise thread.exc
@@ -4074,6 +4076,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             answer = answer['output_text']
                         elif 'output' in answer:
                             answer = answer['output']
+                        elif 'resolution' in answer:
+                            answer = answer['resolution']
 
     get_answer_args = tuple([query, docs, answer, scores, show_rank,
                              answer_with_sources,
@@ -4424,7 +4428,6 @@ def get_chain(query=None,
             from langchain_experimental.smart_llm import SmartLLMChain
             ideation_llm = llm  # should use higher temp
             critique_resolution_llm = llm  # will be used for critique and resolution as no specific llms are given
-            from langchain.prompts import PromptTemplate
             prompt = PromptTemplate.from_template(query)
             chain = SmartLLMChain(
                 ideation_llm=ideation_llm,
