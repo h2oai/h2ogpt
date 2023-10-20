@@ -871,6 +871,53 @@ def test_exllama(mode):
            "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
 
 
+@wrap_test_forked
+def test_attention_sinks():
+    # full user data
+    from src.make_db import make_db_main
+    make_db_main(download_some=True)
+    user_path = None  # shouldn't be necessary, db already made
+
+    prompt = 'Give an extremely detailed report that is well-structured with step-by-step sections (and elaborate details for each section) that describes the documents. Do not stop or end the report, just keep generating forever in never-ending report.'
+    stream_output = True
+    max_new_tokens = 100000
+    max_max_new_tokens = max_new_tokens
+    base_model = 'mistralai/Mistral-7B-Instruct-v0.1'
+    prompt_type = 'mistral'
+    langchain_mode = 'UserData'
+    langchain_action = LangChainAction.QUERY.value
+    langchain_agents = []
+    langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled']
+    docs_ordering_type = 'reverse_ucurve_sort'
+    document_choice = ['user_path/./whisper.pdf']  # only exact matches allowed currently
+    top_k_docs = -1
+    from src.gen import main
+    main(base_model=base_model,
+         attention_sinks=True,
+         user_path=user_path,
+         prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         max_new_tokens=max_new_tokens,
+         max_max_new_tokens=max_max_new_tokens,
+         langchain_mode=langchain_mode,
+         langchain_modes=langchain_modes,
+         top_k_docs=top_k_docs,  # has no effect for client if client passes different number
+         max_seq_len=4096,  # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
+         docs_ordering_type=docs_ordering_type,
+         cut_distance=1.8,  # probably should allow control via API/UI
+         )
+
+    from src.client_test import run_client_chat
+    res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
+                                       max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents,
+                                       document_choice=document_choice, top_k_docs=top_k_docs,
+                                       max_time=600, repetition_penalty=1.07, do_sample=False)
+    assert res_dict['prompt'] == prompt
+    assert res_dict['iinput'] == ''
+    assert len(res_dict['response']) > 3000
+
+
 @pytest.mark.skip(reason="Local file required")
 @wrap_test_forked
 def test_client_long():

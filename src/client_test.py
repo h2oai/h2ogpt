@@ -84,6 +84,10 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              add_search_to_context=False,
              chat_conversation=None,
              text_context_list=None,
+             document_choice=[],
+             max_time=20,
+             repetition_penalty=1.0,
+             do_sample=True,
              ):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
@@ -101,10 +105,10 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          max_new_tokens=max_new_tokens,
                          min_new_tokens=0,
                          early_stopping=False,
-                         max_time=20,
-                         repetition_penalty=1.0,
+                         max_time=max_time,
+                         repetition_penalty=repetition_penalty,
                          num_return_sequences=1,
-                         do_sample=True,
+                         do_sample=do_sample,
                          chat=chat,
                          instruction_nochat=prompt if not chat else '',
                          iinput_nochat='',  # only for chat=False
@@ -116,7 +120,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          chunk=True,
                          chunk_size=512,
                          document_subset=DocumentSubset.Relevant.name,
-                         document_choice=[],
+                         document_choice=[] or document_choice,
                          pre_prompt_query=None,
                          prompt_query=None,
                          pre_prompt_summary=None,
@@ -372,7 +376,12 @@ def run_client_chat(prompt='',
                     version=None,
                     h2ogpt_key=None,
                     chat_conversation=None,
-                    system_prompt=''):
+                    system_prompt='',
+                    document_choice=[],
+                    top_k_docs=3,
+                    max_time=20,
+                    repetition_penalty=1.0,
+                    do_sample=True):
     client = get_client(serialize=False)
 
     kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
@@ -384,7 +393,12 @@ def run_client_chat(prompt='',
                             version=version,
                             h2ogpt_key=h2ogpt_key,
                             chat_conversation=chat_conversation,
-                            system_prompt=system_prompt)
+                            system_prompt=system_prompt,
+                            document_choice=document_choice,
+                            top_k_docs=top_k_docs,
+                            max_time=max_time,
+                            repetition_penalty=repetition_penalty,
+                            do_sample=do_sample)
     return run_client(client, prompt, args, kwargs)
 
 
