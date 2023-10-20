@@ -113,6 +113,7 @@ def main(
         temperature: float = None,
         top_p: float = None,
         top_k: int = None,
+        penalty_alpha: float = None,
         num_beams: int = None,
         repetition_penalty: float = None,
         num_return_sequences: int = None,
@@ -441,6 +442,7 @@ def main(
     :param temperature: generation temperature
     :param top_p: generation top_p
     :param top_k: generation top_k
+    :param penalty_alpha: penalty_alpha>0 and top_k>1 enables contrastive search (not all models support)
     :param num_beams: generation number of beams
     :param repetition_penalty: generation repetition penalty
     :param num_return_sequences: generation number of sequences (1 forced for chat)
@@ -936,6 +938,7 @@ def main(
         temperature = 0.2 if temperature is None else temperature
         top_p = 0.85 if top_p is None else top_p
         top_k = 70 if top_k is None else top_k
+        penalty_alpha = 0.0 if penalty_alpha is None else penalty_alpha
         if is_hf:
             do_sample = True if do_sample is None else do_sample
             top_k_docs = 3 if top_k_docs is None else top_k_docs
@@ -1085,7 +1088,7 @@ def main(
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
         prompt_type, prompt_dict, \
-        temperature, top_p, top_k, num_beams, \
+        temperature, top_p, top_k, penalty_alpha, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
@@ -1099,7 +1102,7 @@ def main(
                             system_prompt,
                             pre_prompt_query, prompt_query,
                             pre_prompt_summary, prompt_summary,
-                            temperature, top_p, top_k, num_beams,
+                            temperature, top_p, top_k, penalty_alpha, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
                             do_sample,
@@ -2231,6 +2234,7 @@ def evaluate(
         temperature,
         top_p,
         top_k,
+        penalty_alpha,
         num_beams,
         max_new_tokens,
         min_new_tokens,
@@ -2475,6 +2479,7 @@ def evaluate(
     # limits are chosen similar to gradio_runner.py sliders/numbers
     top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
     top_k = min(max(1, int(top_k)), 100)
+    penalty_alpha = min(2.0, max(0.0, penalty_alpha))
     temperature = min(max(0.01, temperature), 2.0)
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
@@ -2574,8 +2579,9 @@ def evaluate(
         gen_hyper_langchain = dict(do_sample=do_sample,
                                    temperature=temperature,
                                    repetition_penalty=repetition_penalty,
-                                   top_k=top_k,
                                    top_p=top_p,
+                                   top_k=top_k,
+                                   penalty_alpha=penalty_alpha,
                                    num_beams=num_beams,
                                    min_new_tokens=min_new_tokens,
                                    max_new_tokens=max_new_tokens,
@@ -2886,6 +2892,7 @@ def evaluate(
                 gen_server_kwargs = dict(temperature=temperature,
                                          top_p=top_p,
                                          top_k=top_k,
+                                         penalty_alpha=penalty_alpha,
                                          num_beams=num_beams,
                                          max_new_tokens=max_new_tokens,
                                          min_new_tokens=min_new_tokens,
@@ -3162,6 +3169,8 @@ def evaluate(
         gen_config_kwargs.update(dict(temperature=float(temperature),
                                       top_p=float(top_p),
                                       top_k=top_k))
+    if penalty_alpha > 0:
+        gen_config_kwargs.update(dict(penalty_alpha=penalty_alpha))
     if True:
         # unclear impact, some odd things going on inside
         # leads to:
@@ -3463,7 +3472,7 @@ def get_generate_params(model_lower,
                         system_prompt,
                         pre_prompt_query, prompt_query,
                         pre_prompt_summary, prompt_summary,
-                        temperature, top_p, top_k, num_beams,
+                        temperature, top_p, top_k, penalty_alpha, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
                         do_sample,
@@ -3571,6 +3580,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         temperature = 1.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
+        penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 512
         repetition_penalty = repetition_penalty or 1.07
@@ -3580,6 +3590,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         temperature = 0.1 if temperature is None else temperature
         top_p = 0.75 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
+        penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 1024
         repetition_penalty = repetition_penalty or 1.07
@@ -3589,7 +3600,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     params_list = ["",
                    stream_output,
                    prompt_type, prompt_dict,
-                   temperature, top_p, top_k, num_beams,
+                   temperature, top_p, top_k, penalty_alpha, num_beams,
                    max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
 
@@ -3686,7 +3697,7 @@ y = np.random.randint(0, 1, 100)
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
         prompt_type, prompt_dict, \
-        temperature, top_p, top_k, num_beams, \
+        temperature, top_p, top_k, penalty_alpha, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \

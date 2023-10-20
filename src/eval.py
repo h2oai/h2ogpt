@@ -30,6 +30,7 @@ def run_eval(  # for local function:
         temperature=None,
         top_p=None,
         top_k=None,
+        penalty_alpha=None,
         num_beams=None,
         max_new_tokens=None,
         min_new_tokens=None,

@@ -490,6 +490,7 @@ class GradioInference(H2Oagenerate, LLM):
     temperature: float = 0.8
     top_p: Optional[float] = 0.95
     top_k: Optional[int] = None
+    penalty_alpha: Optional[float] = 0.0
     num_beams: Optional[int] = 1
     max_new_tokens: int = 512
     min_new_tokens: int = 1
@@ -575,6 +576,7 @@ class GradioInference(H2Oagenerate, LLM):
                              temperature=self.temperature,
                              top_p=self.top_p,
                              top_k=self.top_k,
+                             penalty_alpha=self.penalty_alpha,
                              num_beams=self.num_beams,
                              max_new_tokens=self.max_new_tokens,
                              min_new_tokens=self.min_new_tokens,
@@ -779,8 +781,9 @@ class GradioInference(H2Oagenerate, LLM):
 class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
-    top_k: Optional[int] = None
     top_p: Optional[float] = 0.95
+    top_k: Optional[int] = None
+    penalty_alpha: Optional[float] = 0.0
     typical_p: Optional[float] = 0.95
     temperature: float = 0.8
     repetition_penalty: Optional[float] = None
@@ -828,9 +831,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         gen_server_kwargs = dict(do_sample=self.do_sample,
                                  stop_sequences=stop,
                                  max_new_tokens=self.max_new_tokens,
-                                 top_k=self.top_k,
                                  top_p=self.top_p,
+                                 top_k=self.top_k,
                                  typical_p=self.typical_p,
+                                 # penalty_alpha=self.penalty_alpha,
                                  temperature=self.temperature,
                                  repetition_penalty=self.repetition_penalty,
                                  return_full_text=self.return_full_text,
@@ -1228,8 +1232,9 @@ def get_llm(use_openai_model=False,
             num_async=3,
             do_sample=False,
             temperature=0.1,
-            top_k=40,
             top_p=0.7,
+            top_k=40,
+            penalty_alpha=0.0,
             num_beams=1,
             max_new_tokens=512,
             min_new_tokens=1,
@@ -1479,6 +1484,7 @@ def get_llm(use_openai_model=False,
                 temperature=temperature,
                 top_p=top_p,
                 top_k=top_k,
+                penalty_alpha=penalty_alpha,
                 num_beams=num_beams,
                 max_new_tokens=max_new_tokens,
                 min_new_tokens=min_new_tokens,
@@ -1628,9 +1634,11 @@ def get_llm(use_openai_model=False,
         if do_sample:
             gen_kwargs.update(dict(temperature=temperature,
                                    top_k=top_k,
-                                   top_p=top_p))
+                                   top_p=top_p,
+                                   penalty_alpha=penalty_alpha))
             assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
         else:
+            gen_kwargs.update(dict(penalty_alpha=penalty_alpha))
             assert len(set(gen_hyper0).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
@@ -3744,8 +3752,9 @@ def _run_qa_db(query=None,
                db=None,
                do_sample=False,
                temperature=0.1,
-               top_k=40,
                top_p=0.7,
+               top_k=40,
+               penalty_alpha=0.0,
                num_beams=1,
                max_new_tokens=512,
                min_new_tokens=1,
@@ -3871,6 +3880,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       temperature=temperature,
                       top_k=top_k,
                       top_p=top_p,
+                      penalty_alpha=penalty_alpha,
                       num_beams=num_beams,
                       max_new_tokens=max_new_tokens,
                       min_new_tokens=min_new_tokens,

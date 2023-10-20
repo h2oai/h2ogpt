@@ -1130,6 +1130,11 @@ def go_gradio(**kwargs):
                             value=kwargs['top_k'], label="Top k",
                             info='Num. tokens to sample from'
                         )
+                        penalty_alpha = gr.Slider(
+                            minimum=0.0, maximum=2.0, step=0.01,
+                            value=kwargs['penalty_alpha'], label="penalty_alpha",
+                            info='penalty_alpha>0 and top_k>1 enables contrastive search'
+                        )
                         # FIXME: https://github.com/h2oai/h2ogpt/issues/106
                         if os.getenv('TESTINGFAIL'):
                             max_beams = 8 if not (memory_restriction_level or is_public) else 1
