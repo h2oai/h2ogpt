@@ -14,6 +14,7 @@ conda install python=3.8 -y
 ### Setup
 :information_source: [Poetry](https://python-poetry.org) is used as the build tool.
 ```shell
+rm -rf client/.poetry/
 make -C client setup
 ```
 
