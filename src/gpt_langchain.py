@@ -3629,10 +3629,12 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None,
         db_metadatas += get_metadatas(db)
         # FIXME: FAISS has no filter
         if top_k_docs == -1:
-            db_documents += list(db.docstore._dict.values())
+            db_docs_faiss = list(db.docstore._dict.values())
         else:
             # slice dict first
-            db_documents += list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+            db_docs_faiss = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+        db_docs_faiss = [x.page_content for x in db_docs_faiss]
+        db_documents += db_docs_faiss
     elif db is not None:
         db_metadatas += get_metadatas(db)
         db_documents += get_documents(db)['documents']
