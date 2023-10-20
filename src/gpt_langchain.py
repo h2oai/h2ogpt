@@ -1245,6 +1245,7 @@ def get_llm(use_openai_model=False,
             h2ogpt_key=None,
             min_max_new_tokens=None,
             max_input_tokens=None,
+            attention_sinks=None,
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
@@ -1648,6 +1649,7 @@ def get_llm(use_openai_model=False,
                                          max_input_tokens=max_input_tokens,
                                          base_model=model_name,
                                          verbose=verbose,
+                                         attention_sinks=attention_sinks,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -3884,6 +3886,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       exllama_dict=exllama_dict,
                       cli=cli,
                       verbose=verbose,
+                      attention_sinks=attention_sinks,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
     # in case change, override original prompter

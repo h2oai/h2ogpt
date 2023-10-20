@@ -3080,7 +3080,7 @@ def evaluate(
 
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                                      model_max_length=model_max_length,
-                                     prompter=prompter)
+                                     prompter=prompter, attention_sinks=attention_sinks)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
