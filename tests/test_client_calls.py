@@ -1536,8 +1536,8 @@ def test_client_load_unload_models():
                  n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
                  system_prompt]
     res = client.predict(*tuple(args_list), api_name='/load_model')
-    res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 1024},
-                    {'__type__': 'update', 'maximum': 1024})
+    res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 256},
+                    {'__type__': 'update', 'maximum': 256})
     assert res == res_expected
     model_used, lora_used, server_used, prompt_type, max_new_tokens, min_new_tokens = res_expected
 
