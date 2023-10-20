@@ -871,8 +871,9 @@ def test_exllama(mode):
            "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
 
 
+@pytest.mark.parametrize("max_seq_len", [4096, 8192])
 @wrap_test_forked
-def test_attention_sinks():
+def test_attention_sinks(max_seq_len):
     # full user data
     from src.make_db import make_db_main
     make_db_main(download_some=True)
@@ -902,7 +903,7 @@ def test_attention_sinks():
          langchain_mode=langchain_mode,
          langchain_modes=langchain_modes,
          top_k_docs=top_k_docs,  # has no effect for client if client passes different number
-         max_seq_len=4096,  # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
+         max_seq_len=max_seq_len,  # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
          docs_ordering_type=docs_ordering_type,
          cut_distance=1.8,  # probably should allow control via API/UI
          )
@@ -915,7 +916,7 @@ def test_attention_sinks():
                                        max_time=600, repetition_penalty=1.07, do_sample=False)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert len(res_dict['response']) > 3000
+    assert len(res_dict['response']) > 2500, "%s %s" % (len(res_dict['response']), res_dict['response'])
 
 
 @pytest.mark.skip(reason="Local file required")

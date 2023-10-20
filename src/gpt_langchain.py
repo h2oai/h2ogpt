@@ -5217,7 +5217,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
             if count_input_tokens and count_output_tokens:
                 sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
                     count_input_tokens, count_output_tokens)
-        sourted_sources_urls += "Total document chunks used: %s" % len(docs)
+        sorted_sources_urls += "Total document chunks used: %s" % len(docs)
         sorted_sources_urls += f"<font size=\"{font_size}\"></ul></p>{source_postfix}</font>"
         title_overall = "Sources"
         sorted_sources_urls = f"""<details><summary><font size="{font_size}">{title_overall}</font></summary><font size="{font_size}">{sorted_sources_urls}</font></details>"""
