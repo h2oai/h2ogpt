@@ -1179,6 +1179,8 @@ class H2OAzureOpenAI(AzureOpenAI):
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
     def _call(
             self,
             prompt: str,
@@ -1186,6 +1188,7 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> str:
+        self.count_input_tokens += self.get_num_tokens(prompt)
         response = self.pipeline(prompt, stop=stop)
         if self.pipeline.task == "text-generation":
             # Text generation return includes the starter text.
@@ -1203,6 +1206,7 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
             # This is a bit hacky, but I can't figure out a better way to enforce
             # stop tokens when making calls to huggingface_hub.
             text = enforce_stop_tokens(text, stop)
+        self.count_output_tokens += self.get_num_tokens(text)
         return text
 
     def get_token_ids(self, text: str) -> List[int]:
@@ -4064,6 +4068,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     get_answer_args = tuple([query, docs, answer, scores, show_rank,
                              answer_with_sources,
                              append_sources_to_answer])
+    t_run = time.time() - t_run
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
@@ -4075,9 +4080,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                              if hasattr(llm, 'count_input_tokens') else None,
                              count_output_tokens=llm.count_output_tokens
                              if hasattr(llm, 'count_output_tokens') else None)
-
-    t_run = time.time() - t_run
-    get_answer_kwargs.update(dict(t_run=t_run))
 
     # for final yield, get real prompt used
     if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
@@ -5220,7 +5222,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         else:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
                 answer_sources)
-        if verbose:
+        if verbose or True:
             if int(t_run):
                 sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
             if count_input_tokens and count_output_tokens:
