@@ -1265,6 +1265,7 @@ def get_llm(use_openai_model=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
+    gradio_server = False
 
     if chat_conversation is None:
         chat_conversation = []
@@ -1461,6 +1462,7 @@ def get_llm(use_openai_model=False,
         from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
         if isinstance(model, GradioClient):
+            gradio_server = True
             gr_client = model.clone()
             hf_client = None
         else:
@@ -1671,7 +1673,7 @@ def get_llm(use_openai_model=False,
         pipe.task = "text2text-generation"
 
         llm = H2OHuggingFacePipeline(pipeline=pipe)
-    return llm, model_name, streamer, prompt_type, async_output, only_new_text
+    return llm, model_name, streamer, prompt_type, async_output, only_new_text, gradio_server
 
 
 def get_device_dtype():
@@ -3907,7 +3909,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       attention_sinks=attention_sinks,
                       truncation_generation=truncation_generation,
                       )
-    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
+        get_llm(**llm_kwargs)
     # in case change, override original prompter
     if hasattr(llm, 'prompter'):
         prompter = llm.prompter
@@ -4360,6 +4363,7 @@ def get_chain(query=None,
 
               stream_output=True,
               async_output=True,
+              gradio_server=False,
 
               # local
               auto_reduce_chunks=True,
@@ -4841,6 +4845,7 @@ def get_chain(query=None,
                                min_max_new_tokens=min_max_new_tokens,
                                max_input_tokens=max_input_tokens,
                                truncation_generation=truncation_generation,
+                               gradio_server=gradio_server,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
@@ -4848,7 +4853,8 @@ def get_chain(query=None,
             # should already have attribute, checking sanity
             assert hasattr(llm, 'chat_conversation')
             llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
-        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
+            get_llm(**llm_kwargs)
 
         # avoid craziness
         if 0 < top_k_docs_trial < max_chunks:
@@ -4895,7 +4901,8 @@ def get_chain(query=None,
                 assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens)
-        llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
+        llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
+            get_llm(**llm_kwargs)
 
     # now done with all docs and their sizes, re-order docs if required
     if query_action:

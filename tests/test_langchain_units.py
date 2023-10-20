@@ -62,7 +62,7 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
     from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
-    llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
+    llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type, llamacpp_dict={},
         exllama_dict={})
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)

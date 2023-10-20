@@ -2736,6 +2736,9 @@ def evaluate(
 
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
+    from gradio_utils.grclient import GradioClient
+    gradio_server = inference_server.startswith('http') and isinstance(model, GradioClient)
+
     prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
@@ -2761,6 +2764,7 @@ def evaluate(
                            min_max_new_tokens=min_max_new_tokens,
                            max_input_tokens=max_input_tokens,
                            truncation_generation=truncation_generation,
+                           gradio_server=gradio_server,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -2863,7 +2867,6 @@ def evaluate(
                 raise RuntimeError("No such OpenAI mode: %s" % inference_server)
         elif inference_server.startswith('http'):
             inference_server, headers = get_hf_server(inference_server)
-            from gradio_utils.grclient import GradioClient
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient):
                 gr_client = model.clone()
@@ -3931,7 +3934,15 @@ def get_limited_prompt(instruction,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
                        truncation_generation=False,
+                       gradio_server=False,
                        ):
+    if gradio_server or not inference_server:
+        # can listen to truncation_generation
+        pass
+    else:
+        # these don't support allowing going beyond total context
+        truncation_generation = True
+
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
         max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
