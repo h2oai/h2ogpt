@@ -1507,6 +1507,7 @@ def test_client_load_unload_models():
     model_load4bit_checkbox = True
     model_low_bit_mode = 1
     model_load_gptq = ''
+    model_load_awq = ''
     model_load_exllama_checkbox = False
     model_safetensors_checkbox = False
     model_revision = ''
@@ -1527,7 +1528,7 @@ def test_client_load_unload_models():
                  # model_state,
                  prompt_type,
                  model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
-                 model_load_gptq, model_load_exllama_checkbox,
+                 model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                  model_safetensors_checkbox, model_revision,
                  model_use_gpu_id_checkbox, model_gpu,
                  max_seq_len, rope_scaling,

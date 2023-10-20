@@ -279,6 +279,8 @@ def get_test_model():
                       max_seq_len=None,
                       compile_model=True,
                       llamacpp_dict={},
+                      exllama_dict={},
+                      gptq_dict={},
 
                       verbose=False)
     model, tokenizer, device = get_model(reward_type=False,
