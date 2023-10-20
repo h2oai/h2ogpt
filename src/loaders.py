@@ -8,7 +8,9 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
                 config=None,
                 rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config='',
                 exllama_dict=None, gptq_dict=None,
-                attention_sinks=None):
+                attention_sinks=None, sink_dict=None,
+                truncation_generation=None,
+                ):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
     if load_exllama:
@@ -102,7 +104,9 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
             # pip install git+https://github.com/tomaarsen/attention_sinks.git
             from attention_sinks import LlamaForCausalLM
             from transformers import LlamaTokenizer
-            return LlamaForCausalLM.from_pretrained, LlamaTokenizer, False
+            model_loader = functools.partial(LlamaForCausalLM.from_pretrained,
+                                             **sink_dict)
+            return model_loader, LlamaTokenizer, False
         else:
             from transformers import LlamaForCausalLM, LlamaTokenizer
             return LlamaForCausalLM.from_pretrained, LlamaTokenizer, False
@@ -137,7 +141,9 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
             # pip install git+https://github.com/tomaarsen/attention_sinks.git
             from attention_sinks import AutoModelForCausalLM
             from transformers import LlamaTokenizer
-            return AutoModelForCausalLM.from_pretrained, tokenizer_loader, False
+            model_loader = functools.partial(AutoModelForCausalLM.from_pretrained,
+                                             **sink_dict)
+            return model_loader, tokenizer_loader, False
 
         return model_loader.from_pretrained, tokenizer_loader, False
 

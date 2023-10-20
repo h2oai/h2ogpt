@@ -16,7 +16,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  max_input_tokens=2048 - 256,
                  base_model=None,
                  stop=None,
-                 attention_sinks=None,
+                 truncation_generation=None,
                  verbose=False,
                  **kwargs):
         """
@@ -62,7 +62,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.max_input_tokens = max_input_tokens  # not for generate, so ok that not kwargs
         self.base_model = base_model
         self.verbose = verbose
-        self.attention_sinks = attention_sinks
+        self.truncation_generation = truncation_generation
 
     @staticmethod
     def get_token_count(x, tokenizer):
@@ -242,7 +242,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                                                   model_max_length=self.tokenizer.model_max_length,
                                                   prompter=self.prompter,
                                                   stop=stop,
-                                                  attention_sinks=self.attention_sinks)
+                                                  truncation_generation=self.truncation_generation)
             generate_kwargs['stopping_criteria'] = self.stopping_criteria
         generate_kwargs.pop('stop', None)
         # return super()._forward(model_inputs, **generate_kwargs)

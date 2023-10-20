@@ -871,9 +871,10 @@ def test_exllama(mode):
            "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
 
 
+@pytest.mark.parametrize("attention_sinks", [False, True])  # mistral goes beyond context just fine up to 32k
 @pytest.mark.parametrize("max_seq_len", [4096, 8192])
 @wrap_test_forked
-def test_attention_sinks(max_seq_len):
+def test_attention_sinks(max_seq_len, attention_sinks):
     # full user data
     from src.make_db import make_db_main
     make_db_main(download_some=True)
@@ -894,7 +895,7 @@ def test_attention_sinks(max_seq_len):
     top_k_docs = -1
     from src.gen import main
     main(base_model=base_model,
-         attention_sinks=True,
+         attention_sinks=attention_sinks,
          user_path=user_path,
          prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -906,6 +907,7 @@ def test_attention_sinks(max_seq_len):
          max_seq_len=max_seq_len,  # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
          docs_ordering_type=docs_ordering_type,
          cut_distance=1.8,  # probably should allow control via API/UI
+         sink_dict={'attention_sink_size': 4, 'attention_sink_window_size': 4096} if attention_sinks else {},
          )
 
     from src.client_test import run_client_chat

@@ -1246,6 +1246,8 @@ def get_llm(use_openai_model=False,
             min_max_new_tokens=None,
             max_input_tokens=None,
             attention_sinks=None,
+            truncation_generation=None,
+
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
@@ -1649,7 +1651,7 @@ def get_llm(use_openai_model=False,
                                          max_input_tokens=max_input_tokens,
                                          base_model=model_name,
                                          verbose=verbose,
-                                         attention_sinks=attention_sinks,
+                                         truncation_generation=truncation_generation,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -3655,6 +3657,7 @@ def run_qa_db(**kwargs):
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['exllama_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['gptq_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
+    kwargs['sink_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -3743,6 +3746,7 @@ def _run_qa_db(query=None,
                max_new_tokens=512,
                min_new_tokens=1,
                attention_sinks=False,
+               truncation_generation=False,
                early_stopping=False,
                max_time=180,
                repetition_penalty=1.0,
@@ -3887,6 +3891,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       cli=cli,
                       verbose=verbose,
                       attention_sinks=attention_sinks,
+                      truncation_generation=truncation_generation,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
     # in case change, override original prompter
@@ -4022,7 +4027,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1_old = output1
                         if time.time() - tgen0 > max_time:
                             if verbose:
-                                print("Took too long EThread for %s %s: %s" % (model_name, langchain_action, time.time() - tgen0), flush=True)
+                                print("Took too long EThread for %s %s: %s" % (
+                                model_name, langchain_action, time.time() - tgen0), flush=True)
                             break
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
@@ -4336,6 +4342,7 @@ def get_chain(query=None,
               min_max_new_tokens=256,
               max_input_tokens=-1,
               attention_sinks=False,
+              truncation_generation=False,
               docs_token_handling=None,
               docs_joiner=None,
 
@@ -4738,7 +4745,8 @@ def get_chain(query=None,
         [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
 
         # order documents
-        doc_hashes = [x.get('doc_hash', 'None') if x.get('doc_hash', 'None') is not None else 'None' for x in db_metadatas]
+        doc_hashes = [x.get('doc_hash', 'None') if x.get('doc_hash', 'None') is not None else 'None' for x in
+                      db_metadatas]
         if query_action:
             doc_chunk_ids = [x.get('chunk_id', 0) if x.get('chunk_id', 0) is not None else 0 for x in db_metadatas]
             docs_with_score2 = [x for hx, cx, x in
@@ -4820,7 +4828,7 @@ def get_chain(query=None,
                                add_chat_history_to_context=add_chat_history_to_context,
                                min_max_new_tokens=min_max_new_tokens,
                                max_input_tokens=max_input_tokens,
-                               attention_sinks=attention_sinks,
+                               truncation_generation=truncation_generation,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
@@ -4868,7 +4876,7 @@ def get_chain(query=None,
         estimated_prompt_no_docs = template.format(text=prompt_basic)
         num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
 
-        if not attention_sinks:
+        if truncation_generation:
             max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
             if os.getenv('HARD_ASSERTS') is not None:
                 # imperfect calculation, so will see how testing does

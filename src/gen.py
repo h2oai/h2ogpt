@@ -102,6 +102,8 @@ def main(
         exllama_dict: typing.Dict = dict(),
         gptq_dict: typing.Dict = dict(),
         attention_sinks: bool = False,
+        sink_dict: typing.Dict = dict(),
+        truncation_generation: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -411,6 +413,13 @@ def main(
          use_triton=True
     :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
          git clone https://github.com/tomaarsen/attention_sinks.git
+    :param sink_dict: dict of options for attention sinks
+
+    :param truncation_generation: Whether (for torch) to terminate generation once reach context length of model.
+            For some models, perplexity becomes critically large beyond context
+            For other models like Mistral, one can generate beyond max_seq_len set to 4096 or 8192 without issue, since based upon 32k embeddings
+            codellama can also generate beyond its 16k context length
+            So default is off, but for simpler/older models True may be wise to avoid bad generations
 
     :param model_lock: Lock models to specific combinations, for ease of use and extending to many models
            Only used if gradio = True
@@ -781,6 +790,7 @@ def main(
 
     exllama_dict = str_to_dict(exllama_dict)
     gptq_dict = str_to_dict(gptq_dict)
+    sink_dict = str_to_dict(sink_dict)
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
@@ -1159,6 +1169,8 @@ def main(
             raise ValueError("attention sinks requires use_cache=True")
         else:
             use_cache = True
+    # never truncate if using attention sinks
+    truncation_generation = truncation_generation and not attention_sinks
 
     other_model_state_defaults = dict(load_8bit=load_8bit, load_4bit=load_4bit, low_bit_mode=low_bit_mode,
                                       load_half=load_half,
@@ -1176,6 +1188,8 @@ def main(
                                       exllama_dict=exllama_dict,
                                       gptq_dict=gptq_dict,
                                       attention_sinks=attention_sinks,
+                                      sink_dict=sink_dict,
+                                      truncation_generation=truncation_generation,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -1637,6 +1651,8 @@ def get_model(
         exllama_dict=None,
         gptq_dict=None,
         attention_sinks=None,
+        sink_dict=None,
+        truncation_generation=None,
 
         verbose: bool = False,
 ):
@@ -1674,6 +1690,8 @@ def get_model(
     :param exllama_dict: dict of exllama options
     :param gptq_dict: dict of AutoGPTQ options
     :param attention_sinks: whether to use attention_sinks package
+    :param sink_dict: dict of attention sinks options
+    :param truncation_generation: whether to truncate generation in torch case to max_seq_len
     :param verbose:
     :return:
     """
@@ -1713,7 +1731,9 @@ def get_model(
                     config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
-                    exllama_dict=exllama_dict, gptq_dict=gptq_dict, attention_sinks=attention_sinks))
+                    exllama_dict=exllama_dict, gptq_dict=gptq_dict,
+                    attention_sinks=attention_sinks, sink_dict=sink_dict,
+                    truncation_generation=truncation_generation))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1829,6 +1849,8 @@ def get_model(
                         tokenizer_kwargs=tokenizer_kwargs,
                         gptq_dict=gptq_dict,
                         attention_sinks=attention_sinks,
+                        sink_dict=sink_dict,
+                        truncation_generation=truncation_generation,
 
                         verbose=verbose)
 
@@ -1861,6 +1883,8 @@ def get_hf_model(load_8bit: bool = False,
                  tokenizer_kwargs=None,
                  gptq_dict=None,
                  attention_sinks=None,
+                 sink_dict=None,
+                 truncation_generation=None,
 
                  verbose: bool = False,
                  ):
@@ -1887,7 +1911,9 @@ def get_hf_model(load_8bit: bool = False,
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
                     load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
-                    exllama_dict=exllama_dict, gptq_dict=gptq_dict, attention_sinks=attention_sinks))
+                    exllama_dict=exllama_dict, gptq_dict=gptq_dict,
+                    attention_sinks=attention_sinks, sink_dict=sink_dict,
+                    truncation_generation=truncation_generation))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -2149,6 +2175,8 @@ def get_score_model(score_model: str = None,
                     exllama_dict: typing.Dict = None,
                     gptq_dict: typing.Dict = None,
                     attention_sinks: bool = False,
+                    sink_dict: typing.Dict = None,
+                    truncation_generation: bool = False,
 
                     verbose: bool = False,
                     ):
@@ -2174,6 +2202,8 @@ def get_score_model(score_model: str = None,
         exllama_dict = {}
         gptq_dict = {}
         attention_sinks = False
+        sink_dict = {}
+        truncation_generation = False
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -2293,6 +2323,9 @@ def evaluate(
         exllama_dict=None,
         gptq_dict=None,
         attention_sinks=None,
+        sink_dict=None,
+        truncation_generation=None,
+
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
@@ -2449,7 +2482,8 @@ def evaluate(
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
                                                 attention_sinks=attention_sinks,
-                                                max_max_new_tokens=max_max_new_tokens)
+                                                max_max_new_tokens=max_max_new_tokens,
+                                                truncation_generation=truncation_generation)
     if min_max_new_tokens is None:
         # default for nochat api
         min_max_new_tokens = 256
@@ -2643,6 +2677,8 @@ def evaluate(
                 exllama_dict=exllama_dict,
                 gptq_dict=gptq_dict,
                 attention_sinks=attention_sinks,
+                sink_dict=sink_dict,
+                truncation_generation=truncation_generation,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
@@ -2718,7 +2754,7 @@ def evaluate(
                            add_chat_history_to_context=add_chat_history_to_context,
                            min_max_new_tokens=min_max_new_tokens,
                            max_input_tokens=max_input_tokens,
-                           attention_sinks=attention_sinks,
+                           truncation_generation=truncation_generation,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -3089,7 +3125,8 @@ def evaluate(
 
     stopping_criteria = get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                                      model_max_length=model_max_length,
-                                     prompter=prompter, attention_sinks=attention_sinks)
+                                     prompter=prompter,
+                                     truncation_generation=truncation_generation)
 
     inputs = tokenizer(prompt, return_tensors="pt")
     if debug and len(inputs["input_ids"]) > 0:
@@ -3735,7 +3772,7 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
-    if kwargs.get('attention_sinks'):
+    if not kwargs.get('truncation_generation', False):
         # no restriction
         return kwargs['max_new_tokens']
     if not isinstance(model_state['tokenizer'], (str, type(None))):
@@ -3882,7 +3919,7 @@ def get_limited_prompt(instruction,
                        doc_importance=0.5,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
-                       attention_sinks=False,
+                       truncation_generation=False,
                        ):
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
@@ -4044,7 +4081,7 @@ def get_limited_prompt(instruction,
     # update max_new_tokens
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    if not attention_sinks:
+    if truncation_generation:
         max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
 
         if os.getenv('HARD_ASSERTS'):
