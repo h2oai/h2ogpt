@@ -107,6 +107,7 @@ class LangChainAgent(Enum):
     CSV = "CSV"
     PANDAS = "Pandas"
     JSON = 'JSON'
+    SMART = 'SMART'
 
 
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'

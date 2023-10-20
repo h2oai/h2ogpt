@@ -1185,6 +1185,7 @@ class H2OAzureOpenAI(AzureOpenAI):
 class H2OHuggingFacePipeline(HuggingFacePipeline):
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+
     def _call(
             self,
             prompt: str,
@@ -4041,7 +4042,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long EThread for %s %s: %s" % (
-                                model_name, langchain_action, time.time() - tgen0), flush=True)
+                                    model_name, langchain_action, time.time() - tgen0), flush=True)
                             break
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
@@ -4415,6 +4416,32 @@ def get_chain(query=None,
         text_context_list = docs_search + text_context_list
         add_search_to_context &= len(docs_search) > 0
         top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
+
+    if LangChainAgent.SMART.value in langchain_agents:
+        # doesn't really work for non-OpenAI models, so avoid for now
+        if any([inference_server.startswith(x) for x in
+                ['openai', 'openai_azure', 'openai_chat', 'openai_azure_chat']]):
+            from langchain_experimental.smart_llm import SmartLLMChain
+            ideation_llm = llm  # should use higher temp
+            critique_resolution_llm = llm  # will be used for critique and resolution as no specific llms are given
+            from langchain.prompts import PromptTemplate
+            prompt = PromptTemplate.from_template(query)
+            chain = SmartLLMChain(
+                ideation_llm=ideation_llm,
+                llm=critique_resolution_llm,
+                n_ideas=3,
+                verbose=verbose,
+                prompt=prompt,
+            )
+            chain_kwargs = {}
+            target = wrapped_partial(chain, chain_kwargs)
+
+            docs = []
+            scores = []
+            num_docs_before_cut = 0
+            use_llm_if_no_docs = True
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     from src.output_parser import H2OMRKLOutputParser
     from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
