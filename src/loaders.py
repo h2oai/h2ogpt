@@ -131,6 +131,14 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
         from transformers import AutoTokenizer, AutoModelForCausalLM
         model_loader = AutoModelForCausalLM
         tokenizer_loader = AutoTokenizer
+
+        if attention_sinks:
+            # below will fail if don't have, to get just do in h2ogpt repo directory:
+            # git clone https://github.com/tomaarsen/attention_sinks.git
+            from attention_sinks import AutoModelForCausalLM as ASAutoModelForCausalLM
+            from transformers import LlamaTokenizer
+            return ASAutoModelForCausalLM.from_pretrained, tokenizer_loader, False
+
         return model_loader.from_pretrained, tokenizer_loader, False
 
 

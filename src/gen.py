@@ -1154,6 +1154,12 @@ def main(
             assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
             assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
 
+    if attention_sinks:
+        if use_cache is False:
+            raise ValueError("attention sinks requires use_cache=True")
+        else:
+            use_cache = True
+
     other_model_state_defaults = dict(load_8bit=load_8bit, load_4bit=load_4bit, low_bit_mode=low_bit_mode,
                                       load_half=load_half,
                                       load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
@@ -3103,6 +3109,8 @@ def evaluate(
     # required for falcon if multiple threads or asyncio accesses to model during generation
     if use_cache is None:
         use_cache = False if 'falcon' in base_model else True
+    if attention_sinks:
+        assert use_cache, "attention sinks requires use_cache=True"
     bad_word_ids = [tokenizer.eos_token_id]
     gen_config_kwargs = dict(num_beams=num_beams,
                              do_sample=do_sample,
