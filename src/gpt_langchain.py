@@ -3815,7 +3815,11 @@ def _run_qa_db(query=None,
     :return:
     """
     t_run = time.time()
-    if langchain_action in [LangChainAction.QUERY.value]:
+    if LangChainAgent.SMART.value in langchain_agents:
+        # FIXME: support whatever model/user supports
+        # right now doesn't support, just hangs for some reason
+        async_output = False
+    elif langchain_action in [LangChainAction.QUERY.value]:
         # only summarization supported
         async_output = False
     else:
@@ -3908,6 +3912,14 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
+    if LangChainAgent.SMART.value in langchain_agents:
+        # get llm for exploration
+        llm_kwargs_explore = llm_kwargs.copy()
+        llm_kwargs_explore.update(dict(do_sample=True, temperature=0.5))
+        llm_explore, _, _, _, _, _, _ = get_llm(**llm_kwargs_explore)
+    else:
+        llm_explore = None
+
     # in case change, override original prompter
     if hasattr(llm, 'prompter'):
         prompter = llm.prompter
@@ -4349,6 +4361,7 @@ def get_chain(query=None,
               # beyond run_db_query:
               llm=None,
               llm_kwargs=None,
+              llm_explore=None,
               streamer=None,
               prompt_type_out=None,
               only_new_text=None,
@@ -4422,12 +4435,12 @@ def get_chain(query=None,
         top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
 
     if LangChainAgent.SMART.value in langchain_agents:
-        # doesn't really work for non-OpenAI models, so avoid for now
-        if any([inference_server.startswith(x) for x in
-                ['openai', 'openai_azure', 'openai_chat', 'openai_azure_chat']]):
+        # doesn't really work for non-OpenAI models unless larger
+        # but allow for now any model
+        if True:
             from langchain_experimental.smart_llm import SmartLLMChain
-            ideation_llm = llm  # should use higher temp
-            critique_resolution_llm = llm  # will be used for critique and resolution as no specific llms are given
+            ideation_llm = llm_explore if llm_explore is not None else llm
+            critique_resolution_llm = llm
             prompt = PromptTemplate.from_template(query)
             chain = SmartLLMChain(
                 ideation_llm=ideation_llm,
@@ -4437,7 +4450,11 @@ def get_chain(query=None,
                 prompt=prompt,
             )
             chain_kwargs = {}
-            target = wrapped_partial(chain, chain_kwargs)
+            if async_output:
+                chain_func = chain.arun
+            else:
+                chain_func = chain
+            target = wrapped_partial(chain_func, chain_kwargs)
 
             docs = []
             scores = []
