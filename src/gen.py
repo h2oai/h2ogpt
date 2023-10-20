@@ -159,6 +159,7 @@ def main(
         h2ocolors: bool = True,
         dark: bool = False,  # light tends to be best
         height: int = 600,
+        render_markdown: bool = True,
         show_lora: bool = True,
         show_llama: bool = True,
         show_gpt4all: bool = False,
@@ -504,6 +505,8 @@ def main(
     :param h2ocolors: whether to use H2O.ai theme
     :param dark: whether to use dark mode for UI by default (still controlled in UI)
     :param height: height of chat window
+    :param render_markdown: Whether to render markdown in chatbot UI.  In some cases this distorts the rendering.
+           https://github.com/gradio-app/gradio/issues/4344#issuecomment-1771963021
     :param show_lora: whether to show LORA options in UI (expert so can be hard to understand)
     :param show_llama: whether to show LLaMa.cpp/GPT4All options in UI (only likely useful if have weak GPUs)
     :param show_gpt4all: whether to show GPT4All models in UI (not often useful, llama.cpp models best)

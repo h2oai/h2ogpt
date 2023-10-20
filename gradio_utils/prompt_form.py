@@ -10,15 +10,18 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
 
     text_outputs = []
     chat_kwargs = []
+    min_width = 250 if kwargs['gradio_size'] in ['small', 'large', 'medium'] else 160
     for model_state_locki, model_state_lock in enumerate(kwargs['model_states']):
         if os.environ.get('DEBUG_MODEL_LOCK'):
             model_name = model_state_lock["base_model"] + " : " + model_state_lock["inference_server"]
         else:
             model_name = model_state_lock["base_model"]
         output_label = f'h2oGPT [{model_name}]'
-        min_width = 250 if kwargs['gradio_size'] in ['small', 'large', 'medium'] else 160
-        chat_kwargs.append(dict(label=output_label, elem_classes='chatsmall',
-                                height=kwargs['height'] or 400, min_width=min_width,
+        chat_kwargs.append(dict(render_markdown=kwargs.get('render_markdown', True),
+                                label=output_label,
+                                elem_classes='chatsmall',
+                                height=kwargs['height'] or 400,
+                                min_width=min_width,
                                 show_copy_button=kwargs['show_copy_button'],
                                 visible=kwargs['model_lock'] and (visible_models is None or
                                                                   model_state_locki in visible_models or
@@ -101,8 +104,18 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                     continue
                 text_outputs.append(gr.Chatbot(**chat_kwargs1))
 
+    no_model_lock_chat_kwargs = dict(render_markdown=kwargs.get('render_markdown', True),
+                                     elem_classes='chatsmall',
+                                     height=kwargs['height'] or 400,
+                                     min_width=min_width,
+                                     show_copy_button=kwargs['show_copy_button'],
+                                     )
     with gr.Row():
-        text_output = gr.Chatbot(label=output_label0, visible=not kwargs['model_lock'], height=kwargs['height'] or 400)
+        text_output = gr.Chatbot(label=output_label0,
+                                 visible=not kwargs['model_lock'],
+                                 **no_model_lock_chat_kwargs,
+                                 )
         text_output2 = gr.Chatbot(label=output_label0_model2,
-                                  visible=False and not kwargs['model_lock'], height=kwargs['height'] or 400)
+                                  visible=False and not kwargs['model_lock'],
+                                  **no_model_lock_chat_kwargs)
     return text_output, text_output2, text_outputs
