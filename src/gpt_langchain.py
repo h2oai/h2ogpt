@@ -4438,6 +4438,8 @@ def get_chain(query=None,
         # doesn't really work for non-OpenAI models unless larger
         # but allow for now any model
         if True:
+            # FIXME: streams first llm if both same llm, but not final answer part
+            # FIXME: If 2 llms, then no streaming from ideation_llm, only from 2nd llm
             from langchain_experimental.smart_llm import SmartLLMChain
             ideation_llm = llm_explore if llm_explore is not None else llm
             critique_resolution_llm = llm
