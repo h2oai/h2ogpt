@@ -19,7 +19,8 @@ gen_hyper0 = ['num_beams',
               ]
 gen_hyper = ['temperature',
              'top_p',
-             'top_k'] + gen_hyper0
+             'top_k',
+             'penalty_alpha'] + gen_hyper0
 reader_names = ['image_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema']
 
 eval_func_param_names = ['instruction',

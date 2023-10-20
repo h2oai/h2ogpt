@@ -6,7 +6,8 @@ from enums import PromptType, t5_type
 
 class StoppingCriteriaSub(StoppingCriteria):
 
-    def __init__(self, stops=[], stop_words=[], encounters=[], device="cuda", model_max_length=None, tokenizer=None):
+    def __init__(self, stops=[], stop_words=[], encounters=[], device="cuda", model_max_length=None, tokenizer=None,
+                 truncation_generation=False):
         super().__init__()
         assert len(stops) % len(encounters) == 0, "Number of stops and encounters must match"
         self.encounters = encounters
@@ -15,21 +16,23 @@ class StoppingCriteriaSub(StoppingCriteria):
         self.num_stops = [0] * len(stops)
         self.model_max_length = model_max_length
         self.tokenizer = tokenizer
+        self.truncation_generation = truncation_generation
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        #if self.tokenizer:
-        #    print('stop: %s' % self.tokenizer.decode(input_ids[0]), flush=True)
+        if self.tokenizer:
+            print('stop: %s' % self.tokenizer.decode(input_ids[0]), flush=True)
         for stopi, (stop, stop_word) in enumerate(zip(self.stops, self.stop_words)):
             current_block = input_ids[0][-len(stop):]
             stop_text = self.tokenizer.decode(current_block)
             len_new_tokens = current_block.shape[0]
-            #if len(stop) <= len_new_tokens and torch.all((stop == input_ids[0][-len(stop):])).item():
+            # if len(stop) <= len_new_tokens and torch.all((stop == input_ids[0][-len(stop):])).item():
             if len(stop) <= len_new_tokens and stop_word in stop_text:
                 self.num_stops[stopi] += 1
                 if self.num_stops[stopi] >= self.encounters[stopi % len(self.encounters)]:
                     # print("Stopped", flush=True)
                     return True
-        if self.model_max_length is not None and input_ids[0].shape[0] >= self.model_max_length:
+        if self.truncation_generation and (
+                self.model_max_length is not None and input_ids[0].shape[0] >= self.model_max_length):
             # critical limit
             return True
         # print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
@@ -40,7 +43,8 @@ class StoppingCriteriaSub(StoppingCriteria):
 def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                  human='<human>:', bot="<bot>:", model_max_length=None,
                  prompter=None,
-                 stop=None):
+                 stop=None,
+                 truncation_generation=False):
     stop_words = []
     encounters = []
     # FIXME: prompt_dict unused currently
@@ -104,7 +108,6 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
         encounters = [1] * len(stop_words)
     handle_newlines = [True] * len(stop_words)
 
-
     # add other stop words too if passed, e.g. for LangChain agents
     if stop:
         stop_words += stop
@@ -145,7 +148,8 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
             [StoppingCriteriaSub(stops=stop_words_ids,
                                  stop_words=stop_words,
                                  encounters=encounters, device=device,
-                                 model_max_length=model_max_length, tokenizer=tokenizer)])
+                                 model_max_length=model_max_length, tokenizer=tokenizer,
+                                 truncation_generation=truncation_generation)])
     else:
         # nothing to stop on
         stopping_criteria = StoppingCriteriaList()

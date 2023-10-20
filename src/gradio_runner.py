@@ -1130,6 +1130,11 @@ def go_gradio(**kwargs):
                             value=kwargs['top_k'], label="Top k",
                             info='Num. tokens to sample from'
                         )
+                        penalty_alpha = gr.Slider(
+                            minimum=0.0, maximum=2.0, step=0.01,
+                            value=kwargs['penalty_alpha'], label="penalty_alpha",
+                            info='penalty_alpha>0 and top_k>1 enables contrastive search'
+                        )
                         # FIXME: https://github.com/h2oai/h2ogpt/issues/106
                         if os.getenv('TESTINGFAIL'):
                             max_beams = 8 if not (memory_restriction_level or is_public) else 1
@@ -3871,6 +3876,9 @@ def go_gradio(**kwargs):
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
             all_kwargs1['exllama_dict'] = kwargs['exllama_dict']  # no control in UI/API yet
             all_kwargs1['gptq_dict'] = kwargs['gptq_dict']  # no control in UI/API yet
+            all_kwargs1['attention_sinks'] = kwargs['attention_sinks']  # no control in UI/API yet
+            all_kwargs1['sink_dict'] = kwargs['sink_dict']  # no control in UI/API yet
+            all_kwargs1['truncation_generation'] = kwargs['truncation_generation']  # no control in UI/API yet
             all_kwargs1['max_seq_len'] = max_seq_len1
             try:
                 all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe

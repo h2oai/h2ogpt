@@ -69,6 +69,7 @@ class TextCompletionCreator:
         temperature: float = 0.1,
         top_p: float = 1.0,
         top_k: int = 40,
+        penalty_alpha: float = 0.0,
         beams: float = 1.0,
         early_stopping: bool = False,
         min_output_length: int = 0,
@@ -103,6 +104,7 @@ class TextCompletionCreator:
                 lead to hallucinations.
         :param top_p: cumulative probability of tokens to sample from
         :param top_k: number of tokens to sample from
+        :param penalty_alpha: >0 and top_k>1 enable contrastive search (not all models support)
         :param beams: Number of searches for optimal overall probability.
                 Higher values uses more GPU memory and compute.
         :param early_stopping: whether to stop early or not in beam search
@@ -227,6 +229,7 @@ class ChatCompletionCreator:
         temperature: float = 0.1,
         top_p: float = 1.0,
         top_k: int = 40,
+        penalty_alpha: float = 0.0,
         beams: float = 1.0,
         early_stopping: bool = False,
         min_output_length: int = 0,
@@ -260,6 +263,7 @@ class ChatCompletionCreator:
                 lead to hallucinations.
         :param top_p: cumulative probability of tokens to sample from
         :param top_k: number of tokens to sample from
+        :param penalty_alpha: >0 and top_k>1 enable contrastive search (not all models support)
         :param beams: Number of searches for optimal overall probability.
                 Higher values uses more GPU memory and compute.
         :param early_stopping: whether to stop early or not in beam search

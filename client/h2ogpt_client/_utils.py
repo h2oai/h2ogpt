@@ -11,6 +11,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     temperature="temperature",
     top_p="top_p",
     top_k="top_k",
+    penalty_alpha="penalty_alpha",
     num_beams="beams",
     max_new_tokens="max_output_length",
     min_new_tokens="min_output_length",

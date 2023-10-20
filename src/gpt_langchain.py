@@ -490,6 +490,7 @@ class GradioInference(H2Oagenerate, LLM):
     temperature: float = 0.8
     top_p: Optional[float] = 0.95
     top_k: Optional[int] = None
+    penalty_alpha: Optional[float] = 0.0
     num_beams: Optional[int] = 1
     max_new_tokens: int = 512
     min_new_tokens: int = 1
@@ -575,6 +576,7 @@ class GradioInference(H2Oagenerate, LLM):
                              temperature=self.temperature,
                              top_p=self.top_p,
                              top_k=self.top_k,
+                             penalty_alpha=self.penalty_alpha,
                              num_beams=self.num_beams,
                              max_new_tokens=self.max_new_tokens,
                              min_new_tokens=self.min_new_tokens,
@@ -779,8 +781,9 @@ class GradioInference(H2Oagenerate, LLM):
 class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
-    top_k: Optional[int] = None
     top_p: Optional[float] = 0.95
+    top_k: Optional[int] = None
+    penalty_alpha: Optional[float] = 0.0
     typical_p: Optional[float] = 0.95
     temperature: float = 0.8
     repetition_penalty: Optional[float] = None
@@ -828,9 +831,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         gen_server_kwargs = dict(do_sample=self.do_sample,
                                  stop_sequences=stop,
                                  max_new_tokens=self.max_new_tokens,
-                                 top_k=self.top_k,
                                  top_p=self.top_p,
+                                 top_k=self.top_k,
                                  typical_p=self.typical_p,
+                                 # penalty_alpha=self.penalty_alpha,
                                  temperature=self.temperature,
                                  repetition_penalty=self.repetition_penalty,
                                  return_full_text=self.return_full_text,
@@ -1179,6 +1183,8 @@ class H2OAzureOpenAI(AzureOpenAI):
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
     def _call(
             self,
             prompt: str,
@@ -1186,6 +1192,7 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> str:
+        self.count_input_tokens += self.get_num_tokens(prompt)
         response = self.pipeline(prompt, stop=stop)
         if self.pipeline.task == "text-generation":
             # Text generation return includes the starter text.
@@ -1203,6 +1210,7 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
             # This is a bit hacky, but I can't figure out a better way to enforce
             # stop tokens when making calls to huggingface_hub.
             text = enforce_stop_tokens(text, stop)
+        self.count_output_tokens += self.get_num_tokens(text)
         return text
 
     def get_token_ids(self, text: str) -> List[int]:
@@ -1224,8 +1232,9 @@ def get_llm(use_openai_model=False,
             num_async=3,
             do_sample=False,
             temperature=0.1,
-            top_k=40,
             top_p=0.7,
+            top_k=40,
+            penalty_alpha=0.0,
             num_beams=1,
             max_new_tokens=512,
             min_new_tokens=1,
@@ -1245,6 +1254,9 @@ def get_llm(use_openai_model=False,
             h2ogpt_key=None,
             min_max_new_tokens=None,
             max_input_tokens=None,
+            attention_sinks=None,
+            truncation_generation=None,
+
             n_jobs=None,
             cli=False,
             llamacpp_dict=None,
@@ -1472,6 +1484,7 @@ def get_llm(use_openai_model=False,
                 temperature=temperature,
                 top_p=top_p,
                 top_k=top_k,
+                penalty_alpha=penalty_alpha,
                 num_beams=num_beams,
                 max_new_tokens=max_new_tokens,
                 min_new_tokens=min_new_tokens,
@@ -1621,9 +1634,11 @@ def get_llm(use_openai_model=False,
         if do_sample:
             gen_kwargs.update(dict(temperature=temperature,
                                    top_k=top_k,
-                                   top_p=top_p))
+                                   top_p=top_p,
+                                   penalty_alpha=penalty_alpha))
             assert len(set(gen_hyper).difference(gen_kwargs.keys())) == 0
         else:
+            gen_kwargs.update(dict(penalty_alpha=penalty_alpha))
             assert len(set(gen_hyper0).difference(gen_kwargs.keys())) == 0
 
         if stream_output:
@@ -1648,6 +1663,7 @@ def get_llm(use_openai_model=False,
                                          max_input_tokens=max_input_tokens,
                                          base_model=model_name,
                                          verbose=verbose,
+                                         truncation_generation=truncation_generation,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -3653,6 +3669,7 @@ def run_qa_db(**kwargs):
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['exllama_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['gptq_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
+    kwargs['sink_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -3735,11 +3752,14 @@ def _run_qa_db(query=None,
                db=None,
                do_sample=False,
                temperature=0.1,
-               top_k=40,
                top_p=0.7,
+               top_k=40,
+               penalty_alpha=0.0,
                num_beams=1,
                max_new_tokens=512,
                min_new_tokens=1,
+               attention_sinks=False,
+               truncation_generation=False,
                early_stopping=False,
                max_time=180,
                repetition_penalty=1.0,
@@ -3860,6 +3880,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       temperature=temperature,
                       top_k=top_k,
                       top_p=top_p,
+                      penalty_alpha=penalty_alpha,
                       num_beams=num_beams,
                       max_new_tokens=max_new_tokens,
                       min_new_tokens=min_new_tokens,
@@ -3883,6 +3904,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       exllama_dict=exllama_dict,
                       cli=cli,
                       verbose=verbose,
+                      attention_sinks=attention_sinks,
+                      truncation_generation=truncation_generation,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
     # in case change, override original prompter
@@ -4018,7 +4041,8 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                             output1_old = output1
                         if time.time() - tgen0 > max_time:
                             if verbose:
-                                print("Took too long EThread for %s %s: %s" % (model_name, langchain_action, time.time() - tgen0), flush=True)
+                                print("Took too long EThread for %s %s: %s" % (
+                                model_name, langchain_action, time.time() - tgen0), flush=True)
                             break
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
@@ -4054,6 +4078,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     get_answer_args = tuple([query, docs, answer, scores, show_rank,
                              answer_with_sources,
                              append_sources_to_answer])
+    t_run = time.time() - t_run
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
@@ -4065,8 +4090,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                              if hasattr(llm, 'count_input_tokens') else None,
                              count_output_tokens=llm.count_output_tokens
                              if hasattr(llm, 'count_output_tokens') else None)
-
-    t_run = time.time() - t_run
 
     # for final yield, get real prompt used
     if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
@@ -4330,6 +4353,8 @@ def get_chain(query=None,
               docs_ordering_type=docs_ordering_types_default,
               min_max_new_tokens=256,
               max_input_tokens=-1,
+              attention_sinks=False,
+              truncation_generation=False,
               docs_token_handling=None,
               docs_joiner=None,
 
@@ -4732,7 +4757,8 @@ def get_chain(query=None,
         [x[0].metadata.update(orig_index=ii) for ii, x in enumerate(docs_with_score)]
 
         # order documents
-        doc_hashes = [x.get('doc_hash', 'None') if x.get('doc_hash', 'None') is not None else 'None' for x in db_metadatas]
+        doc_hashes = [x.get('doc_hash', 'None') if x.get('doc_hash', 'None') is not None else 'None' for x in
+                      db_metadatas]
         if query_action:
             doc_chunk_ids = [x.get('chunk_id', 0) if x.get('chunk_id', 0) is not None else 0 for x in db_metadatas]
             docs_with_score2 = [x for hx, cx, x in
@@ -4814,6 +4840,7 @@ def get_chain(query=None,
                                add_chat_history_to_context=add_chat_history_to_context,
                                min_max_new_tokens=min_max_new_tokens,
                                max_input_tokens=max_input_tokens,
+                               truncation_generation=truncation_generation,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
@@ -4861,10 +4888,11 @@ def get_chain(query=None,
         estimated_prompt_no_docs = template.format(text=prompt_basic)
         num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
 
-        max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
-        if os.getenv('HARD_ASSERTS') is not None:
-            # imperfect calculation, so will see how testing does
-            assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
+        if truncation_generation:
+            max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
+            if os.getenv('HARD_ASSERTS') is not None:
+                # imperfect calculation, so will see how testing does
+                assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text = get_llm(**llm_kwargs)
@@ -5204,12 +5232,13 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
         else:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
                 answer_sources)
-        if verbose:
+        if verbose or True:
             if int(t_run):
                 sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
             if count_input_tokens and count_output_tokens:
                 sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
                     count_input_tokens, count_output_tokens)
+        sorted_sources_urls += "Total document chunks used: %s<p>" % len(docs)
         sorted_sources_urls += f"<font size=\"{font_size}\"></ul></p>{source_postfix}</font>"
         title_overall = "Sources"
         sorted_sources_urls = f"""<details><summary><font size="{font_size}">{title_overall}</font></summary><font size="{font_size}">{sorted_sources_urls}</font></details>"""
