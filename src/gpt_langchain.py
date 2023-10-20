@@ -1345,7 +1345,7 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
         # FIXME: Will later import be ignored?  I think so, so should be fine
-        openai, inf_type, deployment_name, base_url, api_version = set_openai(inference_server)
+        openai, inf_type, deployment_name, base_url, api_version, api_key = set_openai(inference_server)
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
@@ -1363,18 +1363,12 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(
                 dict(openai_api_type='azure', system_prompt=system_prompt, chat_conversation=chat_conversation))
             # FIXME: Support context, iinput
-            if os.getenv('OPENAI_AZURE_KEY') is not None:
-                openai_api_key = os.getenv('OPENAI_AZURE_KEY')
-            else:
-                openai_api_key = openai.api_key
+            openai_api_key = openai.api_key
         elif inf_type == 'openai_azure':
             cls = H2OAzureOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
             # FIXME: Support context, iinput
-            if os.getenv('OPENAI_AZURE_KEY') is not None:
-                openai_api_key = os.getenv('OPENAI_AZURE_KEY')
-            else:
-                openai_api_key = openai.api_key
+            openai_api_key = openai.api_key
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
@@ -1391,7 +1385,7 @@ def get_llm(use_openai_model=False,
                                          async_sem=async_sem,
                                          ))
             else:
-                assert inf_type == 'openai' or use_openai_model
+                assert inf_type == 'openai' or use_openai_model, inf_type
             openai_api_key = openai.api_key
 
         if deployment_name:

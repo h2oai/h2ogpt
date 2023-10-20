@@ -1166,13 +1166,13 @@ def set_openai(inference_server):
     if inference_server.startswith('vllm'):
         import openai_vllm
         openai_vllm.api_key = "EMPTY"
-        inf_type = inference_server.split(':')[0]
+        inf_type = inference_server.split(':')[0].strip()
         ip_port_vllm = ':'.join(inference_server.split(':')[1:])
         if ip_port_vllm.startswith('https://') or ip_port_vllm.startswith('http://'):
             openai_vllm.api_base = ip_port_vllm
         else:
-            ip_vllm = inference_server.split(':')[1]
-            port_vllm = inference_server.split(':')[2]
+            ip_vllm = inference_server.split(':')[1].strip()
+            port_vllm = inference_server.split(':')[2].strip()
             openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
         return openai_vllm, inf_type, None, None, None
     else:
@@ -1183,17 +1183,26 @@ def set_openai(inference_server):
         base_url = None
         deployment_type = None
         api_version = None
-        inf_type = inference_server.split(':')[0]
+        api_key = openai.api_key
+        inf_type = inference_server.split(':')[0].strip()
         if len(inference_server.split(':')) >= 2:
-            deployment_type = inference_server.split(':')[1]
+            deployment_type = inference_server.split(':')[1].strip()
         if len(inference_server.split(':')) >= 3:
-            base_url = inference_server.split(':')[2]
+            base_url = inference_server.split(':')[2].strip()
             base_url = 'https://' + base_url
         if len(inference_server.split(':')) >= 4:
-            api_version = inference_server.split(':')[3]
-        if 'openai_azure_chat' in inference_server and api_version is None:
-            # for function tools support
-            api_version = "2023-09-01-preview"
+            api_version = inference_server.split(':')[3].strip()
+        if inference_server.startswith('openai_azure'):
+            if api_version in ['None', None]:
+                # for function tools support
+                api_version = "2023-09-01-preview"
+            if os.getenv('OPENAI_AZURE_KEY') is not None:
+                # use this instead if exists
+                openai.api_key = api_key = os.getenv('OPENAI_AZURE_KEY')
+        if len(inference_server.split(':')) >= 5:
+            api_key0 = inference_server.split(':')[4].strip()
+            if api_key0 not in ['None', None]:
+                openai.api_key = api_key = api_key0
 
         if deployment_type == 'None':
             deployment_type = None
@@ -1201,7 +1210,7 @@ def set_openai(inference_server):
             base_url = None
         if base_url == 'None':
             base_url = None
-        return openai, inf_type, deployment_type, base_url, api_version
+        return openai, inf_type, deployment_type, base_url, api_version, api_key
 
 
 def get_list_or_str(x):
