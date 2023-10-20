@@ -4071,6 +4071,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                              if hasattr(llm, 'count_output_tokens') else None)
 
     t_run = time.time() - t_run
+    get_answer_kwargs.update(dict(t_run=t_run))
 
     # for final yield, get real prompt used
     if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
