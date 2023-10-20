@@ -125,7 +125,9 @@ You can set `--auto_migrate_db=False` and manually migrate databases by doing th
 
 ### Adding Models
 
-You can choose any Hugging Face model or quantized GGML model file in h2oGPT.
+You can choose any Hugging Face model or quantized GGML model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).
+
+#### Hugging Face
 
 Hugging Face models are passed via `--base_model` in all cases, with an extra `--load_gptq` for GPTQ models or an extra `--load_awq` for AWQ models, e.g., by [TheBloke](https://huggingface.co/TheBloke). For example, for AutoGPTQ:
 ```bash
@@ -136,12 +138,23 @@ and in some cases one has to disable certain features that are not automatically
 CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Xwin-LM-13B-v0.2-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=xwin --langchain_mode=UserData --score_model=None --share=False --gradio_offline_level=1 --gptq_dict="{'disable_exllama': True}"
 ```
 
-For AWQ models:
+Attention sinks is supported, like:
+```
+git clone https://github.com/tomaarsen/attention_sinks.git
+python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096
+```
+One can increase `--max_seq_len=4096` for Mistral up to maximum of 32768 if GPU has enough memory, or reduce to lower memory needs from input itself, but still get efficient generation of new tokens "without limit".  One can also set `--min_new_tokens` on CLI or in UI to some larger value, but this is risky as it ignores end of sentence token and may do poorly after.  Better to improve prompt, and this is most useful when already consumed context with input from documents (e.g. `top_k_docs=-1`) and still want long generation.  Attention sinks is not yet supported for llama.cpp type models or vLLM/TGI inference servers.
+
+
+#### AWQ
+
+New quantized AWQ chose good quality, e.g. 70B LLaMa-2 16-bit or AWQ does comparable for many retrieval tasks.
+
 ```bash
 python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model --use_safetensors=True --prompt_type=llama2
 ```
 
-Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).
+#### GGML
 
 GGML v3 quantized models are supported, and [TheBloke](https://huggingface.co/TheBloke) also has many of those, e.g.
 ```bash
@@ -154,17 +167,7 @@ python generate.py --base_model=llama --model_path_llama=https://huggingface.co/
 ```
 for any TheBloke GGML v3 models.
 
-GPT4All models are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder). For example:
-```bash
-python generate.py --base_model=gptj --model_name_gptj=ggml-gpt4all-j-v1.3-groovy.bin
-```
-for GPTJ models (also downloaded automatically):
-```bash
-python generate.py --base_model=gpt4all_llama --model_name_gpt4all_llama=ggml-wizardLM-7B.q4_2.bin
-```
-for GPT4All LLaMa models.
-
-For more information on controlling these parameters, see [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md).
+#### GGUF
 
 For GGUF model support or CPU llama.cpp support, see [README_LINUX.md](README_LINUX.md) or [README_WINDOWS.md](README_WINDOWS.md) for uninstalling GGML package in favor of GGUF.  As complete example, here is for GPU and CPU using GGUF model.
 
@@ -185,6 +188,21 @@ CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistra
 Similarly version of llama cpp python package selects support for GGMLv3 vs. GGUF.  Later versions of llama_cpp_python than shown here may not be supported in h2oGPT, that is untested.
 
 [Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
+
+
+#### GPT4All
+
+GPT4All models are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder). For example:
+```bash
+python generate.py --base_model=gptj --model_name_gptj=ggml-gpt4all-j-v1.3-groovy.bin
+```
+for GPTJ models (also downloaded automatically):
+```bash
+python generate.py --base_model=gpt4all_llama --model_name_gpt4all_llama=ggml-wizardLM-7B.q4_2.bin
+```
+for GPT4All LLaMa models.
+
+For more information on controlling these parameters, see [README_CPU.md](README_CPU.md) and [README_GPU.md](README_GPU.md).
 
 ### Adding Prompt Templates
 
