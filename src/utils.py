@@ -1174,7 +1174,7 @@ def set_openai(inference_server):
             ip_vllm = inference_server.split(':')[1].strip()
             port_vllm = inference_server.split(':')[2].strip()
             openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
-        return openai_vllm, inf_type, None, None, None
+        return openai_vllm, inf_type, None, None, None, openai_vllm.api_key
     else:
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")
