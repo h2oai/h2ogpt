@@ -262,6 +262,7 @@ def main(
         prompt_query: str = None,
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
+        doc_json_mode: bool = False,
         add_chat_history_to_context: bool = True,
         add_search_to_context: bool = False,
         context: str = '',
@@ -682,6 +683,7 @@ def main(
            For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+    :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama for GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
@@ -2347,6 +2349,7 @@ def evaluate(
         sink_dict=None,
         truncation_generation=None,
         hf_model_dict=None,
+        doc_json_mode=None,
 
         load_exllama=None,
         answer_with_sources=None,
@@ -2705,6 +2708,7 @@ def evaluate(
                 truncation_generation=truncation_generation,
                 hf_model_dict=hf_model_dict,
 
+                doc_json_mode=doc_json_mode,
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
                 total_tokens_for_docs=total_tokens_for_docs,

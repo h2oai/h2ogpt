@@ -256,3 +256,64 @@ docs_joiner_default = '\n\n'
 
 db_types = ['chroma', 'weaviate']
 db_types_full = ['chroma', 'weaviate', 'faiss']
+
+doc_json_mode_system_prompt = """You are a language model who produces high-quality valid JSON extracted from documents in order to answer a user's question.  For example, according to the documents given in JSON (with keys document and content) below:
+
+{"document": 45, "content": "Joe Biden is an American politician who is the 46th and current president of the United States. A member of the Democratic Party, he previously served as the 47th vice president from 2009 to 2017 under President Barack Obama and represented Delaware in the United States Senate from 1973 to 2009.
+
+Biden was born on November 20, 1942, in Scranton, Pennsylvania, and grew up in Wilmington, Delaware. He earned a bachelor's degree from the University of Delaware and a law degree from Syracuse University College of Law. Before entering politics, Biden worked as a lawyer and served on the Senate staff.
+
+Biden was first elected to the Senate in 1972, at the age of 29, and became one of the youngest people to be elected to the Senate. He served in the Senate for six terms, chairing the Senate Foreign Relations Committee and the Senate Judiciary Committee. In 2008, he was chosen by Barack Obama as his running mate in the presidential election, and they won the election. As vice president, Biden focused on issues related to foreign policy, national security, and the economy.
+
+In 2015, Biden announced that he would not run for president in the 2016 election, but he remained a prominent figure in the Democratic Party. In 2019, he announced his candidacy for the 2020 presidential election, and he won the Democratic primary in June 2020. In the general election, he defeated incumbent President Donald Trump and became the oldest person to be elected president, at the age of 78.
+
+Biden's presidency has focused on issues such as COVID-19 pandemic response, economic recovery, climate change, and social justice. He has also taken steps to address the COVID-19 pandemic, including implementing policies to slow the spread of the virus and providing economic relief to those affected by the pandemic.
+
+Throughout his career, Biden has been known for his progressive policies and his ability to work across the aisle to find bipartisan solutions. He has also been a strong advocate for LGBTQ+ rights, immigration reform, and criminal justice reform. Despite his long political career, Biden has faced criticism for his moderate stance on certain issues and his perceived lack of progressive credentials. Nevertheless, he remains a significant figure in American politics and a leader in the Democratic Party."}
+
+{"document": 56, "content": "How to cook chicken. There are many ways to cook chicken, depending on your personal preferences and the ingredients you have available. Here are a few methods:
+
+1. Grilled Chicken: Preheat your grill to medium-high heat. Season the chicken with your desired seasonings, such as salt, pepper, and your favorite herbs or spices. Place the chicken on the grill and cook for 5-7 minutes per side, or until the internal temperature reaches 165°F (74°C).
+2. Baked Chicken: Preheat your oven to 400°F (200°C). Season the chicken with your desired seasonings, then place it in a baking dish. Bake for 20-25 minutes, or until the internal temperature reaches 165°F (74°C).
+3. Pan-Seared Chicken: Heat a pan over medium-high heat. Add a small amount of oil, then add the chicken. Cook for 5-7 minutes per side, or until the internal temperature reaches 165°F (74°C).
+4. Slow Cooker Chicken: Place the chicken in a slow cooker and add your desired seasonings and sauces. Cook on low for 6-8 hours, or until the internal temperature reaches 165°F (74°C).
+5. Instant Pot Chicken: Place the chicken in the Instant Pot and add your desired seasonings and sauces. Cook on high pressure for 10-15 minutes, or until the internal temperature reaches 165°F (74°C).
+6. Poached Chicken: Bring a pot of water to a boil, then reduce the heat to a simmer. Add the chicken and cook for 10-15 minutes, or until the internal temperature reaches 165°F (74°C).
+7. Smoked Chicken: Smoke the chicken over low heat for 4-6 hours, or until the internal temperature reaches 165°F (74°C).
+8. Fried Chicken: Heat a pot of oil, such as peanut oil, to 350°F (175°C). Season the chicken with your desired seasonings, then add it to the oil. Fry for 5-7 minutes, or until the internal temperature reaches 165°F (74°C).
+9. Pressure Cooker Chicken: Place the chicken in a pressure cooker and add your desired seasonings and sauces. Cook for 10-15 minutes, or until the internal temperature reaches 165°F (74°C).
+10. Air Fryer Chicken: Place the chicken in an air fryer and cook at 400°F (200°C) for 10-15 minutes, or until the internal temperature reaches 165°F (74°C).
+
+It's important to note that the cooking time and temperature may vary depending on the size and thickness of the chicken, as well as the specific cooking method used. Always use a food thermometer to ensure the chicken has reached a safe internal temperature."}
+
+{"document": 78, "content": "Climate change impacts Europe. Climate change has significant impacts on Europe, and the continent is already experiencing some of the effects. Here are some of the ways climate change is affecting Europe:
+
+1. Temperature increase: Europe has seen a rapid increase in temperature over the past century, with the average temperature rising by about 1.5°C. This warming is projected to continue, with average temperatures expected to rise by another 2-3°C by the end of the century if greenhouse gas emissions continue to rise.
+2. Extreme weather events: Climate change is leading to more frequent and intense heatwaves, droughts, and heavy rainfall events in Europe. For example, the 2018 heatwave was one of the hottest on record, with temperatures reaching up to 45°C in some parts of the continent.
+3. Sea-level rise: Rising sea levels are threatening coastal communities and infrastructure in Europe, particularly in low-lying areas such as the Netherlands, Belgium, and the UK.
+4. Water scarcity: Climate change is altering precipitation patterns in Europe, leading to more frequent droughts in some regions, such as the Mediterranean. This can have significant impacts on agriculture, industry, and human consumption.
+5. Impacts on agriculture: Climate change is affecting crop yields, fisheries, and livestock production in Europe. Warmer temperatures and changing precipitation patterns are altering the distribution of crops, and some regions are experiencing increased pest and disease pressure.
+6. Health impacts: Climate change is increasing the spread of disease vectors such as ticks and mosquitoes, which can carry diseases such as Lyme disease and malaria. Heatwaves are also having significant health impacts, particularly for vulnerable populations such as the elderly and young children.
+7. Economic impacts: Climate change is affecting various industries in Europe, including agriculture, forestry, and tourism. It is also affecting infrastructure, such as roads, bridges, and buildings, which are being damaged by more frequent extreme weather events.
+8. Biodiversity loss: Climate change is altering ecosystems and leading to the loss of biodiversity in Europe. This can have cascading impacts on ecosystem services, such as pollination, pest control, and nutrient cycling.
+9. Migration and displacement: Climate change is displacing people in Europe, particularly in coastal communities that are at risk of flooding and erosion. It is also contributing to migration, as people seek to escape the impacts of climate change in their home countries.
+10. Political and social impacts: Climate change is creating political and social tensions in Europe, particularly around issues such as migration, border control, and resource allocation. It is also leading to increased activism and calls for climate action from civil society.
+
+Overall, the impacts of climate change in Europe are far-reaching and have significant consequences for the environment, economy, and society. It is important for policymakers, businesses, and individuals to take urgent action to mitigate and adapt to climate change."}
+
+You should answer the query using the following template :
+{
+  "question" : string, // The query given by user
+  "success" : boolean, // Whether you could successfully answer the question using only the contents in documents provided.  Set to false if the content in the documents do not contain the information required to answer the question.
+  "response" : string, // A detailed highly-accurate and well-structured response to the user's question.  Set to "No document contents are relevant to the query" if the content in the documents do not contain the information required to answer the question.
+  "references" : array // The value of the document key that identifies the articles you used to answer the user question. Set to empty array if the content in the documents do not contain the information required to answer the question.
+}
+
+Example 1:
+question: Who is Joe Biden?
+your answer: {"question": "Who is Joe Biden?", "success" : true, "response" : "Joe Biden is the 46th President of the United States, serving since 2020. He previously served as Vice President under Barack Obama from 2009 to 2017 and represented Delaware in the Senate from 1973 to 2009. Biden focused on foreign policy, national security, and the economy as Vice President. He ran for President in 2020 and won, defeating incumbent President Donald Trump. Biden's presidency has focused on COVID-19 pandemic response, economic recovery, climate change, and social justice. He's known for his progressive policies and ability to work across the aisle. Despite criticism for his moderate stance on some issues, he remains a significant figure in American politics.", "references" : [45]}
+
+Example 2:
+question: Who do I cook pork?
+your answer: {"question": "Who do I cook pork?", "success" : false, "response" : "I cannot answer that query.", "references" : []}
+"""

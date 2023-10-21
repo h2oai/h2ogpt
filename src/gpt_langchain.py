@@ -54,7 +54,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db, openai_supports_functiontools, \
-    does_support_functiontools
+    does_support_functiontools, doc_json_mode_system_prompt
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -3789,6 +3789,8 @@ def _run_qa_db(query=None,
                verbose=False,
                cli=False,
                lora_weights='',
+
+               doc_json_mode=False,
                auto_reduce_chunks=True,
                max_chunks=100,
                total_tokens_for_docs=None,
@@ -3868,6 +3870,9 @@ Once satisfied that the thoughts, responses are sufficient to answer the questio
 Respond to prompt of Final Answer with your final high-quality bullet list answer to the original query.
 """
         prompter.system_prompt = system_prompt
+
+    if doc_json_mode:
+        prompter.system_prompt = system_prompt = doc_json_mode_system_prompt
 
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
@@ -4381,6 +4386,7 @@ def get_chain(query=None,
               gradio_server=False,
 
               # local
+              doc_json_mode=False,
               auto_reduce_chunks=True,
               max_chunks=100,
               total_tokens_for_docs=None,
@@ -4679,7 +4685,8 @@ def get_chain(query=None,
                      langchain_action,
                      True,  # just to overestimate prompting
                      auto_reduce_chunks,
-                     add_search_to_context)
+                     add_search_to_context,
+                     doc_json_mode)
 
     # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
     # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
@@ -5010,7 +5017,14 @@ def get_chain(query=None,
                      langchain_action,
                      got_any_docs,
                      auto_reduce_chunks,
-                     add_search_to_context)
+                     add_search_to_context,
+                     doc_json_mode)
+
+    if doc_json_mode:
+        # make copy so don't change originals
+        docs = [Document(page_content=json.dumps(dict(document=xi, content=x.page_content)),
+                         metadata=copy.deepcopy(x.metadata) or {})
+                for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
         if use_template:
@@ -5158,7 +5172,16 @@ def get_template(query, iinput,
                  langchain_action,
                  got_any_docs,
                  auto_reduce_chunks,
-                 add_search_to_context):
+                 add_search_to_context,
+                 doc_json_mode):
+    triple_quotes = """
+\"\"\"
+"""
+
+    if doc_json_mode:
+        prompt_query = pre_prompt_query = prompt_summary = pre_prompt_summary = ''
+        triple_quotes = '\n\n'
+
     if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
@@ -5180,11 +5203,8 @@ def get_template(query, iinput,
         if not got_any_docs:
             template_if_no_docs = template = """{context}{question}"""
         else:
-            template = """%s
-\"\"\"
-{context}
-\"\"\"
-%s{question}""" % (pre_prompt_query, prompt_query)
+            template = """%s%s{context}%s%squestion: {question}""" % (
+            triple_quotes, pre_prompt_query, triple_quotes, prompt_query)
             template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
@@ -5201,10 +5221,7 @@ def get_template(query, iinput,
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
-        template = """%s:
-\"\"\"
-%s
-\"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
+        template = """%s:%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
