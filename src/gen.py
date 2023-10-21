@@ -1297,6 +1297,9 @@ def main(
                 model0, tokenizer0, device = get_model(reward_type=False,
                                                        **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                     **all_kwargs))
+                # update model state
+                if hasattr(tokenizer0, 'model_max_length'):
+                    model_dict['max_seq_len'] = tokenizer0.model_max_length
             else:
                 # if empty model, then don't load anything, just get gradio up
                 model0, tokenizer0, device = None, None, None
@@ -1333,6 +1336,8 @@ def main(
         # This is just so UI shows reasonable correct value, not 2048 dummy value
         if len(model_states) >= 1:
             max_seq_len = model_states[0]['tokenizer'].model_max_length
+        elif model_state0 is not None:
+            max_seq_len = model_state0['tokenizer'].model_max_length
 
         # get score model
         all_kwargs = locals().copy()

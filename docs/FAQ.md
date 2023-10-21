@@ -123,6 +123,13 @@ You can set `--auto_migrate_db=False` and manually migrate databases by doing th
 * Choose "Files I can use ..."
 * Choose your collection path, e.g. `db_dir_UserData` for collection name `UserData`
 
+### Model Usage Notes
+
+* [amazon/MistralLite](https://huggingface.co/amazon/MistralLite)
+  *  Use `--max_seq_len=16384` or smaller, larger fails to handle when context used like summarization
+* [mistralai/Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)
+  *  Use `--max_seq_len=4096` or smaller, but does well even with 32k in some cases query with many chunks in context
+
 ### Adding Models
 
 You can choose any Hugging Face model or quantized GGML model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).

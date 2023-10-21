@@ -392,6 +392,18 @@ def query_or_summarize(instruction: str = '',
 See tests in https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py#L678-L1036 that this code is based upon.
 
 
+##### Listing models
+
+```python
+>>> from gradio_client import Client
+>>> client = Client('http://localhost:7860')
+Loaded as API: http://localhost:7860/ ✔
+>>> import ast
+>>> res = client.predict(api_name='/model_names')
+>>> {x['base_model']: x['max_seq_len'] for x in ast.literal_eval(res)}
+{'h2oai/h2ogpt-4096-llama2-70b-chat': 4046, 'lmsys/vicuna-13b-v1.5-16k': 16334, 'mistralai/Mistral-7B-Instruct-v0.1': 4046, 'gpt-3.5-turbo-0613': 4046, 'gpt-3.5-turbo-16k-0613': 16335, 'gpt-4-0613': 8142, 'gpt-4-32k-0613': 32718}
+```
+
 ##### OpenAI Python Client Library
 
 An OpenAI compliant client is available. Refer the [README](../client/README.md)  for more details.

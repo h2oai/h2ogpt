@@ -4134,7 +4134,13 @@ def go_gradio(**kwargs):
             key_list = ['base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
-            return [{k: x[k] for k in key_list if k in x} for x in model_states]
+            if len(model_states) >= 1:
+                local_model_states = model_states
+            elif model_state0 is not None:
+                local_model_states = [model_state0]
+            else:
+                local_model_states = []
+            return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,
                                               outputs=system_text4,

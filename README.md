@@ -150,6 +150,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [LangChain file types supported](docs/README_LangChain.md#supported-datatypes)
    * [CLI Database control](docs/README_LangChain.md#database-creation)
    * [FAQ](docs/FAQ.md)
+     * [Model Usage Notes](docs/FAQ.md#model-usage-notes)
      * [Adding LLM Models (including using GGUF and Attention Sinks)](docs/FAQ.md#adding-models)
      * [Adding Embedding Models](docs/FAQ.md#add-new-embedding-model)
      * [Adding Prompts](docs/FAQ.md#adding-prompt-templates)
