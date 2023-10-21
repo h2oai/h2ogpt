@@ -104,6 +104,7 @@ def main(
         attention_sinks: bool = False,
         sink_dict: typing.Dict = dict(),
         truncation_generation: bool = False,
+        hf_model_dict: typing.Dict = dict(),
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -415,6 +416,7 @@ def main(
     :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
          git clone https://github.com/tomaarsen/attention_sinks.git
     :param sink_dict: dict of options for attention sinks
+    :param hf_model_dict: dict of options for HF models using transformers
 
     :param truncation_generation: Whether (for torch) to terminate generation once reach context length of model.
             For some models, perplexity becomes critically large beyond context
@@ -793,6 +795,7 @@ def main(
     exllama_dict = str_to_dict(exllama_dict)
     gptq_dict = str_to_dict(gptq_dict)
     sink_dict = str_to_dict(sink_dict)
+    hf_model_dict = str_to_dict(hf_model_dict)
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
@@ -1193,6 +1196,7 @@ def main(
                                       attention_sinks=attention_sinks,
                                       sink_dict=sink_dict,
                                       truncation_generation=truncation_generation,
+                                      hf_model_dict=hf_model_dict,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, tokenizer_base_model=None, lora_weights=None,
@@ -1661,6 +1665,7 @@ def get_model(
         attention_sinks=None,
         sink_dict=None,
         truncation_generation=None,
+        hf_model_dict=None,
 
         verbose: bool = False,
 ):
@@ -1700,6 +1705,7 @@ def get_model(
     :param attention_sinks: whether to use attention_sinks package
     :param sink_dict: dict of attention sinks options
     :param truncation_generation: whether to truncate generation in torch case to max_seq_len
+    :param hf_model_dict
     :param verbose:
     :return:
     """
@@ -1741,7 +1747,8 @@ def get_model(
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
                     attention_sinks=attention_sinks, sink_dict=sink_dict,
-                    truncation_generation=truncation_generation))
+                    truncation_generation=truncation_generation,
+                    hf_model_dict=hf_model_dict))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -1859,6 +1866,7 @@ def get_model(
                         attention_sinks=attention_sinks,
                         sink_dict=sink_dict,
                         truncation_generation=truncation_generation,
+                        hf_model_dict=hf_model_dict,
 
                         verbose=verbose)
 
@@ -1893,6 +1901,7 @@ def get_hf_model(load_8bit: bool = False,
                  attention_sinks=None,
                  sink_dict=None,
                  truncation_generation=None,
+                 hf_model_dict=None,
 
                  verbose: bool = False,
                  ):
@@ -1921,7 +1930,8 @@ def get_hf_model(load_8bit: bool = False,
                     load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
                     attention_sinks=attention_sinks, sink_dict=sink_dict,
-                    truncation_generation=truncation_generation))
+                    truncation_generation=truncation_generation,
+                    hf_model_dict=hf_model_dict))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
 
@@ -2185,6 +2195,7 @@ def get_score_model(score_model: str = None,
                     attention_sinks: bool = False,
                     sink_dict: typing.Dict = None,
                     truncation_generation: bool = False,
+                    hf_model_dict: typing.Dict = None,
 
                     verbose: bool = False,
                     ):
@@ -2212,6 +2223,7 @@ def get_score_model(score_model: str = None,
         attention_sinks = False
         sink_dict = {}
         truncation_generation = False
+        hf_model_dict = {}
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -2334,6 +2346,7 @@ def evaluate(
         attention_sinks=None,
         sink_dict=None,
         truncation_generation=None,
+        hf_model_dict=None,
 
         load_exllama=None,
         answer_with_sources=None,
@@ -2690,6 +2703,7 @@ def evaluate(
                 attention_sinks=attention_sinks,
                 sink_dict=sink_dict,
                 truncation_generation=truncation_generation,
+                hf_model_dict=hf_model_dict,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,

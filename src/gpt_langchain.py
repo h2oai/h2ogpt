@@ -3669,6 +3669,7 @@ def run_qa_db(**kwargs):
     kwargs['exllama_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['gptq_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['sink_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
+    kwargs['hf_model_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used

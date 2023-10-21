@@ -127,6 +127,10 @@ You can set `--auto_migrate_db=False` and manually migrate databases by doing th
 
 * [amazon/MistralLite](https://huggingface.co/amazon/MistralLite)
   *  Use `--max_seq_len=16384` or smaller, larger fails to handle when context used like summarization
+  * ```bash
+    pip install flash-attn==2.3.1.post1 --no-build-isolation
+    python generate.py --hf_model_dict="{'use_flash_attention_2': True}" --base_model=amazon/MistralLite --max_seq_len=16384
+    ```
 * [mistralai/Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)
   *  Use `--max_seq_len=4096` or smaller, but does well even with 32k in some cases query with many chunks in context
 

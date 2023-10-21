@@ -321,6 +321,9 @@ Falcon:"""
 prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market? ASSISTANT:"""
 
 
+prompt_mistrallite = """<|prompter|>Go to the market?</s><|assistant|>"""
+
+
 def get_mistral_prompt():
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
@@ -349,6 +352,7 @@ def get_mistral_prompt():
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
                              ('mistral', '', get_mistral_prompt()),
                              ('xwin', '', prompt_xwin1),
+                             ('mistrallite', '', prompt_mistrallite),
                          ]
                          )
 @wrap_test_forked

@@ -10,6 +10,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
                 exllama_dict=None, gptq_dict=None,
                 attention_sinks=None, sink_dict=None,
                 truncation_generation=None,
+                hf_model_dict=None,
                 ):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
@@ -109,31 +110,31 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
             return model_loader, LlamaTokenizer, False
         else:
             from transformers import LlamaForCausalLM, LlamaTokenizer
-            return LlamaForCausalLM.from_pretrained, LlamaTokenizer, False
+            return functools.partial(LlamaForCausalLM.from_pretrained, **hf_model_dict), LlamaTokenizer, False
     elif 'distilgpt2' in model_name.lower():
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        return AutoModelForCausalLM.from_pretrained, AutoTokenizer, False
+        return functools.partial(AutoModelForCausalLM.from_pretrained, **hf_model_dict), AutoTokenizer, False
     elif 'gpt2' in model_name.lower():
         from transformers import GPT2LMHeadModel, GPT2Tokenizer
-        return GPT2LMHeadModel.from_pretrained, GPT2Tokenizer, False
+        return functools.partial(GPT2LMHeadModel.from_pretrained, **hf_model_dict), GPT2Tokenizer, False
     elif 'mbart-' in model_name.lower():
         from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
-        return MBartForConditionalGeneration.from_pretrained, MBart50TokenizerFast, True
+        return functools.partial(MBartForConditionalGeneration.from_pretrained, **hf_model_dict), MBart50TokenizerFast, True
     elif t5_type(model_name):
         from transformers import AutoTokenizer, T5ForConditionalGeneration
-        return T5ForConditionalGeneration.from_pretrained, AutoTokenizer, True
+        return functools.partial(T5ForConditionalGeneration.from_pretrained, **hf_model_dict), AutoTokenizer, True
     elif 'bigbird' in model_name:
         from transformers import BigBirdPegasusForConditionalGeneration, AutoTokenizer
-        return BigBirdPegasusForConditionalGeneration.from_pretrained, AutoTokenizer, True
+        return functools.partial(BigBirdPegasusForConditionalGeneration.from_pretrained, **hf_model_dict), AutoTokenizer, True
     elif 'bart-large-cnn-samsum' in model_name or 'flan-t5-base-samsum' in model_name:
         from transformers import pipeline
         return pipeline, "summarization", False
     elif reward_type or 'OpenAssistant/reward-model'.lower() in model_name.lower():
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
-        return AutoModelForSequenceClassification.from_pretrained, AutoTokenizer, False
+        return functools.partial(AutoModelForSequenceClassification.from_pretrained, **hf_model_dict), AutoTokenizer, False
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
-        model_loader = AutoModelForCausalLM
+        model_loader = functools.partial(AutoModelForCausalLM.from_pretrained, **hf_model_dict)
         tokenizer_loader = AutoTokenizer
 
         if attention_sinks:
@@ -145,7 +146,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
                                              **sink_dict)
             return model_loader, tokenizer_loader, False
 
-        return model_loader.from_pretrained, tokenizer_loader, False
+        return model_loader, tokenizer_loader, False
 
 
 def get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resume_download, use_auth_token):
