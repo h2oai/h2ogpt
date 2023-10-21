@@ -5022,7 +5022,7 @@ def get_chain(query=None,
 
     if doc_json_mode:
         # make copy so don't change originals
-        docs = [Document(page_content=json.dumps(dict(document=xi, content=x.page_content)),
+        docs = [Document(page_content=json.dumps(dict(ID=xi, content=x.page_content)),
                          metadata=copy.deepcopy(x.metadata) or {})
                 for xi, x in enumerate(docs)]
 

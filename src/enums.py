@@ -257,7 +257,7 @@ docs_joiner_default = '\n\n'
 db_types = ['chroma', 'weaviate']
 db_types_full = ['chroma', 'weaviate', 'faiss']
 
-doc_json_mode_system_prompt = """You are a language model who produces high-quality valid JSON extracted from documents in order to answer a user's question.  For example, according to the documents given in JSON (with keys document and content) below:
+doc_json_mode_system_prompt0 = """You are a language model who produces high-quality valid JSON extracted from documents in order to answer a user's question.  For example, according to the documents given in JSON (with keys document and content) below:
 
 {"document": 45, "content": "Joe Biden is an American politician who is the 46th and current president of the United States. A member of the Democratic Party, he previously served as the 47th vice president from 2009 to 2017 under President Barack Obama and represented Delaware in the United States Senate from 1973 to 2009.
 
@@ -309,11 +309,22 @@ You should answer the query using the following template :
   "references" : array // The value of the document key that identifies the articles you used to answer the user question. Set to empty array if the content in the documents do not contain the information required to answer the question.
 }
 
-Example 1:
-question: Who is Joe Biden?
-your answer: {"question": "Who is Joe Biden?", "success" : true, "response" : "Joe Biden is the 46th President of the United States, serving since 2020. He previously served as Vice President under Barack Obama from 2009 to 2017 and represented Delaware in the Senate from 1973 to 2009. Biden focused on foreign policy, national security, and the economy as Vice President. He ran for President in 2020 and won, defeating incumbent President Donald Trump. Biden's presidency has focused on COVID-19 pandemic response, economic recovery, climate change, and social justice. He's known for his progressive policies and ability to work across the aisle. Despite criticism for his moderate stance on some issues, he remains a significant figure in American politics.", "references" : [45]}
+For example, if user gives question "Who is Joe Biden?", then you would respond back with: {"question": "Who is Joe Biden?", "success" : true, "response" : "Joe Biden is the 46th President of the United States, serving since 2020. He previously served as Vice President under Barack Obama from 2009 to 2017 and represented Delaware in the Senate from 1973 to 2009. Biden focused on foreign policy, national security, and the economy as Vice President. He ran for President in 2020 and won, defeating incumbent President Donald Trump. Biden's presidency has focused on COVID-19 pandemic response, economic recovery, climate change, and social justice. He's known for his progressive policies and ability to work across the aisle. Despite criticism for his moderate stance on some issues, he remains a significant figure in American politics.", "references" : [45]}
+Or for example, if user gives question "Who do I cook pork?", then you would respond back with: {"question": "Who do I cook pork?", "success" : false, "response" : "I cannot answer that query.", "references" : []}
 
-Example 2:
-question: Who do I cook pork?
-your answer: {"question": "Who do I cook pork?", "success" : false, "response" : "I cannot answer that query.", "references" : []}
+Ensure the question, success, and references are accurately and precisely determined, and check your work in step-by-step manner.  Always respond back in valid JSON following these examples.
+"""
+
+
+doc_json_mode_system_prompt = """You are a language model who produces high-quality valid JSON extracted from documents in order to answer a user's question.
+
+You should answer the question using the following valid JSON template:
+{
+  "question" : string, // The query given by user
+  "response" : string, // A detailed highly-accurate and well-structured response to the user's question.  Set to "No document contents are relevant to the query" if the content in the documents do not contain the information required to answer the question.
+  "justification" : string, // A justification for the response according to the documents.  If the response appears to be unjustified, according to the documents, then say "none".
+  "success" : boolean, // Given the question, response, and justification, decide if the retrieval was successful. Only set to true if the response answers the question according to the documents.  Set to false if the response appears to be unjustified according to the documents.
+  "references" : numeric array // IDs for up to 3 most relevant documents that the justification mentioned and response answered according to the documents. Set to empty array if the response does not answer the question according to the documents or the justification is not according to the documents.
+  "accuracy" : integer, // Given the question, response, justification, references, and original document contents, give a score of 0 through 10 for how accurately the response answered the question accounting for how well it follows from the documents.  10 means the justification perfectly explains the response and is according to the documents.  5 means the justification appears valid but may require verification.  0 means the justification does not match the response according to the documents.
+}
 """
