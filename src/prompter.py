@@ -125,6 +125,7 @@ prompt_type_to_model_name = {
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
     "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
+    "mistrallite": ['amazon/MistralLite'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -817,6 +818,23 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = PreResponse
         if making_context:
             PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.mistrallite.value, str(PromptType.mistrallite.value),
+                         PromptType.mistrallite.name]:
+        # From added_tokens.json
+        preprompt = ''
+        prompt_tokens = "<|prompter|>"
+        answer_tokens = "<|assistant|>"
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = prompt_tokens
+        PreInput = None
+        PreResponse = answer_tokens
+        pend = "<|prefix_end|>"
+        eos = "</s>"
+        humanstr = prompt_tokens
+        botstr = answer_tokens
+        terminate_response = [humanstr, PreResponse, pend, eos]
+        chat_turn_sep = chat_sep = eos
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
