@@ -115,6 +115,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-16k-codellama-7b-instruct',
         'h2oai/h2ogpt-16k-codellama-13b-instruct',
         'h2oai/h2ogpt-16k-codellama-34b-instruct',
+        'h2oai/h2ogpt-32k-codellama-34b-instruct',
         'TheBloke/Llama-2-70B-chat-AWQ',
         'h2oai/h2ogpt-4096-llama2-70b-chat-4bit',
         'TheBloke/Llama-2-70B-chat-AWQ',
