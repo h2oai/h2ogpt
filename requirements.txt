@@ -66,9 +66,6 @@ text-generation==0.6.0
 # for tokenization when don't have HF tokenizer
 tiktoken==0.4.0
 
-# for rayWorker in vllm to run as non-root
-gputil==1.4.0
-
 requests>=2.31.0
 urllib3>=1.26.16
 filelock>=3.12.2

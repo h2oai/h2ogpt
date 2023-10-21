@@ -93,6 +93,7 @@ print('Done!')
 "
 
 # Install vllm
+# gputil is for rayWorker in vllm to run as non-root
 export VLLM_CACHE=/workspace/.vllm_cache
 cd /h2ogpt_conda && python -m venv vllm_env --system-site-packages
 sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
@@ -110,7 +111,7 @@ sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     find openai_vllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g' && \
     cd /h2ogpt_conda && \
     python -m venv vllm_env --system-site-packages && \
-    /h2ogpt_conda/vllm_env/bin/python -m pip install vllm ray pandas --extra-index-url https://download.pytorch.org/whl/cu118 && \
+    /h2ogpt_conda/vllm_env/bin/python -m pip install vllm ray pandas gputil==1.4.0 --extra-index-url https://download.pytorch.org/whl/cu118 && \
     mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
