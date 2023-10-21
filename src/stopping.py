@@ -19,8 +19,8 @@ class StoppingCriteriaSub(StoppingCriteria):
         self.truncation_generation = truncation_generation
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        if self.tokenizer:
-            print('stop: %s' % self.tokenizer.decode(input_ids[0]), flush=True)
+        # if self.tokenizer:
+        #    print('stop: %s' % self.tokenizer.decode(input_ids[0]), flush=True)
         for stopi, (stop, stop_word) in enumerate(zip(self.stops, self.stop_words)):
             current_block = input_ids[0][-len(stop):]
             stop_text = self.tokenizer.decode(current_block)
