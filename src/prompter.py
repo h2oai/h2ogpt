@@ -38,6 +38,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-16k-codellama-7b-python',
         'h2oai/h2ogpt-16k-codellama-13b-python',
         'h2oai/h2ogpt-16k-codellama-34b-python',
+        'h2oai/h2ogpt-32k-codellama-34b-python',
         'mistralai/Mistral-7B-v0.1',
     ],
     'gptj': ['gptj', 'gpt4all_llama'],
