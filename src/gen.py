@@ -2501,6 +2501,9 @@ def evaluate(
     temperature = min(max(0.01, temperature), 2.0)
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
+    if model_lower == 'distilgpt2':
+        # always truncate for certain models that totally fail otherwise
+        truncation_generation = True
     max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,

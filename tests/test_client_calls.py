@@ -258,38 +258,28 @@ def test_client1api_lean_lock_choose_model():
                     'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                     'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                     'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
-                    'max_seq_len': None, 'exllama_dict': {}}, {'base_model': 'distilgpt2', 'prompt_type': 'plain',
-                                                               'prompt_dict': {'promptA': '', 'promptB': '',
-                                                                               'PreInstruct': '<human>: ',
-                                                                               'PreInput': None,
-                                                                               'PreResponse': '<bot>:',
-                                                                               'terminate_response': ['\n<human>:',
-                                                                                                      '\n<bot>:',
-                                                                                                      '<human>:',
-                                                                                                      '<bot>:',
-                                                                                                      '<bot>:'],
-                                                                               'chat_sep': '\n', 'chat_turn_sep': '\n',
-                                                                               'humanstr': '<human>:',
-                                                                               'botstr': '<bot>:',
-                                                                               'generates_leading_space': True,
-                                                                               'system_prompt': ''}, 'load_8bit': False,
-                                                               'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
-                                                               'load_gptq': '', 'load_awq': '', 'load_exllama': False,
-                                                               'use_safetensors': False, 'revision': None,
-                                                               'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
-                                                               'use_cache': None,
-                                                               'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True,
-                                                                                 'n_batch': 1024, 'n_gqa': 0,
-                                                                                 'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                                                 'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                                                 'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                                                 'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                                                               'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                               'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                               'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                               'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ',
-                                                               'rope_scaling': {}, 'max_seq_len': None,
-                                                               'exllama_dict': {}}]
+                    'max_seq_len': 2048, 'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
+                    'truncation_generation': False, 'hf_model_dict': {}},
+                   {'base_model': 'distilgpt2', 'prompt_type': 'plain',
+                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ', 'PreInput': None,
+                                    'PreResponse': '<bot>:',
+                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:', '<bot>:', '<bot>:'],
+                                    'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                    'generates_leading_space': True, 'system_prompt': ''}, 'load_8bit': False,
+                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
+                    'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
+                    'compile_model': True, 'use_cache': None,
+                    'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
+                    'max_seq_len': 1024, 'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
+                    'truncation_generation': False, 'hf_model_dict': {}}]
 
 
 @wrap_test_forked
@@ -822,7 +812,8 @@ def test_autoawq():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "am a virtual assistant" in res_dict['response']
+    assert "am a virtual assistant" in res_dict['response'] or \
+           "Hello! My name is LLaMA, I'm a large language model trained by a team" in res_dict['response']
 
 
 @pytest.mark.parametrize("mode", ['a', 'b', 'c'])
@@ -904,7 +895,8 @@ def test_attention_sinks(max_seq_len, attention_sinks):
          langchain_mode=langchain_mode,
          langchain_modes=langchain_modes,
          top_k_docs=top_k_docs,  # has no effect for client if client passes different number
-         max_seq_len=max_seq_len,  # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
+         max_seq_len=max_seq_len,
+         # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
          docs_ordering_type=docs_ordering_type,
          cut_distance=1.8,  # probably should allow control via API/UI
          sink_dict={'attention_sink_size': 4, 'attention_sink_window_size': 4096} if attention_sinks else {},
@@ -1698,7 +1690,6 @@ def test_client_timeout(stream_output, max_time):
     # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
     # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
     assert 'my_test_pdf.pdf' in sources[0]
-
 
 
 # pip install pytest-timeout

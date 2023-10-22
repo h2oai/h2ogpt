@@ -134,6 +134,16 @@ You can set `--auto_migrate_db=False` and manually migrate databases by doing th
 * [mistralai/Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)
   *  Use `--max_seq_len=4096` or smaller, but does well even with 32k in some cases query with many chunks in context
 
+Many newer models have large embedding sizes and can handle going beyond the context a bit.  However, some models like distilgpt2 critically fail, so one needs to pass
+```bash
+python generate.py --base_model=distilgpt2 --truncation_generation=True
+```
+otherwise one will hit:
+```
+../aten/src/ATen/native/cuda/Indexing.cu:1093: indexSelectSmallIndex: block: [4,0,0], thread: [0,0,0] Assertion `srcIndex < srcSelectDimSize` failed.
+```
+We take care of this for distilgpt2, but other similar models might fail in same way.
+
 ### Adding Models
 
 You can choose any Hugging Face model or quantized GGML model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).
