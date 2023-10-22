@@ -1054,7 +1054,7 @@ def main(
         model_lower = base_model.lower()
     elif model_lock:
         # have 0th model be thought of as normal model
-        assert len(model_lock) > 0 and model_lock[0]['base_model']
+        assert len(model_lock) > 0 and model_lock[0]['base_model'], "model_lock: %s" % model_lock
         model_lower = model_lock[0]['base_model'].lower()
     else:
         model_lower = ''
