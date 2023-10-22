@@ -1340,8 +1340,10 @@ def main(
         # This is just so UI shows reasonable correct value, not 2048 dummy value
         if len(model_states) >= 1:
             max_seq_len = model_states[0]['tokenizer'].model_max_length
-        elif model_state0 is not None:
-            max_seq_len = model_state0['tokenizer'].model_max_length
+        elif model_state0 is not None and \
+                'tokenizer' in model_state0 and \
+                hasattr(model_state0['tokenizer'], 'model_max_length'):
+            max_seq_len = model_state0['tokenizer'].model_max_lengths
 
         # get score model
         all_kwargs = locals().copy()
