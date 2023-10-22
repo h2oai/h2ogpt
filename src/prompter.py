@@ -813,7 +813,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = """USER: """
         PreInput = None
         PreResponse = """ASSISTANT:"""
-        terminate_response = [PreResponse, 'ASSISTANT:']
+        terminate_response = [PreResponse, 'ASSISTANT:', '</s>']
         chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work
         chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work
         humanstr = PreInstruct
