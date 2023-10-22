@@ -1343,7 +1343,7 @@ def main(
         elif model_state0 is not None and \
                 'tokenizer' in model_state0 and \
                 hasattr(model_state0['tokenizer'], 'model_max_length'):
-            max_seq_len = model_state0['tokenizer'].model_max_lengths
+            max_seq_len = model_state0['tokenizer'].model_max_length
 
         # get score model
         all_kwargs = locals().copy()
