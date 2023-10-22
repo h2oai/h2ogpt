@@ -54,6 +54,10 @@ An example running h2oGPT via docker using LLaMa2 7B model is:
 ```bash
 mkdir -p ~/.cache
 mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+mkdir -p ~/users
+mkdir -p ~/db_nonusers
 export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
@@ -68,6 +72,10 @@ docker run \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/users:/workspace/users \
+       -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --use_safetensors=True \
@@ -84,6 +92,10 @@ An example of running h2oGPT via docker using AutoGPTQ (4-bit, so using less GPU
 ```bash
 mkdir -p $HOME/.cache
 mkdir -p $HOME/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+mkdir -p ~/users
+mkdir -p ~/db_nonusers
 export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
@@ -97,6 +109,10 @@ docker run \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/users:/workspace/users \
+       -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=TheBloke/Llama-2-7b-Chat-GPTQ \
@@ -115,6 +131,10 @@ If one needs to use a Hugging Face token to access certain Hugging Face models l
 ```bash
 mkdir -p ~/.cache
 mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+mkdir -p ~/users
+mkdir -p ~/db_nonusers
 export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
@@ -128,6 +148,10 @@ docker run \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/users:/workspace/users \
+       -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
@@ -232,6 +256,10 @@ If one needs to only setup vLLM one can stop here.
 ```bash
 mkdir -p ~/.cache
 mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+mkdir -p ~/users
+mkdir -p ~/db_nonusers
 docker run \
     --gpus '"device=2,3"' \
     --runtime=nvidia \
@@ -244,6 +272,10 @@ docker run \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/users:/workspace/users \
+       -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
     gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
         --inference_server="vllm:0.0.0.0:5000" \
         --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
@@ -300,6 +332,10 @@ export GRADIO_SERVER_PORT=7860
 export CUDA_VISIBLE_DEVICES=0
 mkdir -p ~/.cache
 mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+mkdir -p ~/users
+mkdir -p ~/db_nonusers
 docker run -d \
        --gpus all \
        --runtime=nvidia \
@@ -312,6 +348,10 @@ docker run -d \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/users:/workspace/users \
+       -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=$MODEL \
@@ -341,8 +381,8 @@ To make UserData db for generate.py, put pdfs, etc. into path user_path and run:
 ```bash
 mkdir -p ~/.cache
 mkdir -p ~/save
-mkdir -p user_path 
-mkdir -p db_dir_UserData
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -354,13 +394,19 @@ docker run \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -v user_path:/workspace/user_path \
-       -v db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/src/make_db.py
 ```
 
 Once db is made, can use in generate.py like:
 ```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+mkdir -p ~/users
+mkdir -p ~/db_nonusers
 export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
@@ -375,8 +421,10 @@ docker run \
        -u `id -u`:`id -g` \
        -v "${HOME}"/.cache:/workspace/.cache \
        -v "${HOME}"/save:/workspace/save \
-       -v user_path:/workspace/user_path \
-       -v db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       -v "${HOME}"/users:/workspace/users \
+       -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --use_safetensors=True \
