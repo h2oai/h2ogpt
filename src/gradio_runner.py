@@ -273,7 +273,7 @@ def go_gradio(**kwargs):
                 prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
         return prompt_type1, prompt_dict1
 
-    def visible_models_to_model_choice(visible_models1):
+    def visible_models_to_model_choice(visible_models1, api=False):
         if isinstance(visible_models1, list):
             assert len(
                 visible_models1) >= 1, "Invalid visible_models1=%s, can only be single entry" % visible_models1
@@ -292,6 +292,8 @@ def go_gradio(**kwargs):
                     model_active_choice1 = base_model_list.index(model_active_choice1)
                 else:
                     # NOTE: Could raise, but sometimes raising in certain places fails too hard and requires UI restart
+                    if api:
+                        raise ValueError("Invalid model %s, valid models are: %s" % (model_active_choice1, base_model_list))
                     model_active_choice1 = 0
         else:
             model_active_choice1 = 0
@@ -2570,7 +2572,7 @@ def go_gradio(**kwargs):
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
             if len(model_states) > 1:
                 visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-                model_active_choice1 = visible_models_to_model_choice(visible_models1)
+                model_active_choice1 = visible_models_to_model_choice(visible_models1, api=True)
                 model_state1 = model_states[model_active_choice1 % len(model_states)]
                 for key in key_overrides:
                     if user_kwargs.get(key) is None and model_state1.get(key) is not None:
