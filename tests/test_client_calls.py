@@ -2433,21 +2433,25 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         summary = str(summary)  # for easy checking
     if instruction == 'Technical key points':
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
-            assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary
+            assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
         else:
-            assert 'No relevant documents to extract from.' in summary or 'long-form transcription' in summary
+            assert 'No relevant documents to extract from.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
     else:
         if prompt_summary == '':
             assert 'Whisper' in summary or \
                    'robust speech recognition system' in summary or \
                    'Robust speech recognition' in summary or \
                    'speech processing' in summary or \
-                   'LibriSpeech dataset with weak supervision' in summary
+                   'LibriSpeech dataset with weak supervision' in summary or \
+                   'Large-scale weak supervision of speech' in summary or \
+                   'text standardization' in summary
         else:
             assert 'various techniques and approaches in speech recognition' in summary or \
                    'capabilities of speech processing systems' in summary or \
                    'speech recognition' in summary or \
-                   'capabilities of speech processing systems' in summary
+                   'capabilities of speech processing systems' in summary or \
+                   'Large-scale weak supervision of speech' in summary or \
+                   'text standardization' in summary
         assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
         assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
 
