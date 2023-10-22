@@ -185,6 +185,7 @@ def main(
         auth_message: str = None,
         guest_name: str = "guest",
         enforce_h2ogpt_api_key: bool = None,
+        enforce_h2ogpt_ui_key: bool = None,
         h2ogpt_api_keys: Union[list, str] = [],
         h2ogpt_key: str = None,
 
@@ -551,6 +552,7 @@ def main(
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
+    :param enforce_h2ogpt_ui_key: Whether to enforce h2oGPT token usage for UI (same keys as API assumed)
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
     :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
 
@@ -587,7 +589,7 @@ def main(
     :param visible_models_tab: "" for models tab
     :param visible_system_tab: "" for system tab
     :param visible_tos_tab: "" for ToS tab
-    :param visible_login_tab: "" for Login tab
+    :param visible_login_tab: "" for Login tab (needed for persistence or to enter key for UI access to models and ingestion)
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
@@ -815,6 +817,9 @@ def main(
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+    if enforce_h2ogpt_ui_key is None:
+        # nominally allow UI access public or not
+        enforce_h2ogpt_ui_key = False
     if is_public:
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:

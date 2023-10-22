@@ -1,5 +1,51 @@
 ## Frequently asked questions
 
+### API key access
+
+h2oGPT API key access for API and UI and persistence of state via login (auth enabled or not)
+
+```bash
+python generate.py --base_model=h2oai/h2ogpt-4096-llama2-70b-chat --auth_filename=auth.json --enforce_h2ogpt_api_key=True --enforce_h2ogpt_ui_key=True --h2ogpt_api_keys="['<API_KEY>']"
+```
+for some API key `<API_KEY>` and some auth file `auth.json` where h2oGPT will store login and persistence information.  This enforces keyed access for both API and UI, and one can choose any.  For public cases (Hugging Face or GPT_H2O_AI env set), enforce of API is default.
+
+One can also use a json key file:
+```bash
+python generate.py --base_model=h2oai/h2ogpt-4096-llama2-70b-chat --auth_filename=auth.json --enforce_h2ogpt_api_key=True --enforce_h2ogpt_ui_key=True --h2ogpt_api_keys="h2ogpt_api_keys.json"
+```
+for some file `h2ogpt_api_keys.json` which is a JSON file that is a list of strings of keys allowed.
+
+If UI keyed access is enabled, one has to enter the key in the UI in Login tab before accessing LLMs or upload of files.
+
+If API keyed access is enabled, one has to pass the API key along with other arguments to access LLm or upload of files.
+
+See `src/gen.py` file for details:
+*    :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
+*    :param enforce_h2ogpt_ui_key: Whether to enforce h2oGPT token usage for UI (same keys as API assumed)
+*    :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
+*    :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
+
+As with any option, one can set the environment variable `H2OGPT_x` for an upper-case main() argument to control the above.
+
+### Auth Access
+
+As listed in the `src/gen.py` file, there are many ways to control authorization:
+*  :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
+    * e.g. --auth=[('jon','password')] with no spaces
+    * e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
+    * e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required)
+    * e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename then not required)
+    * e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
+*    :param auth_filename:
+    * Set auth filename, used only if --auth= was passed list of user/passwords
+*   :param auth_access:
+    * 'open': Allow new users to be added
+    * 'closed': Stick to existing users
+*   :param auth_freeze: whether freeze authentication based upon current file, no longer update file
+*   :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
+*   :param guest_name: guess name if using auth and have open access.
+    * If '', then no guest allowed even if open access, then all databases for each user always persisted
+
 ### HTTPS access for server and client
 
 Have files `private_key.pem` and `cert.pem` from your own SSL, or if do not have such files, generate by doing:

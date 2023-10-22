@@ -1077,6 +1077,7 @@ def test_text_generation_inference_server1():
 @wrap_test_forked
 @pytest.mark.parametrize("loaders", ['all', None])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
+@pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()

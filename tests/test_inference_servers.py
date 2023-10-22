@@ -19,6 +19,7 @@ from src.enums import PromptType, LangChainAction
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
+@pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 @wrap_test_forked
 def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langchain, enforce_h2ogpt_api_key,
                                  prompt='Who are you?', stream_output=False, max_new_tokens=256,

@@ -97,12 +97,17 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
     return text
 
 
-def is_valid_key(enforce_h2ogpt_api_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
-    valid_key = False
-    if not enforce_h2ogpt_api_key:
+def is_valid_key(enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
+    from_ui = isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']
+
+    if from_ui and not enforce_h2ogpt_ui_key:
         # no token barrier
-        valid_key = 'not enforced'
+        return 'not enforced'
+    elif not from_ui and not enforce_h2ogpt_api_key:
+        # no token barrier
+        return 'not enforced'
     else:
+        valid_key = False
         if isinstance(h2ogpt_api_keys, list) and h2ogpt_key1 in h2ogpt_api_keys:
             # passed token barrier
             valid_key = True
@@ -112,10 +117,7 @@ def is_valid_key(enforce_h2ogpt_api_key, h2ogpt_api_keys, h2ogpt_key1, requests_
                     h2ogpt_api_keys = json.load(f)
                 if h2ogpt_key1 in h2ogpt_api_keys:
                     valid_key = True
-    if isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']:
-        # no UI limit currently
-        valid_key = True
-    return valid_key
+        return valid_key
 
 
 def go_gradio(**kwargs):
@@ -1500,8 +1502,19 @@ def go_gradio(**kwargs):
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
-                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'], label="h2oGPT Token for API access",
-                                         type='password', visible=False)
+                    if kwargs['enforce_h2ogpt_api_key'] and kwargs['enforce_h2ogpt_ui_key']:
+                        label_h2ogpt_key = "h2oGPT Token for API and UI access"
+                    elif kwargs['enforce_h2ogpt_api_key']:
+                        label_h2ogpt_key = "h2oGPT Token for API access"
+                    elif kwargs['enforce_h2ogpt_ui_key']:
+                        label_h2ogpt_key = "h2oGPT Token for UI access"
+                    else:
+                        label_h2ogpt_key = 'Unused'
+                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'],
+                                         label=label_h2ogpt_key,
+                                         type='password',
+                                         visible=kwargs['enforce_h2ogpt_ui_key'],  # only show if need for UI
+                                         )
 
                 hosts_tab = gr.TabItem("Hosts") \
                     if kwargs['visible_hosts_tab'] else gr.Row(visible=False)
@@ -1594,6 +1607,7 @@ def go_gradio(**kwargs):
                                            url_loaders_options0=url_loaders_options0,
                                            jq_schema0=jq_schema0,
                                            enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                           enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                            h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
@@ -2606,7 +2620,9 @@ def go_gradio(**kwargs):
             args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
 
             # NOTE: Don't allow UI-like access, in case modify state via API
-            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'], h2ogpt_key1,
                                      requests_state1=None)
             evaluate_local = evaluate if valid_key else evaluate_fake
 
@@ -2979,7 +2995,9 @@ def go_gradio(**kwargs):
             document_subset1 = args_list[eval_func_param_names.index('document_subset')]
             h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
             chat_conversation1 = args_list[eval_func_param_names.index('chat_conversation')]
-            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'], kwargs['h2ogpt_api_keys'], h2ogpt_key1,
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'], h2ogpt_key1,
                                      requests_state1=requests_state1)
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
@@ -4584,6 +4602,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       get_userid_auth=None,
                       **kwargs):
     valid_key = is_valid_key(kwargs.pop('enforce_h2ogpt_api_key', None),
+                             kwargs.pop('enforce_h2ogpt_ui_key', None),
                              kwargs.pop('h2ogpt_api_keys', []), h2ogpt_key,
                              requests_state1=requests_state1)
     if not valid_key:
