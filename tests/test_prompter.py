@@ -164,10 +164,7 @@ Falcon:"""
 prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
 
 
-def get_mistral_prompt_with_context():
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
-    messages = [
+messages_with_context = [
         {"role": "user", "content": "Hello!"},
         {"role": "assistant", "content": "Hi!"},
         {"role": "user", "content": "How are you?"},
@@ -175,8 +172,30 @@ def get_mistral_prompt_with_context():
         {"role": "user", "content": "Go to the market?"},
     ]
 
+
+def get_mistral_prompt(messages):
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
     prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
     return prompt_mistral
+
+
+def get_aquila_prompt(messages):
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("BAAI/AquilaChat2-34B-16K")
+    from models.predict_aquila import get_conv_template
+    conv = get_conv_template("aquila-chat")
+    for message in messages:
+        # roles=("Human", "Assistant", "System"),
+        if message['role'] == 'user':
+            conv.append_message(conv.roles[0], message['content'])
+        elif message['role'] == 'assistant':
+            conv.append_message(conv.roles[1], message['content'])
+        elif message['role'] == 'system':
+            conv.append_message(conv.roles[2], message['content'])
+    # assume end with asking assostiant
+    conv.append_message(conv.roles[1], None)
+    return conv.get_prompt()
 
 
 @wrap_test_forked
@@ -197,8 +216,9 @@ def get_mistral_prompt_with_context():
                              ('beluga', 'auto', None, prompt_beluga_sys),
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
-                             ('mistral', '', None, get_mistral_prompt_with_context()),
+                             ('mistral', '', None, get_mistral_prompt(messages_with_context)),
                              ('xwin', '', None, prompt_xwin),
+                             ('aquila', '', None, get_aquila_prompt(messages_with_context))
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -318,21 +338,15 @@ User: Go to the market?
 Falcon:"""
 
 
-prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market? ASSISTANT:"""
+prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market?
+ASSISTANT:"""
 
 
 prompt_mistrallite = """<|prompter|>Go to the market?</s><|assistant|>"""
 
-
-def get_mistral_prompt():
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
-    messages = [
+messages_no_context = [
         {"role": "user", "content": "Go to the market?"},
     ]
-
-    prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
-    return prompt_mistral
 
 
 @pytest.mark.parametrize("prompt_type,system_prompt,expected",
@@ -350,9 +364,10 @@ def get_mistral_prompt():
                              ('beluga', 'auto', prompt_beluga1_sys),
                              ('falcon_chat', '', prompt_falcon1801),
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
-                             ('mistral', '', get_mistral_prompt()),
+                             ('mistral', '', get_mistral_prompt(messages_no_context)),
                              ('xwin', '', prompt_xwin1),
                              ('mistrallite', '', prompt_mistrallite),
+                             ('aquila', '', get_aquila_prompt(messages_no_context))
                          ]
                          )
 @wrap_test_forked
