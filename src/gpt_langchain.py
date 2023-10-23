@@ -688,7 +688,9 @@ class GradioInference(H2Oagenerate, LLM):
             res_all = job.outputs()
             if len(res_all) > 0:
                 # don't raise unless nochat API for now
-                check_job(job, timeout=0.02, raise_exception=not self.chat_client)
+                # set below to True for now, not not self.chat_client, since not handling exception otherwise
+                # in some return of strex
+                check_job(job, timeout=0.02, raise_exception=True)
 
                 res = res_all[-1]
                 res_dict = ast.literal_eval(res)
