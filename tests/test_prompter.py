@@ -180,11 +180,17 @@ def get_mistral_prompt(messages):
     return prompt_mistral
 
 
-def get_aquila_prompt(messages):
+def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K'):
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("BAAI/AquilaChat2-34B-16K")
     from models.predict_aquila import get_conv_template
-    conv = get_conv_template("aquila-chat")
+
+    template_map = {"AquilaChat2-7B": "aquila-v1",
+                    "AquilaChat2-34B": "aquila-legacy",
+                    "AquilaChat2-7B-16K": "aquila",
+                    "AquilaChat2-34B-16K": "aquila"}
+    convo_template = template_map.get(model_base_name, "aquila-chat")
+    conv = get_conv_template(convo_template)
     for message in messages:
         # roles=("Human", "Assistant", "System"),
         if message['role'] == 'user':
