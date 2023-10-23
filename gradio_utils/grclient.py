@@ -21,6 +21,25 @@ from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint
 from gradio_client import Client
 
 
+def check_job(job, timeout=0.0, raise_exception=True, verbose=False):
+    if timeout == 0:
+        e = job.future._exception
+    else:
+        try:
+            e = job.future.exception(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            # not enough time to determine
+            if verbose:
+                print("not enough time to determine job status: %s" % timeout)
+            e = None
+    if e:
+        # raise before complain about empty response if some error hit
+        if raise_exception:
+            raise RuntimeError(e)
+        else:
+            return e
+
+
 class GradioClient(Client):
     """
     Parent class of gradio client
@@ -208,7 +227,7 @@ class GradioClient(Client):
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
 
         # see if immediately failed
-        e = job.future._exception
+        e = check_job(job, timeout=0.01, raise_exception=False)
         if e is not None:
             print(
                 "GR job failed: %s %s"
@@ -218,7 +237,7 @@ class GradioClient(Client):
             # force reconfig in case only that
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
-            e2 = job.future._exception
+            e2 = check_job(job, timeout=0.1, raise_exception=False)
             if e2 is not None:
                 print(
                     "GR job failed again: %s\n%s"

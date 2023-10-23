@@ -3003,6 +3003,7 @@ def evaluate(
                 response = ''
                 text = ''
                 sources = ''
+                strex = ''
                 if not stream_output:
                     res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = ast.literal_eval(res)
@@ -3012,6 +3013,7 @@ def evaluate(
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                 else:
+                    from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = dict(response=text, sources=sources, save_dict=dict())
                     text0 = ''
@@ -3019,7 +3021,7 @@ def evaluate(
                     while not job.done():
                         if job.communicator.job.latest_status.code.name == 'FINISHED':
                             break
-                        e = job.future._exception
+                        e = check_job(job, timeout=0, raise_exception=False)
                         if e is not None:
                             break
                         outputs_list = job.communicator.job.outputs
@@ -3051,13 +3053,20 @@ def evaluate(
                     # ensure get last output to avoid race
                     res_all = job.outputs()
                     if len(res_all) > 0:
+                        # don't raise unless nochat API for now
+                        e = check_job(job, timeout=0.02, raise_exception=not chat)
+                        if e is not None:
+                            strex = ''.join(traceback.format_tb(e.__traceback__))
+
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
                         text = res_dict['response']
                         sources = res_dict['sources']
                     else:
+                        # if got no answer at all, probably something bad, always raise exception
+                        # UI will still put exception in Chat History under chat exceptions
+                        e = check_job(job, timeout=0.3, raise_exception=True)
                         # go with old text if last call didn't work
-                        e = job.future._exception
                         if e is not None:
                             stre = str(e)
                             strex = ''.join(traceback.format_tb(e.__traceback__))
@@ -3075,7 +3084,7 @@ def evaluate(
                         prompt_and_text = prompt + text
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex)
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"

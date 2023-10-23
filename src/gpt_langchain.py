@@ -636,6 +636,7 @@ class GradioInference(H2Oagenerate, LLM):
         client_kwargs, api_name = self.setup_call(prompt)
         # new client for each call
         client = self.client.clone()
+        from gradio_utils.grclient import check_job
 
         if not self.stream_output:
             res = client.predict(str(dict(client_kwargs)), api_name=api_name)
@@ -659,7 +660,7 @@ class GradioInference(H2Oagenerate, LLM):
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
                     break
-                e = job.future._exception
+                e = check_job(job, timeout=0, raise_exception=False)
                 if e is not None:
                     break
                 outputs_list = job.communicator.job.outputs
@@ -686,11 +687,19 @@ class GradioInference(H2Oagenerate, LLM):
             # ensure get last output to avoid race
             res_all = job.outputs()
             if len(res_all) > 0:
+                # don't raise unless nochat API for now
+                # set below to True for now, not not self.chat_client, since not handling exception otherwise
+                # in some return of strex
+                check_job(job, timeout=0.02, raise_exception=True)
+
                 res = res_all[-1]
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
                 # FIXME: derive chunk from full for now
             else:
+                # if got no answer at all, probably something bad, always raise exception
+                # UI will still put exception in Chat History under chat exceptions
+                check_job(job, timeout=0.3, raise_exception=True)
                 # go with old if failure
                 text = text0
             text_chunk = text[len(text0):]
