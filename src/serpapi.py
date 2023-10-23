@@ -165,3 +165,11 @@ class H2OSerpAPIWrapper(SerpAPIWrapper):
         add_meta(docs, query)
 
         return docs
+
+    def results(self, query: str) -> dict:
+        # Fix non-thread-safe langchain swapping out sys directly.
+        """Run query through SerpAPI and return the raw result."""
+        params = self.get_params(query)
+        search = self.search_engine(params)
+        res = search.get_dict()
+        return res

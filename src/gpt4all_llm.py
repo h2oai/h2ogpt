@@ -132,6 +132,9 @@ def get_llm_gpt4all(model_name,
                                    max_seq_len=max_seq_len,
                                    )
     if model_name == 'llama':
+        # FIXME: streaming not thread safe due to:
+        # llama_cpp/utils.py:        sys.stdout = self.outnull_file
+        # llama_cpp/utils.py:        sys.stdout = self.old_stdout
         cls = H2OLlamaCpp
         if model is None:
             llamacpp_dict = llamacpp_dict.copy()
@@ -159,6 +162,10 @@ def get_llm_gpt4all(model_name,
         llm.client.verbose = verbose
         inner_model = llm.client
     elif model_name == 'gpt4all_llama':
+        # FIXME: streaming not thread safe due to:
+        # gpt4all/pyllmodel.py:        sys.stdout = stream_processor
+        # gpt4all/pyllmodel.py:        sys.stdout = old_stdout
+
         cls = H2OGPT4All
         if model is None:
             llamacpp_dict = llamacpp_dict.copy()
@@ -177,6 +184,10 @@ def get_llm_gpt4all(model_name,
         llm = cls(**model_kwargs)
         inner_model = llm.client
     elif model_name == 'gptj':
+        # FIXME: streaming not thread safe due to:
+        # gpt4all/pyllmodel.py:        sys.stdout = stream_processor
+        # gpt4all/pyllmodel.py:        sys.stdout = old_stdout
+
         cls = H2OGPT4All
         if model is None:
             llamacpp_dict = llamacpp_dict.copy()

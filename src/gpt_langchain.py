@@ -3675,13 +3675,7 @@ def run_qa_db(**kwargs):
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
     try:
-        if kwargs.get('verbose', False):
-            # maybe helps avoid sys.stdout getting closed
-            from contextlib import redirect_stdout
-            with redirect_stdout(None):
-                return _run_qa_db(**kwargs)
-        else:
-            return _run_qa_db(**kwargs)
+        return _run_qa_db(**kwargs)
     finally:
         clear_torch_cache()
 
@@ -4518,7 +4512,11 @@ def get_chain(query=None,
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PYTHON.value in langchain_agents:
-        if does_support_functiontools(inference_server, model_name):
+        # FIXME: not thread-safe due to sys.stdout = assignments in worker
+        # langchain/utilities/python.py:        sys.stdout = mystdout = StringIO()
+        # langchain/utilities/python.py:            sys.stdout = old_stdout
+        # langchain/utilities/python.py:            sys.stdout = old_stdout
+        if does_support_functiontools(inference_server, model_name) and False:
             chain = create_python_agent(
                 llm=llm,
                 tool=PythonREPLTool(),
