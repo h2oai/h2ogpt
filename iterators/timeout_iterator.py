@@ -61,7 +61,7 @@ class TimeoutIterator:
         yield the result from iterator
         if timeout > 0:
             yield data if available.
-            otherwise yield sentinal
+            otherwise yield sentinel
         """
         if self._done:
             raise StopIteration
