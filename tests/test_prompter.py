@@ -182,7 +182,7 @@ def get_mistral_prompt(messages):
     return prompt_mistral
 
 
-def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K'):
+def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=True):
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("BAAI/AquilaChat2-34B-16K")
     from models.predict_aquila import get_conv_template
@@ -193,6 +193,8 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K'):
                     "AquilaChat2-34B-16K": "aquila"}
     convo_template = template_map.get(model_base_name, "aquila-chat")
     conv = get_conv_template(convo_template)
+    if not with_sys:
+        conv.system_message = ''
     for message in messages:
         # roles=("Human", "Assistant", "System"),
         if message['role'] == 'user':
@@ -209,12 +211,12 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K'):
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,system_prompt,chat_conversation,expected",
                          [
-                             ('vicuna11', '', None, prompt_fastchat),
+                             ('vicuna11', 'auto', None, prompt_fastchat),
                              ('human_bot', '', None, prompt_humanbot),
                              ('prompt_answer', '', None, prompt_prompt_answer),
                              ('prompt_answer_openllama', '', None, prompt_prompt_answer_openllama),
-                             ('mptinstruct', '', None, prompt_mpt_instruct),
-                             ('mptchat', '', None, prompt_mpt_chat),
+                             ('mptinstruct', 'auto', None, prompt_mpt_instruct),
+                             ('mptchat', 'auto', None, prompt_mpt_chat),
                              ('falcon', '', None, prompt_falcon),
                              ('llama2', '', None, prompt_llama2),
                              ('llama2', 'auto', None, prompt_llama2_sys),
@@ -225,8 +227,9 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K'):
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
                              ('mistral', '', None, get_mistral_prompt(messages_with_context)),
-                             ('xwin', '', None, prompt_xwin),
-                             ('aquila', '', None, get_aquila_prompt(messages_with_context))
+                             ('xwin', 'auto', None, prompt_xwin),
+                             ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False)),
+                             ('aquila', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True))
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -359,12 +362,12 @@ messages_no_context = [
 
 @pytest.mark.parametrize("prompt_type,system_prompt,expected",
                          [
-                             ('vicuna11', '', prompt_fastchat1),
+                             ('vicuna11', 'auto', prompt_fastchat1),
                              ('human_bot', '', prompt_humanbot1),
                              ('prompt_answer', '', prompt_prompt_answer1),
                              ('prompt_answer_openllama', '', prompt_prompt_answer_openllama1),
-                             ('mptinstruct', '', prompt_mpt_instruct1),
-                             ('mptchat', '', prompt_mpt_chat1),
+                             ('mptinstruct', 'auto', prompt_mpt_instruct1),
+                             ('mptchat', 'auto', prompt_mpt_chat1),
                              ('falcon', '', prompt_falcon1),
                              ('llama2', '', prompt_llama21),
                              ('llama2', 'auto', prompt_llama21_sys),
@@ -373,9 +376,9 @@ messages_no_context = [
                              ('falcon_chat', '', prompt_falcon1801),
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
                              ('mistral', '', get_mistral_prompt(messages_no_context)),
-                             ('xwin', '', prompt_xwin1),
+                             ('xwin', 'auto', prompt_xwin1),
                              ('mistrallite', '', prompt_mistrallite),
-                             ('aquila', '', get_aquila_prompt(messages_no_context))
+                             ('aquila', 'auto', get_aquila_prompt(messages_no_context, with_sys=True))
                          ]
                          )
 @wrap_test_forked

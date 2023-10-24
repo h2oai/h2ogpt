@@ -315,9 +315,10 @@ Current Time: {}
         botstr = PreResponse
     elif prompt_type in [PromptType.instruct_vicuna.value, str(PromptType.instruct_vicuna.value),
                          PromptType.instruct_vicuna.name]:
-        promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. " \
-                            "The assistant gives helpful, detailed, and polite answers to the human's questions." if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious human and an artificial intelligence assistant. " \
+                            "The assistant gives helpful, detailed, and polite answers to the human's questions."
+        promptA = promptB = system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """
 ### Human:
@@ -451,8 +452,9 @@ ASSISTANT:
     elif prompt_type in [PromptType.wizard2.value, str(PromptType.wizard2.value),
                          PromptType.wizard2.name]:
         # https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML
-        preprompt = """Below is an instruction that describes a task. Write a response that appropriately completes the request.""" if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+        preprompt = """%s""" % system_prompt if not (chat and reduced) else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """
@@ -469,8 +471,9 @@ ASSISTANT:
     elif prompt_type in [PromptType.wizard3.value, str(PromptType.wizard3.value),
                          PromptType.wizard3.name]:
         # https://huggingface.co/TheBloke/wizardLM-13B-1.0-GGML
-        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.""" if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+        preprompt = """%s""" % system_prompt if not (chat and reduced) else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -514,8 +517,9 @@ ASSISTANT:
         botstr = PreResponse
     elif prompt_type in [PromptType.openai.value, str(PromptType.openai.value),
                          PromptType.openai.name]:
-        preprompt = """The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.""" if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly."
+        preprompt = """%s""" % system_prompt if not (chat and reduced) else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = "\nHuman: "
@@ -553,8 +557,9 @@ ASSISTANT:
         botstr = None
     elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
                          PromptType.vicuna11.name]:
-        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. """ if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         eos = '</s>'
@@ -577,8 +582,9 @@ ASSISTANT:
     elif prompt_type in [PromptType.mptinstruct.value, str(PromptType.mptinstruct.value),
                          PromptType.mptinstruct.name]:
         # https://huggingface.co/mosaicml/mpt-30b-instruct#formatting
-        promptA = promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+        promptA = promptB = '%s\n' % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """
 ### Instruction
@@ -598,8 +604,9 @@ ASSISTANT:
     elif prompt_type in [PromptType.mptchat.value, str(PromptType.mptchat.value),
                          PromptType.mptchat.name]:
         # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
-        promptA = promptB = """<|im_start|>system\nA conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.\n<|im_end|>""" if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """<|im_start|>user
 """
@@ -807,8 +814,10 @@ Remember to tailor the activities to the birthday child's interests and preferen
     elif prompt_type in [PromptType.xwin.value, str(PromptType.xwin.value),
                          PromptType.xwin.name]:
         # https://huggingface.co/Xwin-LM/Xwin-LM-13B-V0.1#huggingface-example
-        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. """ if not (
-                chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+        # space below intended
+        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -841,7 +850,9 @@ Remember to tailor the activities to the birthday child's interests and preferen
     elif prompt_type in [PromptType.aquila.value, str(PromptType.aquila.value),
                          PromptType.aquila.name]:
         # https://huggingface.co/BAAI/AquilaChat2-34B-16K/blob/main/predict.py#L197-L210
-        promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.###" if not (chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
+        promptA = promptB = "%s###" % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """Human: """
 
@@ -858,7 +869,9 @@ Remember to tailor the activities to the birthday child's interests and preferen
     elif prompt_type in [PromptType.aquila_simple.value, str(PromptType.aquila_simple.value),
                          PromptType.aquila_simple.name]:
         # like aquila but less strictly correct (but less complex) for multi-turn
-        promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions." if not (chat and reduced) else ''
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
+        promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """###Human: """
 
