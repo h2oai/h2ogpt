@@ -228,8 +228,10 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
                              ('mistral', '', None, get_mistral_prompt(messages_with_context)),
                              ('xwin', 'auto', None, prompt_xwin),
-                             ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False)),
-                             ('aquila', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True))
+                             ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False, model_base_name='AquilaChat2-34B-16K')),
+                             ('aquila', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-34B-16K')),
+                             ('aquila_legacy', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-34B')),
+                             ('aquila_v1', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-7B')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -378,7 +380,9 @@ messages_no_context = [
                              ('mistral', '', get_mistral_prompt(messages_no_context)),
                              ('xwin', 'auto', prompt_xwin1),
                              ('mistrallite', '', prompt_mistrallite),
-                             ('aquila', 'auto', get_aquila_prompt(messages_no_context, with_sys=True))
+                             ('aquila', 'auto', get_aquila_prompt(messages_no_context, with_sys=True)),
+                             ('aquila_legacy', 'auto', get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-34B')),
+                             ('aquila_v1', 'auto', get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-7B')),
                          ]
                          )
 @wrap_test_forked

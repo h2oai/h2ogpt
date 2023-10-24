@@ -128,7 +128,9 @@ prompt_type_to_model_name = {
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
     "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
     "mistrallite": ['amazon/MistralLite'],
-    "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k'],
+    "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k', 'BAAI/AquilaChat2-7B-16K'],
+    "aquila_legacy": ['BAAI/AquilaChat2-34B'],
+    "aquila_v1": ['BAAI/AquilaChat2-7B'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -880,6 +882,41 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreResponse = """###Assistant:"""
         terminate_response = ['###Human:', "###", "</s>", "[UNK]"]
         chat_turn_sep = ''
+        chat_sep = ''
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ''
+    elif prompt_type in [PromptType.aquila_legacy.value, str(PromptType.aquila_legacy.value),
+                         PromptType.aquila_legacy.name]:
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious human and an artificial intelligence assistant. " \
+        "The assistant gives helpful, detailed, and polite answers to the human's questions.\n\n"
+        promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
+
+        PreInstruct = """### Human: """
+
+        PreInput = None
+
+        PreResponse = """### Assistant:"""
+        terminate_response = ['### Human:', "</s>", "[UNK]"]
+        chat_turn_sep = '</s>'
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if True:
+            PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.aquila_v1.value, str(PromptType.aquila_v1.value),
+                         PromptType.aquila_v1.name]:
+        promptA = promptB = "" if not (chat and reduced) else ''
+
+        PreInstruct = """<|startofpiece|>"""
+
+        PreInput = None
+
+        PreResponse = """<|endofpiece|>"""
+        terminate_response = ["</s>", "<|endoftext|>"]
+        chat_turn_sep = '</s>'
         chat_sep = ''
         humanstr = PreInstruct
         botstr = PreResponse
