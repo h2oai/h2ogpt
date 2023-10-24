@@ -1409,8 +1409,8 @@ def get_llm(use_openai_model=False,
         elif openai.api_version:
             kwargs_extra.update(dict(openai_api_version=openai.api_version))
         elif inf_type in ['openai_azure', 'openai_azure_chat']:
-            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview
-            kwargs_extra.update(dict(openai_api_version="2023-09-01-preview"))
+            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-10-01-preview
+            kwargs_extra.update(dict(openai_api_version="2023-10-01-preview"))
         if base_url:
             kwargs_extra.update(dict(openai_api_base=base_url))
         else:

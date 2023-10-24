@@ -1195,7 +1195,7 @@ def set_openai(inference_server):
         if inference_server.startswith('openai_azure'):
             if api_version in ['None', None]:
                 # for function tools support
-                api_version = "2023-09-01-preview"
+                api_version = "2023-10-01-preview"
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 # use this instead if exists
                 openai.api_key = api_key = os.getenv('OPENAI_AZURE_KEY')
