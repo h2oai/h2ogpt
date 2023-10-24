@@ -128,7 +128,7 @@ prompt_type_to_model_name = {
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
     "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
     "mistrallite": ['amazon/MistralLite'],
-    "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K'],
+    "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 if os.getenv('OPENAI_API_KEY'):
@@ -815,8 +815,8 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInput = None
         PreResponse = """ASSISTANT:"""
         terminate_response = [PreResponse, 'ASSISTANT:', '</s>']
-        chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work
-        chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work
+        chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work, so use huggingface/vllm example
+        chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work,  so use huggingface/vllm example
         humanstr = PreInstruct
         botstr = PreResponse
         if making_context:
@@ -841,6 +841,23 @@ Remember to tailor the activities to the birthday child's interests and preferen
     elif prompt_type in [PromptType.aquila.value, str(PromptType.aquila.value),
                          PromptType.aquila.name]:
         # https://huggingface.co/BAAI/AquilaChat2-34B-16K/blob/main/predict.py#L197-L210
+        promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.###" if not (chat and reduced) else ''
+
+        PreInstruct = """Human: """
+
+        PreInput = None
+
+        PreResponse = """Assistant:"""
+        terminate_response = ['###Human:', "###", "</s>", "[UNK]"]
+        chat_turn_sep = '</s>'  # turn-by-turn works with '' too
+        chat_sep = '###'
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.aquila_simple.value, str(PromptType.aquila_simple.value),
+                         PromptType.aquila_simple.name]:
+        # like aquila but less strictly correct (but less complex) for multi-turn
         promptA = promptB = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions." if not (chat and reduced) else ''
 
         PreInstruct = """###Human: """

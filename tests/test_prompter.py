@@ -161,7 +161,9 @@ User: Go to the market?
 Falcon:"""
 
 
-prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
+# below doesn't actually work for xin, use alternative that works
+#prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
+prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello!\nASSISTANT: Hi!\nUSER: How are you?\nASSISTANT: I'm good\nUSER: Go to the market?\nASSISTANT:"""
 
 
 messages_with_context = [

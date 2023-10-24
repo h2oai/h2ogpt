@@ -42,6 +42,7 @@ class PromptType(Enum):
     xwin = 36
     mistrallite = 37
     aquila = 38
+    aquila_simple = 39
 
 
 class DocumentSubset(Enum):
