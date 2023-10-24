@@ -80,7 +80,7 @@ spec:
                 sleep 5;
               done
 {{- end }}
-      {{- with .Values.vllm.imagePullSecrets }}
+      {{- with .Values.h2ogpt.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -236,6 +236,10 @@ spec:
                       values:
                         - {{ include "h2ogpt.fullname" . }}
                 topologyKey: failure-domain.beta.kubernetes.io/zone
+      {{- with .Values.tgi.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "h2ogpt.fullname" . }}-tgi-inference
           securityContext:
@@ -350,6 +354,10 @@ spec:
                       values:
                         - {{ include "h2ogpt.fullname" . }}
                 topologyKey: failure-domain.beta.kubernetes.io/zone
+      {{- with .Values.vllm.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "h2ogpt.fullname" . }}-vllm-inference
           securityContext:
@@ -420,4 +428,3 @@ spec:
                     storage: {{ .Values.vllm.storage.size | quote }}
                 storageClassName: {{ .Values.vllm.storage.class | quote }}
 {{- end }}
-
