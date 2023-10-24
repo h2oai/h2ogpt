@@ -2017,7 +2017,7 @@ def get_hf_model(load_8bit: bool = False,
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
-            context = NullContext if load_gptq else torch.device
+            context = NullContext if (load_gptq or load_awq) else torch.device
             with context(device):
 
                 if use_gpu_id:
