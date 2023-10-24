@@ -3958,7 +3958,11 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  top_k_docs_max_show=top_k_docs_max_show,
                                  docs_ordering_type=docs_ordering_type,
                                  num_docs_before_cut=num_docs_before_cut,
-                                 verbose=verbose)
+                                 verbose=verbose,
+                                 t_run=0,
+                                 count_input_tokens=0,
+                                 count_output_tokens=0,
+                                 )
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
         return
@@ -5275,7 +5279,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
                 answer_sources)
         if verbose or True:
-            if int(t_run):
+            if t_run is not None and int(t_run) > 0:
                 sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
             if count_input_tokens and count_output_tokens:
                 sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
