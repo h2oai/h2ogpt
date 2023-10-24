@@ -2483,7 +2483,7 @@ def evaluate(
             len(chat_conversation) > 0 and \
             len(chat_conversation[-1]) == 2 and \
             chat_conversation[-1][0] == instruction and \
-            chat_conversation[-1][1] is None:
+            chat_conversation[-1][1] in [None, '']:
         chat_conversation = chat_conversation[:-1]
     if not add_chat_history_to_context:
         # make it easy to ignore without needing add_chat_history_to_context
