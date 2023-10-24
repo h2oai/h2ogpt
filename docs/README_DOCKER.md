@@ -212,6 +212,34 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit
 ```
 
+For LLaMa-2 70B AWQ in docker using vLLM run:
+```bash
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=0,1"' \
+    --shm-size=10.24gb \
+    -p 5000:5000 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
+        --tensor-parallel-size=2 \
+        --seed 1234 \
+        --trust-remote-code \
+	      --max-num-batched-tokens 8192 \
+	      --quantization awq \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.70b_awq.txt
+```
+for choice of port, IP,  model, some number of GPUs matching tensor-parallel-size, etc.
+Can run same thing with 4 GPUs (to be safe) on 4*A10G like more available on AWS.
+
 ### Curl Test
 
 
