@@ -3959,7 +3959,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  docs_ordering_type=docs_ordering_type,
                                  num_docs_before_cut=num_docs_before_cut,
                                  verbose=verbose,
-                                 t_run=0,
+                                 t_run=time.time() - t_run,
                                  count_input_tokens=0,
                                  count_output_tokens=0,
                                  )
@@ -4087,14 +4087,13 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     get_answer_args = tuple([query, docs, answer, scores, show_rank,
                              answer_with_sources,
                              append_sources_to_answer])
-    t_run = time.time() - t_run
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
                              docs_ordering_type=docs_ordering_type,
                              num_docs_before_cut=num_docs_before_cut,
                              verbose=verbose,
-                             t_run=t_run,
+                             t_run=time.time() - t_run,
                              count_input_tokens=llm.count_input_tokens
                              if hasattr(llm, 'count_input_tokens') else None,
                              count_output_tokens=llm.count_output_tokens
