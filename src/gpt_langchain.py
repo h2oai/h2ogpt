@@ -81,7 +81,8 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter, CharacterTextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
-from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
+from langchain.promts import PromptTemplate
+from langchain.llms import HuggingFaceTextGenInference, HuggingFacePipeline
 from langchain.vectorstores import Chroma
 from chromamig import ChromaMig
 
