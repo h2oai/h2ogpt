@@ -2036,7 +2036,7 @@ def get_hf_model(load_8bit: bool = False,
                     model_kwargs['use_safetensors'] = use_safetensors
                     model_kwargs['revision'] = revision
                     config, _, max_seq_len = get_config(base_model, **config_kwargs)
-                    if load_half and not (load_8bit or load_4bit or load_gptq):
+                    if load_half and not (load_8bit or load_4bit or load_gptq or load_awq):
                         model = model_loader(
                             base_model,
                             config=config,
