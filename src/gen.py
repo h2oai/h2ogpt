@@ -3824,10 +3824,7 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
-    if not kwargs.get('truncation_generation', False):
-        # no restriction
-        return kwargs['max_new_tokens']
-    if not isinstance(model_state['tokenizer'], (str, type(None))):
+    if not isinstance(model_state['tokenizer'], (str, type(None))) or not kwargs.get('truncation_generation', False):
         max_max_new_tokens = model_state['tokenizer'].model_max_length
     else:
         max_max_new_tokens = None
