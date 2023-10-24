@@ -158,6 +158,14 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   * For LLaMa2, can set `max_tokens` to a larger value for longer output.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.  
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+* GPU Optional: Support amazon/MistralLite with flash attention 2
+    ```bash
+    pip install git+https://github.com/tomaarsen/attention_sinks.git
+  ```
+* GPU Optional: Support attention sinks for infinite generation
+   ```bash
+    pip install flash-attn==2.3.1.post1 --no-build-isolation
+  ```
 
 * Control Core Count for chroma < 0.4 using chromamigdb package:
     * Duckdb used by Chroma < 0.4 uses DuckDB 0.8.1 that has no control over number of threads per database, `import duckdb` leads to all virtual cores as threads and each db consumes another number of threads equal to virtual cores.  To prevent this, one can rebuild duckdb using [this modification](https://github.com/h2oai/duckdb/commit/dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad) or one can try to use the prebuild wheel for x86_64 built on Ubuntu 20.

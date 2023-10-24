@@ -56,7 +56,9 @@ python3.10 -m pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-whe
 # GGUF ONLY for CPU (AVX2):
 # pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.1.83+cpuavx2-cp310-cp310-linux_x86_64.whl
 python3.10 -m pip install autoawq
+python3.10 -m pip install git+https://github.com/tomaarsen/attention_sinks.git
 python3.10 -m pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+python3.10 -m pip install flash-attn==2.3.1.post1 --no-build-isolation
 playwright install --with-deps
 
 # Uninstall duckdb and use own so can control thread count per db
