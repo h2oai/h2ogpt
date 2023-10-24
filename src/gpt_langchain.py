@@ -36,6 +36,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.openai import acompletion_with_retry, update_token_usage
 from langchain.llms.utils import enforce_stop_tokens
+from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
 from langchain.tools import PythonREPLTool
@@ -1099,8 +1100,11 @@ class ExtraChat:
                 messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
         prompt_messages = []
         for prompt in prompts:
-            prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
-            prompt_message = messages + [prompt_message]
+            if isinstance(prompt, ChatPromptValue):
+                prompt_message = messages + prompt.messages
+            else:
+                prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
+                prompt_message = messages + [prompt_message]
             prompt_messages.append(prompt_message)
         return prompt_messages
 
@@ -4521,11 +4525,8 @@ def get_chain(query=None,
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PYTHON.value in langchain_agents:
-        # FIXME: not thread-safe due to sys.stdout = assignments in worker
-        # langchain/utilities/python.py:        sys.stdout = mystdout = StringIO()
-        # langchain/utilities/python.py:            sys.stdout = old_stdout
-        # langchain/utilities/python.py:            sys.stdout = old_stdout
-        if does_support_functiontools(inference_server, model_name) and False:
+        # non-thread safe things inside worker, but only after in fork, so ok
+        if does_support_functiontools(inference_server, model_name):
             chain = create_python_agent(
                 llm=llm,
                 tool=PythonREPLTool(),

@@ -171,7 +171,12 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
         ```bash
         pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg9698e9e6a8.d20230907-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall --no-deps
       ```
-
+* Deal with not-thread-safe things in LangChain:
+    ```bash
+  sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
+  cd $sp
+  sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
+    ```
 ### Compile Install Issues
   * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
     * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:

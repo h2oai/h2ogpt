@@ -107,6 +107,7 @@ cd /h2ogpt_conda && python -m venv vllm_env --system-site-packages
 sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py && \
     cd $sp && \
+    sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py && \
     rm -rf openai_vllm* && \
     cp -a openai openai_vllm && \
     file0=`ls|grep openai|grep dist-info` && \
