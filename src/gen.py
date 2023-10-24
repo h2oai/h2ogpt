@@ -1406,7 +1406,7 @@ def get_config(base_model,
                 rope_kwargs = dict(rope_scaling=rope_scaling)
             else:
                 rope_kwargs = {}
-            config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+            config = AutoConfig.from_pretrained(base_model, token=use_auth_token,
                                                 trust_remote_code=trust_remote_code,
                                                 offload_folder=offload_folder,
                                                 revision=revision,
@@ -1759,7 +1759,7 @@ def get_model(
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
-                            use_auth_token=use_auth_token,
+                            token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
                             revision=revision,
@@ -1962,7 +1962,7 @@ def get_hf_model(load_8bit: bool = False,
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                             resume_download=resume_download,
-                            use_auth_token=use_auth_token,
+                            token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
                             revision=revision,
@@ -2088,7 +2088,7 @@ def get_hf_model(load_8bit: bool = False,
                 torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
-                use_auth_token=use_auth_token,
+                token=use_auth_token,
                 trust_remote_code=trust_remote_code,
                 offload_folder=offload_folder,
                 rope_scaling=rope_scaling,
@@ -2110,7 +2110,7 @@ def get_hf_model(load_8bit: bool = False,
                     torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                     local_files_only=local_files_only,
                     resume_download=resume_download,
-                    use_auth_token=use_auth_token,
+                    token=use_auth_token,
                     trust_remote_code=trust_remote_code,
                     offload_folder=offload_folder,
                     rope_scaling=rope_scaling,
@@ -3825,7 +3825,11 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 def get_max_max_new_tokens(model_state, **kwargs):
     if not isinstance(model_state['tokenizer'], (str, type(None))) or not kwargs.get('truncation_generation', False):
-        max_max_new_tokens = model_state['tokenizer'].model_max_length
+        if hasattr(model_state['tokenizer'], 'model_max_length'):
+            max_max_new_tokens = model_state['tokenizer'].model_max_length
+        else:
+            # e.g. fast up, no model
+            max_max_new_tokens = None
     else:
         max_max_new_tokens = None
 

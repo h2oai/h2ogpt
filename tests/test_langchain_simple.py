@@ -27,7 +27,7 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
     model_name = base_model
 
     from transformers import AutoConfig
-    config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
+    config = AutoConfig.from_pretrained(base_model, token=True,
                                         trust_remote_code=True,
                                         offload_folder="./")
 

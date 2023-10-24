@@ -8,7 +8,8 @@ import queue
 import pathlib
 from datetime import datetime
 
-from langchain import BasePromptTemplate, LLMChain
+from langchain.schema import BasePromptTemplate
+from langchain.chains import LLMChain
 from langchain.chains import MapReduceDocumentsChain, StuffDocumentsChain, ReduceDocumentsChain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.summarize import map_reduce_prompt, LoadingCallable, _load_stuff_chain, _load_map_reduce_chain, \

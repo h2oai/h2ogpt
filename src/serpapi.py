@@ -3,7 +3,7 @@ import typing
 
 import aiohttp
 from langchain.docstore.document import Document
-from langchain import SerpAPIWrapper
+from langchain.utilities import SerpAPIWrapper
 
 from src.utils_langchain import _chunk_sources, add_parser, _add_meta
 from urllib.parse import urlparse

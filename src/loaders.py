@@ -153,7 +153,7 @@ def get_tokenizer(tokenizer_loader, tokenizer_base_model, local_files_only, resu
     tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
                                                  local_files_only=local_files_only,
                                                  resume_download=resume_download,
-                                                 use_auth_token=use_auth_token,
+                                                 token=use_auth_token,
                                                  padding_side='left')
 
     tokenizer.pad_token_id = 0  # different from the eos token

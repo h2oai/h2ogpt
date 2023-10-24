@@ -91,7 +91,7 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
         rope_scaling = ast.literal_eval(rope_scaling)
         rope_scaling_factor = rope_scaling.get("factor")
     from transformers import AutoConfig
-    config = AutoConfig.from_pretrained(base_model, use_auth_token=True,
+    config = AutoConfig.from_pretrained(base_model, token=True,
                                         trust_remote_code=True)
     max_len = 4096
     if hasattr(config, 'max_position_embeddings'):
