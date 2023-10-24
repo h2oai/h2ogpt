@@ -161,13 +161,12 @@ User: Go to the market?
 Falcon:"""
 
 
-prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
+# below doesn't actually work for xin, use alternative that works
+#prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
+prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello!\nASSISTANT: Hi!\nUSER: How are you?\nASSISTANT: I'm good\nUSER: Go to the market?\nASSISTANT:"""
 
 
-def get_mistral_prompt_with_context():
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
-    messages = [
+messages_with_context = [
         {"role": "user", "content": "Hello!"},
         {"role": "assistant", "content": "Hi!"},
         {"role": "user", "content": "How are you?"},
@@ -175,19 +174,49 @@ def get_mistral_prompt_with_context():
         {"role": "user", "content": "Go to the market?"},
     ]
 
+
+def get_mistral_prompt(messages):
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
     prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
     return prompt_mistral
+
+
+def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=True):
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained("BAAI/AquilaChat2-34B-16K")
+    from models.predict_aquila import get_conv_template
+
+    template_map = {"AquilaChat2-7B": "aquila-v1",
+                    "AquilaChat2-34B": "aquila-legacy",
+                    "AquilaChat2-7B-16K": "aquila",
+                    "AquilaChat2-34B-16K": "aquila"}
+    convo_template = template_map.get(model_base_name, "aquila-chat")
+    conv = get_conv_template(convo_template)
+    if not with_sys:
+        conv.system_message = ''
+    for message in messages:
+        # roles=("Human", "Assistant", "System"),
+        if message['role'] == 'user':
+            conv.append_message(conv.roles[0], message['content'])
+        elif message['role'] == 'assistant':
+            conv.append_message(conv.roles[1], message['content'])
+        elif message['role'] == 'system':
+            conv.append_message(conv.roles[2], message['content'])
+    # assume end with asking assostiant
+    conv.append_message(conv.roles[1], None)
+    return conv.get_prompt()
 
 
 @wrap_test_forked
 @pytest.mark.parametrize("prompt_type,system_prompt,chat_conversation,expected",
                          [
-                             ('vicuna11', '', None, prompt_fastchat),
+                             ('vicuna11', 'auto', None, prompt_fastchat),
                              ('human_bot', '', None, prompt_humanbot),
                              ('prompt_answer', '', None, prompt_prompt_answer),
                              ('prompt_answer_openllama', '', None, prompt_prompt_answer_openllama),
-                             ('mptinstruct', '', None, prompt_mpt_instruct),
-                             ('mptchat', '', None, prompt_mpt_chat),
+                             ('mptinstruct', 'auto', None, prompt_mpt_instruct),
+                             ('mptchat', 'auto', None, prompt_mpt_chat),
                              ('falcon', '', None, prompt_falcon),
                              ('llama2', '', None, prompt_llama2),
                              ('llama2', 'auto', None, prompt_llama2_sys),
@@ -197,8 +226,12 @@ def get_mistral_prompt_with_context():
                              ('beluga', 'auto', None, prompt_beluga_sys),
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
-                             ('mistral', '', None, get_mistral_prompt_with_context()),
-                             ('xwin', '', None, prompt_xwin),
+                             ('mistral', '', None, get_mistral_prompt(messages_with_context)),
+                             ('xwin', 'auto', None, prompt_xwin),
+                             ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False, model_base_name='AquilaChat2-34B-16K')),
+                             ('aquila', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-34B-16K')),
+                             ('aquila_legacy', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-34B')),
+                             ('aquila_v1', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-7B')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -318,31 +351,25 @@ User: Go to the market?
 Falcon:"""
 
 
-prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market? ASSISTANT:"""
+prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market?
+ASSISTANT:"""
 
 
 prompt_mistrallite = """<|prompter|>Go to the market?</s><|assistant|>"""
 
-
-def get_mistral_prompt():
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
-    messages = [
+messages_no_context = [
         {"role": "user", "content": "Go to the market?"},
     ]
-
-    prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
-    return prompt_mistral
 
 
 @pytest.mark.parametrize("prompt_type,system_prompt,expected",
                          [
-                             ('vicuna11', '', prompt_fastchat1),
+                             ('vicuna11', 'auto', prompt_fastchat1),
                              ('human_bot', '', prompt_humanbot1),
                              ('prompt_answer', '', prompt_prompt_answer1),
                              ('prompt_answer_openllama', '', prompt_prompt_answer_openllama1),
-                             ('mptinstruct', '', prompt_mpt_instruct1),
-                             ('mptchat', '', prompt_mpt_chat1),
+                             ('mptinstruct', 'auto', prompt_mpt_instruct1),
+                             ('mptchat', 'auto', prompt_mpt_chat1),
                              ('falcon', '', prompt_falcon1),
                              ('llama2', '', prompt_llama21),
                              ('llama2', 'auto', prompt_llama21_sys),
@@ -350,9 +377,12 @@ def get_mistral_prompt():
                              ('beluga', 'auto', prompt_beluga1_sys),
                              ('falcon_chat', '', prompt_falcon1801),
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
-                             ('mistral', '', get_mistral_prompt()),
-                             ('xwin', '', prompt_xwin1),
+                             ('mistral', '', get_mistral_prompt(messages_no_context)),
+                             ('xwin', 'auto', prompt_xwin1),
                              ('mistrallite', '', prompt_mistrallite),
+                             ('aquila', 'auto', get_aquila_prompt(messages_no_context, with_sys=True)),
+                             ('aquila_legacy', 'auto', get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-34B')),
+                             ('aquila_v1', 'auto', get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-7B')),
                          ]
                          )
 @wrap_test_forked
