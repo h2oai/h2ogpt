@@ -966,14 +966,6 @@ class H2OOpenAI(OpenAI):
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(OpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update(
-            {'top_p', 'frequency_penalty', 'presence_penalty', 'stop_sequences', 'sanitize_bot_response', 'prompter',
-             'tokenizer', 'logit_bias'})
-        return _all_required_field_names
-
     def update_prompts_and_stops(self, prompts, stop):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
@@ -1115,12 +1107,6 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
 
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(ChatOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
-        return _all_required_field_names
-
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
             return self.tokenizer.encode(text)
@@ -1157,12 +1143,6 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
 
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(AzureChatOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
-        return _all_required_field_names
-
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -1189,11 +1169,7 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
 
 
 class H2OAzureOpenAI(AzureOpenAI):
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(AzureOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
-        return _all_required_field_names
+    pass
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
@@ -1417,17 +1393,21 @@ def get_llm(use_openai_model=False,
         else:
             kwargs_extra.update(dict(openai_api_base=openai.api_base))
 
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict(top_p=top_p if do_sample else 1,
+                            frequency_penalty=0,
+                            presence_penalty=1.07 - repetition_penalty + 0.6,
+                            logit_bias=None if inf_type == 'vllm' else {},
+                            )
+
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
-                  top_p=top_p if do_sample else 1,
-                  frequency_penalty=0,
-                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai_api_key,
-                  logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
                   verbose=verbose,
