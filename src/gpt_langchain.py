@@ -1337,6 +1337,14 @@ def get_llm(use_openai_model=False,
             model_name = "gpt-3.5-turbo"
         # FIXME: Will later import be ignored?  I think so, so should be fine
         openai, inf_type, deployment_name, base_url, api_version, api_key = set_openai(inference_server)
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict(top_p=top_p if do_sample else 1,
+                            frequency_penalty=0,
+                            presence_penalty=1.07 - repetition_penalty + 0.6,
+                            logit_bias=None if inf_type == 'vllm' else {},
+                            )
+
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
@@ -1358,6 +1366,8 @@ def get_llm(use_openai_model=False,
         elif inf_type == 'openai_azure':
             cls = H2OAzureOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
+            kwargs_extra.update(model_kwargs)
+            model_kwargs = {}
             # FIXME: Support context, iinput
             openai_api_key = openai.api_key
         else:
@@ -1375,6 +1385,8 @@ def get_llm(use_openai_model=False,
                                          client=None,
                                          async_sem=async_sem,
                                          ))
+                kwargs_extra.update(model_kwargs)
+                model_kwargs = {}
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
             openai_api_key = openai.api_key
@@ -1392,13 +1404,6 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(openai_api_base=base_url))
         else:
             kwargs_extra.update(dict(openai_api_base=openai.api_base))
-
-        # Langchain oddly passes some things directly and rest via model_kwargs
-        model_kwargs = dict(top_p=top_p if do_sample else 1,
-                            frequency_penalty=0,
-                            presence_penalty=1.07 - repetition_penalty + 0.6,
-                            logit_bias=None if inf_type == 'vllm' else {},
-                            )
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,
