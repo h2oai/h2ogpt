@@ -54,10 +54,10 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
-    docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db, openai_supports_functiontools, \
+    docs_ordering_types_default, langchain_modes_non_db, \
     does_support_functiontools
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
+from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -495,6 +495,7 @@ class GradioInference(H2Oagenerate, LLM):
     penalty_alpha: Optional[float] = 0.0
     num_beams: Optional[int] = 1
     max_new_tokens: int = 512
+    max_new_tokens0: int = 512
     min_new_tokens: int = 1
     early_stopping: bool = False
     max_time: int = 180
@@ -636,6 +637,11 @@ class GradioInference(H2Oagenerate, LLM):
             print("_call", flush=True)
 
         client_kwargs, api_name = self.setup_call(prompt)
+        max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
+                                                    max_new_tokens=self.max_new_tokens,
+                                                    max_new_tokens0=self.max_new_tokens0)
+        client_kwargs.update(dict(max_new_tokens=get_relaxed_max_new_tokens(max_new_tokens)))
+
         # new client for each call
         client = self.client.clone()
         from gradio_utils.grclient import check_job
@@ -965,8 +971,9 @@ class H2OOpenAI(OpenAI):
     async_sem: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
 
-    def update_prompts_and_stops(self, prompts, stop):
+    def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
         [stop.append(x) for x in stop_tmp if x not in stop]
@@ -981,7 +988,27 @@ class H2OOpenAI(OpenAI):
             prompt = self.prompter.generate_prompt(data_point)
             prompts[prompti] = prompt
 
-        return prompts, stop
+        kwargs = self.update_kwargs(prompts, kwargs)
+
+        return prompts, stop, kwargs
+
+    def update_kwargs(self, prompts, kwargs):
+        # update kwargs per llm use, for when llm re-used for multiple prompts like summarization/extraction
+        # relax max_new_tokens if can
+        if self.max_new_tokens0 is not None and \
+                self.max_new_tokens0 > self.max_tokens and \
+                len(prompts) == 1 and \
+                'max_tokens' not in kwargs:
+            kwargs.update(dict(max_tokens=self.max_tokens_for_prompt(prompts[0])))
+        return kwargs
+
+    def max_tokens_for_prompt(self, prompt: str) -> int:
+        # like super() OpenAI version but added limit
+        num_tokens = self.get_num_tokens(prompt)
+        if self.max_new_tokens0 is not None:
+            return min(self.max_new_tokens0, self.tokenizer.model_max_length - num_tokens)
+        else:
+            return self.max_context_size - num_tokens
 
     def _generate(
             self,
@@ -992,8 +1019,28 @@ class H2OOpenAI(OpenAI):
     ) -> LLMResult:
         if self.verbose:
             print("Hit _generate", flush=True)
-        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+
+    def _stream(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> typing.Iterator[GenerationChunk]:
+        kwargs = self.update_kwargs([prompt], kwargs)
+        return super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _astream(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> typing.AsyncIterator[GenerationChunk]:
+        kwargs = self.update_kwargs([prompt], kwargs)
+        return await super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs)
 
     async def _agenerate(
             self,
@@ -1002,7 +1049,7 @@ class H2OOpenAI(OpenAI):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> LLMResult:
-        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         if self.batch_size > 1 or self.streaming:
             return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
         else:
@@ -1034,7 +1081,10 @@ class H2OOpenAI(OpenAI):
     ) -> LLMResult:
         async_sem = NullContext() if self.async_sem is None else self.async_sem
         async with async_sem:  # semaphore limits num of simultaneous downloads
-            return await super(H2OOpenAI, self)._agenerate([prompt], stop=stop, run_manager=run_manager, **kwargs)
+            prompts = [prompt]
+            # update for each async call
+            kwargs = self.update_kwargs(prompts, kwargs)
+            return await super(H2OOpenAI, self)._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1106,6 +1156,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
+    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1142,6 +1193,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
 class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
+    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def generate_prompt(
             self,
@@ -1169,7 +1221,7 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
 
 
 class H2OAzureOpenAI(AzureOpenAI):
-    pass
+    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
@@ -1228,6 +1280,7 @@ def get_llm(use_openai_model=False,
             penalty_alpha=0.0,
             num_beams=1,
             max_new_tokens=512,
+            max_new_tokens0=512,
             min_new_tokens=1,
             early_stopping=False,
             max_time=180,
@@ -1410,6 +1463,7 @@ def get_llm(use_openai_model=False,
                   temperature=temperature if do_sample else 0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
+                  max_new_tokens0=max_new_tokens0,
                   model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai_api_key,
@@ -3824,6 +3878,9 @@ def _run_qa_db(query=None,
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
 
+    # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
+    max_new_tokens0 = max_new_tokens
+
     # in case None, e.g. lazy client, then set based upon actual model
     pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
         get_langchain_prompts(pre_prompt_query, prompt_query,
@@ -3880,6 +3937,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       penalty_alpha=penalty_alpha,
                       num_beams=num_beams,
                       max_new_tokens=max_new_tokens,
+                      max_new_tokens0=max_new_tokens0,
                       min_new_tokens=min_new_tokens,
                       early_stopping=early_stopping,
                       max_time=max_time,

@@ -3957,6 +3957,19 @@ def history_to_context(history, langchain_mode=None,
     return context1
 
 
+def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_new_tokens0=None):
+    # check if can relax max_new_tokens for this specific prompt
+    if max_new_tokens0 is not None and \
+            hasattr(tokenizer, 'model_max_len') and \
+            isinstance(tokenizer.model_max_len, (float, int)):
+        max_new_tokens = int(tokenizer.model_max_length) - get_token_count(prompt, tokenizer)
+        if max_new_tokens is not None:
+            return min(max_new_tokens0, max_new_tokens)
+        else:
+            return max_new_tokens0
+    return max_new_tokens
+
+
 def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
