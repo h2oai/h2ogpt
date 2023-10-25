@@ -1935,6 +1935,30 @@ def json_metadata_func(record: dict, metadata: dict) -> dict:
     return metadata
 
 
+def get_num_pages(file):
+    try:
+        import fitz
+        src = fitz.open(file)
+        return len(src)
+    except:
+        return None
+
+
+def get_each_page(file):
+    import fitz
+
+    pages = []
+    src = fitz.open(file)
+    for page in src:
+        tar = fitz.open()  # output PDF for 1 page
+        # copy over current page
+        tar.insert_pdf(src, from_page=page.number, to_page=page.number)
+        page = f"{file}-page-{page.number}.pdf"
+        tar.save(page)
+        tar.close()
+        pages.append(page)
+    return pages
+
 def file_to_doc(file,
                 filei=0,
                 base_path=None, verbose=False, fail_any_exception=False,
@@ -2193,15 +2217,14 @@ def file_to_doc(file,
                 if verbose:
                     print("Fresh DocTR", flush=True)
                 from image_doctr import H2OOCRLoader
-                model_loaders['doctr'] = H2OOCRLoader()
+                model_loaders['doctr'] = H2OOCRLoader(layout_aware=True)
             model_loaders['doctr'].set_document_paths([file])
             docs1c = model_loaders['doctr'].load()
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
-            for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('document_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
             docs1.extend(docs1c)
             if verbose:
                 print("END: DocTR", flush=True)
@@ -2226,9 +2249,8 @@ def file_to_doc(file,
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model)
             # caption didn't set source, so fix-up meta
-            for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('image_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
             docs1.extend(docs1c)
 
             if verbose:
@@ -2251,9 +2273,8 @@ def file_to_doc(file,
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
             # caption didn't set source, so fix-up meta
-            for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('image_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
             docs1.extend(docs1c)
             if verbose:
                 print("END: Pix2Struct", flush=True)
@@ -2343,6 +2364,8 @@ def file_to_doc(file,
             if try_pdf_as_html == True:
                 try_pdf_as_html = 'on'
 
+        num_pages = get_num_pages(file)
+
         doc1 = []
         tried_others = False
         handled = False
@@ -2366,7 +2389,9 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
-        if len(doc1) == 0 and use_unstructured_pdf == 'auto' or use_unstructured_pdf == 'on':
+        # do OCR/tesseract if only 2 page and auto, since doctr superior and faster
+        if (len(doc1) == 0 or num_pages is not None and num_pages < 2) and use_unstructured_pdf == 'auto' \
+                or use_unstructured_pdf == 'on':
             tried_others = True
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
@@ -2427,23 +2452,35 @@ def file_to_doc(file,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        if len(doc1) == 0 and enable_pdf_doctr == 'auto' or enable_pdf_doctr == 'on':
+        # if auto, do doctr pdf if not too many pages, else can be slow/expensive
+        if (len(doc1) == 0 or num_pages is not None and num_pages < 100) and enable_pdf_doctr == 'auto' or \
+                enable_pdf_doctr == 'on':
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
                 model_loaders['doctr'].load_model()
             else:
                 from image_doctr import H2OOCRLoader
-                model_loaders['doctr'] = H2OOCRLoader()
-            model_loaders['doctr'].set_document_paths([file])
+                model_loaders['doctr'] = H2OOCRLoader(layout_aware=True)
+            # avoid having all pages in memory at same time, for large PDFs leads to system OOM
+            try:
+                pages = get_each_page(file)
+                got_pages = True
+            except:
+                # FIXME: protection for now, unsure how generally will work
+                pages = [file]
+                got_pages = False
+            model_loaders['doctr'].set_document_paths(pages)
             doc1a = model_loaders['doctr'].load()
             doc1a = [x for x in doc1a if x.page_content]
             add_meta(doc1a, file, parser='H2OOCRLoader: %s' % 'DocTR')
             handled |= len(doc1a) > 0
+            if got_pages:
+                for page in pages:
+                    remove(page)
             # caption didn't set source, so fix-up meta
-            for doci in doc1a:
-                doci.metadata['source'] = doci.metadata.get('document_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in doc1a]
             doc1.extend(doc1a)
             if verbose:
                 print("END: DocTR", flush=True)

@@ -40,7 +40,8 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                  use_safetensors=False,
                  revision=None,
                  min_new_tokens=20,
-                 max_tokens=50):
+                 max_tokens=50,
+                 gpu_id='auto'):
         if blip_model is None or blip_model is None:
             blip_processor = "Salesforce/blip-image-captioning-base"
             blip_model = "Salesforce/blip-image-captioning-base"
@@ -52,7 +53,6 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
         self.model = None
         self.caption_gpu = caption_gpu
         self.context_class = NullContext
-        self.device = 'cpu'
         self.load_in_8bit = load_in_8bit and have_bitsandbytes  # only for blip2
         self.load_half = load_half
         self.load_gptq = load_gptq
@@ -60,11 +60,14 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
         self.load_exllama = load_exllama
         self.use_safetensors = use_safetensors
         self.revision = revision
-        self.gpu_id = 'auto'
+        self.gpu_id = gpu_id
         # default prompt
         self.prompt = "image of"
         self.min_new_tokens = min_new_tokens
         self.max_tokens = max_tokens
+
+        self.device = 'cpu'
+        self.set_context()
 
     def set_context(self):
         if get_device() == 'cuda' and self.caption_gpu:
@@ -208,6 +211,7 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                         inputs = processor(image, prompt, return_tensors="pt")
                     min_length = len(prompt) // 4 + self.min_new_tokens
                     self.max_tokens = max(self.max_tokens, min_length)
+                    inputs.to(model.device)
                     output = model.generate(**inputs, min_length=min_length, max_length=self.max_tokens)
 
                     caption: str = processor.decode(output[0], skip_special_tokens=True)

@@ -301,14 +301,16 @@ def main(
 
         # images
         enable_ocr=False,
-        enable_doctr=False,
+        enable_doctr=True,
         enable_pix2struct=False,
         enable_captions=True,
 
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
+        caption_gpu_id: Union[int, str] = 'auto',
         captions_model: str = "Salesforce/blip-image-captioning-base",
         doctr_gpu: bool = True,
+        doctr_gpu_id: Union[int, str] = 'auto',
 
         # json
         jq_schema='.[]',
@@ -738,9 +740,10 @@ def main(
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
            then preloads that model if pre_load_caption_model=True
 
-    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+    :param pre_load_caption_model: Whether to preload caption model (True), or load after forking parallel doc loader (False)
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
-           Recommended if using larger caption model
+           Recommended if using larger caption model or doing production serving with many users to avoid GPU OOM if many would use model at same time
+           Also applies to DocTR
     :param captions_model: Which model to use for captions.
            captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
@@ -748,8 +751,10 @@ def main(
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
            Disabled for CPU since BLIP requires CUDA
     :param caption_gpu: If support caption, then use GPU if exists
+    :param caption_gpu_id: Which GPU id to use, if 'auto' then select 0
 
     :param doctr_gpu: If support doctr, then use GPU if exists
+    :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -1363,7 +1368,7 @@ def main(
         if enable_captions:
             if pre_load_caption_model:
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu, gpu_id=caption_gpu_id).load_model()
             else:
                 caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
@@ -1376,8 +1381,13 @@ def main(
             hf_embedding_model = dict(name=hf_embedding_model,
                                       model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
                                                           preload=True))
+
         if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
-            doctr_loader = 'gpu' if n_gpus > 0 and doctr_gpu else 'cpu'
+            if pre_load_caption_model:
+                from image_doctr import H2OOCRLoader
+                doctr_loader = H2OOCRLoader(layout_aware=True, gpu_id=doctr_gpu_id)
+            else:
+                doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             doctr_loader = False
 
