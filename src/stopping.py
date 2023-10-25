@@ -17,12 +17,22 @@ class StoppingCriteriaSub(StoppingCriteria):
         self.model_max_length = model_max_length
         self.tokenizer = tokenizer
         self.truncation_generation = truncation_generation
+        self.token_start = None
+        # not setup for handling existing prompt, only look at new tokens, some models like xwin have funny token handling,
+        # and despite new tokens present the block looks back into different sized output and matches the stop token
+        self.look_at_new_tokens_only = max(self.encounters) == 1
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
         # if self.tokenizer:
         #    print('stop: %s' % self.tokenizer.decode(input_ids[0]), flush=True)
+        if self.token_start is None:
+            self.token_start = input_ids[0].shape[0]
+        if self.look_at_new_tokens_only:
+            new_tokens = input_ids[0][self.token_start:]
+        else:
+            new_tokens = input_ids[0][0:]
         for stopi, (stop, stop_word) in enumerate(zip(self.stops, self.stop_words)):
-            current_block = input_ids[0][-len(stop):]
+            current_block = new_tokens[-len(stop):]
             stop_text = self.tokenizer.decode(current_block)
             len_new_tokens = current_block.shape[0]
             # if len(stop) <= len_new_tokens and torch.all((stop == input_ids[0][-len(stop):])).item():

@@ -79,7 +79,7 @@ class MemTracker(object):
                     yield tensor
             except Exception as e:
                 if self.verbose:
-                    print('A trivial exception occured: {}'.format(e))
+                    print('A trivial exception occurred: {}'.format(e))
 
     def get_tensor_usage(self):
         sizes = [np.prod(np.array(tensor.size())) * get_mem_space(tensor.dtype) for tensor in self.get_tensors()]

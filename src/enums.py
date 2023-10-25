@@ -41,6 +41,10 @@ class PromptType(Enum):
     zephyr = 35
     xwin = 36
     mistrallite = 37
+    aquila = 38
+    aquila_simple = 39
+    aquila_legacy = 40
+    aquila_v1 = 41
 
 
 class DocumentSubset(Enum):
@@ -244,7 +248,7 @@ def gr_to_lg(image_loaders,
     return ret, captions_model
 
 
-invalid_key_msg = 'Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai'
+invalid_key_msg = 'Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai, pass API key through API calls, or set API key in Login tab for UI'
 
 docs_ordering_types = ['best_first', 'best_near_prompt', 'reverse_ucurve_sort']
 

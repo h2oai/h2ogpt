@@ -185,6 +185,7 @@ def main(
         auth_message: str = None,
         guest_name: str = "guest",
         enforce_h2ogpt_api_key: bool = None,
+        enforce_h2ogpt_ui_key: bool = None,
         h2ogpt_api_keys: Union[list, str] = [],
         h2ogpt_key: str = None,
 
@@ -301,14 +302,16 @@ def main(
 
         # images
         enable_ocr=False,
-        enable_doctr=False,
+        enable_doctr=True,
         enable_pix2struct=False,
         enable_captions=True,
 
         pre_load_caption_model: bool = False,
         caption_gpu: bool = True,
+        caption_gpu_id: Union[int, str] = 'auto',
         captions_model: str = "Salesforce/blip-image-captioning-base",
         doctr_gpu: bool = True,
+        doctr_gpu_id: Union[int, str] = 'auto',
 
         # json
         jq_schema='.[]',
@@ -552,6 +555,7 @@ def main(
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
+    :param enforce_h2ogpt_ui_key: Whether to enforce h2oGPT token usage for UI (same keys as API assumed)
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
     :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
 
@@ -588,7 +592,7 @@ def main(
     :param visible_models_tab: "" for models tab
     :param visible_system_tab: "" for system tab
     :param visible_tos_tab: "" for ToS tab
-    :param visible_login_tab: "" for Login tab
+    :param visible_login_tab: "" for Login tab (needed for persistence or to enter key for UI access to models and ingestion)
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
@@ -738,9 +742,10 @@ def main(
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
            then preloads that model if pre_load_caption_model=True
 
-    :param pre_load_caption_model: Whether to preload caption model, or load after forking parallel doc loader
+    :param pre_load_caption_model: Whether to preload caption model (True), or load after forking parallel doc loader (False)
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
-           Recommended if using larger caption model
+           Recommended if using larger caption model or doing production serving with many users to avoid GPU OOM if many would use model at same time
+           Also applies to DocTR
     :param captions_model: Which model to use for captions.
            captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
@@ -748,8 +753,10 @@ def main(
            Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
            Disabled for CPU since BLIP requires CUDA
     :param caption_gpu: If support caption, then use GPU if exists
+    :param caption_gpu_id: Which GPU id to use, if 'auto' then select 0
 
     :param doctr_gpu: If support doctr, then use GPU if exists
+    :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -817,6 +824,9 @@ def main(
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
     is_gpth2oai = bool(int(os.getenv("GPT_H2O_AI", '0')))
     is_public = is_hf or is_gpth2oai  # multi-user case with fixed model and disclaimer
+    if enforce_h2ogpt_ui_key is None:
+        # nominally allow UI access public or not
+        enforce_h2ogpt_ui_key = False
     if is_public:
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
@@ -1056,7 +1066,7 @@ def main(
         model_lower = base_model.lower()
     elif model_lock:
         # have 0th model be thought of as normal model
-        assert len(model_lock) > 0 and model_lock[0]['base_model']
+        assert len(model_lock) > 0 and model_lock[0]['base_model'], "model_lock: %s" % model_lock
         model_lower = model_lock[0]['base_model'].lower()
     else:
         model_lower = ''
@@ -1342,7 +1352,9 @@ def main(
         # This is just so UI shows reasonable correct value, not 2048 dummy value
         if len(model_states) >= 1:
             max_seq_len = model_states[0]['tokenizer'].model_max_length
-        elif model_state0 is not None:
+        elif model_state0 is not None and \
+                'tokenizer' in model_state0 and \
+                hasattr(model_state0['tokenizer'], 'model_max_length'):
             max_seq_len = model_state0['tokenizer'].model_max_length
 
         # get score model
@@ -1358,7 +1370,7 @@ def main(
         if enable_captions:
             if pre_load_caption_model:
                 from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu).load_model()
+                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu, gpu_id=caption_gpu_id).load_model()
             else:
                 caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
@@ -1371,8 +1383,13 @@ def main(
             hf_embedding_model = dict(name=hf_embedding_model,
                                       model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
                                                           preload=True))
+
         if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
-            doctr_loader = 'gpu' if n_gpus > 0 and doctr_gpu else 'cpu'
+            if pre_load_caption_model:
+                from image_doctr import H2OOCRLoader
+                doctr_loader = H2OOCRLoader(layout_aware=True, gpu_id=doctr_gpu_id)
+            else:
+                doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             doctr_loader = False
 
@@ -1401,7 +1418,7 @@ def get_config(base_model,
                 rope_kwargs = dict(rope_scaling=rope_scaling)
             else:
                 rope_kwargs = {}
-            config = AutoConfig.from_pretrained(base_model, use_auth_token=use_auth_token,
+            config = AutoConfig.from_pretrained(base_model, token=use_auth_token,
                                                 trust_remote_code=trust_remote_code,
                                                 offload_folder=offload_folder,
                                                 revision=revision,
@@ -1754,7 +1771,7 @@ def get_model(
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
-                            use_auth_token=use_auth_token,
+                            token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
                             revision=revision,
@@ -1957,7 +1974,7 @@ def get_hf_model(load_8bit: bool = False,
         model_kwargs = dict(local_files_only=local_files_only,
                             torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                             resume_download=resume_download,
-                            use_auth_token=use_auth_token,
+                            token=use_auth_token,
                             trust_remote_code=trust_remote_code,
                             offload_folder=offload_folder,
                             revision=revision,
@@ -2012,7 +2029,7 @@ def get_hf_model(load_8bit: bool = False,
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
-            context = NullContext if load_gptq else torch.device
+            context = NullContext if (load_gptq or load_awq) else torch.device
             with context(device):
 
                 if use_gpu_id:
@@ -2031,7 +2048,7 @@ def get_hf_model(load_8bit: bool = False,
                     model_kwargs['use_safetensors'] = use_safetensors
                     model_kwargs['revision'] = revision
                     config, _, max_seq_len = get_config(base_model, **config_kwargs)
-                    if load_half and not (load_8bit or load_4bit or load_gptq):
+                    if load_half and not (load_8bit or load_4bit or load_gptq or load_awq):
                         model = model_loader(
                             base_model,
                             config=config,
@@ -2083,7 +2100,7 @@ def get_hf_model(load_8bit: bool = False,
                 torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                 local_files_only=local_files_only,
                 resume_download=resume_download,
-                use_auth_token=use_auth_token,
+                token=use_auth_token,
                 trust_remote_code=trust_remote_code,
                 offload_folder=offload_folder,
                 rope_scaling=rope_scaling,
@@ -2105,7 +2122,7 @@ def get_hf_model(load_8bit: bool = False,
                     torch_dtype=torch.float16 if device == 'cuda' else torch.float32,
                     local_files_only=local_files_only,
                     resume_download=resume_download,
-                    use_auth_token=use_auth_token,
+                    token=use_auth_token,
                     trust_remote_code=trust_remote_code,
                     offload_folder=offload_folder,
                     rope_scaling=rope_scaling,
@@ -2479,7 +2496,7 @@ def evaluate(
             len(chat_conversation) > 0 and \
             len(chat_conversation[-1]) == 2 and \
             chat_conversation[-1][0] == instruction and \
-            chat_conversation[-1][1] is None:
+            chat_conversation[-1][1] in [None, '']:
         chat_conversation = chat_conversation[:-1]
     if not add_chat_history_to_context:
         # make it easy to ignore without needing add_chat_history_to_context
@@ -2504,6 +2521,9 @@ def evaluate(
     temperature = min(max(0.01, temperature), 2.0)
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
+    if model_lower == 'distilgpt2':
+        # always truncate for certain models that totally fail otherwise
+        truncation_generation = True
     max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
@@ -2766,7 +2786,7 @@ def evaluate(
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         chat_index, external_handle_chat_conversation, \
-        top_k_docs_trial, one_doc_size = \
+        top_k_docs_trial, one_doc_size, truncation_generation = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -2997,6 +3017,7 @@ def evaluate(
                 response = ''
                 text = ''
                 sources = ''
+                strex = ''
                 if not stream_output:
                     res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = ast.literal_eval(res)
@@ -3006,6 +3027,7 @@ def evaluate(
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict())
                 else:
+                    from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = dict(response=text, sources=sources, save_dict=dict())
                     text0 = ''
@@ -3013,7 +3035,7 @@ def evaluate(
                     while not job.done():
                         if job.communicator.job.latest_status.code.name == 'FINISHED':
                             break
-                        e = job.future._exception
+                        e = check_job(job, timeout=0, raise_exception=False)
                         if e is not None:
                             break
                         outputs_list = job.communicator.job.outputs
@@ -3045,13 +3067,20 @@ def evaluate(
                     # ensure get last output to avoid race
                     res_all = job.outputs()
                     if len(res_all) > 0:
+                        # don't raise unless nochat API for now
+                        e = check_job(job, timeout=0.02, raise_exception=not chat)
+                        if e is not None:
+                            strex = ''.join(traceback.format_tb(e.__traceback__))
+
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
                         text = res_dict['response']
                         sources = res_dict['sources']
                     else:
+                        # if got no answer at all, probably something bad, always raise exception
+                        # UI will still put exception in Chat History under chat exceptions
+                        e = check_job(job, timeout=0.3, raise_exception=True)
                         # go with old text if last call didn't work
-                        e = job.future._exception
                         if e is not None:
                             stre = str(e)
                             strex = ''.join(traceback.format_tb(e.__traceback__))
@@ -3069,7 +3098,7 @@ def evaluate(
                         prompt_and_text = prompt + text
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex)
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
@@ -3809,11 +3838,12 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 
 def get_max_max_new_tokens(model_state, **kwargs):
-    if not kwargs.get('truncation_generation', False):
-        # no restriction
-        return kwargs['max_new_tokens']
-    if not isinstance(model_state['tokenizer'], (str, type(None))):
-        max_max_new_tokens = model_state['tokenizer'].model_max_length
+    if not isinstance(model_state['tokenizer'], (str, type(None))) or not kwargs.get('truncation_generation', False):
+        if hasattr(model_state['tokenizer'], 'model_max_length'):
+            max_max_new_tokens = model_state['tokenizer'].model_max_length
+        else:
+            # e.g. fast up, no model
+            max_max_new_tokens = None
     else:
         max_max_new_tokens = None
 
@@ -3939,6 +3969,19 @@ def history_to_context(history, langchain_mode=None,
         if context1 and not context1.endswith(chat_turn_sep):
             context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
     return context1
+
+
+def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_new_tokens0=None):
+    # check if can relax max_new_tokens for this specific prompt
+    if max_new_tokens0 is not None and \
+            hasattr(tokenizer, 'model_max_len') and \
+            isinstance(tokenizer.model_max_len, (float, int)):
+        max_new_tokens = int(tokenizer.model_max_length) - get_token_count(prompt, tokenizer)
+        if max_new_tokens is not None:
+            return min(max_new_tokens0, max_new_tokens)
+        else:
+            return max_new_tokens0
+    return max_new_tokens
 
 
 def get_limited_prompt(instruction,
@@ -4155,7 +4198,7 @@ def get_limited_prompt(instruction,
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         chat_index, external_handle_chat_conversation, \
-        top_k_docs, one_doc_size
+        top_k_docs, one_doc_size, truncation_generation
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):

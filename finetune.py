@@ -197,7 +197,7 @@ def train(
         local_files_only=local_files_only,
         trust_remote_code=True,
         resume_download=resume_download,
-        use_auth_token=use_auth_token,
+        token=use_auth_token,
     )
     print(model)
     if gpus > 1:
@@ -234,7 +234,7 @@ def train(
             device_map=device_map,
             local_files_only=local_files_only,
             resume_download=resume_download,
-            use_auth_token=use_auth_token,
+            token=use_auth_token,
         )
     elif lora_r > 0:
         if lora_target_modules is None:

@@ -93,6 +93,9 @@ else
 	docker push $(DOCKER_TEST_IMAGE)
 endif
 
+just_docker_build: build_info.txt
+	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
+
 docker_build_runner: docker_build
 	-docker pull $(DOCKER_TEST_IMAGE)
 	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2ogpt-runtime:$(BUILD_TAG)

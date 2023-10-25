@@ -36,6 +36,7 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.openai import acompletion_with_retry, update_token_usage
 from langchain.llms.utils import enforce_stop_tokens
+from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
 from langchain.tools import PythonREPLTool
@@ -53,10 +54,9 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
-    docs_token_handling_default, docs_ordering_types_default, langchain_modes_non_db, openai_supports_functiontools, \
-    does_support_functiontools, doc_json_mode_system_prompt
+    docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED, get_limited_prompt, get_docs_tokens
+from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -80,7 +80,8 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter, CharacterTextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
-from langchain import PromptTemplate, HuggingFaceTextGenInference, HuggingFacePipeline
+from langchain.prompts import PromptTemplate
+from langchain.llms import HuggingFaceTextGenInference, HuggingFacePipeline
 from langchain.vectorstores import Chroma
 from chromamig import ChromaMig
 
@@ -493,6 +494,7 @@ class GradioInference(H2Oagenerate, LLM):
     penalty_alpha: Optional[float] = 0.0
     num_beams: Optional[int] = 1
     max_new_tokens: int = 512
+    max_new_tokens0: int = 512
     min_new_tokens: int = 1
     early_stopping: bool = False
     max_time: int = 180
@@ -634,8 +636,14 @@ class GradioInference(H2Oagenerate, LLM):
             print("_call", flush=True)
 
         client_kwargs, api_name = self.setup_call(prompt)
+        max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
+                                                    max_new_tokens=self.max_new_tokens,
+                                                    max_new_tokens0=self.max_new_tokens0)
+        client_kwargs.update(dict(max_new_tokens=get_relaxed_max_new_tokens(max_new_tokens)))
+
         # new client for each call
         client = self.client.clone()
+        from gradio_utils.grclient import check_job
 
         if not self.stream_output:
             res = client.predict(str(dict(client_kwargs)), api_name=api_name)
@@ -659,7 +667,7 @@ class GradioInference(H2Oagenerate, LLM):
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
                     break
-                e = job.future._exception
+                e = check_job(job, timeout=0, raise_exception=False)
                 if e is not None:
                     break
                 outputs_list = job.communicator.job.outputs
@@ -686,11 +694,19 @@ class GradioInference(H2Oagenerate, LLM):
             # ensure get last output to avoid race
             res_all = job.outputs()
             if len(res_all) > 0:
+                # don't raise unless nochat API for now
+                # set below to True for now, not not self.chat_client, since not handling exception otherwise
+                # in some return of strex
+                check_job(job, timeout=0.02, raise_exception=True)
+
                 res = res_all[-1]
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
                 # FIXME: derive chunk from full for now
             else:
+                # if got no answer at all, probably something bad, always raise exception
+                # UI will still put exception in Chat History under chat exceptions
+                check_job(job, timeout=0.3, raise_exception=True)
                 # go with old if failure
                 text = text0
             text_chunk = text[len(text0):]
@@ -954,16 +970,9 @@ class H2OOpenAI(OpenAI):
     async_sem: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
 
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(OpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update(
-            {'top_p', 'frequency_penalty', 'presence_penalty', 'stop_sequences', 'sanitize_bot_response', 'prompter',
-             'tokenizer', 'logit_bias'})
-        return _all_required_field_names
-
-    def update_prompts_and_stops(self, prompts, stop):
+    def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
         [stop.append(x) for x in stop_tmp if x not in stop]
@@ -978,7 +987,27 @@ class H2OOpenAI(OpenAI):
             prompt = self.prompter.generate_prompt(data_point)
             prompts[prompti] = prompt
 
-        return prompts, stop
+        kwargs = self.update_kwargs(prompts, kwargs)
+
+        return prompts, stop, kwargs
+
+    def update_kwargs(self, prompts, kwargs):
+        # update kwargs per llm use, for when llm re-used for multiple prompts like summarization/extraction
+        # relax max_new_tokens if can
+        if self.max_new_tokens0 is not None and \
+                self.max_new_tokens0 > self.max_tokens and \
+                len(prompts) == 1 and \
+                'max_tokens' not in kwargs:
+            kwargs.update(dict(max_tokens=self.max_tokens_for_prompt(prompts[0])))
+        return kwargs
+
+    def max_tokens_for_prompt(self, prompt: str) -> int:
+        # like super() OpenAI version but added limit
+        num_tokens = self.get_num_tokens(prompt)
+        if self.max_new_tokens0 is not None:
+            return min(self.max_new_tokens0, self.tokenizer.model_max_length - num_tokens)
+        else:
+            return self.max_context_size - num_tokens
 
     def _generate(
             self,
@@ -989,8 +1018,28 @@ class H2OOpenAI(OpenAI):
     ) -> LLMResult:
         if self.verbose:
             print("Hit _generate", flush=True)
-        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+
+    def _stream(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> typing.Iterator[GenerationChunk]:
+        kwargs = self.update_kwargs([prompt], kwargs)
+        return super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _astream(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> typing.AsyncIterator[GenerationChunk]:
+        kwargs = self.update_kwargs([prompt], kwargs)
+        return await super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs)
 
     async def _agenerate(
             self,
@@ -999,7 +1048,7 @@ class H2OOpenAI(OpenAI):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> LLMResult:
-        prompts, stop = self.update_prompts_and_stops(prompts, stop)
+        prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         if self.batch_size > 1 or self.streaming:
             return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
         else:
@@ -1031,7 +1080,10 @@ class H2OOpenAI(OpenAI):
     ) -> LLMResult:
         async_sem = NullContext() if self.async_sem is None else self.async_sem
         async with async_sem:  # semaphore limits num of simultaneous downloads
-            return await super(H2OOpenAI, self)._agenerate([prompt], stop=stop, run_manager=run_manager, **kwargs)
+            prompts = [prompt]
+            # update for each async call
+            kwargs = self.update_kwargs(prompts, kwargs)
+            return await super(H2OOpenAI, self)._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1090,8 +1142,11 @@ class ExtraChat:
                 messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
         prompt_messages = []
         for prompt in prompts:
-            prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
-            prompt_message = messages + [prompt_message]
+            if isinstance(prompt, ChatPromptValue):
+                prompt_message = messages + prompt.messages
+            else:
+                prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
+                prompt_message = messages + [prompt_message]
             prompt_messages.append(prompt_message)
         return prompt_messages
 
@@ -1100,12 +1155,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
-
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(ChatOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
-        return _all_required_field_names
+    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1142,12 +1192,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
 class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
-
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(AzureChatOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
-        return _all_required_field_names
+    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def generate_prompt(
             self,
@@ -1175,11 +1220,7 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
 
 
 class H2OAzureOpenAI(AzureOpenAI):
-    @classmethod
-    def _all_required_field_names(cls) -> Set:
-        _all_required_field_names = super(AzureOpenAI, cls)._all_required_field_names()
-        _all_required_field_names.update({'top_p', 'frequency_penalty', 'presence_penalty', 'logit_bias'})
-        return _all_required_field_names
+    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
@@ -1238,6 +1279,7 @@ def get_llm(use_openai_model=False,
             penalty_alpha=0.0,
             num_beams=1,
             max_new_tokens=512,
+            max_new_tokens0=512,
             min_new_tokens=1,
             early_stopping=False,
             max_time=180,
@@ -1347,6 +1389,14 @@ def get_llm(use_openai_model=False,
             model_name = "gpt-3.5-turbo"
         # FIXME: Will later import be ignored?  I think so, so should be fine
         openai, inf_type, deployment_name, base_url, api_version, api_key = set_openai(inference_server)
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict(top_p=top_p if do_sample else 1,
+                            frequency_penalty=0,
+                            presence_penalty=1.07 - repetition_penalty + 0.6,
+                            logit_bias=None if inf_type == 'vllm' else {},
+                            )
+
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
@@ -1368,6 +1418,8 @@ def get_llm(use_openai_model=False,
         elif inf_type == 'openai_azure':
             cls = H2OAzureOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
+            kwargs_extra.update(model_kwargs)
+            model_kwargs = {}
             # FIXME: Support context, iinput
             openai_api_key = openai.api_key
         else:
@@ -1385,6 +1437,8 @@ def get_llm(use_openai_model=False,
                                          client=None,
                                          async_sem=async_sem,
                                          ))
+                kwargs_extra.update(model_kwargs)
+                model_kwargs = {}
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
             openai_api_key = openai.api_key
@@ -1396,8 +1450,8 @@ def get_llm(use_openai_model=False,
         elif openai.api_version:
             kwargs_extra.update(dict(openai_api_version=openai.api_version))
         elif inf_type in ['openai_azure', 'openai_azure_chat']:
-            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-09-01-preview
-            kwargs_extra.update(dict(openai_api_version="2023-09-01-preview"))
+            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-10-01-preview
+            kwargs_extra.update(dict(openai_api_version="2023-10-01-preview"))
         if base_url:
             kwargs_extra.update(dict(openai_api_base=base_url))
         else:
@@ -1408,12 +1462,10 @@ def get_llm(use_openai_model=False,
                   temperature=temperature if do_sample else 0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
-                  top_p=top_p if do_sample else 1,
-                  frequency_penalty=0,
-                  presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                  max_new_tokens0=max_new_tokens0,
+                  model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai_api_key,
-                  logit_bias=None if inf_type == 'vllm' else {},
                   max_retries=6,
                   streaming=stream_output,
                   verbose=verbose,
@@ -1882,6 +1934,30 @@ def json_metadata_func(record: dict, metadata: dict) -> dict:
     return metadata
 
 
+def get_num_pages(file):
+    try:
+        import fitz
+        src = fitz.open(file)
+        return len(src)
+    except:
+        return None
+
+
+def get_each_page(file):
+    import fitz
+
+    pages = []
+    src = fitz.open(file)
+    for page in src:
+        tar = fitz.open()  # output PDF for 1 page
+        # copy over current page
+        tar.insert_pdf(src, from_page=page.number, to_page=page.number)
+        page = f"{file}-page-{page.number}.pdf"
+        tar.save(page)
+        tar.close()
+        pages.append(page)
+    return pages
+
 def file_to_doc(file,
                 filei=0,
                 base_path=None, verbose=False, fail_any_exception=False,
@@ -2140,15 +2216,14 @@ def file_to_doc(file,
                 if verbose:
                     print("Fresh DocTR", flush=True)
                 from image_doctr import H2OOCRLoader
-                model_loaders['doctr'] = H2OOCRLoader()
+                model_loaders['doctr'] = H2OOCRLoader(layout_aware=True)
             model_loaders['doctr'].set_document_paths([file])
             docs1c = model_loaders['doctr'].load()
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OOCRLoader: %s' % 'DocTR')
             # caption didn't set source, so fix-up meta
-            for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('document_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
             docs1.extend(docs1c)
             if verbose:
                 print("END: DocTR", flush=True)
@@ -2173,9 +2248,8 @@ def file_to_doc(file,
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model)
             # caption didn't set source, so fix-up meta
-            for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('image_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
             docs1.extend(docs1c)
 
             if verbose:
@@ -2198,9 +2272,8 @@ def file_to_doc(file,
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
             # caption didn't set source, so fix-up meta
-            for doci in docs1c:
-                doci.metadata['source'] = doci.metadata.get('image_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
             docs1.extend(docs1c)
             if verbose:
                 print("END: Pix2Struct", flush=True)
@@ -2290,6 +2363,8 @@ def file_to_doc(file,
             if try_pdf_as_html == True:
                 try_pdf_as_html = 'on'
 
+        num_pages = get_num_pages(file)
+
         doc1 = []
         tried_others = False
         handled = False
@@ -2313,7 +2388,9 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
-        if len(doc1) == 0 and use_unstructured_pdf == 'auto' or use_unstructured_pdf == 'on':
+        # do OCR/tesseract if only 2 page and auto, since doctr superior and faster
+        if (len(doc1) == 0 or num_pages is not None and num_pages < 2) and use_unstructured_pdf == 'auto' \
+                or use_unstructured_pdf == 'on':
             tried_others = True
             try:
                 doc1a = UnstructuredPDFLoader(file).load()
@@ -2374,23 +2451,35 @@ def file_to_doc(file,
             # seems to not need cleaning in most cases
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
-        if len(doc1) == 0 and enable_pdf_doctr == 'auto' or enable_pdf_doctr == 'on':
+        # if auto, do doctr pdf if not too many pages, else can be slow/expensive
+        if (len(doc1) == 0 or num_pages is not None and num_pages < 100) and enable_pdf_doctr == 'auto' or \
+                enable_pdf_doctr == 'on':
             if verbose:
                 print("BEGIN: DocTR", flush=True)
             if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
                 model_loaders['doctr'].load_model()
             else:
                 from image_doctr import H2OOCRLoader
-                model_loaders['doctr'] = H2OOCRLoader()
-            model_loaders['doctr'].set_document_paths([file])
+                model_loaders['doctr'] = H2OOCRLoader(layout_aware=True)
+            # avoid having all pages in memory at same time, for large PDFs leads to system OOM
+            try:
+                pages = get_each_page(file)
+                got_pages = True
+            except:
+                # FIXME: protection for now, unsure how generally will work
+                pages = [file]
+                got_pages = False
+            model_loaders['doctr'].set_document_paths(pages)
             doc1a = model_loaders['doctr'].load()
             doc1a = [x for x in doc1a if x.page_content]
             add_meta(doc1a, file, parser='H2OOCRLoader: %s' % 'DocTR')
             handled |= len(doc1a) > 0
+            if got_pages:
+                for page in pages:
+                    remove(page)
             # caption didn't set source, so fix-up meta
-            for doci in doc1a:
-                doci.metadata['source'] = doci.metadata.get('document_path', file)
-                doci.metadata['hashid'] = hash_file(doci.metadata['source'])
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in doc1a]
             doc1.extend(doc1a)
             if verbose:
                 print("END: DocTR", flush=True)
@@ -3675,13 +3764,7 @@ def run_qa_db(**kwargs):
     # only keep actual used
     kwargs = {k: v for k, v in kwargs.items() if k in func_names}
     try:
-        if kwargs.get('verbose', False):
-            # maybe helps avoid sys.stdout getting closed
-            from contextlib import redirect_stdout
-            with redirect_stdout(None):
-                return _run_qa_db(**kwargs)
-        else:
-            return _run_qa_db(**kwargs)
+        return _run_qa_db(**kwargs)
     finally:
         clear_torch_cache()
 
@@ -3833,6 +3916,9 @@ def _run_qa_db(query=None,
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
 
+    # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
+    max_new_tokens0 = max_new_tokens
+
     # in case None, e.g. lazy client, then set based upon actual model
     pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
         get_langchain_prompts(pre_prompt_query, prompt_query,
@@ -3892,6 +3978,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       penalty_alpha=penalty_alpha,
                       num_beams=num_beams,
                       max_new_tokens=max_new_tokens,
+                      max_new_tokens0=max_new_tokens0,
                       min_new_tokens=min_new_tokens,
                       early_stopping=early_stopping,
                       max_time=max_time,
@@ -3975,7 +4062,11 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                  top_k_docs_max_show=top_k_docs_max_show,
                                  docs_ordering_type=docs_ordering_type,
                                  num_docs_before_cut=num_docs_before_cut,
-                                 verbose=verbose)
+                                 verbose=verbose,
+                                 t_run=time.time() - t_run,
+                                 count_input_tokens=0,
+                                 count_output_tokens=0,
+                                 )
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
         return
@@ -4100,14 +4191,13 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     get_answer_args = tuple([query, docs, answer, scores, show_rank,
                              answer_with_sources,
                              append_sources_to_answer])
-    t_run = time.time() - t_run
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
                              docs_ordering_type=docs_ordering_type,
                              num_docs_before_cut=num_docs_before_cut,
                              verbose=verbose,
-                             t_run=t_run,
+                             t_run=time.time() - t_run,
                              count_input_tokens=llm.count_input_tokens
                              if hasattr(llm, 'count_input_tokens') else None,
                              count_output_tokens=llm.count_output_tokens
@@ -4401,6 +4491,14 @@ def get_chain(query=None,
     if text_context_list is None:
         text_context_list = []
 
+    # same code in get_limited_prompt, but needed for summarization/extraction since only query returns that
+    if gradio_server or not inference_server:
+        # can listen to truncation_generation
+        pass
+    else:
+        # these don't support allowing going beyond total context
+        truncation_generation = True
+
     # default nothing
     docs = []
     target = None
@@ -4524,6 +4622,7 @@ def get_chain(query=None,
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.PYTHON.value in langchain_agents:
+        # non-thread safe things inside worker, but only after in fork, so ok
         if does_support_functiontools(inference_server, model_name):
             chain = create_python_agent(
                 llm=llm,
@@ -4876,7 +4975,8 @@ def get_chain(query=None,
             num_prompt_tokens, max_new_tokens, \
             num_prompt_tokens0, num_prompt_tokens_actual, \
             chat_index, external_handle_chat_conversation, \
-            top_k_docs_trial, one_doc_size = \
+            top_k_docs_trial, one_doc_size, \
+            truncation_generation = \
             get_limited_prompt(estimated_prompt_no_docs,
                                iinput,
                                tokenizer,
@@ -5303,7 +5403,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
                 answer_sources)
         if verbose or True:
-            if int(t_run):
+            if t_run is not None and int(t_run) > 0:
                 sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
             if count_input_tokens and count_output_tokens:
                 sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (

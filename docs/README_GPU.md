@@ -78,7 +78,20 @@ CUDA_VISIBLE_DEVICES=2,3 python generate.py --base_model=TheBloke/Llama-2-70B-ch
 
 See [for more details](https://github.com/casper-hansen/AutoAWQ).
 
-To run vLLM with 70B on 2 A100's using h2oGPT docker with vLLM built-in do:
+To run vLLM with 70B on 2 A100's using h2oGPT follow [vLLM install instructions](README_InferenceServers.md#vllm-inference-server-client) then do:
+```
+python -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
+        --tensor-parallel-size=2 \
+        --seed 1234 \
+        --trust-remote-code \
+	    --max-num-batched-tokens 8192 \
+	    --quantization awq \
+        --download-dir=/$HOME/.cache/huggingface/hub
+```
+for choice of port, IP,  model, some number of GPUs matching tensor-parallel-size, etc.  Or with docker with built-in vLLM:
 ```bash
 docker run -d \
     --runtime=nvidia \
@@ -93,7 +106,7 @@ docker run -d \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
     gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
-        --port=5002 \
+        --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
         --tensor-parallel-size=2 \

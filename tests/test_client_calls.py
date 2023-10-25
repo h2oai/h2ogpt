@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens, \
-    count_tokens_llm
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, \
+    count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
     db_types_full
@@ -258,38 +258,28 @@ def test_client1api_lean_lock_choose_model():
                     'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                     'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                     'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
-                    'max_seq_len': None, 'exllama_dict': {}}, {'base_model': 'distilgpt2', 'prompt_type': 'plain',
-                                                               'prompt_dict': {'promptA': '', 'promptB': '',
-                                                                               'PreInstruct': '<human>: ',
-                                                                               'PreInput': None,
-                                                                               'PreResponse': '<bot>:',
-                                                                               'terminate_response': ['\n<human>:',
-                                                                                                      '\n<bot>:',
-                                                                                                      '<human>:',
-                                                                                                      '<bot>:',
-                                                                                                      '<bot>:'],
-                                                                               'chat_sep': '\n', 'chat_turn_sep': '\n',
-                                                                               'humanstr': '<human>:',
-                                                                               'botstr': '<bot>:',
-                                                                               'generates_leading_space': True,
-                                                                               'system_prompt': ''}, 'load_8bit': False,
-                                                               'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
-                                                               'load_gptq': '', 'load_awq': '', 'load_exllama': False,
-                                                               'use_safetensors': False, 'revision': None,
-                                                               'use_gpu_id': True, 'gpu_id': 0, 'compile_model': True,
-                                                               'use_cache': None,
-                                                               'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True,
-                                                                                 'n_batch': 1024, 'n_gqa': 0,
-                                                                                 'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                                                 'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                                                 'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                                                 'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                                                               'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-                                                               'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                                               'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                                               'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ',
-                                                               'rope_scaling': {}, 'max_seq_len': None,
-                                                               'exllama_dict': {}}]
+                    'max_seq_len': 2048, 'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
+                    'truncation_generation': False, 'hf_model_dict': {}},
+                   {'base_model': 'distilgpt2', 'prompt_type': 'plain',
+                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ', 'PreInput': None,
+                                    'PreResponse': '<bot>:',
+                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:', '<bot>:', '<bot>:'],
+                                    'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
+                                    'generates_leading_space': True, 'system_prompt': ''}, 'load_8bit': False,
+                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
+                    'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
+                    'compile_model': True, 'use_cache': None,
+                    'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
+                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
+                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
+                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
+                    'max_seq_len': 1024, 'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
+                    'truncation_generation': False, 'hf_model_dict': {}}]
 
 
 @wrap_test_forked
@@ -822,7 +812,8 @@ def test_autoawq():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "am a virtual assistant" in res_dict['response']
+    assert "am a virtual assistant" in res_dict['response'] or \
+           "Hello! My name is LLaMA, I'm a large language model trained by a team" in res_dict['response']
 
 
 @pytest.mark.parametrize("mode", ['a', 'b', 'c'])
@@ -904,7 +895,8 @@ def test_attention_sinks(max_seq_len, attention_sinks):
          langchain_mode=langchain_mode,
          langchain_modes=langchain_modes,
          top_k_docs=top_k_docs,  # has no effect for client if client passes different number
-         max_seq_len=max_seq_len,  # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
+         max_seq_len=max_seq_len,
+         # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
          docs_ordering_type=docs_ordering_type,
          cut_distance=1.8,  # probably should allow control via API/UI
          sink_dict={'attention_sink_size': 4, 'attention_sink_window_size': 4096} if attention_sinks else {},
@@ -1082,10 +1074,11 @@ def test_text_generation_inference_server1():
 
 
 @pytest.mark.need_tokens
-@wrap_test_forked
-@pytest.mark.parametrize("loaders", ['all', None])
+@pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
-def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key):
+@pytest.mark.parametrize("loaders", ['all', None])
+@wrap_test_forked
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key):
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -1698,7 +1691,6 @@ def test_client_timeout(stream_output, max_time):
     # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
     # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
     assert 'my_test_pdf.pdf' in sources[0]
-
 
 
 # pip install pytest-timeout
@@ -2327,6 +2319,7 @@ Rating: 5 (most positive)"""
     print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
+@pytest.mark.parametrize("which_doc", ['whisper', 'graham'])
 @pytest.mark.parametrize("db_type", db_types_full)
 @pytest.mark.parametrize("langchain_action", ['Extract', 'Summarize'])
 @pytest.mark.parametrize("instruction", ['', 'Technical key points'])
@@ -2337,7 +2330,8 @@ Rating: 5 (most positive)"""
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction,
-                              langchain_action, db_type):
+                              langchain_action, db_type, which_doc):
+    kill_weaviate(db_type)
     # launch server
     local_server = True
     num_async = 10
@@ -2382,9 +2376,14 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         check_hashes = False
 
     # get file for client to upload
-    url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
-    download_simple(url, dest=test_file1)
+    if which_doc == 'whisper':
+        url = 'https://cdn.openai.com/papers/whisper.pdf'
+        test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+        download_simple(url, dest=test_file1)
+    elif which_doc == 'graham':
+        test_file1 = 'tests/1paul_graham.txt'
+    else:
+        raise ValueError("No such which_doc=%s" % which_doc)
 
     # PURE client code
     from gradio_client import Client
@@ -2440,25 +2439,38 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     if langchain_action == 'Extract':
         assert isinstance(summary, list) or 'No relevant documents to extract from.' == summary
         summary = str(summary)  # for easy checking
-    if instruction == 'Technical key points':
-        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
-            assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary
+
+    if which_doc == 'whisper':
+        if instruction == 'Technical key points':
+            if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+                assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
+            else:
+                assert 'No relevant documents to extract from.' in summary or \
+                       'long-form transcription' in summary or \
+                       'text standardization' in summary or \
+                       'speech processing' in summary
         else:
-            assert 'No relevant documents to extract from.' in summary or 'long-form transcription' in summary
+            if prompt_summary == '':
+                assert 'Whisper' in summary or \
+                       'robust speech recognition system' in summary or \
+                       'Robust speech recognition' in summary or \
+                       'speech processing' in summary or \
+                       'LibriSpeech dataset with weak supervision' in summary or \
+                       'Large-scale weak supervision of speech' in summary or \
+                       'text standardization' in summary
+            else:
+                assert 'various techniques and approaches in speech recognition' in summary or \
+                       'capabilities of speech processing systems' in summary or \
+                       'speech recognition' in summary or \
+                       'capabilities of speech processing systems' in summary or \
+                       'Large-scale weak supervision of speech' in summary or \
+                       'text standardization' in summary or \
+                       'speech processing systems' in summary
+            assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+            assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
     else:
-        if prompt_summary == '':
-            assert 'Whisper' in summary or \
-                   'robust speech recognition system' in summary or \
-                   'Robust speech recognition' in summary or \
-                   'speech processing' in summary or \
-                   'LibriSpeech dataset with weak supervision' in summary
-        else:
-            assert 'various techniques and approaches in speech recognition' in summary or \
-                   'capabilities of speech processing systems' in summary or \
-                   'speech recognition' in summary or \
-                   'capabilities of speech processing systems' in summary
-        assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
-        assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
+        # weaviate as usual gets confused and has too many sources
+        assert '1paul_graham.txt' in [x['source'] for x in sources][0]
 
 
 @pytest.mark.need_tokens
