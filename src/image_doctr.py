@@ -18,10 +18,15 @@ from doctr.utils.common_types import AbstractFile
 class H2OOCRLoader(ImageCaptionLoader):
     """Loader that extracts text from images"""
 
-    def __init__(self, path_images: Union[str, List[str]] = None, layout_aware=False):
+    def __init__(self, path_images: Union[str, List[str]] = None, layout_aware=False, gpu_id=None):
         super().__init__(path_images)
         self._ocr_model = None
         self.layout_aware = layout_aware
+        self.gpu_id = gpu_id
+
+        self.device = 'cpu'
+        # ensure self.device set
+        self.set_context()
 
     def set_context(self):
         if get_device() == 'cuda':
@@ -29,7 +34,10 @@ class H2OOCRLoader(ImageCaptionLoader):
             n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
             if n_gpus > 0:
                 self.context_class = torch.device
-                self.device = 'cuda'
+                if self.gpu_id is not None:
+                    self.device = torch.device("cuda:%d" % self.gpu_id)
+                else:
+                    self.device = 'cuda'
             else:
                 self.device = 'cpu'
         else:
