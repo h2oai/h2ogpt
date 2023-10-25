@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, count_tokens, \
+from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_inf_server, get_inf_port, \
     count_tokens_llm
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
@@ -2319,6 +2319,7 @@ Rating: 5 (most positive)"""
     print("TIME nochat2: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
 
 
+@pytest.mark.parametrize("which_doc", ['whisper', 'graham'])
 @pytest.mark.parametrize("db_type", db_types_full)
 @pytest.mark.parametrize("langchain_action", ['Extract', 'Summarize'])
 @pytest.mark.parametrize("instruction", ['', 'Technical key points'])
@@ -2329,7 +2330,7 @@ Rating: 5 (most positive)"""
 @pytest.mark.need_tokens
 @wrap_test_forked
 def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction,
-                              langchain_action, db_type):
+                              langchain_action, db_type, which_doc):
     # launch server
     local_server = True
     num_async = 10
@@ -2374,9 +2375,14 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         check_hashes = False
 
     # get file for client to upload
-    url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
-    download_simple(url, dest=test_file1)
+    if which_doc == 'whisper':
+        url = 'https://cdn.openai.com/papers/whisper.pdf'
+        test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+        download_simple(url, dest=test_file1)
+    elif which_doc == 'graham':
+        test_file1 = 'tests/1paul_graham.txt'
+    else:
+        raise ValueError("No such which_doc=%s" % which_doc)
 
     # PURE client code
     from gradio_client import Client
@@ -2432,28 +2438,32 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     if langchain_action == 'Extract':
         assert isinstance(summary, list) or 'No relevant documents to extract from.' == summary
         summary = str(summary)  # for easy checking
-    if instruction == 'Technical key points':
-        if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
-            assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
+
+    if which_doc == 'whisper':
+        if instruction == 'Technical key points':
+            if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+                assert 'No relevant documents to summarize.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
+            else:
+                assert 'No relevant documents to extract from.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
         else:
-            assert 'No relevant documents to extract from.' in summary or 'long-form transcription' in summary or 'text standardization' in summary or 'speech processing' in summary
+            if prompt_summary == '':
+                assert 'Whisper' in summary or \
+                       'robust speech recognition system' in summary or \
+                       'Robust speech recognition' in summary or \
+                       'speech processing' in summary or \
+                       'LibriSpeech dataset with weak supervision' in summary or \
+                       'Large-scale weak supervision of speech' in summary or \
+                       'text standardization' in summary
+            else:
+                assert 'various techniques and approaches in speech recognition' in summary or \
+                       'capabilities of speech processing systems' in summary or \
+                       'speech recognition' in summary or \
+                       'capabilities of speech processing systems' in summary or \
+                       'Large-scale weak supervision of speech' in summary or \
+                       'text standardization' in summary
+            assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+            assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
     else:
-        if prompt_summary == '':
-            assert 'Whisper' in summary or \
-                   'robust speech recognition system' in summary or \
-                   'Robust speech recognition' in summary or \
-                   'speech processing' in summary or \
-                   'LibriSpeech dataset with weak supervision' in summary or \
-                   'Large-scale weak supervision of speech' in summary or \
-                   'text standardization' in summary
-        else:
-            assert 'various techniques and approaches in speech recognition' in summary or \
-                   'capabilities of speech processing systems' in summary or \
-                   'speech recognition' in summary or \
-                   'capabilities of speech processing systems' in summary or \
-                   'Large-scale weak supervision of speech' in summary or \
-                   'text standardization' in summary
-        assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
         assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
 
 

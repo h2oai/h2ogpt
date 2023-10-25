@@ -4391,6 +4391,14 @@ def get_chain(query=None,
     if text_context_list is None:
         text_context_list = []
 
+    # same code in get_limited_prompt, but needed for summarization/extraction since only query returns that
+    if gradio_server or not inference_server:
+        # can listen to truncation_generation
+        pass
+    else:
+        # these don't support allowing going beyond total context
+        truncation_generation = True
+
     # default nothing
     docs = []
     target = None
@@ -4866,7 +4874,8 @@ def get_chain(query=None,
             num_prompt_tokens, max_new_tokens, \
             num_prompt_tokens0, num_prompt_tokens_actual, \
             chat_index, external_handle_chat_conversation, \
-            top_k_docs_trial, one_doc_size = \
+            top_k_docs_trial, one_doc_size, \
+            truncation_generation = \
             get_limited_prompt(estimated_prompt_no_docs,
                                iinput,
                                tokenizer,

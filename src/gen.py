@@ -2772,7 +2772,7 @@ def evaluate(
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         chat_index, external_handle_chat_conversation, \
-        top_k_docs_trial, one_doc_size = \
+        top_k_docs_trial, one_doc_size, truncation_generation = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -4171,7 +4171,7 @@ def get_limited_prompt(instruction,
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         chat_index, external_handle_chat_conversation, \
-        top_k_docs, one_doc_size
+        top_k_docs, one_doc_size, truncation_generation
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
