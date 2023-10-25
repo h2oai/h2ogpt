@@ -86,7 +86,7 @@ class H2OOCRLoader(ImageCaptionLoader):
         return results
 
     def _get_captions_and_metadata(
-            self, model: Any, document_path: str) -> Tuple[str, dict]:
+            self, model: Any, document_path: str) -> Tuple[list, dict]:
         """
         Helper function for getting the captions and metadata of an image
         """
@@ -197,7 +197,7 @@ def space_layout(texts, boxes):
             line_width = np.array(line_boxes[-1])
             line_width = line_width[:, 2].max() - line_width[:, 0].min()
 
-    char_width = (line_width / max_line_char_num)
+    char_width = (line_width / max_line_char_num) if max_line_char_num > 0 else 0
     if char_width == 0:
         char_width = 1
 

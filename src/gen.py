@@ -301,7 +301,7 @@ def main(
 
         # images
         enable_ocr=False,
-        enable_doctr=False,
+        enable_doctr=True,
         enable_pix2struct=False,
         enable_captions=True,
 
