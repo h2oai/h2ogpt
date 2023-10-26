@@ -1028,7 +1028,7 @@ def test_client_stress_stream(repeat):
     client = get_client(serialize=True)
     kwargs, args = get_args(prompt, prompt_type, chat=chat, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
-    res_dict, client = run_client_gen(client, prompt, args, kwargs, do_md_to_text=False, verbose=False)
+    res_dict, client = run_client_gen(client, kwargs, do_md_to_text=False)
 
     assert 'response' in res_dict and res_dict['response']
 
@@ -1536,7 +1536,7 @@ def test_client_load_unload_models():
 
     prompt = "Who are you?"
     kwargs = dict(stream_output=stream_output, instruction=prompt)
-    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
     assert 'What do you want to be?' in response
 
@@ -1612,7 +1612,7 @@ def test_client_clone(stream_output):
     for client in [client1, client2]:
         prompt = "Who are you?"
         kwargs = dict(stream_output=stream_output, instruction=prompt)
-        res_dict, client = run_client_gen(client, prompt, None, kwargs)
+        res_dict, client = run_client_gen(client, kwargs)
         response = res_dict['response']
         assert len(response) > 0
         sources = res_dict['sources']
@@ -1635,7 +1635,7 @@ def test_client_timeout(stream_output, max_time):
     prompt = "Tell a very long kid's story about birds"
     kwargs = dict(stream_output=stream_output, instruction=prompt, max_time=max_time)
     t0 = time.time()
-    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
     assert len(response) > 0
     assert time.time() - t0 < max_time * 2
@@ -1669,9 +1669,9 @@ def test_client_timeout(stream_output, max_time):
     assert res[3] == ''
 
     # ask for summary, need to use same client if using MyData
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     instruction = "Give a very long detailed step-by-step description of what is Whisper paper about."
-    kwargs = dict(langchain_mode=langchain_mode,
+    kwargs = dict(instruction=instruction,
+                  langchain_mode=langchain_mode,
                   langchain_action="Query",
                   top_k_docs=4,
                   document_subset='Relevant',
@@ -1682,7 +1682,7 @@ def test_client_timeout(stream_output, max_time):
                   stream_output=stream_output,
                   )
     t0 = time.time()
-    res_dict, client = run_client_gen(client, instruction, None, kwargs)
+    res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
     assert len(response) > 0
     # assert len(response) < max_time * 20  # 20 tokens/sec
@@ -2618,7 +2618,7 @@ def test_fastsys(stream_output, bits, prompt_type):
 
     prompt = "Who are you?"
     kwargs = dict(stream_output=stream_output, instruction=prompt)
-    res_dict, client = run_client_gen(client, prompt, None, kwargs)
+    res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
     assert """As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  body.  I  exist  solely  to  assist  users  with  their  questions  and  provide  information  to  the  best  of  my  ability.  Is  there  something  specific  you  would  like  to  know  or  discuss?""" in response or \
            "As  an  AI  language  model,  I  don't  have  a  personal  identity  or  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response or \
@@ -2653,9 +2653,9 @@ def test_fastsys(stream_output, bits, prompt_type):
     assert res[3] == ''
 
     # ask for summary, need to use same client if using MyData
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     instruction = "What is Whisper?"
-    kwargs = dict(langchain_mode=langchain_mode,
+    kwargs = dict(instruction=instruction,
+                  langchain_mode=langchain_mode,
                   langchain_action="Query",
                   top_k_docs=4,
                   document_subset='Relevant',
@@ -2665,12 +2665,75 @@ def test_fastsys(stream_output, bits, prompt_type):
                   do_sample=False,
                   stream_output=stream_output,
                   )
-    res_dict, client = run_client_gen(client, instruction, None, kwargs)
+    res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
     if bits is None:
         assert """Whisper is a machine learning model developed by OpenAI for speech recognition. It is trained on large amounts of text data from the internet and uses a minimalist approach to data pre-processing, relying on the expressiveness of sequence-to-sequence models to learn to map between words in a transcript. The model is designed to be able to predict the raw text of transcripts without any significant standardization, allowing it to learn to map between words in different languages without having to rely on pre-trained models.""" in response or \
                """Whisper  is  a  speech  processing  system  that  is  designed  to  generalize  well  across  domains,  tasks,  and  languages.  It  is  based  on  a  single  robust  architecture  that  is  trained  on  a  wide  set  of  existing  datasets,  and  it  is  able  to  generalize  well  across  domains,  tasks,  and  languages.  The  goal  of  Whisper  is  to  develop  a  single  robust  speech  processing  system  that  works  reliably  without  the  need  for  dataset-specific  fine-tuning  to  achieve  high-quality  results  on  specific  distributions.""" in response
     else:
         assert """single  robust  speech  processing  system  that  works""" in response or """Whisper""" in response
+    sources = [x['source'] for x in res_dict['sources']]
+    assert 'my_test_pdf.pdf' in sources[0]
+
+
+@pytest.mark.parametrize("hyde_template", ['auto', None, """Give detailed answer for: {query}"""])
+@pytest.mark.parametrize("hyde_level", list(range(0, 3)))
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.need_tokens
+@wrap_test_forked
+def test_hyde(stream_output, hyde_level, hyde_template):
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model,
+         chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+         use_auth_token=True,
+         )
+
+    # get file for client to upload
+    url = 'https://coca-colafemsa.com/wp-content/uploads/2023/04/Coca-Cola-FEMSA-Results-1Q23-vf-2.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    remove(test_file1)
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    h2ogpt_key = ''
+    embed = True
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, embed,
+                         None, None, None, None,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    instruction = "What is the revenue of Mexico?"
+    kwargs = dict(instruction=instruction,
+                  langchain_mode=langchain_mode,
+                  langchain_action="Query",
+                  top_k_docs=4,
+                  document_subset='Relevant',
+                  document_choice=DocumentChoice.ALL.value,
+                  max_new_tokens=512,
+                  max_time=300,
+                  do_sample=False,
+                  stream_output=stream_output,
+                  hyde_level=hyde_level,
+                  hyde_template=hyde_template,
+                  )
+    res_dict, client = run_client_gen(client, kwargs)
+    response = res_dict['response']
+    assert """23,222 million""" in response
     sources = [x['source'] for x in res_dict['sources']]
     assert 'my_test_pdf.pdf' in sources[0]

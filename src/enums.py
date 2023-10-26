@@ -260,3 +260,5 @@ docs_joiner_default = '\n\n'
 
 db_types = ['chroma', 'weaviate']
 db_types_full = ['chroma', 'weaviate', 'faiss']
+
+auto_choices = [None, 'None', 'auto']

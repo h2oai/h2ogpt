@@ -90,6 +90,8 @@ class TextCompletionCreator:
         max_input_tokens: int = None,
         docs_token_handling: str = None,
         docs_joiner: str = None,
+        hyde_level: int = 0,
+        hyde_template: str = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -132,6 +134,14 @@ class TextCompletionCreator:
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
         :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+        :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
+                     0: No HYDE
+                     1: Use non-document-based LLM response and original query for embedding query
+                     2: Use document-based LLM response and original query for embedding query
+                     3+: Continue iterations of embedding prior answer and getting new response
+        :param hyde_template:
+                     None, 'None', 'auto' uses internal value and enable
+                     '{query}' is minimal template one can pass
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = ""  # empty when chat_mode is False
@@ -169,6 +179,8 @@ class TextCompletionCreator:
         params["max_input_tokens"] = max_input_tokens
         params["docs_token_handling"] = docs_token_handling
         params["docs_joiner"] = docs_joiner
+        params["hyde_level"] = hyde_level
+        params["hyde_template"] = hyde_template
         return TextCompletion(self._client, params)
 
 
@@ -249,6 +261,8 @@ class ChatCompletionCreator:
         max_input_tokens: int = None,
         docs_token_handling: str = None,
         docs_joiner: str = None,
+        hyde_level: int = None,
+        hyde_template: str = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -289,6 +303,14 @@ class ChatCompletionCreator:
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
         :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+        :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
+                     0: No HYDE
+                     1: Use non-document-based LLM response and original query for embedding query
+                     2: Use document-based LLM response and original query for embedding query
+                     3+: Continue iterations of embedding prior answer and getting new response
+        :param hyde_template:
+                     None, 'None', 'auto' uses internal value and enable
+                     '{query}' is minimal template one can pass
         """
         params = _utils.to_h2ogpt_params(locals().copy())
         params["instruction"] = None  # future prompts
@@ -327,6 +349,8 @@ class ChatCompletionCreator:
         params["max_input_tokens"] = max_input_tokens
         params["docs_token_handling"] = docs_token_handling
         params["docs_joiner"] = docs_joiner
+        params["hyde_level"] = hyde_level
+        params["hyde_template"] = hyde_template
         params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 
