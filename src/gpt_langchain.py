@@ -4066,7 +4066,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
 
     llm_answers = {}
-    if hyde_level > 0 and query_action and document_subset not in non_query_commands:
+    if hyde_level is not None and hyde_level > 0 and query_action and document_subset not in non_query_commands:
         query_embedding, llm_answers = yield from run_hyde(**locals())
         sim_kwargs['query_embedding'] = query_embedding
 
