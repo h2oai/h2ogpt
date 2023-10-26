@@ -141,7 +141,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          max_input_tokens=None,
                          docs_token_handling=None,
                          docs_joiner=None,
-                         hyde_level=None,
+                         hyde_level=0,
                          hyde_template=None,
                          )
     diff = 0
