@@ -1184,11 +1184,13 @@ def go_gradio(**kwargs):
                             minimum=1, maximum=max_max_new_tokens, step=1,
                             value=min(max_max_new_tokens, kwargs['min_max_new_tokens']),
                             label="Min. of Max output length",
+                            visible=not is_public,
                         )
                         max_input_tokens = gr.Number(
                             minimum=-1, maximum=128 * 1024, step=1,
                             value=-1,
                             label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
+                            visible=not is_public,
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
                                                      value=kwargs['early_stopping'], visible=max_beams > 1)
