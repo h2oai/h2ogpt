@@ -4503,7 +4503,7 @@ def run_hyde(*args, **kwargs):
     if hyde_template in auto_choices:
         hyde_template = auto_hyde
     elif isinstance(hyde_template, str):
-        pass
+        assert '{query}' in hyde_template, "Require at least {query} in HYDE template, but got: %s" % hyde_template
     else:
         raise TypeError("Bad Type hyde_template=%s" % hyde_template)
 
