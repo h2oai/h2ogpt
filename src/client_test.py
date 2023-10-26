@@ -461,15 +461,16 @@ def run_client_nochat_gen(prompt, prompt_type, stream_output, max_new_tokens,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
                             langchain_action=langchain_action, langchain_agents=langchain_agents,
                             version=version, h2ogpt_key=h2ogpt_key)
-    return run_client_gen(client, prompt, args, kwargs)
+    return run_client_gen(client, kwargs)
 
 
-def run_client_gen(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
+def run_client_gen(client, kwargs, do_md_to_text=True):
     res_dict = kwargs
-    res_dict['prompt'] = prompt
+    res_dict['prompt'] = kwargs['instruction'] or kwargs['instruction_nochat']
     if not kwargs['stream_output']:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-        res_dict.update(ast.literal_eval(res))
+        res_dict1 = ast.literal_eval(res)
+        res_dict.update(res_dict1)
         print(md_to_text(res_dict['response'], do_md_to_text=do_md_to_text))
         return res_dict, client
     else:
@@ -478,14 +479,15 @@ def run_client_gen(client, prompt, args, kwargs, do_md_to_text=True, verbose=Fal
             outputs_list = job.communicator.job.outputs
             if outputs_list:
                 res = job.communicator.job.outputs[-1]
-                res_dict = ast.literal_eval(res)
-                print('Stream: %s' % res_dict['response'])
+                res_dict1 = ast.literal_eval(res)
+                print('Stream: %s' % res_dict1['response'])
             time.sleep(0.1)
         res_list = job.outputs()
         assert len(res_list) > 0, "No response, check server"
         res = res_list[-1]
-        res_dict = ast.literal_eval(res)
-        print('Final: %s' % res_dict['response'])
+        res_dict1 = ast.literal_eval(res)
+        print('Final: %s' % res_dict1['response'])
+        res_dict.update(res_dict1)
         return res_dict, client
 
 
