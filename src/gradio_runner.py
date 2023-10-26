@@ -1108,7 +1108,8 @@ def go_gradio(**kwargs):
                             visible=True)
                         docs_joiner = gr.Textbox(label="String to join lists and documents",
                                                  value=kwargs['docs_joiner'] or docs_joiner_default)
-                        hyde_level = gr.Slider(minimum=0, maximum=3, step=1,
+                        max_hyde_level = 0 if is_public else 5
+                        hyde_level = gr.Slider(minimum=0, maximum=max_hyde_level, step=1,
                                                value=kwargs['hyde_level'],
                                                label='HYDE level',
                                                info="Whether to use HYDE approach for LLM getting answer to embed (0=disabled, 1=non-doc LLM answer, 2=doc-based LLM answer)",
