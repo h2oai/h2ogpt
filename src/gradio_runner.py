@@ -867,8 +867,12 @@ def go_gradio(**kwargs):
                     if kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
                 with doc_selection_tab:
                     if kwargs['langchain_mode'] in langchain_modes_non_db:
-                        dlabel1 = 'Choose Resources->Collections and Pick Collection'
-                        active_collection = gr.Markdown(value="#### Not Chatting with Any Collection\n%s" % dlabel1)
+                        if langchain_mode == LangChainMode.DISABLED.value:
+                            inactive_collection = "#### Document Q/A Disabled -- Chat only mode"
+                        else:
+                            dlabel1 = 'Choose Resources->Collections and Pick Collection'
+                            inactive_collection = "#### Not Chatting with Any Collection\n%s" % dlabel1
+                        active_collection = gr.Markdown(value=inactive_collection)
                     else:
                         dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
                         active_collection = gr.Markdown(
