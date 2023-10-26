@@ -295,7 +295,8 @@ def go_gradio(**kwargs):
                 else:
                     # NOTE: Could raise, but sometimes raising in certain places fails too hard and requires UI restart
                     if api:
-                        raise ValueError("Invalid model %s, valid models are: %s" % (model_active_choice1, base_model_list))
+                        raise ValueError(
+                            "Invalid model %s, valid models are: %s" % (model_active_choice1, base_model_list))
                     model_active_choice1 = 0
         else:
             model_active_choice1 = 0
@@ -1107,6 +1108,16 @@ def go_gradio(**kwargs):
                             visible=True)
                         docs_joiner = gr.Textbox(label="String to join lists and documents",
                                                  value=kwargs['docs_joiner'] or docs_joiner_default)
+                        hyde_level = gr.Slider(minimum=0, maximum=3, step=1,
+                                               value=kwargs['hyde_level'],
+                                               label='HYDE level',
+                                               info="Whether to use HYDE approach for LLM getting answer to embed (0=disabled, 1=non-doc LLM answer, 2=doc-based LLM answer)",
+                                               visible=kwargs['langchain_mode'] != 'Disabled',
+                                               interactive=not is_public)
+                        hyde_template = gr.components.Textbox(value='auto',
+                                                              label="HYDE Embedding Template",
+                                                              info="HYDE approach for LLM getting answer to embed ('auto' means automatic, else enter template like '{query}'",
+                                                              visible=True)
 
                         embed = gr.components.Checkbox(value=True,
                                                        label="Whether to embed text",
@@ -3609,7 +3620,7 @@ def go_gradio(**kwargs):
                         return False
             return is_same
 
-        def save_chat(*args, chat_is_list=False, auth_filename=None, auth_freeze=None):
+        def save_chat(*args, chat_is_list=False, auth_filename=None, auth_freeze=None, raise_if_none=True):
             args_list = list(args)
             db1s = args_list[0]
             requests_state1 = args_list[1]
@@ -3629,7 +3640,12 @@ def go_gradio(**kwargs):
             chat_list_not_none = [x for x in chat_list if x and len(x) > 0 and len(x[0]) == 2 and x[0][1] is not None]
             chat_list_none = [x for x in chat_list if x not in chat_list_not_none]
             if len(chat_list_none) > 0 and len(chat_list_not_none) == 0:
-                raise ValueError("Invalid chat file")
+                if raise_if_none:
+                    raise ValueError("Invalid chat file")
+                else:
+                    chat_state1 = args_list[-1]
+                    choices = list(chat_state1.keys()).copy()
+                    return chat_state1, gr.update(choices=choices, value=None)
             # dict with keys of short chat names, values of list of list of chatbot histories
             chat_state1 = args_list[-1]
             short_chats = list(chat_state1.keys())
@@ -3722,7 +3738,8 @@ def go_gradio(**kwargs):
                         new_chats = json.loads(f.read())
                         for chat1_k, chat1_v in new_chats.items():
                             # ignore chat1_k, regenerate and de-dup to avoid loss
-                            chat_state1, _ = save_chat(db1s, requests_state1, chat1_v, chat_state1, chat_is_list=True)
+                            chat_state1, _ = save_chat(db1s, requests_state1, chat1_v, chat_state1, chat_is_list=True,
+                                                       raise_if_none=True)
                 except BaseException as e:
                     t, v, tb = sys.exc_info()
                     ex = ''.join(traceback.format_exception(t, v, tb))
@@ -3772,6 +3789,7 @@ def go_gradio(**kwargs):
         save_chat_func = functools.partial(save_chat,
                                            auth_filename=kwargs['auth_filename'],
                                            auth_freeze=kwargs['auth_freeze'],
+                                           raise_if_none=False,
                                            )
         clear_event = clear_eventa.then(save_chat_func,
                                         inputs=[my_db_state, requests_state] +

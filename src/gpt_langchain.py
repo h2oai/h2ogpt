@@ -31,10 +31,8 @@ import yaml
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
-from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
-from langchain.llms.openai import acompletion_with_retry, update_token_usage
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
@@ -55,7 +53,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, \
-    does_support_functiontools
+    does_support_functiontools, auto_choices
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -620,6 +618,8 @@ class GradioInference(H2Oagenerate, LLM):
                              max_input_tokens=self.max_input_tokens,
                              docs_token_handling=None,
                              docs_joiner=None,
+                             hyde_level=None,
+                             hyde_template=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -1344,7 +1344,7 @@ def get_llm(use_openai_model=False,
                           top_p=top_p if do_sample else 1,
                           top_k=top_k,  # not always supported
                           repetition_penalty=repetition_penalty)
-        if system_prompt in [None, 'None', 'auto']:
+        if system_prompt in auto_choices:
             if prompter.system_prompt:
                 system_prompt = prompter.system_prompt
             else:
@@ -1958,6 +1958,7 @@ def get_each_page(file):
         tar.close()
         pages.append(page)
     return pages
+
 
 def file_to_doc(file,
                 filei=0,
@@ -3866,6 +3867,8 @@ def _run_qa_db(query=None,
                max_input_tokens=-1,
                docs_token_handling=None,
                docs_joiner=None,
+               hyde_level=None,
+               hyde_template=None,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -4030,46 +4033,72 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     data_point = dict(context=context, instruction=query, input=iinput)
     prompt_basic = prompter.generate_prompt(data_point)
 
+    # default is to embed query directly without processing
+    query_embedding = query
+
     if isinstance(document_choice, str):
         # support string as well
         document_choice = [document_choice]
+
+    # NOTE: Could try to establish if pure llm mode or not, but makes code too complex
+    query_action = langchain_action == LangChainAction.QUERY.value
+    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                            LangChainAction.SUMMARIZE_ALL.value,
+                                            LangChainAction.SUMMARIZE_REFINE.value,
+                                            LangChainAction.EXTRACT.value]
+
+    get_answer_kwargs = dict(show_accordions=show_accordions,
+                             show_link_in_sources=show_link_in_sources,
+                             top_k_docs_max_show=top_k_docs_max_show,
+                             verbose=verbose,
+                             )
+
+    # NOTE: only includes those things get_llm() and get_chain() do not change
+    run_target_func = functools.partial(run_target,
+                                        stream_output=stream_output,
+                                        lora_weights=lora_weights, max_time=max_time,
+                                        sanitize_bot_response=sanitize_bot_response,
+                                        verbose=verbose)
 
     func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
+
+    llm_answers = {}
+    if hyde_level > 0 and query_action and document_subset not in non_query_commands:
+        query_embedding, llm_answers = yield from run_hyde(**locals())
+        sim_kwargs['query_embedding'] = query_embedding
+
     docs, chain, scores, \
         num_docs_before_cut, \
         use_llm_if_no_docs, top_k_docs_max_show, \
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
         get_chain(**sim_kwargs)
+
     if document_subset in non_query_commands:
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
-            yield dict(prompt=prompt_basic, response="No sources", sources='', num_prompt_tokens=0)
+            yield dict(prompt=prompt_basic, response="No sources", sources='', num_prompt_tokens=0,
+                       llm_answers=llm_answers)
             return
         # if no sources, outside gpt_langchain, LLM will be used with '' input
         scores = [1] * len(docs)
         get_answer_args = tuple([query, docs, formatted_doc_chunks, scores, show_rank,
                                  answer_with_sources,
                                  append_sources_to_answer])
-        get_answer_kwargs = dict(show_accordions=show_accordions,
-                                 show_link_in_sources=show_link_in_sources,
-                                 top_k_docs_max_show=top_k_docs_max_show,
-                                 docs_ordering_type=docs_ordering_type,
-                                 num_docs_before_cut=num_docs_before_cut,
-                                 verbose=verbose,
-                                 t_run=time.time() - t_run,
-                                 count_input_tokens=0,
-                                 count_output_tokens=0,
-                                 )
+        get_answer_kwargs.update(dict(t_run=time.time() - t_run,
+                                      count_input_tokens=0,
+                                      count_output_tokens=0,
+                                      ))
         ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
-        yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0)
+        yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=extra, num_prompt_tokens=0,
+                   llm_answers=llm_answers)
         return
     if langchain_agents and not chain:
         ret = '%s not supported by this model' % langchain_agents[0]
         extra = ''
-        yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
+        yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0, llm_answers=llm_answers)
         return
     if langchain_mode not in langchain_modes_non_db and not docs:
         if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -4085,7 +4114,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
             ret = None
         if ret is not None:
             extra = ''
-            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0)
+            yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0, llm_answers=llm_answers)
             return
 
     # NOTE: If chain=None, could return if HF type (i.e. not langchain_only_model), but makes code too complex
@@ -4093,6 +4122,67 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     if chain is None:
         return
 
+    answer = yield from run_target_func(query=query,
+                                        chain=chain,
+                                        llm=llm,
+                                        streamer=streamer,
+                                        prompter=prompter,
+                                        llm_answers=llm_answers,
+                                        llm_answers_key='llm_answer_final',
+                                        async_output=async_output,
+                                        only_new_text=only_new_text)
+
+    get_answer_args = tuple([query, docs, answer, scores, show_rank,
+                             answer_with_sources,
+                             append_sources_to_answer])
+    get_answer_kwargs.update(dict(t_run=time.time() - t_run,
+                                  count_input_tokens=llm.count_input_tokens
+                                  if hasattr(llm, 'count_input_tokens') else None,
+                                  count_output_tokens=llm.count_output_tokens
+                                  if hasattr(llm, 'count_output_tokens') else None,
+                                  ))
+
+    # for final yield, get real prompt used
+    if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
+        prompt = llm.prompter.prompt
+    else:
+        prompt = prompt_basic
+    num_prompt_tokens = get_token_count(prompt, tokenizer)
+
+    if len(docs) == 0:
+        # if no docs, then no sources to cite
+        ret, extra = answer, ''
+        # doesn't actually have docs, but name means got to end with that answer
+        llm_answers['llm_answer_final'] = ret
+        if verbose:
+            print('response: %s' % ret)
+        yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens,
+                   llm_answers=llm_answers)
+    elif answer is not None:
+        ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
+        llm_answers['llm_answer_final'] = ret
+        if verbose:
+            print('response: %s' % ret)
+        yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens,
+                   llm_answers=llm_answers)
+    return
+
+
+def run_target(query='',
+               chain=None,
+               llm=None,
+               streamer=None,
+               prompter=None,
+               llm_answers={},
+               llm_answers_key='llm_answer_final',
+               async_output=False,
+               only_new_text=True,
+               # things below are fixed for entire _run_qa_db() call once hit get_llm() and so on
+               stream_output=False,
+               lora_weights='',
+               max_time=0,
+               sanitize_bot_response=False,
+               verbose=False):
     # context stuff similar to used in evaluate()
     import torch
     device, torch_dtype, context_class = get_device_dtype()
@@ -4113,7 +4203,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                 thread.start()
                 outputs = ""
                 output1_old = ''
-                res_dict = dict(prompt=query, response='', sources='', num_prompt_tokens=0)
+                res_dict = dict(prompt=query, response='', sources='', num_prompt_tokens=0, llm_answers=llm_answers)
                 try:
                     tgen0 = time.time()
                     for new_text in streamer:
@@ -4126,11 +4216,11 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                 if prompter.botstr:
                                     prompt = prompter.botstr
                                     output_with_prompt = prompt + outputs
-                                    only_new_text = False
+                                    only_new_text = False  # override llm return
                                 else:
                                     prompt = None
                                     output_with_prompt = outputs
-                                    only_new_text = True
+                                    only_new_text = True  # override llm return
                             else:
                                 prompt = None  # FIXME
                                 output_with_prompt = outputs
@@ -4140,14 +4230,16 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                                                             sanitize_bot_response=sanitize_bot_response)
                         else:
                             output1 = outputs
-                        res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0)
+                        # in-place change to this key so exposed outside this generator
+                        llm_answers[llm_answers_key] = output1
+                        res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0,
+                                        llm_answers=llm_answers)
                         if output1 != output1_old:
                             yield res_dict
                             output1_old = output1
                         if time.time() - tgen0 > max_time:
                             if verbose:
-                                print("Took too long EThread for %s %s: %s" % (
-                                    model_name, langchain_action, time.time() - tgen0), flush=True)
+                                print("Took too long EThread for %s" % (time.time() - tgen0), flush=True)
                             break
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
@@ -4184,42 +4276,39 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                         elif 'resolution' in answer:
                             answer = answer['resolution']
 
-    get_answer_args = tuple([query, docs, answer, scores, show_rank,
-                             answer_with_sources,
-                             append_sources_to_answer])
-    get_answer_kwargs = dict(show_accordions=show_accordions,
-                             show_link_in_sources=show_link_in_sources,
-                             top_k_docs_max_show=top_k_docs_max_show,
-                             docs_ordering_type=docs_ordering_type,
-                             num_docs_before_cut=num_docs_before_cut,
-                             verbose=verbose,
-                             t_run=time.time() - t_run,
-                             count_input_tokens=llm.count_input_tokens
-                             if hasattr(llm, 'count_input_tokens') else None,
-                             count_output_tokens=llm.count_output_tokens
-                             if hasattr(llm, 'count_output_tokens') else None)
-
-    # for final yield, get real prompt used
-    if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
-        prompt = llm.prompter.prompt
-    else:
-        prompt = prompt_basic
-    num_prompt_tokens = get_token_count(prompt, tokenizer)
-
-    if len(docs) == 0:
-        # if no docs, then no sources to cite
-        ret = answer
-        extra = ''
-        yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens)
-    elif answer is not None:
-        ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
-        yield dict(prompt=prompt, response=ret, sources=extra, num_prompt_tokens=num_prompt_tokens)
-    return
+    llm_answers[llm_answers_key] = answer
+    if verbose:
+        print("answer: %s" % answer, flush=True)
+    return answer
 
 
-def get_docs_with_score(query, k_db, filter_kwargs, db, db_type, text_context_list=None,
+def get_docs_with_score(query, k_db,
+                        filter_kwargs,
+                        filter_kwargs_backup,
+                        db, db_type, text_context_list=None,
                         chunk_id_filter=None,
                         verbose=False):
+    docs_with_score = _get_docs_with_score(query, k_db,
+                                           filter_kwargs,
+                                           db, db_type,
+                                           text_context_list=text_context_list,
+                                           chunk_id_filter=chunk_id_filter,
+                                           verbose=verbose)
+    if len(docs_with_score) == 0 and filter_kwargs != filter_kwargs_backup:
+        docs_with_score = _get_docs_with_score(query, k_db,
+                                               filter_kwargs_backup,
+                                               db, db_type,
+                                               text_context_list=text_context_list,
+                                               chunk_id_filter=chunk_id_filter,
+                                               verbose=verbose)
+    return docs_with_score
+
+
+def _get_docs_with_score(query, k_db,
+                         filter_kwargs,
+                         db, db_type, text_context_list=None,
+                         chunk_id_filter=None,
+                         verbose=False):
     docs_with_score = []
 
     if text_context_list:
@@ -4381,7 +4470,105 @@ def get_single_document(document_choice, db, extension=None):
         return None
 
 
+def run_hyde(*args, **kwargs):
+    """
+    :param hyde_level: HYDE level
+                 0: No HYDE
+                 1: Use non-document-based LLM response and original query for embedding query
+                 2: Use document-based LLM response and original query for embedding query
+                 3+: continue iterations of embedding prior answer and getting new response
+    :param hyde_template: Use HYDE approach (https://arxiv.org/abs/2212.10496)
+                 None, 'None', 'auto' uses internal value and enable
+                 'off' means disable
+                 '{query}' is minimal template one can pass
+
+    """
+
+    # get vars
+    query = kwargs['query']
+    sim_kwargs = kwargs['sim_kwargs']
+    run_target_func = kwargs['run_target_func']
+    prompter = kwargs['prompter']
+    hyde_level = kwargs['hyde_level']
+    hyde_template = kwargs['hyde_template']
+    verbose = kwargs['verbose']
+    show_rank = kwargs['show_rank']
+    answer_with_sources = kwargs['answer_with_sources']
+    get_answer_kwargs = kwargs['get_answer_kwargs']
+    append_sources_to_answer = kwargs['append_sources_to_answer']
+    prompt_basic = kwargs['prompt_basic']
+
+    # get llm answer
+    auto_hyde = """Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: {query}"""
+    if hyde_template in auto_choices:
+        hyde_template = auto_hyde
+    elif isinstance(hyde_template, str):
+        pass
+    else:
+        raise TypeError("Bad Type hyde_template=%s" % hyde_template)
+
+    hyde_higher_template = """{query}\n\n{answer}"""
+
+    # default
+    llm_answers = {}
+    hyde_chain = sim_kwargs.copy()
+    # no-doc chain first if done
+    hyde_chain['query'] = hyde_template.format(query=query)
+    hyde_chain['db'] = None
+    hyde_chain['text_context_list'] = []
+
+    for hyde_level in range(hyde_level):
+        if verbose:
+            print("hyde_level=%d embedding_query=%s" % (hyde_level, hyde_chain['query']), flush=True)
+
+        # run chain
+        docs, chain, scores, \
+            num_docs_before_cut, \
+            use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text = \
+            get_chain(**hyde_chain)
+
+        # get answer, updates llm_answers internally too
+        llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level
+        # for LLM, query remains same each time
+        answer = yield from run_target_func(query=query,
+                                            chain=chain,
+                                            llm=llm,
+                                            streamer=streamer,
+                                            prompter=prompter,
+                                            llm_answers=llm_answers,
+                                            llm_answers_key=llm_answers_key,
+                                            async_output=async_output,
+                                            only_new_text=only_new_text)
+
+        if answer:
+            # give back what have so far with any sources (what above yield doesn't do)
+            get_answer_args = tuple([query, docs,
+                                     answer,
+                                     scores, show_rank,
+                                     answer_with_sources,
+                                     append_sources_to_answer])
+            ret, extra = get_sources_answer(*get_answer_args, **get_answer_kwargs)
+            # FIXME: Something odd, UI gets stuck and no more yields if pass these sources inside ret
+            # https://github.com/gradio-app/gradio/issues/6100
+            # print("ret: %s" % ret)
+            # yield dict(prompt=prompt_basic, response=ret, sources=extra, num_prompt_tokens=0, llm_answers=llm_answers)
+            # try yield after
+            # print("answer: %s" % answer)
+            yield dict(prompt=prompt_basic, response=answer, sources=extra, num_prompt_tokens=0,
+                       llm_answers=llm_answers)
+
+            # update embedding query
+            hyde_chain['query_embedding'] = hyde_higher_template.format(query=query, answer=answer)
+        # update hyde_chain with doc version from now on
+        hyde_chain['db'] = kwargs['db']
+        hyde_chain['text_context_list'] = kwargs['text_context_list']
+
+    return hyde_chain['query_embedding'], llm_answers
+
+
 def get_chain(query=None,
+              query_embedding=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               use_openai_model=False, use_openai_embedding=False,
@@ -4478,6 +4665,9 @@ def get_chain(query=None,
               use_llm_if_no_docs=None,
               headsize=50,
               max_time=None,
+
+              query_action=None,
+              summarize_action=None,
               ):
     if inference_server is None:
         inference_server = ''
@@ -4500,13 +4690,6 @@ def get_chain(query=None,
     scores = []
     num_docs_before_cut = 0
     use_llm_if_no_docs = True
-
-    # NOTE: Could try to establish if pure llm mode or not, but makes code too complex
-    query_action = langchain_action == LangChainAction.QUERY.value
-    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                            LangChainAction.SUMMARIZE_ALL.value,
-                                            LangChainAction.SUMMARIZE_REFINE.value,
-                                            LangChainAction.EXTRACT.value]
 
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
@@ -4937,16 +5120,13 @@ def get_chain(query=None,
         # have query
         # for db=None too
         with filelock.FileLock(lock_file):
-            docs_with_score = get_docs_with_score(query, k_db, filter_kwargs, db, db_type,
+            docs_with_score = get_docs_with_score(query_embedding, k_db,
+                                                  filter_kwargs,
+                                                  filter_kwargs_backup,
+                                                  db, db_type,
                                                   text_context_list=text_context_list,
                                                   chunk_id_filter=chunk_id_filter,
                                                   verbose=verbose)
-            if len(docs_with_score) == 0 and filter_kwargs != filter_kwargs_backup:
-                docs_with_score = get_docs_with_score(query, k_db, filter_kwargs_backup, db,
-                                                      db_type,
-                                                      text_context_list=text_context_list,
-                                                      chunk_id_filter=chunk_id_filter,
-                                                      verbose=verbose)
 
     # SELECT PROMPT + DOCS
 
@@ -5321,8 +5501,6 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
                        show_accordions=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
-                       docs_ordering_type=docs_ordering_types_default,
-                       num_docs_before_cut=0,
                        verbose=False,
                        t_run=None,
                        count_input_tokens=None, count_output_tokens=None):
