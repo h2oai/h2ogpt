@@ -108,16 +108,16 @@ sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'` && \
     sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/telemetry/posthog.py && \
     cd $sp && \
     sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py && \
-    rm -rf openai_vllm* && \
-    cp -a openai openai_vllm && \
+    rm -rf openvllm* && \
+    cp -a openai openvllm && \
     file0=`ls|grep openai|grep dist-info` && \
-    file1=`echo $file0|sed 's/openai-/openai_vllm-/g'` && \
+    file1=`echo $file0|sed 's/openai-/openvllm-/g'` && \
     cp -a $file0 $file1 && \
-    find openai_vllm -name '*.py' | xargs sed -i 's/from openai /from openai_vllm /g' && \
-    find openai_vllm -name '*.py' | xargs sed -i 's/openai\./openai_vllm./g' && \
-    find openai_vllm -name '*.py' | xargs sed -i 's/from openai\./from openai_vllm./g' && \
-    find openai_vllm -name '*.py' | xargs sed -i 's/import openai/import openai_vllm/g' && \
-    find openai_vllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g' && \
+    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g' && \
+    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g' && \
+    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g' && \
+    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g' && \
+    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g' && \
     cd /h2ogpt_conda && \
     python -m venv vllm_env --system-site-packages && \
     /h2ogpt_conda/vllm_env/bin/python -m pip install vllm ray pandas gputil==1.4.0 --extra-index-url https://download.pytorch.org/whl/cu118 && \

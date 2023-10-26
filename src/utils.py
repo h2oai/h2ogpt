@@ -1164,17 +1164,17 @@ only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
 
 def set_openai(inference_server):
     if inference_server.startswith('vllm'):
-        import openai_vllm
-        openai_vllm.api_key = "EMPTY"
+        import openvllm
+        openvllm.api_key = "EMPTY"
         inf_type = inference_server.split(':')[0].strip()
         ip_port_vllm = ':'.join(inference_server.split(':')[1:])
         if ip_port_vllm.startswith('https://') or ip_port_vllm.startswith('http://'):
-            openai_vllm.api_base = ip_port_vllm
+            openvllm.api_base = ip_port_vllm
         else:
             ip_vllm = inference_server.split(':')[1].strip()
             port_vllm = inference_server.split(':')[2].strip()
-            openai_vllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
-        return openai_vllm, inf_type, None, None, None, openai_vllm.api_key
+            openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+        return openvllm, inf_type, None, None, None, openvllm.api_key
     else:
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")
