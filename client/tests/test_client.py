@@ -35,12 +35,12 @@ async def test_chat_completion(client):
     assert chat1["user"] == "Hey!"
     assert chat1["gpt"]
 
-    chat2 = await chat_completion.chat(prompt="How are you?")
-    assert chat2["user"] == "How are you?"
+    chat2 = await chat_completion.chat(prompt="What is the capital of USA?")
+    assert chat2["user"] == "What is the capital of USA?"
     assert chat2["gpt"]
 
-    chat3 = await chat_completion.chat(prompt="Have a good day")
-    assert chat3["user"] == "Have a good day"
+    chat3 = await chat_completion.chat(prompt="What is the population in there?")
+    assert chat3["user"] == "What is the population in there?"
     assert chat3["gpt"]
 
     chat_history = chat_completion.chat_history()
@@ -51,16 +51,16 @@ async def test_chat_completion(client):
 def test_chat_completion_sync(client):
     chat_completion = client.chat_completion.create()
 
-    chat1 = chat_completion.chat_sync(prompt="Hey!")
-    assert chat1["user"] == "Hey!"
+    chat1 = chat_completion.chat_sync(prompt="What is UNESCO?")
+    assert chat1["user"] == "What is UNESCO?"
     assert chat1["gpt"]
 
-    chat2 = chat_completion.chat_sync(prompt="How are you?")
-    assert chat2["user"] == "How are you?"
+    chat2 = chat_completion.chat_sync(prompt="Is it a part of the UN?")
+    assert chat2["user"] == "Is it a part of the UN?"
     assert chat2["gpt"]
 
-    chat3 = chat_completion.chat_sync(prompt="Have a good day")
-    assert chat3["user"] == "Have a good day"
+    chat3 = chat_completion.chat_sync(prompt="Where is the headquarters?")
+    assert chat3["user"] == "Where is the headquarters?"
     assert chat3["gpt"]
 
     chat_history = chat_completion.chat_history()
