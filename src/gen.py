@@ -1695,7 +1695,7 @@ def get_model(
         attention_sinks=None,
         sink_dict=None,
         truncation_generation=None,
-        hf_model_dict=None,
+        hf_model_dict={},
 
         verbose: bool = False,
 ):

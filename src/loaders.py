@@ -10,7 +10,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
                 exllama_dict=None, gptq_dict=None,
                 attention_sinks=None, sink_dict=None,
                 truncation_generation=None,
-                hf_model_dict=None,
+                hf_model_dict={},
                 ):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
