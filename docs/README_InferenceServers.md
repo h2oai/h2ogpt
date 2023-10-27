@@ -227,7 +227,7 @@ conda install python=3.10 -y
 then ensure openai global key/base are not changed in race if used together:
 ```bash
 cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
-rm -rf openvllm*
+rm -rf openvllm* openai_vllm*
 cp -a openai openvllm
 file0=`ls|grep openai|grep dist-info`
 file1=`echo $file0|sed 's/openai-/openvllm-/g'`
