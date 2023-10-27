@@ -1156,7 +1156,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
-    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1193,7 +1193,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
 class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
-    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def generate_prompt(
             self,
@@ -1437,6 +1437,7 @@ def get_llm(use_openai_model=False,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=None,
                                          async_sem=async_sem,
+                                         max_new_tokens0=max_new_tokens0,
                                          ))
                 kwargs_extra.update(model_kwargs)
                 model_kwargs = {}
@@ -1463,7 +1464,6 @@ def get_llm(use_openai_model=False,
                   temperature=temperature if do_sample else 0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
-                  max_new_tokens0=max_new_tokens0,
                   model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
                   openai_api_key=openai_api_key,
