@@ -120,9 +120,10 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-4096-llama2-70b-chat-4bit',
         'TheBloke/Llama-2-70B-chat-AWQ',
         'TheBloke/Llama-2-13B-chat-AWQ',
+        'Yukang/LongAlpaca-70B', # or can be instruct
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF'],
-    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha'],
+    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
