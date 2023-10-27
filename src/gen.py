@@ -4111,10 +4111,10 @@ def get_limited_prompt(instruction,
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
     num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
     # to doc first then non-doc, shouldn't matter much either way
-    doc_max_length = max(max_input_tokens - num_non_doc_tokens, doc_importance * max_input_tokens)
+    doc_max_length = max(max_input_tokens - num_non_doc_tokens, int(doc_importance * max_input_tokens))
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
                                                                max_input_tokens=doc_max_length)
-    non_doc_max_length = max(max_input_tokens - num_doc_tokens, (1.0 - doc_importance) * max_input_tokens)
+    non_doc_max_length = max(max_input_tokens - num_doc_tokens, int((1.0 - doc_importance) * max_input_tokens))
 
     if num_non_doc_tokens > non_doc_max_length:
         # need to limit in some way, keep portion of history but all of context and instruction
