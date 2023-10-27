@@ -53,6 +53,11 @@ class Client:
     async def _predict_async(self, *args, api_name: str) -> Any:
         return await asyncio.wrap_future(self._client.submit(*args, api_name=api_name))
 
+    def list_models(self) -> List[str]:
+        """Returns available models in the h2oGPT server."""
+        models = ast.literal_eval(self._predict(api_name="/model_names"))
+        return [m["base_model"] for m in models]
+
 
 _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     instruction="",
