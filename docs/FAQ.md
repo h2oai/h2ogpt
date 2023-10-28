@@ -1,5 +1,37 @@
 ## Frequently asked questions
 
+### Controlling Quality and Speed of Parsing
+
+h2oGPT has certain defaults for speed and quality, but one may require faster processing or higher quality.
+
+For URLs, we use unstructured (`--use_unstructured=True`) and others are disabled (`--use_playwright=False` and `use_selenium=False`) unless unstructured fails, then we try the others.  But quality of parsing may be higher if all 3 are used.  However, then there may be redundant pages in database, which cannot easily be removed, but they will waste context space in the LLM.
+
+For PDFs, h2oGPT uses PyMuPDF by default, but others are used if that fails. In addition, because PyMuPDF does not handle images in PDFs well, we use DocTR for PDFs if there are less than 100 pages or other PDF parsers failed.  We also use unstructured in auto mode if less than 2 pages or other PDF parsers failed.  CLI can control these via:
+* use_unstructured_pdf='auto'
+* use_pypdf='auto'
+* enable_pdf_ocr='auto'
+* enable_pdf_doctr='auto'
+* try_pdf_as_html='auto'
+
+Where one sets 'off' to always disable, and 'on' to always enable.  When choosing a parser as "forced" on in the UI in expert settings, that is like setting 'on' in CLI.
+
+In some cases as PDF may not really be a PDF but be HTML, so we try that by default if other parsers fail.
+
+For images, there are these options with defaults
+* enable_ocr=False
+* enable_doctr=True
+* enable_pix2struct=False
+* enable_captions=True
+* captions_model="Salesforce/blip-image-captioning-base",
+
+So for images we always use caption model (BLIP) but one can use BLIP2 or others for more accuracy.  BLIP describes an image, while DocTR does OCR on the image.  "enable_ocr" uses Tesseract via Unstructured wrapper and is less capable than DocTR.  If these are forced on in UI, that is like choosing `True`.
+
+To enable all options on, choose `--max_quality=True` or select in side panel->Upload->Maximum Ingest Quality.  However, this can lead to a few redundant pages in database.  So only good idea if have >4k context.
+
+The value `--top_k_docs` sets how many chunks (for query action) or parts of document (for summarization/extraction actions) to put into context.  If that is too much data, it gets truncated by the `get_limited_prompt()` function.  To improve quality of retrieval, one can set `--top_k_docs=-1` to autofill context with documents.  Or choose a fixed value like `10`, especially if chose redundant parsers that will end up putting similar parts of documents into context.
+
+To improve speed of parsing for captioning images and DocTR for images and PDFs, set `--pre_load_caption_model=True`.  Note `--pre_load_embedding_model=True` is already the default.  This preloads the models, especially useful when using GPUs.  Choose GPU IDs for each model to help distribute the load, e.g. if have 3 GPUs, the embedding model will be on GPU=0, then use `--caption_gpu_id=1` and `--doctr_gpu=2`.  This is also useful for multi-user case, else the models are loaded and unloaded for each user doing parsing, which is wasteful of GPU memory.
+
 ### API key access
 
 h2oGPT API key access for API and UI and persistence of state via login (auth enabled or not)
