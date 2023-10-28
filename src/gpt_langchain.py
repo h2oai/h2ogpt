@@ -46,7 +46,7 @@ from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
-    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_sha, get_short_name, \
+    get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
@@ -76,7 +76,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
     UnstructuredExcelLoader, JSONLoader
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter, CharacterTextSplitter
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
@@ -432,7 +432,7 @@ def get_answer_from_sources(chain, sources, question):
 
 """Wrapper around Huggingface text generation inference API."""
 from functools import partial
-from typing import Any, Dict, List, Optional, Set, Iterable
+from typing import Any, Dict, List, Optional, Iterable
 
 from pydantic import Extra, Field, root_validator
 
@@ -1156,6 +1156,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
+
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def get_token_ids(self, text: str) -> List[int]:
@@ -1193,6 +1194,7 @@ class H2OChatOpenAI(ChatOpenAI, ExtraChat):
 class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
+
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def generate_prompt(
@@ -1563,6 +1565,7 @@ def get_llm(use_openai_model=False,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
+            # H2Oagenerate coming first in class makes these appear like unused inputs, but not case
             llm = H2OHuggingFaceTextGenInference(
                 inference_server_url=inference_server,
                 do_sample=do_sample,
@@ -5145,15 +5148,16 @@ def get_chain(query=None,
 
         # first docs_with_score are most important with highest score
         estimated_full_prompt, \
-            instruction, iinput, context, \
+            query, iinput, context, \
             num_prompt_tokens, max_new_tokens, \
             num_prompt_tokens0, num_prompt_tokens_actual, \
             chat_index, external_handle_chat_conversation, \
             top_k_docs_trial, one_doc_size, \
             truncation_generation = \
-            get_limited_prompt(estimated_prompt_no_docs,
+            get_limited_prompt(query,
                                iinput,
                                tokenizer,
+                               estimated_instruction=estimated_prompt_no_docs,
                                prompter=prompter,
                                inference_server=inference_server,
                                prompt_type=prompt_type,

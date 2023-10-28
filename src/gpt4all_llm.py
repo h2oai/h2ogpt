@@ -13,24 +13,13 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llama
     assert llamacpp_dict is not None
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
-    model = get_llm_gpt4all(model_name, model=None,
-                            # max_new_tokens=max_new_tokens,
-                            # temperature=temperature,
-                            # repetition_penalty=repetition_penalty,
-                            # top_k=top_k,
-                            # top_p=top_p,
-                            # callbacks=callbacks,
-                            n_jobs=n_jobs,
-                            # verbose=verbose,
-                            # streaming=stream_output,
-                            # prompter=prompter,
-                            # context=context,
-                            # iinput=iinput,
-                            inner_class=True,
-                            max_seq_len=max_seq_len,
-                            llamacpp_dict=llamacpp_dict,
-                            )
-    return model, FakeTokenizer(model_max_length=max_seq_len), 'cpu'
+    model, tokenizer = get_llm_gpt4all(model_name, model=None,
+                                       n_jobs=n_jobs,
+                                       inner_class=True,
+                                       max_seq_len=max_seq_len,
+                                       llamacpp_dict=llamacpp_dict,
+                                       )
+    return model, tokenizer, 'cpu'
 
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
@@ -78,7 +67,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                max_seq_len=None,
                                ):
     if n_jobs in [None, -1]:
-        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count()//2)))
+        n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
     n_gpus = get_ngpus_vis()
     default_kwargs = dict(context_erase=0.5,
@@ -161,6 +150,7 @@ def get_llm_gpt4all(model_name,
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
         inner_model = llm.client
+        inner_tokenizer = FakeTokenizer(tokenizer=llm.client, is_llama_cpp=True, model_max_length=max_seq_len)
     elif model_name == 'gpt4all_llama':
         # FIXME: streaming not thread safe due to:
         # gpt4all/pyllmodel.py:        sys.stdout = stream_processor
@@ -183,6 +173,7 @@ def get_llm_gpt4all(model_name,
                  prompter=prompter, context=context, iinput=iinput))
         llm = cls(**model_kwargs)
         inner_model = llm.client
+        inner_tokenizer = FakeTokenizer(model_max_length=max_seq_len)
     elif model_name == 'gptj':
         # FIXME: streaming not thread safe due to:
         # gpt4all/pyllmodel.py:        sys.stdout = stream_processor
@@ -204,10 +195,11 @@ def get_llm_gpt4all(model_name,
                  prompter=prompter, context=context, iinput=iinput))
         llm = cls(**model_kwargs)
         inner_model = llm.client
+        inner_tokenizer = FakeTokenizer(model_max_length=max_seq_len)
     else:
         raise RuntimeError("No such model_name %s" % model_name)
     if inner_class:
-        return inner_model
+        return inner_model, inner_tokenizer
     else:
         return llm
 
@@ -279,7 +271,7 @@ class H2OGPT4All(gpt4all.GPT4All):
         return super()._call(prompt, stop=stop, run_manager=run_manager)
 
     # FIXME:  Unsure what uses
-    #def get_token_ids(self, text: str) -> List[int]:
+    # def get_token_ids(self, text: str) -> List[int]:
     #    return self.client.tokenize(b" " + text.encode("utf-8"))
 
 
@@ -390,7 +382,7 @@ class H2OLlamaCpp(LlamaCpp):
             stop: Optional[List[str]] = None,
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs: Any,
-        ) -> Iterator[GenerationChunk]:
+    ) -> Iterator[GenerationChunk]:
         # parent expects only see actual new tokens, not prompt too
         for chunk in super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs):
             yield chunk

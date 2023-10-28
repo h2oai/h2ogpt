@@ -903,7 +903,6 @@ class _ForkDataContext(threading.local):
 
 forkdatacontext = _ForkDataContext()
 
-
 # Add user info
 username = getpass.getuser()
 current_working_directory = os.getcwd()
@@ -993,7 +992,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     pass
 
-
 have_serpapi = False
 try:
     assert distribution('google-search-results') is not None
@@ -1056,10 +1054,14 @@ class FakeTokenizer:
     2) For when model doesn't directly expose tokenizer but need to count tokens
     """
 
-    def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False):
+    def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False,
+                 tokenizer=None,
+                 is_llama_cpp=False):
         if model_max_length is None:
             model_max_length = 2048
         self.is_openai = is_openai
+        self.is_llama_cpp = is_llama_cpp
+        self.tokenizer = tokenizer
         self.model_max_length = model_max_length
         if not self.is_openai:
             # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
@@ -1070,13 +1072,18 @@ class FakeTokenizer:
         self.encoding = tiktoken.get_encoding(self.encoding_name)
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
-        input_ids = self.encoding.encode(x, disallowed_special=())
+        if self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
+            input_ids = self.tokenizer.tokenize(b" " + x.encode("utf-8"))
+        else:
+            input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
             import torch
             input_ids = torch.tensor(input_ids)
         return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):
+        if self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
+            return self.tokenizer.detokenize(x)
         # input is input_ids[0] form
         return self.encoding.decode(x)
 
@@ -1116,6 +1123,7 @@ have_libreoffice = distutils.spawn.find_executable("libreoffice")
 try:
     from weasyprint import HTML
     import doctr
+
     have_doctr = True
 except:
     have_doctr = False
@@ -1342,7 +1350,7 @@ def lg_to_gr(
         if have_playwright:
             url_loaders_options.append('PlayWright')
     url_loaders_options0 = [url_loaders_options[0]]
-    
+
     assert set(image_loaders_options0).issubset(image_loaders_options)
     assert set(pdf_loaders_options0).issubset(pdf_loaders_options)
     assert set(url_loaders_options0).issubset(url_loaders_options)
@@ -1353,7 +1361,6 @@ def lg_to_gr(
 
 
 def fix_json(s):
-
     # Attempt to parse the string as-is.
     try:
         return json.loads(s)
@@ -1372,7 +1379,7 @@ def fix_json(s):
             if char == '"' and not escaped:
                 is_inside_string = False
             elif char == '\n' and not escaped:
-                char = '\\n' # Replace the newline character with the escape sequence.
+                char = '\\n'  # Replace the newline character with the escape sequence.
             elif char == '\\':
                 escaped = not escaped
             else:
@@ -1428,7 +1435,8 @@ def wrap_in_try_except(code):
                 body=[
                     ast.Expr(
                         value=ast.Call(
-                            func=ast.Attribute(value=ast.Name(id="traceback", ctx=ast.Load()), attr="print_exc", ctx=ast.Load()),
+                            func=ast.Attribute(value=ast.Name(id="traceback", ctx=ast.Load()), attr="print_exc",
+                                               ctx=ast.Load()),
                             args=[],
                             keywords=[]
                         )
@@ -1454,7 +1462,6 @@ def enqueue_output(file, queue):
 
 
 def read_popen_pipes(p):
-
     with ThreadPoolExecutor(2) as pool:
         q_stdout, q_stderr = Queue(), Queue()
 
@@ -1590,7 +1597,7 @@ def undo_reverse_ucurve_list(lst):
     return result
 
 
-def get_size(start_path = '.'):
+def get_size(start_path='.'):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:

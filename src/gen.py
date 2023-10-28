@@ -4009,6 +4009,7 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
 def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
+                       estimated_instruction=None,
                        prompter=None,
                        inference_server=None,
                        prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
@@ -4030,6 +4031,10 @@ def get_limited_prompt(instruction,
     else:
         # these don't support allowing going beyond total context
         truncation_generation = True
+
+    # for templates, use estimated for counting, but adjust instruction as output
+    if estimated_instruction is None:
+        estimated_instruction = instruction
 
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
@@ -4078,13 +4083,23 @@ def get_limited_prompt(instruction,
     if context1 is None:
         context1 = ''
 
+    # get how many more tokens in templated instruction, somewhat of estimate at fine level
+    num_instruction_tokens = get_token_count(instruction, tokenizer)
+    num_estimated_instruction_tokens = get_token_count(estimated_instruction, tokenizer)
+    delta_instruction = max(0, num_estimated_instruction_tokens - num_instruction_tokens)
+
+    # get estimated templated instruction tokens for counting purposes
     from h2oai_pipeline import H2OTextGenerationPipeline
-    data_point_just_instruction = dict(context='', instruction=instruction, input='')
-    prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                                 max_prompt_length=max_input_tokens)
-    num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
-    num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+    estimated_instruction, num_estimated_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(
+        estimated_instruction, tokenizer,
+        max_prompt_length=max_input_tokens)
+    data_point_just_instruction = dict(context='', instruction=estimated_instruction, input='')
+    prompt_just_estimated_instruction = prompter.generate_prompt(data_point_just_instruction)
+    num_instruction_tokens = get_token_count(prompt_just_estimated_instruction, tokenizer)
+
+    # get actual instruction, limited by template limitation
+    instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                            max_prompt_length=max_input_tokens - delta_instruction)
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
@@ -4171,13 +4186,10 @@ def get_limited_prompt(instruction,
             num_context1_tokens = 0
             # diff4 accounts for real prompting for instruction
             # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
-            instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                                         max_prompt_length=diff4)
-            # get actual tokens
-            data_point_just_instruction = dict(context='', instruction=instruction, input='')
-            prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-            num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
-            num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+
+            max_prompt_length = max(0, diff4 - delta_instruction)
+            instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                    max_prompt_length=max_prompt_length)
 
     # update full context
     context = context1 + context2
