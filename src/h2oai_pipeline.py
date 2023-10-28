@@ -88,7 +88,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # model_max_length only defined for generate.py, not raw use of h2oai_pipeline.py
             model_max_length = int(tokenizer.model_max_length)
             if max_prompt_length is not None:
-                model_max_length = min(model_max_length, max_prompt_length)
+                model_max_length = int(min(model_max_length, max_prompt_length))
             # cut at some upper likely limit to avoid excessive tokenization etc
             # upper bound of 10 chars/token, e.g. special chars sometimes are long
             if len(prompt_text) > model_max_length * 10:

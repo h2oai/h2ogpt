@@ -1242,6 +1242,7 @@ def go_gradio(**kwargs):
                                     max_seq_len = gr.Number(value=kwargs['max_seq_len'] or 2048,
                                                             minimum=128,
                                                             maximum=2 ** 18,
+                                                            precision=0,
                                                             info="If standard LLaMa-2, choose up to 4096",
                                                             label="max_seq_len")
                                     rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
@@ -2981,7 +2982,7 @@ def go_gradio(**kwargs):
             else:
                 tokenizer = None
             if tokenizer is not None:
-                return tokenizer.model_max_length
+                return int(tokenizer.model_max_length)
             else:
                 return 2000
 
@@ -3926,7 +3927,7 @@ def go_gradio(**kwargs):
             all_kwargs1['sink_dict'] = kwargs['sink_dict']  # no control in UI/API yet
             all_kwargs1['truncation_generation'] = kwargs['truncation_generation']  # no control in UI/API yet
             all_kwargs1['hf_model_dict'] = kwargs['hf_model_dict']  # no control in UI/API yet
-            all_kwargs1['max_seq_len'] = max_seq_len1
+            all_kwargs1['max_seq_len'] = int(max_seq_len1) if max_seq_len1 is not None else None
             try:
                 all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
             except:
