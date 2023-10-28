@@ -32,6 +32,16 @@ The value `--top_k_docs` sets how many chunks (for query action) or parts of doc
 
 To improve speed of parsing for captioning images and DocTR for images and PDFs, set `--pre_load_caption_model=True`.  Note `--pre_load_embedding_model=True` is already the default.  This preloads the models, especially useful when using GPUs.  Choose GPU IDs for each model to help distribute the load, e.g. if have 3 GPUs, the embedding model will be on GPU=0, then use `--caption_gpu_id=1` and `--doctr_gpu=2`.  This is also useful for multi-user case, else the models are loaded and unloaded for each user doing parsing, which is wasteful of GPU memory.
 
+### Controlling Quality and Speed of Context-Filling
+
+By default, `--top_k_docs=3`.  A query action uses `chunk_size=512` character chunks, while summarization/extraction actions do not use those "query/embedding" chunks but use raw parser result (e.g. pages for PDFs).
+
+An optimal quality choice is `--top_k_docs=-1`, because then h2oGPT will figure out how to autofill the context.  If that leads to too slow behavior, a good balance might be `top_k_docs=10`, but for summarization/extraction that may be too limiting.
+
+In any case, we will manage things in any case to reduce the count to not exceed the context of the LLM in the `get_limited_prompt()` function.
+
+If one sets `top_k_docs=-1`, one can also set `max_input_tokens` to some fixed value in order to limit by token count instead of by document count. This requires more knowledge of the LLM used (e.g. set to `max_input_tokens=3000` if have 4096 LLM context.  `max_input_tokens` acts as an effective context size limit for all inputs to the context.
+
 ### API key access
 
 h2oGPT API key access for API and UI and persistence of state via login (auth enabled or not)
