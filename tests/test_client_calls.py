@@ -349,7 +349,6 @@ def test_client_chat_nostream_llama7b():
 @pytest.mark.parametrize("max_seq_len", [2048, 3000, 4096])
 @wrap_test_forked
 def test_client_chat_nostream_llama2_long(max_seq_len, prompt_num, model_num):
-
     prompt1 = """2017-08-24.
 Wright, Andy (2017-08-16). "Chasing Totality: A Look Into the World of Umbraphiles". Atlas Obscura. Archived from the original on 2020-12-14. Retrieved 2017-08-24.
 Kramer, Bill. "Photographing a Total Solar Eclipse". Eclipse-chasers.com. Archived from the original on January 29, 2009. Retrieved March 7, 2010.
@@ -1279,7 +1278,7 @@ Summarize"""
     else:
         base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
     model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
-    #model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q8_0.gguf'
+    # model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q8_0.gguf'
     res_dict, client = run_client_chat_with_server(prompt=prompt,
                                                    max_seq_len=max_seq_len,
                                                    model_path_llama=model_path_llama,
@@ -3392,7 +3391,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
 
     if which_doc == 'whisper':
         if instruction == 'Technical key points':
-            #if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+            # if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             assert 'No relevant documents to extract from.' in summary or \
                    'long-form transcription' in summary or \
                    'text standardization' in summary or \
