@@ -234,7 +234,7 @@ We take care of this for distilgpt2, but other similar models might fail in same
 
 ### Adding Models
 
-You can choose any Hugging Face model or quantized GGML model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).
+You can choose any Hugging Face model or quantized GGUF model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).
 
 #### Hugging Face
 
@@ -269,6 +269,29 @@ New quantized AWQ chose good quality, e.g. 70B LLaMa-2 16-bit or AWQ does compar
 python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model --use_safetensors=True --prompt_type=llama2
 ```
 
+#### GGUF
+
+For GGUF model support or CPU llama.cpp support, see [README_LINUX.md](README_LINUX.md) or [README_WINDOWS.md](README_WINDOWS.md) for uninstalling GGML package in favor of GGUF.  As complete example, here is for GPU and CPU using GGUF model.
+
+GGUF using GPU on x86_64 linux:
+```bash
+pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+```
+That is, currently, for GPU case, the latest llama_cpp_python only uses GGUF, so version number selects GGML vs. GGUF just like for llama.cpp itself.
+
+GGUF using AVX2 on x86_64 linux:
+```bash
+pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
+CUDA_VISIBLE_DEVICES= \
+python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+```
+Similarly version of llama cpp python package selects support for GGMLv3 vs. GGUF.  Later versions of llama_cpp_python than shown here may not be supported in h2oGPT, that is untested.
+
+[Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
+
 #### GGML
 
 GGML v3 quantized models are supported, and [TheBloke](https://huggingface.co/TheBloke) also has many of those, e.g.
@@ -282,27 +305,7 @@ python generate.py --base_model=llama --model_path_llama=https://huggingface.co/
 ```
 for any TheBloke GGML v3 models.
 
-#### GGUF
-
-For GGUF model support or CPU llama.cpp support, see [README_LINUX.md](README_LINUX.md) or [README_WINDOWS.md](README_WINDOWS.md) for uninstalling GGML package in favor of GGUF.  As complete example, here is for GPU and CPU using GGUF model.
-
-GGUF using GPU on x86_64 linux:
-```bash
-pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-linux_x86_64.whl
-python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-```
-That is, currently, for GPU case, the latest llama_cpp_python only uses GGUF, so version number selects GGML vs. GGUF just like for llama.cpp itself.
-
-GGUF using AVX2 on x86_64 linux:
-```bash
-pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.1.83+cpuavx2-cp310-cp310-linux_x86_64.whl
-CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-```
-Similarly version of llama cpp python package selects support for GGMLv3 vs. GGUF.  Later versions of llama_cpp_python than shown here may not be supported in h2oGPT, that is untested.
-
-[Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
+GGMLv3 requires installing older llama_cpp_python versions as listed in each linux/windows/mac installation, but it has bugs, so GGUF is recommended in all cases.
 
 
 #### GPT4All
@@ -494,7 +497,7 @@ This uses 5800MB to startup, then soon drops to 5075MB after torch cache is clea
 
 For some models, you can restrict the use of context to use less memory.  This does not work for long context models trained with static/linear RoPE scaling, for which the full static scaling should be used.  Otherwise, e.g. for LLaMa-2 you can use
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=2048
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048
 ```
 even though normal value is `--max_seq_len=4096` if the option is not passed as inferred from the model `config.json`.
 
@@ -657,7 +660,7 @@ assuming that file is from version 2 quantization.
     ```
     RuntimeError: [enforce fail at ..\c10\core\impl\alloc_cpu.cpp:72] data. DefaultCPUAllocator: not enough memory: you tried to allocate 590938112 bytes.
     ```
-    then probably CPU has insufficient memory to handle the model.  Try GGML.
+    then probably CPU has insufficient memory to handle the model.  Try GGUF/GGML.
 
 ### WARNING: failed to allocate 258.00 MB of pinned memory: out of memory
 

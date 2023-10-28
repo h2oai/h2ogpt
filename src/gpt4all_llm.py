@@ -279,11 +279,13 @@ from langchain.llms import LlamaCpp
 
 
 class H2OLlamaCpp(LlamaCpp):
+    """Path to the pre-trained GPT4All model file."""
     model_path: Any
     prompter: Any
     context: Any
     iinput: Any
-    """Path to the pre-trained GPT4All model file."""
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -340,24 +342,17 @@ class H2OLlamaCpp(LlamaCpp):
             **kwargs,
     ) -> str:
         verbose = False
-        # tokenize twice, just to count tokens, since llama cpp python wrapper has no way to truncate
-        # still have to avoid crazy sizes, else hit llama_tokenize: too many tokens -- might still hit, not fatal
-        prompt = prompt[-self.n_ctx * 4:]
-        prompt_tokens = self.client.tokenize(b" " + prompt.encode("utf-8"))
-        num_prompt_tokens = len(prompt_tokens)
-        if num_prompt_tokens > self.n_ctx:
-            # conservative by using int()
-            chars_per_token = int(len(prompt) / num_prompt_tokens)
-            prompt = prompt[-self.n_ctx * chars_per_token:]
-            if verbose:
-                print("reducing tokens, assuming average of %s chars/token: %s" % chars_per_token, flush=True)
-                prompt_tokens2 = self.client.tokenize(b" " + prompt.encode("utf-8"))
-                num_prompt_tokens2 = len(prompt_tokens2)
-                print("reduced tokens from %d -> %d" % (num_prompt_tokens, num_prompt_tokens2), flush=True)
+
+        inner_tokenizer = FakeTokenizer(tokenizer=self.client, is_llama_cpp=True, model_max_length=self.n_ctx)
+        assert inner_tokenizer is not None
+        from h2oai_pipeline import H2OTextGenerationPipeline
+        prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, inner_tokenizer,
+                                                                           max_prompt_length=self.n_ctx)
 
         # use instruct prompting
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
+        self.count_input_tokens += self.get_num_tokens(prompt)
 
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
@@ -369,12 +364,15 @@ class H2OLlamaCpp(LlamaCpp):
                 # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
                 text_chunk = token  # ["choices"][0]["text"]
                 text += text_chunk
+            self.count_output_tokens += self.get_num_tokens(text)
             return text
         else:
             params = self._get_parameters(stop)
             params = {**params, **kwargs}
             result = self.client(prompt=prompt, **params)
-            return result["choices"][0]["text"]
+            text = result["choices"][0]["text"]
+            self.count_output_tokens += self.get_num_tokens(text)
+            return text
 
     def _stream(
             self,

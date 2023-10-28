@@ -26,7 +26,7 @@ Some of these locations can be controlled, but others not, so best to make local
 
 If you are only concerned with what h2oGPT needs, not any inference servers, you can run with `--prepare_offline_level=1` that will not obtain models associated with inference severs (e.g. vLLM or TGI).
 
-If you have a GGML file, you should download it ahead of time and place it in some path you provide to `--llamacpp_dict` for its `model_path_llama` dict entry.
+If you have a GGUF/GGML file, you should download it ahead of time and place it in some path you provide to `--llamacpp_dict` for its `model_path_llama` dict entry.
 
 ## Hard Way:
 
@@ -34,7 +34,7 @@ Identify all models needed and download each.  The below list is not exhaustive 
 
 Note, when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 
-If all data has been put into `~/.cache` by HF transformers and GGML files downloaded already and one points to them (e.g. with `--model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin`), then these following steps (those related to downloading HF models) are not required.
+If all data has been put into `~/.cache` by HF transformers and GGUF/GGML files downloaded already and one points to them (e.g. with `--model_path_llama=llama-2-7b-chat.Q6_K.gguf` from pre-downloaded `https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf`), then these following steps (those related to downloading HF models) are not required.
 
 * Download model and tokenizer of choice
     
@@ -46,7 +46,11 @@ If all data has been put into `~/.cache` by HF transformers and GGML files downl
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.save_pretrained(model_name)
     ```
-    If using GGML files, those should be downloaded separately manually, and point to file path, e.g. `--base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin`.
+    If using GGUF files, those should be downloaded separately manually, e.g.:
+   ```bash
+      wget https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
+   ```
+  and point to file path, e.g. `--base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf`.
 
 * Download reward model, unless pass `--score_model='None'` to `generate.py`
     ```python

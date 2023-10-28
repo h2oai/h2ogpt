@@ -58,20 +58,20 @@ Supports CPU and MPS (Metal M1/M2).
      tensor([1.], device='mps:0')
      ```
 * Metal M1/M2 Only:  Install and setup GPU-specific dependencies to support LLaMa.cpp on GPU:
-    ```bash
-    pip uninstall llama-cpp-python -y
-    CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.1.78 --no-cache-dir
-    ```
-    - Pass difference value of `--model_path_llama` if download a different GGML v3 model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and placed in repo folder or give this URL.
-    - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
-
-* GGUF and GGML:
+* GGUF:
   See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.  One roughly follows:
-  ```
+  ```bash
   pip uninstall -y llama-cpp-python llama-cpp-python-cuda
   # GGUF:
   pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.10-cp310-cp310-macosx_11_0_arm64.whl
   ```
+  - Pass difference value of `--model_path_llama` if download a different GGUF model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) and placed in repo folder or give this URL.
+* GGMLv3 (NOT RECOMMENDED) then compile:
+    ```bash
+    pip uninstall llama-cpp-python -y
+    CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.1.78 --no-cache-dir
+    ```
+  - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 
 ---
 
@@ -79,24 +79,24 @@ Supports CPU and MPS (Metal M1/M2).
 
 * To run LLaMa.cpp model in CPU or GPU mode (NOTE: if you haven't compiled llama-cpp-python for M1/M2 as mentioned above you can simply run without `--llamacpp_dict` arg, which will run on CPU):
     
-    * CPU Mode: To run in CPU mode, specify the `'n_gpu_layers':0` in `--llamacpp_dict` arg
+    * CPU Mode: To run in CPU mode, specify the `'n_gpu_layers':0` in `--llamacpp_dict` arg, for GGUF installed do:
       ```bash
-      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096 --llamacpp_dict="{'n_gpu_layers':0,'n_batch':128}"
+      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096 --llamacpp_dict="{'n_gpu_layers':0,'n_batch':128}"
       ```
-    * GPU Mode: To run in GPU mode, specify the number of gpus needed to be used `'n_gpu_layers: 2'` in `--llamacpp_dict` arg, by default it is set to higher value to use all the available gpus
+    * GPU Mode for GGUF: To run in GPU mode, specify the number of gpus needed to be used `'n_gpu_layers: 2'` in `--llamacpp_dict` arg, by default it is set to higher value to use all the available gpus
        ```bash
-      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
       ```
 Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
 
-* Full Hugging Face Model -- slower than GGML in general:
+* Full Hugging Face Model -- slower than GGUF/GGML in general:
     ```bash
     python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None --langchain_mode='UserData' --user_path=user_path
     ```
 
-* CLI mode:
+* CLI mode with GGUF:
     ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli=True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli=True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
     ```
 
 See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.

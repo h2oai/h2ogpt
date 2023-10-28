@@ -164,7 +164,7 @@ docker run \
 ```
 Use `docker run -d` to run in detached background.
 
-For [GGML/GPT4All models](FAQ.md#adding-models), one should either download the file and map that path outsider docker to a pain told to h2oGPT for inside docker, or pass a URL that would download the model internally to docker.
+For [GGUF/GGML/GPT4All models](FAQ.md#adding-models), one should either download the file and map that path outsider docker to a pain told to h2oGPT for inside docker, or pass a URL that would download the model internally to docker.
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 

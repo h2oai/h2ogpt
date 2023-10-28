@@ -5394,7 +5394,7 @@ def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_
         # and vllm uses OpenAI API with same limits
         max_input_tokens = model_max_length - max_new_tokens
     elif isinstance(tokenizer, FakeTokenizer):
-        # don't trust that fake tokenizer (e.g. GGML) will make lots of tokens normally, allow more input
+        # don't trust that fake tokenizer (e.g. GGUF/GGML) will make lots of tokens normally, allow more input
         max_input_tokens = model_max_length - min(256, max_new_tokens)
     else:
         if 'falcon' in model_name or inference_server.startswith('http'):

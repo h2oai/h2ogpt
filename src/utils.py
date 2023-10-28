@@ -1063,8 +1063,8 @@ class FakeTokenizer:
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
-        if not self.is_openai:
-            # dont' push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
+        if not self.is_openai and not self.is_llama_cpp:
+            # don't push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
             self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
