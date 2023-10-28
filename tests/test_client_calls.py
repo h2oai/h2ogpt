@@ -342,12 +342,13 @@ def test_client_chat_nostream_llama7b():
 
 
 @pytest.mark.need_tokens
+@pytest.mark.parametrize("model_num", [1, 2])
 @pytest.mark.parametrize("prompt_num", [1, 2])
 # GGML fails for >=2500
 # e.g. https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin
-@pytest.mark.parametrize("max_seq_len", [2048, 4096])
+@pytest.mark.parametrize("max_seq_len", [2048, 3000, 4096])
 @wrap_test_forked
-def test_client_chat_nostream_llama2_long(max_seq_len, prompt_num):
+def test_client_chat_nostream_llama2_long(max_seq_len, prompt_num, model_num):
 
     prompt1 = """2017-08-24.
 Wright, Andy (2017-08-16). "Chasing Totality: A Look Into the World of Umbraphiles". Atlas Obscura. Archived from the original on 2020-12-14. Retrieved 2017-08-24.
@@ -444,6 +445,7 @@ Privacy policyAbout WikipediaDisclaimersContact WikipediaCode of ConductDevelope
 Summarize"""
 
     prompt2 = """
+\"\"\"
 Main menu
 
 WikipediaThe Free Encyclopedia
@@ -1265,19 +1267,25 @@ Categories: EclipsesSolar eclipses
 This page was last edited on 15 October 2023, at 00:16 (UTC).
 Text is available under the Creative Commons Attribution-ShareAlike License 4.0; additional terms may apply. By using this site, you agree to the Terms of Use and Privacy Policy. Wikipedia® is a registered trademark of the Wikimedia Foundation, Inc., a non-profit organization.
 Privacy policyAbout WikipediaDisclaimersContact WikipediaCode of ConductDevelopersStatisticsCookie statementMobile viewWikimedia FoundationPowered by MediaWiki
-"""
+\"\"\"
+Summarize"""
 
     if prompt_num == 1:
         prompt = prompt1
     else:
         prompt = prompt2
+    if model_num == 1:
+        base_model = 'llama'
+    else:
+        base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
     model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+    #model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q8_0.gguf'
     res_dict, client = run_client_chat_with_server(prompt=prompt,
                                                    max_seq_len=max_seq_len,
                                                    model_path_llama=model_path_llama,
                                                    stream_output=False,
                                                    prompt_type='llama2',
-                                                   base_model='llama')
+                                                   base_model=base_model)
     assert "solar eclipse" in res_dict['response']
 
 
