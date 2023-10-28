@@ -138,7 +138,7 @@ def get_llama(llama_type=3):
         file = 'WizardLM-7B-uncensored.ggmlv3.q8_0.bin'
         dest = './'
         prompt_type = 'wizard2'
-    elif llama_type == 2:
+    elif llama_type == 3:
         file = download_simple('https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf')
         dest = './'
         prompt_type = 'llama2'
