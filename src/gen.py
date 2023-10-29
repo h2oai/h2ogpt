@@ -4189,6 +4189,10 @@ def get_limited_prompt(instruction,
             max_prompt_length = max(0, diff4 - delta_instruction)
             instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                     max_prompt_length=max_prompt_length)
+            # get actual instruction tokens
+            data_point_just_instruction = dict(context='', instruction=instruction, input='')
+            prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
+            num_instruction_tokens = get_token_count(prompt_just_instruction, tokenizer) + delta_instruction
 
     # update full context
     context = context1 + context2
