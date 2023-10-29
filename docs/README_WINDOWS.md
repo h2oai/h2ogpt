@@ -106,12 +106,12 @@ For newer builds of windows versions of 10/11.
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), or choose link and run pip directly.  E.g.:
     ```bash
       pip uninstall -y llama-cpp-python llama_cpp_python_cuda
-      # GGMLv3 ONLY:
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
       # GGUF ONLY for GPU:
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.83+cu117-cp310-cp310-win_amd64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl
       # GGUF ONLY for CPU for AVX2:
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.1.83+cpuavx2-cp310-cp310-win_amd64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-win_amd64.whl
+      # GGMLv3 ONLY for GPU (no longer recommended):
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
     ```
     See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.
   * If any issues, then must compile llama-cpp-python with CUDA support:
@@ -138,44 +138,15 @@ For newer builds of windows versions of 10/11.
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
 
-  * Click [Download LLaMa2 Model](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin) and place file in h2oGPT repo directory.  Any other TheBloke GGML v3 model can be used by changing value of `--model_path_llama` to path previously downloaded or URL.
+  * Choose some GGUF model by [TheBloke](https://huggingface.co/TheBloke), then do:
        ```bash
-       python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
+       python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
        ```
-    Choose some other `model_path_llama` from TheBloke if desired, e.g. 13B.  If no model passed, the 7B LLaMa-2 GGML is used.
+    Choose some other `model_path_llama` from TheBloke if desired, e.g. 13B.  If no model passed, the 7B LLaMa-2 GGUF is used.
     For an absolute windows path, change to `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.
       If llama-cpp-python was compiled with CUDA support, you should see in the output:
     ```text
-    Starting get_model: llama
-    ggml_init_cublas: found 2 CUDA devices:
       Device 0: NVIDIA GeForce RTX 3090 Ti
-      Device 1: NVIDIA GeForce RTX 2080
-    llama.cpp: loading model from llama-2-7b-chat.ggmlv3.q8_0.bin
-    llama_model_load_internal: format     = ggjt v3 (latest)
-    llama_model_load_internal: n_vocab    = 32001
-    llama_model_load_internal: n_ctx      = 1792
-    llama_model_load_internal: n_embd     = 4096
-    llama_model_load_internal: n_mult     = 256
-    llama_model_load_internal: n_head     = 32
-    llama_model_load_internal: n_layer    = 32
-    llama_model_load_internal: n_rot      = 128
-    llama_model_load_internal: ftype      = 7 (mostly Q8_0)
-    llama_model_load_internal: n_ff       = 11008
-    llama_model_load_internal: model size = 7B
-    llama_model_load_internal: ggml ctx size =    0.08 MB
-    llama_model_load_internal: using CUDA for GPU acceleration
-    ggml_cuda_set_main_device: using device 0 (NVIDIA GeForce RTX 3090 Ti) as main device
-    llama_model_load_internal: mem required  = 4518.85 MB (+ 1026.00 MB per state)
-    llama_model_load_internal: allocating batch_size x (512 kB + n_ctx x 128 B) = 368 MB VRAM for the scratch buffer
-    llama_model_load_internal: offloading 20 repeating layers to GPU
-    llama_model_load_internal: offloaded 20/35 layers to GPU
-    llama_model_load_internal: total VRAM used: 4470 MB
-    llama_new_context_with_model: kv self size  =  896.00 MB
-    AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | VSX = 0 |
-    Model {'base_model': 'llama', 'tokenizer_base_model': '', 'lora_weights': '', 'inference_server': '', 'prompt_type': 'llama2', 'prompt_dict': {'promptA': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'promptB': 'Below is an instruction that describes a task. Write a response that appropriately completes the request.', 'PreInstruct': '\n### Instruction:\n', 'PreInput': None, 'PreResponse': '\n### Response:\n', 'terminate_response': ['\n### Response:\n'], 'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '\n### Instruction:\n', 'botstr': '\n### Response:\n', 'generates_leading_space': False}}
-    Running on local URL:  http://0.0.0.0:7860
-  
-    To create a public link, set `share=True` in `launch()`.
     ```
   * Go to `http://127.0.0.1:7860` (ignore message above).  Add `--share=True` to get sharable secure link.
   * To just chat with LLM, click `Resources` and click `LLM` in Collections, or start without `--langchain_mode=UserData`.
@@ -190,10 +161,8 @@ For newer builds of windows versions of 10/11.
 
   * For LLaMa2 70B model, launch as
     ```bash
-    python generate.py --base_model=llama --model_path_llama=llama-2-70b-chat.ggmlv3.q8_0.bin n_gqa=8
+    python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf n_gqa=8
     ```
-    where one should have downloaded the zip and extracted from [here](https://huggingface.co/TheBloke/Llama-2-70B-Chat-GGML/tree/main).
-    See [LLaMa.cpp Instructions](https://pypi.org/project/llama-cpp-python/) for more details.
 * To use Hugging Face type models (faster on GPU than LLaMa.cpp if one has a powerful GPU with enough memory):
    ```bash
    python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None

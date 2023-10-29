@@ -79,7 +79,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         return n_tokens
 
     @staticmethod
-    def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
+    def limit_prompt(prompt_text, tokenizer, max_prompt_length=None, buffer=256):
         if prompt_text is None:
             prompt_text = ''
         verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
@@ -115,7 +115,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain
-                    model_max_length_with_buffer = model_max_length - 256
+                    model_max_length_with_buffer = model_max_length - buffer
                     prompt_text = prompt_text[-int(model_max_length_with_buffer * chars_per_token):]
                     if verbose:
                         print("reducing %s tokens, assuming average of %s chars/token for %s characters" % (

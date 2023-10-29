@@ -147,30 +147,59 @@ python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_exllama=Tr
 ```bash
 python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
 ```
-and ensure output shows:
+and ensure output shows uses GPU(s), e.g. for 1 GPU:
 ```text
-ggml_init_cublas: found 2 CUDA devices:
-  Device 0: NVIDIA GeForce RTX 3090 Ti
-  Device 1: NVIDIA GeForce RTX 2080
-llama.cpp: loading model from llama-2-7b-chat.ggmlv3.q8_0.bin
-llama_model_load_internal: format     = ggjt v3 (latest)
-llama_model_load_internal: n_vocab    = 32001
-llama_model_load_internal: n_ctx      = 1792
-llama_model_load_internal: n_embd     = 4096
-llama_model_load_internal: n_mult     = 256
-llama_model_load_internal: n_head     = 32
-llama_model_load_internal: n_layer    = 32
-llama_model_load_internal: n_rot      = 128
-llama_model_load_internal: ftype      = 7 (mostly Q8_0)
-llama_model_load_internal: n_ff       = 11008
-llama_model_load_internal: model size = 7B
-llama_model_load_internal: ggml ctx size =    0.08 MB
-llama_model_load_internal: using CUDA for GPU acceleration
-ggml_cuda_set_main_device: using device 0 (NVIDIA GeForce RTX 3090 Ti) as main device
-llama_model_load_internal: mem required  = 4518.85 MB (+ 1026.00 MB per state)
-llama_model_load_internal: allocating batch_size x (512 kB + n_ctx x 128 B) = 368 MB VRAM for the scratch buffer
-llama_model_load_internal: offloading 20 repeating layers to GPU
-llama_model_load_internal: offloaded 20/35 layers to GPU
-llama_model_load_internal: total VRAM used: 4470 MB
-llama_new_context_with_model: kv self size  =  896.00 MB
+ggml_init_cublas: found 1 CUDA devices:
+  Device 0: NVIDIA GeForce RTX 3090 Ti, compute capability 8.6
+llama_model_loader: loaded meta data with 19 key-value pairs and 291 tensors from llama-2-7b-chat.Q6_K.gguf (version GGUF V2 (latest))
+...
+... <bunch of tensor prints>
+...
+llm_load_print_meta: format           = GGUF V2 (latest)
+llm_load_print_meta: arch             = llama
+llm_load_print_meta: vocab type       = SPM
+llm_load_print_meta: n_vocab          = 32000
+llm_load_print_meta: n_merges         = 0
+llm_load_print_meta: n_ctx_train      = 4096
+llm_load_print_meta: n_embd           = 4096
+llm_load_print_meta: n_head           = 32
+llm_load_print_meta: n_head_kv        = 32
+llm_load_print_meta: n_layer          = 32
+llm_load_print_meta: n_rot            = 128
+llm_load_print_meta: n_gqa            = 1
+llm_load_print_meta: f_norm_eps       = 0.0e+00
+llm_load_print_meta: f_norm_rms_eps   = 1.0e-06
+llm_load_print_meta: n_ff             = 11008
+llm_load_print_meta: freq_base_train  = 10000.0
+llm_load_print_meta: freq_scale_train = 1
+llm_load_print_meta: model type       = 7B
+llm_load_print_meta: model ftype      = mostly Q6_K
+llm_load_print_meta: model params     = 6.74 B
+llm_load_print_meta: model size       = 5.15 GiB (6.56 BPW) 
+llm_load_print_meta: general.name   = LLaMA v2
+llm_load_print_meta: BOS token = 1 '<s>'
+llm_load_print_meta: EOS token = 2 '</s>'
+llm_load_print_meta: UNK token = 0 '<unk>'
+llm_load_print_meta: LF token  = 13 '<0x0A>'
+llm_load_tensors: ggml ctx size =    0.09 MB
+llm_load_tensors: using CUDA for GPU acceleration
+llm_load_tensors: mem required  =  102.63 MB
+llm_load_tensors: offloading 32 repeating layers to GPU
+llm_load_tensors: offloading non-repeating layers to GPU
+llm_load_tensors: offloaded 35/35 layers to GPU
+llm_load_tensors: VRAM used: 5169.80 MB
+warning: failed to mlock 107520000-byte buffer (after previously locking 0 bytes): Cannot allocate memory
+Try increasing RLIMIT_MLOCK ('ulimit -l' as root).
+....................................................................................................
+llama_new_context_with_model: n_ctx      = 4096
+llama_new_context_with_model: freq_base  = 10000.0
+llama_new_context_with_model: freq_scale = 1
+llama_kv_cache_init: offloading v cache to GPU
+llama_kv_cache_init: offloading k cache to GPU
+llama_kv_cache_init: VRAM kv self = 2048.00 MB
+llama_new_context_with_model: kv self size  = 2048.00 MB
+llama_new_context_with_model: compute buffer total size = 581.88 MB
+llama_new_context_with_model: VRAM scratch buffer: 576.01 MB
+llama_new_context_with_model: total VRAM used: 7793.81 MB (model: 5169.80 MB, context: 2624.01 MB)
+AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | SSSE3 = 1 | VSX = 0 | 
 ```
