@@ -120,7 +120,7 @@ For newer builds of windows versions of 10/11.
     set LLAMA_CUBLAS=1
     set CMAKE_ARGS=-DLLAMA_CUBLAS=on
     set FORCE_CMAKE=1
-    pip install llama-cpp-python==0.1.68 --no-cache-dir --verbose
+    pip install llama-cpp-python==0.2.11 --no-cache-dir --verbose
     ```
   * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
     That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
