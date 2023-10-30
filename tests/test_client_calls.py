@@ -1729,6 +1729,8 @@ def test_autogptq():
     assert res_dict['iinput'] == ''
     assert "am a virtual assistant" in res_dict['response']
 
+    check_langchain()
+
 
 @wrap_test_forked
 def test_autoawq():
@@ -1764,10 +1766,10 @@ def test_autoawq():
     assert "am a virtual assistant" in res_dict['response'] or \
            "Hello! My name is LLaMA, I'm a large language model trained by a team" in res_dict['response']
 
-    check_langchain(client)
+    check_langchain()
 
 
-def check_langchain(client):
+def check_langchain():
     # PURE client code
     from gradio_client import Client
     client = Client(get_inf_server())
@@ -1865,6 +1867,8 @@ def test_exllama(mode):
            "I am LLaMA" in res_dict['response'] or \
            "Hello! My name is Llama, I'm a large language model trained by Meta AI." in res_dict['response']
 
+    check_langchain()
+
 
 @pytest.mark.parametrize("attention_sinks", [False, True])  # mistral goes beyond context just fine up to 32k
 @pytest.mark.parametrize("max_seq_len", [4096, 8192])
@@ -1915,6 +1919,8 @@ def test_attention_sinks(max_seq_len, attention_sinks):
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
     assert len(res_dict['response']) > 2500, "%s %s" % (len(res_dict['response']), res_dict['response'])
+
+    check_langchain()
 
 
 @pytest.mark.skip(reason="Local file required")
