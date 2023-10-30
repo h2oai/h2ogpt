@@ -1764,6 +1764,61 @@ def test_autoawq():
     assert "am a virtual assistant" in res_dict['response'] or \
            "Hello! My name is LLaMA, I'm a large language model trained by a team" in res_dict['response']
 
+    check_langchain(client)
+
+
+def check_langchain(client):
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    download_simple(url, dest=test_file1)
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    h2ogpt_key = ''
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         None, None, None, None,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    # ask for summary, need to use same client if using MyData
+    instruction = "Give a very long detailed step-by-step description of what is Whisper paper about."
+    max_time = 300
+    kwargs = dict(instruction=instruction,
+                  langchain_mode=langchain_mode,
+                  langchain_action="Query",
+                  top_k_docs=4,
+                  document_subset='Relevant',
+                  document_choice=DocumentChoice.ALL.value,
+                  max_new_tokens=1024,
+                  max_time=max_time,
+                  do_sample=False,
+                  stream_output=False,
+                  )
+    t0 = time.time()
+    res_dict, client = run_client_gen(client, kwargs)
+    response = res_dict['response']
+    assert len(response) > 0
+    # assert len(response) < max_time * 20  # 20 tokens/sec
+    assert time.time() - t0 < max_time * 2.5
+    sources = [x['source'] for x in res_dict['sources']]
+    # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
+    # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
+    assert 'my_test_pdf.pdf' in sources[0]
+
 
 @pytest.mark.parametrize("mode", ['a', 'b', 'c'])
 @wrap_test_forked

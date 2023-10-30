@@ -1704,7 +1704,11 @@ def get_llm(use_openai_model=False,
             streamer = None
 
         from h2oai_pipeline import H2OTextGenerationPipeline
-        pipe = H2OTextGenerationPipeline(model=model, use_prompter=True,
+        if not hasattr(model, 'config'):
+            # e.g. AutoAWQForCausalLM
+            model = model.model
+        pipe = H2OTextGenerationPipeline(model=model,
+                                         use_prompter=True,
                                          prompter=prompter,
                                          context=context,
                                          iinput=iinput,
