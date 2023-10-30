@@ -150,6 +150,9 @@ def get_llm_gpt4all(model_name,
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
         inner_model = llm.client
+        # with multiple GPUs, something goes wrong unless generation occurs early before other imports
+        # CUDA error 704 at /tmp/pip-install-khkugdmy/llama-cpp-python_8c0a9782b7604a5aaf95ec79856eac97/vendor/llama.cpp/ggml-cuda.cu:6408: peer access is already enabled
+        inner_model("Say exactly one word", max_tokens=1)
         inner_tokenizer = FakeTokenizer(tokenizer=llm.client, is_llama_cpp=True, model_max_length=max_seq_len)
     elif model_name == 'gpt4all_llama':
         # FIXME: streaming not thread safe due to:

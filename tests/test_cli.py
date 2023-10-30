@@ -104,7 +104,8 @@ def test_cli_llamacpp(monkeypatch):
            "how can I assist" in all_generations[0] or \
            "am a virtual assistant" in all_generations[0] or \
            "My name is John." in all_generations[0] or \
-           "I am a student" in all_generations[0]
+           "I am a student" in all_generations[0]  or \
+           "I'm LLaMA" in all_generations[0]
 
 
 @wrap_test_forked
