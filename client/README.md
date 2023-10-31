@@ -1,7 +1,7 @@
 # h2oGPT Client
 A Python thin-client for h2oGPT.
 
-### Prerequisites
+## Prerequisites
 - Python 3.8+
 
 If you don't have Python 3.8 in your system, you can use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
@@ -10,6 +10,17 @@ conda create -n h2ogpt_client_build -y
 conda activate h2ogpt_client_build
 conda install python=3.8 -y
 ```
+
+## Download Client Wheel
+
+Use nightly, e.g. Oct 31 release:
+```bash
+pip install https://s3.amazonaws.com/artifacts.h2o.ai/snapshots/ai/h2o/h2ogpt_client/0.1.0_2023-10-31/h2ogpt_client-0.1.0-py3-none-any.whl
+```
+
+## Build Client Wheel
+
+If want to build fresh wheel from main branch instead of getting nightly, follow these instructions.
 
 ### Setup
 :information_source: [Poetry](https://python-poetry.org) is used as the build tool.
