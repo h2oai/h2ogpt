@@ -1123,7 +1123,7 @@ def go_gradio(**kwargs):
                                                               label="HYDE Embedding Template",
                                                               info="HYDE approach for LLM getting answer to embed ('auto' means automatic, else enter template like '{query}'",
                                                               visible=True)
-                        doc_json_mode = gr.components.Checkbox(value=True,
+                        doc_json_mode = gr.components.Checkbox(value=kwargs['doc_json_mode'],
                                                        label="JSON docs mode",
                                                        info="Whether to pass JSON to and get JSON back from LLM",
                                                        visible=True)
