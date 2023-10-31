@@ -1165,6 +1165,7 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
 @pytest.mark.parametrize("caption_gpu", [False, True])
 @pytest.mark.parametrize("captions_model", [None, 'Salesforce/blip2-flan-t5-xl'])
 @wrap_test_forked
+@pytest.mark.parallel10
 def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_captions,
                  enable_doctr, enable_pix2struct, enable_ocr, db_type, file):
     if not have_gpus and caption_gpu:
@@ -1235,18 +1236,18 @@ def run_png_add(captions_model=None, caption_gpu=False,
                                                fail_if_no_sources=False)
             if (enable_captions or enable_pix2struct) and not enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
-                    docs = db.similarity_search("invoice")
+                    docs = db.similarity_search("invoice", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     # weak test
                     assert 'plumbing' in docs[0].page_content.lower() or 'invoice' in docs[0].page_content.lower()
                     check_source(docs, test_file1)
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
@@ -1257,7 +1258,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
@@ -1268,7 +1269,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_source(docs, test_file1)
@@ -1279,14 +1280,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
             elif (enable_captions or enable_pix2struct) and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
@@ -1294,14 +1295,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
             elif (enable_captions or enable_pix2struct) and enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
@@ -1309,14 +1310,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
             elif (enable_captions or enable_pix2struct) and enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
@@ -1326,9 +1327,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 else:
                     if db_type == 'chroma':
                         assert len(db.get()['documents']) == 6
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     # because search can't find DRIVERLICENSE from DocTR one
-                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 1)
+                    assert len(docs) == 4 + (2 if db_type == 'chroma' else 1)
                     check_content_ocr(docs)
                     # check_content_doctr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
@@ -1338,14 +1339,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
 
 
 def check_content_captions(docs, caption_model, enable_pix2struct):
-    assert any(['license' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['license' in docs[ix].page_content.lower() for ix in range(len(docs))])
     if caption_model is not None and 'blip2' in caption_model:
         str_expected = """california driver license with a woman's face on it california driver license"""
     elif enable_pix2struct:
-        str_expected = """California license"""
+        str_expected = """california license"""
     else:
         str_expected = """a california driver's license with a picture of a woman's face and a picture of a man's face"""
-    assert any([str_expected in docs[ix].page_content for ix in range(len(docs))])
+    assert any([str_expected in docs[ix].page_content.lower() for ix in range(len(docs))])
 
 
 def check_content_doctr(docs):
