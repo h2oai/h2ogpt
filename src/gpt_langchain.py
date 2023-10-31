@@ -4430,7 +4430,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_with_score1 = select_docs_with_score(docs_with_score[k:], top_k_docs, one_doc_size)
             new_score = docs_with_score1[0][1]
             new_page_content = joiner.join([x[0].page_content for x in docs_with_score1])
-            new_metadata = docs_with_score1[0][0].metadata  # just use first chunk's metadata for now
+            new_metadata = docs_with_score1[0][0].metadata.copy()
+            new_metadata['source'] = joiner.join(set([x[0].metadata['source'] for x in docs_with_score1]))
             doc1 = Document(page_content=new_page_content, metadata=new_metadata)
             docs_with_score_new.append((doc1, new_score))
 

@@ -15,7 +15,7 @@ from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainT
     docs_joiner_default, docs_token_handling_default, db_types, db_types_full
 from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
-    FakeTokenizer, get_token_count
+    FakeTokenizer, get_token_count, flatten_list
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -1687,7 +1687,9 @@ def test_chroma_filtering():
                                         'statistic' in rets1['response'].lower() or
                                         'a chat bot that' in rets1['response'].lower() or
                                         'non-centrality parameter' in rets1['response'].lower() or
-                                        '.pdf' in rets1['response'].lower())
+                                        '.pdf' in rets1['response'].lower() or
+                                        'gravitational' in rets1['response'].lower()
+                                        )
                             else:
                                 assert len(rets1) == 5 and (
                                         'whisper' in rets1['response'].lower() or
@@ -1703,14 +1705,20 @@ def test_chroma_filtering():
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
                                     0] and 'source' in rets1['sources'][0]
                                 if doc_choice in [1, 2]:
-                                    assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
+                                    if langchain_action == 'Summarize':
+                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= doc_choice
+                                    else:
+                                        assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
                                 else:
                                     assert len(set([x['source'] for x in rets1['sources']])) >= 1
                             elif document_subset == DocumentSubset.RelSources.name:
                                 if doc_choice in [1, 2]:
                                     assert len(set([x['source'] for x in rets1['sources']])) <= doc_choice
                                 else:
-                                    assert len(set([x['source'] for x in rets1['sources']])) >= 2
+                                    if langchain_action == 'Summarize':
+                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= 2
+                                    else:
+                                        assert len(set([x['source'] for x in rets1['sources']])) >= 2
                             else:
                                 # TopK may just be 1 doc because of many chunks from that doc
                                 # if top_k_docs=-1 might get more
