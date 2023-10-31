@@ -51,14 +51,16 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     max_input_tokens="max_input_tokens",
     docs_token_handling="docs_token_handling",
     docs_joiner="docs_joiner",
+    hyde_level="hyde_level",
+    hyde_template="hyde_template",
 )
 
 
 def to_h2ogpt_params(client_params: Dict[str, Any]) -> OrderedDict[str, Any]:
     """Convert given params to the order of params in h2oGPT."""
 
-    h2ogpt_params: OrderedDict[str, Any] = H2OGPT_PARAMETERS_TO_CLIENT.copy()
-    for h2ogpt_param_name, client_param_name in h2ogpt_params.items():
+    h2ogpt_params: OrderedDict[str, Any] = collections.OrderedDict()
+    for h2ogpt_param_name, client_param_name in H2OGPT_PARAMETERS_TO_CLIENT.items():
         if client_param_name in client_params:
             h2ogpt_params[h2ogpt_param_name] = client_params[client_param_name]
     return h2ogpt_params

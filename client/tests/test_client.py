@@ -35,12 +35,12 @@ async def test_chat_completion(client):
     assert chat1["user"] == "Hey!"
     assert chat1["gpt"]
 
-    chat2 = await chat_completion.chat(prompt="How are you?")
-    assert chat2["user"] == "How are you?"
+    chat2 = await chat_completion.chat(prompt="What is the capital of USA?")
+    assert chat2["user"] == "What is the capital of USA?"
     assert chat2["gpt"]
 
-    chat3 = await chat_completion.chat(prompt="Have a good day")
-    assert chat3["user"] == "Have a good day"
+    chat3 = await chat_completion.chat(prompt="What is the population in there?")
+    assert chat3["user"] == "What is the population in there?"
     assert chat3["gpt"]
 
     chat_history = chat_completion.chat_history()
@@ -51,16 +51,16 @@ async def test_chat_completion(client):
 def test_chat_completion_sync(client):
     chat_completion = client.chat_completion.create()
 
-    chat1 = chat_completion.chat_sync(prompt="Hey!")
-    assert chat1["user"] == "Hey!"
+    chat1 = chat_completion.chat_sync(prompt="What is UNESCO?")
+    assert chat1["user"] == "What is UNESCO?"
     assert chat1["gpt"]
 
-    chat2 = chat_completion.chat_sync(prompt="How are you?")
-    assert chat2["user"] == "How are you?"
+    chat2 = chat_completion.chat_sync(prompt="Is it a part of the UN?")
+    assert chat2["user"] == "Is it a part of the UN?"
     assert chat2["gpt"]
 
-    chat3 = chat_completion.chat_sync(prompt="Have a good day")
-    assert chat3["user"] == "Have a good day"
+    chat3 = chat_completion.chat_sync(prompt="Where is the headquarters?")
+    assert chat3["user"] == "Where is the headquarters?"
     assert chat3["gpt"]
 
     chat_history = chat_completion.chat_history()
@@ -68,6 +68,47 @@ def test_chat_completion_sync(client):
     print(chat_history)
 
 
+def test_available_models(client):
+    models = client.list_models()
+    assert len(models)
+    print(models)
+
+
 def test_parameters_order(client, eval_func_param_names):
     text_completion = client.text_completion.create()
     assert eval_func_param_names == list(text_completion._parameters.keys())
+
+
+@pytest.mark.parametrize("local_server", [True, False])
+def test_readme_example(local_server):
+    # self-contained example used for readme, to be copied to client/README.md if changed, setting local_server = True at first
+    import os
+    import asyncio
+    from h2ogpt_client import Client
+
+    if local_server:
+        client = Client("http://0.0.0.0:7860")
+    else:
+        h2ogpt_key = os.getenv('H2OGPT_H2OGPT_KEY')
+        if h2ogpt_key is None:
+            return
+        # if you have API key for public instance:
+        client = Client("https://gpt.h2o.ai", h2ogpt_key=h2ogpt_key)
+
+    # Text completion
+    text_completion = client.text_completion.create()
+    response = asyncio.run(text_completion.complete("Hello world"))
+    print("asyncio text completion response: %s" % response)
+    # Text completion: synchronous
+    response = text_completion.complete_sync("Hello world")
+    print("sync text completion response: %s" % response)
+
+    # Chat completion
+    chat_completion = client.chat_completion.create()
+    reply = asyncio.run(chat_completion.chat("Hey!"))
+    print("asyncio text completion user: %s gpt: %s" % (reply["user"], reply["gpt"]))
+    chat_history = chat_completion.chat_history()
+    print("chat_history: %s" % chat_history)
+    # Chat completion: synchronous
+    reply = chat_completion.chat_sync("Hey!")
+    print("sync chat completion gpt: %s" % reply["gpt"])

@@ -120,9 +120,10 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-4096-llama2-70b-chat-4bit',
         'TheBloke/Llama-2-70B-chat-AWQ',
         'TheBloke/Llama-2-13B-chat-AWQ',
+        'Yukang/LongAlpaca-70B', # or can be instruct
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF'],
-    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha'],
+    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
@@ -1227,3 +1228,31 @@ def gpt_function_schema():
         },
     }
     return function_schema
+
+
+def step_forward_prompts(which):
+    if which == 1:
+        return """Let’s think step by step."""
+    elif which == 2:
+        return """Take a deep breath and work on this problem step-by-step."""
+    elif which == 3:
+        return """Break this down."""
+    elif which == 1:
+        return """A little bit of arithmetic and a logical approach will help us quickly arrive at the solution to this problem."""
+    elif which == 1:
+        return """Let’s combine our numerical command and clear thinking to quickly and accurately decipher the answer."""
+    elif which == 1:
+        return """Let’s work together to solve math word problems! First, we will read and discuss the problem together to make sure we understand it. Then, we will work together to find the solution. I will give you hints and help you work through the problem if you get stuck."""
+
+
+def step_back_prompts(which):
+    gen1 = """List a much more general abstract versions of this question, then describe the situation using your imagination ensuring not to over-constrain the problem, then explore in a list all the possible different constraints or lack of constraints (be sure to consider from a human viewpoint) relevant for the circumstance, then explore in a list the many extreme possibilities for issues. Finally, let's work this out in a step-by-step way to be sure we have the right answer. Make a final best guess using common sense."""
+    gen2 = """List a much more general abstract versions of this question, then describe the situation using your imagination ensuring not to over-constrain the problem, then explore in a list all the possible different constraints or lack of constraints (be sure to consider from a human viewpoint) relevant for the circumstance, then explore in a list the many extreme possibilities for issues. Let's work this out in a well-structured step-by-step thoughtful way to be sure we have the right answer. Make a final best guess using common sense."""
+    if which == 0:
+        return f"""You are a very helpful expert at the topic of the question.  {gen2}"""
+    elif which == 1:
+        return f"""You are a mathematician or physicist.  {gen1}"""
+    elif which == 2:
+        return f"""You are a mathematician or physicist.  {gen2}"""
+    else:
+        raise ValueError("No such case for back prompts which=%d" % which)

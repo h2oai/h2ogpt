@@ -59,6 +59,8 @@ eval_func_param_names = ['instruction',
                          'max_input_tokens',
                          'docs_token_handling',
                          'docs_joiner',
+                         'hyde_level',
+                         'hyde_template',
                          ]
 
 # form evaluate defaults for submit_nochat_api

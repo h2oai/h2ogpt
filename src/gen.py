@@ -94,8 +94,7 @@ def main(
 
         # llama and gpt4all settings
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
-        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin',
-        # 'llama-2-7b-chat.ggmlv3.q8_0.bin',
+        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
         model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
         model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
@@ -282,6 +281,9 @@ def main(
         max_input_tokens=-1,
         docs_token_handling: str = docs_token_handling_default,
         docs_joiner: str = docs_joiner_default,
+        hyde_level: int = 0,
+        hyde_template: str = None,
+
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
         headsize: int = 50,
@@ -570,6 +572,14 @@ def main(
                                 None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
 
     :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+    :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
+                 0: No HYDE
+                 1: Use non-document-based LLM response and original query for embedding query
+                 2: Use document-based LLM response and original query for embedding query
+                 3+: Continue iterations of embedding prior answer and getting new response
+    :param hyde_template:
+                 None, 'None', 'auto' uses internal value and enable
+                 '{query}' is minimal template one can pass
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
            Ignored if model_lock not used
@@ -1133,6 +1143,8 @@ def main(
                             max_input_tokens,
                             docs_token_handling,
                             docs_joiner,
+                            hyde_level,
+                            hyde_template,
                             verbose,
                             )
 
@@ -1684,7 +1696,7 @@ def get_model(
         attention_sinks=None,
         sink_dict=None,
         truncation_generation=None,
-        hf_model_dict=None,
+        hf_model_dict={},
 
         verbose: bool = False,
 ):
@@ -1794,7 +1806,7 @@ def get_model(
             set_model_max_len(max_seq_len, tokenizer, verbose=False)
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
-            tokenizer.model_max_length = tokenizer.model_max_length - 50
+            tokenizer.model_max_length = int(tokenizer.model_max_length - 50)
     else:
         tokenizer = None
 
@@ -2251,7 +2263,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='')
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={})
     return
 
 
@@ -2311,6 +2323,8 @@ def evaluate(
         max_input_tokens,
         docs_token_handling,
         docs_joiner,
+        hyde_level,
+        hyde_template,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2646,6 +2660,7 @@ def evaluate(
         prompt_basic = prompter.generate_prompt(data_point, context_from_history=False)
         prompt = prompt_basic
         num_prompt_tokens = 0
+        llm_answers = {}
         for r in run_qa_db(
                 inference_server=inference_server,
                 model_name=base_model, model=model, tokenizer=tokenizer,
@@ -2710,6 +2725,8 @@ def evaluate(
                 max_input_tokens=max_input_tokens,
                 docs_token_handling=docs_token_handling,
                 docs_joiner=docs_joiner,
+                hyde_level=hyde_level,
+                hyde_template=hyde_template,
 
                 **gen_hyper_langchain,
 
@@ -2739,7 +2756,8 @@ def evaluate(
             sources = r['sources']
             prompt = r['prompt']
             num_prompt_tokens = r['num_prompt_tokens']
-            yield dict(response=response, sources=sources, save_dict=dict())
+            llm_answers = r['llm_answers']
+            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers)
         if save_dir:
             # estimate using tiktoken
             extra_dict = gen_hyper_langchain.copy()
@@ -2764,7 +2782,7 @@ def evaluate(
                              output=response, base_model=base_model, save_dir=save_dir,
                              where_from='run_qa_db',
                              extra_dict=extra_dict)
-            yield dict(response=response, sources=sources, save_dict=save_dict)
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers)
             if verbose:
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' %
@@ -2846,7 +2864,7 @@ def evaluate(
                     text = responses['choices'][0]['text']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                 else:
                     collected_events = []
                     tgen0 = time.time()
@@ -2856,7 +2874,7 @@ def evaluate(
                         text += event_text  # append the text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
-                        yield dict(response=response, sources=sources, save_dict=dict())
+                        yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
@@ -2892,7 +2910,7 @@ def evaluate(
                     text = responses["choices"][0]["message"]["content"]
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
@@ -2901,7 +2919,7 @@ def evaluate(
                             text += delta['content']
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict())
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
@@ -3012,6 +3030,8 @@ def evaluate(
                                      max_input_tokens=max_input_tokens,
                                      docs_token_handling=docs_token_handling,
                                      docs_joiner=docs_joiner,
+                                     hyde_level=hyde_level,
+                                     hyde_template=hyde_template,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3025,11 +3045,11 @@ def evaluate(
                     sources = res_dict['sources']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                 else:
                     from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = dict(response=text, sources=sources, save_dict=dict())
+                    res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={})
                     text0 = ''
                     tgen0 = time.time()
                     while not job.done():
@@ -3058,7 +3078,7 @@ def evaluate(
                                 continue
                             # save old
                             text0 = response
-                            yield dict(response=response, sources=sources, save_dict=dict())
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                             if time.time() - tgen0 > max_time:
                                 if verbose:
                                     print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
@@ -3098,7 +3118,7 @@ def evaluate(
                         prompt_and_text = prompt + text
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex)
+                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={})
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
@@ -3134,7 +3154,7 @@ def evaluate(
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                 else:
                     tgen0 = time.time()
                     text = ""
@@ -3146,7 +3166,7 @@ def evaluate(
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             sources = ''
-                            yield dict(response=response, sources=sources, save_dict=dict())
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
@@ -3166,7 +3186,7 @@ def evaluate(
                                    ))
             save_dict = dict(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                              where_from=where_from, extra_dict=extra_dict)
-            yield dict(response=response, sources=sources, save_dict=save_dict)
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={})
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -3179,7 +3199,8 @@ def evaluate(
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
         sources = ''
-        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources=sources, save_dict=dict())
+        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources=sources, save_dict=dict(),
+                   llm_answers={})
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -3195,7 +3216,7 @@ def evaluate(
         print('input_ids length', len(inputs["input_ids"][0]), flush=True)
     input_ids = inputs["input_ids"].to(device)
     # CRITICAL LIMIT else will fail
-    max_max_tokens = tokenizer.model_max_length
+    max_max_tokens = int(tokenizer.model_max_length)
     max_input_tokens_default = max(0, int(max_max_tokens - min_new_tokens))
     if max_input_tokens >= 0:
         max_input_tokens = min(max_input_tokens_default, max_input_tokens)
@@ -3301,7 +3322,7 @@ def evaluate(
                     bucket = queue.Queue()
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
-                    ret = dict(response='', sources='', save_dict=dict())
+                    ret = dict(response='', sources='', save_dict=dict(), llm_answers={})
                     outputs = ""
                     sources = ''
                     tgen0 = time.time()
@@ -3313,7 +3334,7 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            ret = dict(response=response, sources=sources, save_dict=dict())
+                            ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                             if stream_output:
                                 yield ret
                             if time.time() - tgen0 > max_time:
@@ -3352,7 +3373,7 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict())
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
@@ -3365,7 +3386,7 @@ def evaluate(
                     save_dict = dict(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                      where_from="evaluate_%s" % str(stream_output),
                                      extra_dict=extra_dict)
-                    yield dict(response=response, sources=sources, save_dict=save_dict)
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={})
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
@@ -3541,6 +3562,8 @@ def get_generate_params(model_lower,
                         max_input_tokens,
                         docs_token_handling,
                         docs_joiner,
+                        hyde_level,
+                        hyde_template,
                         verbose,
                         ):
     use_defaults = False
@@ -3727,6 +3750,8 @@ y = np.random.randint(0, 1, 100)
                     max_input_tokens,
                     docs_token_handling,
                     docs_joiner,
+                    hyde_level,
+                    hyde_template,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -3987,6 +4012,7 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
 def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
+                       estimated_instruction=None,
                        prompter=None,
                        inference_server=None,
                        prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
@@ -4008,6 +4034,10 @@ def get_limited_prompt(instruction,
     else:
         # these don't support allowing going beyond total context
         truncation_generation = True
+
+    # for templates, use estimated for counting, but adjust instruction as output
+    if estimated_instruction is None:
+        estimated_instruction = instruction
 
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
@@ -4056,13 +4086,23 @@ def get_limited_prompt(instruction,
     if context1 is None:
         context1 = ''
 
+    # get how many more tokens in templated instruction, somewhat of estimate at fine level
+    num_instruction_tokens = get_token_count(instruction, tokenizer)
+    num_estimated_instruction_tokens = get_token_count(estimated_instruction, tokenizer)
+    delta_instruction = max(0, num_estimated_instruction_tokens - num_instruction_tokens)
+
+    # get estimated templated instruction tokens for counting purposes
     from h2oai_pipeline import H2OTextGenerationPipeline
-    data_point_just_instruction = dict(context='', instruction=instruction, input='')
-    prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                                 max_prompt_length=max_input_tokens)
-    num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
-    num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+    estimated_instruction, num_estimated_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(
+        estimated_instruction, tokenizer,
+        max_prompt_length=max_input_tokens)
+    data_point_just_instruction = dict(context='', instruction=estimated_instruction, input='')
+    prompt_just_estimated_instruction = prompter.generate_prompt(data_point_just_instruction)
+    num_instruction_tokens = get_token_count(prompt_just_estimated_instruction, tokenizer)
+
+    # get actual instruction, limited by template limitation
+    instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                            max_prompt_length=max_input_tokens - delta_instruction)
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
@@ -4089,10 +4129,10 @@ def get_limited_prompt(instruction,
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
     num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
     # to doc first then non-doc, shouldn't matter much either way
-    doc_max_length = max(max_input_tokens - num_non_doc_tokens, doc_importance * max_input_tokens)
+    doc_max_length = max(max_input_tokens - num_non_doc_tokens, int(doc_importance * max_input_tokens))
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
                                                                max_input_tokens=doc_max_length)
-    non_doc_max_length = max(max_input_tokens - num_doc_tokens, (1.0 - doc_importance) * max_input_tokens)
+    non_doc_max_length = max(max_input_tokens - num_doc_tokens, int((1.0 - doc_importance) * max_input_tokens))
 
     if num_non_doc_tokens > non_doc_max_length:
         # need to limit in some way, keep portion of history but all of context and instruction
@@ -4149,13 +4189,14 @@ def get_limited_prompt(instruction,
             num_context1_tokens = 0
             # diff4 accounts for real prompting for instruction
             # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
-            instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                                         max_prompt_length=diff4)
-            # get actual tokens
+
+            max_prompt_length = max(0, diff4 - delta_instruction)
+            instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                    max_prompt_length=max_prompt_length)
+            # get actual instruction tokens
             data_point_just_instruction = dict(context='', instruction=instruction, input='')
             prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-            num_instruction_tokens_real = get_token_count(prompt_just_instruction, tokenizer)
-            num_instruction_tokens += (num_instruction_tokens_real - num_instruction_tokens)
+            num_instruction_tokens = get_token_count(prompt_just_instruction, tokenizer) + delta_instruction
 
     # update full context
     context = context1 + context2

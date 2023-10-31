@@ -180,7 +180,7 @@ def union_box(box1, box2):
     return [x1, y1, x2, y2]
 
 
-def space_layout(texts, boxes):
+def space_layout(texts, boxes, threshold_show_spaces=8, threshold_char_width=0.02):
     line_boxes = []
     line_texts = []
     max_line_char_num = 0
@@ -206,8 +206,12 @@ def space_layout(texts, boxes):
             line_width = line_width[:, 2].max() - line_width[:, 0].min()
 
     char_width = (line_width / max_line_char_num) if max_line_char_num > 0 else 0
-    if char_width == 0:
-        char_width = 1
+    if threshold_char_width == 0.0:
+        if char_width == 0:
+            char_width = 1
+    else:
+        if char_width <= 0.02:
+            char_width = 0.02
 
     space_line_texts = []
     for i, line_box in enumerate(line_boxes):
@@ -220,7 +224,7 @@ def space_layout(texts, boxes):
             # space_line_text += " " * left_char_num
 
             # minified layout
-            if left_char_num > 1:
+            if left_char_num > threshold_show_spaces:
                 space_line_text += f" <{left_char_num}> "
             else:
                 space_line_text += " "

@@ -79,7 +79,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         return n_tokens
 
     @staticmethod
-    def limit_prompt(prompt_text, tokenizer, max_prompt_length=None):
+    def limit_prompt(prompt_text, tokenizer, max_prompt_length=None, buffer=256):
         if prompt_text is None:
             prompt_text = ''
         verbose = bool(int(os.getenv('VERBOSE_PIPELINE', '0')))
@@ -88,7 +88,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             # model_max_length only defined for generate.py, not raw use of h2oai_pipeline.py
             model_max_length = int(tokenizer.model_max_length)
             if max_prompt_length is not None:
-                model_max_length = min(model_max_length, max_prompt_length)
+                model_max_length = int(min(model_max_length, max_prompt_length))
             # cut at some upper likely limit to avoid excessive tokenization etc
             # upper bound of 10 chars/token, e.g. special chars sometimes are long
             if len(prompt_text) > model_max_length * 10:
@@ -115,7 +115,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain
-                    model_max_length_with_buffer = model_max_length - 256
+                    model_max_length_with_buffer = model_max_length - buffer
                     prompt_text = prompt_text[-int(model_max_length_with_buffer * chars_per_token):]
                     if verbose:
                         print("reducing %s tokens, assuming average of %s chars/token for %s characters" % (

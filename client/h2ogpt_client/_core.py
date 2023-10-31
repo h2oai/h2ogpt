@@ -1,7 +1,6 @@
 import ast
 import asyncio
-import typing
-from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union, ValuesView
+from typing import Any, Dict, List, Optional, OrderedDict, Union
 
 import gradio_client  # type: ignore
 
@@ -54,6 +53,66 @@ class Client:
     async def _predict_async(self, *args, api_name: str) -> Any:
         return await asyncio.wrap_future(self._client.submit(*args, api_name=api_name))
 
+    def list_models(self) -> List[str]:
+        """Returns available models in the h2oGPT server."""
+        models = ast.literal_eval(self._predict(api_name="/model_names"))
+        return [m["base_model"] for m in models]
+
+
+_DEFAULT_PARAMETERS: Dict[str, Any] = dict(
+    instruction="",
+    input="",
+    system_pre_context="",
+    stream_output=False,
+    prompt_type=PromptType.plain.value,
+    prompt_dict="",  # empty as prompt_type cannot be 'custom'
+    temperature=0.1,
+    top_p=1.0,
+    top_k=40,
+    penalty_alpha=0.0,
+    beams=1.0,
+    max_output_length=1024,
+    min_output_length=0,
+    early_stopping=False,
+    max_time=360,
+    repetition_penalty=1.07,
+    number_returns=1,
+    enable_sampler=False,
+    chat=False,
+    instruction_nochat="",
+    input_context_for_instruction="",
+    langchain_mode=LangChainMode.DISABLED.value,
+    add_chat_history_to_context=False,  # relevant only for the UI
+    langchain_action=LangChainAction.QUERY.value,
+    langchain_agents=[],
+    langchain_top_k_docs=4,  # langchain: number of document chunks
+    langchain_enable_chunk=True,  # langchain: whether to chunk documents
+    langchain_chunk_size=512,  # langchain: chunk size for document chunking
+    langchain_document_subset=DocumentSubset.Relevant.name,
+    langchain_document_choice=[],
+    pre_prompt_query=[],
+    prompt_query="",
+    pre_prompt_summary="",
+    prompt_summary="",
+    system_prompt="",
+    image_loaders=[],
+    pdf_loaders=[],
+    url_loaders=[],
+    jq_schema=".[]",
+    visible_models=0,
+    h2ogpt_key=None,
+    add_search_to_context=False,
+    chat_conversation=None,
+    text_context_list=[],
+    docs_ordering_type="reverse_ucurve_sort",
+    min_max_new_tokens=256,
+    max_input_tokens=-1,
+    docs_token_handling="split_or_merge",
+    docs_joiner="\n\n",
+    hyde_level=0,
+    hyde_template=None,
+)
+
 
 class TextCompletionCreator:
     """Builder that can create text completions."""
@@ -78,18 +137,18 @@ class TextCompletionCreator:
         repetition_penalty: float = 1.07,
         number_returns: int = 1,
         system_pre_context: str = "",
-        add_chat_history_to_context: bool = False,
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
-        visible_models: Union[str, list] = [],
+        visible_models: Union[str, int, List[str]] = 0,
         add_search_to_context: bool = False,
-        chat_conversation: typing.List[typing.Tuple[str, str]] = None,
-        text_context_list: typing.List[str] = None,
-        docs_ordering_type: str = None,
-        min_max_new_tokens: int = None,
-        max_input_tokens: int = None,
-        docs_token_handling: str = None,
-        docs_joiner: str = None,
+        text_context_list: List[str] = [],
+        docs_ordering_type: str = "reverse_ucurve_sort",
+        min_max_new_tokens: int = 256,
+        max_input_tokens: int = -1,
+        docs_token_handling: str = "split_or_merge",
+        docs_joiner: str = "\n\n",
+        hyde_level: int = 0,
+        hyde_template: Optional[str] = None,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -115,13 +174,11 @@ class TextCompletionCreator:
         :param number_returns:
         :param system_pre_context: directly pre-appended without prompt processing
         :param langchain_mode: LangChain mode
-        :param add_chat_history_to_context: Whether to add chat history to context
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
                               If pass 'None' or 'auto' or None, then automatic per-model value used
-        :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param visible_models: Single string of base model name, single integer of position of model, to get response from
         :param add_search_to_context: Whether to add web search of query to context
-        :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
         :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
@@ -132,43 +189,21 @@ class TextCompletionCreator:
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
         :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+        :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
+                     0: No HYDE
+                     1: Use non-document-based LLM response and original query for embedding query
+                     2: Use document-based LLM response and original query for embedding query
+                     3+: Continue iterations of embedding prior answer and getting new response
+        :param hyde_template:
+                     None, 'None', 'auto' uses internal value and enable
+                     '{query}' is minimal template one can pass
         """
-        params = _utils.to_h2ogpt_params(locals().copy())
-        params["instruction"] = ""  # empty when chat_mode is False
-        params["iinput"] = ""  # only chat_mode is True
-        params["stream_output"] = False
-        params["prompt_type"] = prompt_type.value  # convert to serializable type
-        params["prompt_dict"] = ""  # empty as prompt_type cannot be 'custom'
-        params["chat"] = False
+        args = locals().copy()
+        args["prompt_type"] = prompt_type.value  # convert to serializable type
+        args["langchain_mode"] = langchain_mode.value  # convert to serializable type
+        params = _utils.to_h2ogpt_params({**_DEFAULT_PARAMETERS, **args})
         params["instruction_nochat"] = None  # future prompt
-        params["langchain_mode"] = langchain_mode.value  # convert to serializable type
-        params["add_chat_history_to_context"] = False  # relevant only for the UI
-        params["langchain_action"] = LangChainAction.QUERY.value
-        params["langchain_agents"] = []
-        params["top_k_docs"] = 4  # langchain: number of document chunks
-        params["chunk"] = True  # langchain: whether to chunk documents
-        params["chunk_size"] = 512  # langchain: chunk size for document chunking
-        params["document_subset"] = DocumentSubset.Relevant.name
-        params["document_choice"] = []
-        params["pre_prompt_query"] = ""
-        params["prompt_query"] = ""
-        params["pre_prompt_summary"] = ""
-        params["prompt_summary"] = ""
-        params["system_prompt"] = ""
-        params["image_loaders"] = []
-        params["pdf_loaders"] = []
-        params["url_loaders"] = []
-        params["jq_schema"] = '.[]'
-        params["visible_models"] = visible_models
         params["h2ogpt_key"] = self._client._h2ogpt_key
-        params["add_search_to_context"] = add_search_to_context
-        params["chat_conversation"] = chat_conversation
-        params["text_context_list"] = text_context_list
-        params["docs_ordering_type"] = docs_ordering_type
-        params["min_max_new_tokens"] = min_max_new_tokens
-        params["max_input_tokens"] = max_input_tokens
-        params["docs_token_handling"] = docs_token_handling
-        params["docs_joiner"] = docs_joiner
         return TextCompletion(self._client, params)
 
 
@@ -179,9 +214,9 @@ class TextCompletion:
 
     def __init__(self, client: Client, parameters: OrderedDict[str, Any]):
         self._client = client
-        self._parameters = parameters
+        self._parameters = dict(parameters)
 
-    def _get_parameters(self, prompt: str) -> OrderedDict[str, Any]:
+    def _get_parameters(self, prompt: str) -> Dict[str, Any]:
         self._parameters["instruction_nochat"] = prompt
         return self._parameters
 
@@ -198,7 +233,7 @@ class TextCompletion:
         """
 
         response = await self._client._predict_async(
-            str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
+            str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
         return self._get_reply(response)
 
@@ -210,7 +245,7 @@ class TextCompletion:
         :return: response from the model
         """
         response = self._client._predict(
-            str(dict(self._get_parameters(prompt))), api_name=self._API_NAME
+            str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
         return self._get_reply(response)
 
@@ -240,15 +275,16 @@ class ChatCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
-        visible_models: Union[str, list] = [],
-        add_search_to_context: bool= False,
-        chat_conversation: typing.List[typing.Tuple[str, str]] = None,
-        text_context_list: typing.List[str] = None,
-        docs_ordering_type: str = None,
-        min_max_new_tokens: int = None,
-        max_input_tokens: int = None,
-        docs_token_handling: str = None,
-        docs_joiner: str = None,
+        visible_models: Union[str, int, List[str]] = 0,
+        add_search_to_context: bool = False,
+        text_context_list: List[str] = [],
+        docs_ordering_type: str = "reverse_ucurve_sort",
+        min_max_new_tokens: int = 256,
+        max_input_tokens: int = -1,
+        docs_token_handling: str = "split_or_merge",
+        docs_joiner: str = "\n\n",
+        hyde_level: int = 0,
+        hyde_template: Optional[str] = None,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -276,9 +312,8 @@ class ChatCompletionCreator:
         :param langchain_mode: LangChain mode
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
-        :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param visible_models: Single string of base model name, single integer of position of model, to get response from
         :param add_search_to_context: Whether to add web search of query to context
-        :param chat_conversation: list of tuples of (human, bot) form
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
         :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
@@ -289,65 +324,45 @@ class ChatCompletionCreator:
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
         :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+        :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
+                     0: No HYDE
+                     1: Use non-document-based LLM response and original query for embedding query
+                     2: Use document-based LLM response and original query for embedding query
+                     3+: Continue iterations of embedding prior answer and getting new response
+        :param hyde_template:
+                     None, 'None', 'auto' uses internal value and enable
+                     '{query}' is minimal template one can pass
         """
-        params = _utils.to_h2ogpt_params(locals().copy())
-        params["instruction"] = None  # future prompts
-        params["iinput"] = ""  # ??
-        params["stream_output"] = False
-        params["prompt_type"] = prompt_type.value  # convert to serializable type
-        params["prompt_dict"] = ""  # empty as prompt_type cannot be 'custom'
-        params["chat"] = True
-        params["instruction_nochat"] = ""  # empty when chat_mode is True
-        params["langchain_mode"] = langchain_mode.value  # convert to serializable type
-        params["add_chat_history_to_context"] = False  # relevant only for the UI
-        params["system_prompt"] = ""
-        params["langchain_action"] = LangChainAction.QUERY.value
-        params["langchain_agents"] = []
-        params["top_k_docs"] = 4  # langchain: number of document chunks
-        params["chunk"] = True  # langchain: whether to chunk documents
-        params["chunk_size"] = 512  # langchain: chunk size for document chunking
-        params["document_subset"] = DocumentSubset.Relevant.name
-        params["document_choice"] = []
-        params["pre_prompt_query"] = ""
-        params["prompt_query"] = ""
-        params["pre_prompt_summary"] = ""
-        params["prompt_summary"] = ""
-        params["system_prompt"] = ""
-        params["image_loaders"] = []
-        params["pdf_loaders"] = []
-        params["url_loaders"] = []
-        params["jq_schema"] = '.[]'
-        params["visible_models"] = visible_models
+        args = locals().copy()
+        args["prompt_type"] = prompt_type.value  # convert to serializable type
+        args["langchain_mode"] = langchain_mode.value  # convert to serializable type
+        params = _utils.to_h2ogpt_params({**_DEFAULT_PARAMETERS, **args})
+        params["instruction_nochat"] = None  # future prompts
+        params["add_chat_history_to_context"] = True
         params["h2ogpt_key"] = self._client._h2ogpt_key
-        params["add_search_to_context"] = add_search_to_context
-        params["chat_conversation"] = chat_conversation
-        params["text_context_list"] = text_context_list
-        params["docs_ordering_type"] = docs_ordering_type
-        params["min_max_new_tokens"] = min_max_new_tokens
-        params["max_input_tokens"] = max_input_tokens
-        params["docs_token_handling"] = docs_token_handling
-        params["docs_joiner"] = docs_joiner
-        params["chatbot"] = []  # chat history (FIXME: Only works if 1 model?)
+        params["chat_conversation"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 
 
 class ChatCompletion:
     """Chat completion."""
 
-    _API_NAME = "/instruction_bot"
+    _API_NAME = "/submit_nochat_api"
 
     def __init__(self, client: Client, parameters: OrderedDict[str, Any]):
         self._client = client
-        self._parameters = parameters
+        self._parameters = dict(parameters)
 
-    def _get_parameters(self, prompt: str) -> ValuesView:
-        self._parameters["instruction"] = prompt
-        self._parameters["chatbot"] += [[prompt, None]]
-        return self._parameters.values()
+    def _get_parameters(self, prompt: str) -> Dict[str, Any]:
+        self._parameters["instruction_nochat"] = prompt
+        return self._parameters
 
-    def _get_reply(self, response: Tuple[List[List[str]]]) -> Dict[str, str]:
-        self._parameters["chatbot"][-1][1] = response[0][-1][1]
-        return {"user": response[0][-1][0], "gpt": response[0][-1][1]}
+    def _update_history_and_get_reply(
+        self, prompt: str, response: str
+    ) -> Dict[str, str]:
+        reply = ast.literal_eval(response)["response"]
+        self._parameters["chat_conversation"].append((prompt, reply))
+        return {"user": prompt, "gpt": reply}
 
     async def chat(self, prompt: str) -> Dict[str, str]:
         """
@@ -357,9 +372,9 @@ class ChatCompletion:
         :returns chat reply
         """
         response = await self._client._predict_async(
-            *self._get_parameters(prompt), api_name=self._API_NAME
+            str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
-        return self._get_reply(response)
+        return self._update_history_and_get_reply(prompt, response)
 
     def chat_sync(self, prompt: str) -> Dict[str, str]:
         """
@@ -369,10 +384,12 @@ class ChatCompletion:
         :returns chat reply
         """
         response = self._client._predict(
-            *self._get_parameters(prompt), api_name=self._API_NAME
+            str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
-        return self._get_reply(response)
+        return self._update_history_and_get_reply(prompt, response)
 
     def chat_history(self) -> List[Dict[str, str]]:
         """Returns the full chat history."""
-        return [{"user": i[0], "gpt": i[1]} for i in self._parameters["chatbot"]]
+        return [
+            {"user": i[0], "gpt": i[1]} for i in self._parameters["chat_conversation"]
+        ]

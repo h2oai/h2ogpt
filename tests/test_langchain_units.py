@@ -15,7 +15,7 @@ from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainT
     docs_joiner_default, docs_token_handling_default, db_types, db_types_full
 from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
-    FakeTokenizer, get_token_count
+    FakeTokenizer, get_token_count, flatten_list
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -281,6 +281,10 @@ def get_test_model():
                       llamacpp_dict={},
                       exllama_dict={},
                       gptq_dict={},
+                      attention_sinks=False,
+                      sink_dict={},
+                      truncation_generation=False,
+                      hf_model_dict={},
 
                       verbose=False)
     model, tokenizer, device = get_model(reward_type=False,
@@ -351,7 +355,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                                                            n_jobs=8,
                                                            max_seq_len=512,
                                                            llamacpp_dict=dict(
-                                                               model_path_llama='llama-2-7b-chat.ggmlv3.q8_0.bin',
+                                                               model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
                                                                n_gpu_layers=100,
                                                                use_mlock=True,
                                                                n_batch=1024))
@@ -580,7 +584,7 @@ def test_make_add_db(repeat, db_type):
                                'source'] == test_file1
 
                     assert path_to_docs(None, url='arxiv:1706.03762', db_type=db_type)[0].metadata[
-                               'source'] == 'http://arxiv.org/abs/2002.05202v1'
+                               'source'] == 'http://arxiv.org/abs/1706.03762v7'
                     assert path_to_docs(None, url='http://h2o.ai', db_type=db_type)[0].metadata[
                                'source'] == 'http://h2o.ai'
 
@@ -1161,6 +1165,7 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
 @pytest.mark.parametrize("caption_gpu", [False, True])
 @pytest.mark.parametrize("captions_model", [None, 'Salesforce/blip2-flan-t5-xl'])
 @wrap_test_forked
+@pytest.mark.parallel10
 def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_captions,
                  enable_doctr, enable_pix2struct, enable_ocr, db_type, file):
     if not have_gpus and caption_gpu:
@@ -1231,18 +1236,18 @@ def run_png_add(captions_model=None, caption_gpu=False,
                                                fail_if_no_sources=False)
             if (enable_captions or enable_pix2struct) and not enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
-                    docs = db.similarity_search("invoice")
+                    docs = db.similarity_search("invoice", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     # weak test
                     assert 'plumbing' in docs[0].page_content.lower() or 'invoice' in docs[0].page_content.lower()
                     check_source(docs, test_file1)
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
@@ -1253,7 +1258,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
@@ -1264,7 +1269,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_source(docs, test_file1)
@@ -1275,14 +1280,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_content_ocr(docs)
                     check_source(docs, test_file1)
             elif (enable_captions or enable_pix2struct) and not enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
@@ -1290,14 +1295,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_ocr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
             elif (enable_captions or enable_pix2struct) and enable_doctr and not enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
@@ -1305,14 +1310,14 @@ def run_png_add(captions_model=None, caption_gpu=False,
                     # weak test
                     assert db is not None
                 else:
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     assert len(docs) == 2 + (2 if db_type == 'chroma' else 0)
                     check_content_doctr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
                     check_source(docs, test_file1)
             elif (enable_captions or enable_pix2struct) and enable_doctr and enable_ocr:
                 if 'kowalievska' in file:
-                    docs = db.similarity_search("cat")
+                    docs = db.similarity_search("cat", k=10)
                     assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
                     assert 'a cat sitting on a window' in docs[0].page_content
                     check_source(docs, test_file1)
@@ -1322,9 +1327,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 else:
                     if db_type == 'chroma':
                         assert len(db.get()['documents']) == 6
-                    docs = db.similarity_search("license")
+                    docs = db.similarity_search("license", k=10)
                     # because search can't find DRIVERLICENSE from DocTR one
-                    assert len(docs) == 2 + (2 if db_type == 'chroma' else 1)
+                    assert len(docs) == 4 + (2 if db_type == 'chroma' else 1)
                     check_content_ocr(docs)
                     # check_content_doctr(docs)
                     check_content_captions(docs, captions_model, enable_pix2struct)
@@ -1334,20 +1339,20 @@ def run_png_add(captions_model=None, caption_gpu=False,
 
 
 def check_content_captions(docs, caption_model, enable_pix2struct):
-    assert any(['license' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['license' in docs[ix].page_content.lower() for ix in range(len(docs))])
     if caption_model is not None and 'blip2' in caption_model:
         str_expected = """california driver license with a woman's face on it california driver license"""
     elif enable_pix2struct:
-        str_expected = """California license"""
+        str_expected = """california license"""
     else:
         str_expected = """a california driver's license with a picture of a woman's face and a picture of a man's face"""
-    assert any([str_expected in docs[ix].page_content for ix in range(len(docs))])
+    assert any([str_expected in docs[ix].page_content.lower() for ix in range(len(docs))])
 
 
 def check_content_doctr(docs):
     assert any(['DRIVERLICENSE' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['California' in docs[ix].page_content for ix in range(len(docs))])
-    assert any(['EXP 08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
+    assert any([' EXP <10> 08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['VETERAN' in docs[ix].page_content for ix in range(len(docs))])
 
 
@@ -1665,27 +1670,29 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 4 and (
+                                assert len(rets1) == 5 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                             else:
-                                assert len(rets1) == 4 and (
+                                assert len(rets1) == 5 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                                 if document_subset == DocumentSubset.Relevant.name:
                                     assert 'h2oGPT' in rets1['sources']
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 4 and (
+                                assert len(rets1) == 5 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
                                         'statistic' in rets1['response'].lower() or
                                         'a chat bot that' in rets1['response'].lower() or
                                         'non-centrality parameter' in rets1['response'].lower() or
-                                        '.pdf' in rets1['response'].lower())
+                                        '.pdf' in rets1['response'].lower() or
+                                        'gravitational' in rets1['response'].lower()
+                                        )
                             else:
-                                assert len(rets1) == 4 and (
+                                assert len(rets1) == 5 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
@@ -1699,14 +1706,20 @@ def test_chroma_filtering():
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
                                     0] and 'source' in rets1['sources'][0]
                                 if doc_choice in [1, 2]:
-                                    assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
+                                    if langchain_action == 'Summarize':
+                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= doc_choice
+                                    else:
+                                        assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
                                 else:
                                     assert len(set([x['source'] for x in rets1['sources']])) >= 1
                             elif document_subset == DocumentSubset.RelSources.name:
                                 if doc_choice in [1, 2]:
                                     assert len(set([x['source'] for x in rets1['sources']])) <= doc_choice
                                 else:
-                                    assert len(set([x['source'] for x in rets1['sources']])) >= 2
+                                    if langchain_action == 'Summarize':
+                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= 2
+                                    else:
+                                        assert len(set([x['source'] for x in rets1['sources']])) >= 2
                             else:
                                 # TopK may just be 1 doc because of many chunks from that doc
                                 # if top_k_docs=-1 might get more

@@ -11,7 +11,7 @@ if os.path.dirname('src') not in sys.path:
 
 os.environ['HARD_ASSERTS'] = "1"
 
-from src.utils import call_subprocess_onetask, makedirs, FakeTokenizer
+from src.utils import call_subprocess_onetask, makedirs, FakeTokenizer, download_simple
 
 
 def get_inf_port():
@@ -126,7 +126,7 @@ def make_user_path_test():
     return user_path
 
 
-def get_llama(llama_type=2):
+def get_llama(llama_type=3):
     from huggingface_hub import hf_hub_download
 
     # FIXME: Pass into main()
@@ -138,6 +138,10 @@ def get_llama(llama_type=2):
         file = 'WizardLM-7B-uncensored.ggmlv3.q8_0.bin'
         dest = './'
         prompt_type = 'wizard2'
+    elif llama_type == 3:
+        file = download_simple('https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf')
+        dest = './'
+        prompt_type = 'llama2'
     else:
         raise ValueError("unknown llama_type=%s" % llama_type)
 

@@ -261,6 +261,8 @@ docs_joiner_default = '\n\n'
 db_types = ['chroma', 'weaviate']
 db_types_full = ['chroma', 'weaviate', 'faiss']
 
+auto_choices = [None, 'None', 'auto']
+
 doc_json_mode_system_prompt0 = """You are a language model who produces high-quality valid JSON extracted from documents in order to answer a user's question.  For example, according to the documents given in JSON (with keys document and content) below:
 
 {"document": 45, "content": "Joe Biden is an American politician who is the 46th and current president of the United States. A member of the Democratic Party, he previously served as the 47th vice president from 2009 to 2017 under President Barack Obama and represented Delaware in the United States Senate from 1973 to 2009.
