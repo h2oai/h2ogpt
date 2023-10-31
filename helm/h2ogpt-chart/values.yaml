@@ -7,6 +7,10 @@ h2ogpt:
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
     pullPolicy: IfNotPresent
+  initImage:
+    repository:
+    tag:
+    pullPolicy:
 
   storage:
     size: 128Gi

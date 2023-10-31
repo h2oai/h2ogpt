@@ -55,7 +55,8 @@ spec:
         - name: tgi-check
           securityContext:
             {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
-          image: busybox:1.36
+          image: "{{ .Values.h2ogpt.initImage.repository | default "busybox" }}:{{ .Values.h2ogpt.initImage.tag | default "1.36" }}"
+          imagePullPolicy: {{ .Values.h2ogpt.initImage.pullPolicy | default "IfNotPresent"}}
           command: ["/bin/sh", "-c"]
           args:
             - >
@@ -70,7 +71,8 @@ spec:
         - name: vllm-check
           securityContext:
             {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
-          image: busybox:1.36
+          image: "{{ .Values.h2ogpt.initImage.repository | default "busybox" }}:{{ .Values.h2ogpt.initImage.tag | default "1.36" }}"
+          imagePullPolicy: {{ .Values.h2ogpt.initImage.pullPolicy | default "IfNotPresent"}}
           command: ["/bin/sh", "-c"]
           args:
             - >
