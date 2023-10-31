@@ -1242,7 +1242,8 @@ def main(
             get_langchain_prompts(pre_prompt_query, prompt_query,
                                   pre_prompt_summary, prompt_summary,
                                   model_name, inference_server,
-                                  model_path_llama)
+                                  model_path_llama,
+                                  doc_json_mode)
 
     if cli:
         from cli import run_cli
@@ -1296,7 +1297,8 @@ def main(
                                       pre_prompt_summary, prompt_summary,
                                       model_dict['base_model'],
                                       model_dict['inference_server'],
-                                      model_dict['model_path_llama']))
+                                      model_dict['model_path_llama'],
+                                      doc_json_mode))
             # if mixed setup, choose non-empty so best models best
             # FIXME: Make per model dict passed through to evaluate
             pre_prompt_query = pre_prompt_query or pre_prompt_query1

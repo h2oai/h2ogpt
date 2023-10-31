@@ -990,7 +990,7 @@ class H2OOpenAI(OpenAI):
             prompts[prompti] = prompt
 
         kwargs = self.update_kwargs(prompts, kwargs)
-
+        print("prompts: %s" % prompts, flush=True)
         return prompts, stop, kwargs
 
     def update_kwargs(self, prompts, kwargs):
@@ -3936,7 +3936,8 @@ def _run_qa_db(query=None,
         get_langchain_prompts(pre_prompt_query, prompt_query,
                               pre_prompt_summary, prompt_summary,
                               model_name, inference_server,
-                              llamacpp_dict.get('model_path_llama'))
+                              llamacpp_dict.get('model_path_llama'),
+                              doc_json_mode)
 
     assert db_type is not None
     assert hf_embedding_model is not None
@@ -3955,6 +3956,12 @@ def _run_qa_db(query=None,
             assert prompt_dict is not None  # should at least be {} or ''
         else:
             prompt_dict = ''
+
+    query_action = langchain_action == LangChainAction.QUERY.value
+    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                            LangChainAction.SUMMARIZE_ALL.value,
+                                            LangChainAction.SUMMARIZE_REFINE.value,
+                                            LangChainAction.EXTRACT.value]
 
     if LangChainAgent.SEARCH.value in langchain_agents and 'llama' in model_name.lower():
         system_prompt = """You are a zero shot react agent.
@@ -4052,13 +4059,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     if isinstance(document_choice, str):
         # support string as well
         document_choice = [document_choice]
-
-    # NOTE: Could try to establish if pure llm mode or not, but makes code too complex
-    query_action = langchain_action == LangChainAction.QUERY.value
-    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                            LangChainAction.SUMMARIZE_ALL.value,
-                                            LangChainAction.SUMMARIZE_REFINE.value,
-                                            LangChainAction.EXTRACT.value]
 
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
@@ -4975,9 +4975,12 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
+                     query_action,
+                     summarize_action,
                      True,  # just to overestimate prompting
                      auto_reduce_chunks,
                      add_search_to_context,
+                     system_prompt,
                      doc_json_mode)
 
     # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
@@ -5306,9 +5309,12 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
+                     query_action,
+                     summarize_action,
                      got_any_docs,
                      auto_reduce_chunks,
                      add_search_to_context,
+                     system_prompt,
                      doc_json_mode)
 
     if doc_json_mode:
@@ -5461,17 +5467,17 @@ def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
                  langchain_action,
+                 query_action,
+                 summarize_action,
                  got_any_docs,
                  auto_reduce_chunks,
                  add_search_to_context,
+                 system_prompt,
                  doc_json_mode):
     triple_quotes = """
 \"\"\"
 """
 
-    if doc_json_mode:
-        prompt_query = pre_prompt_query = prompt_summary = pre_prompt_summary = ''
-        triple_quotes = '\n\n'
 
     if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
@@ -5488,15 +5494,28 @@ def get_template(query, iinput,
         prompt_summary = prompt_summary.replace('information in the document sources',
                                                 'information in the web search sources (and their source dates and website source)')
 
+    if doc_json_mode:
+        triple_quotes = '\n\n'
+        question_fstring = """{{"question": "{question}".  Respond absolutely only in valid JSON.}}"""
+        if got_any_docs:
+            if query_action:
+                system_prompt += '\n' + prompt_query
+            if summarize_action:
+                system_prompt += '\n' + prompt_summary
+        prompt_query = pre_prompt_query = prompt_summary = pre_prompt_summary = ''
+
+    else:
+        question_fstring = """{question}"""
+
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
         if not got_any_docs:
-            template_if_no_docs = template = """{context}{question}"""
+            template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
-            template = """%s%s{context}%s%squestion: {question}""" % (
-            triple_quotes, pre_prompt_query, triple_quotes, prompt_query)
-            template_if_no_docs = """{context}{question}"""
+            template = """%s%s{context}%s%s%s""" % (
+            triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
+            template_if_no_docs = """{context}\{"question": {question}\}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]

@@ -177,7 +177,8 @@ def t5_type(model_name):
 
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary,
-                          model_name, inference_server, model_path_llama):
+                          model_name, inference_server, model_path_llama,
+                          doc_json_mode):
     if model_name and ('falcon' in model_name or
                        'Llama-2'.lower() in model_name.lower() or
                        model_path_llama and 'llama-2' in model_path_llama.lower()) or \
@@ -333,4 +334,5 @@ You should answer the question using the following valid JSON template:
   "references" : numeric array // IDs for up to 3 most relevant documents that the justification mentioned and response answered according to the documents. Set to empty array if the response does not answer the question according to the documents or the justification is not according to the documents.
   "accuracy" : integer, // Given the question, response, justification, references, and original document contents, give a score of 0 through 10 for how accurately the response answered the question accounting for how well it follows from the documents.  10 means the justification perfectly explains the response and is according to the documents.  5 means the justification appears valid but may require verification.  0 means the justification does not match the response according to the documents.
 }
+Respond absolutely only in valid JSON.
 """
