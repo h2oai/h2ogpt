@@ -4833,6 +4833,8 @@ def get_chain(query=None,
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
+    prefix_functiontools_csv = """You are working with a pandas dataframe in Python. The name of the dataframe is `df`.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  Use only the tool python_repl_ast with valid JSON."""
+
     if LangChainAgent.PANDAS.value in langchain_agents:
         document_choice = get_single_document(document_choice, db, extension='csv')
         if document_choice and does_support_functiontools(inference_server, model_name):
@@ -4840,9 +4842,11 @@ def get_chain(query=None,
             chain = create_pandas_dataframe_agent(
                 llm,
                 df,
-                verbose=True,
+                verbose=verbose,
                 agent_type=AgentType.OPENAI_FUNCTIONS,
                 max_execution_time=max_time,
+                prefix=prefix_functiontools_csv,
+                agent_executor_kwargs=dict(handle_parsing_errors=True),
             )
 
             chain_kwargs = dict(input=query)
@@ -4866,7 +4870,10 @@ def get_chain(query=None,
             json_toolkit = JsonToolkit(spec=json_spec)
 
             chain = create_json_agent(
-                llm=llm, toolkit=json_toolkit, verbose=True, max_execution_time=max_time,
+                llm=llm, toolkit=json_toolkit,
+                verbose=verbose,
+                max_execution_time=max_time,
+                agent_executor_kwargs=dict(handle_parsing_errors=True),
             )
 
             chain_kwargs = dict(input=query)
@@ -4886,7 +4893,7 @@ def get_chain(query=None,
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    prefix="""You are working with a pandas dataframe in Python. The name of the dataframe is `df`.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  Use only the tool python_repl_ast with valid JSON.""",
+                    prefix=prefix_functiontools_csv,
                     verbose=verbose, max_execution_time=max_time,
                     agent_type=AgentType.OPENAI_FUNCTIONS,
                     agent_executor_kwargs=dict(handle_parsing_errors=True),
