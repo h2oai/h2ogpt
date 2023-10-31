@@ -620,6 +620,7 @@ class GradioInference(H2Oagenerate, LLM):
                              docs_joiner=None,
                              hyde_level=None,
                              hyde_template=None,
+                             doc_json_mode=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -3876,6 +3877,7 @@ def _run_qa_db(query=None,
                docs_joiner=docs_joiner_default,
                hyde_level=0,
                hyde_template=None,
+               doc_json_mode=False,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -3884,7 +3886,6 @@ def _run_qa_db(query=None,
                cli=False,
                lora_weights='',
 
-               doc_json_mode=False,
                auto_reduce_chunks=True,
                max_chunks=100,
                total_tokens_for_docs=None,

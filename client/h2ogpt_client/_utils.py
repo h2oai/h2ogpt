@@ -53,6 +53,7 @@ H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     docs_joiner="docs_joiner",
     hyde_level="hyde_level",
     hyde_template="hyde_template",
+    doc_json_mode="doc_json_mode",
 )
 
 

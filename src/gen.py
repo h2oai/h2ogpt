@@ -262,7 +262,6 @@ def main(
         prompt_query: str = None,
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
-        doc_json_mode: bool = False,
         add_chat_history_to_context: bool = True,
         add_search_to_context: bool = False,
         context: str = '',
@@ -283,6 +282,7 @@ def main(
         docs_joiner: str = docs_joiner_default,
         hyde_level: int = 0,
         hyde_template: str = None,
+        doc_json_mode: bool = False,
 
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
@@ -697,7 +697,7 @@ def main(
            For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
-    :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama for GPT-4
+    :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported yet for openai_chat when using document collection instead of LLM
            Also not supported when using CLI mode
@@ -1145,6 +1145,7 @@ def main(
                             docs_joiner,
                             hyde_level,
                             hyde_template,
+                            doc_json_mode,
                             verbose,
                             )
 
@@ -2325,6 +2326,7 @@ def evaluate(
         docs_joiner,
         hyde_level,
         hyde_template,
+        doc_json_mode,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2380,7 +2382,6 @@ def evaluate(
         sink_dict=None,
         truncation_generation=None,
         hf_model_dict=None,
-        doc_json_mode=None,
 
         load_exllama=None,
         answer_with_sources=None,
@@ -2727,6 +2728,7 @@ def evaluate(
                 docs_joiner=docs_joiner,
                 hyde_level=hyde_level,
                 hyde_template=hyde_template,
+                doc_json_mode=doc_json_mode,
 
                 **gen_hyper_langchain,
 
@@ -2745,7 +2747,6 @@ def evaluate(
                 truncation_generation=truncation_generation,
                 hf_model_dict=hf_model_dict,
 
-                doc_json_mode=doc_json_mode,
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
                 total_tokens_for_docs=total_tokens_for_docs,
@@ -3032,6 +3033,7 @@ def evaluate(
                                      docs_joiner=docs_joiner,
                                      hyde_level=hyde_level,
                                      hyde_template=hyde_template,
+                                     doc_json_mode=doc_json_mode,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
@@ -3564,6 +3566,7 @@ def get_generate_params(model_lower,
                         docs_joiner,
                         hyde_level,
                         hyde_template,
+                        doc_json_mode,
                         verbose,
                         ):
     use_defaults = False
@@ -3752,6 +3755,7 @@ y = np.random.randint(0, 1, 100)
                     docs_joiner,
                     hyde_level,
                     hyde_template,
+                    doc_json_mode,
                     ]
         # adjust examples if non-chat mode
         if not chat:
