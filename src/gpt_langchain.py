@@ -4886,15 +4886,18 @@ def get_chain(query=None,
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    verbose=True, max_execution_time=max_time,
+                    prefix="""You are working with a pandas dataframe in Python. The name of the dataframe is `df`.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  Use only the tool python_repl_ast with valid JSON.""",
+                    verbose=verbose, max_execution_time=max_time,
                     agent_type=AgentType.OPENAI_FUNCTIONS,
+                    agent_executor_kwargs=dict(handle_parsing_errors=True),
                 )
             else:
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    verbose=True, max_execution_time=max_time,
+                    verbose=verbose, max_execution_time=max_time,
                     agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+                    agent_executor_kwargs=dict(handle_parsing_errors=True),
                 )
             chain_kwargs = dict(input=query)
             target = wrapped_partial(chain, chain_kwargs)
