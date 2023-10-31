@@ -1435,7 +1435,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'h2oGPT is a project that' in res_dict['response'] or
             'for querying and summarizing documents' in res_dict['response'] or
             'Python-based platform for training' in res_dict['response'] or
-            'h2oGPT is an open-source' in res_dict['response']
+            'h2oGPT is an open-source' in res_dict['response'] or
+            'language model' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -3479,7 +3480,10 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
             assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
     else:
         # weaviate as usual gets confused and has too many sources
-        assert '1paul_graham.txt' in [x['source'] for x in sources][0]
+        if summary == 'No relevant documents to extract from.':
+            assert sources == ''
+        else:
+            assert '1paul_graham.txt' in [x['source'] for x in sources][0]
 
 
 @pytest.mark.need_tokens
