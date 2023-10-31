@@ -584,7 +584,7 @@ def test_make_add_db(repeat, db_type):
                                'source'] == test_file1
 
                     assert path_to_docs(None, url='arxiv:1706.03762', db_type=db_type)[0].metadata[
-                               'source'] == 'http://arxiv.org/abs/2002.05202v1'
+                               'source'] == 'http://arxiv.org/abs/1706.03762v7'
                     assert path_to_docs(None, url='http://h2o.ai', db_type=db_type)[0].metadata[
                                'source'] == 'http://h2o.ai'
 
