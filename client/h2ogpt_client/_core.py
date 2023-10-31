@@ -99,7 +99,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     pdf_loaders=[],
     url_loaders=[],
     jq_schema=".[]",
-    visible_models=[],
+    visible_models=0,
     h2ogpt_key=None,
     add_search_to_context=False,
     chat_conversation=None,
@@ -139,7 +139,7 @@ class TextCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
-        visible_models: Union[str, List[str]] = [],
+        visible_models: Union[str, int, List[str]] = 0,
         add_search_to_context: bool = False,
         text_context_list: List[str] = [],
         docs_ordering_type: str = "reverse_ucurve_sort",
@@ -177,7 +177,7 @@ class TextCompletionCreator:
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
                               If pass 'None' or 'auto' or None, then automatic per-model value used
-        :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param visible_models: Single string of base model name, single integer of position of model, to get response from
         :param add_search_to_context: Whether to add web search of query to context
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
@@ -275,7 +275,7 @@ class ChatCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
-        visible_models: Union[str, List[str]] = [],
+        visible_models: Union[str, int, List[str]] = 0,
         add_search_to_context: bool = False,
         text_context_list: List[str] = [],
         docs_ordering_type: str = "reverse_ucurve_sort",
@@ -312,7 +312,7 @@ class ChatCompletionCreator:
         :param langchain_mode: LangChain mode
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
-        :param visible_models: Single string of base model name, single integer of position of model, to get resopnse from
+        :param visible_models: Single string of base model name, single integer of position of model, to get response from
         :param add_search_to_context: Whether to add web search of query to context
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval

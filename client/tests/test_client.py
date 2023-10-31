@@ -77,3 +77,38 @@ def test_available_models(client):
 def test_parameters_order(client, eval_func_param_names):
     text_completion = client.text_completion.create()
     assert eval_func_param_names == list(text_completion._parameters.keys())
+
+
+@pytest.mark.parametrize("local_server", [True, False])
+def test_readme_example(local_server):
+    # self-contained example used for readme, to be copied to client/README.md if changed, setting local_server = True at first
+    import os
+    import asyncio
+    from h2ogpt_client import Client
+
+    if local_server:
+        client = Client("http://0.0.0.0:7860")
+    else:
+        h2ogpt_key = os.getenv('H2OGPT_H2OGPT_KEY')
+        if h2ogpt_key is None:
+            return
+        # if you have API key for public instance:
+        client = Client("https://gpt.h2o.ai", h2ogpt_key=h2ogpt_key)
+
+    # Text completion
+    text_completion = client.text_completion.create()
+    response = asyncio.run(text_completion.complete("Hello world"))
+    print("asyncio text completion response: %s" % response)
+    # Text completion: synchronous
+    response = text_completion.complete_sync("Hello world")
+    print("sync text completion response: %s" % response)
+
+    # Chat completion
+    chat_completion = client.chat_completion.create()
+    reply = asyncio.run(chat_completion.chat("Hey!"))
+    print("asyncio text completion user: %s gpt: %s" % (reply["user"], reply["gpt"]))
+    chat_history = chat_completion.chat_history()
+    print("chat_history: %s" % chat_history)
+    # Chat completion: synchronous
+    reply = chat_completion.chat_sync("Hey!")
+    print("sync chat completion gpt: %s" % reply["gpt"])

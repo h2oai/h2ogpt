@@ -28,25 +28,42 @@ pip install client/dist/h2ogpt_client-*-py3-none-any.whl
 ```
 
 ## Usage
+
+Based upon [test code](tests/test_client.py) and test code `test_readme_example`:
 ```python
-from h2ogpt_client import Client
+def test_readme_example(local_server):
+    import os
+    import asyncio
+    from h2ogpt_client import Client
 
-client = Client("http://0.0.0.0:7860")
+    if local_server:
+        client = Client("http://0.0.0.0:7860")
+    else:
+        h2ogpt_key = os.getenv('H2OGPT_H2OGPT_KEY')
+        if h2ogpt_key is None:
+            return
+        # if you have API key for public instance:
+        client = Client("https://gpt.h2o.ai", h2ogpt_key=h2ogpt_key)
 
-# Text completion
-text_completion = client.text_completion.create()
-response = await text_completion.complete("Hello world")
-# Text completion: synchronous
-response = text_completion.complete_sync("Hello world")
+    # Text completion
+    text_completion = client.text_completion.create()
+    response = asyncio.run(text_completion.complete("Hello world"))
+    print("asyncio text completion response: %s" % response)
+    # Text completion: synchronous
+    response = text_completion.complete_sync("Hello world")
+    print("sync text completion response: %s" % response)
 
-# Chat completion
-chat_completion = client.chat_completion.create()
-reply = await chat_completion.chat("Hey!")
-print(reply["user"])  # prints user prompt, i.e. "Hey!"
-print(reply["gpt"])   # prints reply from h2oGPT
-chat_history = chat_completion.chat_history()
-# Chat completion: synchronous
-reply = chat_completion.chat_sync("Hey!")
+    # Chat completion
+    chat_completion = client.chat_completion.create()
+    reply = asyncio.run(chat_completion.chat("Hey!"))
+    print("asyncio text completion user: %s gpt: %s" % (reply["user"], reply["gpt"]))
+    chat_history = chat_completion.chat_history()
+    print("chat_history: %s" % chat_history)
+    # Chat completion: synchronous
+    reply = chat_completion.chat_sync("Hey!")
+    print("sync chat completion gpt: %s" % reply["gpt"])
+
+test_readme_example(local_server=True)
 ```
 :warning: **Note**: Client APIs are still evolving. Hence, APIs can be changed without prior warnings.
 
