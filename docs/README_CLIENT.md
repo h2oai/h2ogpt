@@ -27,7 +27,7 @@ res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 response = ast.literal_eval(res)['response']
 print(response)
 ```
-For other ways to use gradio client, see example [test code](../client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` etc. [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) use many different API calls for docs etc.
+For other ways to use gradio client, see example [test code](../scr/client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` etc. [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) use many different API calls for docs etc.
 
 One can also stream the response.  Here is a complete example code of streaming to console each updated text fragment so appears to stream in console:
 ```python
