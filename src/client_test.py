@@ -143,6 +143,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          docs_joiner=None,
                          hyde_level=0,
                          hyde_template=None,
+                         doc_json_mode=False,
                          )
     diff = 0
     if version is None:

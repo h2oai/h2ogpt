@@ -61,6 +61,7 @@ eval_func_param_names = ['instruction',
                          'docs_joiner',
                          'hyde_level',
                          'hyde_template',
+                         'doc_json_mode',
                          ]
 
 # form evaluate defaults for submit_nochat_api
