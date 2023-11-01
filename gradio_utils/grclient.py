@@ -432,6 +432,8 @@ class GradioClient(Client):
         Returns: summary/answer: str or extraction List[str]
 
         """
+        if self.config is None:
+            self.setup()
         client = self.clone()
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
@@ -674,6 +676,7 @@ class GradioClient(Client):
                     print("trying again: %s" % trial, flush=True)
                     time.sleep(1 * trial)
 
-
     def get_llms(self) -> list[dict[str, Any]]:
+        if self.config is None:
+            self.setup()
         return ast.literal_eval(self.predict(api_name="/model_names"))
