@@ -84,6 +84,11 @@ def test_available_models(client):
     print(models)
 
 
+def test_server_properties(client, server_url):
+    assert client.server.address.startswith(server_url)
+    assert client.server.hash
+
+
 def test_parameters_order(client, eval_func_param_names):
     text_completion = client.text_completion.create()
     assert eval_func_param_names == list(text_completion._parameters.keys())
