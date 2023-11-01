@@ -112,7 +112,7 @@ test_readme_example(local_server=True)
 
 #### Other API calls
 
-For other ways to use gradio client, see example [test code](../src/client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` etc. [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) use many different API calls for docs etc.
+For other ways to use gradio client, see example [test code](../src/client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` in [client tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) uses many different API calls for docs etc.s
 
 Any element in [gradio_runner.py](../src/gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
 
