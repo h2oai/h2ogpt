@@ -69,7 +69,7 @@ def test_chat_completion_sync(client):
 
 
 def test_available_models(client):
-    models = client.list_models()
+    models = client.models.list()
     assert len(models)
     print(models)
 

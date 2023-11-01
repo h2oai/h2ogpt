@@ -11,6 +11,7 @@ from h2ogpt_client._h2ogpt_enums import (
     LangChainMode,
     PromptType,
 )
+from h2ogpt_client._models import Model, Models
 
 
 class Client:
@@ -36,6 +37,7 @@ class Client:
         self._h2ogpt_key = h2ogpt_key
         self._text_completion = TextCompletionCreator(self)
         self._chat_completion = ChatCompletionCreator(self)
+        self._models = Models(self)
 
     @property
     def text_completion(self) -> "TextCompletionCreator":
@@ -47,16 +49,16 @@ class Client:
         """Chat completion."""
         return self._chat_completion
 
+    @property
+    def models(self) -> "Models":
+        """LL models"""
+        return self._models
+
     def _predict(self, *args, api_name: str) -> Any:
         return self._client.submit(*args, api_name=api_name).result()
 
     async def _predict_async(self, *args, api_name: str) -> Any:
         return await asyncio.wrap_future(self._client.submit(*args, api_name=api_name))
-
-    def list_models(self) -> List[str]:
-        """Returns available models in the h2oGPT server."""
-        models = ast.literal_eval(self._predict(api_name="/model_names"))
-        return [m["base_model"] for m in models]
 
 
 _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
@@ -99,7 +101,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     pdf_loaders=[],
     url_loaders=[],
     jq_schema=".[]",
-    visible_models=0,
+    models=None,
     h2ogpt_key=None,
     add_search_to_context=False,
     chat_conversation=None,
@@ -122,6 +124,7 @@ class TextCompletionCreator:
 
     def create(
         self,
+        models: Union[None, Model, str, List[Model], List[str]] = None,
         prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
@@ -139,7 +142,6 @@ class TextCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
-        visible_models: Union[str, int, List[str]] = 0,
         add_search_to_context: bool = False,
         text_context_list: List[str] = [],
         docs_ordering_type: str = "reverse_ucurve_sort",
@@ -153,6 +155,7 @@ class TextCompletionCreator:
         """
         Creates a new text completion.
 
+        :param models: model(s) to be used, `None` means used the default model.
         :param prompt_type: type of the prompt
         :param input_context_for_instruction: input context for instruction
         :param enable_sampler: enable or disable the sampler, required for use of
@@ -177,7 +180,6 @@ class TextCompletionCreator:
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
                               If pass 'None' or 'auto' or None, then automatic per-model value used
-        :param visible_models: Single string of base model name, single integer of position of model, to get response from
         :param add_search_to_context: Whether to add web search of query to context
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
@@ -258,6 +260,7 @@ class ChatCompletionCreator:
 
     def create(
         self,
+        models: Union[None, Model, str, List[Model], List[str]] = None,
         prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
@@ -275,7 +278,6 @@ class ChatCompletionCreator:
         system_pre_context: str = "",
         langchain_mode: LangChainMode = LangChainMode.DISABLED,
         system_prompt: str = "",
-        visible_models: Union[str, int, List[str]] = 0,
         add_search_to_context: bool = False,
         text_context_list: List[str] = [],
         docs_ordering_type: str = "reverse_ucurve_sort",
@@ -289,6 +291,7 @@ class ChatCompletionCreator:
         """
         Creates a new chat completion.
 
+        :param models: model(s) to be used, `None` means used the default model.
         :param prompt_type: type of the prompt
         :param input_context_for_instruction: input context for instruction
         :param enable_sampler: enable or disable the sampler, required for use of
@@ -312,7 +315,6 @@ class ChatCompletionCreator:
         :param langchain_mode: LangChain mode
         :param system_prompt: Universal system prompt to override prompt_type's system
                               prompt
-        :param visible_models: Single string of base model name, single integer of position of model, to get response from
         :param add_search_to_context: Whether to add web search of query to context
         :param text_context_list: list of strings to use as context (up to allowed max_seq_len of model)
         :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
