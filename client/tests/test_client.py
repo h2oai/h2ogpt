@@ -12,24 +12,34 @@ def client(server_url, h2ogpt_key) -> Client:
     return Client(server_url, h2ogpt_key=h2ogpt_key)
 
 
+def _create_text_completion(client):
+    model = client.models.list()[-1]
+    return client.text_completion.create(model=model)
+
+
 @pytest.mark.asyncio
 async def test_text_completion(client):
-    text_completion = client.text_completion.create()
+    text_completion = _create_text_completion(client)
     response = await text_completion.complete(prompt="Hello world")
     assert response
     print(response)
 
 
 def test_text_completion_sync(client):
-    text_completion = client.text_completion.create()
+    text_completion = _create_text_completion(client)
     response = text_completion.complete_sync(prompt="Hello world")
     assert response
     print(response)
 
 
+def _create_chat_completion(client):
+    model = client.models.list()[-1]
+    return client.chat_completion.create(model=model)
+
+
 @pytest.mark.asyncio
 async def test_chat_completion(client):
-    chat_completion = client.chat_completion.create()
+    chat_completion = _create_chat_completion(client)
 
     chat1 = await chat_completion.chat(prompt="Hey!")
     assert chat1["user"] == "Hey!"
@@ -49,7 +59,7 @@ async def test_chat_completion(client):
 
 
 def test_chat_completion_sync(client):
-    chat_completion = client.chat_completion.create()
+    chat_completion = _create_chat_completion(client)
 
     chat1 = chat_completion.chat_sync(prompt="What is UNESCO?")
     assert chat1["user"] == "What is UNESCO?"
