@@ -681,7 +681,7 @@ class GradioClient(Client):
             self.setup()
         return ast.literal_eval(self.predict(api_name="/model_names"))
 
-    def list_models(self) -> list[dict[str, Any]]:
+    def list_models(self) -> list[str]:
         if self.config is None:
             self.setup()
         return [x['base_model'] for x in ast.literal_eval(self.predict(api_name="/model_names"))]
