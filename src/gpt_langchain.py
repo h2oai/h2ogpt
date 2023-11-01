@@ -990,7 +990,6 @@ class H2OOpenAI(OpenAI):
             prompts[prompti] = prompt
 
         kwargs = self.update_kwargs(prompts, kwargs)
-        print("prompts: %s" % prompts, flush=True)
         return prompts, stop, kwargs
 
     def update_kwargs(self, prompts, kwargs):
