@@ -204,6 +204,8 @@ class GradioClient(Client):
             # need session hash to be new every time, to avoid "generator already executing"
             self.reset_session()
 
+        kwargs = self.kwargs.copy()
+        kwargs.pop('h2ogpt_key', None)
         client = Client(*self.args, **self.kwargs)
         for k, v in client.__dict__.items():
             setattr(self, k, v)
