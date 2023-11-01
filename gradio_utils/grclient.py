@@ -341,10 +341,13 @@ class GradioClient(Client):
                                       prompt_summary: str | None = None,
                                       h2ogpt_key: str = None,
 
-                                      llm: str | int | None = None,
-                                      llm_args: dict[str, Any] | None = None,
+                                      model: str | int | None = None,
                                       stream_output: bool = False,
                                       do_sample: bool = False,
+                                      temperature: float = 0.0,
+                                      top_p: float = 0.75,
+                                      top_k: int = 40,
+                                      repetition_penalty: float = 1.07,
                                       max_time: int = 360,
 
                                       chat_conversation: list[tuple[str, str]] | None = None,
@@ -405,9 +408,19 @@ class GradioClient(Client):
                 %s
                 \"\"\"\n%s" % (pre_prompt_summary, fstring, prompt_summary)
             h2ogpt_key: Access Key to h2oGPT server
-            llm: base_model name or integer index of model_lock on h2oGPT server
+            model: base_model name or integer index of model_lock on h2oGPT server
                             None results in use of first (0th index) model in server
-            llm_args: extra kwargs to pass on to GradioClient to h2oGPT
+                   to get list of models do client.list_models()
+
+            do_sample: see src/gen.py
+            temperature: see src/gen.py
+            top_p: see src/gen.py
+            top_k: see src/gen.py
+            repetition_penalty: see src/gen.py
+            max_new_tokens: see src/gen.py
+            min_max_new_tokens: see src/gen.py
+            max_input_tokens: see src/gen.py
+
             stream_output: Whether to stream output
             do_sample: whether to sample
             max_time: how long to take
@@ -438,27 +451,7 @@ class GradioClient(Client):
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
 
-        try:
-            llm = int(llm)
-        except:
-            pass
-        if llm != 0:
-            valid_llms = [x["base_model"] for x in self.get_llms()]
-            if (
-                    isinstance(llm, int)
-                    and llm >= len(valid_llms)
-                    or isinstance(llm, str)
-                    and llm not in valid_llms
-            ):
-                did_you_mean = ""
-                if isinstance(llm, str):
-                    alt = difflib.get_close_matches(llm, valid_llms, 1)
-                    if alt:
-                        did_you_mean = f"\nDid you mean {repr(alt[0])}?"
-                raise RuntimeError(
-                    f"Invalid llm: {repr(llm)}, must be either an integer between "
-                    f"0 and {len(valid_llms) - 1} or one of the following values: {valid_llms}.{did_you_mean}"
-                )
+        self.check_model(model)
 
         # chunking not used here
         # MyData specifies scratch space, only persisted for this individual client call
@@ -530,13 +523,17 @@ class GradioClient(Client):
             max_new_tokens=max_new_tokens,
             min_max_new_tokens=min_max_new_tokens,
             do_sample=do_sample,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            repetition_penalty=repetition_penalty,
             system_prompt=system_prompt,
             pre_prompt_query=pre_prompt_query,
             prompt_query=prompt_query,
             pre_prompt_summary=pre_prompt_summary,
             prompt_summary=prompt_summary,
             h2ogpt_key=h2ogpt_key,
-            visible_models=llm,
+            visible_models=model,
             chat_conversation=chat_conversation,
             text_context_list=text_context_list,
             docs_ordering_type=docs_ordering_type,
@@ -544,46 +541,6 @@ class GradioClient(Client):
             docs_token_handling=docs_token_handling,
             docs_joiner=docs_joiner,
         )
-        if llm_args:
-            for key in llm_args:
-                # only allow certain keys in llm_args - has to be supported by h2oGPT
-                if key not in [
-                    "do_sample",
-                    "temperature",
-                    "top_p",
-                    "top_k",
-                    "num_beams",  # not for streaming yet https://github.com/h2oai/h2ogpt/issues/106
-                    "repetition_penalty",
-                    "max_new_tokens",
-                    "min_max_new_tokens",
-                    "max_input_tokens",
-                    "max_time",
-                ]:
-                    raise RuntimeError(
-                        f"User error, unexpected key '{key}' in 'llm_args'"
-                    )
-                if key in kwargs:
-                    print(
-                        "overriding inference parameter %s: %s %s" % (key,
-                                                                      kwargs[key],
-                                                                      llm_args[key])
-                    )
-                else:
-                    print(
-                        f"using custom inference parameter %s: %s" % (key, llm_args[key])
-                    )
-        kwargs.update(llm_args or {})
-        empty = ""
-        for thing in [
-            "system_prompt",
-            "pre_prompt_summary",
-            "prompt_summary",
-            "pre_prompt_query",
-            "prompt_query",
-        ]:
-            value = kwargs[thing]
-            if value in ["", "null", None]:
-                empty += f"{thing}={repr(value)}, "
 
         # get result
         trials = 3
@@ -676,12 +633,37 @@ class GradioClient(Client):
                     print("trying again: %s" % trial, flush=True)
                     time.sleep(1 * trial)
 
-    def get_llms(self) -> list[dict[str, Any]]:
+    def check_model(self, model):
+        if model != 0:
+            valid_llms = self.list_models()
+            if (
+                    isinstance(model, int)
+                    and model >= len(valid_llms)
+                    or isinstance(model, str)
+                    and model not in valid_llms
+            ):
+                did_you_mean = ""
+                if isinstance(model, str):
+                    alt = difflib.get_close_matches(model, valid_llms, 1)
+                    if alt:
+                        did_you_mean = f"\nDid you mean {repr(alt[0])}?"
+                raise RuntimeError(
+                    f"Invalid llm: {repr(model)}, must be either an integer between "
+                    f"0 and {len(valid_llms) - 1} or one of the following values: {valid_llms}.{did_you_mean}"
+                )
+
+    def get_models_full(self) -> list[dict[str, Any]]:
+        """
+        Full model info in list if dict
+        """
         if self.config is None:
             self.setup()
         return ast.literal_eval(self.predict(api_name="/model_names"))
 
     def list_models(self) -> list[str]:
+        """
+        Model names available from endpoint
+        """
         if self.config is None:
             self.setup()
         return [x['base_model'] for x in ast.literal_eval(self.predict(api_name="/model_names"))]

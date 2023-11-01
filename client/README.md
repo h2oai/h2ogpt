@@ -42,6 +42,8 @@ pip install client/dist/h2ogpt_client-*-py3-none-any.whl
 
 Based upon [test code](tests/test_client.py) and test code `test_readme_example`:
 ```python
+
+
 def test_readme_example(local_server):
     import os
     import asyncio

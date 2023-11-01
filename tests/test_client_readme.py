@@ -3,6 +3,7 @@ import pytest
 
 @pytest.mark.parametrize("local_server", [True, False])
 def test_readme_example(local_server):
+
     # self-contained example used for readme, to be copied to README_CLIENT.md if changed, setting local_server = True at first
     import os
     # The grclient.py file can be copied from h2ogpt repo and used with local gradio_client for example use
@@ -11,25 +12,25 @@ def test_readme_example(local_server):
     if local_server:
         client = GradioClient("http://0.0.0.0:7860")
     else:
-        h2ogpt_key = os.getenv('H2OGPT_KEY') or os.getenv('H2OGPT_H2OGPT_KEY')
-        if h2ogpt_key is None:
-            return
         # if you have API key for public instance:
-        client = GradioClient("https://gpt.h2o.ai", h2ogpt_key=h2ogpt_key)
+        client = GradioClient("https://gpt.h2o.ai", h2ogpt_key=os.getenv('H2OGPT_KEY') or os.getenv('H2OGPT_H2OGPT_KEY'))
+
+    models = client.list_models()
+    print(models)
 
     # LLM
-    print(client.question("Who are you?"))
+    print(client.question("Who are you?", model=models[0]))
 
     url = "https://cdn.openai.com/papers/whisper.pdf"
 
     # Q/A
-    print(client.query("What is whisper?", url=url))
+    print(client.query("What is whisper?", url=url, model=models[0]))
     # summarization (map_reduce over all pages if top_k_docs=-1)
-    print(client.summarize("What is whisper?", url=url, top_k_docs=3))
+    print(client.summarize("What is whisper?", url=url, top_k_docs=3, model=models[0]))
     # extraction (map per page)
-    print(client.extract("Give bullet for all key points", url=url, top_k_docs=3))
+    print(client.extract("Give bullet for all key points", url=url, top_k_docs=3, model=models[0]))
 
-    # This will generate something like:
+# This will generate something like:
 
 # LLM:
 # "Hello! I'm just an AI, my purpose is to assist and provide helpful information to the best of my abilities. I am programmed to follow ethical guidelines and promote respectful and positive interactions. I am not capable of providing harmful or offensive responses, and I will always strive to provide accurate and helpful answers to your questions. If a question does not make sense or is not factually coherent, I will do my best to explain why and provide clarification. If I don't know the answer to a question, I will not provide false information and will instead suggest ways for you to find the answer or clarify the question. Please feel free to ask me anything, and I will do my best to assist you."
