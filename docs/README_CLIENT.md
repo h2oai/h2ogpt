@@ -13,7 +13,7 @@ h2oGPT's `generate.py` by default runs a gradio server, which also gives access 
 conda create -n gradioclient -y
 conda activate gradioclient
 conda install python=3.10 -y
-pip install gradio_client
+pip install gradio_client==0.6.1
 
 # Download Gradio Wrapper code if GradioClient class used, not needed for native Gradio Client
 # No wheel for now
