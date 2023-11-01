@@ -8,7 +8,8 @@ E.g. for Ubuntu 20.04, install driver if you haven't already done so:
 
 ```bash
 sudo apt-get update
-sudo apt-get -y install nvidia-headless-535-server nvidia-fabricmanager-535 nvidia-headless-no-dkms-535-servers nvidia-utils-535-server
+sudo apt-get -y install nvidia-headless-535-server nvidia-fabricmanager-535 nvidia-utils-535-server
+# sudo apt-get -y install nvidia-headless-no-dkms-535-servers
 ```
 
 Note that if you run the preceding commands, you don't need to use the NVIDIA developer downloads in the following sections.
@@ -34,7 +35,6 @@ echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bas
 echo "export CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
 echo "export PATH=\$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
 source ~/.bashrc
-conda activate h2ogpt
 ```
 
 Then reboot the machine, to get everything sync'ed up on restart.

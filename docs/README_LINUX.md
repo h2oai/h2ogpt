@@ -96,6 +96,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     python -m nltk.downloader all
     # Optional: Required for PlayWright
     playwright install --with-deps
+    ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
     pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
