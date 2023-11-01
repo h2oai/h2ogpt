@@ -14,7 +14,12 @@ conda create -n gradioclient -y
 conda activate gradioclient
 conda install python=3.10 -y
 pip install gradio_client
-cp gradio_utils/grclient.py .
+
+# Download Gradio Wrapper code if GradioClient class used, not needed for native Gradio Client
+# No wheel for now
+wget https://raw.githubusercontent.com/h2oai/h2ogpt/main/gradio_utils/grclient.py
+mkdir -p gradio_utils
+mv grclient.py gradio_utils
 ```
 
 Run client code with Gradio's native client:
