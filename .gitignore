@@ -38,3 +38,7 @@ Dockerfile_deps
 
 # virtual envs
 venv
+
+# Mac one click installer
+Tesseract-OCR/
+poppler/
