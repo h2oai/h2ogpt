@@ -1,5 +1,5 @@
 nameOverride: ""
-fullnameOverride: h2ogpt
+fullnameOverride: ""
 
 h2ogpt:
   enabled: true
@@ -14,7 +14,8 @@ h2ogpt:
 
   storage:
     size: 128Gi
-    class: ebs-csi
+    class: 
+    useEphemeral: true
   
   externalLLM:
     enabled: false
@@ -49,11 +50,11 @@ h2ogpt:
   updateStrategy:
     type: RollingUpdate
 
-  podSecurityContext:
-    runAsNonRoot: true
-    runAsUser: 1000
-    runAsGroup: 1000
-    fsGroup: 1000
+  podSecurityContext: 
+    # runAsNonRoot: true
+    # runAsUser: 1000
+    # runAsGroup: 1000
+    # fsGroup: 1000
 
   securityContext:
     runAsNonRoot: true
@@ -85,7 +86,8 @@ tgi:
 
   storage:
     size: 512Gi
-    class: ebs-csi
+    class: 
+    useEphemeral: true
   
   overrideConfig:
   hfSecret: 
@@ -123,7 +125,8 @@ vllm:
 
   storage:
     size: 512Gi
-    class: ebs-csi
+    class: 
+    useEphemeral: true
   
   overrideConfig:
 
@@ -146,10 +149,10 @@ vllm:
     type: RollingUpdate
 
   podSecurityContext:
-    runAsNonRoot: true
-    runAsUser: 1000
-    runAsGroup: 1000
-    fsGroup: 1000
+    # runAsNonRoot: true
+    # runAsUser: 1000
+    # runAsGroup: 1000
+    # fsGroup: 1000
 
   securityContext:
     runAsNonRoot: true
