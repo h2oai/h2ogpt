@@ -52,8 +52,8 @@ class Client:
         return self._chat_completion
 
     @property
-    def models(self) -> "Models":
-        """LL models"""
+    def models(self) -> Models:
+        """LL models."""
         return self._models
 
     @property
