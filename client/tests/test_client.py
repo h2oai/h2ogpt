@@ -90,16 +90,18 @@ def test_parameters_order(client, eval_func_param_names):
 
 
 @pytest.mark.parametrize("local_server", [True, False])
-def test_readme_example(local_server, h2ogpt_key):
+def test_readme_example(local_server):
     # self-contained example used for readme,
     # to be copied to client/README.md if changed, setting local_server = True at first
     import asyncio
+    import os
 
     from h2ogpt_client import Client
 
     if local_server:
         client = Client("http://0.0.0.0:7860")
     else:
+        h2ogpt_key = os.getenv("H2OGPT_KEY") or os.getenv("H2OGPT_H2OGPT_KEY")
         if h2ogpt_key is None:
             return
         # if you have API key for public instance:
