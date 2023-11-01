@@ -608,18 +608,11 @@ class GradioClient(Client):
                         response = res_dict["response"]
                         sources = res_dict["sources"]
                         texts_out = [x["content"] for x in sources]
-                        assert (
-                            response.strip()
-                        ), "h2ogpt.py final response 1 must not be empty"
-                        yield response[len(text0):].strip(), texts_out
+                        yield response[len(text0):], texts_out
                     else:
                         # 1.0 slightly longer than 0.3 in open source
                         check_job(job, timeout=1.0, raise_exception=True)
-
-                        assert (
-                            response.strip()
-                        ), "h2ogpt.py final response 2 must not be empty"
-                        yield response[len(text0):].strip(), texts_out
+                        yield response[len(text0):], texts_out
                 break
             except Exception as e:
                 print(
