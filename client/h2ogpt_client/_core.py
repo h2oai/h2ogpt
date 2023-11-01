@@ -101,7 +101,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     pdf_loaders=[],
     url_loaders=[],
     jq_schema=".[]",
-    models=None,
+    model=None,
     h2ogpt_key=None,
     add_search_to_context=False,
     chat_conversation=None,
@@ -125,7 +125,7 @@ class TextCompletionCreator:
 
     def create(
         self,
-        models: Union[None, Model, str, List[Model], List[str]] = None,
+        model: Union[None, Model, str] = None,
         prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
@@ -157,7 +157,7 @@ class TextCompletionCreator:
         """
         Creates a new text completion.
 
-        :param models: model(s) to be used, `None` means used the default model.
+        :param model: model to be used, `None` means used the default model.
         :param prompt_type: type of the prompt
         :param input_context_for_instruction: input context for instruction
         :param enable_sampler: enable or disable the sampler, required for use of
@@ -263,7 +263,7 @@ class ChatCompletionCreator:
 
     def create(
         self,
-        models: Union[None, Model, str, List[Model], List[str]] = None,
+        model: Union[None, Model, str] = None,
         prompt_type: PromptType = PromptType.plain,
         input_context_for_instruction: str = "",
         enable_sampler=False,
@@ -295,7 +295,7 @@ class ChatCompletionCreator:
         """
         Creates a new chat completion.
 
-        :param models: model(s) to be used, `None` means used the default model.
+        :param model: model to be used, `None` means used the default model.
         :param prompt_type: type of the prompt
         :param input_context_for_instruction: input context for instruction
         :param enable_sampler: enable or disable the sampler, required for use of
