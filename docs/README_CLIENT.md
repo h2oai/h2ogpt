@@ -1,17 +1,23 @@
-### Client APIs
+## Client APIs
 
 A Gradio API and an OpenAI-compliant API are supported.  One can also use `curl` to some extent for basic API.
 
-##### Gradio Client API
+### OpenAI Compliant Python Client Library
 
-`generate.py` by default runs a gradio server, which also gives access to client API using gradio client.  One can use it with h2oGPT, or independently of h2oGPT repository by installing an env:
+An OpenAI compliant client is available. Refer the [README](../client/README.md) for more details.
+
+### Gradio Client API
+
+h2oGPT's `generate.py` by default runs a gradio server, which also gives access to client API using Gradio client.  One can use it with h2oGPT, or independently of h2oGPT repository by installing an env:
 ```bash
 conda create -n gradioclient -y
 conda activate gradioclient
 conda install python=3.10 -y
 pip install gradio_client
+cp gradio_utils/grclient.py .
 ```
-then running client code:
+
+Run client code with Gradio's native client:
 ```python
 from gradio_client import Client
 import ast
@@ -27,7 +33,6 @@ res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 response = ast.literal_eval(res)['response']
 print(response)
 ```
-For other ways to use gradio client, see example [test code](../client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` etc. [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) use many different API calls for docs etc.
 
 One can also stream the response.  Here is a complete example code of streaming to console each updated text fragment so appears to stream in console:
 ```python
@@ -65,25 +70,11 @@ if len(res_final) > 0:
     print(new_text)
 ```
 
+### h2oGPT Gradio Wrapper
 
-Any element in [gradio_runner.py](../gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
+One can run client code with h2oGPT wrapper class for Gradio's client, which adds extra exception handling and adds h2oGPT specific calls.
 
-The below is an example client code, which handles persistence of state when doing multiple queries, or avoids persistence to avoid issues when server goes up and down for a fixed client.  Choose `HOST` to be the h2oGPT server, and as gradio client use function calls `answer_question_using_context` and `summarize` that handle question-answer or summarization using LangChain backend.   One can choose h2oGPT server to have `--async_output=True` and `--num_async=10` (or some optimal value) to enable full parallel summarization when the h2oGPT server uses `--inference_server` that points to a text-generation inference server, to allow for high tokens/sec.
-```python
-host = "localhost:7860"
-# if have key can use:
-# host = 'https://gpt.h2o.ai'
-
-# The grclient.py file can be copied from h2ogpt repo and used with local gradio_client for example use
-from gradio_utils.grclient import GradioClient
-import os
-h2ogpt_key = os.getenv('H2OGPT_H2OGPT_KEY')
-client = GradioClient(host, h2ogpt_key=h2ogpt_key)
-
-print(client.question("Who are you?"))
-```
-
-For document question-answer, one can do:
+For talking to just LLM, Document Q/A, summarization, and extraction, one can do:
 ```python
 def test_readme_example(local_server):
     # self-contained example used for readme, to be copied to README_CLIENT.md if changed, setting local_server = True at first
@@ -114,10 +105,13 @@ def test_readme_example(local_server):
 test_readme_example(local_server=True)
 ```
 
-See tests in https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py#L678-L1036 that this code is based upon.
+#### Other API calls
 
+For other ways to use gradio client, see example [test code](../client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` etc. [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) use many different API calls for docs etc.
 
-##### Listing models
+Any element in [gradio_runner.py](../gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
+
+#### Listing models
 
 ```python
 >>> from gradio_client import Client
@@ -129,12 +123,11 @@ Loaded as API: http://localhost:7860/ ✔
 {'h2oai/h2ogpt-4096-llama2-70b-chat': 4046, 'lmsys/vicuna-13b-v1.5-16k': 16334, 'mistralai/Mistral-7B-Instruct-v0.1': 4046, 'gpt-3.5-turbo-0613': 4046, 'gpt-3.5-turbo-16k-0613': 16335, 'gpt-4-0613': 8142, 'gpt-4-32k-0613': 32718}
 ```
 
-##### OpenAI Python Client Library
+### h2oGPT Server options for efficient Summarization and Extraction
 
-An OpenAI compliant client is available. Refer the [README](../client/README.md)  for more details.
+One can choose h2oGPT server to have `--async_output=True` and `--num_async=10` (or some optimal value) to enable full parallel summarization when the h2oGPT server uses `--inference_server` that points to Gradio Inference Server, vLLM, text-generation inference (TGI) server, or OpenAI servers to allow for high tokens/sec.
 
-
-##### Curl Client API
+### Curl Client API
 
 As long as objects within the `gradio_runner.py` for a given api_name are for a function without `gr.State()` objects, then curl can work.  Full `curl` capability is not supported in Gradio [yet](https://github.com/gradio-app/gradio/issues/4932).
 
