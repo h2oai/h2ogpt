@@ -5,20 +5,34 @@ from typing import List
 from setuptools import find_packages
 
 
-def parse_requirements(file_name: str) -> List[str]:
+def parse_requirements(file_name: str) -> tuple[List[str], List[str]]:
     with open(file_name) as f:
         required = f.read().splitlines()
     required = [x for x in required if not x.strip().startswith("#")]
     required = [x if 'git+http' not in x else re.search(r"/([^/]+?)\.git", x).group(1) + ' @ ' + x for x in required]
     required = [x for x in required if x]
-    return required
+
+    # filter links
+    dependency_links = [x for x in required if x.startswith("https://") or x.startswith("http://")]
+    [required.remove(x) for x in dependency_links]
+    [required.append(os.path.basename(x).split("-")[0]) for x in dependency_links]
+    return required, dependency_links
 
 
-# base requirements list
-install_requires = parse_requirements('requirements.txt')
-install_requires.extend(parse_requirements('reqs_optional/requirements_optional_langchain.txt'))
-install_requires.extend(parse_requirements('reqs_optional/requirements_optional_gpt4all.txt'))
-install_requires.extend(parse_requirements('reqs_optional/requirements_optional_langchain.gpllike.txt'))
+install_requires, dependency_links = parse_requirements('requirements.txt')
+
+req_files = [
+    'reqs_optional/requirements_optional_langchain.txt',
+    'reqs_optional/requirements_optional_gpt4all.txt',
+    'reqs_optional/requirements_optional_langchain.gpllike.txt'
+]
+
+for req_file in req_files:
+    x, y = parse_requirements(req_file)
+    install_requires.extend(x)
+    dependency_links.extend(y)
+
+dependency_links.append('https://download.pytorch.org/whl/cu117')
 
 # FLASH
 install_flashattention = parse_requirements('reqs_optional/requirements_optional_flashattention.txt')
@@ -83,9 +97,7 @@ setuptools.setup(
         'TRAINING': install_extra_training,
         'WIKI_EXTRA': install_wiki_extra,
     },
-    dependency_links=[
-        'https://download.pytorch.org/whl/cu117',
-    ],
+    dependency_links=dependency_links,
     classifiers=[],
     python_requires='>=3.10',
     entry_points={
