@@ -32,6 +32,11 @@ def server_url():
 
 
 @pytest.fixture(scope="module")
+def h2ogpt_key():
+    return os.getenv("H2OGPT_KEY") or os.getenv("H2OGPT_H2OGPT_KEY")
+
+
+@pytest.fixture(scope="module")
 def eval_func_param_names():
     parameters = _import_module_from_h2ogpt("src/evaluate_params.py")
     return parameters.eval_func_param_names
