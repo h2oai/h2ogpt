@@ -8,11 +8,8 @@ An OpenAI compliant client is available. Refer the [README](../client/README.md)
 
 ### Gradio Client API
 
-h2oGPT's `generate.py` by default runs a gradio server, which also gives access to client API using Gradio client.  One can use it with h2oGPT, or independently of h2oGPT repository by installing an env:
+h2oGPT's `generate.py` by default runs a gradio server, which also gives access to client API using Gradio client.  One can use it with h2oGPT, or independently of h2oGPT repository by installing an env with python 3.10 or above:
 ```bash
-conda create -n gradioclient -y
-conda activate gradioclient
-conda install python=3.10 -y
 pip install gradio_client==0.6.1
 
 # Download Gradio Wrapper code if GradioClient class used, not needed for native Gradio Client
