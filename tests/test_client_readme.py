@@ -1,8 +1,7 @@
 import pytest
 
 
-#@pytest.mark.parametrize("local_server", [True, False])
-@pytest.mark.parametrize("local_server", [False])
+@pytest.mark.parametrize("local_server", [True, False])
 def test_readme_example(local_server):
     # self-contained example used for readme, to be copied to README_CLIENT.md if changed, setting local_server = True at first
     import os

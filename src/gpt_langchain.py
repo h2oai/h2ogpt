@@ -5525,7 +5525,10 @@ def get_template(query, iinput,
         else:
             template = """%s%s{context}%s%s%s""" % (
             triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
-            template_if_no_docs = """{context}\{"question": {question}\}"""
+            if doc_json_mode:
+                template_if_no_docs = """{context}{{"question": {question}}}"""
+            else:
+                template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]

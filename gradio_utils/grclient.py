@@ -669,7 +669,7 @@ class GradioClient(Client):
                 if trial == trials - 1:
                     raise
                 else:
-                    print("trying again" % trial, flush=True)
+                    print("trying again: %s" % trial, flush=True)
                     time.sleep(1 * trial)
 
 
