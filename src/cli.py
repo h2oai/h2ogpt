@@ -46,6 +46,7 @@ def run_cli(  # for local function:
         docs_joiner=None,
         hyde_level=None,
         hyde_template=None,
+        doc_json_mode=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,

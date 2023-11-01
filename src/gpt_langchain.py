@@ -52,8 +52,8 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
-    docs_ordering_types_default, langchain_modes_non_db, \
-    does_support_functiontools, auto_choices
+    docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
+        auto_choices
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -620,6 +620,7 @@ class GradioInference(H2Oagenerate, LLM):
                              docs_joiner=None,
                              hyde_level=None,
                              hyde_template=None,
+                             doc_json_mode=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -989,7 +990,6 @@ class H2OOpenAI(OpenAI):
             prompts[prompti] = prompt
 
         kwargs = self.update_kwargs(prompts, kwargs)
-
         return prompts, stop, kwargs
 
     def update_kwargs(self, prompts, kwargs):
@@ -3876,6 +3876,7 @@ def _run_qa_db(query=None,
                docs_joiner=docs_joiner_default,
                hyde_level=0,
                hyde_template=None,
+               doc_json_mode=False,
 
                n_jobs=-1,
                llamacpp_dict=None,
@@ -3883,6 +3884,7 @@ def _run_qa_db(query=None,
                verbose=False,
                cli=False,
                lora_weights='',
+
                auto_reduce_chunks=True,
                max_chunks=100,
                total_tokens_for_docs=None,
@@ -3933,7 +3935,8 @@ def _run_qa_db(query=None,
         get_langchain_prompts(pre_prompt_query, prompt_query,
                               pre_prompt_summary, prompt_summary,
                               model_name, inference_server,
-                              llamacpp_dict.get('model_path_llama'))
+                              llamacpp_dict.get('model_path_llama'),
+                              doc_json_mode)
 
     assert db_type is not None
     assert hf_embedding_model is not None
@@ -3953,6 +3956,12 @@ def _run_qa_db(query=None,
         else:
             prompt_dict = ''
 
+    query_action = langchain_action == LangChainAction.QUERY.value
+    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
+                                            LangChainAction.SUMMARIZE_ALL.value,
+                                            LangChainAction.SUMMARIZE_REFINE.value,
+                                            LangChainAction.EXTRACT.value]
+
     if LangChainAgent.SEARCH.value in langchain_agents and 'llama' in model_name.lower():
         system_prompt = """You are a zero shot react agent.
 Consider to prompt of Question that was original query from the user.
@@ -3965,6 +3974,9 @@ Once satisfied that the thoughts, responses are sufficient to answer the questio
 Respond to prompt of Final Answer with your final high-quality bullet list answer to the original query.
 """
         prompter.system_prompt = system_prompt
+
+    if doc_json_mode:
+        prompter.system_prompt = system_prompt = doc_json_mode_system_prompt
 
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
@@ -4046,13 +4058,6 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
     if isinstance(document_choice, str):
         # support string as well
         document_choice = [document_choice]
-
-    # NOTE: Could try to establish if pure llm mode or not, but makes code too complex
-    query_action = langchain_action == LangChainAction.QUERY.value
-    summarize_action = langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
-                                            LangChainAction.SUMMARIZE_ALL.value,
-                                            LangChainAction.SUMMARIZE_REFINE.value,
-                                            LangChainAction.EXTRACT.value]
 
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
@@ -4667,6 +4672,7 @@ def get_chain(query=None,
               gradio_server=False,
 
               # local
+              doc_json_mode=False,
               auto_reduce_chunks=True,
               max_chunks=100,
               total_tokens_for_docs=None,
@@ -4826,6 +4832,8 @@ def get_chain(query=None,
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
+    prefix_functiontools_csv = """You are working with a pandas dataframe in Python. The name of the dataframe is `df`.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  Use only the tool python_repl_ast with valid JSON."""
+
     if LangChainAgent.PANDAS.value in langchain_agents:
         document_choice = get_single_document(document_choice, db, extension='csv')
         if document_choice and does_support_functiontools(inference_server, model_name):
@@ -4833,9 +4841,11 @@ def get_chain(query=None,
             chain = create_pandas_dataframe_agent(
                 llm,
                 df,
-                verbose=True,
+                verbose=verbose,
                 agent_type=AgentType.OPENAI_FUNCTIONS,
                 max_execution_time=max_time,
+                prefix=prefix_functiontools_csv,
+                agent_executor_kwargs=dict(handle_parsing_errors=True),
             )
 
             chain_kwargs = dict(input=query)
@@ -4859,7 +4869,10 @@ def get_chain(query=None,
             json_toolkit = JsonToolkit(spec=json_spec)
 
             chain = create_json_agent(
-                llm=llm, toolkit=json_toolkit, verbose=True, max_execution_time=max_time,
+                llm=llm, toolkit=json_toolkit,
+                verbose=verbose,
+                max_execution_time=max_time,
+                agent_executor_kwargs=dict(handle_parsing_errors=True),
             )
 
             chain_kwargs = dict(input=query)
@@ -4879,15 +4892,18 @@ def get_chain(query=None,
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    verbose=True, max_execution_time=max_time,
+                    prefix=prefix_functiontools_csv,
+                    verbose=verbose, max_execution_time=max_time,
                     agent_type=AgentType.OPENAI_FUNCTIONS,
+                    agent_executor_kwargs=dict(handle_parsing_errors=True),
                 )
             else:
                 chain = create_csv_agent(
                     llm,
                     document_choice,
-                    verbose=True, max_execution_time=max_time,
+                    verbose=verbose, max_execution_time=max_time,
                     agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+                    agent_executor_kwargs=dict(handle_parsing_errors=True),
                 )
             chain_kwargs = dict(input=query)
             target = wrapped_partial(chain, chain_kwargs)
@@ -4968,9 +4984,13 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
+                     query_action,
+                     summarize_action,
                      True,  # just to overestimate prompting
                      auto_reduce_chunks,
-                     add_search_to_context)
+                     add_search_to_context,
+                     system_prompt,
+                     doc_json_mode)
 
     # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
     # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
@@ -5298,9 +5318,19 @@ def get_chain(query=None,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
                      langchain_action,
+                     query_action,
+                     summarize_action,
                      got_any_docs,
                      auto_reduce_chunks,
-                     add_search_to_context)
+                     add_search_to_context,
+                     system_prompt,
+                     doc_json_mode)
+
+    if doc_json_mode:
+        # make copy so don't change originals
+        docs = [Document(page_content=json.dumps(dict(ID=xi, content=x.page_content)),
+                         metadata=copy.deepcopy(x.metadata) or {})
+                for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
         if use_template:
@@ -5446,9 +5476,18 @@ def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
                  langchain_action,
+                 query_action,
+                 summarize_action,
                  got_any_docs,
                  auto_reduce_chunks,
-                 add_search_to_context):
+                 add_search_to_context,
+                 system_prompt,
+                 doc_json_mode):
+    triple_quotes = """
+\"\"\"
+"""
+
+
     if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
@@ -5464,18 +5503,31 @@ def get_template(query, iinput,
         prompt_summary = prompt_summary.replace('information in the document sources',
                                                 'information in the web search sources (and their source dates and website source)')
 
+    if doc_json_mode:
+        triple_quotes = '\n\n'
+        question_fstring = """{{"question": "{question}".  Respond absolutely only in valid JSON.}}"""
+        if got_any_docs:
+            if query_action:
+                system_prompt += '\n' + prompt_query
+            if summarize_action:
+                system_prompt += '\n' + prompt_summary
+        prompt_query = pre_prompt_query = prompt_summary = pre_prompt_summary = ''
+
+    else:
+        question_fstring = """{question}"""
+
     if langchain_action == LangChainAction.QUERY.value:
         if iinput:
             query = "%s\n%s" % (query, iinput)
         if not got_any_docs:
-            template_if_no_docs = template = """{context}{question}"""
+            template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
-            template = """%s
-\"\"\"
-{context}
-\"\"\"
-%s{question}""" % (pre_prompt_query, prompt_query)
-            template_if_no_docs = """{context}{question}"""
+            template = """%s%s{context}%s%s%s""" % (
+            triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
+            if doc_json_mode:
+                template_if_no_docs = """{context}{{"question": {question}}}"""
+            else:
+                template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
@@ -5491,10 +5543,7 @@ def get_template(query, iinput,
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
-        template = """%s:
-\"\"\"
-%s
-\"\"\"\n%s""" % (pre_prompt_summary, fstring, prompt_summary)
+        template = """%s:%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused

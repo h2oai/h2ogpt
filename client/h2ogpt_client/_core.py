@@ -113,6 +113,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     docs_joiner="\n\n",
     hyde_level=0,
     hyde_template=None,
+    doc_json_mode=False,
 )
 
 
@@ -151,6 +152,7 @@ class TextCompletionCreator:
         docs_joiner: str = "\n\n",
         hyde_level: int = 0,
         hyde_template: Optional[str] = None,
+        doc_json_mode: bool = False,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -199,6 +201,7 @@ class TextCompletionCreator:
         :param hyde_template:
                      None, 'None', 'auto' uses internal value and enable
                      '{query}' is minimal template one can pass
+        :param doc_json_mode: whether to give JSON to LLM and get JSON response back
         """
         args = locals().copy()
         args["prompt_type"] = prompt_type.value  # convert to serializable type
@@ -287,6 +290,7 @@ class ChatCompletionCreator:
         docs_joiner: str = "\n\n",
         hyde_level: int = 0,
         hyde_template: Optional[str] = None,
+        doc_json_mode: bool = False,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -334,6 +338,7 @@ class ChatCompletionCreator:
         :param hyde_template:
                      None, 'None', 'auto' uses internal value and enable
                      '{query}' is minimal template one can pass
+        :param doc_json_mode: whether to give JSON to LLM and get JSON response back
         """
         args = locals().copy()
         args["prompt_type"] = prompt_type.value  # convert to serializable type

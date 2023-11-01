@@ -1248,11 +1248,22 @@ def step_forward_prompts(which):
 def step_back_prompts(which):
     gen1 = """List a much more general abstract versions of this question, then describe the situation using your imagination ensuring not to over-constrain the problem, then explore in a list all the possible different constraints or lack of constraints (be sure to consider from a human viewpoint) relevant for the circumstance, then explore in a list the many extreme possibilities for issues. Finally, let's work this out in a step-by-step way to be sure we have the right answer. Make a final best guess using common sense."""
     gen2 = """List a much more general abstract versions of this question, then describe the situation using your imagination ensuring not to over-constrain the problem, then explore in a list all the possible different constraints or lack of constraints (be sure to consider from a human viewpoint) relevant for the circumstance, then explore in a list the many extreme possibilities for issues. Let's work this out in a well-structured step-by-step thoughtful way to be sure we have the right answer. Make a final best guess using common sense."""
+
+    gen3 = """Respond as follows:
+1) Restate the question in elaborate form.
+2) Give an abstract version of the question.
+3) Provide a detailed highly-accurate and well-structured response to the user's question.
+4) Give a detailed highly-accurate and well-structured justification for the response.
+5) Evaluate your response with a score of 0 through 10.  10 means the justification perfectly explains the response to the question and the response is perfectly accurate, 5 means the response and justification might contain some errors, 0 means the response is not accurate or is not well-justified.
+"""
     if which == 0:
         return f"""You are a very helpful expert at the topic of the question.  {gen2}"""
     elif which == 1:
         return f"""You are a mathematician or physicist.  {gen1}"""
     elif which == 2:
         return f"""You are a mathematician or physicist.  {gen2}"""
+    elif which == 2:
+        return f"""You are a very helpful expert at the topic of the question.  {gen3}"""
+
     else:
         raise ValueError("No such case for back prompts which=%d" % which)
