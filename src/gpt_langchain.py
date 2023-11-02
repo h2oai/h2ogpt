@@ -666,11 +666,16 @@ class GradioInference(H2Oagenerate, LLM):
 
             job = client.submit(str(dict(client_kwargs)), api_name=api_name)
             text0 = ''
+            t_start = time.time()
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
                     break
                 e = check_job(job, timeout=0, raise_exception=False)
                 if e is not None:
+                    break
+                if self.max_time is not None and time.time() - t_start > self.max_time:
+                    if self.verbose:
+                        print("Exceeded max_time=%s" % self.max_time, flush=True)
                     break
                 outputs_list = job.communicator.job.outputs
                 if outputs_list:
