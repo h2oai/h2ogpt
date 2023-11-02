@@ -14,10 +14,12 @@ h2ogpt:
 
   overrideConfig:
 
+
   service:
     type: NodePort
     webPort: 80
     gptPort: 8888
+    webServiceAnnotations: {}
 
 
   podSecurityContext:
@@ -34,7 +36,7 @@ h2ogpt:
         - ALL
     seccompProfile:
       type: RuntimeDefault
-  
+
   resources:
   nodeSelector:
   tolerations:
@@ -55,9 +57,9 @@ tgi:
   storage:
     size: 512Gi
     class: ebs-csi
-  
+
   overrideConfig:
-  hfSecret: 
+  hfSecret:
   containerArgs:
 
   service:
@@ -87,7 +89,7 @@ vllm:
   storage:
     size: 512Gi
     class: ebs-csi
-  
+
   overrideConfig:
   containerArgs:
 
