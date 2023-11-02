@@ -12,6 +12,7 @@ from h2ogpt_client._h2ogpt_enums import (
     PromptType,
 )
 from h2ogpt_client._models import Model, Models
+from h2ogpt_client._server import Server
 
 
 class Client:
@@ -38,6 +39,7 @@ class Client:
         self._text_completion = TextCompletionCreator(self)
         self._chat_completion = ChatCompletionCreator(self)
         self._models = Models(self)
+        self._server = Server(self)
 
     @property
     def text_completion(self) -> "TextCompletionCreator":
@@ -50,9 +52,14 @@ class Client:
         return self._chat_completion
 
     @property
-    def models(self) -> "Models":
-        """LL models"""
+    def models(self) -> Models:
+        """LL models."""
         return self._models
+
+    @property
+    def server(self) -> Server:
+        """h2oGPT server."""
+        return self._server
 
     def _predict(self, *args, api_name: str) -> Any:
         return self._client.submit(*args, api_name=api_name).result()
