@@ -24,6 +24,8 @@ from collections import defaultdict
 from datetime import datetime
 from functools import reduce
 from operator import concat
+from urllib.parse import urlparse
+
 import filelock
 import tabulate
 import yaml
@@ -48,7 +50,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core
+    get_test_name_core, download_simple
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1477,7 +1479,7 @@ def get_llm(use_openai_model=False,
                   max_retries=6,
                   streaming=stream_output,
                   verbose=verbose,
-                  request_timeout=20,  # timeout for inner requests call, not completion time, default of 600 is nuts
+                  request_timeout=max_time,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -2068,6 +2070,19 @@ def file_to_doc(file,
         # if from gradio, will have its own temp uuid too, but that's ok
         base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())[:10]
         base_path = os.path.join(dir_name, base_name)
+
+    orig_url = None
+    if is_url and any([file.strip().lower().endswith(x) for x in file_types]):
+        # then just download, so can use good parser, not always unstructured url parser
+        base_path_url = "urls_downloaded"
+        base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
+        source_file = os.path.join(base_path_url, "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
+        download_simple(file, source_file, verbose=verbose)
+        if os.path.isfile(source_file):
+            orig_url = file
+            is_url = False
+            file = source_file
+
     if is_url:
         file = file.strip()  # in case accidental spaces in front or at end
         file_lower = file.lower()
@@ -2607,6 +2622,11 @@ def file_to_doc(file,
         docs = doc1
 
     assert isinstance(docs, list)
+
+    if orig_url is not None:
+        # go back to URL as source
+        [doci.metadata.update(source=orig_url) for doci in doc1]
+
     return docs
 
 
@@ -5249,6 +5269,9 @@ def get_chain(query=None,
                                                            docs_token_handling=docs_token_handling,
                                                            joiner=docs_joiner,
                                                            verbose=verbose)
+        # in case docs_with_score grew due to splitting, limit again by top_k_docs
+        if top_k_docs > 0:
+            docs_with_score = docs_with_score[:top_k_docs]
         # max_input_tokens used min_max_new_tokens as max_new_tokens, so need to assume filled up to that
         # but use actual largest token count
         data_point = dict(context=context, instruction=query, input=iinput)

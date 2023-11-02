@@ -541,7 +541,7 @@ def atomic_move_simple(src, dst):
     remove(src)
 
 
-def download_simple(url, dest=None):
+def download_simple(url, dest=None, verbose=False):
     if dest is None:
         dest = os.path.basename(url)
     base_path = os.path.dirname(dest)
@@ -553,7 +553,8 @@ def download_simple(url, dest=None):
         print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
         return dest
 
-    print("BEGIN get url %s" % str(url), flush=True)
+    if verbose:
+        print("BEGIN get url %s" % str(url), flush=True)
     if url.startswith("file://"):
         from requests_file import FileAdapter
         s = requests.Session()
@@ -561,7 +562,8 @@ def download_simple(url, dest=None):
         url_data = s.get(url, stream=True)
     else:
         url_data = requests.get(url, stream=True)
-    print("GOT url %s" % str(url), flush=True)
+    if verbose:
+        print("GOT url %s" % str(url), flush=True)
 
     if url_data.status_code != requests.codes.ok:
         msg = "Cannot get url %s, code: %s, reason: %s" % (
@@ -577,7 +579,8 @@ def download_simple(url, dest=None):
     with open(dest_tmp, "wb") as f:
         shutil.copyfileobj(url_data.raw, f)
     atomic_move_simple(dest_tmp, dest)
-    print("DONE url %s" % str(url), flush=True)
+    if verbose:
+        print("DONE url %s" % str(url), flush=True)
     return dest
 
 

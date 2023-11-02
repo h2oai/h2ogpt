@@ -693,7 +693,7 @@ def go_gradio(**kwargs):
                     max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
                                               visible=not is_public)
                     url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
-                    url_label = 'URL/ArXiv' if have_arxiv else 'URL'
+                    url_label = 'URLs/ArXiv' if have_arxiv else 'URLs'
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
                                           max_lines=1,
