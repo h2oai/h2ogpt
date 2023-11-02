@@ -1,5 +1,4 @@
 
-{{- if not .Values.h2ogpt.externalLLM.enabled }}
 {{- if .Values.h2ogpt.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -39,6 +38,5 @@ metadata:
 data:
 {{- range $key, $value := .Values.vllm.overrideConfig }}
   {{ printf "%s" $key | upper }}: {{ $value | quote }}
-{{- end }}
 {{- end }}
 {{- end }}

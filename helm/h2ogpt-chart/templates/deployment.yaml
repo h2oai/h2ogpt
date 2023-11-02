@@ -120,17 +120,15 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.h2ogpt.resources | nindent 12 }}
-          {{- if not .Values.h2ogpt.externalLLM.enabled }}
           envFrom:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-config
-          {{- end }}
           env:
-          {{- if .Values.tgi.enabled }}
+          {{- if and .Values.tgi.enabled (not .Values.h2ogpt.externalLLM.enabled) }}
           - name: h2ogpt_inference_server
             value: "http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}"
           {{- end }}
-          {{- if .Values.vllm.enabled }}
+          {{- if and .Values.vllm.enabled (not .Values.h2ogpt.externalLLM.enabled) }}
           - name: h2ogpt_inference_server
             value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
           {{- end }}
