@@ -45,7 +45,8 @@ from evaluate_params import eval_func_param_names, no_default_param_names, input
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
-    docs_ordering_types_default, docs_token_handling_default
+    docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
+    max_top_k_docs_public, max_top_k_docs_default
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -962,8 +963,9 @@ def main(
     if is_public:
         # See also get_minmax_top_k_docs()
         # as another restriction apart from top_k_docs and when using long context models
-        max_input_tokens = 3100 if max_input_tokens is None else max_input_tokens  # model will limit more if required
-        max_total_input_tokens = 4096 * 2 if max_total_input_tokens is None else max_total_input_tokens
+        # model will limit more if required
+        max_input_tokens = max_input_tokens_public if max_input_tokens is None else max_input_tokens
+        max_total_input_tokens = max_total_input_tokens_public if max_total_input_tokens is None else max_total_input_tokens
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
         temperature = 0.2 if temperature is None else temperature
@@ -977,7 +979,7 @@ def main(
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
             # now 10 since also limiting total tokens, in case some pages (for summarization) are small
-            top_k_docs = 10 if top_k_docs is None else top_k_docs
+            top_k_docs = max_top_k_docs_public if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
             if not base_model and not inference_server and not model_lock:
@@ -986,7 +988,7 @@ def main(
                 load_8bit = True
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         elif not inference_server:
-            top_k_docs = 10 if top_k_docs is None else top_k_docs
+            top_k_docs = max_top_k_docs_public if top_k_docs is None else top_k_docs
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
@@ -994,7 +996,7 @@ def main(
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
         top_k_docs = 3 if top_k_docs is None else top_k_docs
     if top_k_docs is None:
-        top_k_docs = 3
+        top_k_docs = max_top_k_docs_default
     if max_input_tokens is None:
         max_input_tokens = -1
     if max_total_input_tokens is None:
@@ -2587,7 +2589,6 @@ def evaluate(
     # limit total tokens processed, e.g. for summarization, if public instance
     if is_public:
         # control API too for public case
-        max_total_input_tokens_public = min(2 * model_max_length, 16384)
         if max_total_input_tokens in [-1, None]:
             max_total_input_tokens = max_total_input_tokens_public
         max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public)
@@ -3924,7 +3925,7 @@ def get_minmax_top_k_docs(is_public):
     label_top_k_docs = "Number of document chunks (query) or pages/parts (summarize)"
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = 10  # probably should match early part of gen.py
+        max_top_k_docs = max_top_k_docs_public
     else:
         min_top_k_docs = -1
         max_top_k_docs = 1000

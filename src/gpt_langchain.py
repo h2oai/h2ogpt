@@ -55,7 +55,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
-        auto_choices
+    auto_choices, max_docs_public, max_chunks_per_doc_public
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -1032,7 +1032,8 @@ class H2OOpenAI(OpenAI):
         self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
         rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
         try:
-            self.count_output_tokens += sum([self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
         except Exception as e:
             if os.getenv('HARD_ASSERTS'):
                 raise
@@ -2022,7 +2023,6 @@ def file_to_doc(file,
                 selected_file_types=None,
 
                 is_public=False,
-                public_chunk_limit=5000,
                 ):
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
@@ -2094,7 +2094,8 @@ def file_to_doc(file,
         # then just download, so can use good parser, not always unstructured url parser
         base_path_url = "urls_downloaded"
         base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
-        source_file = os.path.join(base_path_url, "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
+        source_file = os.path.join(base_path_url,
+                                   "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
         download_simple(file, source_file, verbose=verbose)
         if os.path.isfile(source_file):
             orig_url = file
@@ -2649,8 +2650,8 @@ def file_to_doc(file,
         [doci.metadata.update(source=orig_url) for doci in doc1]
 
     if is_public:
-        if len(docs) > public_chunk_limit:
-            raise ValueError("Public instance only allows up to %s chunks per document." % public_chunk_limit)
+        if len(docs) > max_chunks_per_doc_public:
+            raise ValueError("Public instance only allows up to %s chunks per document." % max_chunks_per_doc_public)
 
     return docs
 
@@ -2930,8 +2931,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   )
 
     if is_public:
-        if len(globs_non_image_types) + len(globs_image_types) > 5:
-            raise ValueError("Public instance only allows up to 5 documents (including in zip) updated at a time.")
+        if len(globs_non_image_types) + len(globs_image_types) > max_docs_public:
+            raise ValueError(
+                "Public instance only allows up to %d documents (including in zip) updated at a time." % max_docs_public)
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
@@ -5064,7 +5066,7 @@ def get_chain(query=None,
     max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                                     model_name=model_name, max_new_tokens=min_max_new_tokens)
     if max_input_tokens >= 0:
-            max_input_tokens= min(max_input_tokens_default, max_input_tokens)
+        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
     else:
         max_input_tokens = max_input_tokens_default
     model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -5564,7 +5566,6 @@ def get_template(query, iinput,
 \"\"\"
 """
 
-
     if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
@@ -5600,7 +5601,7 @@ def get_template(query, iinput,
             template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
             template = """%s%s{context}%s%s%s""" % (
-            triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
+                triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
             if doc_json_mode:
                 template_if_no_docs = """{context}{{"question": {question}}}"""
             else:
@@ -5974,8 +5975,8 @@ def _update_user_db(file,
         file = [file]
 
     if is_public:
-        if len(file) > 5:
-            raise ValueError("Public instance only allows up to 5 documents updated at a time.")
+        if len(file) > max_docs_public:
+            raise ValueError("Public instance only allows up to %d documents updated at a time." % max_docs_public)
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None
@@ -6201,7 +6202,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
     # below automatically de-dups
     small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas if x.get('page', 0) in  [0, 1]}
+                  metadatas if x.get('page', 0) in [0, 1]}
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1
