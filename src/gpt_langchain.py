@@ -2072,7 +2072,7 @@ def file_to_doc(file,
         base_path = os.path.join(dir_name, base_name)
 
     orig_url = None
-    if is_url and any([file.strip().lower().endswith(x) for x in file_types]):
+    if is_url and any([file.strip().lower().endswith('.' + x) for x in file_types]):
         # then just download, so can use good parser, not always unstructured url parser
         base_path_url = "urls_downloaded"
         base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
