@@ -410,6 +410,7 @@ class GradioClient(Client):
                                       docs_ordering_type: str | None = None,
                                       min_max_new_tokens: int = 512,
                                       max_input_tokens: int = -1,
+                                      max_total_input_tokens: int = -1,
                                       docs_token_handling: str = "split_or_merge",
                                       docs_joiner: str = "\n\n",
                                       hyde_level: int = 0,
@@ -479,6 +480,7 @@ class GradioClient(Client):
             max_new_tokens: see src/gen.py
             min_max_new_tokens: see src/gen.py
             max_input_tokens: see src/gen.py
+            max_total_input_tokens: see src/gen.py
 
             stream_output: Whether to stream output
             do_sample: whether to sample
@@ -492,6 +494,7 @@ class GradioClient(Client):
             max_input_tokens: Max input tokens to place into model context for each LLM call
                                      -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                                      >=0 means use that to limit context filling to that many tokens
+            max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
             max_new_tokens: Maximum new tokens
             min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
 
@@ -621,6 +624,7 @@ class GradioClient(Client):
             docs_ordering_type=docs_ordering_type,
             min_max_new_tokens=min_max_new_tokens,
             max_input_tokens=max_input_tokens,
+            max_total_input_tokens=max_total_input_tokens,
             docs_token_handling=docs_token_handling,
             docs_joiner=docs_joiner,
             hyde_level=hyde_level,

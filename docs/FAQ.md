@@ -40,7 +40,7 @@ An optimal quality choice is `--top_k_docs=-1`, because then h2oGPT will figure 
 
 In any case, we will manage things in any case to reduce the count to not exceed the context of the LLM in the `get_limited_prompt()` function.
 
-If one sets `top_k_docs=-1`, one can also set `max_input_tokens` to some fixed value in order to limit by token count instead of by document count. This requires more knowledge of the LLM used (e.g. set to `max_input_tokens=3000` if have 4096 LLM context.  `max_input_tokens` acts as an effective context size limit for all inputs to the context.
+If one sets `top_k_docs=-1`, one can also set `max_input_tokens` to limit tokens per LLM call, and `max_total_input_tokens` to limit tokens across all LLM calls. This requires more knowledge of the LLM used (e.g. set to `max_input_tokens=3000` if have 4096 LLM context.  `max_input_tokens` acts as an effective context size limit for all inputs to the context.
 
 ### API key access
 

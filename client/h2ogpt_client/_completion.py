@@ -59,6 +59,7 @@ _H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     docs_ordering_type="docs_ordering_type",
     min_max_new_tokens="min_max_new_tokens",
     max_input_tokens="max_input_tokens",
+    max_total_input_tokens="max_total_input_tokens",
     docs_token_handling="docs_token_handling",
     docs_joiner="docs_joiner",
     hyde_level="hyde_level",
@@ -125,6 +126,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     docs_ordering_type="reverse_ucurve_sort",
     min_max_new_tokens=256,
     max_input_tokens=-1,
+    max_total_input_tokens=-1,
     docs_token_handling="split_or_merge",
     docs_joiner="\n\n",
     hyde_level=0,
@@ -164,6 +166,7 @@ class TextCompletionCreator:
         docs_ordering_type: str = "reverse_ucurve_sort",
         min_max_new_tokens: int = 256,
         max_input_tokens: int = -1,
+        max_total_input_tokens: int = -1,
         docs_token_handling: str = "split_or_merge",
         docs_joiner: str = "\n\n",
         hyde_level: int = 0,
@@ -205,6 +208,7 @@ class TextCompletionCreator:
         :param max_input_tokens: Max input tokens to place into model context for each LLM call
                                  -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                                  >=0 means use that to limit context filling to that many tokens
+        :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
         :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
@@ -302,6 +306,7 @@ class ChatCompletionCreator:
         docs_ordering_type: str = "reverse_ucurve_sort",
         min_max_new_tokens: int = 256,
         max_input_tokens: int = -1,
+        max_total_input_tokens: int = -1,
         docs_token_handling: str = "split_or_merge",
         docs_joiner: str = "\n\n",
         hyde_level: int = 0,
@@ -342,6 +347,7 @@ class ChatCompletionCreator:
         :param max_input_tokens: Max input tokens to place into model context for each LLM call
                                  -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                                  >=0 means use that to limit context filling to that many tokens
+        :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
         :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                          or top_k_docs original document chunks summarization
                                     None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens

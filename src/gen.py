@@ -277,7 +277,8 @@ def main(
         top_k_docs: int = None,
         docs_ordering_type: str = docs_ordering_types_default,
         min_max_new_tokens=256,
-        max_input_tokens=-1,
+        max_input_tokens=None,
+        max_total_input_tokens=None,
         docs_token_handling: str = docs_token_handling_default,
         docs_joiner: str = docs_joiner_default,
         hyde_level: int = 0,
@@ -567,6 +568,7 @@ def main(
     :param max_input_tokens: Max input tokens to place into model context for each LLM call
                              -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                              >=0 means use that to limit context filling to that many tokens
+    :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
     :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                      or top_k_docs original document chunks summarization
                                 None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
@@ -958,6 +960,10 @@ def main(
         langchain_modes.append(langchain_mode)
 
     if is_public:
+        # See also get_minmax_top_k_docs()
+        # as another restriction apart from top_k_docs and when using long context models
+        max_input_tokens = 3100 if max_input_tokens is None else max_input_tokens  # model will limit more if required
+        max_total_input_tokens = 4096 * 2 if max_total_input_tokens is None else max_total_input_tokens
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
         temperature = 0.2 if temperature is None else temperature
@@ -970,7 +976,8 @@ def main(
         else:
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
-            top_k_docs = 4 if top_k_docs is None else top_k_docs
+            # now 10 since also limiting total tokens, in case some pages (for summarization) are small
+            top_k_docs = 10 if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
             if not base_model and not inference_server and not model_lock:
@@ -988,6 +995,10 @@ def main(
         top_k_docs = 3 if top_k_docs is None else top_k_docs
     if top_k_docs is None:
         top_k_docs = 3
+    if max_input_tokens is None:
+        max_input_tokens = -1
+    if max_total_input_tokens is None:
+        max_total_input_tokens = -1
     if is_public:
         if not max_time:
             max_time = 60 * 2
@@ -1141,6 +1152,7 @@ def main(
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
+                            max_total_input_tokens,
                             docs_token_handling,
                             docs_joiner,
                             hyde_level,
@@ -2326,6 +2338,7 @@ def evaluate(
         docs_ordering_type,
         min_max_new_tokens,
         max_input_tokens,
+        max_total_input_tokens,
         docs_token_handling,
         docs_joiner,
         hyde_level,
@@ -2538,6 +2551,8 @@ def evaluate(
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
     temperature = min(max(0.01, temperature), 2.0)
+    max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
+    max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
     if model_lower == 'distilgpt2':
@@ -2554,6 +2569,8 @@ def evaluate(
         min_max_new_tokens = 256
     if max_input_tokens is None:
         max_input_tokens = -1
+    if max_total_input_tokens is None:
+        max_total_input_tokens = -1
     if docs_ordering_type is None:
         docs_ordering_type = docs_ordering_types_default
     if docs_token_handling is None:
@@ -2569,9 +2586,11 @@ def evaluate(
     min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
     # limit total tokens processed, e.g. for summarization, if public instance
     if is_public:
-        total_tokens_for_docs = min(2 * model_max_length, 16384)
-    else:
-        total_tokens_for_docs = None
+        # control API too for public case
+        max_total_input_tokens_public = min(2 * model_max_length, 16384)
+        if max_total_input_tokens in [-1, None]:
+            max_total_input_tokens = max_total_input_tokens_public
+        max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public)
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
@@ -2728,6 +2747,7 @@ def evaluate(
                 docs_ordering_type=docs_ordering_type,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
+                max_total_input_tokens=max_total_input_tokens,
                 docs_token_handling=docs_token_handling,
                 docs_joiner=docs_joiner,
                 hyde_level=hyde_level,
@@ -2753,7 +2773,6 @@ def evaluate(
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
-                total_tokens_for_docs=total_tokens_for_docs,
                 headsize=headsize,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
@@ -2829,6 +2848,7 @@ def evaluate(
                            add_chat_history_to_context=add_chat_history_to_context,
                            min_max_new_tokens=min_max_new_tokens,
                            max_input_tokens=max_input_tokens,
+                           max_total_input_tokens=max_total_input_tokens,
                            truncation_generation=truncation_generation,
                            gradio_server=gradio_server,
                            )
@@ -3035,6 +3055,7 @@ def evaluate(
                                      docs_ordering_type=docs_ordering_type,
                                      min_max_new_tokens=min_max_new_tokens,
                                      max_input_tokens=max_input_tokens,
+                                     max_total_input_tokens=max_total_input_tokens,
                                      docs_token_handling=docs_token_handling,
                                      docs_joiner=docs_joiner,
                                      hyde_level=hyde_level,
@@ -3568,6 +3589,7 @@ def get_generate_params(model_lower,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
+                        max_total_input_tokens,
                         docs_token_handling,
                         docs_joiner,
                         hyde_level,
@@ -3757,6 +3779,7 @@ y = np.random.randint(0, 1, 100)
                     docs_ordering_type,
                     min_max_new_tokens,
                     max_input_tokens,
+                    max_total_input_tokens,
                     docs_token_handling,
                     docs_joiner,
                     hyde_level,
@@ -3901,10 +3924,10 @@ def get_minmax_top_k_docs(is_public):
     label_top_k_docs = "Number of document chunks (query) or pages/parts (summarize)"
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = 8
+        max_top_k_docs = 10  # probably should match early part of gen.py
     else:
         min_top_k_docs = -1
-        max_top_k_docs = 100
+        max_top_k_docs = 1000
         label_top_k_docs = label_top_k_docs + " (-1 = auto fill model context, all pages/docs for summarize)"
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
@@ -4035,6 +4058,7 @@ def get_limited_prompt(instruction,
                        doc_importance=0.5,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
+                       max_total_input_tokens=-1,
                        truncation_generation=False,
                        gradio_server=False,
                        ):
@@ -4253,10 +4277,13 @@ def get_limited_prompt(instruction,
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
+    """
+    max_input_tokens: Over all LLM calls, upper limit of total token count,
+                      or single LLM call if want to know what docs fit into single call
+    """
     if text_context_list is None or len(text_context_list) == 0:
         return 0, None, 0
-    if max_input_tokens is None:
-        max_input_tokens = tokenizer.model_max_length
+    assert max_input_tokens is not None, "Must set max_input_tokens"
     tokens = [get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list]
     tokens_cumsum = np.cumsum(tokens)
     where_res = np.where(tokens_cumsum < max_input_tokens)[0]

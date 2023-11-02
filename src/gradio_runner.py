@@ -1195,9 +1195,19 @@ def go_gradio(**kwargs):
                             visible=not is_public,
                         )
                         max_input_tokens = gr.Number(
-                            minimum=-1, maximum=128 * 1024, step=1,
-                            value=-1,
+                            minimum=-1 if not is_public else kwargs['max_input_tokens'],
+                            maximum=128 * 1024 if not is_public else kwargs['max_input_tokens'],
+                            step=1,
+                            value=-1 if not is_public else kwargs['max_input_tokens'],
                             label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
+                            visible=not is_public,
+                        )
+                        max_total_input_tokens = gr.Number(
+                            minimum=-1 if not is_public else kwargs['max_total_input_tokens'],
+                            maximum=128 * 1024 if not is_public else kwargs['max_total_input_tokens'],
+                            step=1,
+                            value=-1 if not is_public else kwargs['max_total_input_tokens'],
+                            label="Max input length across all LLM calls when doing summarization/extraction",
                             visible=not is_public,
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
@@ -1649,6 +1659,7 @@ def go_gradio(**kwargs):
                                            enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
                                            enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                            h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                           is_public=is_public,
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,

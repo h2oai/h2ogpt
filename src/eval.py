@@ -61,6 +61,7 @@ def run_eval(  # for local function:
         docs_ordering_type=None,
         min_max_new_tokens=None,
         max_input_tokens=None,
+        max_total_input_tokens=None,
         docs_token_handling=None,
         docs_joiner=None,
         hyde_level=None,

@@ -40,7 +40,9 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                jq_schema='.[]',
 
                db_type=None,
-               selected_file_types=None):
+               selected_file_types=None,
+
+               is_public=False):
     assert db_type is not None
     sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
                             n_jobs=n_jobs,
@@ -74,6 +76,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
                             db_type=db_type,
                             selected_file_types=selected_file_types,
+
+                            is_public=is_public,
                             )
     return sources1
 
@@ -310,6 +314,8 @@ def make_db_main(use_openai_embedding: bool = False,
 
                          db_type=db_type,
                          selected_file_types=selected_file_types,
+
+                         is_public=False,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)

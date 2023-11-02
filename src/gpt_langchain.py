@@ -524,6 +524,7 @@ class GradioInference(H2Oagenerate, LLM):
 
     min_max_new_tokens: Any = 256
     max_input_tokens: Any = -1
+    max_total_input_tokens: Any = -1
 
     class Config:
         """Configuration for this pydantic object."""
@@ -618,6 +619,7 @@ class GradioInference(H2Oagenerate, LLM):
                              docs_ordering_type=None,
                              min_max_new_tokens=self.min_max_new_tokens,
                              max_input_tokens=self.max_input_tokens,
+                             max_total_input_tokens=self.max_total_input_tokens,
                              docs_token_handling=None,
                              docs_joiner=None,
                              hyde_level=None,
@@ -1027,7 +1029,15 @@ class H2OOpenAI(OpenAI):
         if self.verbose:
             print("Hit _generate", flush=True)
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
-        return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        try:
+            self.count_output_tokens += sum([self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+        return rets
 
     def _stream(
             self,
@@ -1307,6 +1317,7 @@ def get_llm(use_openai_model=False,
             h2ogpt_key=None,
             min_max_new_tokens=None,
             max_input_tokens=None,
+            max_total_input_tokens=None,
             attention_sinks=None,
             truncation_generation=None,
 
@@ -1568,6 +1579,7 @@ def get_llm(use_openai_model=False,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
+                max_total_input_tokens=max_total_input_tokens,
                 async_sem=async_sem,
                 verbose=verbose,
             )
@@ -2007,7 +2019,11 @@ def file_to_doc(file,
 
                 headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
-                selected_file_types=None):
+                selected_file_types=None,
+
+                is_public=False,
+                public_chunk_limit=5000,
+                ):
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
         set_image_types1 = set_image_types.intersection(set(selected_file_types))
@@ -2054,6 +2070,8 @@ def file_to_doc(file,
                                           jq_schema=jq_schema,
 
                                           db_type=db_type,
+
+                                          is_public=is_public,
                                           )
 
     if file is None:
@@ -2607,7 +2625,10 @@ def file_to_doc(file,
 
                            headsize=headsize,
                            db_type=db_type,
-                           selected_file_types=selected_file_types)
+                           selected_file_types=selected_file_types,
+
+                           is_public=is_public,
+                           )
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -2626,6 +2647,10 @@ def file_to_doc(file,
     if orig_url is not None:
         # go back to URL as source
         [doci.metadata.update(source=orig_url) for doci in doc1]
+
+    if is_public:
+        if len(docs) > public_chunk_limit:
+            raise ValueError("Public instance only allows up to %s chunks per document." % public_chunk_limit)
 
     return docs
 
@@ -2662,7 +2687,10 @@ def path_to_doc1(file,
                  jq_schema='.[]',
 
                  db_type=None,
-                 selected_file_types=None):
+                 selected_file_types=None,
+
+                 is_public=False,
+                 ):
     assert db_type is not None
     if verbose:
         if is_url:
@@ -2706,7 +2734,8 @@ def path_to_doc1(file,
                           jq_schema=jq_schema,
 
                           db_type=db_type,
-                          selected_file_types=selected_file_types)
+                          selected_file_types=selected_file_types,
+                          is_public=is_public)
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -2770,6 +2799,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  existing_hash_ids={},
                  db_type=None,
                  selected_file_types=None,
+
+                 is_public=False,
                  ):
     if verbose:
         print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
@@ -2894,7 +2925,14 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                   db_type=db_type,
                   selected_file_types=selected_file_types,
+
+                  is_public=is_public,
                   )
+
+    if is_public:
+        if len(globs_non_image_types) + len(globs_image_types) > 5:
+            raise ValueError("Public instance only allows up to 5 documents (including in zip) updated at a time.")
+
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
@@ -3514,7 +3552,9 @@ def _make_db(use_openai_embedding=False,
                                 jq_schema=jq_schema,
 
                                 existing_files=existing_files, existing_hash_ids=existing_hash_ids,
-                                db_type=db_type)
+                                db_type=db_type,
+
+                                is_public=False)
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
             if os.getenv('NO_NEW_FILES') is not None:
@@ -3898,6 +3938,7 @@ def _run_qa_db(query=None,
                docs_ordering_type=docs_ordering_types_default,
                min_max_new_tokens=256,
                max_input_tokens=-1,
+               max_total_input_tokens=-1,
                docs_token_handling=None,
                docs_joiner=docs_joiner_default,
                hyde_level=0,
@@ -3913,7 +3954,6 @@ def _run_qa_db(query=None,
 
                auto_reduce_chunks=True,
                max_chunks=100,
-               total_tokens_for_docs=None,
                headsize=50,
                ):
     """
@@ -4039,6 +4079,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
                       max_input_tokens=max_input_tokens,
+                      max_total_input_tokens=max_total_input_tokens,
                       n_jobs=n_jobs,
                       llamacpp_dict=llamacpp_dict,
                       exllama_dict=exllama_dict,
@@ -4411,7 +4452,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
                      do_split=True,
                      verbose=False):
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
-    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len
+    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len and is per-llm call
     if docs_token_handling in ['chunk']:
         return docs_with_score, 0
     elif docs_token_handling in [None, 'split_or_merge']:
@@ -4688,20 +4729,20 @@ def get_chain(query=None,
               docs_ordering_type=docs_ordering_types_default,
               min_max_new_tokens=256,
               max_input_tokens=-1,
+              max_total_input_tokens=-1,
               attention_sinks=False,
               truncation_generation=False,
               docs_token_handling=None,
               docs_joiner=None,
+              doc_json_mode=False,
 
               stream_output=True,
               async_output=True,
               gradio_server=False,
 
               # local
-              doc_json_mode=False,
               auto_reduce_chunks=True,
               max_chunks=100,
-              total_tokens_for_docs=None,
               use_llm_if_no_docs=None,
               headsize=50,
               max_time=None,
@@ -5023,7 +5064,7 @@ def get_chain(query=None,
     max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                                     model_name=model_name, max_new_tokens=min_max_new_tokens)
     if max_input_tokens >= 0:
-        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+            max_input_tokens= min(max_input_tokens_default, max_input_tokens)
     else:
         max_input_tokens = max_input_tokens_default
     model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -5248,21 +5289,20 @@ def get_chain(query=None,
         elif top_k_docs_trial >= max_chunks:
             top_k_docs = max_chunks
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
-    elif query_action:
-        # no limitation or auto-filling, just literal top_k_docs
-        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, None)
     else:
-        assert not query_action and summarize_action, "Bad action"
+        # don't reduce, except listen to top_k_docs and max_total_input_tokens
         one_doc_size = None
-        if total_tokens_for_docs is not None:
-            # used to limit tokens for summarization, e.g. public instance
+        if max_total_input_tokens is not None:
+            # used to limit tokens for summarization, e.g. public instance, over all LLM calls allowed
             top_k_docs, one_doc_size, num_doc_tokens = \
                 get_docs_tokens(tokenizer,
                                 text_context_list=[x[0].page_content for x in docs_with_score],
-                                max_input_tokens=total_tokens_for_docs)
+                                max_input_tokens=max_total_input_tokens)
         # filter by top_k_docs and maybe one_doc_size
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
-        # group docs if desired/can to fill context
+
+    if summarize_action:
+        # group docs if desired/can to fill context to avoid multiple LLM calls or too large chunks
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
@@ -5390,6 +5430,7 @@ def get_chain(query=None,
             return_intermediate_steps = True
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             prompt = PromptTemplate(input_variables=["text"], template=template)
+            # token_max is per llm call
             chain = load_general_summarization_chain(llm, chain_type="map_reduce",
                                                      map_prompt=prompt, combine_prompt=prompt,
                                                      return_intermediate_steps=return_intermediate_steps,
@@ -5895,6 +5936,7 @@ def _update_user_db(file,
                     verbose=None,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
+                    is_public=False,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -5930,6 +5972,10 @@ def _update_user_db(file,
         file = file.name
     if not isinstance(file, (list, tuple, typing.Generator)) and isinstance(file, str):
         file = [file]
+
+    if is_public:
+        if len(file) > 5:
+            raise ValueError("Public instance only allows up to 5 documents updated at a time.")
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None
@@ -6011,6 +6057,8 @@ def _update_user_db(file,
                            jq_schema=jq_schema,
 
                            db_type=db_type,
+
+                           is_public=is_public,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
