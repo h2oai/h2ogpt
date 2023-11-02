@@ -2,7 +2,7 @@ import ast
 import collections
 from typing import Any, Dict, List, Optional, OrderedDict, Union
 
-from h2ogpt_client import _core
+from h2ogpt_client._gradio_client import GradioClientWrapper
 from h2ogpt_client._h2ogpt_enums import (
     DocumentSubset,
     LangChainAction,
@@ -136,7 +136,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
 class TextCompletionCreator:
     """Builder that can create text completions."""
 
-    def __init__(self, client: "_core.Client"):
+    def __init__(self, client: GradioClientWrapper):
         self._client = client
 
     def create(
@@ -224,7 +224,7 @@ class TextCompletionCreator:
         args["langchain_mode"] = langchain_mode.value  # convert to serializable type
         params = _to_h2ogpt_params({**_DEFAULT_PARAMETERS, **args})
         params["instruction_nochat"] = None  # future prompt
-        params["h2ogpt_key"] = self._client._h2ogpt_key
+        params["h2ogpt_key"] = self._client.h2ogpt_key
         return TextCompletion(self._client, params)
 
 
@@ -233,7 +233,7 @@ class TextCompletion:
 
     _API_NAME = "/submit_nochat_api"
 
-    def __init__(self, client: "_core.Client", parameters: OrderedDict[str, Any]):
+    def __init__(self, client: GradioClientWrapper, parameters: OrderedDict[str, Any]):
         self._client = client
         self._parameters = dict(parameters)
 
@@ -253,7 +253,7 @@ class TextCompletion:
         :return: response from the model
         """
 
-        response = await self._client._predict_async(
+        response = await self._client.submit(
             str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
         return self._get_reply(response)
@@ -265,7 +265,7 @@ class TextCompletion:
         :param prompt: text prompt to generate completion for
         :return: response from the model
         """
-        response = self._client._predict(
+        response = self._client.predict(
             str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
         return self._get_reply(response)
@@ -274,7 +274,7 @@ class TextCompletion:
 class ChatCompletionCreator:
     """Chat completion."""
 
-    def __init__(self, client: "_core.Client"):
+    def __init__(self, client: GradioClientWrapper):
         self._client = client
 
     def create(
@@ -362,7 +362,7 @@ class ChatCompletionCreator:
         params = _to_h2ogpt_params({**_DEFAULT_PARAMETERS, **args})
         params["instruction_nochat"] = None  # future prompts
         params["add_chat_history_to_context"] = True
-        params["h2ogpt_key"] = self._client._h2ogpt_key
+        params["h2ogpt_key"] = self._client.h2ogpt_key
         params["chat_conversation"] = []  # chat history (FIXME: Only works if 1 model?)
         return ChatCompletion(self._client, params)
 
@@ -372,7 +372,7 @@ class ChatCompletion:
 
     _API_NAME = "/submit_nochat_api"
 
-    def __init__(self, client: "_core.Client", parameters: OrderedDict[str, Any]):
+    def __init__(self, client: GradioClientWrapper, parameters: OrderedDict[str, Any]):
         self._client = client
         self._parameters = dict(parameters)
 
@@ -394,7 +394,7 @@ class ChatCompletion:
         :param prompt: text prompt to generate completions for
         :returns chat reply
         """
-        response = await self._client._predict_async(
+        response = await self._client.submit(
             str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
         return self._update_history_and_get_reply(prompt, response)
@@ -406,7 +406,7 @@ class ChatCompletion:
         :param prompt: text prompt to generate completions for
         :returns chat reply
         """
-        response = self._client._predict(
+        response = self._client.predict(
             str(self._get_parameters(prompt)), api_name=self._API_NAME
         )
         return self._update_history_and_get_reply(prompt, response)

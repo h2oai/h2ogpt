@@ -1,9 +1,7 @@
-import asyncio
-from typing import Any, Optional
-
-import gradio_client  # type: ignore
+from typing import Optional
 
 from h2ogpt_client._completion import ChatCompletionCreator, TextCompletionCreator
+from h2ogpt_client._gradio_client import GradioClientWrapper
 from h2ogpt_client._models import Models
 from h2ogpt_client._server import Server
 
@@ -25,14 +23,11 @@ class Client:
         :param h2ogpt_key: access key to connect with a h2oGPT server
         :param huggingface_token: Hugging Face token to use to access private Spaces
         """
-        self._client = gradio_client.Client(
-            src=src, hf_token=huggingface_token, serialize=False, verbose=False
-        )
-        self._h2ogpt_key = h2ogpt_key
-        self._text_completion = TextCompletionCreator(self)
-        self._chat_completion = ChatCompletionCreator(self)
-        self._models = Models(self)
-        self._server = Server(self)
+        self._client = GradioClientWrapper(src, h2ogpt_key, huggingface_token)
+        self._text_completion = TextCompletionCreator(self._client)
+        self._chat_completion = ChatCompletionCreator(self._client)
+        self._models = Models(self._client)
+        self._server = Server(self._client)
 
     @property
     def text_completion(self) -> TextCompletionCreator:
@@ -53,9 +48,3 @@ class Client:
     def server(self) -> Server:
         """h2oGPT server."""
         return self._server
-
-    def _predict(self, *args, api_name: str) -> Any:
-        return self._client.submit(*args, api_name=api_name).result()
-
-    async def _predict_async(self, *args, api_name: str) -> Any:
-        return await asyncio.wrap_future(self._client.submit(*args, api_name=api_name))
