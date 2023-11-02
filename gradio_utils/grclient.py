@@ -385,7 +385,7 @@ class GradioClient(Client):
                                       document_choice: Union[str, List[str]] = "All",
                                       document_subset: str = "Relevant",
 
-                                      system_prompt: str | None = None,
+                                      system_prompt: str | None = '',
                                       pre_prompt_query: str | None = pre_prompt_query0,
                                       prompt_query: str | None = prompt_query0,
                                       pre_prompt_summary: str | None = pre_prompt_summary0,
@@ -579,8 +579,12 @@ class GradioClient(Client):
         # ask for summary, need to use same client if using MyData
         api_name = "/submit_nochat_api"  # NOTE: like submit_nochat but stable API for string dict passing
 
-        pre_prompt_summary = pre_prompt_summary if langchain_action == LangChainAction.SUMMARIZE_MAP else pre_prompt_extraction,
-        prompt_summary = prompt_summary if langchain_action == LangChainAction.SUMMARIZE_MAP else prompt_extraction,
+        pre_prompt_summary = pre_prompt_summary \
+            if langchain_action == LangChainAction.SUMMARIZE_MAP.value \
+            else pre_prompt_extraction
+        prompt_summary = prompt_summary \
+            if langchain_action == LangChainAction.SUMMARIZE_MAP.value \
+            else prompt_extraction
 
         kwargs = dict(
             h2ogpt_key=h2ogpt_key,

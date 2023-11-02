@@ -5274,10 +5274,17 @@ def get_chain(query=None,
             docs_with_score = docs_with_score[:top_k_docs]
         # max_input_tokens used min_max_new_tokens as max_new_tokens, so need to assume filled up to that
         # but use actual largest token count
-        data_point = dict(context=context, instruction=query, input=iinput)
+        if '{text}' in template:
+            estimated_prompt_no_docs = template.format(text='')
+        elif '{input_documents}' in template:
+            estimated_prompt_no_docs = template.format(input_documents='')
+        elif '{question}' in template:
+            estimated_prompt_no_docs = template.format(question=query)
+        else:
+            estimated_prompt_no_docs = query
+        data_point = dict(context=context, instruction=estimated_prompt_no_docs or ' ', input=iinput)
         prompt_basic = prompter.generate_prompt(data_point)
-        estimated_prompt_no_docs = template.format(text=prompt_basic)
-        num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
+        num_prompt_basic_tokens = get_token_count(prompt_basic, tokenizer)
 
         if truncation_generation:
             max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
