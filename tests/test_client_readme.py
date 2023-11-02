@@ -12,10 +12,10 @@ def test_readme_example(local_server):
     h2ogpt_key = os.getenv('H2OGPT_KEY') or os.getenv('H2OGPT_H2OGPT_KEY')
 
     if local_server:
-        client = GradioClient("http://0.0.0.0:7860", h2ogpt_key=h2ogpt_key)
+        host = "http://0.0.0.0:7860"
     else:
-        # if you have API key for public instance:
-        client = GradioClient("https://gpt.h2o.ai", h2ogpt_key=h2ogpt_key)
+        host = "https://gpt.h2o.ai"
+    client = GradioClient(host, h2ogpt_key=h2ogpt_key)
 
     models = client.list_models()
     print(models)
