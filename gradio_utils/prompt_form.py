@@ -55,13 +55,17 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         with gr.Row():
             for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
                 text_outputs.append(gr.Chatbot(**chat_kwargs1))
-    else:
+    elif nrows > 0:
+        len_chatbots = len(kwargs['model_states'])
+        nrows = math.ceil(len_chatbots / kwargs['model_lock_columns'])
         for nrowi in range(nrows):
             with gr.Row():
                 for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                    if mii < nrowi * len_visible / nrows or mii >= (1 + nrowi) * len_visible / nrows:
+                    if mii < nrowi * len_chatbots / nrows or mii >= (1 + nrowi) * len_chatbots / nrows:
                         continue
                     text_outputs.append(gr.Chatbot(**chat_kwargs1))
+    if len(kwargs['model_states']) > 0:
+        assert len(text_outputs) == len(kwargs['model_states'])
 
     no_model_lock_chat_kwargs = dict(render_markdown=kwargs.get('render_markdown', True),
                                      elem_classes='chatsmall',
