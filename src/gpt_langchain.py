@@ -2466,7 +2466,7 @@ def file_to_doc(file,
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
         # if auto, do doctr pdf if not too many pages, else can be slow/expensive
-        if (len(doc1) == 0 or num_pages is not None and num_pages < 100) and enable_pdf_doctr == 'auto' or \
+        if (len(doc1) == 0 or num_pages is not None and num_pages < 5) and enable_pdf_doctr == 'auto' or \
                 enable_pdf_doctr == 'on':
             if verbose:
                 print("BEGIN: DocTR", flush=True)
