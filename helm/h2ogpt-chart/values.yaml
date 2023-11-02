@@ -50,11 +50,11 @@ h2ogpt:
   updateStrategy:
     type: RollingUpdate
 
-  podSecurityContext: 
+  podSecurityContext:
     runAsNonRoot: true
-    runAsUser: null
-    runAsGroup: null
-    fsGroup: null
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
 
   securityContext:
     runAsNonRoot: true
@@ -150,9 +150,9 @@ vllm:
 
   podSecurityContext:
     runAsNonRoot: true
-    runAsUser: null
-    runAsGroup: null
-    fsGroup: null
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
 
   securityContext:
     runAsNonRoot: true
