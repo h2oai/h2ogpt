@@ -92,6 +92,8 @@ def test_server_properties(client, server_url):
 def test_parameters_order(client, eval_func_param_names):
     text_completion = client.text_completion.create()
     assert eval_func_param_names == list(text_completion._parameters.keys())
+    chat_completion = client.chat_completion.create()
+    assert eval_func_param_names == list(chat_completion._parameters.keys())
 
 
 @pytest.mark.parametrize("local_server", [True, False])
