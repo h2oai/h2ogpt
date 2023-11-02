@@ -206,7 +206,7 @@ class GradioClient(Client):
 
         kwargs = self.kwargs.copy()
         kwargs.pop('h2ogpt_key', None)
-        client = Client(*self.args, **self.kwargs)
+        client = Client(*self.args, **kwargs)
         for k, v in client.__dict__.items():
             setattr(self, k, v)
 
