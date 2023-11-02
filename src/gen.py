@@ -2306,6 +2306,7 @@ def evaluate(
         chunk_size,
         document_subset,
         document_choice,
+
         pre_prompt_query,
         prompt_query,
         pre_prompt_summary,
@@ -2319,6 +2320,7 @@ def evaluate(
         visible_models,
         h2ogpt_key,
         add_search_to_context,
+
         chat_conversation,
         text_context_list,
         docs_ordering_type,

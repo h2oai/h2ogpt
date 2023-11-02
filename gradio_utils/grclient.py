@@ -54,6 +54,16 @@ class LangChainAction(Enum):
     EXTRACT = "Extract"
 
 
+pre_prompt_query0 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
+prompt_query0 = "According to only the information in the document sources provided within the context above, "
+
+pre_prompt_summary0 = """\n"""
+prompt_summary0 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+
+pre_prompt_extraction0 = """In order to extract information, pay attention to the following text\n"""
+prompt_extraction0 = "Using only the information in the document sources above, extract: \n"
+
+
 class GradioClient(Client):
     """
     Parent class of gradio client
@@ -266,8 +276,11 @@ class GradioClient(Client):
 
         return job
 
-    def question(self, question, *args, **kwargs) -> str:
-        kwargs["instruction"] = question
+    def question(self, instruction, *args, **kwargs) -> str:
+        """
+        Prompt LLM (direct to LLM with instruct prompting required for instruct models) and get response
+        """
+        kwargs["instruction"] = kwargs.get("instruction", instruction)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
         kwargs["langchain_mode"] = 'LLM'
         ret = ''
@@ -275,71 +288,110 @@ class GradioClient(Client):
             ret = response
         return ret
 
-    def question_stream(self, question, *args, **kwargs) -> str:
-        kwargs["instruction"] = question
+    def question_stream(self, instruction, *args, **kwargs) -> str:
+        """
+        Prompt LLM (direct to LLM with instruct prompting required for instruct models) and get response
+        """
+        kwargs["instruction"] = kwargs.get("instruction", instruction)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
         kwargs["langchain_mode"] = 'LLM'
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
-    def query(self, *args, **kwargs) -> str:
+    def query(self, query, *args, **kwargs) -> str:
+        """
+        Search for documents matching a query, then ask that query to LLM with those documents
+        """
+        kwargs["instruction"] = kwargs.get("instruction", query)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
         ret = ''
         for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
             ret = response
         return ret
 
-    def query_stream(self, *args, **kwargs) -> Generator[tuple[str | list[str], list[str]], None, None]:
+    def query_stream(self, query, *args, **kwargs) -> Generator[tuple[str | list[str], list[str]], None, None]:
+        """
+        Search for documents matching a query, then ask that query to LLM with those documents
+        """
+        kwargs["instruction"] = kwargs.get("instruction", query)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
-    def summarize(self, *args, **kwargs) -> str:
+    def summarize(self, *args, query=None, focus=None, **kwargs) -> str:
+        """
+        Search for documents matching a focus, then ask a query to LLM with those documents
+        If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
+        """
+        kwargs["prompt_summary"] = kwargs.get("prompt_summary", query or prompt_summary0)
+        kwargs["instruction"] = kwargs.get('instruction', focus)
         kwargs["langchain_action"] = LangChainAction.SUMMARIZE_MAP.value
         ret = ''
         for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
             ret = response
         return ret
 
-    def summarize_stream(self, *args, **kwargs) -> str:
+    def summarize_stream(self, *args, query=None, focus=None, **kwargs) -> str:
+        """
+        Search for documents matching a focus, then ask a query to LLM with those documents
+        If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
+        """
+        kwargs["prompt_summary"] = kwargs.get("prompt_summary", query or prompt_summary0)
+        kwargs["instruction"] = kwargs.get('instruction', focus)
         kwargs["langchain_action"] = LangChainAction.SUMMARIZE_MAP.value
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
-    def extract(self, *args, **kwargs) -> list[str]:
+    def extract(self, *args, query=None, focus=None, **kwargs) -> list[str]:
+        """
+        Search for documents matching a focus, then ask a query to LLM with those documents
+        If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
+        """
+        kwargs["prompt_extraction"] = kwargs.get("prompt_extraction", query or prompt_extraction0)
+        kwargs["instruction"] = kwargs.get('instruction', focus)
         kwargs["langchain_action"] = LangChainAction.EXTRACT.value
         ret = ''
         for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
             ret = response
         return ret
 
-    def extract_stream(self, *args, **kwargs) -> list[str]:
+    def extract_stream(self, *args, query=None, focus=None, **kwargs) -> list[str]:
+        """
+        Search for documents matching a focus, then ask a query to LLM with those documents
+        If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
+        """
+        kwargs["prompt_extraction"] = kwargs.get("prompt_extraction", query or prompt_extraction0)
+        kwargs["instruction"] = kwargs.get('instruction', focus)
         kwargs["langchain_action"] = LangChainAction.EXTRACT.value
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
     def query_or_summarize_or_extract(self,
+                                      h2ogpt_key: str = None,
+
                                       instruction: str = "",
+
                                       text: list[str] | str | None = None,
                                       file: list[str] | str | None = None,
                                       url: list[str] | str | None = None,
-
                                       embed: bool = True,
                                       chunk: bool = True,
                                       chunk_size: int = 512,
 
                                       langchain_mode: str = None,
                                       langchain_action: str | None = None,
+                                      langchain_agents: List[str] = [],
                                       top_k_docs: int = 10,
                                       document_choice: Union[str, List[str]] = "All",
                                       document_subset: str = "Relevant",
 
                                       system_prompt: str | None = None,
-                                      pre_prompt_query: str | None = None,
-                                      prompt_query: str | None = None,
-                                      pre_prompt_summary: str | None = None,
-                                      prompt_summary: str | None = None,
-                                      h2ogpt_key: str = None,
+                                      pre_prompt_query: str | None = pre_prompt_query0,
+                                      prompt_query: str | None = prompt_query0,
+                                      pre_prompt_summary: str | None = pre_prompt_summary0,
+                                      prompt_summary: str | None = prompt_summary0,
+                                      pre_prompt_extraction: str | None = pre_prompt_extraction0,
+                                      prompt_extraction: str | None = prompt_extraction0,
 
                                       model: str | int | None = None,
                                       stream_output: bool = False,
@@ -348,25 +400,29 @@ class GradioClient(Client):
                                       top_p: float = 0.75,
                                       top_k: int = 40,
                                       repetition_penalty: float = 1.07,
+                                      penalty_alpha: float = 0.0,
                                       max_time: int = 360,
+                                      max_new_tokens: int = 1024,
 
+                                      add_search_to_context: bool = False,
                                       chat_conversation: list[tuple[str, str]] | None = None,
                                       text_context_list: list[str] | None = None,
                                       docs_ordering_type: str | None = None,
-
-                                      max_input_tokens: int = -1,
-                                      max_new_tokens: int = 1024,
                                       min_max_new_tokens: int = 512,
-
+                                      max_input_tokens: int = -1,
                                       docs_token_handling: str = "split_or_merge",
                                       docs_joiner: str = "\n\n",
+                                      hyde_level: int = 0,
+                                      hyde_template: str = None,
+                                      doc_json_mode: bool = False,
 
                                       asserts: bool = False,
                                       ) -> Generator[tuple[str | list[str], list[str]], None, None]:
         """
         Query or Summarize or Extract using h2oGPT
         Args:
-            instruction: Query
+            instruction: Query for LLM chat.  Used for similarity search
+
             For query, prompt template is:
               "{pre_prompt_query}\"\"\"
                 {content}
@@ -378,19 +434,20 @@ class GradioClient(Client):
             text: textual content or list of such contents
             file: a local file to upload or files to upload
             url: a url to give or urls to use
-
             embed: whether to embed content uploaded
-            chunk: whether to chunk sources for document Q/A
-            chunk_size: Size in characters of chunks
 
             langchain_mode: "LLM" to talk to LLM with no docs, "MyData" for personal docs, "UserData" for shared docs, etc.
             langchain_action: Action to take, "Query" or "Summarize" or "Extract"
+            langchain_agents: Which agents to use, if any
             top_k_docs: number of document parts.
                         When doing query, number of chunks
                         When doing summarization, not related to vectorDB chunks that are not used
                         E.g. if PDF, then number of pages
+            chunk: whether to chunk sources for document Q/A
+            chunk_size: Size in characters of chunks
             document_choice: Which documents ("All" means all) -- need to use upload_api API call to get server's name if want to select
             document_subset: Type of query, see src/gen.py
+
             system_prompt: pass system prompt to models that support it.
               If 'auto' or None, then use automatic version
               If '', then use no system prompt (default)
@@ -407,16 +464,18 @@ class GradioClient(Client):
                 \"\"\"
                 %s
                 \"\"\"\n%s" % (pre_prompt_summary, fstring, prompt_summary)
-            h2ogpt_key: Access Key to h2oGPT server
+            h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
             model: base_model name or integer index of model_lock on h2oGPT server
                             None results in use of first (0th index) model in server
                    to get list of models do client.list_models()
-
+            pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
+            prompt_extraction: Same as prompt_summary but for when doing extraction
             do_sample: see src/gen.py
             temperature: see src/gen.py
             top_p: see src/gen.py
             top_k: see src/gen.py
             repetition_penalty: see src/gen.py
+            penalty_alpha: see src/gen.py
             max_new_tokens: see src/gen.py
             min_max_new_tokens: see src/gen.py
             max_input_tokens: see src/gen.py
@@ -425,6 +484,7 @@ class GradioClient(Client):
             do_sample: whether to sample
             max_time: how long to take
 
+            add_search_to_context: Whether to do web search and add results to context
             chat_conversation: List of tuples for (human, bot) conversation that will be pre-appended to an (instruction, None) case for a query
             text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
                Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
@@ -439,6 +499,13 @@ class GradioClient(Client):
                                                                              or top_k_docs original document chunks summarization
                                         None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
             docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+            hyde_level: 0-3 for HYDE.
+                        0 uses just query to find similarity with docs
+                        1 uses query + pure LLM response to find similarity with docs
+                        2: uses query + LLM response using docs to find similarity with docs
+                        3+: etc.
+            hyde_template: see src/gen.py
+            doc_json_mode: see src/gen.py
 
             asserts: whether to do asserts to ensure handling is correct
 
@@ -511,35 +578,50 @@ class GradioClient(Client):
 
         # ask for summary, need to use same client if using MyData
         api_name = "/submit_nochat_api"  # NOTE: like submit_nochat but stable API for string dict passing
+
+        pre_prompt_summary = pre_prompt_summary if langchain_action == LangChainAction.SUMMARIZE_MAP else pre_prompt_extraction,
+        prompt_summary = prompt_summary if langchain_action == LangChainAction.SUMMARIZE_MAP else prompt_extraction,
+
         kwargs = dict(
+            h2ogpt_key=h2ogpt_key,
+
             instruction=instruction,
+
             langchain_mode=langchain_mode,
             langchain_action=langchain_action,  # uses full document, not vectorDB chunks
+            langchain_agents=langchain_agents,
             top_k_docs=top_k_docs,
-            stream_output=stream_output,
-            document_subset=document_subset,
             document_choice=document_choice,
-            max_time=max_time,
-            max_new_tokens=max_new_tokens,
-            min_max_new_tokens=min_max_new_tokens,
-            do_sample=do_sample,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            repetition_penalty=repetition_penalty,
+            document_subset=document_subset,
+
             system_prompt=system_prompt,
             pre_prompt_query=pre_prompt_query,
             prompt_query=prompt_query,
             pre_prompt_summary=pre_prompt_summary,
             prompt_summary=prompt_summary,
-            h2ogpt_key=h2ogpt_key,
+
             visible_models=model,
+            stream_output=stream_output,
+            do_sample=do_sample,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            repetition_penalty=repetition_penalty,
+            penalty_alpha=penalty_alpha,
+            max_time=max_time,
+            max_new_tokens=max_new_tokens,
+
+            add_search_to_context=add_search_to_context,
             chat_conversation=chat_conversation,
             text_context_list=text_context_list,
             docs_ordering_type=docs_ordering_type,
+            min_max_new_tokens=min_max_new_tokens,
             max_input_tokens=max_input_tokens,
             docs_token_handling=docs_token_handling,
             docs_joiner=docs_joiner,
+            hyde_level=hyde_level,
+            hyde_template=hyde_template,
+            doc_json_mode=doc_json_mode,
         )
 
         # get result
