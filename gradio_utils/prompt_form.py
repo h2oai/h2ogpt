@@ -55,54 +55,13 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         with gr.Row():
             for chat_kwargs1, model_state_lock in zip(chat_kwargs, kwargs['model_states']):
                 text_outputs.append(gr.Chatbot(**chat_kwargs1))
-    elif nrows == 2:
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii >= len_visible / 2:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii < len_visible / 2:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-    elif nrows == 3:
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii >= 1 * len_visible / 3:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii < 1 * len_visible / 3 or mii >= 2 * len_visible / 3:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii < 2 * len_visible / 3:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-    elif nrows >= 4:
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii >= 1 * len_visible / 4:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii < 1 * len_visible / 4 or mii >= 2 * len_visible / 4:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii < 2 * len_visible / 4 or mii >= 3 * len_visible / 4:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
-        with gr.Row():
-            for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
-                if mii < 3 * len_visible / 4:
-                    continue
-                text_outputs.append(gr.Chatbot(**chat_kwargs1))
+    else:
+        for nrowi in range(nrows):
+            with gr.Row():
+                for mii, (chat_kwargs1, model_state_lock) in enumerate(zip(chat_kwargs, kwargs['model_states'])):
+                    if mii < nrowi * len_visible / nrows or mii >= (1 + nrowi) * len_visible / nrows:
+                        continue
+                    text_outputs.append(gr.Chatbot(**chat_kwargs1))
 
     no_model_lock_chat_kwargs = dict(render_markdown=kwargs.get('render_markdown', True),
                                      elem_classes='chatsmall',
