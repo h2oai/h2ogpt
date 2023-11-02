@@ -2859,6 +2859,7 @@ def evaluate(
                     **gen_server_kwargs,
                     stop=stop_sequences,
                     stream=stream_output,
+                    request_timeout=20,
                 )
                 text = ''
                 sources = ''
@@ -2905,6 +2906,7 @@ def evaluate(
                     messages=messages0,
                     stream=stream_output,
                     **gen_server_kwargs,
+                    request_timeout=20,
                 )
                 text = ""
                 sources = ''

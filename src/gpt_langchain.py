@@ -1477,6 +1477,7 @@ def get_llm(use_openai_model=False,
                   max_retries=6,
                   streaming=stream_output,
                   verbose=verbose,
+                  request_timeout=20,  # timeout for inner requests call, not completion time, default of 600 is nuts
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
