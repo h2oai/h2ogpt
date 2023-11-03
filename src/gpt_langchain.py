@@ -5313,7 +5313,7 @@ def get_chain(query=None,
     else:
         # don't reduce, except listen to top_k_docs and max_total_input_tokens
         one_doc_size = None
-        if max_total_input_tokens is not None:
+        if max_total_input_tokens not in [None, -1]:
             # used to limit tokens for summarization, e.g. public instance, over all LLM calls allowed
             top_k_docs, one_doc_size, num_doc_tokens = \
                 get_docs_tokens(tokenizer,
