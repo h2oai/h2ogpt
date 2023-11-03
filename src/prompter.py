@@ -140,11 +140,15 @@ prompt_type_to_model_name = {
 model_names_curated = ['llama', 'HuggingFaceH4/zephyr-7b-beta', 'Yukang/LongAlpaca-70B', 'lmsys/vicuna-13b-v1.5-16k',
                        'h2oai/h2ogpt-32k-codellama-34b-instruct', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ',
                        'TheBloke/Llama-2-7B-Chat-GGUF', 'TheBloke/zephyr-7B-beta-GGUF', 'TheBloke/zephyr-7B-beta-AWQ']
+openai_gpts = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k",
+               "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
+               "gpt-4", "gpt-4-32k",
+               "gpt-4-0613", "gpt-4-32k-0613",
+               ]
 if os.getenv('OPENAI_API_KEY'):
     prompt_type_to_model_name.update({
         "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],
-        "openai_chat": ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
-                        "gpt-4-0613", "gpt-4-32k-0613"],
+        "openai_chat": openai_gpts,
     })
     model_names_curated += ['gpt-3.5-turbo']
 

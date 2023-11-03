@@ -64,7 +64,8 @@ from typing import Union
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
+    openai_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -1734,7 +1735,9 @@ def get_model_retry(**kwargs):
                 # help user a bit
                 kwargs['gptq_dict'].update(
                     {'inject_fused_attention': False, 'disable_exllama': True})
-            if 'Could not find model' in stre or 'safetensors' in stre:
+            if 'Could not find model' in stre or \
+                    'safetensors' in stre or \
+                    'not appear to have a file named pytorch_model.bin' in stre:
                 kwargs['use_safetensors'] = True
             clear_torch_cache()
             if trial >= trials - 1:
@@ -1906,6 +1909,10 @@ def get_model(
                 raise RuntimeError("Unexpected tokenizer=None")
             tokenizer = FakeTokenizer()
         return client, tokenizer, 'http'
+
+    if base_model in openai_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing OpenAI models")
+
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
@@ -1916,7 +1923,10 @@ def get_model(
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
-            max_seq_len = model_token_mapping[base_model]
+            if base_model in model_token_mapping:
+                max_seq_len = model_token_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
