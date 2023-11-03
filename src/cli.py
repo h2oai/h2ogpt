@@ -2,7 +2,7 @@ import copy
 import torch
 
 from evaluate_params import eval_func_param_names
-from gen import get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -107,8 +107,8 @@ def run_cli(  # for local function:
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **locals()))
 
-        model, tokenizer, device = get_model(reward_type=False,
-                                             **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+        model, tokenizer, device = get_model_retry(reward_type=False,
+                                                   **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
         model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
                           visible_models=None, h2ogpt_key=None)

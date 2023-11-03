@@ -57,7 +57,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
+from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -1692,8 +1692,8 @@ def get_llm(use_openai_model=False,
                 # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
                 # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
             inference_server = ''
-            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
-                                                 inference_server=inference_server, gpu_id=0)
+            model, tokenizer, device = get_model_retry(load_8bit=True, base_model=model_name,
+                                                       inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
                           num_beams=num_beams,

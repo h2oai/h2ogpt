@@ -6,7 +6,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from evaluate_params import eval_func_param_names, eval_extra_columns
-from gen import get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
@@ -191,8 +191,9 @@ def run_eval(  # for local function:
                                                                    **locals()))
 
         if not eval_as_output:
-            model, tokenizer, device = get_model(reward_type=False,
-                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+            model, tokenizer, device = get_model_retry(reward_type=False,
+                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                    **locals()))
             model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model,
                               lora_weights=lora_weights,
                               inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,

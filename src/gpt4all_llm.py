@@ -85,7 +85,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           n_threads=n_jobs,
                           verbose=verbose)
     if n_gpus != 0:
-        default_kwargs.update(dict(n_gpu_layers=100))
+        default_kwargs.update(dict(n_gpu_layers=100, f16_kv=True))
     return default_kwargs
 
 

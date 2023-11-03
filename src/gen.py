@@ -1377,8 +1377,8 @@ def main(
             all_kwargs = locals().copy()
             all_kwargs.update(model_dict)
             if model_dict['base_model'] and not login_mode_if_model0:
-                model0, tokenizer0, device = get_model(reward_type=False,
-                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
+                model0, tokenizer0, device = get_model_retry(reward_type=False,
+                                                             **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                     **all_kwargs))
                 # update model state
                 if hasattr(tokenizer0, 'model_max_length'):
@@ -1715,6 +1715,27 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
                 raise
         print("HF Client End: %s %s : %s" % (inference_server, base_model, res))
     return inference_server, gr_client, hf_client
+
+
+def get_model_retry(**kwargs):
+    model1, tokenizer1, device1 = None, None, None
+    trials = 4
+    for trial in range(trials):
+        try:
+            model1, tokenizer1, device1 = get_model(**kwargs)
+            break
+        except Exception as e:
+            stre = str(e)
+            if 'Exllama kernel does not support' in stre:
+                # help user a bit
+                kwargs['gptq_dict'].update(
+                    {'inject_fused_attention': False, 'disable_exllama': True})
+            if 'Could not find model' in stre or 'safetensors' in stre:
+                kwargs['use_safetensors'] = True
+            clear_torch_cache()
+            if trial >= trials - 1:
+                raise
+    return model1, tokenizer1, device1
 
 
 def get_model(

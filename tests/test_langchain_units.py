@@ -8,6 +8,7 @@ import uuid
 
 import pytest
 
+from src.gen import get_model_retry
 from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3, texts_helium4, texts_helium5, \
     texts_simple
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
@@ -64,7 +65,7 @@ def run_qa_wiki(use_openai_model=False, first_para=True, text_limit=None, chain_
     sources = get_wiki_sources(first_para=first_para, text_limit=text_limit)
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(use_openai_model=use_openai_model, prompt_type=prompt_type, llamacpp_dict={},
-        exllama_dict={})
+                exllama_dict={})
     chain = load_qa_with_sources_chain(llm, chain_type=chain_type)
 
     question = "What are the main differences between Linux and Windows?"
@@ -287,8 +288,8 @@ def get_test_model():
                       hf_model_dict={},
 
                       verbose=False)
-    model, tokenizer, device = get_model(reward_type=False,
-                                         **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
+    model, tokenizer, device = get_model_retry(reward_type=False,
+                                               **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
     return model, tokenizer, base_model, prompt_type
 
 
@@ -798,7 +799,8 @@ def test_md_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is h2oGPT?")
             assert len(docs) == 4
-            assert 'Query and summarize your documents' in docs[1].page_content or 'document Q/A' in docs[1].page_content
+            assert 'Query and summarize your documents' in docs[1].page_content or 'document Q/A' in docs[
+                1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
@@ -1690,7 +1692,7 @@ def test_chroma_filtering():
                                         'non-centrality parameter' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower() or
                                         'gravitational' in rets1['response'].lower()
-                                        )
+                                )
                             else:
                                 assert len(rets1) == 5 and (
                                         'whisper' in rets1['response'].lower() or
@@ -1707,7 +1709,8 @@ def test_chroma_filtering():
                                     0] and 'source' in rets1['sources'][0]
                                 if doc_choice in [1, 2]:
                                     if langchain_action == 'Summarize':
-                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= doc_choice
+                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in
+                                                                     rets1['sources']]))) >= doc_choice
                                     else:
                                         assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
                                 else:
@@ -1717,7 +1720,8 @@ def test_chroma_filtering():
                                     assert len(set([x['source'] for x in rets1['sources']])) <= doc_choice
                                 else:
                                     if langchain_action == 'Summarize':
-                                        assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= 2
+                                        assert len(set(flatten_list(
+                                            [x['source'].split(docs_joiner_default) for x in rets1['sources']]))) >= 2
                                     else:
                                         assert len(set([x['source'] for x in rets1['sources']])) >= 2
                             else:
