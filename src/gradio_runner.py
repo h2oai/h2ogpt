@@ -3964,15 +3964,8 @@ def go_gradio(**kwargs):
 
             # switch-a-roo on base_model so can pass GGUF/GGML as base model
             model_name0 = model_name
-            model_name, model_path_llama1 = switch_a_roo_llama(model_name, model_path_llama1)
-
-            # some auto things for TheBloke models:
-            if 'TheBloke' in model_name and '-GPTQ' in model_name:
-                load_gptq = load_gptq or 'model'
-            elif 'TheBloke' in model_name and '-AWQ' in model_name:
-                load_awq = load_awq or 'model'
-            elif '2-70B-GGUF' in model_path_llama1:
-                n_gqa1 = n_gqa1 or 8
+            model_name, model_path_llama1, load_gptq, load_awq, n_gqa1 = \
+                switch_a_roo_llama(model_name, model_path_llama1, load_gptq, load_awq, n_gqa1)
 
             llamacpp_dict = str_to_dict(llamacpp_dict_more1)
             llamacpp_dict.update(dict(model_path_llama=model_path_llama1,

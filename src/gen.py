@@ -73,7 +73,7 @@ langchain_actions = [x.value for x in list(LangChainAction)]
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 
-def switch_a_roo_llama(base_model, model_path_llama):
+def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa):
     is_gguf = 'GGUF'.lower() in base_model.lower()
     is_ggml = 'GGML'.lower() in base_model.lower()
     postfix = '-GGUF' if is_gguf else '-GGML'
@@ -92,7 +92,16 @@ def switch_a_roo_llama(base_model, model_path_llama):
                 base_model = base_model0
         model_path_llama = base_model
         base_model = 'llama'
-    return base_model, model_path_llama
+
+    # some auto things for TheBloke models:
+    if 'TheBloke' in base_model and '-GPTQ' in base_model:
+        load_gptq = load_gptq or 'model'
+    elif 'TheBloke' in base_model and '-AWQ' in base_model:
+        load_awq = load_awq or 'model'
+    elif '2-70B-GGUF' in model_path_llama:
+        n_gqa = n_gqa or 8
+
+    return base_model, model_path_llama, load_gptq, load_awq, n_gqa
 
 
 def main(
@@ -828,12 +837,13 @@ def main(
 
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
+    llamacpp_dict = str_to_dict(llamacpp_dict)
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
     base_model0 = base_model
-    base_model, model_path_llama = switch_a_roo_llama(base_model, model_path_llama)
+    base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
+        switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict.get('n_gqa', 0))
 
-    llamacpp_dict = str_to_dict(llamacpp_dict)
     # add others to single dict
     llamacpp_dict['model_path_llama'] = model_path_llama
     llamacpp_dict['model_name_gptj'] = model_name_gptj
@@ -1359,8 +1369,16 @@ def main(
             if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
                 model_path_llama1 = model_dict.get('model_path_llama', '').lower()
+                model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {}) or {}
+                llamacpp_dict1 = model_dict.get('llamacpp_dict', {}) or {}
+                load_gptq1 = model_dict.get('load_gptq', '')
+                load_awq1 = model_dict.get('load_awq', '')
                 model_lower10 = model_lower1
-                model_lower1, model_path_llama = switch_a_roo_llama(model_lower1, model_path_llama1)
+                model_lower1, model_path_llama, \
+                    model_dict['load_gptq'], model_dict['load_awq'], \
+                    model_dict['llamacpp_dict']['n_gqa'] = \
+                    switch_a_roo_llama(model_lower1, model_path_llama1, load_gptq1, load_awq1,
+                                       llamacpp_dict1.get('n_gqa', 0))
 
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
@@ -1385,7 +1403,7 @@ def main(
             if model_dict['base_model'] and not login_mode_if_model0:
                 model0, tokenizer0, device = get_model_retry(reward_type=False,
                                                              **get_kwargs(get_model, exclude_names=['reward_type'],
-                                                                    **all_kwargs))
+                                                                          **all_kwargs))
                 # update model state
                 if hasattr(tokenizer0, 'model_max_length'):
                     model_dict['max_seq_len'] = tokenizer0.model_max_length

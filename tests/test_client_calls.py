@@ -2578,8 +2578,8 @@ def test_client_load_unload_models(model_choice):
     else:
         raise ValueError("No such model_choice=%s" % model_choice)
     res_expected = (
-    model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex, {'__type__': 'update', 'maximum': 1024},
-    {'__type__': 'update', 'maximum': 1024})
+        model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex, {'__type__': 'update', 'maximum': 1024},
+        {'__type__': 'update', 'maximum': 1024})
     assert res == res_expected
     model_used, lora_used, server_used, prompt_type, max_seq_len1new, max_new_tokens, min_new_tokens = res_expected
 
@@ -2595,6 +2595,35 @@ def test_client_load_unload_models(model_choice):
     res_expected = (no_model_str, no_lora_str, no_server_str, '', -1.0, {'__type__': 'update', 'maximum': 256},
                     {'__type__': 'update', 'maximum': 256})
     assert res == res_expected
+
+
+@pytest.mark.need_tokens
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated)
+@wrap_test_forked
+def test_client_curated_base_models(base_model, stream_output):
+    if base_model in model_names_curated_big:
+        return
+
+    stream_output = True
+    from src.gen import main
+    main(base_model=base_model,
+         inference_server='' if base_model not in openai_gpts else 'openai_chat',
+         chat=True,
+         stream_output=stream_output,
+         gradio=True, num_beams=1, block_gradio_exit=False,
+         score_model='',
+         verbose=True)
+
+    from src.client_test import get_client
+    # serialize=False would lead to returning dict for some objects or files for get_sources
+    client = get_client(serialize=False)
+
+    prompt = "Who are you?"
+    kwargs = dict(stream_output=stream_output, instruction=prompt)
+    res_dict, client = run_client_gen(client, kwargs)
+    response = res_dict['response']
+    assert response
 
 
 @pytest.mark.need_tokens
