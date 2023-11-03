@@ -28,7 +28,7 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, n_gpus=None, max_seq_le
         # auto max_seq_len
         llama_kwargs.update(dict(max_seq_len=max_seq_len))
         model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
-    return model, tokenizer, 'cpu'
+    return model, tokenizer, 'cpu' if n_gpus != 0 else 'cuda'
 
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler

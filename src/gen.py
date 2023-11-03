@@ -760,7 +760,7 @@ def main(
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
-    :param n_gpus: Number of GPUs for llama.cpp models
+    :param n_gpus: Number of GPUs (None = autodetect)
 
     :param use_unstructured: Enable unstructured URL loader
     :param use_playwright: Enable PlayWright URL loader
@@ -1063,17 +1063,19 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    n_gpus, gpu_ids = cuda_vis_check(n_gpus)
+    n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
+    if n_gpus is None:
+        n_gpus = n_gpus1
 
     if load_half is None and t5_type(base_model):
         load_half = False
         print("load_half=%s auto-set for %s to avoid bad generation" % (load_half, base_model), flush=True)
 
-    if n_gpus == 0 or get_device() == "mps":
+    if n_gpus == 0 or get_device(n_gpus=n_gpus) == "mps":
         # No CUDA GPUs usable
 
-        if get_device() != "mps":
+        if get_device(n_gpus=n_gpus) != "mps":
             print("No GPUs detected", flush=True)
 
         enable_captions = False
@@ -1088,7 +1090,7 @@ def main(
         load_awq = ''
         load_exllama = False
         use_gpu_id = False
-        if get_device() == "cuda":
+        if get_device(n_gpus=n_gpus) == "cuda":
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.enabled = False
             torch.set_default_dtype(torch.float32)
@@ -1949,7 +1951,7 @@ def get_model(
                                                                llamacpp_dict=llamacpp_dict)
         return model, tokenizer, device
     if load_exllama:
-        return model_loader, tokenizer, 'cuda'
+        return model_loader, tokenizer, 'cuda' if n_gpus != 0 else 'cpu'
 
     # get local torch-HF model
     return get_hf_model(load_8bit=load_8bit,
@@ -1965,6 +1967,7 @@ def get_model(
                         tokenizer_base_model=tokenizer_base_model,
                         lora_weights=lora_weights,
                         gpu_id=gpu_id,
+                        n_gpus=n_gpus,
 
                         reward_type=reward_type,
                         local_files_only=local_files_only,
@@ -2000,6 +2003,7 @@ def get_hf_model(load_8bit: bool = False,
                  tokenizer_base_model: str = '',
                  lora_weights: str = "",
                  gpu_id: int = 0,
+                 n_gpus: int = None,
 
                  reward_type: bool = None,
                  local_files_only: bool = False,
@@ -2030,7 +2034,7 @@ def get_hf_model(load_8bit: bool = False,
     if lora_weights is not None and lora_weights.strip():
         if verbose:
             print("Get %s lora weights" % lora_weights, flush=True)
-    device = get_device()
+    device = get_device(n_gpus=n_gpus)
 
     if 'gpt2' in base_model.lower():
         # RuntimeError: where expected condition to be a boolean tensor, but got a tensor with dtype Half

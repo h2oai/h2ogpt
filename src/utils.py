@@ -135,9 +135,9 @@ def get_torch_allocated():
     return torch.cuda.memory_allocated()
 
 
-def get_device():
+def get_device(n_gpus=None):
     import torch
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and n_gpus != 0:
         device = "cuda"
     elif torch.backends.mps.is_built():
         device = "mps"
