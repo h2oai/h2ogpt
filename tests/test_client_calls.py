@@ -1777,7 +1777,7 @@ def check_langchain():
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # upload file(s).  Can be list or single file
@@ -2655,7 +2655,7 @@ def test_client_timeout(stream_output, max_time):
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # PURE client code
@@ -3389,7 +3389,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     # get file for client to upload
     if which_doc == 'whisper':
         url = 'https://cdn.openai.com/papers/whisper.pdf'
-        test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+        test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
         download_simple(url, dest=test_file1)
     elif which_doc == 'graham':
         test_file1 = 'tests/1paul_graham.txt'
@@ -3476,8 +3476,11 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
                        'Large-scale weak supervision of speech' in summary or \
                        'text standardization' in summary or \
                        'speech processing systems' in summary
-            assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
-            assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
+            if summary == 'No relevant documents to extract from.':
+                assert sources == ''
+            else:
+                assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+                assert 'whisper1.pdf' in [x['source'] for x in sources][0]
     else:
         # weaviate as usual gets confused and has too many sources
         if summary == 'No relevant documents to extract from.':
@@ -3498,7 +3501,7 @@ def test_client_summarization_from_text():
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # Get text version of PDF
@@ -3641,7 +3644,7 @@ def test_fastsys(stream_output, bits, prompt_type):
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # PURE client code
@@ -3686,7 +3689,7 @@ def test_fastsys(stream_output, bits, prompt_type):
            """weak  supervision""" in response or \
            """weak supervision""" in response
     sources = [x['source'] for x in res_dict['sources']]
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'whisper1.pdf' in sources[0]
 
 
 @pytest.mark.parametrize("hyde_template", ['auto', None, """Give detailed answer for: {query}"""])
@@ -3704,7 +3707,7 @@ def test_hyde(stream_output, hyde_level, hyde_template):
 
     # get file for client to upload
     url = 'https://coca-colafemsa.com/wp-content/uploads/2023/04/Coca-Cola-FEMSA-Results-1Q23-vf-2.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'femsa1.pdf')
     remove(test_file1)
     download_simple(url, dest=test_file1)
 
@@ -3749,4 +3752,4 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     response = res_dict['response']
     assert """23,222 million""" in response
     sources = [x['source'] for x in res_dict['sources']]
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'femsa1.pdf' in sources[0]

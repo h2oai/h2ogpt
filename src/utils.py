@@ -541,7 +541,7 @@ def atomic_move_simple(src, dst):
     remove(src)
 
 
-def download_simple(url, dest=None, verbose=False):
+def download_simple(url, dest=None, overwrite=False, verbose=False):
     if dest is None:
         dest = os.path.basename(url)
     base_path = os.path.dirname(dest)
@@ -550,8 +550,11 @@ def download_simple(url, dest=None, verbose=False):
         dest = os.path.join(base_path, os.path.basename(dest))
 
     if os.path.isfile(dest):
-        print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
-        return dest
+        if not overwrite:
+            print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
+            return dest
+        else:
+            remove(dest)
 
     if verbose:
         print("BEGIN get url %s" % str(url), flush=True)
