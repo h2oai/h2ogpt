@@ -1358,7 +1358,7 @@ def go_gradio(**kwargs):
                                                                 precision=0,
                                                                 info="If standard LLaMa-2, choose up to 4096 (-1 means choose max of model)",
                                                                 label="max_seq_len")
-                                        max_seq_len_used = gr.Number(value=-1,
+                                        max_seq_len_used = gr.Number(value=kwargs['max_seq_len'] or -1,
                                                                      label="Current Max. Seq. Length",
                                                                      interactive=False)
                                         rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
