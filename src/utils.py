@@ -1548,13 +1548,19 @@ def get_token_count(x, tokenizer, token_count_fun=None):
     # handle ambiguity in if get dict or list
     if tokenizer:
         if hasattr(tokenizer, 'encode'):
-            template_tokens = tokenizer.encode(x)
+            tokens = tokenizer.encode(x)
         else:
-            template_tokens = tokenizer(x)
-        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
-            n_tokens = len(tokenizer.encode(x)['input_ids'])
+            tokens = tokenizer(x)
+        if isinstance(tokens, dict) and 'input_ids' in tokens:
+            tokens = tokens['input_ids']
+        if isinstance(tokens, list):
+            n_tokens = len(tokens)
+        elif len(tokens.shape) == 2:
+            n_tokens = tokens.shape[1]
+        elif len(tokens.shape) == 1:
+            n_tokens = tokens.shape[0]
         else:
-            n_tokens = len(tokenizer.encode(x))
+            raise RuntimeError("Cannot handle tokens: %s" % tokens)
     elif token_count_fun is not None:
         assert callable(token_count_fun)
         n_tokens = token_count_fun(x)
