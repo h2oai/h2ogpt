@@ -1638,7 +1638,6 @@ def get_non_lora_model(base_model, model_loader, load_half,
         model = model_loader
     elif load_gptq:
         model_kwargs.pop('torch_dtype', None)
-        model_kwargs.pop('device_map')
         loader_kwargs = dict(model_name_or_path=base_model,
                              model_basename=load_gptq,
                              **model_kwargs)
@@ -2171,7 +2170,6 @@ def get_hf_model(load_8bit: bool = False,
                     else:
                         if load_gptq:
                             model_kwargs.pop('torch_dtype', None)
-                            model_kwargs.pop('device_map')
                             model = model_loader(
                                 model_name_or_path=base_model,
                                 model_basename=load_gptq,
