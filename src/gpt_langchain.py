@@ -50,7 +50,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple
+    get_test_name_core, download_simple, get_ngpus_vis
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1350,6 +1350,7 @@ def get_llm(use_openai_model=False,
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
+    n_gpus = get_ngpus_vis()
     if inference_server is None:
         inference_server = ''
     if inference_server.startswith('replicate'):
@@ -1647,6 +1648,7 @@ def get_llm(use_openai_model=False,
                               iinput=iinput,
                               max_seq_len=model_max_length,
                               llamacpp_dict=llamacpp_dict,
+                              n_gpus=n_gpus,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet

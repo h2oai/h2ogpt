@@ -9,13 +9,14 @@ from langchain.llms import gpt4all
 from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 
 
-def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llamacpp_dict=None):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None, n_gpus=None, max_seq_len=None, llamacpp_dict=None):
     assert llamacpp_dict is not None
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
     llama_kwargs = dict(model_name=model_name,
                         model=None,
                         n_jobs=n_jobs,
+                        n_gpus=n_gpus,
                         inner_class=True,
                         max_seq_len=max_seq_len,
                         llamacpp_dict=llamacpp_dict)
@@ -111,6 +112,7 @@ def get_llm_gpt4all(model_name=None,
                     context='',
                     iinput='',
                     n_jobs=None,
+                    n_gpus=None,
                     verbose=False,
                     inner_class=False,
                     max_seq_len=None,
@@ -150,7 +152,8 @@ def get_llm_gpt4all(model_name=None,
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
-                                 prompter=prompter, context=context, iinput=iinput))
+                                 prompter=prompter, context=context, iinput=iinput,
+                                 n_gpus=n_gpus))
 
         # migration to  new langchain fix:
         odd_keys = ['model_kwargs', 'grammar_path', 'grammar']
@@ -305,6 +308,7 @@ class H2OLlamaCpp(LlamaCpp):
     iinput: Any
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    n_gpus: Any = -1
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -333,9 +337,16 @@ class H2OLlamaCpp(LlamaCpp):
 
             try:
                 try:
-                    from llama_cpp import Llama
-                except ImportError:
-                    from llama_cpp_cuda import Llama
+                    if values["n_gpus"] == 0:
+                        from llama_cpp import Llama
+                    else:
+                        from llama_cpp_cuda import Llama
+                except Exception as e:
+                    print("Failed to listen to n_gpus: %s" % str(e), flush=True)
+                    try:
+                        from llama_cpp import Llama
+                    except ImportError:
+                        from llama_cpp_cuda import Llama
 
                 values["client"] = Llama(model_path, **model_params)
             except ImportError:

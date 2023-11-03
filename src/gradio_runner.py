@@ -60,7 +60,8 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
     get_prompt, model_names_curated
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi
+    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
+    get_ngpus_vis
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -1294,15 +1295,19 @@ def go_gradio(**kwargs):
                                                                        minimum=0, maximum=4, step=1,
                                                                        label="low_bit_mode",
                                                                        info="0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3")
-                                    with gr.Accordion("GPU", open=False, visible=True):
+                                    with gr.Accordion("GPU", open=False, visible=n_gpus != 0):
+                                        model_use_cpu_checkbox = gr.components.Checkbox(
+                                            label="Use CPU even if have GPUs",
+                                            value=False,
+                                            interactive=not is_public)
                                         model_use_gpu_id_checkbox = gr.components.Checkbox(
                                             label="Choose Devices [If not Checked, use all GPUs]",
-                                            value=kwargs['use_gpu_id'], interactive=not is_public,
-                                            visible=n_gpus != 0)
+                                            value=kwargs['use_gpu_id'],
+                                            interactive=not is_public)
                                         model_gpu = gr.Dropdown(n_gpus_list,
                                                                 label="GPU ID [-1 = all GPUs, if Choose is enabled]",
-                                                                value=kwargs['gpu_id'], interactive=not is_public,
-                                                                visible=n_gpus != 0)
+                                                                value=kwargs['gpu_id'],
+                                                                interactive=not is_public)
                                     with gr.Accordion("Add-ons", open=False, visible=True):
                                         model_attention_sinks = gr.components.Checkbox(
                                             label="Enable Attention Sinks [requires support]",
@@ -1428,14 +1433,19 @@ def go_gradio(**kwargs):
                                                                         # ok that same as Model 1
                                                                         minimum=0, maximum=4, step=1,
                                                                         label="low_bit_mode (Model 2)")
-                                    with gr.Accordion("GPU", open=False, visible=True):
+                                    with gr.Accordion("GPU", open=False, visible=n_gpus != 0):
+                                        model_use_cpu_checkbox2 = gr.components.Checkbox(
+                                            label="Use CPU even if have GPUs (Model 2)",
+                                            value=False,
+                                            interactive=not is_public)
                                         model_use_gpu_id_checkbox2 = gr.components.Checkbox(
                                             label="Choose Devices (Model 2) [If not Checked, use all GPUs]",
-                                            value=kwargs[
-                                                'use_gpu_id'], interactive=not is_public)
+                                            value=kwargs['use_gpu_id'],
+                                            interactive=not is_public)
                                         model_gpu2 = gr.Dropdown(n_gpus_list,
                                                                  label="GPU ID (Model 2) [-1 = all GPUs, if choose is enabled]",
-                                                                 value=kwargs['gpu_id'], interactive=not is_public)
+                                                                 value=kwargs['gpu_id'],
+                                                                 interactive=not is_public)
                                     with gr.Accordion("Add-ons", open=False, visible=True):
                                         model_attention_sinks2 = gr.components.Checkbox(
                                             label="Enable Attention Sinks [requires support] (Model 2)",
@@ -3921,6 +3931,7 @@ def go_gradio(**kwargs):
         def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
                        load_gptq, load_awq, load_exllama, use_safetensors, revision,
+                       use_cpu,
                        use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
@@ -4027,6 +4038,12 @@ def go_gradio(**kwargs):
             except:
                 print("Failed to use user input for rope_scaling dict", flush=True)
                 all_kwargs1['rope_scaling'] = {}
+            if use_cpu:
+                all_kwargs1['n_gpus'] = 0
+            elif use_gpu_id and all_kwargs1['gpu_id']:
+                all_kwargs1['n_gpus'] = 1
+            else:
+                all_kwargs1['n_gpus'] = get_ngpus_vis()
             model_lower0 = model_name0.strip().lower()
             model_lower = model_name.strip().lower()
             if model_lower0 in inv_prompt_type_to_model_lower:
@@ -4107,6 +4124,7 @@ def go_gradio(**kwargs):
                              model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                              model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                              model_safetensors_checkbox, model_revision,
+                             model_use_cpu_checkbox,
                              model_use_gpu_id_checkbox, model_gpu,
                              max_seq_len, rope_scaling,
                              model_path_llama, model_name_gptj, model_name_gpt4all_llama,
@@ -4147,6 +4165,7 @@ def go_gradio(**kwargs):
                               model_load8bit_checkbox2, model_load4bit_checkbox2, model_low_bit_mode2,
                               model_load_gptq2, model_load_awq2, model_load_exllama_checkbox2,
                               model_safetensors_checkbox2, model_revision2,
+                              model_use_cpu_checkbox2,
                               model_use_gpu_id_checkbox2, model_gpu2,
                               max_seq_len2, rope_scaling2,
                               model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,

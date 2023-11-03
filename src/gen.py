@@ -314,6 +314,7 @@ def main(
         max_chunks: int = 100,
         headsize: int = 50,
         n_jobs: int = -1,
+        n_gpus: int = None,
 
         # urls
         use_unstructured=True,
@@ -759,6 +760,7 @@ def main(
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
+    :param n_gpus: Number of GPUs for llama.cpp models
 
     :param use_unstructured: Enable unstructured URL loader
     :param use_playwright: Enable PlayWright URL loader
@@ -1755,6 +1757,7 @@ def get_model(
         lora_weights: str = "",
         gpu_id: int = 0,
         n_jobs=None,
+        n_gpus=None,
 
         reward_type: bool = None,
         local_files_only: bool = False,
@@ -1795,6 +1798,7 @@ def get_model(
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
     :param n_jobs: number of cores to use (e.g. for llama CPU model)
+    :param n_gpus: number of GPUs (-1 for all)
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
@@ -1938,7 +1942,9 @@ def get_model(
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
-        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs,
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model,
+                                                               n_jobs=n_jobs,
+                                                               n_gpus=n_gpus,
                                                                max_seq_len=max_seq_len,
                                                                llamacpp_dict=llamacpp_dict)
         return model, tokenizer, device

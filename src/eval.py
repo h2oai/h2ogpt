@@ -22,7 +22,7 @@ def run_eval(  # for local function:
         score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None,
         load_gptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
-        gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
+        gpu_id=None, n_jobs=None, n_gpus=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
         llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None, sink_dict=None, hf_model_dict=None,
         truncation_generation=None,

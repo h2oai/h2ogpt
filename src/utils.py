@@ -707,7 +707,7 @@ def cuda_vis_check(total_gpus):
 
 
 def get_ngpus_vis(raise_if_exception=True):
-    ngpus_vis1 = 0
+    ngpus_vis1 = None
 
     shell = False
     if shell:
@@ -730,6 +730,13 @@ def get_ngpus_vis(raise_if_exception=True):
         print('Failed get_ngpus_vis: %s' % str(e))
         if raise_if_exception:
             raise
+
+    if ngpus_vis1 is None:
+        import torch
+        if get_device() == 'cuda':
+            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available else 0
+        else:
+            ngpus_vis1 = 0
 
     ngpus_vis1, which_gpus = cuda_vis_check(ngpus_vis1)
     return ngpus_vis1
