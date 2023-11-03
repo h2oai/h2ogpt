@@ -1306,10 +1306,10 @@ def main(
 
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
+        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], from_ui=False, **locals()))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
+        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], from_ui=False, **locals()))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
