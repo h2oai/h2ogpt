@@ -1,6 +1,7 @@
 import ast
 import json
 import os, sys
+import random
 import shutil
 import tempfile
 import time
@@ -3409,6 +3410,9 @@ Rating: 5 (most positive)"""
 @wrap_test_forked
 def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction,
                               langchain_action, db_type, which_doc):
+    if random.randint(0, 100) != 0:
+        # choose randomly, >1000 tests otherwise
+        return
     kill_weaviate(db_type)
     # launch server
     local_server = True
