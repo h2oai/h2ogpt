@@ -1355,7 +1355,8 @@ def go_gradio(**kwargs):
                                                                 info="If standard LLaMa-2, choose up to 4096 (-1 means choose max of model)",
                                                                 label="max_seq_len")
                                         max_seq_len_used = gr.Number(value=-1,
-                                                                     label="Current Max. Seq. Length", interactive=False)
+                                                                     label="Current Max. Seq. Length",
+                                                                     interactive=False)
                                         rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
                                                                   label="rope_scaling",
                                                                   info="Not required if in config.json.  E.g. {'type':'linear', 'factor':4} for HF and {'alpha_value':4} for exllama")
@@ -1575,31 +1576,34 @@ def go_gradio(**kwargs):
                             pass
                     system_row = gr.Row(visible=system_visible0)
                     with system_row:
-                        with gr.Column():
-                            with gr.Row():
-                                system_btn = gr.Button(value='Get System Info', size='sm')
-                                system_text = gr.Textbox(label='System Info', interactive=False, show_copy_button=True)
-                            with gr.Row():
-                                system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
-                                                          visible=not is_public)
-                                system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public, size='sm')
-                                system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
-                                                          visible=not is_public, show_copy_button=True)
-                            with gr.Row():
-                                system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
-                                system_text3 = gr.Textbox(label='Hash', interactive=False,
-                                                          visible=not is_public, show_copy_button=True)
-                                system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
-                                system_text4 = gr.Textbox(label='Model Names', interactive=False,
-                                                          visible=not is_public, show_copy_button=True)
+                        with gr.Accordion("Admin", open=False, visible=True):
+                            with gr.Column():
+                                with gr.Row():
+                                    system_btn = gr.Button(value='Get System Info', size='sm')
+                                    system_text = gr.Textbox(label='System Info', interactive=False,
+                                                             show_copy_button=True)
+                                with gr.Row():
+                                    system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
+                                                              visible=not is_public)
+                                    system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public,
+                                                            size='sm')
+                                    system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
+                                                              visible=not is_public, show_copy_button=True)
+                                with gr.Row():
+                                    system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
+                                    system_text3 = gr.Textbox(label='Hash', interactive=False,
+                                                              visible=not is_public, show_copy_button=True)
+                                    system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
+                                    system_text4 = gr.Textbox(label='Model Names', interactive=False,
+                                                              visible=not is_public, show_copy_button=True)
 
-                            with gr.Row():
-                                zip_btn = gr.Button("Zip", size='sm')
-                                zip_text = gr.Textbox(label="Zip file name", interactive=False)
-                                file_output = gr.File(interactive=False, label="Zip file to Download")
-                            with gr.Row():
-                                s3up_btn = gr.Button("S3UP", size='sm')
-                                s3up_text = gr.Textbox(label='S3UP result', interactive=False)
+                                with gr.Row():
+                                    zip_btn = gr.Button("Zip", size='sm')
+                                    zip_text = gr.Textbox(label="Zip file name", interactive=False)
+                                    file_output = gr.File(interactive=False, label="Zip file to Download")
+                                with gr.Row():
+                                    s3up_btn = gr.Button("S3UP", size='sm')
+                                    s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
                 tos_tab = gr.TabItem("Terms of Service") \
                     if kwargs['visible_tos_tab'] else gr.Row(visible=False)
@@ -4145,8 +4149,10 @@ def go_gradio(**kwargs):
         unload_model_args = dict(fn=functools.partial(load_model, unload=True),
                                  inputs=load_model_inputs, outputs=load_model_outputs)
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used, model_path_llama], outputs=text_output)
-        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used, model_path_llama2], outputs=text_output_nochat)
+        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used, model_path_llama],
+                                   outputs=text_output)
+        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used, model_path_llama],
+                                  outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
                                                    api_name='load_model' if allow_api and not is_public else None) \
             .then(**prompt_update_args) \
@@ -4186,7 +4192,8 @@ def go_gradio(**kwargs):
         unload_model_args2 = dict(fn=functools.partial(load_model, unload=True),
                                   inputs=load_model_inputs2, outputs=load_model_outputs2)
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
-        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
+        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2, model_path_llama2],
+                                    outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
                                                      api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
