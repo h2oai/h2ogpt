@@ -2265,8 +2265,10 @@ def get_hf_model(load_8bit: bool = False,
                     if not getattr(model, "is_quantized", False):
                         model = model.half()
 
+    # for LlamaAWQForCausalLM
+    # https://github.com/casper-hansen/AutoAWQ/issues/107
     # unwind broken decapoda-research config
-    if llama_type:
+    if llama_type and hasattr(model, 'config'):
         model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
         model.config.bos_token_id = 1
         model.config.eos_token_id = 2
@@ -2276,7 +2278,7 @@ def get_hf_model(load_8bit: bool = False,
                                       'eos_token': '<eos>',
                                       'pad_token': '<pad>'})
 
-    if not isinstance(tokenizer, str):
+    if not isinstance(tokenizer, str) and hasattr(model, 'eval'):
         model.eval()
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
