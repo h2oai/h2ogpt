@@ -4096,8 +4096,12 @@ def go_gradio(**kwargs):
         def dropdown_prompt_type_list(x):
             return gr.Dropdown(value=x)
 
-        def chatbot_list(x, model_used_in):
-            return gr.Textbox(label=f'h2oGPT [Model: {model_used_in}]')
+        def chatbot_list(x, model_used_in, model_path_llama_in):
+            if model_used_in == 'llama':
+                model_path_llama_in = os.path.basename(model_path_llama_in)
+                return gr.Textbox(label=f'h2oGPT [Model: {model_path_llama_in}]')
+            else:
+                return gr.Textbox(label=f'h2oGPT [Model: {model_used_in}]')
 
         load_model_inputs = [model_choice, lora_choice, server_choice, model_state, prompt_type,
                              model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
@@ -4123,8 +4127,8 @@ def go_gradio(**kwargs):
         unload_model_args = dict(fn=functools.partial(load_model, unload=True),
                                  inputs=load_model_inputs, outputs=load_model_outputs)
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
-        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
+        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used, model_path_llama], outputs=text_output)
+        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used, model_path_llama2], outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
                                                    api_name='load_model' if allow_api and not is_public else None) \
             .then(**prompt_update_args) \
