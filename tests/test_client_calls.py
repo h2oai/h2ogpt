@@ -2602,11 +2602,13 @@ def test_client_load_unload_models(model_choice):
 
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("stream_output", [True, False])
-@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated)
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated + ['zephyr-7b-beta.Q5_K_M.gguf'])
 @wrap_test_forked
 def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:
         return
+    if base_model == 'zephyr-7b-beta.Q5_K_M.gguf' and not os.path.isfile('zephyr-7b-beta.Q5_K_M.gguf'):
+        download_simple('https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf')
 
     stream_output = True
     from src.gen import main
