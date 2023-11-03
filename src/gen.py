@@ -51,7 +51,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, url_alive
 
 start_faulthandler()
 import_matplotlib()
@@ -70,6 +70,28 @@ from stopping import get_stopping
 langchain_actions = [x.value for x in list(LangChainAction)]
 
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
+
+
+def switch_a_roo_llama(base_model, model_path_llama):
+    is_gguf = 'GGUF'.lower() in base_model.lower()
+    is_ggml = 'GGML'.lower() in base_model.lower()
+    postfix = '-GGUF' if is_gguf else '-GGML'
+    file_postfix = postfix.lower().replace('-', '.')
+    model_split = base_model.split('TheBloke/')
+    if 'TheBloke'.lower() in base_model.lower() and (is_gguf or is_ggml) and len(model_split) == 2:
+        # auto-switch-a-roo to support GGUF/GGML put into base model in UI
+        just_model_split = model_split[1].split(postfix)
+        if postfix.lower() in base_model.lower() and \
+                file_postfix not in base_model and \
+                len(just_model_split) == 2:
+            just_model = just_model_split[0]
+            lower_model = just_model.lower()
+            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M.gguf' % (base_model, lower_model)
+            if url_alive(base_model0):
+                base_model = base_model0
+        model_path_llama = base_model
+        base_model = 'llama'
+    return base_model, model_path_llama
 
 
 def main(
@@ -210,6 +232,7 @@ def main(
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
+        visible_all_prompter_models: bool = False,
         max_raw_chunks: int = None,
 
         sanitize_user_prompt: bool = False,
@@ -335,8 +358,8 @@ def main(
            If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
-    :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
-    :param load_awq: load model with AWQ, often 'model' for TheBloke models
+    :param load_gptq: to load model with GPTQ, put model_basename here, e.g. 'model' for TheBloke models
+    :param load_awq: load model with AWQ, e.g. 'model' for TheBloke models
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
     :param revision: Which HF revision to use
@@ -610,6 +633,7 @@ def main(
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
+    :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
@@ -800,6 +824,10 @@ def main(
 
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
+
+    # switch-a-roo on base_model so can pass GGUF/GGML as base model
+    base_model0 = base_model
+    base_model, model_path_llama = switch_a_roo_llama(base_model, model_path_llama)
 
     llamacpp_dict = str_to_dict(llamacpp_dict)
     # add others to single dict
@@ -1324,13 +1352,22 @@ def main(
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
+                model_path_llama1 = model_dict.get('model_path_llama', '').lower()
+                model_lower10 = model_lower1
+                model_lower1, model_path_llama = switch_a_roo_llama(model_lower1, model_path_llama1)
+
+                get_prompt_kwargs = dict(chat=False, context='', reduced=False,
+                                         making_context=False,
+                                         return_dict=True,
+                                         system_prompt=system_prompt)
                 if model_lower1 in inv_prompt_type_to_model_lower:
                     model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
-                                                                   chat=False, context='', reduced=False,
-                                                                   making_context=False,
-                                                                   return_dict=True,
-                                                                   system_prompt=system_prompt)
+                                                                   **get_prompt_kwargs)
+                elif model_lower10 in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
+                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
+                                                                   **get_prompt_kwargs)
                 else:
                     model_dict['prompt_dict'] = prompt_dict
             else:
@@ -1596,11 +1633,10 @@ def get_non_lora_model(base_model, model_loader, load_half,
     elif load_gptq:
         model_kwargs.pop('torch_dtype', None)
         model_kwargs.pop('device_map')
-        model = model_loader(
-            model_name_or_path=base_model,
-            model_basename=load_gptq,
-            **model_kwargs,
-        )
+        loader_kwargs = dict(model_name_or_path=base_model,
+                             model_basename=load_gptq,
+                             **model_kwargs)
+        model = model_loader(**loader_kwargs)
     elif load_awq:
         allowed_dict = dict(max_new_tokens=None,
                             trust_remote_code=True, fuse_layers=True,
@@ -2540,6 +2576,7 @@ def evaluate(
         chat_conversation = []
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
+    # This doesn't do switch-a-roo, assume already done
     model_lower = base_model.lower()
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
