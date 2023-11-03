@@ -25,11 +25,34 @@ async def test_text_completion(client):
     print(response)
 
 
+@pytest.mark.asyncio
+async def test_text_completion_stream(client):
+    text_completion = _create_text_completion(client)
+    response = await text_completion.complete(
+        prompt="Write a poem about the Amazon rainforest. End it with an emoji.",
+        enable_streaming=True,
+    )
+    async for token in response:
+        assert token
+        print(token, end="")
+
+
 def test_text_completion_sync(client):
     text_completion = _create_text_completion(client)
     response = text_completion.complete_sync(prompt="Hello world")
     assert response
     print(response)
+
+
+def test_text_completion_sync_stream(client):
+    text_completion = _create_text_completion(client)
+    response = text_completion.complete_sync(
+        prompt="Write a poem about the Amazon rainforest. End it with an emoji.",
+        enable_streaming=True,
+    )
+    for token in response:
+        assert token
+        print(token, end="")
 
 
 def _create_chat_completion(client):
