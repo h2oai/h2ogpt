@@ -13,19 +13,13 @@ conda install python=3.8 -y
 
 ## Download Client Wheel
 
-Download the latest nightly wheel from [here](https://github.com/h2oai/h2ogpt/releases).
+Install the latest nightly wheel from S3.
 
 ```bash
-pip install h2ogpt_client-0.1.0-py3-none-any.whl
+pip install https://s3.amazonaws.com/artifacts.h2o.ai/snapshots/ai/h2o/h2ogpt_client/latest-nightly/h2ogpt_client-0.1.0-py3-none-any.whl
 ```
-OR
 
-Download a specific nightly release from S3.
-
-e.g. Oct 31 release:
-```bash
-pip install https://s3.amazonaws.com/artifacts.h2o.ai/snapshots/ai/h2o/h2ogpt_client/0.1.0_2023-10-31/h2ogpt_client-0.1.0-py3-none-any.whl
-```
+Nightly releases can also be found [here](https://github.com/h2oai/h2ogpt/releases)
 
 ## Build Client Wheel
 
