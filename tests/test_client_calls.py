@@ -2771,7 +2771,7 @@ def test_client_timeout(stream_output, max_time):
     sources = [x['source'] for x in res_dict['sources']]
     # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
     # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'whisper1.pdf' in sources[0]
 
 
 # pip install pytest-timeout
