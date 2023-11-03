@@ -6,19 +6,27 @@ from langchain.schema.output import GenerationChunk
 from pydantic import root_validator
 from langchain.llms import gpt4all
 
-from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple
+from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 
 
 def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llamacpp_dict=None):
     assert llamacpp_dict is not None
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
-    model, tokenizer = get_llm_gpt4all(model_name, model=None,
-                                       n_jobs=n_jobs,
-                                       inner_class=True,
-                                       max_seq_len=max_seq_len,
-                                       llamacpp_dict=llamacpp_dict,
-                                       )
+    llama_kwargs = dict(model_name=model_name,
+                        model=None,
+                        n_jobs=n_jobs,
+                        inner_class=True,
+                        max_seq_len=max_seq_len,
+                        llamacpp_dict=llamacpp_dict)
+    model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
+    if redo:
+        del model
+        del tokenizer
+        clear_torch_cache()
+        # auto max_seq_len
+        llama_kwargs.update(dict(max_seq_len=max_seq_len))
+        model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
     return model, tokenizer, 'cpu'
 
 
@@ -70,9 +78,10 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
     n_gpus = get_ngpus_vis()
+    max_seq_len_local = max_seq_len if max_seq_len is not None else 2048  # fake for auto mode
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
-                          max_tokens=max_seq_len - max_new_tokens,
+                          max_tokens=max_seq_len_local - max_new_tokens,
                           n_predict=max_new_tokens,
                           repeat_last_n=64 if repetition_penalty != 1.0 else 0,
                           repeat_penalty=repetition_penalty,
@@ -81,7 +90,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           top_k=top_k,
                           top_p=top_p,
                           use_mlock=True,
-                          n_ctx=max_seq_len,
+                          n_ctx=max_seq_len_local,
                           n_threads=n_jobs,
                           verbose=verbose)
     if n_gpus != 0:
@@ -89,7 +98,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
     return default_kwargs
 
 
-def get_llm_gpt4all(model_name,
+def get_llm_gpt4all(model_name=None,
                     model=None,
                     max_new_tokens=256,
                     temperature=0.1,
@@ -107,6 +116,7 @@ def get_llm_gpt4all(model_name,
                     max_seq_len=None,
                     llamacpp_dict=None,
                     ):
+    redo = False
     if not inner_class:
         assert prompter is not None
 
@@ -150,6 +160,12 @@ def get_llm_gpt4all(model_name,
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
         inner_model = llm.client
+
+        if max_seq_len is None:
+            redo = True
+            max_seq_len = llm.client.n_embd()
+            print("Auto-detected LLaMa n_ctx=%s, will unload then reload with this setting." % max_seq_len)
+
         # with multiple GPUs, something goes wrong unless generation occurs early before other imports
         # CUDA error 704 at /tmp/pip-install-khkugdmy/llama-cpp-python_8c0a9782b7604a5aaf95ec79856eac97/vendor/llama.cpp/ggml-cuda.cu:6408: peer access is already enabled
         inner_model("Say exactly one word", max_tokens=1)
@@ -202,7 +218,7 @@ def get_llm_gpt4all(model_name,
     else:
         raise RuntimeError("No such model_name %s" % model_name)
     if inner_class:
-        return inner_model, inner_tokenizer
+        return inner_model, inner_tokenizer, redo, max_seq_len
     else:
         return llm
 

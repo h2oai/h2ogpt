@@ -1631,7 +1631,7 @@ def get_llm(use_openai_model=False,
             prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
-        llm = get_llm_gpt4all(model_name,
+        llm = get_llm_gpt4all(model_name=model_name,
                               model=model,
                               max_new_tokens=max_new_tokens,
                               temperature=temperature,

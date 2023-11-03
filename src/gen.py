@@ -1828,7 +1828,11 @@ def get_model(
                          revision=revision,
                          max_seq_len=max_seq_len,
                          verbose=verbose)
-    config, _, max_seq_len = get_config(base_model, **config_kwargs, raise_exception=False)
+    if base_model == 'llama':
+        # in case max_seq_len = None, try to auto-set
+        config = None
+    else:
+        config, _, max_seq_len = get_config(base_model, **config_kwargs, raise_exception=False)
 
     if base_model in non_hf_types:
         assert config is None, "Expected config None for %s" % base_model
