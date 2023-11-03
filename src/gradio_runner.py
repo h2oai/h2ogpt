@@ -1265,7 +1265,8 @@ def go_gradio(**kwargs):
                                                                        label="Choose/Enter Base Model",
                                                                        value=kwargs['base_model'],
                                                                        allow_custom_value=not is_public)
-                                            lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose/Enter LORA",
+                                            lora_choice = gr.Dropdown(lora_options_state.value[0],
+                                                                      label="Choose/Enter LORA",
                                                                       value=kwargs['lora_weights'],
                                                                       visible=kwargs['show_lora'],
                                                                       allow_custom_value=not is_public)
@@ -3939,11 +3940,14 @@ def go_gradio(**kwargs):
                                                                       queue=False,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
 
-        def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
+        def load_model(model_name, lora_weights, server_name,
+                       model_state_old,
+                       prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
                        load_gptq, load_awq, load_exllama, use_safetensors, revision,
                        use_cpu,
-                       use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
+                       use_gpu_id, gpu_id,
+                       max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
                        system_prompt1,

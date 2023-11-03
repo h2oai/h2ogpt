@@ -13,6 +13,7 @@ from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
     db_types_full
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer
+from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
 
 
 @wrap_test_forked
@@ -2477,8 +2478,11 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
 
 
 @pytest.mark.need_tokens
+@pytest.mark.parametrize("model_choice", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated)
 @wrap_test_forked
-def test_client_load_unload_models():
+def test_client_load_unload_models(model_choice):
+    if model_choice in model_names_curated_big:
+        return
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -2502,9 +2506,8 @@ def test_client_load_unload_models():
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
 
-    model_choice = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     lora_choice = ''
-    server_choice = ''
+    server_choice = '' if model_choice not in openai_gpts else 'openai_chat'
     # model_state
     prompt_type = ''
     model_load8bit_checkbox = False
@@ -2516,11 +2519,11 @@ def test_client_load_unload_models():
     model_safetensors_checkbox = False
     model_revision = ''
     model_use_gpu_id_checkbox = True
-    model_gpu = 0
-    max_seq_len = 2048
+    model_gpu_id = 0
+    max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
-    model_path_llama = ''
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
     model_name_gptj = ''
     model_name_gpt4all_llama = ''
     n_gpu_layers = 100
@@ -2528,33 +2531,68 @@ def test_client_load_unload_models():
     n_gqa = 0  # llama2 needs 8
     llamacpp_dict_more = '{}'
     system_prompt = None
+    model_cpu = False
+    exllama_dict = "{}"
+    gptq_dict = "{}"
+    attention_sinks = False
+    sink_dict = "{}"
+    truncation_generation = False
+    hf_model_dict = "{}"
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
                  model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                  model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                  model_safetensors_checkbox, model_revision,
-                 model_use_gpu_id_checkbox, model_gpu,
+                 model_cpu,
+                 model_use_gpu_id_checkbox, model_gpu_id,
                  max_seq_len, rope_scaling,
                  model_path_llama, model_name_gptj, model_name_gpt4all_llama,
                  n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
-                 system_prompt]
+                 system_prompt,
+                 exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                 ]
     res = client.predict(*tuple(args_list), api_name='/load_model')
-    res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 1024},
-                    {'__type__': 'update', 'maximum': 1024})
+    model_choice_ex = model_choice
+    if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        prompt_type_ex = 'human_bot'
+        max_seq_len_ex = 2048.0
+    elif model_choice in ['llama', 'TheBloke/Llama-2-7B-Chat-GGUF']:
+        prompt_type_ex = 'llama2'
+        model_choice_ex = 'llama'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
+        prompt_type_ex = 'zephyr'
+        model_choice_ex = 'llama'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
+                          'TheBloke/zephyr-7B-beta-AWQ']:
+        prompt_type_ex = 'zephyr'
+        max_seq_len_ex = 32768.0
+    elif model_choice in ['TheBloke/Xwin-LM-13B-V0.1-GPTQ']:
+        prompt_type_ex = 'xwin'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['gpt-3.5-turbo']:
+        prompt_type_ex = 'openai_chat'
+        max_seq_len_ex = 4046.0
+    else:
+        raise ValueError("No such model_choice=%s" % model_choice)
+    res_expected = (
+    model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex, {'__type__': 'update', 'maximum': 1024},
+    {'__type__': 'update', 'maximum': 1024})
     assert res == res_expected
-    model_used, lora_used, server_used, prompt_type, max_new_tokens, min_new_tokens = res_expected
+    model_used, lora_used, server_used, prompt_type, max_seq_len1new, max_new_tokens, min_new_tokens = res_expected
 
     prompt = "Who are you?"
     kwargs = dict(stream_output=stream_output, instruction=prompt)
     res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
-    assert 'What do you want to be?' in response
+    assert response
 
-    # unload
+    # unload (could use unload api)
     args_list[0] = no_model_str
     res = client.predict(*tuple(args_list), api_name='/load_model')
-    res_expected = (no_model_str, no_lora_str, no_server_str, '', {'__type__': 'update', 'maximum': 256},
+    res_expected = (no_model_str, no_lora_str, no_server_str, '', -1.0, {'__type__': 'update', 'maximum': 256},
                     {'__type__': 'update', 'maximum': 256})
     assert res == res_expected
 

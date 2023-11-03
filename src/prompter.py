@@ -137,9 +137,15 @@ prompt_type_to_model_name = {
     "aquila_v1": ['BAAI/AquilaChat2-7B'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
-model_names_curated = ['llama', 'HuggingFaceH4/zephyr-7b-beta', 'Yukang/LongAlpaca-70B', 'lmsys/vicuna-13b-v1.5-16k',
-                       'h2oai/h2ogpt-32k-codellama-34b-instruct', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ',
-                       'TheBloke/Llama-2-7B-Chat-GGUF', 'TheBloke/zephyr-7B-beta-GGUF', 'TheBloke/zephyr-7B-beta-AWQ']
+model_names_curated_big = ['Yukang/LongAlpaca-70B',
+                           'lmsys/vicuna-13b-v1.5-16k',
+                           'h2oai/h2ogpt-32k-codellama-34b-instruct']
+model_names_curated = ['llama',
+                       'TheBloke/Xwin-LM-13B-V0.1-GPTQ',
+                       'TheBloke/Llama-2-7B-Chat-GGUF',
+                       'HuggingFaceH4/zephyr-7b-beta',
+                       'TheBloke/zephyr-7B-beta-GGUF',
+                       'TheBloke/zephyr-7B-beta-AWQ'] + model_names_curated_big
 openai_gpts = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k",
                "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
                "gpt-4", "gpt-4-32k",
