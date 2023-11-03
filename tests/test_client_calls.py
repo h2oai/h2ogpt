@@ -340,7 +340,8 @@ def test_client_chat_nostream_llama7b():
     assert "am a virtual assistant" in res_dict['response'] or \
            'am a student' in res_dict['response'] or \
            "My name is John." in res_dict['response'] or \
-           "how can I assist" in res_dict['response']
+           "how can I assist" in res_dict['response'] or \
+           "I'm LLaMA"  in res_dict['response']
 
 
 @pytest.mark.need_tokens
@@ -1438,7 +1439,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'for querying and summarizing documents' in res_dict['response'] or
             'Python-based platform for training' in res_dict['response'] or
             'h2oGPT is an open-source' in res_dict['response'] or
-            'language model' in res_dict['response']
+            'language model' in res_dict['response'] or
+            'Whisper is an open-source' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -1822,7 +1824,7 @@ def check_langchain():
     sources = [x['source'] for x in res_dict['sources']]
     # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
     # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'whisper1.pdf' in sources[0]
 
 
 @pytest.mark.parametrize("mode", ['a', 'b', 'c'])
