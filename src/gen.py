@@ -234,6 +234,7 @@ def main(
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
         visible_all_prompter_models: bool = False,
+        enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
 
         sanitize_user_prompt: bool = False,
@@ -1956,6 +1957,7 @@ def get_model(
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model,
                                                                n_jobs=n_jobs,
+                                                               gpu_id=gpu_id,
                                                                n_gpus=n_gpus,
                                                                max_seq_len=max_seq_len,
                                                                llamacpp_dict=llamacpp_dict)
@@ -2310,6 +2312,7 @@ def get_score_model(score_model: str = None,
                     lora_weights: str = "",
                     gpu_id: int = 0,
                     n_jobs=None,
+                    n_gpus=None,
 
                     reward_type: bool = None,
                     local_files_only: bool = False,

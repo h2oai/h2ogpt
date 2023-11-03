@@ -9,7 +9,10 @@ from langchain.llms import gpt4all
 from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 
 
-def get_model_tokenizer_gpt4all(base_model, n_jobs=None, n_gpus=None, max_seq_len=None, llamacpp_dict=None):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=None, max_seq_len=None, llamacpp_dict=None):
+    cvd = os.getenv('CUDA_VISIBLE_DEVICES')
+    if gpu_id is not None and gpu_id != -1:
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
     assert llamacpp_dict is not None
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
@@ -17,6 +20,7 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, n_gpus=None, max_seq_le
                         model=None,
                         n_jobs=n_jobs,
                         n_gpus=n_gpus,
+                        main_gpu=gpu_id if gpu_id not in [None, -1, '-1'] else 0,
                         inner_class=True,
                         max_seq_len=max_seq_len,
                         llamacpp_dict=llamacpp_dict)
@@ -28,6 +32,10 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, n_gpus=None, max_seq_le
         # auto max_seq_len
         llama_kwargs.update(dict(max_seq_len=max_seq_len))
         model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
+    if cvd is not None:
+        os.environ['CUDA_VISIBLE_DEVICES'] = cvd
+    else:
+        os.environ.pop('CUDA_VISIBLE_DEVICES', None)
     return model, tokenizer, 'cpu' if n_gpus != 0 else 'cuda'
 
 
@@ -74,6 +82,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                n_jobs=None,
                                verbose=False,
                                max_seq_len=None,
+                               main_gpu=0,
                                ):
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -93,6 +102,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           use_mlock=True,
                           n_ctx=max_seq_len_local,
                           n_threads=n_jobs,
+                          main_gpu=main_gpu,
                           verbose=verbose)
     if n_gpus != 0:
         default_kwargs.update(dict(n_gpu_layers=100, f16_kv=True))
@@ -113,6 +123,7 @@ def get_llm_gpt4all(model_name=None,
                     iinput='',
                     n_jobs=None,
                     n_gpus=None,
+                    main_gpu=0,
                     verbose=False,
                     inner_class=False,
                     max_seq_len=None,
@@ -131,6 +142,7 @@ def get_llm_gpt4all(model_name=None,
                                    n_jobs=n_jobs,
                                    verbose=verbose,
                                    max_seq_len=max_seq_len,
+                                   main_gpu=main_gpu,
                                    )
     if model_name == 'llama':
         # FIXME: streaming not thread safe due to:

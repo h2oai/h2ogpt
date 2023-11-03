@@ -225,10 +225,8 @@ def go_gradio(**kwargs):
 
     if kwargs['visible_all_prompter_models']:
         model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
-        curated_string = ""
     else:
         model_options0 = model_names_curated + kwargs['extra_model_options']
-        curated_string = " (curated list, e.g. llama for llama.cpp)"
 
     if kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
@@ -1264,15 +1262,18 @@ def go_gradio(**kwargs):
                                     with gr.Row():
                                         with gr.Column():
                                             model_choice = gr.Dropdown(model_options_state.value[0],
-                                                                       label="Choose Base Model%s" % curated_string,
-                                                                       value=kwargs['base_model'])
-                                            lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
+                                                                       label="Choose/Enter Base Model",
+                                                                       value=kwargs['base_model'],
+                                                                       allow_custom_value=not is_public)
+                                            lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose/Enter LORA",
                                                                       value=kwargs['lora_weights'],
-                                                                      visible=kwargs['show_lora'])
+                                                                      visible=kwargs['show_lora'],
+                                                                      allow_custom_value=not is_public)
                                             server_choice = gr.Dropdown(server_options_state.value[0],
-                                                                        label="Choose Server",
+                                                                        label="Choose/Enter Server",
                                                                         value=kwargs['inference_server'],
-                                                                        visible=not is_public)
+                                                                        visible=not is_public,
+                                                                        allow_custom_value=not is_public)
                                         with gr.Column():
                                             model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
                                                                     interactive=False)
@@ -1304,8 +1305,10 @@ def go_gradio(**kwargs):
                                             label="Choose Devices [If not Checked, use all GPUs]",
                                             value=kwargs['use_gpu_id'],
                                             interactive=not is_public)
+                                        llama_multi_gpu_info = "LLaMa.cpp does not support multi-GPU GPU selection, run h2oGPT with env CUDA_VISIBLE_DEVICES set to which GPU to use, else all are used."
                                         model_gpu = gr.Dropdown(n_gpus_list,
                                                                 label="GPU ID [-1 = all GPUs, if Choose is enabled]",
+                                                                info=llama_multi_gpu_info,
                                                                 value=kwargs['gpu_id'],
                                                                 interactive=not is_public)
                                     with gr.Accordion("Add-ons", open=False, visible=True):
@@ -1347,7 +1350,7 @@ def go_gradio(**kwargs):
                                         prompt_dict = gr.Textbox(label="Current Prompt (or Custom)",
                                                                  value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                                  interactive=not is_public, lines=6)
-                                    with gr.Accordion("Context Length", open=False, visible=True):
+                                    with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len = gr.Number(value=kwargs['max_seq_len'] or -1,
                                                                 minimum=-1,
                                                                 maximum=2 ** 18,
@@ -1402,16 +1405,19 @@ def go_gradio(**kwargs):
                                     with gr.Row():
                                         with gr.Column():
                                             model_choice2 = gr.Dropdown(model_options_state.value[0],
-                                                                        label="Choose Model 2",
-                                                                        value=no_model_str)
+                                                                        label="Choose/Enter Model 2",
+                                                                        value=no_model_str,
+                                                                        allow_custom_value=not is_public)
                                             lora_choice2 = gr.Dropdown(lora_options_state.value[0],
-                                                                       label="Choose LORA 2",
+                                                                       label="Choose/Enter LORA 2",
                                                                        value=no_lora_str,
-                                                                       visible=kwargs['show_lora'])
+                                                                       visible=kwargs['show_lora'],
+                                                                       allow_custom_value=not is_public)
                                             server_choice2 = gr.Dropdown(server_options_state.value[0],
-                                                                         label="Choose Server 2",
+                                                                         label="Choose/Enter Server 2",
                                                                          value=no_server_str,
-                                                                         visible=not is_public)
+                                                                         visible=not is_public,
+                                                                         allow_custom_value=not is_public)
                                         with gr.Column():
                                             # no model/lora loaded ever in model2 by default
                                             model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str,
@@ -1445,6 +1451,7 @@ def go_gradio(**kwargs):
                                             interactive=not is_public)
                                         model_gpu2 = gr.Dropdown(n_gpus_list,
                                                                  label="GPU ID (Model 2) [-1 = all GPUs, if choose is enabled]",
+                                                                 info=llama_multi_gpu_info,
                                                                  value=kwargs['gpu_id'],
                                                                  interactive=not is_public)
                                     with gr.Accordion("Add-ons", open=False, visible=True):
@@ -1482,7 +1489,7 @@ def go_gradio(**kwargs):
                                         prompt_dict2 = gr.Textbox(label="Current Prompt (or Custom) (Model 2)",
                                                                   value=pprint.pformat(kwargs['prompt_dict'], indent=4),
                                                                   interactive=not is_public, lines=4)
-                                    with gr.Accordion("Context Length", open=False, visible=True):
+                                    with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len2 = gr.Number(value=kwargs['max_seq_len'] or -1,
                                                                  minimum=-1,
                                                                  maximum=2 ** 18,
@@ -1528,7 +1535,7 @@ def go_gradio(**kwargs):
                     compare_checkbox = gr.components.Checkbox(label="Compare Two Models",
                                                               value=kwargs['model_lock'],
                                                               visible=not is_public and not kwargs['model_lock'])
-                    with gr.Row(visible=not kwargs['model_lock']):
+                    with gr.Row(visible=not kwargs['model_lock'] and kwargs['enable_add_models_to_list_ui']):
                         with gr.Column(scale=50):
                             new_model = gr.Textbox(label="New Model name/path/URL", interactive=not is_public)
                         with gr.Column(scale=50):
