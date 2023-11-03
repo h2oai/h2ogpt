@@ -46,7 +46,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
-    max_top_k_docs_public, max_top_k_docs_default
+    max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
+    max_input_tokens_public_api
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -2364,6 +2365,7 @@ def evaluate(
         memory_restriction_level=None,
         max_max_new_tokens=None,
         is_public=None,
+        from_ui=True,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
         lora_weights=None,
@@ -2585,13 +2587,19 @@ def evaluate(
     max_time = min(max(0, max_time), max_max_time)
     repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
     num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
-    min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, from_ui)
     # limit total tokens processed, e.g. for summarization, if public instance
     if is_public:
         # control API too for public case
-        if max_total_input_tokens in [-1, None]:
-            max_total_input_tokens = max_total_input_tokens_public
-        max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public)
+        if from_ui:
+            max_input_tokens = max_input_tokens_public
+        else:
+            max_input_tokens = max_input_tokens_public_api
+
+        if from_ui:
+            max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public)
+        else:
+            max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public_api)
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
@@ -3921,11 +3929,14 @@ def get_max_max_new_tokens(model_state, **kwargs):
         return 2048
 
 
-def get_minmax_top_k_docs(is_public):
+def get_minmax_top_k_docs(is_public, from_ui):
     label_top_k_docs = "Number of document chunks (query) or pages/parts (summarize)"
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = max_top_k_docs_public
+        if from_ui:
+            max_top_k_docs = max_top_k_docs_public
+        else:
+            max_top_k_docs = max_top_k_docs_public_api
     else:
         min_top_k_docs = -1
         max_top_k_docs = 1000

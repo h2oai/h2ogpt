@@ -55,7 +55,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
-    auto_choices, max_docs_public, max_chunks_per_doc_public
+    auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
 from prompter import non_hf_types, PromptType, Prompter
@@ -2023,6 +2023,7 @@ def file_to_doc(file,
                 selected_file_types=None,
 
                 is_public=False,
+                from_ui=True,
                 ):
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
@@ -2072,6 +2073,7 @@ def file_to_doc(file,
                                           db_type=db_type,
 
                                           is_public=is_public,
+                                          from_ui=from_ui,
                                           )
 
     if file is None:
@@ -2629,6 +2631,7 @@ def file_to_doc(file,
                            selected_file_types=selected_file_types,
 
                            is_public=is_public,
+                           from_ui=from_ui,
                            )
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
@@ -2650,8 +2653,11 @@ def file_to_doc(file,
         [doci.metadata.update(source=orig_url) for doci in doc1]
 
     if is_public:
-        if len(docs) > max_chunks_per_doc_public:
-            raise ValueError("Public instance only allows up to %s chunks per document." % max_chunks_per_doc_public)
+        if len(docs) > max_chunks_per_doc_public and from_ui or \
+                len(docs) > max_chunks_per_doc_public_api and not from_ui:
+            raise ValueError("Public instance only allows up to"
+                             " %s (%s from API) chunks "
+                             "per document." % (max_chunks_per_doc_public, max_chunks_per_doc_public_api))
 
     return docs
 
@@ -2691,6 +2697,7 @@ def path_to_doc1(file,
                  selected_file_types=None,
 
                  is_public=False,
+                 from_ui=True,
                  ):
     assert db_type is not None
     if verbose:
@@ -2736,7 +2743,9 @@ def path_to_doc1(file,
 
                           db_type=db_type,
                           selected_file_types=selected_file_types,
-                          is_public=is_public)
+                          is_public=is_public,
+                          from_ui=from_ui,
+                          )
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -2802,6 +2811,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  selected_file_types=None,
 
                  is_public=False,
+                 from_ui=True,
                  ):
     if verbose:
         print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
@@ -2928,12 +2938,16 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   selected_file_types=selected_file_types,
 
                   is_public=is_public,
+                  from_ui=from_ui,
                   )
 
     if is_public:
-        if len(globs_non_image_types) + len(globs_image_types) > max_docs_public:
+        n_docs = len(globs_non_image_types) + len(globs_image_types)
+        if n_docs > max_docs_public and from_ui or \
+                n_docs > max_docs_public_api and not from_ui:
             raise ValueError(
-                "Public instance only allows up to %d documents (including in zip) updated at a time." % max_docs_public)
+                "Public instance only allows up to %d documents "
+                "(including in zip) (%d for API) updated at a time." % (max_docs_public, max_docs_public_api))
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
@@ -3556,7 +3570,9 @@ def _make_db(use_openai_embedding=False,
                                 existing_files=existing_files, existing_hash_ids=existing_hash_ids,
                                 db_type=db_type,
 
-                                is_public=False)
+                                is_public=False,
+                                from_ui=True,
+                                )
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
             if os.getenv('NO_NEW_FILES') is not None:
@@ -5938,6 +5954,7 @@ def _update_user_db(file,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
                     is_public=False,
+                    from_ui=False,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -5975,8 +5992,10 @@ def _update_user_db(file,
         file = [file]
 
     if is_public:
-        if len(file) > max_docs_public:
-            raise ValueError("Public instance only allows up to %d documents updated at a time." % max_docs_public)
+        if len(file) > max_docs_public and from_ui or \
+                len(file) > max_docs_public_api and not from_ui:
+            raise ValueError("Public instance only allows up to"
+                             " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None
@@ -6060,6 +6079,7 @@ def _update_user_db(file,
                            db_type=db_type,
 
                            is_public=is_public,
+                           from_ui=from_ui,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]

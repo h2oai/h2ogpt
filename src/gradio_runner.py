@@ -97,8 +97,12 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
     return text
 
 
+def is_from_ui(requests_state1):
+    return isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']
+
+
 def is_valid_key(enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
-    from_ui = isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']
+    from_ui = is_from_ui(requests_state1)
 
     if from_ui and not enforce_h2ogpt_ui_key:
         # no token barrier
@@ -1080,7 +1084,7 @@ def go_gradio(**kwargs):
                                                        label="Force URL Reader", value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
 
-                        min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+                        min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                value=kwargs['top_k_docs'],
                                                label=label_top_k_docs,
@@ -1124,9 +1128,9 @@ def go_gradio(**kwargs):
                                                               info="HYDE approach for LLM getting answer to embed ('auto' means automatic, else enter template like '{query}'",
                                                               visible=True)
                         doc_json_mode = gr.components.Checkbox(value=kwargs['doc_json_mode'],
-                                                       label="JSON docs mode",
-                                                       info="Whether to pass JSON to and get JSON back from LLM",
-                                                       visible=True)
+                                                               label="JSON docs mode",
+                                                               info="Whether to pass JSON to and get JSON back from LLM",
+                                                               visible=True)
 
                         embed = gr.components.Checkbox(value=True,
                                                        label="Embed text",
@@ -2554,6 +2558,7 @@ def go_gradio(**kwargs):
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
         from functools import partial
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
+        kwargs_evaluate.update(dict(from_ui=True))  # default except for evaluate_nochat
         # ensure present
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
@@ -2750,7 +2755,7 @@ def go_gradio(**kwargs):
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
-        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False))
+        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False, from_ui=False))
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
@@ -4678,6 +4683,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                              kwargs.pop('enforce_h2ogpt_ui_key', None),
                              kwargs.pop('h2ogpt_api_keys', []), h2ogpt_key,
                              requests_state1=requests_state1)
+    kwargs['from_ui'] = is_from_ui(requests_state1)
     if not valid_key:
         raise ValueError(invalid_key_msg)
     loaders_dict, captions_model = gr_to_lg(image_loaders,
