@@ -2077,7 +2077,7 @@ def file_to_doc(file,
         base_path_url = "urls_downloaded"
         base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
         source_file = os.path.join(base_path_url, "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
-        download_simple(file, source_file, verbose=verbose)
+        download_simple(file, source_file, overwrite=True, verbose=verbose)
         if os.path.isfile(source_file):
             orig_url = file
             is_url = False
