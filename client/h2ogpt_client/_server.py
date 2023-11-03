@@ -1,10 +1,10 @@
-from h2ogpt_client import _core
+from h2ogpt_client._gradio_client import GradioClientWrapper
 
 
 class Server:
     """h2oGPT server."""
 
-    def __init__(self, client: "_core.Client"):
+    def __init__(self, client: GradioClientWrapper):
         self._client = client
 
     @property
@@ -15,4 +15,4 @@ class Server:
     @property
     def hash(self) -> str:
         """h2oGPT server system hash."""
-        return str(self._client._predict(api_name="/system_hash"))
+        return str(self._client.predict(api_name="/system_hash"))
