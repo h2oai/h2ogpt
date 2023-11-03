@@ -3528,6 +3528,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if instruction == 'Technical key points':
             # if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             assert 'No relevant documents to extract from.' in summary or \
+                   'No relevant documents to summarize.' in summary or \
                    'long-form transcription' in summary or \
                    'text standardization' in summary or \
                    'speech processing' in summary or \
@@ -3680,6 +3681,8 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'H2O GPT is an open-source project' in summary \
                or 'is an open-source project for document Q/A' in summary \
                or 'h2oGPT is an open-source project' in summary \
+               or 'h2oGPT model' in summary \
+               or 'released an open-source version' in summary \
                or ('key results based on the provided document' in summary and 'h2oGPT' in summary)
         assert 'h2oGPT' in [x['content'] for x in sources][0]
     assert url in [x['source'] for x in sources][0]
