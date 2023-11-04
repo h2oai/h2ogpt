@@ -258,6 +258,7 @@ def get_test_model():
                       low_bit_mode=1,
                       load_half=True,
                       load_gptq='',
+                      use_autogptq=False,
                       load_awq='',
                       load_exllama=False,
                       use_safetensors=False,
@@ -269,6 +270,7 @@ def get_test_model():
                       lora_weights='',
                       gpu_id=0,
                       n_jobs=1,
+                      n_gpus=None,
 
                       reward_type=False,
                       local_files_only=False,
