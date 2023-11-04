@@ -45,6 +45,7 @@ class PromptType(Enum):
     aquila_simple = 39
     aquila_legacy = 40
     aquila_v1 = 41
+    mistralgerman = 42
 
 
 class DocumentSubset(Enum):

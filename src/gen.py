@@ -114,6 +114,7 @@ def main(
         low_bit_mode: int = 1,
         load_half: bool = None,
         load_gptq: str = '',
+        use_autogptq: bool = False,
         load_awq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
@@ -375,6 +376,8 @@ def main(
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. 'model' for TheBloke models
+    :param use_autogptq: whether to use AutoGPTQ (True) or HF Transformers (False)
+           Some models are only supported by one or the other
     :param load_awq: load model with AWQ, e.g. 'model' for TheBloke models
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
@@ -1600,6 +1603,7 @@ def get_config(base_model,
 
 def get_non_lora_model(base_model, model_loader, load_half,
                        load_gptq,
+                       use_autogptq,
                        load_awq,
                        load_exllama,
                        use_safetensors,
@@ -1658,7 +1662,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
 
     if load_exllama:
         model = model_loader
-    elif load_gptq:
+    elif load_gptq and use_autogptq:
         model_kwargs.pop('torch_dtype', None)
         loader_kwargs = dict(model_name_or_path=base_model,
                              model_basename=load_gptq,
@@ -1773,6 +1777,7 @@ def get_model(
         low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
+        use_autogptq: bool = False,
         load_awq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
@@ -1812,6 +1817,7 @@ def get_model(
     :param low_bit_mode: See gen.py
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
+    :param use_autogptq: Use AutoGPTQ (True) or HF transformers (False)
     :param load_awq: AWQ model_basename
     :param load_exllama: whether to use exllama
     :param use_safetensors: use safetensors file
@@ -1882,7 +1888,9 @@ def get_model(
                                                                                      '')
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
+                    load_gptq=load_gptq,
+                    use_autogptq=use_autogptq,
+                    load_awq=load_awq, load_exllama=load_exllama,
                     config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
@@ -1992,6 +2000,7 @@ def get_model(
                         low_bit_mode=low_bit_mode,
                         load_half=load_half,
                         load_gptq=load_gptq,
+                        use_autogptq=use_autogptq,
                         load_awq=load_awq,
                         use_safetensors=use_safetensors,
                         revision=revision,
@@ -2028,6 +2037,7 @@ def get_hf_model(load_8bit: bool = False,
                  low_bit_mode: int = 1,
                  load_half: bool = True,
                  load_gptq: str = '',
+                 use_autogptq: bool = False,
                  load_awq: str = '',
                  use_safetensors: bool = False,
                  revision: str = None,
@@ -2080,7 +2090,9 @@ def get_hf_model(load_8bit: bool = False,
 
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
+                    load_gptq=load_gptq,
+                    use_autogptq=use_autogptq,
+                    load_awq=load_awq, load_exllama=load_exllama,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
                     attention_sinks=attention_sinks, sink_dict=sink_dict,
                     truncation_generation=truncation_generation,
@@ -2135,42 +2147,45 @@ def get_hf_model(load_8bit: bool = False,
 
         n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
         n_gpus, gpu_ids = cuda_vis_check(n_gpus)
-        if low_bit_mode == 1 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
-        elif low_bit_mode == 2 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
-        elif low_bit_mode == 3 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
-        elif low_bit_mode == 4 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
-                                                                     bnb_4bit_quant_type="nf4",
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
+        if n_gpus != 0 and not (load_gptq and not use_autogptq):
+            if low_bit_mode == 1:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+            elif low_bit_mode == 2:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+            elif low_bit_mode == 3:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+            elif low_bit_mode == 4:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                         bnb_4bit_quant_type="nf4",
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
-            context = NullContext if (load_gptq or load_awq) else torch.device
+            context = NullContext if (load_gptq and use_autogptq or load_awq) else torch.device
             with context(device):
 
                 if use_gpu_id:
                     config, model, max_seq_len = get_config(base_model,
                                                             return_model=True, raise_exception=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half,
-                                               load_gptq, load_awq,
+                                               load_gptq,
+                                               use_autogptq,
+                                               load_awq,
                                                load_exllama,
                                                use_safetensors,
                                                revision,
@@ -2182,7 +2197,7 @@ def get_hf_model(load_8bit: bool = False,
                     model_kwargs['use_safetensors'] = use_safetensors
                     model_kwargs['revision'] = revision
                     config, _, max_seq_len = get_config(base_model, **config_kwargs)
-                    if load_half and not (load_8bit or load_4bit or load_gptq or load_awq):
+                    if load_half and not (load_8bit or load_4bit or load_gptq and use_autogptq or load_awq):
                         model = model_loader(
                             base_model,
                             config=config,
@@ -2190,7 +2205,7 @@ def get_hf_model(load_8bit: bool = False,
                         if not getattr(model, "is_quantized", False):
                             model = model.half()
                     else:
-                        if load_gptq:
+                        if load_gptq and use_autogptq:
                             model_kwargs.pop('torch_dtype', None)
                             model = model_loader(
                                 model_name_or_path=base_model,
@@ -2261,7 +2276,7 @@ def get_hf_model(load_8bit: bool = False,
                     rope_scaling=rope_scaling,
                     device_map="auto",
                 )
-                if load_half and not (load_gptq or load_awq):
+                if load_half and not (load_gptq and use_autogptq or load_awq):
                     if not getattr(model, "is_quantized", False):
                         model = model.half()
 
@@ -2288,6 +2303,18 @@ def get_hf_model(load_8bit: bool = False,
     # tell if conditional type
     model.conditional_type = conditional_type
     tokenizer.conditional_type = conditional_type
+
+    # https://github.com/PanQiWei/AutoGPTQ/issues/323
+    if load_gptq and not use_autogptq:
+        from auto_gptq import exllama_set_max_input_length
+        try:
+            model = exllama_set_max_input_length(model, tokenizer.model_max_length)
+        except Exception as e:
+            # HF transformers AutoGPTQ use is NOT user friendly
+            if 'The method exllama_set_max_input_length ' in str(e):
+                pass
+            else:
+                raise
 
     return model, tokenizer, device
 
@@ -2325,6 +2352,7 @@ def get_score_model(score_model: str = None,
                     low_bit_mode=1,
                     load_half: bool = True,
                     load_gptq: str = '',
+                    use_autogptq: bool = False,
                     load_awq: str = '',
                     load_exllama: bool = False,
                     use_gpu_id: bool = True,
@@ -2360,6 +2388,7 @@ def get_score_model(score_model: str = None,
         low_bit_mode = 1
         load_half = False
         load_gptq = ''
+        use_autogptq = False
         load_awq = ''
         load_exllama = False
         use_safetensors = False

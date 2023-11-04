@@ -1701,15 +1701,19 @@ def test_client_chat_stream_long():
     assert 'Once upon a time' in res_dict['response']
 
 
+@pytest.mark.parametrize("base_model", [
+    'TheBloke/em_german_leo_mistral-GPTQ',
+    'TheBloke/Nous-Hermes-13B-GPTQ',
+])
 @wrap_test_forked
-def test_autogptq():
+def test_autogptq(base_model):
     prompt = 'Who are you?'
     stream_output = False
     max_new_tokens = 256
-    base_model = 'TheBloke/Nous-Hermes-13B-GPTQ'
     load_gptq = 'model'
     use_safetensors = True
-    prompt_type = 'instruct'
+    prompt_type = ''
+    max_seq_len = 4096  # mistral will use 32k if don't specify, go OOM on typical system
     langchain_mode = 'Disabled'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -1718,6 +1722,7 @@ def test_autogptq():
     docs_ordering_type = 'reverse_sort'
     from src.gen import main
     main(base_model=base_model, load_gptq=load_gptq,
+         max_seq_len=max_seq_len,
          use_safetensors=use_safetensors,
          prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -1732,7 +1737,7 @@ def test_autogptq():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "am a virtual assistant" in res_dict['response']
+    assert "am a virtual assistant" in res_dict['response'] or "computer program designed" in res_dict['response']
 
     check_langchain()
 

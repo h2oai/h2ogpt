@@ -1178,6 +1178,13 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_jq = False
 
+try:
+    assert distribution('optimum') is not None
+    have_optimum = True
+except (PackageNotFoundError, AssertionError):
+    have_optimum = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
