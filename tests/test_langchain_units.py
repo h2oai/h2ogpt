@@ -954,7 +954,7 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                     download_simple(url, dest=test_file1)
                 else:
                     test_file1 = os.path.join(tmp_user_path, 'sample2.pdf')
-                    shutil.copy(os.path.join('tests', 'sample2.pdf'), tmp_user_path)
+                    shutil.copy(os.path.join('tests', 'sample.pdf'), test_file1)
             else:
                 if False:
                     name = 'CityofTshwaneWater.pdf'
