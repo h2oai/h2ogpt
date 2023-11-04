@@ -264,8 +264,8 @@ def go_gradio(**kwargs):
     kwargs['gpu_id'] = str(kwargs['gpu_id'])
 
     no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
-    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
-        'base_model') else no_model_msg
+    chat_name0 = get_chatbot_name(kwargs.get("base_model"), kwargs.get("model_path_llama"))
+    output_label0 = chat_name0 if kwargs.get('base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
     def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0):
