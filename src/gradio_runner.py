@@ -19,7 +19,7 @@ import requests
 from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
-from gradio_utils.prompt_form import make_chatbots
+from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
@@ -4127,11 +4127,8 @@ def go_gradio(**kwargs):
             return gr.Dropdown(value=x)
 
         def chatbot_list(x, model_used_in, model_path_llama_in):
-            if model_used_in == 'llama':
-                model_path_llama_in = os.path.basename(model_path_llama_in)
-                return gr.Textbox(label=f'h2oGPT [Model: {model_path_llama_in}]')
-            else:
-                return gr.Textbox(label=f'h2oGPT [Model: {model_used_in}]')
+            chat_name = get_chatbot_name(model_used_in, model_path_llama_in)
+            return gr.Textbox(label=chat_name)
 
         load_model_inputs = [model_choice, lora_choice, server_choice, model_state, prompt_type,
                              model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,

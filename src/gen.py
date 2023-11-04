@@ -847,7 +847,6 @@ def main(
     llamacpp_dict = str_to_dict(llamacpp_dict)
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
-    base_model0 = base_model
     base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
         switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict.get('n_gqa', 0))
 
@@ -1408,6 +1407,17 @@ def main(
             all_kwargs = locals().copy()
             all_kwargs.update(model_dict)
             if model_dict['base_model'] and not login_mode_if_model0:
+                model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
+                model_dict['base_model'], model_dict['model_path_llama'],\
+                    model_dict['load_gptq'], \
+                    model_dict['load_awq'], \
+                    model_dict['llamacpp_dict']['n_gqa'] = \
+                    switch_a_roo_llama(model_dict['base_model'],
+                                       model_dict['model_path_llama'],
+                                       model_dict['load_gptq'],
+                                       model_dict['load_awq'],
+                                       model_dict.get('llamacpp_dict', {}).get('n_gqa', 0))
+                all_kwargs.update(model_dict)
                 model0, tokenizer0, device = get_model_retry(reward_type=False,
                                                              **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                           **all_kwargs))
