@@ -184,6 +184,23 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   cd $sp
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
     ```
+* vLLM support
+
+    Run:
+    ```bash
+    cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+    rm -rf openvllm* openai_vllm*
+    cp -a openai openvllm
+    file0=`ls|grep openai|grep dist-info`
+    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
+    cp -a $file0 $file1
+    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
+    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
+    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+    ```
+
 ### Compile Install Issues
   * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
     * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:

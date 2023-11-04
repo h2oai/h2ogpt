@@ -72,6 +72,22 @@ Supports CPU and MPS (Metal M1/M2).
     CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.1.78 --no-cache-dir
     ```
   - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
+* vLLM support
+
+    Run MACOS equivalent of this sequence from Bash/Linux (can use bash shell on MAC):
+    ```bash
+    cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+    rm -rf openvllm* openai_vllm*
+    cp -a openai openvllm
+    file0=`ls|grep openai|grep dist-info`
+    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
+    cp -a $file0 $file1
+    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
+    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
+    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+    ```
 
 ---
 

@@ -133,6 +133,22 @@ For newer builds of windows versions of 10/11.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
+* vLLM support
+
+    Run windows equivalent of this sequence from Bash/Linux (can use bash shell in windows):
+    ```bash
+    cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+    rm -rf openvllm* openai_vllm*
+    cp -a openai openvllm
+    file0=`ls|grep openai|grep dist-info`
+    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
+    cp -a $file0 $file1
+    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
+    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
+    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+    ```
 ---
 
 ## Run
