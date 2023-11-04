@@ -24,11 +24,10 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     chat_kwargs = []
     min_width = 250 if kwargs['gradio_size'] in ['small', 'large', 'medium'] else 160
     for model_state_locki, model_state_lock in enumerate(kwargs['model_states']):
-        chat_name = get_chatbot_name(model_state_lock["base_model"],
+        output_label = get_chatbot_name(model_state_lock["base_model"],
                                      model_state_lock["model_path_llama"],
                                      model_state_lock["inference_server"],
                                      debug=bool(os.environ.get('DEBUG_MODEL_LOCK', 0)))
-        output_label = f'h2oGPT [{chat_name}]'
         chat_kwargs.append(dict(render_markdown=kwargs.get('render_markdown', True),
                                 label=output_label,
                                 elem_classes='chatsmall',
