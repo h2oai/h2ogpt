@@ -101,7 +101,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```bash
     pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-    pip install optimum
+    pip install optimum==1.13.3
     ```
     This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
