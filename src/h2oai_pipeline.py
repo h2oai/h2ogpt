@@ -73,9 +73,15 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         else:
             tokens = tokenizer(x)
         if isinstance(tokens, dict) and 'input_ids' in tokens:
-            n_tokens = len(tokenizer.encode(x)['input_ids'])
+            tokens = tokens['input_ids']
+        if isinstance(tokens, list):
+            n_tokens = len(tokens)
+        elif len(tokens.shape) == 2:
+            n_tokens = tokens.shape[1]
+        elif len(tokens.shape) == 1:
+            n_tokens = tokens.shape[0]
         else:
-            n_tokens = len(tokenizer.encode(x))
+            raise RuntimeError("Cannot handle tokens: %s" % tokens)
         return n_tokens
 
     @staticmethod

@@ -64,7 +64,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b',
         'h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-13b',
     ],
-    'instruct': ['TheBloke/llama-30b-supercot-SuperHOT-8K-fp16'],
+    'instruct': ['TheBloke/llama-30b-supercot-SuperHOT-8K-fp16', 'TheBloke/Nous-Hermes-13B-GPTQ'],
     # https://huggingface.co/TheBloke/llama-30b-supercot-SuperHOT-8K-fp16#prompting
     'instruct_with_end': ['databricks/dolly-v2-12b'],
     'quality': [],
@@ -120,25 +120,44 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-4096-llama2-70b-chat-4bit',
         'TheBloke/Llama-2-70B-chat-AWQ',
         'TheBloke/Llama-2-13B-chat-AWQ',
-        'Yukang/LongAlpaca-70B', # or can be instruct
+        'Yukang/LongAlpaca-70B',  # or can be instruct
+        'TheBloke/Llama-2-7B-Chat-GGUF',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF'],
-    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta'],
+    "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
+               'TheBloke/zephyr-7B-beta-AWQ'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
     "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
     "mistrallite": ['amazon/MistralLite'],
-    "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k', 'BAAI/AquilaChat2-7B-16K'],
+    "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k',
+               'BAAI/AquilaChat2-7B-16K'],
     "aquila_legacy": ['BAAI/AquilaChat2-34B'],
     "aquila_v1": ['BAAI/AquilaChat2-7B'],
+    "mistralgerman": ['TheBloke/em_german_leo_mistral-GPTQ'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
+model_names_curated_big = ['Yukang/LongAlpaca-70B',
+                           'lmsys/vicuna-13b-v1.5-16k',
+                           'h2oai/h2ogpt-32k-codellama-34b-instruct']
+model_names_curated = ['llama',
+                       'TheBloke/Xwin-LM-13B-V0.1-GPTQ',
+                       'TheBloke/Llama-2-7B-Chat-GGUF',
+                       'HuggingFaceH4/zephyr-7b-beta',
+                       'TheBloke/zephyr-7B-beta-GGUF',
+                       'TheBloke/zephyr-7B-beta-AWQ'] + model_names_curated_big
+openai_gpts = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k",
+               "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
+               "gpt-4", "gpt-4-32k",
+               "gpt-4-0613", "gpt-4-32k-0613",
+               ]
 if os.getenv('OPENAI_API_KEY'):
     prompt_type_to_model_name.update({
         "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],
-        "openai_chat": ["gpt-3.5-turbo", "gpt-3.5-turbo-16k"],
+        "openai_chat": openai_gpts,
     })
+    model_names_curated += ['gpt-3.5-turbo']
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
 inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_to_model_name.items() for v in l}
@@ -833,6 +852,26 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = PreResponse
         if making_context:
             PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.mistralgerman.value, str(PromptType.mistralgerman.value),
+                         PromptType.mistralgerman.name]:
+        # https://huggingface.co/TheBloke/em_german_leo_mistral-GPTQ#prompt-template-emgerman
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "Du bist ein hilfreicher"
+        # space below intended
+        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """ASSISTANT:"""
+        terminate_response = [PreResponse, 'ASSISTANT:', '</s>']
+        chat_turn_sep = '\n'
+        chat_sep = '\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ' '
+
     elif prompt_type in [PromptType.mistrallite.value, str(PromptType.mistrallite.value),
                          PromptType.mistrallite.name]:
         # From added_tokens.json
@@ -892,7 +931,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
                          PromptType.aquila_legacy.name]:
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious human and an artificial intelligence assistant. " \
-        "The assistant gives helpful, detailed, and polite answers to the human's questions.\n\n"
+                            "The assistant gives helpful, detailed, and polite answers to the human's questions.\n\n"
         promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """### Human: """

@@ -100,8 +100,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
     pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
-    # in-transformers support of AutoGPTQ
-    pip install git+https://github.com/huggingface/optimum.git
+    # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
+    pip install optimum==1.13.3
     ```
     This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
@@ -128,19 +128,25 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 
 * GPU Optional: Support LLaMa.cpp with CUDA:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
-    ```bash
-    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-    # GGUF ONLY for CUDA GPU:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
-    # GGUF ONLY for CPU-AVX:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
-    # GPU GGMLv3 ONLY (no longer recommended):
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-linux_x86_64.whl
-    ```
-     For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
-     ```bash
-      CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-     ```
+    * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
+      ```bash
+      pip uninstall -y llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+      ```
+    * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
+      ```bash
+      pip uninstall -y llama-cpp-python
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
+      ```
+      For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
+       ```bash
+        CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+       ```
+    * GPU GGMLv3 ONLY (no longer recommended):
+      ```bash
+      pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-linux_x86_64.whl
+      ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda

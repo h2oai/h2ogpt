@@ -135,9 +135,9 @@ def get_torch_allocated():
     return torch.cuda.memory_allocated()
 
 
-def get_device():
+def get_device(n_gpus=None):
     import torch
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and n_gpus != 0:
         device = "cuda"
     elif torch.backends.mps.is_built():
         device = "mps"
@@ -707,7 +707,7 @@ def cuda_vis_check(total_gpus):
 
 
 def get_ngpus_vis(raise_if_exception=True):
-    ngpus_vis1 = 0
+    ngpus_vis1 = None
 
     shell = False
     if shell:
@@ -730,6 +730,13 @@ def get_ngpus_vis(raise_if_exception=True):
         print('Failed get_ngpus_vis: %s' % str(e))
         if raise_if_exception:
             raise
+
+    if ngpus_vis1 is None:
+        import torch
+        if get_device() == 'cuda':
+            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available else 0
+        else:
+            ngpus_vis1 = 0
 
     ngpus_vis1, which_gpus = cuda_vis_check(ngpus_vis1)
     return ngpus_vis1
@@ -1171,6 +1178,13 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_jq = False
 
+try:
+    assert distribution('optimum') is not None
+    have_optimum = True
+except (PackageNotFoundError, AssertionError):
+    have_optimum = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
@@ -1541,13 +1555,19 @@ def get_token_count(x, tokenizer, token_count_fun=None):
     # handle ambiguity in if get dict or list
     if tokenizer:
         if hasattr(tokenizer, 'encode'):
-            template_tokens = tokenizer.encode(x)
+            tokens = tokenizer.encode(x)
         else:
-            template_tokens = tokenizer(x)
-        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
-            n_tokens = len(tokenizer.encode(x)['input_ids'])
+            tokens = tokenizer(x)
+        if isinstance(tokens, dict) and 'input_ids' in tokens:
+            tokens = tokens['input_ids']
+        if isinstance(tokens, list):
+            n_tokens = len(tokens)
+        elif len(tokens.shape) == 2:
+            n_tokens = tokens.shape[1]
+        elif len(tokens.shape) == 1:
+            n_tokens = tokens.shape[0]
         else:
-            n_tokens = len(tokenizer.encode(x))
+            raise RuntimeError("Cannot handle tokens: %s" % tokens)
     elif token_count_fun is not None:
         assert callable(token_count_fun)
         n_tokens = token_count_fun(x)

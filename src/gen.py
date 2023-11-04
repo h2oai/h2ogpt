@@ -45,11 +45,13 @@ from evaluate_params import eval_func_param_names, no_default_param_names, input
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
-    docs_ordering_types_default, docs_token_handling_default
+    docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
+    max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
+    max_input_tokens_public_api
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, url_alive
 
 start_faulthandler()
 import_matplotlib()
@@ -62,12 +64,48 @@ from typing import Union
 import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
-from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt
+from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
+    openai_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
 
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
+
+
+def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa):
+    is_gguf = 'GGUF'.lower() in base_model.lower()
+    is_ggml = 'GGML'.lower() in base_model.lower()
+    postfix = '-GGUF' if is_gguf else '-GGML'
+    file_postfix = postfix.lower().replace('-', '.')
+    model_split = base_model.split('TheBloke/')
+    if base_model.lower().startswith('TheBloke'.lower()) and (is_gguf or is_ggml) and len(model_split) == 2:
+        # auto-switch-a-roo to support GGUF/GGML put into base model in UI
+        just_model_split = model_split[1].split(postfix)
+        if postfix.lower() in base_model.lower() and \
+                file_postfix not in base_model and \
+                len(just_model_split) == 2:
+            just_model = just_model_split[0]
+            lower_model = just_model.lower()
+            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s' % (base_model, lower_model, file_postfix)
+            if url_alive(base_model0):
+                base_model = base_model0
+        model_path_llama = base_model
+        base_model = 'llama'
+    if (base_model.endswith('.gguf') or base_model.endswith('.ggml')) and os.path.isfile(base_model):
+        # then file but still either gguf or ggml
+        model_path_llama = base_model
+        base_model = 'llama'
+
+    # some auto things for TheBloke models:
+    if 'TheBloke' in base_model and '-GPTQ' in base_model:
+        load_gptq = load_gptq or 'model'
+    elif 'TheBloke' in base_model and '-AWQ' in base_model:
+        load_awq = load_awq or 'model'
+    elif '2-70B-GGUF' in model_path_llama:
+        n_gqa = n_gqa or 8
+
+    return base_model, model_path_llama, load_gptq, load_awq, n_gqa
 
 
 def main(
@@ -76,6 +114,7 @@ def main(
         low_bit_mode: int = 1,
         load_half: bool = None,
         load_gptq: str = '',
+        use_autogptq: bool = False,
         load_awq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
@@ -208,6 +247,8 @@ def main(
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
+        visible_all_prompter_models: bool = False,
+        enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
 
         sanitize_user_prompt: bool = False,
@@ -277,7 +318,8 @@ def main(
         top_k_docs: int = None,
         docs_ordering_type: str = docs_ordering_types_default,
         min_max_new_tokens=256,
-        max_input_tokens=-1,
+        max_input_tokens=None,
+        max_total_input_tokens=None,
         docs_token_handling: str = docs_token_handling_default,
         docs_joiner: str = docs_joiner_default,
         hyde_level: int = 0,
@@ -288,6 +330,7 @@ def main(
         max_chunks: int = 100,
         headsize: int = 50,
         n_jobs: int = -1,
+        n_gpus: int = None,
 
         # urls
         use_unstructured=True,
@@ -332,8 +375,10 @@ def main(
            If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
-    :param load_gptq: to load model with GPTQ, put model_basename here, e.g. gptq_model-4bit--1g
-    :param load_awq: load model with AWQ, often 'model' for TheBloke models
+    :param load_gptq: to load model with GPTQ, put model_basename here, e.g. 'model' for TheBloke models
+    :param use_autogptq: whether to use AutoGPTQ (True) or HF Transformers (False)
+           Some models are only supported by one or the other
+    :param load_awq: load model with AWQ, e.g. 'model' for TheBloke models
     :param load_exllama: whether to use exllama (only applicable to LLaMa1/2 models with 16-bit or GPTQ
     :param use_safetensors: to use safetensors version (assumes file/HF points to safe tensors version)
     :param revision: Which HF revision to use
@@ -567,6 +612,7 @@ def main(
     :param max_input_tokens: Max input tokens to place into model context for each LLM call
                              -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                              >=0 means use that to limit context filling to that many tokens
+    :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
     :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                      or top_k_docs original document chunks summarization
                                 None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
@@ -606,6 +652,7 @@ def main(
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
+    :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
@@ -731,6 +778,7 @@ def main(
     :param max_chunks: If top_k_docs=-1, maximum number of chunks to allow
     :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
+    :param n_gpus: Number of GPUs (None = autodetect)
 
     :param use_unstructured: Enable unstructured URL loader
     :param use_playwright: Enable PlayWright URL loader
@@ -796,8 +844,13 @@ def main(
 
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
-
     llamacpp_dict = str_to_dict(llamacpp_dict)
+
+    # switch-a-roo on base_model so can pass GGUF/GGML as base model
+    base_model0 = base_model
+    base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
+        switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict.get('n_gqa', 0))
+
     # add others to single dict
     llamacpp_dict['model_path_llama'] = model_path_llama
     llamacpp_dict['model_name_gptj'] = model_name_gptj
@@ -958,6 +1011,11 @@ def main(
         langchain_modes.append(langchain_mode)
 
     if is_public:
+        # See also get_minmax_top_k_docs()
+        # as another restriction apart from top_k_docs and when using long context models
+        # model will limit more if required
+        max_input_tokens = max_input_tokens_public if max_input_tokens is None else max_input_tokens
+        max_total_input_tokens = max_total_input_tokens_public if max_total_input_tokens is None else max_total_input_tokens
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
         temperature = 0.2 if temperature is None else temperature
@@ -970,7 +1028,8 @@ def main(
         else:
             # by default don't sample, too chatty
             do_sample = False if do_sample is None else do_sample
-            top_k_docs = 4 if top_k_docs is None else top_k_docs
+            # now 10 since also limiting total tokens, in case some pages (for summarization) are small
+            top_k_docs = max_top_k_docs_public if top_k_docs is None else top_k_docs
 
         if memory_restriction_level == 2:
             if not base_model and not inference_server and not model_lock:
@@ -979,7 +1038,7 @@ def main(
                 load_8bit = True
                 load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
         elif not inference_server:
-            top_k_docs = 10 if top_k_docs is None else top_k_docs
+            top_k_docs = max_top_k_docs_public if top_k_docs is None else top_k_docs
     if memory_restriction_level >= 2:
         load_8bit = True
         load_4bit = False  # FIXME - consider using 4-bit instead of 8-bit
@@ -987,7 +1046,11 @@ def main(
             hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
         top_k_docs = 3 if top_k_docs is None else top_k_docs
     if top_k_docs is None:
-        top_k_docs = 3
+        top_k_docs = max_top_k_docs_default
+    if max_input_tokens is None:
+        max_input_tokens = -1
+    if max_total_input_tokens is None:
+        max_total_input_tokens = -1
     if is_public:
         if not max_time:
             max_time = 60 * 2
@@ -1019,17 +1082,19 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    n_gpus, gpu_ids = cuda_vis_check(n_gpus)
+    n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
+    if n_gpus is None:
+        n_gpus = n_gpus1
 
     if load_half is None and t5_type(base_model):
         load_half = False
         print("load_half=%s auto-set for %s to avoid bad generation" % (load_half, base_model), flush=True)
 
-    if n_gpus == 0 or get_device() == "mps":
+    if n_gpus == 0 or get_device(n_gpus=n_gpus) == "mps":
         # No CUDA GPUs usable
 
-        if get_device() != "mps":
+        if get_device(n_gpus=n_gpus) != "mps":
             print("No GPUs detected", flush=True)
 
         enable_captions = False
@@ -1044,7 +1109,7 @@ def main(
         load_awq = ''
         load_exllama = False
         use_gpu_id = False
-        if get_device() == "cuda":
+        if get_device(n_gpus=n_gpus) == "cuda":
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.enabled = False
             torch.set_default_dtype(torch.float32)
@@ -1141,6 +1206,7 @@ def main(
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
+                            max_total_input_tokens,
                             docs_token_handling,
                             docs_joiner,
                             hyde_level,
@@ -1247,10 +1313,10 @@ def main(
 
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
+        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], from_ui=False, **locals()))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
+        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], from_ui=False, **locals()))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
@@ -1309,13 +1375,30 @@ def main(
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
+                model_path_llama1 = model_dict.get('model_path_llama', '').lower()
+                model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {}) or {}
+                llamacpp_dict1 = model_dict.get('llamacpp_dict', {}) or {}
+                load_gptq1 = model_dict.get('load_gptq', '')
+                load_awq1 = model_dict.get('load_awq', '')
+                model_lower10 = model_lower1
+                model_lower1, model_path_llama, \
+                    model_dict['load_gptq'], model_dict['load_awq'], \
+                    model_dict['llamacpp_dict']['n_gqa'] = \
+                    switch_a_roo_llama(model_lower1, model_path_llama1, load_gptq1, load_awq1,
+                                       llamacpp_dict1.get('n_gqa', 0))
+
+                get_prompt_kwargs = dict(chat=False, context='', reduced=False,
+                                         making_context=False,
+                                         return_dict=True,
+                                         system_prompt=system_prompt)
                 if model_lower1 in inv_prompt_type_to_model_lower:
                     model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
-                                                                   chat=False, context='', reduced=False,
-                                                                   making_context=False,
-                                                                   return_dict=True,
-                                                                   system_prompt=system_prompt)
+                                                                   **get_prompt_kwargs)
+                elif model_lower10 in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
+                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
+                                                                   **get_prompt_kwargs)
                 else:
                     model_dict['prompt_dict'] = prompt_dict
             else:
@@ -1325,9 +1408,9 @@ def main(
             all_kwargs = locals().copy()
             all_kwargs.update(model_dict)
             if model_dict['base_model'] and not login_mode_if_model0:
-                model0, tokenizer0, device = get_model(reward_type=False,
-                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
-                                                                    **all_kwargs))
+                model0, tokenizer0, device = get_model_retry(reward_type=False,
+                                                             **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                          **all_kwargs))
                 # update model state
                 if hasattr(tokenizer0, 'model_max_length'):
                     model_dict['max_seq_len'] = tokenizer0.model_max_length
@@ -1520,6 +1603,7 @@ def get_config(base_model,
 
 def get_non_lora_model(base_model, model_loader, load_half,
                        load_gptq,
+                       use_autogptq,
                        load_awq,
                        load_exllama,
                        use_safetensors,
@@ -1578,14 +1662,12 @@ def get_non_lora_model(base_model, model_loader, load_half,
 
     if load_exllama:
         model = model_loader
-    elif load_gptq:
+    elif load_gptq and use_autogptq:
         model_kwargs.pop('torch_dtype', None)
-        model_kwargs.pop('device_map')
-        model = model_loader(
-            model_name_or_path=base_model,
-            model_basename=load_gptq,
-            **model_kwargs,
-        )
+        loader_kwargs = dict(model_name_or_path=base_model,
+                             model_basename=load_gptq,
+                             **model_kwargs)
+        model = model_loader(**loader_kwargs)
     elif load_awq:
         allowed_dict = dict(max_new_tokens=None,
                             trust_remote_code=True, fuse_layers=True,
@@ -1666,12 +1748,36 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
     return inference_server, gr_client, hf_client
 
 
+def get_model_retry(**kwargs):
+    model1, tokenizer1, device1 = None, None, None
+    trials = 4
+    for trial in range(trials):
+        try:
+            model1, tokenizer1, device1 = get_model(**kwargs)
+            break
+        except Exception as e:
+            stre = str(e)
+            if 'Exllama kernel does not support' in stre:
+                # help user a bit
+                kwargs['gptq_dict'].update(
+                    {'inject_fused_attention': False, 'disable_exllama': True})
+            if 'Could not find model' in stre or \
+                    'safetensors' in stre or \
+                    'not appear to have a file named pytorch_model.bin' in stre:
+                kwargs['use_safetensors'] = True
+            clear_torch_cache()
+            if trial >= trials - 1:
+                raise
+    return model1, tokenizer1, device1
+
+
 def get_model(
         load_8bit: bool = False,
         load_4bit: bool = False,
         low_bit_mode: int = 1,
         load_half: bool = True,
         load_gptq: str = '',
+        use_autogptq: bool = False,
         load_awq: str = '',
         load_exllama: bool = False,
         use_safetensors: bool = False,
@@ -1683,6 +1789,7 @@ def get_model(
         lora_weights: str = "",
         gpu_id: int = 0,
         n_jobs=None,
+        n_gpus=None,
 
         reward_type: bool = None,
         local_files_only: bool = False,
@@ -1710,6 +1817,7 @@ def get_model(
     :param low_bit_mode: See gen.py
     :param load_half: load model in 16-bit
     :param load_gptq: GPTQ model_basename
+    :param use_autogptq: Use AutoGPTQ (True) or HF transformers (False)
     :param load_awq: AWQ model_basename
     :param load_exllama: whether to use exllama
     :param use_safetensors: use safetensors file
@@ -1723,6 +1831,7 @@ def get_model(
     :param lora_weights: name/path
     :param gpu_id: which GPU (0..n_gpus-1) or allow all GPUs if relevant (-1)
     :param n_jobs: number of cores to use (e.g. for llama CPU model)
+    :param n_gpus: number of GPUs (-1 for all)
     :param reward_type: reward type model for sequence classification
     :param local_files_only: use local files instead of from HF
     :param resume_download: resume downloads from HF
@@ -1756,7 +1865,11 @@ def get_model(
                          revision=revision,
                          max_seq_len=max_seq_len,
                          verbose=verbose)
-    config, _, max_seq_len = get_config(base_model, **config_kwargs, raise_exception=False)
+    if base_model == 'llama':
+        # in case max_seq_len = None, try to auto-set
+        config = None
+    else:
+        config, _, max_seq_len = get_config(base_model, **config_kwargs, raise_exception=False)
 
     if base_model in non_hf_types:
         assert config is None, "Expected config None for %s" % base_model
@@ -1775,7 +1888,9 @@ def get_model(
                                                                                      '')
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
+                    load_gptq=load_gptq,
+                    use_autogptq=use_autogptq,
+                    load_awq=load_awq, load_exllama=load_exllama,
                     config=config,
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
@@ -1824,6 +1939,10 @@ def get_model(
                 raise RuntimeError("Unexpected tokenizer=None")
             tokenizer = FakeTokenizer()
         return client, tokenizer, 'http'
+
+    if base_model in openai_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing OpenAI models")
+
     if isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
@@ -1834,7 +1953,10 @@ def get_model(
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
-            max_seq_len = model_token_mapping[base_model]
+            if base_model in model_token_mapping:
+                max_seq_len = model_token_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -1862,12 +1984,15 @@ def get_model(
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
-        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model, n_jobs=n_jobs,
+        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model,
+                                                               n_jobs=n_jobs,
+                                                               gpu_id=gpu_id,
+                                                               n_gpus=n_gpus,
                                                                max_seq_len=max_seq_len,
                                                                llamacpp_dict=llamacpp_dict)
         return model, tokenizer, device
     if load_exllama:
-        return model_loader, tokenizer, 'cuda'
+        return model_loader, tokenizer, 'cuda' if n_gpus != 0 else 'cpu'
 
     # get local torch-HF model
     return get_hf_model(load_8bit=load_8bit,
@@ -1875,6 +2000,7 @@ def get_model(
                         low_bit_mode=low_bit_mode,
                         load_half=load_half,
                         load_gptq=load_gptq,
+                        use_autogptq=use_autogptq,
                         load_awq=load_awq,
                         use_safetensors=use_safetensors,
                         revision=revision,
@@ -1883,6 +2009,7 @@ def get_model(
                         tokenizer_base_model=tokenizer_base_model,
                         lora_weights=lora_weights,
                         gpu_id=gpu_id,
+                        n_gpus=n_gpus,
 
                         reward_type=reward_type,
                         local_files_only=local_files_only,
@@ -1910,6 +2037,7 @@ def get_hf_model(load_8bit: bool = False,
                  low_bit_mode: int = 1,
                  load_half: bool = True,
                  load_gptq: str = '',
+                 use_autogptq: bool = False,
                  load_awq: str = '',
                  use_safetensors: bool = False,
                  revision: str = None,
@@ -1918,6 +2046,7 @@ def get_hf_model(load_8bit: bool = False,
                  tokenizer_base_model: str = '',
                  lora_weights: str = "",
                  gpu_id: int = 0,
+                 n_gpus: int = None,
 
                  reward_type: bool = None,
                  local_files_only: bool = False,
@@ -1948,7 +2077,7 @@ def get_hf_model(load_8bit: bool = False,
     if lora_weights is not None and lora_weights.strip():
         if verbose:
             print("Get %s lora weights" % lora_weights, flush=True)
-    device = get_device()
+    device = get_device(n_gpus=n_gpus)
 
     if 'gpt2' in base_model.lower():
         # RuntimeError: where expected condition to be a boolean tensor, but got a tensor with dtype Half
@@ -1961,7 +2090,9 @@ def get_hf_model(load_8bit: bool = False,
 
     model_loader, tokenizer_loader, conditional_type = (
         get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
+                    load_gptq=load_gptq,
+                    use_autogptq=use_autogptq,
+                    load_awq=load_awq, load_exllama=load_exllama,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
                     attention_sinks=attention_sinks, sink_dict=sink_dict,
                     truncation_generation=truncation_generation,
@@ -2016,42 +2147,45 @@ def get_hf_model(load_8bit: bool = False,
 
         n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
         n_gpus, gpu_ids = cuda_vis_check(n_gpus)
-        if low_bit_mode == 1 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
-        elif low_bit_mode == 2 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
-        elif low_bit_mode == 3 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
-        elif low_bit_mode == 4 and n_gpus != 0:
-            from transformers import BitsAndBytesConfig
-            model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
-                                                                     bnb_4bit_quant_type="nf4",
-                                                                     load_in_4bit=load_4bit,
-                                                                     load_in_8bit=load_8bit,
-                                                                     )
+        if n_gpus != 0 and not (load_gptq and not use_autogptq):
+            if low_bit_mode == 1:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+            elif low_bit_mode == 2:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_quant_type="nf4",
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+            elif low_bit_mode == 3:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+            elif low_bit_mode == 4:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_use_double_quant=True,
+                                                                         bnb_4bit_quant_type="nf4",
+                                                                         load_in_4bit=load_4bit,
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
-            context = NullContext if (load_gptq or load_awq) else torch.device
+            context = NullContext if (load_gptq and use_autogptq or load_awq) else torch.device
             with context(device):
 
                 if use_gpu_id:
                     config, model, max_seq_len = get_config(base_model,
                                                             return_model=True, raise_exception=True, **config_kwargs)
                     model = get_non_lora_model(base_model, model_loader, load_half,
-                                               load_gptq, load_awq,
+                                               load_gptq,
+                                               use_autogptq,
+                                               load_awq,
                                                load_exllama,
                                                use_safetensors,
                                                revision,
@@ -2063,7 +2197,7 @@ def get_hf_model(load_8bit: bool = False,
                     model_kwargs['use_safetensors'] = use_safetensors
                     model_kwargs['revision'] = revision
                     config, _, max_seq_len = get_config(base_model, **config_kwargs)
-                    if load_half and not (load_8bit or load_4bit or load_gptq or load_awq):
+                    if load_half and not (load_8bit or load_4bit or load_gptq and use_autogptq or load_awq):
                         model = model_loader(
                             base_model,
                             config=config,
@@ -2071,9 +2205,8 @@ def get_hf_model(load_8bit: bool = False,
                         if not getattr(model, "is_quantized", False):
                             model = model.half()
                     else:
-                        if load_gptq:
+                        if load_gptq and use_autogptq:
                             model_kwargs.pop('torch_dtype', None)
-                            model_kwargs.pop('device_map')
                             model = model_loader(
                                 model_name_or_path=base_model,
                                 model_basename=load_gptq,
@@ -2143,12 +2276,14 @@ def get_hf_model(load_8bit: bool = False,
                     rope_scaling=rope_scaling,
                     device_map="auto",
                 )
-                if load_half and not (load_gptq or load_awq):
+                if load_half and not (load_gptq and use_autogptq or load_awq):
                     if not getattr(model, "is_quantized", False):
                         model = model.half()
 
+    # for LlamaAWQForCausalLM
+    # https://github.com/casper-hansen/AutoAWQ/issues/107
     # unwind broken decapoda-research config
-    if llama_type:
+    if llama_type and hasattr(model, 'config'):
         model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
         model.config.bos_token_id = 1
         model.config.eos_token_id = 2
@@ -2158,7 +2293,7 @@ def get_hf_model(load_8bit: bool = False,
                                       'eos_token': '<eos>',
                                       'pad_token': '<pad>'})
 
-    if not isinstance(tokenizer, str):
+    if not isinstance(tokenizer, str) and hasattr(model, 'eval'):
         model.eval()
         if torch.__version__ >= "2" and sys.platform != "win32" and compile_model:
             model = torch.compile(model)
@@ -2168,6 +2303,18 @@ def get_hf_model(load_8bit: bool = False,
     # tell if conditional type
     model.conditional_type = conditional_type
     tokenizer.conditional_type = conditional_type
+
+    # https://github.com/PanQiWei/AutoGPTQ/issues/323
+    if load_gptq and not use_autogptq:
+        from auto_gptq import exllama_set_max_input_length
+        try:
+            model = exllama_set_max_input_length(model, tokenizer.model_max_length)
+        except Exception as e:
+            # HF transformers AutoGPTQ use is NOT user friendly
+            if 'The method exllama_set_max_input_length ' in str(e):
+                pass
+            else:
+                raise
 
     return model, tokenizer, device
 
@@ -2205,6 +2352,7 @@ def get_score_model(score_model: str = None,
                     low_bit_mode=1,
                     load_half: bool = True,
                     load_gptq: str = '',
+                    use_autogptq: bool = False,
                     load_awq: str = '',
                     load_exllama: bool = False,
                     use_gpu_id: bool = True,
@@ -2214,6 +2362,7 @@ def get_score_model(score_model: str = None,
                     lora_weights: str = "",
                     gpu_id: int = 0,
                     n_jobs=None,
+                    n_gpus=None,
 
                     reward_type: bool = None,
                     local_files_only: bool = False,
@@ -2239,6 +2388,7 @@ def get_score_model(score_model: str = None,
         low_bit_mode = 1
         load_half = False
         load_gptq = ''
+        use_autogptq = False
         load_awq = ''
         load_exllama = False
         use_safetensors = False
@@ -2326,6 +2476,7 @@ def evaluate(
         docs_ordering_type,
         min_max_new_tokens,
         max_input_tokens,
+        max_total_input_tokens,
         docs_token_handling,
         docs_joiner,
         hyde_level,
@@ -2349,6 +2500,7 @@ def evaluate(
         memory_restriction_level=None,
         max_max_new_tokens=None,
         is_public=None,
+        from_ui=True,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
         lora_weights=None,
@@ -2523,6 +2675,7 @@ def evaluate(
         chat_conversation = []
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
+    # This doesn't do switch-a-roo, assume already done
     model_lower = base_model.lower()
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
@@ -2538,6 +2691,8 @@ def evaluate(
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
     temperature = min(max(0.01, temperature), 2.0)
+    max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
+    max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
     num_beams = 1 if stream_output else num_beams  # See max_beams in gradio_runner
     if model_lower == 'distilgpt2':
@@ -2554,6 +2709,8 @@ def evaluate(
         min_max_new_tokens = 256
     if max_input_tokens is None:
         max_input_tokens = -1
+    if max_total_input_tokens is None:
+        max_total_input_tokens = -1
     if docs_ordering_type is None:
         docs_ordering_type = docs_ordering_types_default
     if docs_token_handling is None:
@@ -2566,12 +2723,19 @@ def evaluate(
     max_time = min(max(0, max_time), max_max_time)
     repetition_penalty = min(max(0.01, repetition_penalty), 3.0)
     num_return_sequences = 1 if chat else min(max(1, int(num_return_sequences)), 10)
-    min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+    min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, from_ui)
     # limit total tokens processed, e.g. for summarization, if public instance
     if is_public:
-        total_tokens_for_docs = min(2 * model_max_length, 16384)
-    else:
-        total_tokens_for_docs = None
+        # control API too for public case
+        if from_ui:
+            max_input_tokens = max_input_tokens_public
+        else:
+            max_input_tokens = max_input_tokens_public_api
+
+        if from_ui:
+            max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public)
+        else:
+            max_total_input_tokens = min(max_total_input_tokens, max_total_input_tokens_public_api)
     top_k_docs = min(max(min_top_k_docs, int(top_k_docs)), max_top_k_docs)
     chunk_size = min(max(128, int(chunk_size)), 2048)
     if not context:
@@ -2728,6 +2892,7 @@ def evaluate(
                 docs_ordering_type=docs_ordering_type,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
+                max_total_input_tokens=max_total_input_tokens,
                 docs_token_handling=docs_token_handling,
                 docs_joiner=docs_joiner,
                 hyde_level=hyde_level,
@@ -2753,7 +2918,6 @@ def evaluate(
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
-                total_tokens_for_docs=total_tokens_for_docs,
                 headsize=headsize,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
@@ -2829,6 +2993,7 @@ def evaluate(
                            add_chat_history_to_context=add_chat_history_to_context,
                            min_max_new_tokens=min_max_new_tokens,
                            max_input_tokens=max_input_tokens,
+                           max_total_input_tokens=max_total_input_tokens,
                            truncation_generation=truncation_generation,
                            gradio_server=gradio_server,
                            )
@@ -3035,6 +3200,7 @@ def evaluate(
                                      docs_ordering_type=docs_ordering_type,
                                      min_max_new_tokens=min_max_new_tokens,
                                      max_input_tokens=max_input_tokens,
+                                     max_total_input_tokens=max_total_input_tokens,
                                      docs_token_handling=docs_token_handling,
                                      docs_joiner=docs_joiner,
                                      hyde_level=hyde_level,
@@ -3568,6 +3734,7 @@ def get_generate_params(model_lower,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
+                        max_total_input_tokens,
                         docs_token_handling,
                         docs_joiner,
                         hyde_level,
@@ -3757,6 +3924,7 @@ y = np.random.randint(0, 1, 100)
                     docs_ordering_type,
                     min_max_new_tokens,
                     max_input_tokens,
+                    max_total_input_tokens,
                     docs_token_handling,
                     docs_joiner,
                     hyde_level,
@@ -3897,14 +4065,17 @@ def get_max_max_new_tokens(model_state, **kwargs):
         return 2048
 
 
-def get_minmax_top_k_docs(is_public):
+def get_minmax_top_k_docs(is_public, from_ui):
     label_top_k_docs = "Number of document chunks (query) or pages/parts (summarize)"
     if is_public:
         min_top_k_docs = 1
-        max_top_k_docs = 8
+        if from_ui:
+            max_top_k_docs = max_top_k_docs_public
+        else:
+            max_top_k_docs = max_top_k_docs_public_api
     else:
         min_top_k_docs = -1
-        max_top_k_docs = 100
+        max_top_k_docs = 1000
         label_top_k_docs = label_top_k_docs + " (-1 = auto fill model context, all pages/docs for summarize)"
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
 
@@ -4035,6 +4206,7 @@ def get_limited_prompt(instruction,
                        doc_importance=0.5,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
+                       max_total_input_tokens=-1,
                        truncation_generation=False,
                        gradio_server=False,
                        ):
@@ -4253,10 +4425,13 @@ def get_limited_prompt(instruction,
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
+    """
+    max_input_tokens: Over all LLM calls, upper limit of total token count,
+                      or single LLM call if want to know what docs fit into single call
+    """
     if text_context_list is None or len(text_context_list) == 0:
         return 0, None, 0
-    if max_input_tokens is None:
-        max_input_tokens = tokenizer.model_max_length
+    assert max_input_tokens is not None, "Must set max_input_tokens"
     tokens = [get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list]
     tokens_cumsum = np.cumsum(tokens)
     where_res = np.where(tokens_cumsum < max_input_tokens)[0]

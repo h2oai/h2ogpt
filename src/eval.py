@@ -6,7 +6,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from evaluate_params import eval_func_param_names, eval_extra_columns
-from gen import get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
@@ -20,9 +20,9 @@ def run_eval(  # for local function:
         examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None,
-        load_gptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
+        load_gptq=None, use_autogptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
-        gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
+        gpu_id=None, n_jobs=None, n_gpus=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
         llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None, sink_dict=None, hf_model_dict=None,
         truncation_generation=None,
@@ -61,6 +61,7 @@ def run_eval(  # for local function:
         docs_ordering_type=None,
         min_max_new_tokens=None,
         max_input_tokens=None,
+        max_total_input_tokens=None,
         docs_token_handling=None,
         docs_joiner=None,
         hyde_level=None,
@@ -190,8 +191,9 @@ def run_eval(  # for local function:
                                                                    **locals()))
 
         if not eval_as_output:
-            model, tokenizer, device = get_model(reward_type=False,
-                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+            model, tokenizer, device = get_model_retry(reward_type=False,
+                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                    **locals()))
             model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model,
                               lora_weights=lora_weights,
                               inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,

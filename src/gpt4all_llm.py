@@ -6,20 +6,37 @@ from langchain.schema.output import GenerationChunk
 from pydantic import root_validator
 from langchain.llms import gpt4all
 
-from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple
+from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 
 
-def get_model_tokenizer_gpt4all(base_model, n_jobs=None, max_seq_len=None, llamacpp_dict=None):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=None, max_seq_len=None, llamacpp_dict=None):
+    cvd = os.getenv('CUDA_VISIBLE_DEVICES')
+    if gpu_id is not None and gpu_id != -1:
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
     assert llamacpp_dict is not None
     # defaults (some of these are generation parameters, so need to be passed in at generation time)
     model_name = base_model.lower()
-    model, tokenizer = get_llm_gpt4all(model_name, model=None,
-                                       n_jobs=n_jobs,
-                                       inner_class=True,
-                                       max_seq_len=max_seq_len,
-                                       llamacpp_dict=llamacpp_dict,
-                                       )
-    return model, tokenizer, 'cpu'
+    llama_kwargs = dict(model_name=model_name,
+                        model=None,
+                        n_jobs=n_jobs,
+                        n_gpus=n_gpus,
+                        main_gpu=gpu_id if gpu_id not in [None, -1, '-1'] else 0,
+                        inner_class=True,
+                        max_seq_len=max_seq_len,
+                        llamacpp_dict=llamacpp_dict)
+    model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
+    if redo:
+        del model
+        del tokenizer
+        clear_torch_cache()
+        # auto max_seq_len
+        llama_kwargs.update(dict(max_seq_len=max_seq_len))
+        model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
+    if cvd is not None:
+        os.environ['CUDA_VISIBLE_DEVICES'] = cvd
+    else:
+        os.environ.pop('CUDA_VISIBLE_DEVICES', None)
+    return model, tokenizer, 'cpu' if n_gpus != 0 else 'cuda'
 
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
@@ -65,14 +82,16 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                                n_jobs=None,
                                verbose=False,
                                max_seq_len=None,
+                               main_gpu=0,
                                ):
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
     n_gpus = get_ngpus_vis()
+    max_seq_len_local = max_seq_len if max_seq_len is not None else 2048  # fake for auto mode
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
-                          max_tokens=max_seq_len - max_new_tokens,
+                          max_tokens=max_seq_len_local - max_new_tokens,
                           n_predict=max_new_tokens,
                           repeat_last_n=64 if repetition_penalty != 1.0 else 0,
                           repeat_penalty=repetition_penalty,
@@ -81,15 +100,16 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           top_k=top_k,
                           top_p=top_p,
                           use_mlock=True,
-                          n_ctx=max_seq_len,
+                          n_ctx=max_seq_len_local,
                           n_threads=n_jobs,
+                          main_gpu=main_gpu,
                           verbose=verbose)
     if n_gpus != 0:
-        default_kwargs.update(dict(n_gpu_layers=100))
+        default_kwargs.update(dict(n_gpu_layers=100, f16_kv=True))
     return default_kwargs
 
 
-def get_llm_gpt4all(model_name,
+def get_llm_gpt4all(model_name=None,
                     model=None,
                     max_new_tokens=256,
                     temperature=0.1,
@@ -102,11 +122,14 @@ def get_llm_gpt4all(model_name,
                     context='',
                     iinput='',
                     n_jobs=None,
+                    n_gpus=None,
+                    main_gpu=0,
                     verbose=False,
                     inner_class=False,
                     max_seq_len=None,
                     llamacpp_dict=None,
                     ):
+    redo = False
     if not inner_class:
         assert prompter is not None
 
@@ -119,6 +142,7 @@ def get_llm_gpt4all(model_name,
                                    n_jobs=n_jobs,
                                    verbose=verbose,
                                    max_seq_len=max_seq_len,
+                                   main_gpu=main_gpu,
                                    )
     if model_name == 'llama':
         # FIXME: streaming not thread safe due to:
@@ -140,7 +164,8 @@ def get_llm_gpt4all(model_name,
             model_path = model
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
-                                 prompter=prompter, context=context, iinput=iinput))
+                                 prompter=prompter, context=context, iinput=iinput,
+                                 n_gpus=n_gpus))
 
         # migration to  new langchain fix:
         odd_keys = ['model_kwargs', 'grammar_path', 'grammar']
@@ -150,6 +175,12 @@ def get_llm_gpt4all(model_name,
         llm = cls(**model_kwargs)
         llm.client.verbose = verbose
         inner_model = llm.client
+
+        if max_seq_len is None:
+            redo = True
+            max_seq_len = llm.client.n_embd()
+            print("Auto-detected LLaMa n_ctx=%s, will unload then reload with this setting." % max_seq_len)
+
         # with multiple GPUs, something goes wrong unless generation occurs early before other imports
         # CUDA error 704 at /tmp/pip-install-khkugdmy/llama-cpp-python_8c0a9782b7604a5aaf95ec79856eac97/vendor/llama.cpp/ggml-cuda.cu:6408: peer access is already enabled
         inner_model("Say exactly one word", max_tokens=1)
@@ -202,7 +233,7 @@ def get_llm_gpt4all(model_name,
     else:
         raise RuntimeError("No such model_name %s" % model_name)
     if inner_class:
-        return inner_model, inner_tokenizer
+        return inner_model, inner_tokenizer, redo, max_seq_len
     else:
         return llm
 
@@ -289,6 +320,7 @@ class H2OLlamaCpp(LlamaCpp):
     iinput: Any
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    n_gpus: Any = -1
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -317,9 +349,16 @@ class H2OLlamaCpp(LlamaCpp):
 
             try:
                 try:
-                    from llama_cpp import Llama
-                except ImportError:
-                    from llama_cpp_cuda import Llama
+                    if values["n_gpus"] == 0:
+                        from llama_cpp import Llama
+                    else:
+                        from llama_cpp_cuda import Llama
+                except Exception as e:
+                    print("Failed to listen to n_gpus: %s" % str(e), flush=True)
+                    try:
+                        from llama_cpp import Llama
+                    except ImportError:
+                        from llama_cpp_cuda import Llama
 
                 values["client"] = Llama(model_path, **model_params)
             except ImportError:
