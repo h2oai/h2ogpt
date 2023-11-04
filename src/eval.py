@@ -102,6 +102,7 @@ def run_eval(  # for local function:
         model_lock=None, force_langchain_evaluate=None,
         model_state_none=None,
 ):
+    from_ui = False
     check_locals(**locals())
 
     if not context:

@@ -93,6 +93,7 @@ def run_cli(  # for local function:
     logging.getLogger("torch").setLevel(logging.ERROR)
     logging.getLogger("transformers").setLevel(logging.ERROR)
 
+    from_ui = False
     check_locals(**locals())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
