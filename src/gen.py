@@ -1355,6 +1355,17 @@ def main(
                 if k not in model_dict:
                     model_dict[k] = model_list0[0][k]
 
+            model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
+            model_dict['base_model'], model_dict['model_path_llama'], \
+                model_dict['load_gptq'], \
+                model_dict['load_awq'], \
+                model_dict['llamacpp_dict']['n_gqa'] = \
+                switch_a_roo_llama(model_dict['base_model'],
+                                   model_dict['model_path_llama'],
+                                   model_dict['load_gptq'],
+                                   model_dict['load_awq'],
+                                   model_dict.get('llamacpp_dict', {}).get('n_gqa', 0))
+
             # begin prompt adjustments
             # get query prompt for (say) last base model if using model lock
             pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1 = (
@@ -1380,12 +1391,6 @@ def main(
                 load_gptq1 = model_dict.get('load_gptq', '')
                 load_awq1 = model_dict.get('load_awq', '')
                 model_lower10 = model_lower1
-                model_lower1, model_path_llama, \
-                    model_dict['load_gptq'], model_dict['load_awq'], \
-                    model_dict['llamacpp_dict']['n_gqa'] = \
-                    switch_a_roo_llama(model_lower1, model_path_llama1, load_gptq1, load_awq1,
-                                       llamacpp_dict1.get('n_gqa', 0))
-
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
                                          return_dict=True,
@@ -1407,17 +1412,6 @@ def main(
             all_kwargs = locals().copy()
             all_kwargs.update(model_dict)
             if model_dict['base_model'] and not login_mode_if_model0:
-                model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
-                model_dict['base_model'], model_dict['model_path_llama'],\
-                    model_dict['load_gptq'], \
-                    model_dict['load_awq'], \
-                    model_dict['llamacpp_dict']['n_gqa'] = \
-                    switch_a_roo_llama(model_dict['base_model'],
-                                       model_dict['model_path_llama'],
-                                       model_dict['load_gptq'],
-                                       model_dict['load_awq'],
-                                       model_dict.get('llamacpp_dict', {}).get('n_gqa', 0))
-                all_kwargs.update(model_dict)
                 model0, tokenizer0, device = get_model_retry(reward_type=False,
                                                              **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                           **all_kwargs))
@@ -1449,10 +1443,13 @@ def main(
             assert len(model_state_none) == len(model_state0)
 
         visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
-        all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
-        visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
+        all_possible_visible_models = [
+            x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
+                                       not x.get('model_path_llama', '') else x.get(
+                'model_path_llama', '') for xi, x in enumerate(model_states)]
+        visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
                                  visible_models is None or
-                                 x.get('base_model', xi) in visible_models or
+                                 x in visible_models or
                                  xi in visible_models]
 
         # update to be consistent with what is passed from CLI and model chose
