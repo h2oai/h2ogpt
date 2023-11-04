@@ -1324,10 +1324,12 @@ def go_gradio(**kwargs):
                                         model_load_gptq = gr.Textbox(label="gptq",
                                                                      info="For TheBloke, use: model",
                                                                      value=kwargs['load_gptq'],
+                                                                     visible=kwargs['use_autogptq'],
                                                                      interactive=not is_public)
                                         model_gptq_dict = gr.Textbox(value=str(kwargs['gptq_dict'] or {}),
                                                                      info="E.g. {'inject_fused_attention':False, 'disable_exllama': True}",
-                                                                     label="gptq_dict")
+                                                                     label="gptq_dict",
+                                                                     visible=kwargs['use_autogptq'])
                                         model_load_awq = gr.Textbox(label="awq", value=kwargs['load_awq'],
                                                                     info="For TheBloke, use: model",
                                                                     interactive=not is_public)
@@ -1337,7 +1339,8 @@ def go_gradio(**kwargs):
                                         model_exllama_dict = gr.Textbox(value=str(kwargs['exllama_dict'] or {}),
                                                                         label="exllama_dict",
                                                                         info="E.g. to split across 2 GPUs: {'set_auto_map':20,20}")
-                                    with gr.Accordion("HuggingFace", open=False, visible=True):
+                                    hf_label = "HuggingFace" if kwargs['use_autogptq'] else "HuggingFace (inc. GPTQ)"
+                                    with gr.Accordion(hf_label, open=False, visible=True):
                                         model_safetensors_checkbox = gr.components.Checkbox(
                                             label="Safetensors [required sometimes, e.g. GPTQ from TheBloke]",
                                             value=kwargs['use_safetensors'], interactive=not is_public)
@@ -1467,9 +1470,11 @@ def go_gradio(**kwargs):
                                         model_load_gptq2 = gr.Textbox(label="gptq (Model 2)",
                                                                       info="For TheBloke models, use: model",
                                                                       value=kwargs['load_gptq'],
+                                                                      visible=kwargs['use_autogptq'],
                                                                       interactive=not is_public)
                                         model_gptq_dict2 = gr.Textbox(value=str(kwargs['gptq_dict'] or {}),
                                                                       info="E.g. {'inject_fused_attention':False, 'disable_exllama': True}",
+                                                                      visible=kwargs['use_autogptq'],
                                                                       label="gptq_dict (Model 2)")
                                         model_load_awq2 = gr.Textbox(label="awq (Model 2)", value='',
                                                                      interactive=not is_public)
@@ -1478,7 +1483,7 @@ def go_gradio(**kwargs):
                                             value=False, interactive=not is_public)
                                         model_exllama_dict2 = gr.Textbox(value=str(kwargs['exllama_dict'] or {}),
                                                                          label="exllama_dict (Model 2)")
-                                    with gr.Accordion("HuggingFace", open=False, visible=True):
+                                    with gr.Accordion(hf_label, open=False, visible=True):
                                         model_safetensors_checkbox2 = gr.components.Checkbox(
                                             label="Safetensors (Model 2) [requires support]",
                                             value=False, interactive=not is_public)
