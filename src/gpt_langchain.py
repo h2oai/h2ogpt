@@ -1983,10 +1983,12 @@ def get_each_page(file):
         tar = fitz.open()  # output PDF for 1 page
         # copy over current page
         tar.insert_pdf(src, from_page=page.number, to_page=page.number)
-        page = f"{file}-page-{page.number}.pdf"
-        tar.save(page)
+        tmpdir = os.getenv('TMPDDIR', '/tmp/')
+        page_file = os.path.join(tmpdir, f"{file}-page-{page.number}-{str(uuid.uuid4())}.pdf")
+        makedirs(os.path.dirname(page_file), exist_ok=True)
+        tar.save(page_file)
         tar.close()
-        pages.append(page)
+        pages.append(page_file)
     return pages
 
 
@@ -2518,8 +2520,9 @@ def file_to_doc(file,
             try:
                 pages = get_each_page(file)
                 got_pages = True
-            except:
+            except Exception as e:
                 # FIXME: protection for now, unsure how generally will work
+                print("Exception in doctr page handling: %s" % str(e), flush=True)
                 pages = [file]
                 got_pages = False
             model_loaders['doctr'].set_document_paths(pages)
