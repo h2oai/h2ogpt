@@ -1408,7 +1408,7 @@ def main(
             all_kwargs.update(model_dict)
             if model_dict['base_model'] and not login_mode_if_model0:
                 model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
-                model_dict['base_model'], model_dict['model_path_llama'],\
+                model_dict['base_model'], model_dict['model_path_llama'], \
                     model_dict['load_gptq'], \
                     model_dict['load_awq'], \
                     model_dict['llamacpp_dict']['n_gqa'] = \
@@ -1449,10 +1449,13 @@ def main(
             assert len(model_state_none) == len(model_state0)
 
         visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
-        all_models = [x.get('base_model', xi) for xi, x in enumerate(model_states)]
-        visible_models_state0 = [x.get('base_model', xi) for xi, x in enumerate(model_states) if
+        all_possible_visible_models = [
+            x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
+                                       not x.get('model_path_llama', '') else x.get(
+                'model_path_llama', '') for xi, x in enumerate(model_states)]
+        visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
                                  visible_models is None or
-                                 x.get('base_model', xi) in visible_models or
+                                 x in visible_models or
                                  xi in visible_models]
 
         # update to be consistent with what is passed from CLI and model chose
