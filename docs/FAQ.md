@@ -238,7 +238,34 @@ You can choose any Hugging Face model or quantized GGUF model file in h2oGPT.  H
 
 #### Hugging Face
 
-Hugging Face models are passed via `--base_model` in all cases, with an extra `--load_gptq` for GPTQ models or an extra `--load_awq` for AWQ models, e.g., by [TheBloke](https://huggingface.co/TheBloke). For example, for AutoGPTQ:
+Hugging Face models are passed via `--base_model` in all cases, with fine-control using `hf_model_dict`.
+
+#### TheBloke
+
+For models by [TheBloke](https://huggingface.co/TheBloke), h2oGPT tries to automatically handle all types of models (AWQ, GGUF, GGML, GPTQ, with or without safetensors) automatically all passed with `--base_model` only (CLI or UI both).  For example, these models all can be passed just with `--base_model` without any extra model options:
+```text
+python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
+python generate.py --base_model=TheBloke/Xwin-LM-13B-V0.1-GPTQ
+python generate.py --base_model=TheBloke/Llama-2-7B-Chat-GGUF
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta
+python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF
+python generate.py --base_model=TheBloke/zephyr-7B-beta-AWQ
+python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf
+python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
+```
+Some are these are non-quantized models with links HF links, some specific files on local disk ending in `.gguf`.  Given `TheBloke` HF names, if a quantized model, h2oGPT pulls the recommended model from his repository.  You can also provide a resolved web link directly, or a file.
+
+Watch out for typos.  h2oGPT broadly detects if the URL is valid, but Hugging Face just returns a redirect for resolved links, leading to page containing `Entry not found` if one makes a mistake in the file name, e.g. `https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguffoo`.
+
+For AWQ, GPTQ, we try the required safe tensors or other options, and by default use transformers's GPTQ unless one specifies `--use_autogptq=True`.
+
+#### AWQ, GPTQ
+
+For full control over AWQ, GPTQ models, one can use an extra `--load_gptq` and `gptq_dict` for GPTQ models or an extra `--load_awq` for AWQ models.
+
+##### GPTQ
+
+For example, for AutoGPTQ using [TheBloke](https://huggingface.co/TheBloke):
 ```bash
 python generate.py --base_model=TheBloke/Nous-Hermes-13B-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=instruct
 ```
@@ -246,6 +273,22 @@ and in some cases one has to disable certain features that are not automatically
 ```bash
 CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Xwin-LM-13B-v0.2-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=xwin --langchain_mode=UserData --score_model=None --share=False --gradio_offline_level=1 --gptq_dict="{'disable_exllama': True}"
 ```
+
+For AutoGPTQ and other models, h2oGPT tries to automatically handle models needing certain exllama options.
+
+##### AWQ
+
+New quantized AWQ chose good quality, e.g. 70B LLaMa-2 16-bit or AWQ does comparable for many retrieval tasks.
+
+```bash
+python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model --use_safetensors=True --prompt_type=llama2
+```
+
+#### Exllama
+
+Exllama is supported using `load_exllama` bool, with additional control using `exllama_dict`.
+
+#### Attention Sinks
 
 Attention sinks is supported, like:
 ```bash
@@ -261,40 +304,20 @@ One can increase `--max_seq_len=4096` for Mistral up to maximum of `32768` if GP
 
 One can also set `--min_new_tokens` on CLI or in UI to some larger value, but this is risky as it ignores end of sentence token and may do poorly after.  Better to improve prompt, and this is most useful when already consumed context with input from documents (e.g. `top_k_docs=-1`) and still want long generation.  Attention sinks is not yet supported for llama.cpp type models or vLLM/TGI inference servers.
 
-#### AWQ
-
-New quantized AWQ chose good quality, e.g. 70B LLaMa-2 16-bit or AWQ does comparable for many retrieval tasks.
-
-```bash
-python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model --use_safetensors=True --prompt_type=llama2
-```
-
 #### GGUF
 
-For GGUF model support or CPU llama.cpp support, see [README_LINUX.md](README_LINUX.md) or [README_WINDOWS.md](README_WINDOWS.md) for uninstalling GGML package in favor of GGUF.  As complete example, here is for GPU and CPU using GGUF model.
+GGUF models are supported (can run either CPU and GPU in same install), see installation instructions for installing the separate GPU and CPU packages.
 
-GGUF using GPU on x86_64 linux:
+GGUF using Mistral:
 ```bash
-pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
 python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
 ```
-That is, currently, for GPU case, the latest llama_cpp_python only uses GGUF, so version number selects GGML vs. GGUF just like for llama.cpp itself.
-
-GGUF using AVX2 on x86_64 linux:
-```bash
-pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
-CUDA_VISIBLE_DEVICES= \
-python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-```
-Similarly version of llama cpp python package selects support for GGMLv3 vs. GGUF.  Later versions of llama_cpp_python than shown here may not be supported in h2oGPT, that is untested.
 
 [Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
 
 #### GGML
 
-GGML v3 quantized models are supported, and [TheBloke](https://huggingface.co/TheBloke) also has many of those, e.g.
+GGML v3 quantized models are not recommended, but are supported.  E.g. [TheBloke](https://huggingface.co/TheBloke) also has many of those, such as:
 ```bash
 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
 ```
@@ -307,10 +330,9 @@ for any TheBloke GGML v3 models.
 
 GGMLv3 requires installing older llama_cpp_python versions as listed in each linux/windows/mac installation, but it has bugs, so GGUF is recommended in all cases.
 
-
 #### GPT4All
 
-GPT4All models are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder). For example:
+GPT4All models are not recommended, but are supported, which are automatically downloaded to a GPT4All cache folder (in the home folder). For example:
 ```bash
 python generate.py --base_model=gptj --model_name_gptj=ggml-gpt4all-j-v1.3-groovy.bin
 ```

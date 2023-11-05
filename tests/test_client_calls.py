@@ -2607,7 +2607,10 @@ def test_client_load_unload_models(model_choice):
 
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("stream_output", [True, False])
-@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated + ['zephyr-7b-beta.Q5_K_M.gguf'])
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] +
+                         model_names_curated +
+                         ['zephyr-7b-beta.Q5_K_M.gguf'] +
+                         ['https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
 @wrap_test_forked
 def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:

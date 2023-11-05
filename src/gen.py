@@ -74,6 +74,8 @@ langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 
 def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa):
+
+    # from TheBloke HF link
     is_gguf = 'GGUF'.lower() in base_model.lower()
     is_ggml = 'GGML'.lower() in base_model.lower()
     postfix = '-GGUF' if is_gguf else '-GGML'
@@ -92,10 +94,16 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
                 base_model = base_model0
         model_path_llama = base_model
         base_model = 'llama'
-    if (base_model.endswith('.gguf') or base_model.endswith('.ggml')) and os.path.isfile(base_model):
-        # then file but still either gguf or ggml
-        model_path_llama = base_model
-        base_model = 'llama'
+    elif base_model.endswith('.gguf') or base_model.endswith('.ggml'):
+        # from resolved url
+        if base_model.lower().startswith('https://huggingface.co/') and 'resolve/main/' in base_model.lower() and url_alive(base_model):
+            model_path_llama = base_model
+            base_model = 'llama'
+        # from file
+        elif os.path.isfile(base_model):
+            # then file but still either gguf or ggml
+            model_path_llama = base_model
+            base_model = 'llama'
 
     # some auto things for TheBloke models:
     if 'TheBloke' in base_model and '-GPTQ' in base_model:

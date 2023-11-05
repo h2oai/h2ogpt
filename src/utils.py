@@ -1274,7 +1274,7 @@ def url_alive(url):
     except Exception as e:
         return False
     else:
-        if response.status_code in [200, 301, 302]:
+        if response.status_code in [200, 301, 302, 307]:
             return True
         else:
             return False
