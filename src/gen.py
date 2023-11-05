@@ -653,6 +653,8 @@ def main(
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
+    :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
+           Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
