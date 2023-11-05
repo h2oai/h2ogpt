@@ -4611,6 +4611,7 @@ def run_hyde(*args, **kwargs):
     get_answer_kwargs = kwargs['get_answer_kwargs']
     append_sources_to_answer = kwargs['append_sources_to_answer']
     prompt_basic = kwargs['prompt_basic']
+    docs_joiner = kwargs['docs_joiner']
 
     # get llm answer
     auto_hyde = """Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: {query}"""
@@ -4630,10 +4631,12 @@ def run_hyde(*args, **kwargs):
     hyde_chain['query'] = hyde_template.format(query=query)
     hyde_chain['db'] = None
     hyde_chain['text_context_list'] = []
+    extra = []
+    answers = []
 
-    for hyde_level in range(hyde_level):
+    for hyde_level1 in range(hyde_level):
         if verbose:
-            print("hyde_level=%d embedding_query=%s" % (hyde_level, hyde_chain['query']), flush=True)
+            print("hyde_level1=%d embedding_query=%s" % (hyde_level1, hyde_chain['query']), flush=True)
 
         # run chain
         docs, chain, scores, \
@@ -4643,17 +4646,24 @@ def run_hyde(*args, **kwargs):
             get_chain(**hyde_chain)
 
         # get answer, updates llm_answers internally too
-        llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level
+        llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level1
         # for LLM, query remains same each time
-        answer = yield from run_target_func(query=query,
-                                            chain=chain,
-                                            llm=llm,
-                                            streamer=streamer,
-                                            prompter=prompter,
-                                            llm_answers=llm_answers,
-                                            llm_answers_key=llm_answers_key,
-                                            async_output=async_output,
-                                            only_new_text=only_new_text)
+        response_prefix = "HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
+            if hyde_level1 < hyde_level else ''
+        answer = ''
+        for ret in run_target_func(query=query,
+                                   chain=chain,
+                                   llm=llm,
+                                   streamer=streamer,
+                                   prompter=prompter,
+                                   llm_answers=llm_answers,
+                                   llm_answers_key=llm_answers_key,
+                                   async_output=async_output,
+                                   only_new_text=only_new_text):
+            yield dict(prompt=ret['prompt'], response=response_prefix + ret['response'], sources=ret['sources'],
+                       num_prompt_tokens=ret['num_prompt_tokens'],
+                       llm_answers=ret['llm_answers'])
+            answer = ret['response']
 
         if answer:
             # give back what have so far with any sources (what above yield doesn't do)
@@ -4673,7 +4683,11 @@ def run_hyde(*args, **kwargs):
                        llm_answers=llm_answers)
 
             # update embedding query
-            hyde_chain['query_embedding'] = hyde_higher_template.format(query=query, answer=answer)
+            # use all answers, but use newer answers first, often shorter due to LLM RLHF not used to long docs inputted,
+            # then add rest and will be truncated at end
+            answers.append(answer)
+            answers_reverse = docs_joiner.join(answers[::-1])
+            hyde_chain['query_embedding'] = hyde_higher_template.format(query=query, answer=answers_reverse)
         # update hyde_chain with doc version from now on
         hyde_chain['db'] = kwargs['db']
         hyde_chain['text_context_list'] = kwargs['text_context_list']
