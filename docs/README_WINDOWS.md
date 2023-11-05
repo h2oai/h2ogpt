@@ -67,40 +67,46 @@ For newer builds of windows versions of 10/11.
       ```bash
       pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu117
        ```
+   Choose `cu118` for A100/H100+.
  * Optional: for bitsandbytes 4-bit and 8-bit:
    ```bash
    pip uninstall bitsandbytes -y
    pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
    ```
-* Install document question-answer dependencies:
+* Install document question-answer dependencies
+
+   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` for GPU install:
    ```bash
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional but required for PlayWright
     playwright install --with-deps
     # Note: for Selenium, we match versions of playwright so above installer will add chrome version needed
   ```
-* GPU Optional: For optional AutoGPTQ support:
+* AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
+    # GPU
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
+    # CPU
+    pip install auto_gptq==0.4.2
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
     pip install optimum==1.13.3
    ```
-* GPU Optional: For optional AutoAWQ support:
+* AutoAWQ support:
    ```bash
     pip uninstall -y autoawq
     pip install autoawq==0.1.6
    ```
-* GPU Optional: For optional exllama support:
+* Exllama support (GPU only):
     ```bash
     pip uninstall -y exllama
     pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
@@ -110,7 +116,7 @@ For newer builds of windows versions of 10/11.
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
@@ -124,7 +130,7 @@ For newer builds of windows versions of 10/11.
     * GPU GGMLv3 ONLY (no longer recommended):
       ```bash
       pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
       ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
@@ -145,7 +151,7 @@ For newer builds of windows versions of 10/11.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
     ```bash
-    pip install git+https://github.com/tomaarsen/attention_sinks.git
+    pip install attention_sinks --extra-index-url https://download.pytorch.org/whl/cu117
   ```
 * SERP for search:
   ```bash
