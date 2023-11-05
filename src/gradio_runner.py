@@ -1264,7 +1264,7 @@ def go_gradio(**kwargs):
                                     with gr.Row():
                                         with gr.Column():
                                             model_choice = gr.Dropdown(model_options_state.value[0],
-                                                                       label="Choose/Enter Base Model",
+                                                                       label="Choose/Enter Base Model (HF name, TheBloke, file, URL)",
                                                                        value=kwargs['base_model'],
                                                                        allow_custom_value=not is_public)
                                             lora_choice = gr.Dropdown(lora_options_state.value[0],
@@ -1411,7 +1411,7 @@ def go_gradio(**kwargs):
                                     with gr.Row():
                                         with gr.Column():
                                             model_choice2 = gr.Dropdown(model_options_state.value[0],
-                                                                        label="Choose/Enter Model 2",
+                                                                        label="Choose/Enter Model 2 (HF name, TheBloke, file, URL)",
                                                                         value=no_model_str,
                                                                         allow_custom_value=not is_public)
                                             lora_choice2 = gr.Dropdown(lora_options_state.value[0],
