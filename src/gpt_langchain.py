@@ -2498,7 +2498,12 @@ def file_to_doc(file,
             did_pdf_ocr = True
             # no did_unstructured condition here because here we do OCR, and before we did not
             # try OCR in end since slowest, but works on pure image pages well
-            doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            try:
+                doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            except BaseException as e0:
+                doc1a = []
+                print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
+                e = e0
             handled |= len(doc1a) > 0
             # remove empty documents
             doc1a = [x for x in doc1a if x.page_content]
@@ -2525,8 +2530,13 @@ def file_to_doc(file,
                 print("Exception in doctr page handling: %s" % str(e), flush=True)
                 pages = [file]
                 got_pages = False
-            model_loaders['doctr'].set_document_paths(pages)
-            doc1a = model_loaders['doctr'].load()
+            try:
+                model_loaders['doctr'].set_document_paths(pages)
+                doc1a = model_loaders['doctr'].load()
+            except BaseException as e0:
+                doc1a = []
+                print("H2OOCRLoader: %s" % str(e0), flush=True)
+                e = e0
             doc1a = [x for x in doc1a if x.page_content]
             add_meta(doc1a, file, parser='H2OOCRLoader: %s' % 'DocTR')
             handled |= len(doc1a) > 0
