@@ -9,15 +9,27 @@
 
 # pip install pynsist
 
-# 1) Follow through README_WINDOWS.md installation, replacing pip install with pip download.  Easier than picking each wheel that's not on pypi.  So this for GPU and CPU separately in different repos (e.g. h2ogpt and h2ogpt.2).
+# 1) clear old build
 
+del build
+
+# 2) Follow through README_WINDOWS.md installation, replacing pip install with pip download.  Easier than picking each wheel that's not on pypi.  So this for GPU and CPU separately in different repos (e.g. h2ogpt and h2ogpt.2).
+
+# 3) move wheels
 mkdir wheels
 move *.whl wheels
 
 # extra things from tar.gz need to be wheel not just download:
-del build
 for /r %i in (*.tar.gz) do pip wheel %i
 move *.whl wheels
+
+# GPU (so package name not confusing to installer)
+cd wheels
+ren auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl auto_gptq-0.4.2-cp310-cp310-win_amd64.whl
+ren exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl exllama-0.0.13-cp310-cp310-win_amd64.whl
+ren llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.10-cp310-cp310-win_amd64.whl
+ren torch-2.0.1+cu117-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
+cd ..
 
 # Download: https://github.com/oschwartz10612/poppler-windows/releases/download/v23.08.0-0/Release-23.08.0-0.zip
 unzip Release-23.08.0-0.zip
