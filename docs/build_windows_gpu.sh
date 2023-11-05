@@ -31,6 +31,10 @@ ren llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl llama_cpp_pytho
 ren torch-2.0.1+cu117-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
 cd ..
 
+# others:
+pip wheel tabula==1.0.5
+move *.whl wheels/
+
 # Download: https://github.com/oschwartz10612/poppler-windows/releases/download/v23.08.0-0/Release-23.08.0-0.zip
 unzip Release-23.08.0-0.zip
 move poppler-23.08.0 poppler
