@@ -178,6 +178,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
         ```bash
         pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg9698e9e6a8.d20230907-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall --no-deps
       ```
+* SERP for search:
+  ```bash
+  pip install -r reqs_optional/requirements_optional_agents.txt
+  ```
+  For more info see [SERP Docs](README_SerpAPI.md).
 * Deal with not-thread-safe things in LangChain:
     ```bash
   sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
