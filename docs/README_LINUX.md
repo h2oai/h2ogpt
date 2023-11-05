@@ -99,7 +99,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
-    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
+    pip uninstall -y auto-gptq
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
     pip install optimum==1.13.3
     ```
@@ -111,7 +112,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 * GPU Optional: For AutoAWQ support on x86_64 linux
     ```bash
-    pip uninstall -y autoawq ; pip install autoawq
+    pip uninstall -y autoawq
+    pip install autoawq==0.1.6
     ```
     If this has issues, you need to build:
     ```bash
@@ -190,10 +192,13 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
     ```
 * vLLM support
-
-    Run:
+   ```bash
+   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
+   ```
+  or do manually:
     ```bash
-    cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+    sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
+    cd $sp
     rm -rf openvllm* openai_vllm*
     cp -a openai openvllm
     file0=`ls|grep openai|grep dist-info`
@@ -204,6 +209,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
     find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
     find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+    find openvllm* -type f | xargs sed -i 's/ openai/ openvllm/g'
+    find openvllm* -type f | xargs sed -i 's/openai /openvllm /g'
+    find openvllm* -type f | xargs sed -i 's/OpenAI/vLLM/g'
+    find openvllm* -type f | xargs sed -i 's/\/openai/\/vllm/g'
     ```
 
 ### Compile Install Issues
@@ -221,6 +230,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 ---
 
 ## Run
+
+See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
 
 * Check that can see CUDA from Torch:
    ```python

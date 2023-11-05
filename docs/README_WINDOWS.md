@@ -1,6 +1,6 @@
 # Windows 10/11
 
-If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers](../README.md#windows-1011-64-bit-with-full-document-qa-capability).
+If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers](../README.md#windows-1011-64-bit-with-full-document-qa-capability).  This excludes DocTR and PlayWright support. 
 
 For newer builds of windows versions of 10/11.
 
@@ -87,15 +87,18 @@ For newer builds of windows versions of 10/11.
     # Optional but required for PlayWright
     playwright install --with-deps
     # Note: for Selenium, we match versions of playwright so above installer will add chrome version needed
+  ```
 * GPU Optional: For optional AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
+    # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
+    pip install optimum==1.13.3
    ```
 * GPU Optional: For optional AutoAWQ support:
    ```bash
     pip uninstall -y autoawq
-    pip install autoawq
+    pip install autoawq==0.1.6
    ```
 * GPU Optional: For optional exllama support:
     ```bash
@@ -104,16 +107,25 @@ For newer builds of windows versions of 10/11.
     ```
 * GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), or choose link and run pip directly.  E.g.:
-    ```bash
-      pip uninstall -y llama-cpp-python llama_cpp_python_cuda
-      # GGUF ONLY for GPU:
+    * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
+      ```bash
+      pip uninstall -y llama-cpp-python-cuda
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl
-      # GGUF ONLY for CPU for AVX2:
+      ```
+    * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
+      ```bash
+      pip uninstall -y llama-cpp-python
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-win_amd64.whl
-      # GGMLv3 ONLY for GPU (no longer recommended):
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
-    ```
-    See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.
+      ```
+      For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
+       ```bash
+        CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+       ```
+    * GPU GGMLv3 ONLY (no longer recommended):
+      ```bash
+      pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl
+      ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
     pip uninstall -y llama-cpp-python
@@ -131,25 +143,24 @@ For newer builds of windows versions of 10/11.
   * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+* GPU Optional: Support attention sinks for infinite generation
+    ```bash
+    pip install git+https://github.com/tomaarsen/attention_sinks.git
+  ```
+* SERP for search:
+  ```bash
+  pip install -r reqs_optional/requirements_optional_agents.txt
+  ```
+  For more info see [SERP Docs](README_SerpAPI.md).
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
-* vLLM support
-
-    Run windows equivalent of this sequence from Bash/Linux (can use bash shell in windows):
-    ```bash
-    cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
-    rm -rf openvllm* openai_vllm*
-    cp -a openai openvllm
-    file0=`ls|grep openai|grep dist-info`
-    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
-    cp -a $file0 $file1
-    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
-    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
-    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
-    ```
+* vLLM support:
+   ```bash
+  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
+   ```
 ---
+
+See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
 
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
