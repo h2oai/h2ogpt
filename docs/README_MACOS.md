@@ -82,11 +82,13 @@ Supports CPU and MPS (Metal M1/M2).
     file0=`ls|grep openai|grep dist-info`
     file1=`echo $file0|sed 's/openai-/openvllm-/g'`
     cp -a $file0 $file1
-    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
-    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
-    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+
+    find openvllm -name '*.py' | xargs sed -i '' 's/from openai /from openvllm /g'
+    find openvllm -name '*.py' | xargs sed -i '' 's/openai\./openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i '' 's/from openai\./from openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i '' 's/import openai/import openvllm/g'
+    find openvllm -name '*.py' | xargs sed -i '' 's/OpenAI/vLLM/g'
+
     ```
 
 ---
