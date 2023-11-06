@@ -72,26 +72,27 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
-    Choose cu118 for A100/H100+.
+    Choose `cu118` for A100/H100+.
 * Install document question-answer dependencies:
+   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` (or choose cu118 for A100+) for GPU install:
     ```bash
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Optional: Improved OCR with DocTR:
     conda install -y -c conda-forge pygobject
-    pip install -r reqs_optional/requirements_optional_doctr.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_doctr.txt
     #            For DocTR: go back to older onnx so Tesseract OCR still works
-    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index https://download.pytorch.org/whl/cu117
+    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: Required for PlayWright
@@ -99,7 +100,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
-    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
+    pip uninstall -y auto-gptq
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
     pip install optimum==1.13.3
     ```
@@ -111,7 +113,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 * GPU Optional: For AutoAWQ support on x86_64 linux
     ```bash
-    pip uninstall -y autoawq ; pip install autoawq
+    pip uninstall -y autoawq
+    pip install autoawq==0.1.6
     ```
     If this has issues, you need to build:
     ```bash
@@ -167,7 +170,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
     ```bash
-    pip install git+https://github.com/tomaarsen/attention_sinks.git
+    pip install attention_sinks
   ```
 * GPU Optional: Support amazon/MistralLite with flash attention 2
    ```bash
@@ -190,10 +193,13 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
     ```
 * vLLM support
-
-    Run:
+   ```bash
+   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
+   ```
+  or do manually:
     ```bash
-    cd $HOME/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/
+    sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
+    cd $sp
     rm -rf openvllm* openai_vllm*
     cp -a openai openvllm
     file0=`ls|grep openai|grep dist-info`
@@ -204,6 +210,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
     find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
     find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+    find openvllm* -type f | xargs sed -i 's/ openai/ openvllm/g'
+    find openvllm* -type f | xargs sed -i 's/openai /openvllm /g'
+    find openvllm* -type f | xargs sed -i 's/OpenAI/vLLM/g'
+    find openvllm* -type f | xargs sed -i 's/\/openai/\/vllm/g'
     ```
 
 ### Compile Install Issues
@@ -221,6 +231,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 ---
 
 ## Run
+
+See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
+
+Note models are stored in `/home/$USER/.cache/` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
 
 * Check that can see CUDA from Torch:
    ```python
