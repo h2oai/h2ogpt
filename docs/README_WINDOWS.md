@@ -1,6 +1,6 @@
 # Windows 10/11
 
-If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers](../README.md#windows-1011-64-bit-with-full-document-qa-capability).
+If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers](../README.md#windows-1011-64-bit-with-full-document-qa-capability).  This excludes DocTR and PlayWright support. 
 
 For newer builds of windows versions of 10/11.
 
@@ -67,53 +67,71 @@ For newer builds of windows versions of 10/11.
       ```bash
       pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu117
        ```
+   Choose `cu118` for A100/H100+.
  * Optional: for bitsandbytes 4-bit and 8-bit:
    ```bash
    pip uninstall bitsandbytes -y
    pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
    ```
-* Install document question-answer dependencies:
+* Install document question-answer dependencies
+
+   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` for GPU install:
    ```bash
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional but required for PlayWright
     playwright install --with-deps
     # Note: for Selenium, we match versions of playwright so above installer will add chrome version needed
-* GPU Optional: For optional AutoGPTQ support:
+  ```
+* AutoGPTQ support:
    ```bash
     pip uninstall -y auto-gptq
+    # GPU
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
+    # CPU
+    pip install auto_gptq==0.4.2
+    # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
+    pip install optimum==1.13.3
    ```
-* GPU Optional: For optional AutoAWQ support:
+* AutoAWQ support:
    ```bash
     pip uninstall -y autoawq
-    pip install autoawq
+    pip install autoawq==0.1.6
    ```
-* GPU Optional: For optional exllama support:
+* Exllama support (GPU only):
     ```bash
     pip uninstall -y exllama
     pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
 * GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), or choose link and run pip directly.  E.g.:
-    ```bash
-      pip uninstall -y llama-cpp-python llama_cpp_python_cuda
-      # GGUF ONLY for GPU:
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl
-      # GGUF ONLY for CPU for AVX2:
+    * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
+      ```bash
+      pip uninstall -y llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
+      ```
+    * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
+      ```bash
+      pip uninstall -y llama-cpp-python
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-win_amd64.whl
-      # GGMLv3 ONLY for GPU (no longer recommended):
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu117-cp310-cp310-win_amd64.whl
-    ```
-    See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.
+      ```
+      For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
+       ```bash
+        CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+       ```
+    * GPU GGMLv3 ONLY (no longer recommended):
+      ```bash
+      pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
+      ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
     pip uninstall -y llama-cpp-python
@@ -131,9 +149,26 @@ For newer builds of windows versions of 10/11.
   * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
+* GPU Optional: Support attention sinks for infinite generation
+    ```bash
+    pip install attention_sinks --extra-index-url https://download.pytorch.org/whl/cu117
+  ```
+* SERP for search:
+  ```bash
+  pip install -r reqs_optional/requirements_optional_agents.txt
+  ```
+  For more info see [SERP Docs](README_SerpAPI.md).
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
+* vLLM support:
+   ```bash
+  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
+   ```
 ---
+
+See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
+
+Note models are stored in `C:\Users\<user>\.cache\` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
 
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:

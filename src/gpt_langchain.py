@@ -24,6 +24,8 @@ from collections import defaultdict
 from datetime import datetime
 from functools import reduce
 from operator import concat
+from urllib.parse import urlparse
+
 import filelock
 import tabulate
 import yaml
@@ -48,14 +50,14 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core
+    get_test_name_core, download_simple, get_ngpus_vis
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
-        auto_choices
+    auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens
+from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -522,6 +524,7 @@ class GradioInference(H2Oagenerate, LLM):
 
     min_max_new_tokens: Any = 256
     max_input_tokens: Any = -1
+    max_total_input_tokens: Any = -1
 
     class Config:
         """Configuration for this pydantic object."""
@@ -616,6 +619,7 @@ class GradioInference(H2Oagenerate, LLM):
                              docs_ordering_type=None,
                              min_max_new_tokens=self.min_max_new_tokens,
                              max_input_tokens=self.max_input_tokens,
+                             max_total_input_tokens=self.max_total_input_tokens,
                              docs_token_handling=None,
                              docs_joiner=None,
                              hyde_level=None,
@@ -666,11 +670,16 @@ class GradioInference(H2Oagenerate, LLM):
 
             job = client.submit(str(dict(client_kwargs)), api_name=api_name)
             text0 = ''
+            t_start = time.time()
             while not job.done():
                 if job.communicator.job.latest_status.code.name == 'FINISHED':
                     break
                 e = check_job(job, timeout=0, raise_exception=False)
                 if e is not None:
+                    break
+                if self.max_time is not None and time.time() - t_start > self.max_time:
+                    if self.verbose:
+                        print("Exceeded max_time=%s" % self.max_time, flush=True)
                     break
                 outputs_list = job.communicator.job.outputs
                 if outputs_list:
@@ -1020,7 +1029,16 @@ class H2OOpenAI(OpenAI):
         if self.verbose:
             print("Hit _generate", flush=True)
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
-        return super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        try:
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+        return rets
 
     def _stream(
             self,
@@ -1300,6 +1318,7 @@ def get_llm(use_openai_model=False,
             h2ogpt_key=None,
             min_max_new_tokens=None,
             max_input_tokens=None,
+            max_total_input_tokens=None,
             attention_sinks=None,
             truncation_generation=None,
 
@@ -1331,6 +1350,7 @@ def get_llm(use_openai_model=False,
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
+    n_gpus = get_ngpus_vis()
     if inference_server is None:
         inference_server = ''
     if inference_server.startswith('replicate'):
@@ -1472,6 +1492,7 @@ def get_llm(use_openai_model=False,
                   max_retries=6,
                   streaming=stream_output,
                   verbose=verbose,
+                  request_timeout=max_time,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -1560,6 +1581,7 @@ def get_llm(use_openai_model=False,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
+                max_total_input_tokens=max_total_input_tokens,
                 async_sem=async_sem,
                 verbose=verbose,
             )
@@ -1610,7 +1632,7 @@ def get_llm(use_openai_model=False,
             prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
-        llm = get_llm_gpt4all(model_name,
+        llm = get_llm_gpt4all(model_name=model_name,
                               model=model,
                               max_new_tokens=max_new_tokens,
                               temperature=temperature,
@@ -1626,6 +1648,7 @@ def get_llm(use_openai_model=False,
                               iinput=iinput,
                               max_seq_len=model_max_length,
                               llamacpp_dict=llamacpp_dict,
+                              n_gpus=n_gpus,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
@@ -1671,8 +1694,8 @@ def get_llm(use_openai_model=False,
                 # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
                 # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
             inference_server = ''
-            model, tokenizer, device = get_model(load_8bit=True, base_model=model_name,
-                                                 inference_server=inference_server, gpu_id=0)
+            model, tokenizer, device = get_model_retry(load_8bit=True, base_model=model_name,
+                                                       inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
                           num_beams=num_beams,
@@ -1960,10 +1983,12 @@ def get_each_page(file):
         tar = fitz.open()  # output PDF for 1 page
         # copy over current page
         tar.insert_pdf(src, from_page=page.number, to_page=page.number)
-        page = f"{file}-page-{page.number}.pdf"
-        tar.save(page)
+        tmpdir = os.getenv('TMPDDIR', '/tmp/')
+        page_file = os.path.join(tmpdir, f"{file}-page-{page.number}-{str(uuid.uuid4())}.pdf")
+        makedirs(os.path.dirname(page_file), exist_ok=True)
+        tar.save(page_file)
         tar.close()
-        pages.append(page)
+        pages.append(page_file)
     return pages
 
 
@@ -1999,7 +2024,11 @@ def file_to_doc(file,
 
                 headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
-                selected_file_types=None):
+                selected_file_types=None,
+
+                is_public=False,
+                from_ui=True,
+                ):
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
         set_image_types1 = set_image_types.intersection(set(selected_file_types))
@@ -2046,6 +2075,9 @@ def file_to_doc(file,
                                           jq_schema=jq_schema,
 
                                           db_type=db_type,
+
+                                          is_public=is_public,
+                                          from_ui=from_ui,
                                           )
 
     if file is None:
@@ -2062,6 +2094,20 @@ def file_to_doc(file,
         # if from gradio, will have its own temp uuid too, but that's ok
         base_name = sanitize_filename(base_name) + "_" + str(uuid.uuid4())[:10]
         base_path = os.path.join(dir_name, base_name)
+
+    orig_url = None
+    if is_url and any([file.strip().lower().endswith('.' + x) for x in file_types]):
+        # then just download, so can use good parser, not always unstructured url parser
+        base_path_url = "urls_downloaded"
+        base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
+        source_file = os.path.join(base_path_url,
+                                   "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
+        download_simple(file, source_file, overwrite=True, verbose=verbose)
+        if os.path.isfile(source_file):
+            orig_url = file
+            is_url = False
+            file = source_file
+
     if is_url:
         file = file.strip()  # in case accidental spaces in front or at end
         file_lower = file.lower()
@@ -2452,7 +2498,12 @@ def file_to_doc(file,
             did_pdf_ocr = True
             # no did_unstructured condition here because here we do OCR, and before we did not
             # try OCR in end since slowest, but works on pure image pages well
-            doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            try:
+                doc1a = UnstructuredPDFLoader(file, strategy='ocr_only').load()
+            except BaseException as e0:
+                doc1a = []
+                print("UnstructuredPDFLoader: %s" % str(e0), flush=True)
+                e = e0
             handled |= len(doc1a) > 0
             # remove empty documents
             doc1a = [x for x in doc1a if x.page_content]
@@ -2461,7 +2512,7 @@ def file_to_doc(file,
             doc1.extend(doc1a)
         # Some PDFs return nothing or junk from PDFMinerLoader
         # if auto, do doctr pdf if not too many pages, else can be slow/expensive
-        if (len(doc1) == 0 or num_pages is not None and num_pages < 100) and enable_pdf_doctr == 'auto' or \
+        if (len(doc1) == 0 or num_pages is not None and num_pages < 5) and enable_pdf_doctr == 'auto' or \
                 enable_pdf_doctr == 'on':
             if verbose:
                 print("BEGIN: DocTR", flush=True)
@@ -2474,12 +2525,18 @@ def file_to_doc(file,
             try:
                 pages = get_each_page(file)
                 got_pages = True
-            except:
+            except Exception as e:
                 # FIXME: protection for now, unsure how generally will work
+                print("Exception in doctr page handling: %s" % str(e), flush=True)
                 pages = [file]
                 got_pages = False
-            model_loaders['doctr'].set_document_paths(pages)
-            doc1a = model_loaders['doctr'].load()
+            try:
+                model_loaders['doctr'].set_document_paths(pages)
+                doc1a = model_loaders['doctr'].load()
+            except BaseException as e0:
+                doc1a = []
+                print("H2OOCRLoader: %s" % str(e0), flush=True)
+                e = e0
             doc1a = [x for x in doc1a if x.page_content]
             add_meta(doc1a, file, parser='H2OOCRLoader: %s' % 'DocTR')
             handled |= len(doc1a) > 0
@@ -2586,7 +2643,11 @@ def file_to_doc(file,
 
                            headsize=headsize,
                            db_type=db_type,
-                           selected_file_types=selected_file_types)
+                           selected_file_types=selected_file_types,
+
+                           is_public=is_public,
+                           from_ui=from_ui,
+                           )
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -2601,6 +2662,18 @@ def file_to_doc(file,
         docs = doc1
 
     assert isinstance(docs, list)
+
+    if orig_url is not None:
+        # go back to URL as source
+        [doci.metadata.update(source=orig_url) for doci in doc1]
+
+    if is_public:
+        if len(docs) > max_chunks_per_doc_public and from_ui or \
+                len(docs) > max_chunks_per_doc_public_api and not from_ui:
+            raise ValueError("Public instance only allows up to"
+                             " %s (%s from API) chunks "
+                             "per document." % (max_chunks_per_doc_public, max_chunks_per_doc_public_api))
+
     return docs
 
 
@@ -2636,7 +2709,11 @@ def path_to_doc1(file,
                  jq_schema='.[]',
 
                  db_type=None,
-                 selected_file_types=None):
+                 selected_file_types=None,
+
+                 is_public=False,
+                 from_ui=True,
+                 ):
     assert db_type is not None
     if verbose:
         if is_url:
@@ -2680,7 +2757,10 @@ def path_to_doc1(file,
                           jq_schema=jq_schema,
 
                           db_type=db_type,
-                          selected_file_types=selected_file_types)
+                          selected_file_types=selected_file_types,
+                          is_public=is_public,
+                          from_ui=from_ui,
+                          )
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
         if fail_any_exception:
@@ -2744,6 +2824,9 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  existing_hash_ids={},
                  db_type=None,
                  selected_file_types=None,
+
+                 is_public=False,
+                 from_ui=True,
                  ):
     if verbose:
         print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
@@ -2816,6 +2899,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         globs_non_image_types = [x for x in globs_non_image_types if x in new_files_non_image]
 
     # could use generator, but messes up metadata handling in recursive case
+    # FIXME: n_gpus=n_gpus?
     if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu' or \
             get_device() == 'cuda':
         # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
@@ -2868,7 +2952,19 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                   db_type=db_type,
                   selected_file_types=selected_file_types,
+
+                  is_public=is_public,
+                  from_ui=from_ui,
                   )
+
+    if is_public:
+        n_docs = len(globs_non_image_types) + len(globs_image_types)
+        if n_docs > max_docs_public and from_ui or \
+                n_docs > max_docs_public_api and not from_ui:
+            raise ValueError(
+                "Public instance only allows up to %d documents "
+                "(including in zip) (%d for API) updated at a time." % (max_docs_public, max_docs_public_api))
+
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
@@ -3488,7 +3584,11 @@ def _make_db(use_openai_embedding=False,
                                 jq_schema=jq_schema,
 
                                 existing_files=existing_files, existing_hash_ids=existing_hash_ids,
-                                db_type=db_type)
+                                db_type=db_type,
+
+                                is_public=False,
+                                from_ui=True,
+                                )
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
             if os.getenv('NO_NEW_FILES') is not None:
@@ -3872,6 +3972,7 @@ def _run_qa_db(query=None,
                docs_ordering_type=docs_ordering_types_default,
                min_max_new_tokens=256,
                max_input_tokens=-1,
+               max_total_input_tokens=-1,
                docs_token_handling=None,
                docs_joiner=docs_joiner_default,
                hyde_level=0,
@@ -3887,7 +3988,6 @@ def _run_qa_db(query=None,
 
                auto_reduce_chunks=True,
                max_chunks=100,
-               total_tokens_for_docs=None,
                headsize=50,
                ):
     """
@@ -4013,6 +4113,7 @@ Respond to prompt of Final Answer with your final high-quality bullet list answe
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
                       max_input_tokens=max_input_tokens,
+                      max_total_input_tokens=max_total_input_tokens,
                       n_jobs=n_jobs,
                       llamacpp_dict=llamacpp_dict,
                       exllama_dict=exllama_dict,
@@ -4385,7 +4486,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
                      do_split=True,
                      verbose=False):
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
-    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len
+    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len and is per-llm call
     if docs_token_handling in ['chunk']:
         return docs_with_score, 0
     elif docs_token_handling in [None, 'split_or_merge']:
@@ -4510,6 +4611,7 @@ def run_hyde(*args, **kwargs):
     get_answer_kwargs = kwargs['get_answer_kwargs']
     append_sources_to_answer = kwargs['append_sources_to_answer']
     prompt_basic = kwargs['prompt_basic']
+    docs_joiner = kwargs['docs_joiner']
 
     # get llm answer
     auto_hyde = """Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: {query}"""
@@ -4529,10 +4631,12 @@ def run_hyde(*args, **kwargs):
     hyde_chain['query'] = hyde_template.format(query=query)
     hyde_chain['db'] = None
     hyde_chain['text_context_list'] = []
+    extra = []
+    answers = []
 
-    for hyde_level in range(hyde_level):
+    for hyde_level1 in range(hyde_level):
         if verbose:
-            print("hyde_level=%d embedding_query=%s" % (hyde_level, hyde_chain['query']), flush=True)
+            print("hyde_level1=%d embedding_query=%s" % (hyde_level1, hyde_chain['query']), flush=True)
 
         # run chain
         docs, chain, scores, \
@@ -4542,17 +4646,24 @@ def run_hyde(*args, **kwargs):
             get_chain(**hyde_chain)
 
         # get answer, updates llm_answers internally too
-        llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level
+        llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level1
         # for LLM, query remains same each time
-        answer = yield from run_target_func(query=query,
-                                            chain=chain,
-                                            llm=llm,
-                                            streamer=streamer,
-                                            prompter=prompter,
-                                            llm_answers=llm_answers,
-                                            llm_answers_key=llm_answers_key,
-                                            async_output=async_output,
-                                            only_new_text=only_new_text)
+        response_prefix = "HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
+            if hyde_level1 < hyde_level else ''
+        answer = ''
+        for ret in run_target_func(query=query,
+                                   chain=chain,
+                                   llm=llm,
+                                   streamer=streamer,
+                                   prompter=prompter,
+                                   llm_answers=llm_answers,
+                                   llm_answers_key=llm_answers_key,
+                                   async_output=async_output,
+                                   only_new_text=only_new_text):
+            yield dict(prompt=ret['prompt'], response=response_prefix + ret['response'], sources=ret['sources'],
+                       num_prompt_tokens=ret['num_prompt_tokens'],
+                       llm_answers=ret['llm_answers'])
+            answer = ret['response']
 
         if answer:
             # give back what have so far with any sources (what above yield doesn't do)
@@ -4572,7 +4683,11 @@ def run_hyde(*args, **kwargs):
                        llm_answers=llm_answers)
 
             # update embedding query
-            hyde_chain['query_embedding'] = hyde_higher_template.format(query=query, answer=answer)
+            # use all answers, but use newer answers first, often shorter due to LLM RLHF not used to long docs inputted,
+            # then add rest and will be truncated at end
+            answers.append(answer)
+            answers_reverse = docs_joiner.join(answers[::-1])
+            hyde_chain['query_embedding'] = hyde_higher_template.format(query=query, answer=answers_reverse)
         # update hyde_chain with doc version from now on
         hyde_chain['db'] = kwargs['db']
         hyde_chain['text_context_list'] = kwargs['text_context_list']
@@ -4662,20 +4777,20 @@ def get_chain(query=None,
               docs_ordering_type=docs_ordering_types_default,
               min_max_new_tokens=256,
               max_input_tokens=-1,
+              max_total_input_tokens=-1,
               attention_sinks=False,
               truncation_generation=False,
               docs_token_handling=None,
               docs_joiner=None,
+              doc_json_mode=False,
 
               stream_output=True,
               async_output=True,
               gradio_server=False,
 
               # local
-              doc_json_mode=False,
               auto_reduce_chunks=True,
               max_chunks=100,
-              total_tokens_for_docs=None,
               use_llm_if_no_docs=None,
               headsize=50,
               max_time=None,
@@ -5222,33 +5337,42 @@ def get_chain(query=None,
         elif top_k_docs_trial >= max_chunks:
             top_k_docs = max_chunks
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
-    elif query_action:
-        # no limitation or auto-filling, just literal top_k_docs
-        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, None)
     else:
-        assert not query_action and summarize_action, "Bad action"
+        # don't reduce, except listen to top_k_docs and max_total_input_tokens
         one_doc_size = None
-        if total_tokens_for_docs is not None:
-            # used to limit tokens for summarization, e.g. public instance
+        if max_total_input_tokens not in [None, -1]:
+            # used to limit tokens for summarization, e.g. public instance, over all LLM calls allowed
             top_k_docs, one_doc_size, num_doc_tokens = \
                 get_docs_tokens(tokenizer,
                                 text_context_list=[x[0].page_content for x in docs_with_score],
-                                max_input_tokens=total_tokens_for_docs)
+                                max_input_tokens=max_total_input_tokens)
         # filter by top_k_docs and maybe one_doc_size
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
-        # group docs if desired/can to fill context
+
+    if summarize_action:
+        # group docs if desired/can to fill context to avoid multiple LLM calls or too large chunks
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
                                                            docs_token_handling=docs_token_handling,
                                                            joiner=docs_joiner,
                                                            verbose=verbose)
+        # in case docs_with_score grew due to splitting, limit again by top_k_docs
+        if top_k_docs > 0:
+            docs_with_score = docs_with_score[:top_k_docs]
         # max_input_tokens used min_max_new_tokens as max_new_tokens, so need to assume filled up to that
         # but use actual largest token count
-        data_point = dict(context=context, instruction=query, input=iinput)
+        if '{text}' in template:
+            estimated_prompt_no_docs = template.format(text='')
+        elif '{input_documents}' in template:
+            estimated_prompt_no_docs = template.format(input_documents='')
+        elif '{question}' in template:
+            estimated_prompt_no_docs = template.format(question=query)
+        else:
+            estimated_prompt_no_docs = query
+        data_point = dict(context=context, instruction=estimated_prompt_no_docs or ' ', input=iinput)
         prompt_basic = prompter.generate_prompt(data_point)
-        estimated_prompt_no_docs = template.format(text=prompt_basic)
-        num_prompt_basic_tokens = get_token_count(estimated_prompt_no_docs, tokenizer)
+        num_prompt_basic_tokens = get_token_count(prompt_basic, tokenizer)
 
         if truncation_generation:
             max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
@@ -5354,6 +5478,7 @@ def get_chain(query=None,
             return_intermediate_steps = True
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             prompt = PromptTemplate(input_variables=["text"], template=template)
+            # token_max is per llm call
             chain = load_general_summarization_chain(llm, chain_type="map_reduce",
                                                      map_prompt=prompt, combine_prompt=prompt,
                                                      return_intermediate_steps=return_intermediate_steps,
@@ -5487,7 +5612,6 @@ def get_template(query, iinput,
 \"\"\"
 """
 
-
     if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.
         prompt_query = prompt_query.replace('information in the document sources',
@@ -5523,7 +5647,7 @@ def get_template(query, iinput,
             template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
             template = """%s%s{context}%s%s%s""" % (
-            triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
+                triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
             if doc_json_mode:
                 template_if_no_docs = """{context}{{"question": {question}}}"""
             else:
@@ -5859,6 +5983,8 @@ def _update_user_db(file,
                     verbose=None,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
+                    is_public=False,
+                    from_ui=False,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -5894,6 +6020,12 @@ def _update_user_db(file,
         file = file.name
     if not isinstance(file, (list, tuple, typing.Generator)) and isinstance(file, str):
         file = [file]
+
+    if is_public:
+        if len(file) > max_docs_public and from_ui or \
+                len(file) > max_docs_public_api and not from_ui:
+            raise ValueError("Public instance only allows up to"
+                             " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None
@@ -5975,6 +6107,9 @@ def _update_user_db(file,
                            jq_schema=jq_schema,
 
                            db_type=db_type,
+
+                           is_public=is_public,
+                           from_ui=from_ui,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
@@ -6117,7 +6252,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
     # below automatically de-dups
     small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas if x.get('page', 0) == 0}
+                  metadatas if x.get('page', 0) in [0, 1]}
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1

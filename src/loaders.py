@@ -2,9 +2,14 @@ import functools
 import json
 
 from src.enums import t5_type
+from src.utils import have_optimum
 
 
-def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq='', load_exllama=False,
+def get_loaders(model_name, reward_type, llama_type=None,
+                load_gptq='',
+                use_autogptq=False,
+                load_awq='',
+                load_exllama=False,
                 config=None,
                 rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config='',
                 exllama_dict=None, gptq_dict=None,
@@ -76,7 +81,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
         cache = ExLlamaCache(model)  # create cache for inference
         generator = H2OExLlamaGenerator(model, tokenizer, cache)  # create generator
         return generator, tokenizer, False
-    if load_gptq:
+    if load_gptq and use_autogptq:
         if gptq_dict is None:
             gptq_dict = {}
         from transformers import AutoTokenizer
@@ -90,6 +95,8 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
                                          **gptq_dict,
                                          )
         return model_loader, AutoTokenizer, False
+    if load_gptq and not use_autogptq:
+        assert have_optimum, "To use HF transformers GPTQ, please: pip install optimum"
     if load_awq:
         from transformers import AutoTokenizer
         from awq import AutoAWQForCausalLM
@@ -99,7 +106,7 @@ def get_loaders(model_name, reward_type, llama_type=None, load_gptq='', load_awq
         return model_loader, AutoTokenizer, False
     if llama_type is None:
         llama_type = "llama" in model_name.lower()
-    if llama_type:
+    if llama_type and not load_gptq:
         if attention_sinks:
             # below will fail if don't have, to get just do in h2ogpt repo directory:
             # pip install git+https://github.com/tomaarsen/attention_sinks.git

@@ -45,7 +45,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 * For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, and flash attention:
   ```bash
   conda install cudatoolkit-dev -c conda-forge -y
-  export CUDA_HOME=$CONDA_PREFIX 
+  export CUDA_HOME=$CONDA_PREFIX
   ```
   which gives CUDA 11.7, or if you prefer follow [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit), then do:
   ```bash
@@ -72,26 +72,27 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
-    Choose cu118 for A100/H100+.
+    Choose `cu118` for A100/H100+.
 * Install document question-answer dependencies:
+   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` (or choose cu118 for A100+) for GPU install:
     ```bash
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.txt
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
     # Optional: Improved OCR with DocTR:
     conda install -y -c conda-forge pygobject
-    pip install -r reqs_optional/requirements_optional_doctr.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r reqs_optional/requirements_optional_doctr.txt
     #            For DocTR: go back to older onnx so Tesseract OCR still works
-    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0 --extra-index https://download.pytorch.org/whl/cu117
+    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: Required for PlayWright
@@ -99,9 +100,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
-    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
-    # in-transformers support of AutoGPTQ
-    pip install git+https://github.com/huggingface/optimum.git
+    pip uninstall -y auto-gptq
+    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
+    # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
+    pip install optimum==1.13.3
     ```
     This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
@@ -111,7 +113,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 * GPU Optional: For AutoAWQ support on x86_64 linux
     ```bash
-    pip uninstall -y autoawq ; pip install autoawq
+    pip uninstall -y autoawq
+    pip install autoawq==0.1.6
     ```
     If this has issues, you need to build:
     ```bash
@@ -128,19 +131,25 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 
 * GPU Optional: Support LLaMa.cpp with CUDA:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
-    ```bash
-    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-    # GGUF ONLY for CUDA GPU:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
-    # GGUF ONLY for CPU-AVX:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
-    # GPU GGMLv3 ONLY (no longer recommended):
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-linux_x86_64.whl
-    ```
-     For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
-     ```bash
-      CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-     ```
+    * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
+      ```bash
+      pip uninstall -y llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+      ```
+    * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
+      ```bash
+      pip uninstall -y llama-cpp-python
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
+      ```
+      For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
+       ```bash
+        CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+       ```
+    * GPU GGMLv3 ONLY (no longer recommended):
+      ```bash
+      pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-linux_x86_64.whl
+      ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
@@ -161,7 +170,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
     ```bash
-    pip install git+https://github.com/tomaarsen/attention_sinks.git
+    pip install attention_sinks
   ```
 * GPU Optional: Support amazon/MistralLite with flash attention 2
    ```bash
@@ -172,12 +181,41 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
         ```bash
         pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg9698e9e6a8.d20230907-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall --no-deps
       ```
+* SERP for search:
+  ```bash
+  pip install -r reqs_optional/requirements_optional_agents.txt
+  ```
+  For more info see [SERP Docs](README_SerpAPI.md).
 * Deal with not-thread-safe things in LangChain:
     ```bash
   sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
   cd $sp
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
     ```
+* vLLM support
+   ```bash
+   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
+   ```
+  or do manually:
+    ```bash
+    sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
+    cd $sp
+    rm -rf openvllm* openai_vllm*
+    cp -a openai openvllm
+    file0=`ls|grep openai|grep dist-info`
+    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
+    cp -a $file0 $file1
+    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
+    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
+    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
+    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
+    find openvllm* -type f | xargs sed -i 's/ openai/ openvllm/g'
+    find openvllm* -type f | xargs sed -i 's/openai /openvllm /g'
+    find openvllm* -type f | xargs sed -i 's/OpenAI/vLLM/g'
+    find openvllm* -type f | xargs sed -i 's/\/openai/\/vllm/g'
+    ```
+
 ### Compile Install Issues
   * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
     * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:
@@ -193,6 +231,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 ---
 
 ## Run
+
+See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
+
+Note models are stored in `/home/$USER/.cache/` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
 
 * Check that can see CUDA from Torch:
    ```python

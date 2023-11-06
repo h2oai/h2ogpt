@@ -135,9 +135,9 @@ def get_torch_allocated():
     return torch.cuda.memory_allocated()
 
 
-def get_device():
+def get_device(n_gpus=None):
     import torch
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and n_gpus != 0:
         device = "cuda"
     elif torch.backends.mps.is_built():
         device = "mps"
@@ -541,7 +541,7 @@ def atomic_move_simple(src, dst):
     remove(src)
 
 
-def download_simple(url, dest=None):
+def download_simple(url, dest=None, overwrite=False, verbose=False):
     if dest is None:
         dest = os.path.basename(url)
     base_path = os.path.dirname(dest)
@@ -550,10 +550,14 @@ def download_simple(url, dest=None):
         dest = os.path.join(base_path, os.path.basename(dest))
 
     if os.path.isfile(dest):
-        print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
-        return dest
+        if not overwrite:
+            print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
+            return dest
+        else:
+            remove(dest)
 
-    print("BEGIN get url %s" % str(url), flush=True)
+    if verbose:
+        print("BEGIN get url %s" % str(url), flush=True)
     if url.startswith("file://"):
         from requests_file import FileAdapter
         s = requests.Session()
@@ -561,7 +565,8 @@ def download_simple(url, dest=None):
         url_data = s.get(url, stream=True)
     else:
         url_data = requests.get(url, stream=True)
-    print("GOT url %s" % str(url), flush=True)
+    if verbose:
+        print("GOT url %s" % str(url), flush=True)
 
     if url_data.status_code != requests.codes.ok:
         msg = "Cannot get url %s, code: %s, reason: %s" % (
@@ -577,7 +582,8 @@ def download_simple(url, dest=None):
     with open(dest_tmp, "wb") as f:
         shutil.copyfileobj(url_data.raw, f)
     atomic_move_simple(dest_tmp, dest)
-    print("DONE url %s" % str(url), flush=True)
+    if verbose:
+        print("DONE url %s" % str(url), flush=True)
     return dest
 
 
@@ -701,7 +707,7 @@ def cuda_vis_check(total_gpus):
 
 
 def get_ngpus_vis(raise_if_exception=True):
-    ngpus_vis1 = 0
+    ngpus_vis1 = None
 
     shell = False
     if shell:
@@ -724,6 +730,13 @@ def get_ngpus_vis(raise_if_exception=True):
         print('Failed get_ngpus_vis: %s' % str(e))
         if raise_if_exception:
             raise
+
+    if ngpus_vis1 is None:
+        import torch
+        if get_device() == 'cuda':
+            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available else 0
+        else:
+            ngpus_vis1 = 0
 
     ngpus_vis1, which_gpus = cuda_vis_check(ngpus_vis1)
     return ngpus_vis1
@@ -1165,6 +1178,13 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_jq = False
 
+try:
+    assert distribution('optimum') is not None
+    have_optimum = True
+except (PackageNotFoundError, AssertionError):
+    have_optimum = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
@@ -1254,7 +1274,7 @@ def url_alive(url):
     except Exception as e:
         return False
     else:
-        if response.status_code in [200, 301, 302]:
+        if response.status_code in [200, 301, 302, 307]:
             return True
         else:
             return False
@@ -1535,13 +1555,19 @@ def get_token_count(x, tokenizer, token_count_fun=None):
     # handle ambiguity in if get dict or list
     if tokenizer:
         if hasattr(tokenizer, 'encode'):
-            template_tokens = tokenizer.encode(x)
+            tokens = tokenizer.encode(x)
         else:
-            template_tokens = tokenizer(x)
-        if isinstance(template_tokens, dict) and 'input_ids' in template_tokens:
-            n_tokens = len(tokenizer.encode(x)['input_ids'])
+            tokens = tokenizer(x)
+        if isinstance(tokens, dict) and 'input_ids' in tokens:
+            tokens = tokens['input_ids']
+        if isinstance(tokens, list):
+            n_tokens = len(tokens)
+        elif len(tokens.shape) == 2:
+            n_tokens = tokens.shape[1]
+        elif len(tokens.shape) == 1:
+            n_tokens = tokens.shape[0]
         else:
-            n_tokens = len(tokenizer.encode(x))
+            raise RuntimeError("Cannot handle tokens: %s" % tokens)
     elif token_count_fun is not None:
         assert callable(token_count_fun)
         n_tokens = token_count_fun(x)

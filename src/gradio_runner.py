@@ -19,7 +19,7 @@ import requests
 from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
-from gradio_utils.prompt_form import make_chatbots
+from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
@@ -57,13 +57,15 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt
+    get_prompt, model_names_curated
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
-    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi
+    save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
+    get_ngpus_vis
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
-    evaluate_fake, merge_chat_conversation_history
+    evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
+    get_model_retry
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -97,8 +99,12 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
     return text
 
 
+def is_from_ui(requests_state1):
+    return isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']
+
+
 def is_valid_key(enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, h2ogpt_api_keys, h2ogpt_key1, requests_state1=None):
-    from_ui = isinstance(requests_state1, dict) and 'username' in requests_state1 and requests_state1['username']
+    from_ui = is_from_ui(requests_state1)
 
     if from_ui and not enforce_h2ogpt_ui_key:
         # no token barrier
@@ -181,7 +187,7 @@ def go_gradio(**kwargs):
 
     title = 'h2oGPT'
     if kwargs['visible_h2ogpt_header']:
-        description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a> <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br /><a href="https://codellama.h2o.ai">CodeLlama</a> <br /><a href="https://huggingface.co/h2oai">🤗 Models</a>"""
+        description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a> <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br /><a href="https://codellama.h2o.ai">CodeLlama</a> <br /><a href="https://huggingface.co/h2oai">🤗 Models</a> <br /><a href="https://h2o.ai/platform/enterprise-h2ogpt/">h2oGPTe</a>"""
     else:
         description = None
     description_bottom = "If this host is busy, try<br>[Multi-Model](https://gpt.h2o.ai)<br>[CodeLlama](https://codellama.h2o.ai)<br>[Llama2 70B](https://llama.h2o.ai)<br>[Falcon 40B](https://falcon.h2o.ai)<br>[HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)<br>[HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
@@ -217,7 +223,11 @@ def go_gradio(**kwargs):
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
 
-    model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
+    if kwargs['visible_all_prompter_models']:
+        model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
+    else:
+        model_options0 = model_names_curated + kwargs['extra_model_options']
+
     if kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
     lora_options = kwargs['extra_lora_options']
@@ -254,8 +264,8 @@ def go_gradio(**kwargs):
     kwargs['gpu_id'] = str(kwargs['gpu_id'])
 
     no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
-    output_label0 = f'h2oGPT [Model: {kwargs.get("base_model")}]' if kwargs.get(
-        'base_model') else no_model_msg
+    chat_name0 = get_chatbot_name(kwargs.get("base_model"), kwargs.get("model_path_llama"))
+    output_label0 = chat_name0 if kwargs.get('base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
     def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0):
@@ -288,7 +298,9 @@ def go_gradio(**kwargs):
             model_active_choice1 = visible_models1
         if model_active_choice1 is not None:
             if isinstance(model_active_choice1, str):
-                base_model_list = [x['base_model'] for x in model_states]
+                base_model_list = [
+                    x['base_model'] if x['base_model'] != 'llama' or not x.get('model_path_llama', '') else x[
+                        'model_path_llama'] for x in model_states]
                 if model_active_choice1 in base_model_list:
                     # if dups, will just be first one
                     model_active_choice1 = base_model_list.index(model_active_choice1)
@@ -498,7 +510,7 @@ def go_gradio(**kwargs):
         url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
     jq_schema0 = '.[]'
 
-    with demo:
+    with ((demo)):
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(
@@ -693,7 +705,7 @@ def go_gradio(**kwargs):
                     max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
                                               visible=not is_public)
                     url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
-                    url_label = 'URL/ArXiv' if have_arxiv else 'URL'
+                    url_label = 'URLs/ArXiv' if have_arxiv else 'URLs'
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
                                           max_lines=1,
@@ -842,7 +854,7 @@ def go_gradio(**kwargs):
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
                             with gr.Row(visible=visible_model_choice):
-                                visible_models = gr.Dropdown(kwargs['all_models'],
+                                visible_models = gr.Dropdown(kwargs['all_possible_visible_models'],
                                                              label="Visible Models",
                                                              value=visible_models_state0,
                                                              interactive=True,
@@ -1080,7 +1092,7 @@ def go_gradio(**kwargs):
                                                        label="Force URL Reader", value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
 
-                        min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public)
+                        min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
                                                value=kwargs['top_k_docs'],
                                                label=label_top_k_docs,
@@ -1124,9 +1136,9 @@ def go_gradio(**kwargs):
                                                               info="HYDE approach for LLM getting answer to embed ('auto' means automatic, else enter template like '{query}'",
                                                               visible=True)
                         doc_json_mode = gr.components.Checkbox(value=kwargs['doc_json_mode'],
-                                                       label="JSON docs mode",
-                                                       info="Whether to pass JSON to and get JSON back from LLM",
-                                                       visible=True)
+                                                               label="JSON docs mode",
+                                                               info="Whether to pass JSON to and get JSON back from LLM",
+                                                               visible=True)
 
                         embed = gr.components.Checkbox(value=True,
                                                        label="Embed text",
@@ -1195,9 +1207,19 @@ def go_gradio(**kwargs):
                             visible=not is_public,
                         )
                         max_input_tokens = gr.Number(
-                            minimum=-1, maximum=128 * 1024, step=1,
-                            value=-1,
+                            minimum=-1 if not is_public else kwargs['max_input_tokens'],
+                            maximum=128 * 1024 if not is_public else kwargs['max_input_tokens'],
+                            step=1,
+                            value=-1 if not is_public else kwargs['max_input_tokens'],
                             label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
+                            visible=not is_public,
+                        )
+                        max_total_input_tokens = gr.Number(
+                            minimum=-1 if not is_public else kwargs['max_total_input_tokens'],
+                            maximum=128 * 1024 if not is_public else kwargs['max_total_input_tokens'],
+                            step=1,
+                            value=-1 if not is_public else kwargs['max_total_input_tokens'],
+                            label="Max input length across all LLM calls when doing summarization/extraction",
                             visible=not is_public,
                         )
                         early_stopping = gr.Checkbox(label="EarlyStopping", info="Stop early in beam search",
@@ -1228,13 +1250,13 @@ def go_gradio(**kwargs):
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
                     if kwargs['base_model'] not in ['', None, no_model_str]:
                         load_msg += '   [WARNING: Avoid --base_model on CLI for memory efficient Load-Unload]'
-                    load_msg2 = load_msg + "(Model 2)"
+                    load_msg2 = load_msg + "2"
                     variant_load_msg = 'primary' if not is_public else 'secondary'
                     with gr.Row():
                         n_gpus_list = [str(x) for x in list(range(-1, n_gpus))]
                         with gr.Column():
                             with gr.Row():
-                                with gr.Column(scale=20, visible=not kwargs['model_lock']):
+                                with gr.Column(scale=10, visible=not kwargs['model_lock']):
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
                                     unload_model_button = gr.Button("UnLoad Model", variant=variant_load_msg, scale=0,
@@ -1242,15 +1264,19 @@ def go_gradio(**kwargs):
                                     with gr.Row():
                                         with gr.Column():
                                             model_choice = gr.Dropdown(model_options_state.value[0],
-                                                                       label="Choose Base Model",
-                                                                       value=kwargs['base_model'])
-                                            lora_choice = gr.Dropdown(lora_options_state.value[0], label="Choose LORA",
+                                                                       label="Choose/Enter Base Model (HF name, TheBloke, file, URL)",
+                                                                       value=kwargs['base_model'],
+                                                                       allow_custom_value=not is_public)
+                                            lora_choice = gr.Dropdown(lora_options_state.value[0],
+                                                                      label="Choose/Enter LORA",
                                                                       value=kwargs['lora_weights'],
-                                                                      visible=kwargs['show_lora'])
+                                                                      visible=kwargs['show_lora'],
+                                                                      allow_custom_value=not is_public)
                                             server_choice = gr.Dropdown(server_options_state.value[0],
-                                                                        label="Choose Server",
+                                                                        label="Choose/Enter Server",
                                                                         value=kwargs['inference_server'],
-                                                                        visible=not is_public)
+                                                                        visible=not is_public,
+                                                                        allow_custom_value=not is_public)
                                         with gr.Column():
                                             model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
                                                                     interactive=False)
@@ -1261,16 +1287,92 @@ def go_gradio(**kwargs):
                                                                      visible=bool(
                                                                          kwargs['inference_server']) and not is_public,
                                                                      interactive=False)
-                                    max_seq_len = gr.Number(value=kwargs['max_seq_len'] or 2048,
-                                                            minimum=128,
-                                                            maximum=2 ** 18,
-                                                            precision=0,
-                                                            info="If standard LLaMa-2, choose up to 4096",
-                                                            label="max_seq_len")
-                                    rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
-                                                              label="rope_scaling")
-                                    row_llama = gr.Row(visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
-                                    with row_llama:
+                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
+                                    with gr.Accordion("Precision", open=False, visible=True):
+                                        model_load8bit_checkbox = gr.components.Checkbox(
+                                            label="Load 8-bit [requires support]",
+                                            value=kwargs['load_8bit'], interactive=not is_public)
+                                        model_load4bit_checkbox = gr.components.Checkbox(
+                                            label="Load 4-bit [requires support]",
+                                            value=kwargs['load_4bit'], interactive=not is_public)
+                                        model_low_bit_mode = gr.Slider(value=kwargs['low_bit_mode'],
+                                                                       minimum=0, maximum=4, step=1,
+                                                                       label="low_bit_mode",
+                                                                       info="0: no quantization config 1: change compute 2: nf4 3: double quant 4: 2 and 3")
+                                    with gr.Accordion("GPU", open=False, visible=n_gpus != 0):
+                                        model_use_cpu_checkbox = gr.components.Checkbox(
+                                            label="Use CPU even if have GPUs",
+                                            value=False,
+                                            interactive=not is_public)
+                                        model_use_gpu_id_checkbox = gr.components.Checkbox(
+                                            label="Choose Devices [If not Checked, use all GPUs]",
+                                            value=kwargs['use_gpu_id'],
+                                            interactive=not is_public)
+                                        llama_multi_gpu_info = "LLaMa.cpp does not support multi-GPU GPU selection, run h2oGPT with env CUDA_VISIBLE_DEVICES set to which GPU to use, else all are used."
+                                        model_gpu = gr.Dropdown(n_gpus_list,
+                                                                label="GPU ID [-1 = all GPUs, if Choose is enabled]",
+                                                                info=llama_multi_gpu_info,
+                                                                value=kwargs['gpu_id'],
+                                                                interactive=not is_public)
+                                    with gr.Accordion("Add-ons", open=False, visible=True):
+                                        model_attention_sinks = gr.components.Checkbox(
+                                            label="Enable Attention Sinks [requires support]",
+                                            value=kwargs['attention_sinks'], interactive=not is_public)
+                                        model_truncation_generation = gr.components.Checkbox(
+                                            label="Truncate generation (disable for attention sinks, enforced if required)",
+                                            value=kwargs['truncation_generation'], interactive=not is_public)
+                                        model_sink_dict = gr.Textbox(value=str(kwargs['sink_dict'] or {}),
+                                                                     label="sink_dict")
+                                        model_load_gptq = gr.Textbox(label="gptq",
+                                                                     info="For TheBloke, use: model",
+                                                                     value=kwargs['load_gptq'],
+                                                                     visible=kwargs['use_autogptq'],
+                                                                     interactive=not is_public)
+                                        model_gptq_dict = gr.Textbox(value=str(kwargs['gptq_dict'] or {}),
+                                                                     info="E.g. {'inject_fused_attention':False, 'disable_exllama': True}",
+                                                                     label="gptq_dict",
+                                                                     visible=kwargs['use_autogptq'])
+                                        model_load_awq = gr.Textbox(label="awq", value=kwargs['load_awq'],
+                                                                    info="For TheBloke, use: model",
+                                                                    interactive=not is_public)
+                                        model_load_exllama_checkbox = gr.components.Checkbox(
+                                            label="Load with exllama [requires support]",
+                                            value=kwargs['load_exllama'], interactive=not is_public)
+                                        model_exllama_dict = gr.Textbox(value=str(kwargs['exllama_dict'] or {}),
+                                                                        label="exllama_dict",
+                                                                        info="E.g. to split across 2 GPUs: {'set_auto_map':20,20}")
+                                    hf_label = "HuggingFace" if kwargs['use_autogptq'] else "HuggingFace (inc. GPTQ)"
+                                    with gr.Accordion(hf_label, open=False, visible=True):
+                                        model_safetensors_checkbox = gr.components.Checkbox(
+                                            label="Safetensors [required sometimes, e.g. GPTQ from TheBloke]",
+                                            value=kwargs['use_safetensors'], interactive=not is_public)
+                                        model_hf_model_dict = gr.Textbox(value=str(kwargs['hf_model_dict'] or {}),
+                                                                         label="hf_model_dict")
+                                        model_revision = gr.Textbox(label="revision",
+                                                                    value=kwargs['revision'],
+                                                                    info="Hash on HF to use",
+                                                                    interactive=not is_public)
+                                    with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
+                                        prompt_dict = gr.Textbox(label="Current Prompt (or Custom)",
+                                                                 value=pprint.pformat(kwargs['prompt_dict'], indent=4),
+                                                                 interactive=not is_public, lines=6)
+                                    with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
+                                        max_seq_len = gr.Number(value=kwargs['max_seq_len'] or -1,
+                                                                minimum=-1,
+                                                                maximum=2 ** 18,
+                                                                precision=0,
+                                                                info="If standard LLaMa-2, choose up to 4096 (-1 means choose max of model)",
+                                                                label="max_seq_len")
+                                        max_seq_len_used = gr.Number(value=kwargs['max_seq_len'] or -1,
+                                                                     label="Current Max. Seq. Length",
+                                                                     interactive=False)
+                                        rope_scaling = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
+                                                                  label="rope_scaling",
+                                                                  info="Not required if in config.json.  E.g. {'type':'linear', 'factor':4} for HF and {'alpha_value':4} for exllama")
+                                    acc_llama = gr.Accordion("LLaMa.cpp & GPT4All", open=False,
+                                                             visible=kwargs['show_llama'])
+                                    with acc_llama:
+                                        # with row_llama:
                                         model_path_llama = gr.Textbox(value=kwargs['llamacpp_dict']['model_path_llama'],
                                                                       lines=4,
                                                                       label="Choose LLaMa.cpp Model Path/URL (for Base Model: llama)",
@@ -1291,10 +1393,6 @@ def go_gradio(**kwargs):
                                                                         lines=4,
                                                                         label="Dict for other LLaMa.cpp/GPT4All options",
                                                                         visible=kwargs['show_llama'])
-                                    row_gpt4all = gr.Row(
-                                        visible=kwargs['show_gpt4all'] and kwargs['base_model'] in ['gptj',
-                                                                                                    'gpt4all_llama'])
-                                    with row_gpt4all:
                                         model_name_gptj = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
                                                                      label="Choose GPT4All GPTJ Model Path/URL (for Base Model: gptj)",
                                                                      visible=kwargs['show_gpt4all'])
@@ -1302,58 +1400,30 @@ def go_gradio(**kwargs):
                                             value=kwargs['llamacpp_dict']['model_name_gpt4all_llama'],
                                             label="Choose GPT4All LLaMa Model Path/URL (for Base Model: gpt4all_llama)",
                                             visible=kwargs['show_gpt4all'])
-                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
-                                    model_load8bit_checkbox = gr.components.Checkbox(
-                                        label="Load 8-bit [requires support]",
-                                        value=kwargs['load_8bit'], interactive=not is_public)
-                                    model_load4bit_checkbox = gr.components.Checkbox(
-                                        label="Load 4-bit [requires support]",
-                                        value=kwargs['load_4bit'], interactive=not is_public)
-                                    model_low_bit_mode = gr.Slider(value=kwargs['low_bit_mode'],
-                                                                   minimum=0, maximum=4, step=1,
-                                                                   label="low_bit_mode")
-                                    model_load_gptq = gr.Textbox(label="gptq", value=kwargs['load_gptq'],
-                                                                 interactive=not is_public)
-                                    model_load_awq = gr.Textbox(label="awq", value=kwargs['load_awq'],
-                                                                interactive=not is_public)
-                                    model_load_exllama_checkbox = gr.components.Checkbox(
-                                        label="Load load_exllama [requires support]",
-                                        value=kwargs['load_exllama'], interactive=not is_public)
-                                    model_safetensors_checkbox = gr.components.Checkbox(
-                                        label="Safetensors [requires support]",
-                                        value=kwargs['use_safetensors'], interactive=not is_public)
-                                    model_revision = gr.Textbox(label="revision", value=kwargs['revision'],
-                                                                interactive=not is_public)
-                                    model_use_gpu_id_checkbox = gr.components.Checkbox(
-                                        label="Choose Devices [If not Checked, use all GPUs]",
-                                        value=kwargs['use_gpu_id'], interactive=not is_public,
-                                        visible=n_gpus != 0)
-                                    model_gpu = gr.Dropdown(n_gpus_list,
-                                                            label="GPU ID [-1 = all GPUs, if Choose is enabled]",
-                                                            value=kwargs['gpu_id'], interactive=not is_public,
-                                                            visible=n_gpus != 0)
-                                    prompt_dict = gr.Textbox(label="Prompt (or Custom)",
-                                                             value=pprint.pformat(kwargs['prompt_dict'], indent=4),
-                                                             interactive=not is_public, lines=4)
                         col_model2 = gr.Column(visible=False)
                         with col_model2:
                             with gr.Row():
-                                with gr.Column(scale=20, visible=not kwargs['model_lock']):
+                                with gr.Column(scale=10, visible=not kwargs['model_lock']):
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
+                                    unload_model_button2 = gr.Button("UnLoad Model2", variant=variant_load_msg, scale=0,
+                                                                     size='sm', interactive=not is_public)
                                     with gr.Row():
                                         with gr.Column():
                                             model_choice2 = gr.Dropdown(model_options_state.value[0],
-                                                                        label="Choose Model 2",
-                                                                        value=no_model_str)
+                                                                        label="Choose/Enter Model 2 (HF name, TheBloke, file, URL)",
+                                                                        value=no_model_str,
+                                                                        allow_custom_value=not is_public)
                                             lora_choice2 = gr.Dropdown(lora_options_state.value[0],
-                                                                       label="Choose LORA 2",
+                                                                       label="Choose/Enter LORA 2",
                                                                        value=no_lora_str,
-                                                                       visible=kwargs['show_lora'])
+                                                                       visible=kwargs['show_lora'],
+                                                                       allow_custom_value=not is_public)
                                             server_choice2 = gr.Dropdown(server_options_state.value[0],
-                                                                         label="Choose Server 2",
+                                                                         label="Choose/Enter Server 2",
                                                                          value=no_server_str,
-                                                                         visible=not is_public)
+                                                                         visible=not is_public,
+                                                                         allow_custom_value=not is_public)
                                         with gr.Column():
                                             # no model/lora loaded ever in model2 by default
                                             model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str,
@@ -1364,17 +1434,83 @@ def go_gradio(**kwargs):
                                                                       value=no_server_str,
                                                                       interactive=False,
                                                                       visible=not is_public)
-                                    max_seq_len2 = gr.Number(value=kwargs['max_seq_len'] or 2048,
-                                                             minimum=128,
-                                                             maximum=2 ** 18,
-                                                             info="If standard LLaMa-2, choose up to 4096",
-                                                             label="max_seq_len Model 2")
-                                    rope_scaling2 = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
-                                                               label="rope_scaling Model 2")
-
-                                    row_llama2 = gr.Row(
-                                        visible=kwargs['show_llama'] and kwargs['base_model'] == 'llama')
-                                    with row_llama2:
+                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
+                                    with gr.Accordion("Precision", open=False, visible=True):
+                                        model_load8bit_checkbox2 = gr.components.Checkbox(
+                                            label="Load 8-bit (Model 2) [requires support]",
+                                            value=kwargs['load_8bit'], interactive=not is_public)
+                                        model_load4bit_checkbox2 = gr.components.Checkbox(
+                                            label="Load 4-bit (Model 2) [requires support]",
+                                            value=kwargs['load_4bit'], interactive=not is_public)
+                                        model_low_bit_mode2 = gr.Slider(value=kwargs['low_bit_mode'],
+                                                                        # ok that same as Model 1
+                                                                        minimum=0, maximum=4, step=1,
+                                                                        label="low_bit_mode (Model 2)")
+                                    with gr.Accordion("GPU", open=False, visible=n_gpus != 0):
+                                        model_use_cpu_checkbox2 = gr.components.Checkbox(
+                                            label="Use CPU even if have GPUs (Model 2)",
+                                            value=False,
+                                            interactive=not is_public)
+                                        model_use_gpu_id_checkbox2 = gr.components.Checkbox(
+                                            label="Choose Devices (Model 2) [If not Checked, use all GPUs]",
+                                            value=kwargs['use_gpu_id'],
+                                            interactive=not is_public)
+                                        model_gpu2 = gr.Dropdown(n_gpus_list,
+                                                                 label="GPU ID (Model 2) [-1 = all GPUs, if choose is enabled]",
+                                                                 info=llama_multi_gpu_info,
+                                                                 value=kwargs['gpu_id'],
+                                                                 interactive=not is_public)
+                                    with gr.Accordion("Add-ons", open=False, visible=True):
+                                        model_attention_sinks2 = gr.components.Checkbox(
+                                            label="Enable Attention Sinks [requires support] (Model 2)",
+                                            value=kwargs['attention_sinks'], interactive=not is_public)
+                                        model_truncation_generation2 = gr.components.Checkbox(
+                                            label="Truncate generation (disable for attention sinks) (Model 2)",
+                                            value=kwargs['truncation_generation'], interactive=not is_public)
+                                        model_sink_dict2 = gr.Textbox(value=str(kwargs['sink_dict'] or {}),
+                                                                      label="sink_dict (Model 2)")
+                                        model_load_gptq2 = gr.Textbox(label="gptq (Model 2)",
+                                                                      info="For TheBloke models, use: model",
+                                                                      value=kwargs['load_gptq'],
+                                                                      visible=kwargs['use_autogptq'],
+                                                                      interactive=not is_public)
+                                        model_gptq_dict2 = gr.Textbox(value=str(kwargs['gptq_dict'] or {}),
+                                                                      info="E.g. {'inject_fused_attention':False, 'disable_exllama': True}",
+                                                                      visible=kwargs['use_autogptq'],
+                                                                      label="gptq_dict (Model 2)")
+                                        model_load_awq2 = gr.Textbox(label="awq (Model 2)", value='',
+                                                                     interactive=not is_public)
+                                        model_load_exllama_checkbox2 = gr.components.Checkbox(
+                                            label="Load with exllama (Model 2) [requires support]",
+                                            value=False, interactive=not is_public)
+                                        model_exllama_dict2 = gr.Textbox(value=str(kwargs['exllama_dict'] or {}),
+                                                                         label="exllama_dict (Model 2)")
+                                    with gr.Accordion(hf_label, open=False, visible=True):
+                                        model_safetensors_checkbox2 = gr.components.Checkbox(
+                                            label="Safetensors (Model 2) [requires support]",
+                                            value=False, interactive=not is_public)
+                                        model_hf_model_dict2 = gr.Textbox(value=str(kwargs['hf_model_dict'] or {}),
+                                                                          label="hf_model_dict (Model 2)")
+                                        model_revision2 = gr.Textbox(label="revision (Model 2)", value='',
+                                                                     interactive=not is_public)
+                                    with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
+                                        prompt_dict2 = gr.Textbox(label="Current Prompt (or Custom) (Model 2)",
+                                                                  value=pprint.pformat(kwargs['prompt_dict'], indent=4),
+                                                                  interactive=not is_public, lines=4)
+                                    with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
+                                        max_seq_len2 = gr.Number(value=kwargs['max_seq_len'] or -1,
+                                                                 minimum=-1,
+                                                                 maximum=2 ** 18,
+                                                                 info="If standard LLaMa-2, choose up to 4096 (-1 means choose max of model)",
+                                                                 label="max_seq_len Model 2")
+                                        max_seq_len_used2 = gr.Number(value=-1,
+                                                                      label="mCurrent Max. Seq. Length (Model 2)",
+                                                                      interactive=False)
+                                        rope_scaling2 = gr.Textbox(value=str(kwargs['rope_scaling'] or {}),
+                                                                   label="rope_scaling Model 2")
+                                    acc_llama2 = gr.Accordion("LLaMa.cpp & GPT4All", open=False,
+                                                              visible=kwargs['show_llama'])
+                                    with acc_llama2:
                                         model_path_llama2 = gr.Textbox(
                                             value=kwargs['llamacpp_dict']['model_path_llama'],
                                             label="Choose LLaMa.cpp Model 2 Path/URL (for Base Model: llama)",
@@ -1396,10 +1532,6 @@ def go_gradio(**kwargs):
                                                                          lines=4,
                                                                          label="Model 2 Dict for other LLaMa.cpp/GPT4All options",
                                                                          visible=kwargs['show_llama'])
-                                    row_gpt4all2 = gr.Row(
-                                        visible=kwargs['show_gpt4all'] and kwargs['base_model'] in ['gptj',
-                                                                                                    'gpt4all_llama'])
-                                    with row_gpt4all2:
                                         model_name_gptj2 = gr.Textbox(value=kwargs['llamacpp_dict']['model_name_gptj'],
                                                                       label="Choose GPT4All GPTJ Model 2 Path/URL (for Base Model: gptj)",
                                                                       visible=kwargs['show_gpt4all'])
@@ -1408,43 +1540,10 @@ def go_gradio(**kwargs):
                                             label="Choose GPT4All LLaMa Model 2 Path/URL (for Base Model: gpt4all_llama)",
                                             visible=kwargs['show_gpt4all'])
 
-                                with gr.Column(scale=1, visible=not kwargs['model_lock']):
-                                    model_load8bit_checkbox2 = gr.components.Checkbox(
-                                        label="Load 8-bit (Model 2) [requires support]",
-                                        value=kwargs['load_8bit'], interactive=not is_public)
-                                    model_load4bit_checkbox2 = gr.components.Checkbox(
-                                        label="Load 4-bit (Model 2) [requires support]",
-                                        value=kwargs['load_4bit'], interactive=not is_public)
-                                    model_low_bit_mode2 = gr.Slider(value=kwargs['low_bit_mode'],
-                                                                    # ok that same as Model 1
-                                                                    minimum=0, maximum=4, step=1,
-                                                                    label="low_bit_mode (Model 2)")
-                                    model_load_gptq2 = gr.Textbox(label="gptq (Model 2)", value='',
-                                                                  interactive=not is_public)
-                                    model_load_awq2 = gr.Textbox(label="awq", value='',
-                                                                 interactive=not is_public)
-                                    model_load_exllama_checkbox2 = gr.components.Checkbox(
-                                        label="Load load_exllama (Model 2) [requires support]",
-                                        value=False, interactive=not is_public)
-                                    model_safetensors_checkbox2 = gr.components.Checkbox(
-                                        label="Safetensors (Model 2) [requires support]",
-                                        value=False, interactive=not is_public)
-                                    model_revision2 = gr.Textbox(label="revision (Model 2)", value='',
-                                                                 interactive=not is_public)
-                                    model_use_gpu_id_checkbox2 = gr.components.Checkbox(
-                                        label="Choose Devices (Model 2) [If not Checked, use all GPUs]",
-                                        value=kwargs[
-                                            'use_gpu_id'], interactive=not is_public)
-                                    model_gpu2 = gr.Dropdown(n_gpus_list,
-                                                             label="GPU ID (Model 2) [-1 = all GPUs, if choose is enabled]",
-                                                             value=kwargs['gpu_id'], interactive=not is_public)
-                                    prompt_dict2 = gr.Textbox(label="Prompt (or Custom) (Model 2)",
-                                                              value=pprint.pformat(kwargs['prompt_dict'], indent=4),
-                                                              interactive=not is_public, lines=4)
                     compare_checkbox = gr.components.Checkbox(label="Compare Two Models",
                                                               value=kwargs['model_lock'],
                                                               visible=not is_public and not kwargs['model_lock'])
-                    with gr.Row(visible=not kwargs['model_lock']):
+                    with gr.Row(visible=not kwargs['model_lock'] and kwargs['enable_add_models_to_list_ui']):
                         with gr.Column(scale=50):
                             new_model = gr.Textbox(label="New Model name/path/URL", interactive=not is_public)
                         with gr.Column(scale=50):
@@ -1492,31 +1591,34 @@ def go_gradio(**kwargs):
                             pass
                     system_row = gr.Row(visible=system_visible0)
                     with system_row:
-                        with gr.Column():
-                            with gr.Row():
-                                system_btn = gr.Button(value='Get System Info', size='sm')
-                                system_text = gr.Textbox(label='System Info', interactive=False, show_copy_button=True)
-                            with gr.Row():
-                                system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
-                                                          visible=not is_public)
-                                system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public, size='sm')
-                                system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
-                                                          visible=not is_public, show_copy_button=True)
-                            with gr.Row():
-                                system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
-                                system_text3 = gr.Textbox(label='Hash', interactive=False,
-                                                          visible=not is_public, show_copy_button=True)
-                                system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
-                                system_text4 = gr.Textbox(label='Model Names', interactive=False,
-                                                          visible=not is_public, show_copy_button=True)
+                        with gr.Accordion("Admin", open=False, visible=True):
+                            with gr.Column():
+                                with gr.Row():
+                                    system_btn = gr.Button(value='Get System Info', size='sm')
+                                    system_text = gr.Textbox(label='System Info', interactive=False,
+                                                             show_copy_button=True)
+                                with gr.Row():
+                                    system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
+                                                              visible=not is_public)
+                                    system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public,
+                                                            size='sm')
+                                    system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
+                                                              visible=not is_public, show_copy_button=True)
+                                with gr.Row():
+                                    system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
+                                    system_text3 = gr.Textbox(label='Hash', interactive=False,
+                                                              visible=not is_public, show_copy_button=True)
+                                    system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
+                                    system_text4 = gr.Textbox(label='Model Names', interactive=False,
+                                                              visible=not is_public, show_copy_button=True)
 
-                            with gr.Row():
-                                zip_btn = gr.Button("Zip", size='sm')
-                                zip_text = gr.Textbox(label="Zip file name", interactive=False)
-                                file_output = gr.File(interactive=False, label="Zip file to Download")
-                            with gr.Row():
-                                s3up_btn = gr.Button("S3UP", size='sm')
-                                s3up_text = gr.Textbox(label='S3UP result', interactive=False)
+                                with gr.Row():
+                                    zip_btn = gr.Button("Zip", size='sm')
+                                    zip_text = gr.Textbox(label="Zip file name", interactive=False)
+                                    file_output = gr.File(interactive=False, label="Zip file to Download")
+                                with gr.Row():
+                                    s3up_btn = gr.Button("S3UP", size='sm')
+                                    s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
                 tos_tab = gr.TabItem("Terms of Service") \
                     if kwargs['visible_tos_tab'] else gr.Row(visible=False)
@@ -1600,29 +1702,30 @@ def go_gradio(**kwargs):
                            inputs=max_quality,
                            outputs=[image_loaders, pdf_loaders, url_loaders])
 
-        def get_model_lock_visible_list(visible_models1, all_models):
+        def get_model_lock_visible_list(visible_models1, all_possible_visible_models):
             visible_list = []
-            for modeli, model in enumerate(all_models):
+            for modeli, model in enumerate(all_possible_visible_models):
                 if visible_models1 is None or model in visible_models1 or modeli in visible_models1:
                     visible_list.append(True)
                 else:
                     visible_list.append(False)
             return visible_list
 
-        def set_visible_models(visible_models1, num_model_lock=0, all_models=None):
+        def set_visible_models(visible_models1, num_model_lock=0, all_possible_visible_models=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
                 ret_list = [gr.Textbox(visible=True)] * num_model_lock
             else:
-                assert isinstance(all_models, list)
-                assert num_model_lock == len(all_models)
-                visible_list = [False, False] + get_model_lock_visible_list(visible_models1, all_models)
+                assert isinstance(all_possible_visible_models, list)
+                assert num_model_lock == len(all_possible_visible_models)
+                visible_list = [False, False] + get_model_lock_visible_list(visible_models1,
+                                                                            all_possible_visible_models)
                 ret_list = [gr.Textbox(visible=x) for x in visible_list]
             return tuple(ret_list)
 
         visible_models_func = functools.partial(set_visible_models,
                                                 num_model_lock=len(text_outputs),
-                                                all_models=kwargs['all_models'])
+                                                all_possible_visible_models=kwargs['all_possible_visible_models'])
         visible_models.change(fn=visible_models_func,
                               inputs=visible_models,
                               outputs=[text_output, text_output2] + text_outputs,
@@ -1649,6 +1752,7 @@ def go_gradio(**kwargs):
                                            enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
                                            enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                            h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                           is_public=is_public,
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -1778,27 +1882,6 @@ def go_gradio(**kwargs):
         lg_change_event = langchain_mode.change(clear_doc_choice, inputs=langchain_mode,
                                                 outputs=[document_choice, active_collection],
                                                 queue=not kwargs['large_file_count_mode'])
-
-        def change_visible_llama(x):
-            if x == 'llama':
-                return gr.update(visible=True), \
-                    gr.update(visible=True), \
-                    gr.update(visible=False), \
-                    gr.update(visible=False)
-            elif x in ['gptj', 'gpt4all_llama']:
-                return gr.update(visible=False), \
-                    gr.update(visible=False), \
-                    gr.update(visible=True), \
-                    gr.update(visible=True)
-            else:
-                return gr.update(visible=False), \
-                    gr.update(visible=False), \
-                    gr.update(visible=False), \
-                    gr.update(visible=False)
-
-        model_choice.change(change_visible_llama,
-                            inputs=model_choice,
-                            outputs=[row_llama, row_llama2, row_gpt4all, row_gpt4all2])
 
         def resize_col_tabs(x):
             return gr.Dropdown(scale=x)
@@ -2543,6 +2626,7 @@ def go_gradio(**kwargs):
         inputs_list2, inputs_dict2 = get_inputs_list(all_kwargs, kwargs['model_lower'], model_id=2)
         from functools import partial
         kwargs_evaluate = {k: v for k, v in all_kwargs.items() if k in inputs_kwargs_list}
+        kwargs_evaluate.update(dict(from_ui=True))  # default except for evaluate_nochat
         # ensure present
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
@@ -2739,7 +2823,7 @@ def go_gradio(**kwargs):
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
-        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False))
+        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False, from_ui=False))
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
@@ -2970,15 +3054,16 @@ def go_gradio(**kwargs):
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
             return update_history(*args, undo=undo, retry=retry, sanitize_user_prompt=sanitize_user_prompt)
 
-        def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0, all_models=None):
+        def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0,
+                     all_possible_visible_models=None):
             args_list = list(args)
 
             visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-            assert isinstance(all_models, list)
-            visible_list = get_model_lock_visible_list(visible_models1, all_models)
+            assert isinstance(all_possible_visible_models, list)
+            visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
 
             history_list = args_list[-num_model_lock:]
-            assert len(all_models) == len(history_list)
+            assert len(all_possible_visible_models) == len(history_list)
             assert len(history_list) > 0, "Bad history list: %s" % history_list
             for hi, history in enumerate(history_list):
                 if not visible_list[hi]:
@@ -3215,7 +3300,7 @@ def go_gradio(**kwargs):
             save_dict['which_api'] = 'bot'
             save_generate_output(**save_dict)
 
-        def all_bot(*args, retry=False, model_states1=None, all_models=None):
+        def all_bot(*args, retry=False, model_states1=None, all_possible_visible_models=None):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
@@ -3225,9 +3310,9 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
 
             visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-            assert isinstance(all_models, list)
-            assert len(all_models) == len(model_states1)
-            visible_list = get_model_lock_visible_list(visible_models1, all_models)
+            assert isinstance(all_possible_visible_models, list)
+            assert len(all_possible_visible_models) == len(model_states1)
+            visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
 
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
@@ -3349,7 +3434,7 @@ def go_gradio(**kwargs):
                 clear_embeddings(langchain_mode1, db1s)
 
             # save
-            for extra, error, save_dict, model_name in zip(extras, exceptions, save_dicts, all_models):
+            for extra, error, save_dict, model_name in zip(extras, exceptions, save_dicts, all_possible_visible_models):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 if requests_state1:
@@ -3415,19 +3500,20 @@ def go_gradio(**kwargs):
         all_user_args = dict(fn=functools.partial(all_user,
                                                   sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                   num_model_lock=len(text_outputs),
-                                                  all_models=kwargs['all_models']
+                                                  all_possible_visible_models=kwargs['all_possible_visible_models']
                                                   ),
                              inputs=inputs_list + text_outputs,
                              outputs=text_outputs,
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
-                                                 all_models=kwargs['all_models']),
+                                                 all_possible_visible_models=kwargs['all_possible_visible_models']),
                             inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
                                    text_outputs,
                             outputs=text_outputs + [chat_exception_text],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
-                                                       all_models=kwargs['all_models'],
+                                                       all_possible_visible_models=kwargs[
+                                                           'all_possible_visible_models'],
                                                        retry=True),
                                   inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
                                          text_outputs,
@@ -3436,7 +3522,8 @@ def go_gradio(**kwargs):
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
                                                         sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                         num_model_lock=len(text_outputs),
-                                                        all_models=kwargs['all_models']
+                                                        all_possible_visible_models=kwargs[
+                                                            'all_possible_visible_models']
                                                         ),
                                    inputs=inputs_list + text_outputs,
                                    outputs=text_outputs,
@@ -3444,7 +3531,7 @@ def go_gradio(**kwargs):
         all_undo_user_args = dict(fn=functools.partial(all_user, undo=True,
                                                        sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                        num_model_lock=len(text_outputs),
-                                                       all_models=kwargs['all_models']
+                                                       all_possible_visible_models=kwargs['all_possible_visible_models']
                                                        ),
                                   inputs=inputs_list + text_outputs,
                                   outputs=text_outputs,
@@ -3864,22 +3951,34 @@ def go_gradio(**kwargs):
                                                                       queue=False,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
 
-        def load_model(model_name, lora_weights, server_name, model_state_old, prompt_type_old,
+        def load_model(model_name, lora_weights, server_name,
+                       model_state_old,
+                       prompt_type_old,
                        load_8bit, load_4bit, low_bit_mode,
                        load_gptq, load_awq, load_exllama, use_safetensors, revision,
-                       use_gpu_id, gpu_id, max_seq_len1, rope_scaling1,
+                       use_cpu,
+                       use_gpu_id, gpu_id,
+                       max_seq_len1, rope_scaling1,
                        model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1,
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
-                       system_prompt1, unload=False):
+                       system_prompt1,
+                       exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                       unload=False):
             if unload:
                 model_name = no_model_str
                 lora_weights = no_lora_str
                 server_name = no_server_str
-            try:
-                llamacpp_dict = ast.literal_eval(llamacpp_dict_more1)
-            except:
-                print("Failed to use user input for llamacpp_dict_more1 dict", flush=True)
-                llamacpp_dict = {}
+            exllama_dict = str_to_dict(exllama_dict)
+            gptq_dict = str_to_dict(gptq_dict)
+            sink_dict = str_to_dict(sink_dict)
+            hf_model_dict = str_to_dict(hf_model_dict)
+
+            # switch-a-roo on base_model so can pass GGUF/GGML as base model
+            model_name0 = model_name
+            model_name, model_path_llama1, load_gptq, load_awq, n_gqa1 = \
+                switch_a_roo_llama(model_name, model_path_llama1, load_gptq, load_awq, n_gqa1)
+
+            llamacpp_dict = str_to_dict(llamacpp_dict_more1)
             llamacpp_dict.update(dict(model_path_llama=model_path_llama1,
                                       model_name_gptj=model_name_gptj1,
                                       model_name_gpt4all_llama=model_name_gpt4all_llama1,
@@ -3928,7 +4027,7 @@ def go_gradio(**kwargs):
                 lora_weights = no_lora_str
                 server_name = no_server_str
                 return kwargs['model_state_none'].copy(), \
-                    model_name, lora_weights, server_name, prompt_type_old, \
+                    model_name, lora_weights, server_name, prompt_type_old, max_seq_len1, \
                     gr.Slider(maximum=256), \
                     gr.Slider(maximum=256)
 
@@ -3946,20 +4045,29 @@ def go_gradio(**kwargs):
             all_kwargs1['use_gpu_id'] = use_gpu_id
             all_kwargs1['gpu_id'] = int(gpu_id) if gpu_id not in [None, 'None'] else None  # detranscribe
             all_kwargs1['llamacpp_dict'] = llamacpp_dict
-            all_kwargs1['exllama_dict'] = kwargs['exllama_dict']  # no control in UI/API yet
-            all_kwargs1['gptq_dict'] = kwargs['gptq_dict']  # no control in UI/API yet
-            all_kwargs1['attention_sinks'] = kwargs['attention_sinks']  # no control in UI/API yet
-            all_kwargs1['sink_dict'] = kwargs['sink_dict']  # no control in UI/API yet
-            all_kwargs1['truncation_generation'] = kwargs['truncation_generation']  # no control in UI/API yet
-            all_kwargs1['hf_model_dict'] = kwargs['hf_model_dict']  # no control in UI/API yet
-            all_kwargs1['max_seq_len'] = int(max_seq_len1) if max_seq_len1 is not None else None
+            all_kwargs1['exllama_dict'] = exllama_dict
+            all_kwargs1['gptq_dict'] = gptq_dict
+            all_kwargs1['attention_sinks'] = attention_sinks
+            all_kwargs1['sink_dict'] = sink_dict
+            all_kwargs1['truncation_generation'] = truncation_generation
+            all_kwargs1['hf_model_dict'] = hf_model_dict
+            all_kwargs1['max_seq_len'] = int(max_seq_len1) if max_seq_len1 is not None and max_seq_len1 > 0 else None
             try:
                 all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
             except:
                 print("Failed to use user input for rope_scaling dict", flush=True)
                 all_kwargs1['rope_scaling'] = {}
+            if use_cpu:
+                all_kwargs1['n_gpus'] = 0
+            elif use_gpu_id and all_kwargs1['gpu_id']:
+                all_kwargs1['n_gpus'] = 1
+            else:
+                all_kwargs1['n_gpus'] = get_ngpus_vis()
+            model_lower0 = model_name0.strip().lower()
             model_lower = model_name.strip().lower()
-            if model_lower in inv_prompt_type_to_model_lower:
+            if model_lower0 in inv_prompt_type_to_model_lower:
+                prompt_type1 = inv_prompt_type_to_model_lower[model_lower0]
+            elif model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
             else:
                 prompt_type1 = prompt_type_old
@@ -3972,9 +4080,10 @@ def go_gradio(**kwargs):
                 server_name = ''
             all_kwargs1['inference_server'] = server_name.strip()
 
-            model1, tokenizer1, device1 = get_model(reward_type=False,
-                                                    **get_kwargs(get_model, exclude_names=['reward_type'],
-                                                                 **all_kwargs1))
+            gradio_model_kwargs = dict(reward_type=False,
+                                       **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                    **all_kwargs1))
+            model1, tokenizer1, device1 = get_model_retry(**gradio_model_kwargs)
             clear_torch_cache()
 
             tokenizer_base_model = model_name
@@ -3988,12 +4097,14 @@ def go_gradio(**kwargs):
                                    # FIXME: not typically required, unless want to expose adding h2ogpt endpoint in UI
                                    visible_models=None, h2ogpt_key=None,
                                    )
+            max_seq_len1new = get_model_max_length_from_tokenizer(tokenizer1)
 
             max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
 
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
-            return model_state_new, model_name, lora_weights, server_name, prompt_type1, \
+            return model_state_new, model_name, lora_weights, server_name, \
+                prompt_type1, max_seq_len1new, \
                 gr.Slider(maximum=max_max_new_tokens1), \
                 gr.Slider(maximum=max_max_new_tokens1)
 
@@ -4021,29 +4132,39 @@ def go_gradio(**kwargs):
         def dropdown_prompt_type_list(x):
             return gr.Dropdown(value=x)
 
-        def chatbot_list(x, model_used_in):
-            return gr.Textbox(label=f'h2oGPT [Model: {model_used_in}]')
+        def chatbot_list(x, model_used_in, model_path_llama_in):
+            chat_name = get_chatbot_name(model_used_in, model_path_llama_in)
+            return gr.Textbox(label=chat_name)
 
         load_model_inputs = [model_choice, lora_choice, server_choice, model_state, prompt_type,
                              model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                              model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                              model_safetensors_checkbox, model_revision,
+                             model_use_cpu_checkbox,
                              model_use_gpu_id_checkbox, model_gpu,
                              max_seq_len, rope_scaling,
                              model_path_llama, model_name_gptj, model_name_gpt4all_llama,
                              n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
-                             system_prompt]
+                             system_prompt,
+                             model_exllama_dict, model_gptq_dict,
+                             model_attention_sinks, model_sink_dict,
+                             model_truncation_generation,
+                             model_hf_model_dict,
+                             ]
         load_model_outputs = [model_state, model_used, lora_used, server_used,
                               # if prompt_type changes, prompt_dict will change via change rule
-                              prompt_type, max_new_tokens, min_new_tokens,
+                              prompt_type, max_seq_len_used,
+                              max_new_tokens, min_new_tokens,
                               ]
         load_model_args = dict(fn=load_model,
                                inputs=load_model_inputs, outputs=load_model_outputs)
         unload_model_args = dict(fn=functools.partial(load_model, unload=True),
                                  inputs=load_model_inputs, outputs=load_model_outputs)
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used], outputs=text_output)
-        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used], outputs=text_output_nochat)
+        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used, model_path_llama],
+                                   outputs=text_output)
+        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used, model_path_llama],
+                                  outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
                                                    api_name='load_model' if allow_api and not is_public else None) \
             .then(**prompt_update_args) \
@@ -4058,26 +4179,44 @@ def go_gradio(**kwargs):
             .then(**nochat_update_args) \
             .then(clear_torch_cache)
 
+        load_model_inputs2 = [model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
+                              model_load8bit_checkbox2, model_load4bit_checkbox2, model_low_bit_mode2,
+                              model_load_gptq2, model_load_awq2, model_load_exllama_checkbox2,
+                              model_safetensors_checkbox2, model_revision2,
+                              model_use_cpu_checkbox2,
+                              model_use_gpu_id_checkbox2, model_gpu2,
+                              max_seq_len2, rope_scaling2,
+                              model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
+                              n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2,
+                              system_prompt,
+                              model_exllama_dict2, model_gptq_dict2,
+                              model_attention_sinks2, model_sink_dict2,
+                              model_truncation_generation2,
+                              model_hf_model_dict2,
+                              ]
+        load_model_outputs2 = [model_state2, model_used2, lora_used2, server_used2,
+                               # if prompt_type2 changes, prompt_dict2 will change via change rule
+                               prompt_type2, max_seq_len_used2,
+                               max_new_tokens2, min_new_tokens2
+                               ]
         load_model_args2 = dict(fn=load_model,
-                                inputs=[model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
-                                        model_load8bit_checkbox2, model_load4bit_checkbox2, model_low_bit_mode2,
-                                        model_load_gptq2, model_load_awq2, model_load_exllama_checkbox2,
-                                        model_safetensors_checkbox2, model_revision2,
-                                        model_use_gpu_id_checkbox2, model_gpu2,
-                                        max_seq_len2, rope_scaling2,
-                                        model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
-                                        n_gpu_layers2, n_batch2, n_gqa2, llamacpp_dict_more2,
-                                        system_prompt],
-                                outputs=[model_state2, model_used2, lora_used2, server_used2,
-                                         # if prompt_type2 changes, prompt_dict2 will change via change rule
-                                         prompt_type2, max_new_tokens2, min_new_tokens2
-                                         ])
+                                inputs=load_model_inputs2, outputs=load_model_outputs2)
+        unload_model_args2 = dict(fn=functools.partial(load_model, unload=True),
+                                  inputs=load_model_inputs2, outputs=load_model_outputs2)
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
-        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2], outputs=text_output2)
+        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2, model_path_llama2],
+                                    outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
                                                      api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
             .then(**chatbot_update_args2) \
+            .then(clear_torch_cache)
+
+        unload_model_event2 = unload_model_button2.click(**unload_model_args2,
+                                                         api_name='unload_model2' if allow_api and not is_public else None) \
+            .then(**prompt_update_args) \
+            .then(**chatbot_update_args) \
+            .then(**nochat_update_args) \
             .then(clear_torch_cache)
 
         def dropdown_model_lora_server_list(model_list0, model_x,
@@ -4667,6 +4806,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                              kwargs.pop('enforce_h2ogpt_ui_key', None),
                              kwargs.pop('h2ogpt_api_keys', []), h2ogpt_key,
                              requests_state1=requests_state1)
+    kwargs['from_ui'] = is_from_ui(requests_state1)
     if not valid_key:
         raise ValueError(invalid_key_msg)
     loaders_dict, captions_model = gr_to_lg(image_loaders,

@@ -138,7 +138,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
 
         # get file for client to upload
         url = 'https://cdn.openai.com/papers/whisper.pdf'
-        test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+        test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
         download_simple(url, dest=test_file1)
 
         # PURE client code

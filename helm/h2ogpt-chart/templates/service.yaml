@@ -4,6 +4,11 @@ kind: Service
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-web
   namespace: {{ .Release.Namespace }}
+
+  {{- with .Values.h2ogpt.service.webServiceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   selector:
     app: {{ include "h2ogpt.fullname" . }}

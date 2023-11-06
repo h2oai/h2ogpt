@@ -2,7 +2,7 @@ import copy
 import torch
 
 from evaluate_params import eval_func_param_names
-from gen import get_score_model, get_model, evaluate, check_locals
+from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
 
@@ -13,9 +13,9 @@ def run_cli(  # for local function:
         examples=None, memory_restriction_level=None,
         # for get_model:
         score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None,
-        load_gptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
+        load_gptq=None, use_autogptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
-        gpu_id=None, n_jobs=None, local_files_only=None, resume_download=None, use_auth_token=None,
+        gpu_id=None, n_jobs=None, n_gpus=None, local_files_only=None, resume_download=None, use_auth_token=None,
         trust_remote_code=None, offload_folder=None, rope_scaling=None, max_seq_len=None, compile_model=None,
         llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None, sink_dict=None, hf_model_dict=None,
         truncation_generation=None,
@@ -42,6 +42,7 @@ def run_cli(  # for local function:
         docs_ordering_type=None,
         min_max_new_tokens=None,
         max_input_tokens=None,
+        max_total_input_tokens=None,
         docs_token_handling=None,
         docs_joiner=None,
         hyde_level=None,
@@ -61,6 +62,7 @@ def run_cli(  # for local function:
         model_state0=None,
         max_max_new_tokens=None,
         is_public=None,
+        from_ui=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None, load_db_if_exists=None, use_llm_if_no_docs=None,
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
@@ -91,6 +93,7 @@ def run_cli(  # for local function:
     logging.getLogger("torch").setLevel(logging.ERROR)
     logging.getLogger("transformers").setLevel(logging.ERROR)
 
+    from_ui = False
     check_locals(**locals())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
@@ -106,8 +109,8 @@ def run_cli(  # for local function:
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **locals()))
 
-        model, tokenizer, device = get_model(reward_type=False,
-                                             **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+        model, tokenizer, device = get_model_retry(reward_type=False,
+                                                   **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
         model_dict = dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
                           visible_models=None, h2ogpt_key=None)

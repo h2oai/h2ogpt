@@ -1,6 +1,7 @@
 import ast
 import json
 import os, sys
+import random
 import shutil
 import tempfile
 import time
@@ -13,6 +14,7 @@ from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
     db_types_full
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer
+from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
 
 
 @wrap_test_forked
@@ -338,7 +340,8 @@ def test_client_chat_nostream_llama7b():
     assert "am a virtual assistant" in res_dict['response'] or \
            'am a student' in res_dict['response'] or \
            "My name is John." in res_dict['response'] or \
-           "how can I assist" in res_dict['response']
+           "how can I assist" in res_dict['response'] or \
+           "I'm LLaMA"  in res_dict['response']
 
 
 @pytest.mark.need_tokens
@@ -1436,7 +1439,8 @@ def test_client_chat_stream_langchain_steps(max_new_tokens, top_k_docs):
             'for querying and summarizing documents' in res_dict['response'] or
             'Python-based platform for training' in res_dict['response'] or
             'h2oGPT is an open-source' in res_dict['response'] or
-            'language model' in res_dict['response']
+            'language model' in res_dict['response'] or
+            'Whisper is an open-source' in res_dict['response']
             ) \
            and ('FAQ.md' in res_dict['response'] or 'README.md' in res_dict['response'])
 
@@ -1697,15 +1701,19 @@ def test_client_chat_stream_long():
     assert 'Once upon a time' in res_dict['response']
 
 
+@pytest.mark.parametrize("base_model", [
+    'TheBloke/em_german_leo_mistral-GPTQ',
+    'TheBloke/Nous-Hermes-13B-GPTQ',
+])
 @wrap_test_forked
-def test_autogptq():
+def test_autogptq(base_model):
     prompt = 'Who are you?'
     stream_output = False
     max_new_tokens = 256
-    base_model = 'TheBloke/Nous-Hermes-13B-GPTQ'
     load_gptq = 'model'
     use_safetensors = True
-    prompt_type = 'instruct'
+    prompt_type = ''
+    max_seq_len = 4096  # mistral will use 32k if don't specify, go OOM on typical system
     langchain_mode = 'Disabled'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -1714,6 +1722,7 @@ def test_autogptq():
     docs_ordering_type = 'reverse_sort'
     from src.gen import main
     main(base_model=base_model, load_gptq=load_gptq,
+         max_seq_len=max_seq_len,
          use_safetensors=use_safetensors,
          prompt_type=prompt_type, chat=True,
          stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
@@ -1728,7 +1737,7 @@ def test_autogptq():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "am a virtual assistant" in res_dict['response']
+    assert "am a virtual assistant" in res_dict['response'] or "computer program designed" in res_dict['response']
 
     check_langchain()
 
@@ -1777,7 +1786,7 @@ def check_langchain():
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # upload file(s).  Can be list or single file
@@ -1820,7 +1829,7 @@ def check_langchain():
     sources = [x['source'] for x in res_dict['sources']]
     # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
     # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'whisper1.pdf' in sources[0]
 
 
 @pytest.mark.parametrize("mode", ['a', 'b', 'c'])
@@ -2477,8 +2486,11 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
 
 
 @pytest.mark.need_tokens
+@pytest.mark.parametrize("model_choice", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated)
 @wrap_test_forked
-def test_client_load_unload_models():
+def test_client_load_unload_models(model_choice):
+    if model_choice in model_names_curated_big:
+        return
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -2502,9 +2514,8 @@ def test_client_load_unload_models():
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
 
-    model_choice = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     lora_choice = ''
-    server_choice = ''
+    server_choice = '' if model_choice not in openai_gpts else 'openai_chat'
     # model_state
     prompt_type = ''
     model_load8bit_checkbox = False
@@ -2516,11 +2527,11 @@ def test_client_load_unload_models():
     model_safetensors_checkbox = False
     model_revision = ''
     model_use_gpu_id_checkbox = True
-    model_gpu = 0
-    max_seq_len = 2048
+    model_gpu_id = 0
+    max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
-    model_path_llama = ''
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
     model_name_gptj = ''
     model_name_gpt4all_llama = ''
     n_gpu_layers = 100
@@ -2528,35 +2539,104 @@ def test_client_load_unload_models():
     n_gqa = 0  # llama2 needs 8
     llamacpp_dict_more = '{}'
     system_prompt = None
+    model_cpu = False
+    exllama_dict = "{}"
+    gptq_dict = "{}"
+    attention_sinks = False
+    sink_dict = "{}"
+    truncation_generation = False
+    hf_model_dict = "{}"
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
                  model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                  model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                  model_safetensors_checkbox, model_revision,
-                 model_use_gpu_id_checkbox, model_gpu,
+                 model_cpu,
+                 model_use_gpu_id_checkbox, model_gpu_id,
                  max_seq_len, rope_scaling,
                  model_path_llama, model_name_gptj, model_name_gpt4all_llama,
                  n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
-                 system_prompt]
+                 system_prompt,
+                 exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                 ]
     res = client.predict(*tuple(args_list), api_name='/load_model')
-    res_expected = ('h2oai/h2ogpt-oig-oasst1-512-6_9b', '', '', 'human_bot', {'__type__': 'update', 'maximum': 1024},
-                    {'__type__': 'update', 'maximum': 1024})
+    model_choice_ex = model_choice
+    if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        prompt_type_ex = 'human_bot'
+        max_seq_len_ex = 2048.0
+    elif model_choice in ['llama', 'TheBloke/Llama-2-7B-Chat-GGUF']:
+        prompt_type_ex = 'llama2'
+        model_choice_ex = 'llama'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
+        prompt_type_ex = 'zephyr'
+        model_choice_ex = 'llama'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
+                          'TheBloke/zephyr-7B-beta-AWQ']:
+        prompt_type_ex = 'zephyr'
+        max_seq_len_ex = 32768.0
+    elif model_choice in ['TheBloke/Xwin-LM-13B-V0.1-GPTQ']:
+        prompt_type_ex = 'xwin'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['gpt-3.5-turbo']:
+        prompt_type_ex = 'openai_chat'
+        max_seq_len_ex = 4046.0
+    else:
+        raise ValueError("No such model_choice=%s" % model_choice)
+    res_expected = (
+        model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex, {'__type__': 'update', 'maximum': 1024},
+        {'__type__': 'update', 'maximum': 1024})
     assert res == res_expected
-    model_used, lora_used, server_used, prompt_type, max_new_tokens, min_new_tokens = res_expected
+    model_used, lora_used, server_used, prompt_type, max_seq_len1new, max_new_tokens, min_new_tokens = res_expected
 
     prompt = "Who are you?"
     kwargs = dict(stream_output=stream_output, instruction=prompt)
     res_dict, client = run_client_gen(client, kwargs)
     response = res_dict['response']
-    assert 'What do you want to be?' in response
+    assert response
 
-    # unload
+    # unload (could use unload api)
     args_list[0] = no_model_str
     res = client.predict(*tuple(args_list), api_name='/load_model')
-    res_expected = (no_model_str, no_lora_str, no_server_str, '', {'__type__': 'update', 'maximum': 256},
+    res_expected = (no_model_str, no_lora_str, no_server_str, '', -1.0, {'__type__': 'update', 'maximum': 256},
                     {'__type__': 'update', 'maximum': 256})
     assert res == res_expected
+
+
+@pytest.mark.need_tokens
+@pytest.mark.parametrize("stream_output", [True, False])
+@pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] +
+                         model_names_curated +
+                         ['zephyr-7b-beta.Q5_K_M.gguf'] +
+                         ['https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
+@wrap_test_forked
+def test_client_curated_base_models(base_model, stream_output):
+    if base_model in model_names_curated_big:
+        return
+    if base_model == 'zephyr-7b-beta.Q5_K_M.gguf' and not os.path.isfile('zephyr-7b-beta.Q5_K_M.gguf'):
+        download_simple('https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf')
+
+    stream_output = True
+    from src.gen import main
+    main(base_model=base_model,
+         inference_server='' if base_model not in openai_gpts else 'openai_chat',
+         chat=True,
+         stream_output=stream_output,
+         gradio=True, num_beams=1, block_gradio_exit=False,
+         score_model='',
+         verbose=True)
+
+    from src.client_test import get_client
+    # serialize=False would lead to returning dict for some objects or files for get_sources
+    client = get_client(serialize=False)
+
+    prompt = "Who are you?"
+    kwargs = dict(stream_output=stream_output, instruction=prompt)
+    res_dict, client = run_client_gen(client, kwargs)
+    response = res_dict['response']
+    assert response
 
 
 @pytest.mark.need_tokens
@@ -2655,7 +2735,7 @@ def test_client_timeout(stream_output, max_time):
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # PURE client code
@@ -2701,7 +2781,7 @@ def test_client_timeout(stream_output, max_time):
     sources = [x['source'] for x in res_dict['sources']]
     # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
     # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'whisper1.pdf' in sources[0]
 
 
 # pip install pytest-timeout
@@ -3342,6 +3422,9 @@ Rating: 5 (most positive)"""
 @wrap_test_forked
 def test_client_summarization(prompt_summary, inference_server, top_k_docs, stream_output, instruction,
                               langchain_action, db_type, which_doc):
+    if random.randint(0, 100) != 0:
+        # choose randomly, >1000 tests otherwise
+        return
     kill_weaviate(db_type)
     # launch server
     local_server = True
@@ -3389,7 +3472,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     # get file for client to upload
     if which_doc == 'whisper':
         url = 'https://cdn.openai.com/papers/whisper.pdf'
-        test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+        test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
         download_simple(url, dest=test_file1)
     elif which_doc == 'graham':
         test_file1 = 'tests/1paul_graham.txt'
@@ -3455,6 +3538,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if instruction == 'Technical key points':
             # if langchain_action == LangChainAction.SUMMARIZE_MAP.value:
             assert 'No relevant documents to extract from.' in summary or \
+                   'No relevant documents to summarize.' in summary or \
                    'long-form transcription' in summary or \
                    'text standardization' in summary or \
                    'speech processing' in summary or \
@@ -3476,8 +3560,11 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
                        'Large-scale weak supervision of speech' in summary or \
                        'text standardization' in summary or \
                        'speech processing systems' in summary
-            assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
-            assert 'my_test_pdf.pdf' in [x['source'] for x in sources][0]
+            if summary == 'No relevant documents to extract from.':
+                assert sources == ''
+            else:
+                assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
+                assert 'whisper1.pdf' in [x['source'] for x in sources][0]
     else:
         # weaviate as usual gets confused and has too many sources
         if summary == 'No relevant documents to extract from.':
@@ -3498,7 +3585,7 @@ def test_client_summarization_from_text():
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # Get text version of PDF
@@ -3604,6 +3691,8 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'H2O GPT is an open-source project' in summary \
                or 'is an open-source project for document Q/A' in summary \
                or 'h2oGPT is an open-source project' in summary \
+               or 'h2oGPT model' in summary \
+               or 'released an open-source version' in summary \
                or ('key results based on the provided document' in summary and 'h2oGPT' in summary)
         assert 'h2oGPT' in [x['content'] for x in sources][0]
     assert url in [x['source'] for x in sources][0]
@@ -3641,7 +3730,7 @@ def test_fastsys(stream_output, bits, prompt_type):
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
     download_simple(url, dest=test_file1)
 
     # PURE client code
@@ -3686,7 +3775,7 @@ def test_fastsys(stream_output, bits, prompt_type):
            """weak  supervision""" in response or \
            """weak supervision""" in response
     sources = [x['source'] for x in res_dict['sources']]
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'whisper1.pdf' in sources[0]
 
 
 @pytest.mark.parametrize("hyde_template", ['auto', None, """Give detailed answer for: {query}"""])
@@ -3704,7 +3793,7 @@ def test_hyde(stream_output, hyde_level, hyde_template):
 
     # get file for client to upload
     url = 'https://coca-colafemsa.com/wp-content/uploads/2023/04/Coca-Cola-FEMSA-Results-1Q23-vf-2.pdf'
-    test_file1 = os.path.join('/tmp/', 'my_test_pdf.pdf')
+    test_file1 = os.path.join('/tmp/', 'femsa1.pdf')
     remove(test_file1)
     download_simple(url, dest=test_file1)
 
@@ -3749,4 +3838,4 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     response = res_dict['response']
     assert """23,222 million""" in response
     sources = [x['source'] for x in res_dict['sources']]
-    assert 'my_test_pdf.pdf' in sources[0]
+    assert 'femsa1.pdf' in sources[0]

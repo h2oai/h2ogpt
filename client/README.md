@@ -13,10 +13,13 @@ conda install python=3.8 -y
 
 ## Download Client Wheel
 
-Use nightly, e.g. Oct 31 release:
+Install the latest nightly wheel from S3.
+
 ```bash
-pip install https://s3.amazonaws.com/artifacts.h2o.ai/snapshots/ai/h2o/h2ogpt_client/0.1.0_2023-10-31/h2ogpt_client-0.1.0-py3-none-any.whl
+pip install https://s3.amazonaws.com/artifacts.h2o.ai/snapshots/ai/h2o/h2ogpt_client/latest-nightly/h2ogpt_client-0.1.0-py3-none-any.whl
 ```
+
+Nightly releases can also be found [here](https://github.com/h2oai/h2ogpt/releases)
 
 ## Build Client Wheel
 
@@ -42,6 +45,8 @@ pip install client/dist/h2ogpt_client-*-py3-none-any.whl
 
 Based upon [test code](tests/test_client.py) and test code `test_readme_example`:
 ```python
+
+
 def test_readme_example(local_server):
     import os
     import asyncio
@@ -50,7 +55,7 @@ def test_readme_example(local_server):
     if local_server:
         client = Client("http://0.0.0.0:7860")
     else:
-        h2ogpt_key = os.getenv('H2OGPT_H2OGPT_KEY')
+        h2ogpt_key = os.getenv("H2OGPT_KEY") or os.getenv("H2OGPT_H2OGPT_KEY")
         if h2ogpt_key is None:
             return
         # if you have API key for public instance:

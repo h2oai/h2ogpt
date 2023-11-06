@@ -1,7 +1,7 @@
 import ast
 from typing import Any, Dict, List
 
-from h2ogpt_client import _core
+from h2ogpt_client._gradio_client import GradioClientWrapper
 
 
 class Model:
@@ -26,10 +26,10 @@ class Model:
 class Models:
     """Interact with LL Models in h2oGPT."""
 
-    def __init__(self, client: "_core.Client"):
+    def __init__(self, client: GradioClientWrapper):
         self._client = client
 
     def list(self) -> List[Model]:
         """List all models available in the h2oGPT server."""
-        models = ast.literal_eval(self._client._predict(api_name="/model_names"))
+        models = ast.literal_eval(self._client.predict(api_name="/model_names"))
         return [Model(m) for m in models]

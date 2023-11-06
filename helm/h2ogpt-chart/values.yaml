@@ -42,10 +42,12 @@ h2ogpt:
     max_max_new_tokens: 2048
     max_new_tokens: 1024
 
+
   service:
     type: NodePort
     webPort: 80
     gptPort: 8888
+    webServiceAnnotations: {}
 
   updateStrategy:
     type: RollingUpdate
@@ -64,7 +66,7 @@ h2ogpt:
         - ALL
     seccompProfile:
       type: RuntimeDefault
-  
+
   resources:
   nodeSelector:
   tolerations:
@@ -90,7 +92,7 @@ tgi:
     useEphemeral: true
   
   overrideConfig:
-  hfSecret: 
+  hfSecret:
   containerArgs:
 
   service:
