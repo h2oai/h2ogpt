@@ -1,5 +1,5 @@
 nameOverride: ""
-fullnameOverride: h2ogpt
+fullnameOverride: ""
 
 h2ogpt:
   enabled: true
@@ -14,7 +14,8 @@ h2ogpt:
 
   storage:
     size: 128Gi
-    class: ebs-csi
+    class: 
+    useEphemeral: true
   
   externalLLM:
     enabled: false
@@ -87,8 +88,9 @@ tgi:
 
   storage:
     size: 512Gi
-    class: ebs-csi
-
+    class: 
+    useEphemeral: true
+  
   overrideConfig:
   hfSecret:
   containerArgs:
@@ -125,8 +127,9 @@ vllm:
 
   storage:
     size: 512Gi
-    class: ebs-csi
-
+    class: 
+    useEphemeral: true
+  
   overrideConfig:
 
   containerArgs:

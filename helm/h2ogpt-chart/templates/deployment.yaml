@@ -169,14 +169,18 @@ spec:
             value: None
           {{- end }}
           volumeMounts:
-            - name: h2ogpt-volume
+            - name: {{ include "h2ogpt.fullname" . }}-volume
               mountPath: /workspace/.cache
               subPath: cache
-            - name: h2ogpt-volume
+            - name: {{ include "h2ogpt.fullname" . }}-volume
               mountPath: /workspace/save
               subPath: save
       volumes:
-        - name: h2ogpt-volume
+        - name: {{ include "h2ogpt.fullname" . }}-volume
+          {{- if not .Values.h2ogpt.storage.useEphemeral }}
+          persistentVolumeClaim:
+            claimName:  {{ include "h2ogpt.fullname" . }}-volume          
+          {{- else}}
           ephemeral:
             volumeClaimTemplate:
               spec:
@@ -185,8 +189,25 @@ spec:
                 resources:
                   requests: 
                     storage: {{ .Values.h2ogpt.storage.size | quote }}
-                storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
+                storageClassName: {{ .Values.h2ogpt.storage.class }}
+          {{- end }}
 {{- end }}
+---
+{{- if and (.Values.h2ogpt.enabled) (not .Values.h2ogpt.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
+  storageClassName: {{ .Values.h2ogpt.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.h2ogpt.storage.size | quote }}
+{{- end }}
+
 ---
 {{- if .Values.tgi.enabled }}
 apiVersion: apps/v1
@@ -284,17 +305,21 @@ spec:
             - secretRef:
                 name: {{ .Values.tgi.hfSecret }}
           volumeMounts:
-            - name: h2ogpt-tgi-inference-volume
+            - name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
               mountPath: /app/cache
               subPath: cache
-            - name: h2ogpt-tgi-inference-volume
+            - name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
               mountPath: /data
               subPath: data
-            - name: h2ogpt-tgi-inference-volume
+            - name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
               mountPath: /dev/shm
               subPath: shm
       volumes:
-        - name: h2ogpt-tgi-inference-volume
+        - name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
+        {{- if not .Values.tgi.storage.useEphemeral}}
+          persistentVolumeClaim:
+            claimName:  {{ include "h2ogpt.fullname" . }}-tgi-inference-volume      
+          {{- else}}
           ephemeral:
             volumeClaimTemplate:
               spec:
@@ -303,7 +328,23 @@ spec:
                 resources:
                   requests: 
                     storage: {{ .Values.tgi.storage.size | quote }}
-                storageClassName: {{ .Values.tgi.storage.class | quote }}
+                storageClassName: {{ .Values.tgi.storage.class }}
+          {{- end }}
+{{- end }}
+---
+{{- if and (.Values.tgi.enabled) (not .Values.tgi.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: {{ .Values.h2ogpt.storage.class | quote }}
+  storageClassName: {{ .Values.tgi.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.tgi.storage.size | quote }}
 {{- end }}
 ---
 {{- if .Values.vllm.enabled }}
@@ -410,14 +451,18 @@ spec:
             value: "{{ $value }}"
           {{- end }}
           volumeMounts:
-            - name: h2ogpt-vllm-inference-volume
+            - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
               mountPath: /workspace/.cache
               subPath: cache
-            - name: h2ogpt-vllm-inference-volume
+            - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
               mountPath: /dev/shm
               subPath: shm
       volumes:
-        - name: h2ogpt-vllm-inference-volume
+        - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
+          {{- if not .Values.vllm.storage.useEphemeral }}
+          persistentVolumeClaim:
+            claimName: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
+          {{- else }}
           ephemeral:
             volumeClaimTemplate:
               spec:
@@ -426,5 +471,21 @@ spec:
                 resources:
                   requests: 
                     storage: {{ .Values.vllm.storage.size | quote }}
-                storageClassName: {{ .Values.vllm.storage.class | quote }}
+                storageClassName: {{ .Values.vllm.storage.class }}
+          {{- end }}
+{{- end }}
+---
+{{- if and (.Values.vllm.enabled) (not .Values.vllm.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: {{ .Values.vllm.storage.class | quote }}
+  storageClassName: {{ .Values.vllm.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.vllm.storage.size | quote }}
 {{- end }}
