@@ -168,6 +168,8 @@ For newer builds of windows versions of 10/11.
 
 See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
 
+Note models are stored in `C:\Users\<user>\.cache\` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
+
 ## Run
 * For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
 

@@ -234,6 +234,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
 
 See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
 
+Note models are stored in `/home/$USER/.cache/` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
+
 * Check that can see CUDA from Torch:
    ```python
    import torch
