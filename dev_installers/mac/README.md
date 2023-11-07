@@ -26,10 +26,15 @@ This document provide the details to build one click installers for MacOS. To ma
 ### Deployment Mode
 
 - Clone `h2ogpt` from https://github.com/h2oai/h2ogpt.git
-- Run below commands to build the installer
+- For CPU only installer, run below commands to build the installer
     ```shell
     cd h2ogpt
     . ./dev_installers/mac/build_mac_installer.sh
+    ```
+- For MPS (GPU) supported installer, run below commands to build the installer
+    ```shell
+    cd h2ogpt
+    BUILD_MPS=1 . ./dev_installers/mac/build_mac_installer.sh
     ```
   
 ## Run 
