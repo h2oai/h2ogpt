@@ -62,7 +62,6 @@ def run_cli(  # for local function:
         model_state0=None,
         max_max_new_tokens=None,
         is_public=None,
-        from_ui=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None, load_db_if_exists=None, use_llm_if_no_docs=None,
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
