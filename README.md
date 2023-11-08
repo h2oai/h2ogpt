@@ -83,6 +83,15 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
 ---
 
 #### macOS (CPU/M1/M2) with full document Q/A capability
+* One-click Installers (Experimental and subject to changes)
+
+  Nov 08, 2023
+  - [h2ogpt-osx-m1-cpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2ogpt-osx-m1-cpu)
+  - [h2ogpt-osx-m1-gpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2ogpt-osx-m1-gpu)
+  
+  Download the runnable file and open it from finder, it will take few minutes to unpack and run the application.
+  These one-click installers are experimental, report any issues with steps to reproduce at https://github.com/h2oai/h2ogpt/issues.
+
 * [macOS Manual Install and Run Docs](docs/README_MACOS.md)
 
 ---
