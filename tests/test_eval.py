@@ -145,13 +145,13 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'doc_json_mode': False,
                  }
     if cpu and bits == 32:
-        expected1.update({'image_loaders': np.array([], dtype=object)})
+        expected1.update({'image_audio_loaders': np.array([], dtype=object)})
     else:
-        expected1.update({'image_loaders': np.array(['Caption'], dtype=object)})
+        expected1.update({'image_audio_loaders': np.array(['Caption'], dtype=object)})
 
     expected1.update({k: v for k, v in kwargs.items() if
                       k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'load_awq', 'load_exllama', 'use_safetensors']})
-    drop_keys = ['document_choice', 'langchain_agents', 'image_loaders']  # some numpy things annoying to match
+    drop_keys = ['document_choice', 'langchain_agents', 'image_audio_loaders']  # some numpy things annoying to match
     expected1 = {k: v for k, v in expected1.items() if k not in drop_keys}
     actual1 = {k: v for k, v in actual1.items() if k not in drop_keys}
     assert sorted(actual1.items()) == sorted(expected1.items())

@@ -209,13 +209,13 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
     return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary
 
 
-def gr_to_lg(image_loaders,
+def gr_to_lg(image_audio_loaders,
              pdf_loaders,
              url_loaders,
              **kwargs,
              ):
-    if image_loaders is None:
-        image_loaders = kwargs['image_loaders_options0']
+    if image_audio_loaders is None:
+        image_audio_loaders = kwargs['image_audio_loaders_options0']
     if pdf_loaders is None:
         pdf_loaders = kwargs['pdf_loaders_options0']
     if url_loaders is None:
@@ -236,18 +236,24 @@ def gr_to_lg(image_loaders,
         enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'off',
         try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'off',
 
-        # images
-        enable_ocr='OCR' in image_loaders,
-        enable_doctr='DocTR' in image_loaders,
-        enable_pix2struct='Pix2Struct' in image_loaders,
-        enable_captions='Caption' in image_loaders or 'CaptionBlip2' in image_loaders,
+        # images and audio
+        enable_ocr='OCR' in image_audio_loaders,
+        enable_doctr='DocTR' in image_audio_loaders,
+        enable_pix2struct='Pix2Struct' in image_audio_loaders,
+        enable_captions='Caption' in image_audio_loaders or 'CaptionBlip2' in image_audio_loaders,
+        enable_transcriptions="ASR" in image_audio_loaders or 'ASRLarge' in image_audio_loaders,
     )
-    if 'CaptionBlip2' in image_loaders:
+    if 'CaptionBlip2' in image_audio_loaders:
         # just override, don't actually do both even if user chose both
         captions_model = "Salesforce/blip2-flan-t5-xl"
     else:
         captions_model = kwargs['captions_model']
-    return ret, captions_model
+    if 'ASRLarge' in image_audio_loaders:
+        # just override, don't actually do both even if user chose both
+        asr_model = "openai/whisper-large-v3"
+    else:
+        asr_model = kwargs['asr_model']
+    return ret, captions_model, asr_model
 
 
 invalid_key_msg = 'Invalid Access Key, request access key from sales@h2o.ai or jon.mckinney@h2o.ai, pass API key through API calls, or set API key in Login tab for UI'
@@ -323,7 +329,6 @@ Or for example, if user gives question "Who do I cook pork?", then you would res
 Ensure the question, success, and references are accurately and precisely determined, and check your work in step-by-step manner.  Always respond back in valid JSON following these examples.
 """
 
-
 doc_json_mode_system_prompt = """You are a language model who produces high-quality valid JSON extracted from documents in order to answer a user's question.
 
 You should answer the question using the following valid JSON template:
@@ -337,7 +342,7 @@ You should answer the question using the following valid JSON template:
 }
 Respond absolutely only in valid JSON with elaborate and well-structured text for the response and justification.
 """
-  #"Web references" : str array // Up to 3 most relevant HTML links used to justify the response.
+# "Web references" : str array // Up to 3 most relevant HTML links used to justify the response.
 
 max_input_tokens_public = 3100
 max_input_tokens_public_api = 2 * max_input_tokens_public  # so can exercise bit longer context models

@@ -87,7 +87,10 @@ To enable all options on, choose `--max_quality=True` or select in side panel->U
 
 The value `--top_k_docs` sets how many chunks (for query action) or parts of document (for summarization/extraction actions) to put into context.  If that is too much data, it gets truncated by the `get_limited_prompt()` function.  To improve quality of retrieval, one can set `--top_k_docs=-1` to autofill context with documents.  Or choose a fixed value like `10`, especially if chose redundant parsers that will end up putting similar parts of documents into context.
 
-To improve speed of parsing for captioning images and DocTR for images and PDFs, set `--pre_load_caption_model=True`.  Note `--pre_load_embedding_model=True` is already the default.  This preloads the models, especially useful when using GPUs.  Choose GPU IDs for each model to help distribute the load, e.g. if have 3 GPUs, the embedding model will be on GPU=0, then use `--caption_gpu_id=1` and `--doctr_gpu=2`.  This is also useful for multi-user case, else the models are loaded and unloaded for each user doing parsing, which is wasteful of GPU memory.
+To improve speed of parsing for captioning images and DocTR for images and PDFs, set `--pre_load_image_audio_models=True`.  Note `--pre_load_embedding_model=True` is already the default.  This preloads the models, especially useful when using GPUs.  Choose GPU IDs for each model to help distribute the load, e.g. if have 3 GPUs, the embedding model will be on GPU=0, then use `--caption_gpu_id=1` and `--doctr_gpu_id=2` and `--asr_gpu_id=3`.  This is also useful for multi-user case, else the models are loaded and unloaded for each user doing parsing, which is wasteful of GPU memory.  E.g. with embedding model on GPU 0 (cannot control yet):
+```bash
+python generate.py  --pre_load_caption_model=True --caption_gpu_id=1 --doctr_gpu_id=1 --asr_gpu_id=2 --asr_model=openai/whisper-large-v3
+```
 
 ### Controlling Quality and Speed of Context-Filling
 

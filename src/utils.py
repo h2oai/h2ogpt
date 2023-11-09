@@ -1023,13 +1023,16 @@ def hash_file(file):
         md5 = hashlib.md5()
         # sha1 = hashlib.sha1()
 
-        with open(file, 'rb') as f:
-            while True:
-                data = f.read(BUF_SIZE)
-                if not data:
-                    break
-                md5.update(data)
-                # sha1.update(data)
+        if not os.path.isfile(file):
+            md5.update(file.encode(encoding='UTF-8'))
+        else:
+            with open(file, 'rb') as f:
+                while True:
+                    data = f.read(BUF_SIZE)
+                    if not data:
+                        break
+                    md5.update(data)
+                    # sha1.update(data)
     except BaseException as e:
         print("Cannot hash %s due to %s" % (file, str(e)))
         traceback.print_exc()
@@ -1184,6 +1187,12 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_optimum = False
 
+try:
+    assert distribution('librosa') is not None
+    have_librosa = True
+except (PackageNotFoundError, AssertionError):
+    have_librosa = False
+
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
@@ -1322,25 +1331,34 @@ def lg_to_gr(
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus, _ = cuda_vis_check(n_gpus)
 
-    image_loaders_options = ['Caption']
+    image_audio_loaders_options = ['Caption']
     if n_gpus != 0:
-        image_loaders_options.extend(['CaptionBlip2', 'Pix2Struct'])
+        image_audio_loaders_options.extend(['CaptionBlip2', 'Pix2Struct'])
     if have_tesseract:
-        image_loaders_options.append('OCR')
+        image_audio_loaders_options.append('OCR')
     if have_doctr:
-        image_loaders_options.append('DocTR')
+        image_audio_loaders_options.append('DocTR')
+    if have_librosa:
+        image_audio_loaders_options.append('ASR')
+        if n_gpus != 0:
+            image_audio_loaders_options.append('ASRLarge')
 
-    image_loaders_options0 = []
+    image_audio_loaders_options0 = []
     if have_tesseract and kwargs['enable_ocr']:
-        image_loaders_options0.append('OCR')
+        image_audio_loaders_options0.append('OCR')
     if have_doctr and kwargs['enable_doctr']:
-        image_loaders_options0.append('DocTR')
+        image_audio_loaders_options0.append('DocTR')
     if kwargs['enable_captions']:
         if kwargs['max_quality'] and n_gpus > 0:
             # BLIP2 only on GPU
-            image_loaders_options0.append('CaptionBlip2')
+            image_audio_loaders_options0.append('CaptionBlip2')
         else:
-            image_loaders_options0.append('Caption')
+            image_audio_loaders_options0.append('Caption')
+    if kwargs['enable_transcriptions']:
+        if kwargs['max_quality'] and n_gpus > 0:
+            image_audio_loaders_options0.append('ASRLarge')
+        else:
+            image_audio_loaders_options0.append('ASR')
 
     pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
     if have_tesseract:
@@ -1371,11 +1389,11 @@ def lg_to_gr(
             url_loaders_options.append('PlayWright')
     url_loaders_options0 = [url_loaders_options[0]]
 
-    assert set(image_loaders_options0).issubset(image_loaders_options)
+    assert set(image_audio_loaders_options0).issubset(image_audio_loaders_options)
     assert set(pdf_loaders_options0).issubset(pdf_loaders_options)
     assert set(url_loaders_options0).issubset(url_loaders_options)
 
-    return image_loaders_options0, image_loaders_options, \
+    return image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options
 

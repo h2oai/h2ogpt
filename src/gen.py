@@ -74,7 +74,6 @@ langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 
 def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa):
-
     # from TheBloke HF link
     is_gguf = 'GGUF'.lower() in base_model.lower()
     is_ggml = 'GGML'.lower() in base_model.lower()
@@ -96,7 +95,8 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
         base_model = 'llama'
     elif base_model.endswith('.gguf') or base_model.endswith('.ggml'):
         # from resolved url
-        if base_model.lower().startswith('https://huggingface.co/') and 'resolve/main/' in base_model.lower() and url_alive(base_model):
+        if base_model.lower().startswith(
+                'https://huggingface.co/') and 'resolve/main/' in base_model.lower() and url_alive(base_model):
             model_path_llama = base_model
             base_model = 'llama'
         # from file
@@ -358,13 +358,18 @@ def main(
         enable_doctr=True,
         enable_pix2struct=False,
         enable_captions=True,
+        enable_transcriptions=True,
 
-        pre_load_caption_model: bool = False,
+        pre_load_image_audio_models: bool = False,
+
         caption_gpu: bool = True,
         caption_gpu_id: Union[int, str] = 'auto',
         captions_model: str = "Salesforce/blip-image-captioning-base",
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
+        asr_model: str = "openai/whisper-medium",
+        asr_gpu: bool = True,
+        asr_gpu_id: Union[int, str] = 'auto',
 
         # json
         jq_schema='.[]',
@@ -808,12 +813,15 @@ def main(
     :param enable_doctr: Whether to support doctr on images (using OCR better than enable_ocr=True)
     :param enable_pix2struct: Whether to support pix2struct on images for captions
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
-           then preloads that model if pre_load_caption_model=True
+           then preloads that model if pre_load_image_audio_models=True
+    :param enable_transcriptions: Whether to enable audio transcriptions (youtube of from files)
+           Preloaded if pre_load_image_audio_models=True
 
-    :param pre_load_caption_model: Whether to preload caption model (True), or load after forking parallel doc loader (False)
+    :param pre_load_image_audio_models: Whether to preload caption model (True), or load after forking parallel doc loader (False)
            parallel loading disabled if preload and have images, to prevent deadlocking on cuda context
            Recommended if using larger caption model or doing production serving with many users to avoid GPU OOM if many would use model at same time
-           Also applies to DocTR
+           Also applies to DocTR and ASR models
+
     :param captions_model: Which model to use for captions.
            captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
            captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
@@ -825,6 +833,10 @@ def main(
 
     :param doctr_gpu: If support doctr, then use GPU if exists
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
+
+    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3
+    :param asr_gpu: Whether to use GPU for ASR model
+    :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -1174,13 +1186,14 @@ def main(
     caption_loader = None
     doctr_loader = None
     pix2struct_loader = None
+    asr_loader = None
 
-    image_loaders_options0, image_loaders_options, \
+    image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
     jq_schema0 = jq_schema
     # transcribe
-    image_loaders = image_loaders_options0
+    image_audio_loaders = image_audio_loaders_options0
     pdf_loaders = pdf_loaders_options0
     url_loaders = url_loaders_options0
 
@@ -1208,7 +1221,7 @@ def main(
                             top_k_docs,
                             chunk,
                             chunk_size,
-                            image_loaders,
+                            image_audio_loaders,
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
@@ -1483,7 +1496,7 @@ def main(
                                   visible_models=None, h2ogpt_key=None)
 
         if enable_captions:
-            if pre_load_caption_model:
+            if pre_load_image_audio_models:
                 from image_captions import H2OImageCaptionLoader
                 caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu, gpu_id=caption_gpu_id).load_model()
             else:
@@ -1500,13 +1513,24 @@ def main(
                                                           preload=True))
 
         if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
-            if pre_load_caption_model:
+            if pre_load_image_audio_models:
                 from image_doctr import H2OOCRLoader
                 doctr_loader = H2OOCRLoader(layout_aware=True, gpu_id=doctr_gpu_id)
             else:
                 doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
         else:
             doctr_loader = False
+
+        if enable_transcriptions:
+            if pre_load_image_audio_models:
+                from src.audio_langchain import OpenAIWhisperParserLocal
+                asr_loader = OpenAIWhisperParserLocal(device='cuda' if asr_gpu is not None else 'cpu',
+                                                      device_id=asr_gpu_id,
+                                                      lang_model=asr_model)
+            else:
+                asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
+        else:
+            asr_loader = False
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -2480,7 +2504,7 @@ def evaluate(
         prompt_summary,
         system_prompt,
 
-        image_loaders,
+        image_audio_loaders,
         pdf_loaders,
         url_loaders,
         jq_schema,
@@ -2505,6 +2529,9 @@ def evaluate(
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        asr_model=None,
+        asr_loader=None,
+
         async_output=None,
         num_async=None,
         src_lang=None,
@@ -2559,7 +2586,7 @@ def evaluate(
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
-        image_loaders_options0=None,
+        image_audio_loaders_options0=None,
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
@@ -2584,8 +2611,8 @@ def evaluate(
     assert isinstance(add_search_to_context, bool)
     assert load_exllama is not None
     # for lazy client (even chat client)
-    if image_loaders is None:
-        image_loaders = image_loaders_options0
+    if image_audio_loaders is None:
+        image_audio_loaders = image_audio_loaders_options0
     if pdf_loaders is None:
         pdf_loaders = pdf_loaders_options0
     if url_loaders is None:
@@ -2830,15 +2857,18 @@ def evaluate(
                                    max_time=max_time,
                                    num_return_sequences=num_return_sequences,
                                    )
-        loaders_dict, captions_model = gr_to_lg(image_loaders,
-                                                pdf_loaders,
-                                                url_loaders,
-                                                captions_model=captions_model,
-                                                )
+        loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
+                                                           pdf_loaders,
+                                                           url_loaders,
+                                                           captions_model=captions_model,
+                                                           asr_model=asr_model,
+                                                           )
         loaders_dict.update(dict(captions_model=captions_model,
                                  caption_loader=caption_loader,
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
+                                 asr_model=asr_model,
+                                 asr_loader=asr_loader,
                                  jq_schema=jq_schema,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
@@ -3207,7 +3237,7 @@ def evaluate(
                                      pre_prompt_summary=pre_prompt_summary,
                                      prompt_summary=prompt_summary,
                                      system_prompt=system_prompt,
-                                     image_loaders=image_loaders,
+                                     image_audio_loaders=image_audio_loaders,
                                      pdf_loaders=pdf_loaders,
                                      url_loaders=url_loaders,
                                      jq_schema=jq_schema,
@@ -3744,7 +3774,7 @@ def get_generate_params(model_lower,
                         repetition_penalty, num_return_sequences,
                         do_sample,
                         top_k_docs, chunk, chunk_size,
-                        image_loaders,
+                        image_audio_loaders,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
@@ -3929,7 +3959,7 @@ y = np.random.randint(0, 1, 100)
                     pre_prompt_query, prompt_query,
                     pre_prompt_summary, prompt_summary,
                     system_prompt,
-                    image_loaders,
+                    image_audio_loaders,
                     pdf_loaders,
                     url_loaders,
                     jq_schema,

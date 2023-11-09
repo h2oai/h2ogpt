@@ -33,6 +33,7 @@ import yaml
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
+from langchain.document_loaders.generic import GenericLoader
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
@@ -52,7 +53,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, get_ngpus_vis
+    get_test_name_core, download_simple, get_ngpus_vis, have_librosa
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -79,7 +80,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
-    UnstructuredExcelLoader, JSONLoader
+    UnstructuredExcelLoader, JSONLoader, YoutubeAudioLoader
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -609,7 +610,7 @@ class GradioInference(H2Oagenerate, LLM):
                              pre_prompt_summary=None,
                              prompt_summary=None,
                              system_prompt=self.system_prompt,
-                             image_loaders=None,  # don't need to further do doc specific things
+                             image_audio_loaders=None,  # don't need to further do doc specific things
                              pdf_loaders=None,  # don't need to further do doc specific things
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
@@ -1947,7 +1948,13 @@ if have_libreoffice or True:
 if have_jq:
     non_image_types.extend(["json", "jsonl"])
 
-file_types = non_image_types + image_types
+if have_librosa:
+    audio_types = ['aac', 'au', 'mp3', 'ogg', 'flac', 'm4a', 'wav']
+else:
+    audio_types = []
+set_audio_types = set(audio_types)
+
+file_types = non_image_types + image_types + audio_types
 
 
 def try_as_html(file):
@@ -2033,7 +2040,11 @@ def file_to_doc(file,
                 enable_doctr=False,
                 enable_pix2struct=False,
                 enable_captions=True,
+                enable_transcriptions=True,
                 captions_model=None,
+                asr_model=None,
+                asr_gpu_id=0,
+
                 model_loaders=None,
 
                 # json
@@ -2048,9 +2059,11 @@ def file_to_doc(file,
                 ):
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
-        set_image_types1 = set_image_types.intersection(set(selected_file_types))
+        set_image_audio_types1 = set_image_types.intersection(set(selected_file_types))
+        set_audio_types1 = set_audio_types.intersection(set(selected_file_types))
     else:
-        set_image_types1 = set_image_types
+        set_image_audio_types1 = set_image_types
+        set_audio_types1 = set_audio_types
 
     assert db_type is not None
     chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
@@ -2083,10 +2096,13 @@ def file_to_doc(file,
                                           enable_pix2struct=enable_pix2struct,
                                           enable_captions=enable_captions,
                                           captions_model=captions_model,
+                                          enable_transcriptions=enable_transcriptions,
+                                          asr_model=asr_model,
 
                                           caption_loader=model_loaders['caption'],
                                           doctr_loader=model_loaders['doctr'],
                                           pix2struct_loader=model_loaders['pix2struct'],
+                                          asr_loader=model_loaders['asr'],
 
                                           # json
                                           jq_schema=jq_schema,
@@ -2132,6 +2148,16 @@ def file_to_doc(file,
         case2 = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
         case3 = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
         case4 = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
+
+        case_youtube1 = file_lower.startswith('https://www.youtube.com/watch?v=') and len(
+            file_lower.split('https://www.youtube.com/watch?v=')) == 2
+        case_youtube2 = file_lower.startswith('http://www.youtube.com/watch?v=') and len(
+            file_lower.split('http://www.youtube.com/watch?v=')) == 2
+        case_youtube3 = file_lower.startswith('www.youtube.com/watch?v=') and len(
+            file_lower.split('www.youtube.com/watch?v=')) == 2
+        case_youtube4 = file_lower.startswith('youtube.com/watch?v=') and len(
+            file_lower.split('youtube.com/watch?v=')) == 2
+
         if case1 or case2 or case3 or case4:
             if case1:
                 query = file.lower().split('arxiv:')[1].strip()
@@ -2163,6 +2189,30 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
+        elif (case_youtube1 or case_youtube2 or case_youtube3 or case_youtube4) and enable_transcriptions:
+            docs1 = []
+            if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
+                # assumes didn't fork into this process with joblib, else can deadlock
+                if verbose:
+                    print("Reuse ASR", flush=True)
+                model_loaders['asr'].load_model()
+            else:
+                if verbose:
+                    print("Fresh ASR", flush=True)
+                from audio_langchain import H2OAudioCaptionLoader
+                model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
+                                                             asr_gpu=model_loaders['asr'] == 'gpu',
+                                                             gpu_id=asr_gpu_id,
+                                                             from_youtube=True,
+                                                             )
+            model_loaders['asr'].set_audio_paths([file])
+            docs1c = model_loaders['asr'].load()
+            docs1c = [x for x in docs1c if x.page_content]
+            add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+            # caption didn't set source, so fix-up meta
+            hash_of_file = hash_file(file)
+            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+            docs1.extend(docs1c)
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
@@ -2264,7 +2314,32 @@ def file_to_doc(file,
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
-    elif any(file.lower().endswith(x) for x in set_image_types1):
+    elif any(file.lower().endswith(x) for x in set_audio_types1) and enable_transcriptions:
+        docs1 = []
+        if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
+            # assumes didn't fork into this process with joblib, else can deadlock
+            if verbose:
+                print("Reuse ASR", flush=True)
+            model_loaders['asr'].load_model()
+        else:
+            if verbose:
+                print("Fresh ASR", flush=True)
+            from audio_langchain import H2OAudioCaptionLoader
+            model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
+                                                         asr_gpu=model_loaders['asr'] == 'gpu',
+                                                         gpu_id=asr_gpu_id,
+                                                         from_youtube=False,
+                                                         )
+        model_loaders['asr'].set_audio_paths([file])
+        docs1c = model_loaders['asr'].load()
+        docs1c = [x for x in docs1c if x.page_content]
+        add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+        # caption didn't set source, so fix-up meta
+        hash_of_file = hash_file(file)
+        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+        docs1.extend(docs1c)
+        doc1 = chunk_sources(docs1)
+    elif any(file.lower().endswith(x) for x in set_image_audio_types1):
         docs1 = []
         if verbose:
             print("BEGIN: Tesseract", flush=True)
@@ -2652,7 +2727,10 @@ def file_to_doc(file,
                            enable_doctr=enable_doctr,
                            enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
+                           enable_transcriptions=enable_transcriptions,
                            captions_model=captions_model,
+                           asr_model=asr_model,
+
                            model_loaders=model_loaders,
 
                            # json
@@ -2719,7 +2797,10 @@ def path_to_doc1(file,
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_transcriptions=True,
                  captions_model=None,
+                 asr_model=None,
+
                  model_loaders=None,
 
                  # json
@@ -2767,7 +2848,10 @@ def path_to_doc1(file,
                           enable_doctr=enable_doctr,
                           enable_pix2struct=enable_pix2struct,
                           enable_captions=enable_captions,
+                          enable_transcriptions=enable_transcriptions,
                           captions_model=captions_model,
+                          asr_model=asr_model,
+
                           model_loaders=model_loaders,
 
                           # json
@@ -2828,11 +2912,14 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_transcriptions=True,
                  captions_model=None,
+                 asr_model=None,
 
                  caption_loader=None,
                  doctr_loader=None,
                  pix2struct_loader=None,
+                 asr_loader=None,
 
                  # json
                  jq_schema='.[]',
@@ -2848,15 +2935,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     if verbose:
         print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
     if selected_file_types is not None:
-        non_image_types1 = [x for x in non_image_types if x in selected_file_types]
-        image_types1 = [x for x in image_types if x in selected_file_types]
+        non_image_audio_types1 = [x for x in non_image_types if x in selected_file_types]
+        image_audio_types1 = [x for x in image_types + audio_types if x in selected_file_types]
     else:
-        non_image_types1 = non_image_types.copy()
-        image_types1 = image_types.copy()
+        non_image_audio_types1 = non_image_types.copy()
+        image_audio_types1 = image_types.copy() + audio_types.copy()
 
     assert db_type is not None
     # path_or_paths could be str, list, tuple, generator
-    globs_image_types = []
+    globs_image_audio_types = []
     globs_non_image_types = []
     if not path_or_paths and not url and not text:
         return []
@@ -2869,11 +2956,11 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # single path, only consume allowed files
         path = path_or_paths
         # Below globs should match patterns in file_to_doc()
-        [globs_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
-         for ftype in image_types1]
-        globs_image_types = [os.path.normpath(x) for x in globs_image_types]
+        [globs_image_audio_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
+         for ftype in image_audio_types1]
+        globs_image_audio_types = [os.path.normpath(x) for x in globs_image_audio_types]
         [globs_non_image_types.extend(glob.glob(os.path.join(path, "./**/*.%s" % ftype), recursive=True))
-         for ftype in non_image_types1]
+         for ftype in non_image_audio_types1]
         globs_non_image_types = [os.path.normpath(x) for x in globs_non_image_types]
     else:
         if isinstance(path_or_paths, str):
@@ -2886,38 +2973,40 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         assert isinstance(path_or_paths, (list, tuple, types.GeneratorType)), \
             "Wrong type for path_or_paths: %s %s" % (path_or_paths, type(path_or_paths))
         # reform out of allowed types
-        globs_image_types.extend(
-            flatten_list([[os.path.normpath(x) for x in path_or_paths if x.endswith(y)] for y in image_types1]))
+        globs_image_audio_types.extend(
+            flatten_list([[os.path.normpath(x) for x in path_or_paths if x.endswith(y)] for y in image_audio_types1]))
         # could do below:
-        # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_types1])
+        # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_audio_types1])
         # But instead, allow fail so can collect unsupported too
-        set_globs_image_types = set(globs_image_types)
-        globs_non_image_types.extend([os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_types])
+        set_globs_image_audio_types = set(globs_image_audio_types)
+        globs_non_image_types.extend([os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_audio_types])
 
     # filter out any files to skip (e.g. if already processed them)
     # this is easy, but too aggressive in case a file changed, so parent probably passed existing_files=[]
     assert not existing_files, "DEV: assume not using this approach"
     if existing_files:
         set_skip_files = set(existing_files)
-        globs_image_types = [x for x in globs_image_types if x not in set_skip_files]
+        globs_image_audio_types = [x for x in globs_image_audio_types if x not in set_skip_files]
         globs_non_image_types = [x for x in globs_non_image_types if x not in set_skip_files]
     if existing_hash_ids:
         # assume consistent with add_meta() use of hash_file(file)
         # also assume consistent with get_existing_hash_ids for dict creation
         # assume hashable values
         existing_hash_ids_set = set(existing_hash_ids.items())
-        hash_ids_all_image = set({x: hash_file(x) for x in globs_image_types}.items())
+        hash_ids_all_image_audio = set({x: hash_file(x) for x in globs_image_audio_types}.items())
         hash_ids_all_non_image = set({x: hash_file(x) for x in globs_non_image_types}.items())
         # don't use symmetric diff.  If file is gone, ignore and don't remove or something
         #  just consider existing files (key) having new hash or not (value)
-        new_files_image = set(dict(hash_ids_all_image - existing_hash_ids_set).keys())
+        new_files_image_audio = set(dict(hash_ids_all_image_audio - existing_hash_ids_set).keys())
         new_files_non_image = set(dict(hash_ids_all_non_image - existing_hash_ids_set).keys())
-        globs_image_types = [x for x in globs_image_types if x in new_files_image]
+        globs_image_audio_types = [x for x in globs_image_audio_types if x in new_files_image_audio]
         globs_non_image_types = [x for x in globs_non_image_types if x in new_files_non_image]
 
     # could use generator, but messes up metadata handling in recursive case
     # FIXME: n_gpus=n_gpus?
     if caption_loader and not isinstance(caption_loader, (bool, str)) and caption_loader.device != 'cpu' or \
+            get_device() == 'cuda' or \
+            asr_loader and not isinstance(asr_loader, (bool, str)) and asr_loader.pipe.device != 'cpu' or \
             get_device() == 'cuda':
         # to avoid deadlocks, presume was preloaded and so can't fork due to cuda context
         # get_device() == 'cuda' because presume faster to process image from (temporarily) preloaded model
@@ -2934,7 +3023,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     is_txt = text is not None
     model_loaders = dict(caption=caption_loader,
                          doctr=doctr_loader,
-                         pix2struct=pix2struct_loader)
+                         pix2struct=pix2struct_loader,
+                         asr=asr_loader)
     model_loaders0 = model_loaders.copy()
     kwargs = dict(verbose=verbose, fail_any_exception=fail_any_exception,
                   return_file=return_file,
@@ -2961,7 +3051,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_doctr=enable_doctr,
                   enable_pix2struct=enable_pix2struct,
                   enable_captions=enable_captions,
+                  enable_transcriptions=enable_transcriptions,
                   captions_model=captions_model,
+                  asr_model=asr_model,
+
                   model_loaders=model_loaders,
 
                   # json
@@ -2975,7 +3068,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   )
 
     if is_public:
-        n_docs = len(globs_non_image_types) + len(globs_image_types)
+        n_docs = len(globs_non_image_types) + len(globs_image_audio_types)
         if n_docs > max_docs_public and from_ui or \
                 n_docs > max_docs_public_api and not from_ui:
             raise ValueError(
@@ -2993,15 +3086,15 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                      enumerate(tqdm(globs_non_image_types))]
 
     # do images separately since can't fork after cuda in parent, so can't be parallel
-    if n_jobs_image != 1 and len(globs_image_types) > 1:
+    if n_jobs_image != 1 and len(globs_image_audio_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         image_documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, filei=filei, **kwargs) for filei, file in enumerate(globs_image_types)
+            delayed(path_to_doc1)(file, filei=filei, **kwargs) for filei, file in enumerate(globs_image_audio_types)
         )
     else:
         image_documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
-                           enumerate(tqdm(globs_image_types))]
+                           enumerate(tqdm(globs_image_audio_types))]
 
     # unload loaders (image loaders, includes enable_pdf_doctr that uses same loader)
     for name, loader in model_loaders.items():
@@ -3499,10 +3592,13 @@ def _make_db(use_openai_embedding=False,
              enable_doctr=False,
              enable_pix2struct=False,
              enable_captions=True,
+             enable_transcriptions=True,
              captions_model=None,
              caption_loader=None,
              doctr_loader=None,
              pix2struct_loader=None,
+             asr_model=None,
+             asr_loader=None,
 
              # json
              jq_schema='.[]',
@@ -3592,10 +3688,13 @@ def _make_db(use_openai_embedding=False,
                                 enable_doctr=enable_doctr,
                                 enable_pix2struct=enable_pix2struct,
                                 enable_captions=enable_captions,
+                                enable_transcriptions=enable_transcriptions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
                                 doctr_loader=doctr_loader,
                                 pix2struct_loader=pix2struct_loader,
+                                asr_model=asr_model,
+                                asr_loader=asr_loader,
 
                                 # json
                                 jq_schema=jq_schema,
@@ -3919,10 +4018,13 @@ def _run_qa_db(query=None,
                enable_doctr=False,
                enable_pix2struct=False,
                enable_captions=True,
+               enable_transcriptions=True,
                captions_model=None,
                caption_loader=None,
                doctr_loader=None,
                pix2struct_loader=None,
+               asr_model=None,
+               asr_loader=None,
 
                # json
                jq_schema='.[]',
@@ -4747,10 +4849,13 @@ def get_chain(query=None,
               enable_doctr=False,
               enable_pix2struct=False,
               enable_captions=True,
+              enable_transcriptions=True,
               captions_model=None,
               caption_loader=None,
               doctr_loader=None,
               pix2struct_loader=None,
+              asr_model=None,
+              asr_loader=None,
 
               # json
               jq_schema='.[]',
@@ -5116,10 +5221,13 @@ def get_chain(query=None,
                                                         enable_doctr=enable_doctr,
                                                         enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
+                                                        enable_transcriptions=enable_transcriptions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
+                                                        asr_model=asr_model,
+                                                        asr_loader=asr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
@@ -6004,10 +6112,13 @@ def _update_user_db(file,
                     enable_doctr=False,
                     enable_pix2struct=False,
                     enable_captions=True,
+                    enable_transcriptions=True,
                     captions_model=None,
                     caption_loader=None,
                     doctr_loader=None,
                     pix2struct_loader=None,
+                    asr_model=None,
+                    asr_loader=None,
 
                     # json
                     jq_schema='.[]',
@@ -6034,9 +6145,12 @@ def _update_user_db(file,
     assert migrate_embedding_model is not None
     assert auto_migrate_db is not None
     assert caption_loader is not None
+    assert asr_loader is not None
     assert doctr_loader is not None
     assert enable_captions is not None
+    assert enable_transcriptions is not None
     assert captions_model is not None
+    assert asr_model is not None
     assert enable_ocr is not None
     assert enable_doctr is not None
     assert enable_pdf_ocr is not None
@@ -6138,10 +6252,13 @@ def _update_user_db(file,
                            enable_doctr=enable_doctr,
                            enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
+                           enable_transcriptions=enable_transcriptions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
                            doctr_loader=doctr_loader,
                            pix2struct_loader=pix2struct_loader,
+                           asr_model=asr_model,
+                           asr_loader=asr_loader,
 
                            # json
                            jq_schema=jq_schema,
@@ -6383,10 +6500,13 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      enable_doctr=False,
                                                      enable_pix2struct=False,
                                                      enable_captions=True,
+                                                     enable_transcriptions=True,
                                                      captions_model=None,
                                                      caption_loader=None,
                                                      doctr_loader=None,
                                                      pix2struct_loader=None,
+                                                     asr_model=None,
+                                                     asr_loader=None,
 
                                                      # json
                                                      jq_schema='.[]',
@@ -6454,10 +6574,13 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         enable_doctr=enable_doctr,
                                                         enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
+                                                        enable_transcriptions=enable_transcriptions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
+                                                        asr_model=asr_model,
+                                                        asr_loader=asr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
