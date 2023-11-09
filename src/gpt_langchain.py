@@ -20,6 +20,7 @@ import typing
 import urllib.error
 import uuid
 import zipfile
+import tarfile
 from collections import defaultdict
 from datetime import datetime
 from functools import reduce
@@ -2696,6 +2697,13 @@ def file_to_doc(file,
             # don't put into temporary path, since want to keep references to docs inside zip
             # so just extract in path where
             zip_ref.extractall(base_path)
+            # recurse
+            doc1 = path_to_docs_func(base_path)
+    elif file.lower().endswith('.tar.gz'):
+        with tarfile.open(file, 'r') as tar_ref:
+            # don't put into temporary path, since want to keep references to docs inside tar.gz
+            # so just extract in path where
+            tar_ref.extractall(base_path)
             # recurse
             doc1 = path_to_docs_func(base_path)
     elif file.lower().endswith('.gz') or file.lower().endswith('.gzip'):
