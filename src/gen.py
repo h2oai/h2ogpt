@@ -1250,7 +1250,7 @@ def main(
     # PRELOAD
 
     if enable_captions:
-        if pre_load_image_audio_models and False:
+        if pre_load_image_audio_models:
             from image_captions import H2OImageCaptionLoader
             caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu, gpu_id=caption_gpu_id).load_model()
         else:
@@ -1267,7 +1267,7 @@ def main(
                                                       preload=True, gpu_id=embedding_gpu_id))
 
     if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
-        if pre_load_image_audio_models and False:
+        if pre_load_image_audio_models:
             from image_doctr import H2OOCRLoader
             doctr_loader = H2OOCRLoader(layout_aware=True, gpu_id=doctr_gpu_id).load_model()
         else:
