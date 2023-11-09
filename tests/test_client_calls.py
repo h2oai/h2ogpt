@@ -1959,6 +1959,23 @@ def test_fast_up():
 
 
 @wrap_test_forked
+def test_fast_up_preload():
+    from src.gen import main
+    import torch
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    if n_gpus == 0:
+        return
+    main(gradio=True, block_gradio_exit=False,
+         pre_load_image_audio_models=True,
+         embedding_gpu_id=n_gpus - 1,
+         caption_gpu_id=max(0, n_gpus - 2),
+         doctr_gpu_id=max(0, n_gpus - 3),
+         asr_gpu_id=max(0, n_gpus - 4),
+         asr_model='openai/whisper-large-v3',
+         )
+
+
+@wrap_test_forked
 def test_fast_up_auth():
     from src.gen import main
     main(gradio=True, block_gradio_exit=False, score_model='', langchain_mode='LLM', auth=[('jonny', 'dude')])

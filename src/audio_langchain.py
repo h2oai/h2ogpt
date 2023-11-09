@@ -145,7 +145,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
                 self.lang_model = "openai/whisper-base"
         else:
             if torch.cuda.is_available():
-                self.device = "cuda:%d" % device_id
+                self.device = "cuda"
                 # check GPU memory and select automatically the model
                 mem = torch.cuda.get_device_properties(self.device).total_memory / (
                         1024 ** 2
@@ -171,11 +171,15 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
         print("Using the following model: ", self.lang_model)
 
         # load model for inference
+        if self.device == 'cpu':
+            device_map = {"", 'cpu'}
+        else:
+            device_map = {"": device_id} if device_id >= 0 else {'': 'cuda'}
         self.pipe = pipeline(
             "automatic-speech-recognition",
             model=self.lang_model,
             chunk_length_s=30,
-            device=self.device,
+            device_map=device_map,
         )
         if forced_decoder_ids is not None:
             try:
@@ -272,8 +276,9 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         self.asr_model = asr_model
         self.asr_gpu = asr_gpu
         self.context_class = NullContext
-        self.gpu_id = gpu_id
+        self.gpu_id = gpu_id if isinstance(gpu_id, int) else 0
         self.device = 'cpu'
+        self.device_map = {"": 'cpu'}
         self.from_youtube = from_youtube
         self.set_context()
 
@@ -288,6 +293,15 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
                 self.device = 'cpu'
         else:
             self.device = 'cpu'
+        if self.asr_gpu:
+            if self.gpu_id == 'auto':
+                # blip2 has issues with multi-GPU.  Error says need to somehow set language model in device map
+                # device_map = 'auto'
+                self.gpu_id = 0
+            self.device_map = {"": 'cuda:%d' % self.gpu_id}
+        else:
+            self.gpu_id = -1
+            self.device_map = {"": 'cpu'}
 
     def load_model(self):
         try:
@@ -299,16 +313,9 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
             )
         self.set_context()
         if self.model:
-            if self.model.pipe.model.device != self.device:
-                self.model.pipe.model.to(self.device)
+            if str(self.model.pipe.model.device) != self.device_map['']:
+                self.model.pipe.model.to(self.device_map[''])
             return self
-        if self.asr_gpu:
-            if self.gpu_id == 'auto':
-                # blip2 has issues with multi-GPU.  Error says need to somehow set language model in device map
-                # device_map = 'auto'
-                self.gpu_id = 0
-        else:
-            self.gpu_id = None
         import torch
         with torch.no_grad():
             with self.context_class(self.device):

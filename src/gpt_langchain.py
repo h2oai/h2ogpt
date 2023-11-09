@@ -391,7 +391,7 @@ class H2OFakeEmbeddings(FakeEmbeddings):
         return self._get_embedding()
 
 
-def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False):
+def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, gpu_id=0):
     assert hf_embedding_model is not None
     # Get embedding model
     if use_openai_embedding:
@@ -421,6 +421,10 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False):
                                                       encode_kwargs=encode_kwargs)
         else:
             embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+        if gpu_id == 'auto':
+            gpu_id = 0
+        if preload and isinstance(gpu_id, int) and gpu_id >= 0 and hasattr(embedding.client, 'to'):
+            embedding.client = embedding.client.to('cuda:%d' % gpu_id)
         embedding.client.preload = preload
     return embedding
 
@@ -3132,7 +3136,8 @@ def prep_langchain(persist_directory,
                    hf_embedding_model,
                    migrate_embedding_model,
                    auto_migrate_db,
-                   n_jobs=-1, kwargs_make_db={},
+                   n_jobs=-1, embedding_gpu_id=0,
+                   kwargs_make_db={},
                    verbose=False):
     """
     do prep first time, involving downloads
@@ -3156,7 +3161,7 @@ def prep_langchain(persist_directory,
                             db_type, use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
                             hf_embedding_model, migrate_embedding_model, auto_migrate_db,
-                            n_jobs=n_jobs)
+                            n_jobs=n_jobs, embedding_gpu_id=embedding_gpu_id)
     else:
         if db_dir_exists and user_path is not None:
             if verbose:
@@ -3300,7 +3305,8 @@ def get_existing_db(db, persist_directory,
                     migrate_embedding_model,
                     auto_migrate_db=False,
                     verbose=False, check_embedding=True, migrate_meta=True,
-                    n_jobs=-1):
+                    n_jobs=-1,
+                    embedding_gpu_id=0):
     if load_db_if_exists and db_type in ['chroma', 'chroma_old'] and os.path.isdir(persist_directory):
         if os.path.isfile(os.path.join(persist_directory, 'chroma.sqlite3')):
             must_migrate = False
@@ -3334,7 +3340,7 @@ def get_existing_db(db, persist_directory,
             got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
             if got_embedding:
                 use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
-            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
+            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model, gpu_id=embedding_gpu_id)
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             if use_chromamigdb:
