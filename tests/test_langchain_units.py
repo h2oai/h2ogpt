@@ -1555,6 +1555,44 @@ def test_many_text(db_type, num):
     assert len(documents) == num
 
 
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_youtube_audio_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.youtube.com/watch?v=cwjs1WAG9CM'
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("Example")
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+            assert 'structured output' in docs[0].page_content
+            assert url in docs[0].metadata['source']
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_mp3_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            test_file1 = os.path.join(tmp_user_path, 'sample.mp3.zip')
+            shutil.copy('tests/porsche.mp3.zip', test_file1)
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type)
+            assert db is not None
+            docs = db.similarity_search("Porsche")
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+            assert 'Porsche Macan' in docs[0].page_content
+            assert 'porsche.mp3' in os.path.normpath(docs[0].metadata['source'])
+    kill_weaviate(db_type)
+
+
 @wrap_test_forked
 def test_chroma_filtering():
     # get test model so don't have to reload it each time

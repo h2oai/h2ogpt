@@ -340,7 +340,6 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
             return docs
 
     def unload_model(self):
-        if hasattr(self, 'model') and hasattr(self.model, 'pipe') and hasattr(self.model.pipe, 'cpu'):
+        if hasattr(self, 'model') and hasattr(self.model, 'pipe') and hasattr(self.model.pipe.model, 'cpu'):
             self.model.pipe.model.cpu()
-            self.model.pipe.cpu()
             clear_torch_cache()
