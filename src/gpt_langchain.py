@@ -80,7 +80,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
-    UnstructuredExcelLoader, JSONLoader, YoutubeAudioLoader
+    UnstructuredExcelLoader, JSONLoader
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -1949,7 +1949,7 @@ if have_jq:
     non_image_types.extend(["json", "jsonl"])
 
 if have_librosa:
-    audio_types = ['aac', 'au', 'mp3', 'ogg', 'flac', 'm4a', 'wav']
+    audio_types = ['aac', 'au', 'mp3', 'ogg', 'flac', 'm4a', 'wav', 'mp4', 'mpeg', 'mpg']
 else:
     audio_types = []
 set_audio_types = set(audio_types)

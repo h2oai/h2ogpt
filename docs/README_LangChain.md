@@ -115,6 +115,9 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.xbm` : XBM Image (optional),
    - `.xpm` : XPM Image (optional).
 
+   - `.mp4` : MP4 Audio (optional).
+   - `.mpeg` : MP4-based MPEG Audio (optional).
+   - `.mpg` : MP4-based MPG Audio (optional).
    - `.mp3` : MP3 Audio (optional).
    - `.ogg` : OGG Audio (optional).
    - `.flac` : FLAC Audio (optional).

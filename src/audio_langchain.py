@@ -207,15 +207,22 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
                 "`pip install librosa`"
             )
 
-        # Audio file from disk
-        audio = AudioSegment.from_file(blob.path)
+        file = str(blob.path)
+        if any([file.endswith(x) for x in ['.mp4', '.mpeg', '.mpg']]):
+            import audioread.ffdec  # Use ffmpeg decoder
+            aro = audioread.ffdec.FFmpegAudioFile(blob.path)
+            y, sr = librosa.load(aro, sr=16000)
+        else:
 
-        file_obj = io.BytesIO(audio.export(format="mp3").read())
+            # Audio file from disk
+            audio = AudioSegment.from_file(blob.path)
 
-        # Transcribe
-        print(f"Transcribing part {blob.path}!")
+            file_obj = io.BytesIO(audio.export(format="mp3").read())
 
-        y, sr = librosa.load(file_obj, sr=16000)
+            # Transcribe
+            print(f"Transcribing part {blob.path}!")
+
+            y, sr = librosa.load(file_obj, sr=16000)
 
         prediction = self.pipe(y.copy(), batch_size=8)["text"]
 
@@ -292,8 +299,8 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
             )
         self.set_context()
         if self.model:
-            if self.model.device != self.device:
-                self.model.to(self.device)
+            if self.model.pipe.model.device != self.device:
+                self.model.pipe.model.to(self.device)
             return self
         if self.asr_gpu:
             if self.gpu_id == 'auto':
