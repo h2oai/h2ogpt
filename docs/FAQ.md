@@ -1,5 +1,54 @@
 ## Frequently asked questions
 
+### Non-English languages
+
+There are a few changes that may be required for other languages:
+* LLM -- e.g. LLaMa-2-chat
+* Embedding Model -- e.g. instructor-large
+* LLM Prompts -- e.g. `system_prompt`
+* Document Q/A Prompts -- e.g. `pre_prompt_query`
+
+E.g. for Chinese, the LLaMa-2 model is not good, while the `zephyr-7b` type model is reasonable.
+
+E.g. one can do:
+```bash
+python generate.py --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-zh-v1.5 --save_dir=save_china --base_model=HuggingFaceH4/zephyr-7b-beta --model_lock_columns=3 --gradio_size=small --height=400 --score_model=None --pre_prompt_query="注意并记住下面的信息，这将有助于在上下文结束后回答问题或祈使句。" --prompt_query="仅根据上述上下文中提供的文档来源中的信息，" --pre_prompt_summary="为了撰写简洁的单段落或项目符号列表摘要，请注意以下文本\n" --prompt_summary="仅使用上述文档来源中的信息，编写关键结果的简明摘要（最好作为要点）：\n" --system_prompt="你是一个有用的纯中文语言助手，绝对只使用中文。"
+```
+or from Docker:
+```bash
+docker run \
+      --gpus '"device=0"' \
+      --runtime=nvidia \
+      --shm-size=2g \
+      -p 7860:7860 \
+      --rm --init \
+      --network host \
+      -v /etc/passwd:/etc/passwd:ro \
+      -v /etc/group:/etc/group:ro \
+      -u `id -u`:`id -g` \
+      -v "${HOME}"/.cache:/workspace/.cache \
+      -v "${HOME}"/save:/workspace/save \
+      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
+         --base_model=HuggingFaceH4/zephyr-7b-beta \
+         --use_safetensors=True \
+         --prompt_type=zephyr \
+         --save_dir='/workspace/save/' \
+         --use_gpu_id=False \
+         --score_model=None \
+         --max_max_new_tokens=2048 \
+         --max_new_tokens=1024 \
+         --hf_embedding_model=BAAI/bge-base-zh-v1.5 \
+         --pre_prompt_query="注意并记住下面的信息，这将有助于在上下文结束后回答问题或祈使句。" \
+         --prompt_query="仅根据上述上下文中提供的文档来源中的信息，" \
+         --pre_prompt_summary="为了撰写简洁的单段落或项目符号列表摘要，请注意以下文本" \
+         --prompt_summary="仅使用上述文档来源中的信息，编写关键结果的简明摘要（最好作为要点" \
+         --system_prompt="你是一个有用的纯中文语言助手，绝对只使用中文。"
+```
+
+Even better [Chinese model](https://huggingface.co/BAAI/AquilaChat2-34B) can be used with `--prompt_type=aquila`, including [with quantization](https://huggingface.co/TheBloke/AquilaChat2-34B-16K-AWQ). that can fit on single A100 40GB.
+
+One can also run such models in vLLM and have h2oGPT use `--inference_server` to connect to the vLLM endpoint for good concurrency, then you can pass also `--concurrency_count=64`.
+
 ### Controlling Quality and Speed of Parsing
 
 h2oGPT has certain defaults for speed and quality, but one may require faster processing or higher quality.
