@@ -45,6 +45,8 @@ from tqdm import tqdm
 
 from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
     set_userid_direct
+from src.output_parser import H2OPythonMRKLOutputParser
+from src.pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
@@ -1038,6 +1040,21 @@ class H2OOpenAI(OpenAI):
             if os.getenv('HARD_ASSERTS'):
                 raise
             print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+
+        # handle fact that multi-character stops will only stop streaming once last matching character, then we get rest
+        if stop is None:
+            stop = []
+        all_stops = stop.copy() if stop is not None else []
+        for stop_seq in all_stops:
+            if len(stop_seq) > 6:
+                stop.append(stop_seq[:6])
+
+        for gens in rets.generations:
+            for genobj in gens:
+                gen_text = genobj.text
+                for stop_seq in stop:
+                    if stop_seq in gen_text:
+                        genobj.text = gen_text[:gen_text.index(stop_seq)]
         return rets
 
     def _stream(
@@ -4062,17 +4079,27 @@ def _run_qa_db(query=None,
                                             LangChainAction.SUMMARIZE_REFINE.value,
                                             LangChainAction.EXTRACT.value]
 
-    if LangChainAgent.SEARCH.value in langchain_agents and 'llama' in model_name.lower():
+    zero_shot_react_agent = any([x in langchain_agents for x in
+                                 [LangChainAgent.SEARCH.value,
+                                  LangChainAgent.CSV.value,
+                                  LangChainAgent.PANDAS.value,
+                                  ]]) and \
+                            not does_support_functiontools(inference_server, model_name)
+    if zero_shot_react_agent:
+        if LangChainAgent.SEARCH.value in langchain_agents:
+            answer_type = " bullet list"
+        else:
+            answer_type = ""
         system_prompt = """You are a zero shot react agent.
-Consider to prompt of Question that was original query from the user.
+Consider to prompt of Question that was original query from the user.  Do not repeat "Question" as a prompt, that is only for the user.
 Respond to prompt of Thought with a thought that may lead to a reasonable new action choice.
 Respond to prompt of Action with an action to take out of the tools given, giving exactly single word for the tool name.
 Respond to prompt of Action Input with an input to give the tool.
 Consider to prompt of Observation that was response from the tool.
 Repeat this Thought, Action, Action Input, Observation, Thought sequence several times with new and different thoughts and actions each time, do not repeat.
 Once satisfied that the thoughts, responses are sufficient to answer the question, then respond to prompt of Thought with: I now know the final answer
-Respond to prompt of Final Answer with your final high-quality bullet list answer to the original query.
-"""
+Respond to prompt of Final Answer with your final well-structured%s answer to the original query.
+""" % answer_type
         prompter.system_prompt = system_prompt
 
     if doc_json_mode:
@@ -4879,7 +4906,7 @@ def get_chain(query=None,
 
     from src.output_parser import H2OMRKLOutputParser
     from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
-        create_pandas_dataframe_agent, create_json_agent, create_csv_agent
+        create_json_agent
     from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_python_agent, JsonToolkit
     if LangChainAgent.SEARCH.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
@@ -4947,7 +4974,8 @@ def get_chain(query=None,
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
-    prefix_functiontools_csv = """You are working with a pandas dataframe in Python. The name of the dataframe is `df`.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  Use only the tool python_repl_ast with valid JSON."""
+    prefix_functiontools_csv = """You are working with a pandas dataframe in Python.  The name of the dataframe is: df.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  Action input requests the tool to use, and only use the action python_repl_ast with valid JSON."""
+    prefix_react_csv = """You are working with a pandas dataframe in Python.  The name of the dataframe is: df.  Assume every question is about the dataframe, for example Describe means to describe or summarize the dataframe contents using the python_repl_ast tool.  For Action, only use python_repl_ast.  For Action input, specify the python interpreter code in pandas you want to perform."""
 
     if LangChainAgent.PANDAS.value in langchain_agents:
         document_choice = get_single_document(document_choice, db, extension='csv')
@@ -5013,12 +5041,24 @@ def get_chain(query=None,
                     agent_executor_kwargs=dict(handle_parsing_errors=True),
                 )
             else:
+                output_parser = H2OPythonMRKLOutputParser()
                 chain = create_csv_agent(
                     llm,
                     document_choice,
+                    prefix=prefix_react_csv,
+                    number_of_head_rows=1,
                     verbose=verbose, max_execution_time=max_time,
                     agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-                    agent_executor_kwargs=dict(handle_parsing_errors=True),
+                    output_parser=output_parser,
+                    format_instructions=output_parser.get_format_instructions(),
+                    agent_kwargs=dict(handle_parsing_errors=True,
+                                      output_parser=output_parser,
+                                      format_instructions=output_parser.get_format_instructions(),
+                                      ),
+                    agent_executor_kwargs=dict(handle_parsing_errors=True,
+                                               output_parser=output_parser,
+                                               format_instructions=output_parser.get_format_instructions(),
+                                               ),
                 )
             chain_kwargs = dict(input=query)
             target = wrapped_partial(chain, chain_kwargs)

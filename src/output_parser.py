@@ -26,8 +26,9 @@ Final Answer: the final answer to the original input question"""
 
 FORMAT_INSTRUCTIONS = """List of tools, use exactly one word when choosing Action: {tool_names}
 
-Here is an example sequence to follow:
-Question: What is the latest news?
+Only user asks a question, not you.  For example user might ask: What is the latest news?
+
+Here is an example sequence you can follow:
 Thought: I should search online for the latest news.
 Action: Search
 Action Input: What is the latest news?
@@ -42,6 +43,20 @@ Final Answer: The latest news is:
 * Z is happening again, and the cause is P and will lead to H.
 Overall, X and Z are important problems.
 """
+
+FORMAT_INSTRUCTIONS_PYTHON = """List of tools, use exactly one word when choosing Action: {tool_names}
+
+Only user asks a question, not you.  For example user might ask: How many rows are in the dataset?
+
+Here is an example sequence you can follow.  You can repeat Thoughts, but as soon as possible you should try to answer the original user question.  Once you an answer the user question, just say: Thought: I now know the final answer
+Thought: I should use python_repl_ast tool.
+Action: python_repl_ast
+Action Input: df.shape
+Observation: (25, 10)
+Thought: I now know the final answer
+Final Answer: There are 25 rows in the dataset.
+"""
+
 
 FINAL_ANSWER_ACTION = "Final Answer:"
 MISSING_ACTION_AFTER_THOUGHT_ERROR_MESSAGE = (
@@ -103,3 +118,8 @@ class H2OMRKLOutputParser(MRKLOutputParser):
     @property
     def _type(self) -> str:
         return "mrkl"
+
+
+class H2OPythonMRKLOutputParser(H2OMRKLOutputParser):
+    def get_format_instructions(self) -> str:
+        return FORMAT_INSTRUCTIONS_PYTHON
