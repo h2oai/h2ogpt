@@ -2198,7 +2198,7 @@ def get_hf_model(load_8bit: bool = False,
 
         n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
         n_gpus, gpu_ids = cuda_vis_check(n_gpus)
-        if n_gpus != 0 and not (load_gptq and not use_autogptq):
+        if n_gpus != 0 and not load_gptq:
             if low_bit_mode == 1:
                 from transformers import BitsAndBytesConfig
                 model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,

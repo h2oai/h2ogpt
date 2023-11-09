@@ -2537,7 +2537,7 @@ def test_client_load_unload_models(model_choice):
     # model_state
     prompt_type = ''
     model_load8bit_checkbox = False
-    model_load4bit_checkbox = True
+    model_load4bit_checkbox = 'AWQ' not in model_choice and 'GGUF' not in model_choice and 'GPTQ' not in model_choice
     model_low_bit_mode = 1
     model_load_gptq = ''
     model_load_awq = ''
