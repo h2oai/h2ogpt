@@ -25,7 +25,7 @@ def go_prepare_offline(*args, **kwargs):
                kwargs0['chunk'],
                kwargs0['chunk_size'],
                embed,
-               kwargs['image_loaders_options'],
+               kwargs['image_audio_loaders_options'],
                kwargs['pdf_loaders_options'],
                kwargs['url_loaders_options'],
                kwargs['jq_schema0'],
@@ -40,10 +40,17 @@ def go_prepare_offline(*args, **kwargs):
 
         # ensure normal blip (not 2) obtained
         blip2 = 'CaptionBlip2'
-        if blip2 in kwargs['image_loaders_options']:
-            image_loaders_options = kwargs['image_loaders_options'].copy()
-            image_loaders_options.remove(blip2)
-        inputs2[8] = kwargs['image_loaders_options']
+        if blip2 in kwargs['image_audio_loaders_options']:
+            image_audio_loaders_options = kwargs['image_audio_loaders_options'].copy()
+            image_audio_loaders_options.remove(blip2)
+
+        # ensure normal asr (not asrlarge) obtained
+        asrlarge = 'ASRLarge'
+        if asrlarge in kwargs['image_audio_loaders_options']:
+            image_audio_loaders_options = kwargs['image_audio_loaders_options'].copy()
+            image_audio_loaders_options.remove(asrlarge)
+
+        inputs2[8] = kwargs['image_audio_loaders_options']
         add_file_kwargs = dict(fn=kwargs['update_db_func'],
                                inputs=inputs1 + inputs2)
         add_file_kwargs['fn'](*tuple(add_file_kwargs['inputs']))

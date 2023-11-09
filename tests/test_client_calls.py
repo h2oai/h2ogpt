@@ -2105,7 +2105,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     if loaders is None:
         loaders = tuple([None, None, None, None])
     else:
-        image_loaders_options0, image_loaders_options, \
+        image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
             lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True,
@@ -2114,7 +2114,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                      enable_doctr=True,
                      enable_pix2struct=True,
                      max_quality=True)
-        loaders = [image_loaders_options, pdf_loaders_options, url_loaders_options, None]
+        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options, None]
 
     stream_output = True
     max_new_tokens = 256

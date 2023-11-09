@@ -32,9 +32,12 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                enable_doctr=False,
                enable_pix2struct=False,
                enable_captions=True,
+               enable_transcriptions=True,
                captions_model=None,
                caption_loader=None,
                doctr_loader=None,
+               asr_model=None,
+               asr_loader=None,
 
                # json
                jq_schema='.[]',
@@ -67,9 +70,12 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             enable_doctr=enable_doctr,
                             enable_pix2struct=enable_pix2struct,
                             enable_captions=enable_captions,
+                            enable_transcriptions=enable_transcriptions,
                             captions_model=captions_model,
                             caption_loader=caption_loader,
                             doctr_loader=doctr_loader,
+                            asr_model=asr_model,
+                            asr_loader=asr_loader,
 
                             # json
                             jq_schema=jq_schema,
@@ -121,10 +127,14 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_pix2struct=False,
                  enable_captions=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
-                 pre_load_caption_model: bool = False,
+                 pre_load_image_audio_models: bool = False,
                  caption_gpu: bool = True,
                  # caption_loader=None,  # set internally
                  # doctr_loader=None,  # set internally
+                 # asr_loader=None  # set internally
+                 enable_transcriptions: bool = True,
+                 asr_model: str = "openai/whisper-medium",
+                 asr_gpu: bool = True,
 
                  # json
                  jq_schema='.[]',
@@ -190,7 +200,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param enable_pix2struct: see gen.py
     :param enable_captions: Whether to enable captions on images
     :param captions_model: See generate.py
-    :param pre_load_caption_model: See generate.py
+    :param pre_load_image_audio_models: See generate.py
     :param caption_gpu: Caption images on GPU if present
 
     :param db_type: 'faiss' for in-memory
@@ -258,7 +268,7 @@ def make_db_main(use_openai_embedding: bool = False,
                             n_jobs=n_jobs)
         return db, collection_name
 
-    if enable_captions and pre_load_caption_model:
+    if enable_captions and pre_load_image_audio_models:
         # preload, else can be too slow or if on GPU have cuda context issues
         # Inside ingestion, this will disable parallel loading of multiple other kinds of docs
         # However, if have many images, all those images will be handled more quickly by preloaded model on GPU
@@ -277,6 +287,11 @@ def make_db_main(use_openai_embedding: bool = False,
         doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
     else:
         doctr_loader = False
+
+    if enable_transcriptions:
+        asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
+    else:
+        asr_loader = False
 
     if verbose:
         print("Getting sources", flush=True)
@@ -304,10 +319,13 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_doctr=enable_doctr,
                          enable_pix2struct=enable_pix2struct,
                          enable_captions=enable_captions,
+                         enable_transcriptions=enable_transcriptions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
                          doctr_loader=doctr_loader,
                          # Note: we don't reload doctr model
+                         asr_loader=asr_loader,
+                         asr_model=asr_model,
 
                          # json
                          jq_schema=jq_schema,

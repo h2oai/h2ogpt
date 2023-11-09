@@ -151,6 +151,8 @@ def go_gradio(**kwargs):
     captions_model = kwargs['captions_model']
     caption_loader = kwargs['caption_loader']
     doctr_loader = kwargs['doctr_loader']
+    asr_model = kwargs['asr_model']
+    asr_loader = kwargs['asr_loader']
 
     n_jobs = kwargs['n_jobs']
     verbose = kwargs['verbose']
@@ -505,7 +507,7 @@ def go_gradio(**kwargs):
             allow = False
         return allow
 
-    image_loaders_options0, image_loaders_options, \
+    image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
     jq_schema0 = '.[]'
@@ -1082,9 +1084,9 @@ def go_gradio(**kwargs):
                                                         info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
                     with gr.Row(visible=not is_public):
-                        image_loaders = gr.CheckboxGroup(image_loaders_options,
-                                                         label="Force Image Reader",
-                                                         value=image_loaders_options0)
+                        image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
+                                                               label="Force Image-Audio Reader",
+                                                               value=image_audio_loaders_options0)
                         pdf_loaders = gr.CheckboxGroup(pdf_loaders_options,
                                                        label="Force PDF Reader",
                                                        value=pdf_loaders_options0)
@@ -1677,30 +1679,30 @@ def go_gradio(**kwargs):
             return None
 
         def set_loaders(max_quality1,
-                        image_loaders_options1=None,
+                        image_audio_loaders_options1=None,
                         pdf_loaders_options1=None,
                         url_loaders_options1=None,
-                        image_loaders_options01=None,
+                        image_audio_loaders_options01=None,
                         pdf_loaders_options01=None,
                         url_loaders_options01=None,
                         ):
             if not max_quality1:
-                return image_loaders_options01, pdf_loaders_options01, url_loaders_options01
+                return image_audio_loaders_options01, pdf_loaders_options01, url_loaders_options01
             else:
-                return image_loaders_options1, pdf_loaders_options1, url_loaders_options1
+                return image_audio_loaders_options1, pdf_loaders_options1, url_loaders_options1
 
         set_loaders_func = functools.partial(set_loaders,
-                                             image_loaders_options1=image_loaders_options,
+                                             image_audio_loaders_options1=image_audio_loaders_options,
                                              pdf_loaders_options1=pdf_loaders_options,
                                              url_loaders_options1=url_loaders_options,
-                                             image_loaders_options01=image_loaders_options0,
+                                             image_audio_loaders_options01=image_audio_loaders_options0,
                                              pdf_loaders_options01=pdf_loaders_options0,
                                              url_loaders_options01=url_loaders_options0,
                                              )
 
         max_quality.change(fn=set_loaders_func,
                            inputs=max_quality,
-                           outputs=[image_loaders, pdf_loaders, url_loaders])
+                           outputs=[image_audio_loaders, pdf_loaders, url_loaders])
 
         def get_model_lock_visible_list(visible_models1, all_possible_visible_models):
             visible_list = []
@@ -1742,10 +1744,12 @@ def go_gradio(**kwargs):
                                            captions_model=captions_model,
                                            caption_loader=caption_loader,
                                            doctr_loader=doctr_loader,
+                                           asr_model=asr_model,
+                                           asr_loader=asr_loader,
                                            verbose=kwargs['verbose'],
                                            n_jobs=kwargs['n_jobs'],
                                            get_userid_auth=get_userid_auth,
-                                           image_loaders_options0=image_loaders_options0,
+                                           image_audio_loaders_options0=image_audio_loaders_options0,
                                            pdf_loaders_options0=pdf_loaders_options0,
                                            url_loaders_options0=url_loaders_options0,
                                            jq_schema0=jq_schema0,
@@ -1758,7 +1762,7 @@ def go_gradio(**kwargs):
         add_file_kwargs = dict(fn=update_db_func,
                                inputs=[fileup_output, my_db_state, selection_docs_state, requests_state,
                                        langchain_mode, chunk, chunk_size, embed,
-                                       image_loaders,
+                                       image_audio_loaders,
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
@@ -1789,7 +1793,7 @@ def go_gradio(**kwargs):
         add_file_kwargs2 = dict(fn=update_db_func,
                                 inputs=[fileup_output_text, my_db_state, selection_docs_state, requests_state,
                                         langchain_mode, chunk, chunk_size, embed,
-                                        image_loaders,
+                                        image_audio_loaders,
                                         pdf_loaders,
                                         url_loaders,
                                         jq_schema,
@@ -1811,7 +1815,7 @@ def go_gradio(**kwargs):
         add_url_kwargs = dict(fn=update_user_db_url_func,
                               inputs=[url_text, my_db_state, selection_docs_state, requests_state,
                                       langchain_mode, chunk, chunk_size, embed,
-                                      image_loaders,
+                                      image_audio_loaders,
                                       pdf_loaders,
                                       url_loaders,
                                       jq_schema,
@@ -1834,7 +1838,7 @@ def go_gradio(**kwargs):
         add_text_kwargs = dict(fn=update_user_db_txt_func,
                                inputs=[user_text_text, my_db_state, selection_docs_state, requests_state,
                                        langchain_mode, chunk, chunk_size, embed,
-                                       image_loaders,
+                                       image_audio_loaders,
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
@@ -2018,6 +2022,8 @@ def go_gradio(**kwargs):
                                              captions_model=captions_model,
                                              caption_loader=caption_loader,
                                              doctr_loader=doctr_loader,
+                                             asr_model=asr_model,
+                                             asr_loader=asr_loader,
                                              dbs=dbs,
                                              first_para=kwargs['first_para'],
                                              hf_embedding_model=hf_embedding_model,
@@ -2029,7 +2035,7 @@ def go_gradio(**kwargs):
                                              load_db_if_exists=load_db_if_exists,
                                              n_jobs=n_jobs, verbose=verbose,
                                              get_userid_auth=get_userid_auth,
-                                             image_loaders_options0=image_loaders_options0,
+                                             image_audio_loaders_options0=image_audio_loaders_options0,
                                              pdf_loaders_options0=pdf_loaders_options0,
                                              url_loaders_options0=url_loaders_options0,
                                              jq_schema0=jq_schema0,
@@ -2042,7 +2048,7 @@ def go_gradio(**kwargs):
         eventdb9 = eventdb9a.then(fn=refresh_sources1,
                                   inputs=[my_db_state, selection_docs_state, requests_state,
                                           langchain_mode, chunk, chunk_size,
-                                          image_loaders,
+                                          image_audio_loaders,
                                           pdf_loaders,
                                           url_loaders,
                                           jq_schema,
@@ -4789,7 +4795,7 @@ def get_inputs_list(inputs_dict, model_lower, model_id=1):
 def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       langchain_mode, chunk, chunk_size, embed,
 
-                      image_loaders,
+                      image_audio_loaders,
                       pdf_loaders,
                       url_loaders,
                       jq_schema,
@@ -4798,6 +4804,8 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       captions_model=None,
                       caption_loader=None,
                       doctr_loader=None,
+                      asr_model=None,
+                      asr_loader=None,
 
                       dbs=None,
                       get_userid_auth=None,
@@ -4809,20 +4817,23 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
     kwargs['from_ui'] = is_from_ui(requests_state1)
     if not valid_key:
         raise ValueError(invalid_key_msg)
-    loaders_dict, captions_model = gr_to_lg(image_loaders,
-                                            pdf_loaders,
-                                            url_loaders,
-                                            captions_model=captions_model,
-                                            **kwargs,
-                                            )
+    loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
+                                                       pdf_loaders,
+                                                       url_loaders,
+                                                       captions_model=captions_model,
+                                                       asr_model=asr_model,
+                                                       **kwargs,
+                                                       )
     if jq_schema is None:
         jq_schema = kwargs['jq_schema0']
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
+                             asr_model=asr_model,
+                             asr_loader=asr_loader,
                              jq_schema=jq_schema,
                              ))
-    kwargs.pop('image_loaders_options0', None)
+    kwargs.pop('image_audio_loaders_options0', None)
     kwargs.pop('pdf_loaders_options0', None)
     kwargs.pop('url_loaders_options0', None)
     kwargs.pop('jq_schema0', None)
@@ -4935,7 +4946,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         requests_state,
                                                         langchain_mode, chunk, chunk_size,
 
-                                                        image_loaders,
+                                                        image_audio_loaders,
                                                         pdf_loaders,
                                                         url_loaders,
                                                         jq_schema,
@@ -4943,6 +4954,8 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         captions_model=None,
                                                         caption_loader=None,
                                                         doctr_loader=None,
+                                                        asr_model=None,
+                                                        asr_loader=None,
 
                                                         dbs=None, first_para=None,
                                                         hf_embedding_model=None,
@@ -4952,25 +4965,27 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         text_limit=None,
                                                         db_type=None, load_db_if_exists=None,
                                                         n_jobs=None, verbose=None, get_userid_auth=None,
-                                                        image_loaders_options0=None,
+                                                        image_audio_loaders_options0=None,
                                                         pdf_loaders_options0=None,
                                                         url_loaders_options0=None,
                                                         jq_schema0=None):
     from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
 
-    loaders_dict, captions_model = gr_to_lg(image_loaders,
-                                            pdf_loaders,
-                                            url_loaders,
-                                            image_loaders_options0=image_loaders_options0,
-                                            pdf_loaders_options0=pdf_loaders_options0,
-                                            url_loaders_options0=url_loaders_options0,
-                                            captions_model=captions_model,
-                                            )
+    loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
+                                                       pdf_loaders,
+                                                       url_loaders,
+                                                       image_audio_loaders_options0=image_audio_loaders_options0,
+                                                       pdf_loaders_options0=pdf_loaders_options0,
+                                                       url_loaders_options0=url_loaders_options0,
+                                                       captions_model=captions_model,
+                                                       asr_model=asr_model,
+                                                       )
     if jq_schema is None:
         jq_schema = jq_schema0
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
+                             asr_loader=asr_loader,
                              jq_schema=jq_schema,
                              ))
 

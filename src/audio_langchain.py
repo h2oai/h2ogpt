@@ -1,9 +1,12 @@
 import logging
+import os
 import time
+import uuid
 from typing import Dict, Iterator, Optional, Tuple
 
 from langchain.document_loaders.base import BaseBlobParser
 from langchain.document_loaders.blob_loaders import Blob
+from langchain.document_loaders.generic import GenericLoader
 from langchain.schema import Document
 
 logger = logging.getLogger(__name__)
@@ -50,7 +53,7 @@ class OpenAIWhisperParser(BaseBlobParser):
         # Split the audio into chunk_duration_ms chunks
         for split_number, i in enumerate(range(0, len(audio), chunk_duration_ms)):
             # Audio chunk
-            chunk = audio[i : i + chunk_duration_ms]
+            chunk = audio[i: i + chunk_duration_ms]
             file_obj = io.BytesIO(chunk.export(format="mp3").read())
             if blob.source is not None:
                 file_obj.name = blob.source + f"_part_{split_number}.mp3"
@@ -58,7 +61,7 @@ class OpenAIWhisperParser(BaseBlobParser):
                 file_obj.name = f"part_{split_number}.mp3"
 
             # Transcribe
-            print(f"Transcribing part {split_number+1}!")
+            print(f"Transcribing part {split_number + 1}!")
             attempts = 0
             while attempts < 3:
                 try:
@@ -102,11 +105,11 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
     """
 
     def __init__(
-        self,
-        device: str = 'gpu',
-        device_id: int = 0,
-        lang_model: Optional[str] = None,
-        forced_decoder_ids: Optional[Tuple[Dict]] = None,
+            self,
+            device: str = 'gpu',
+            device_id: int = 0,
+            lang_model: Optional[str] = None,
+            forced_decoder_ids: Optional[Tuple[Dict]] = None,
     ):
         """Initialize the parser.
 
@@ -145,7 +148,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
                 self.device = "cuda:%d" % device_id
                 # check GPU memory and select automatically the model
                 mem = torch.cuda.get_device_properties(self.device).total_memory / (
-                    1024**2
+                        1024 ** 2
                 )
                 if mem < 5000:
                     rec_model = "openai/whisper-base"
@@ -154,7 +157,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
                 elif mem < 12000:
                     rec_model = "openai/whisper-medium"
                 else:
-                    rec_model = "openai/whisper-large"
+                    rec_model = "openai/whisper-large-v3"
 
                 # check if model is overridden
                 if lang_model is not None:
@@ -222,79 +225,122 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
         )
 
 
-class YandexSTTParser(BaseBlobParser):
-    """Transcribe and parse audio files.
-    Audio transcription is with OpenAI Whisper model."""
+"""
+Based upon ImageCaptionLoader in LangChain version: langchain/document_loaders/image_captions.py
+But accepts preloaded model to avoid slowness in use and CUDA forking issues
 
-    def __init__(
-        self,
-        *,
-        api_key: Optional[str] = None,
-        iam_token: Optional[str] = None,
-        model: str = "general",
-        language: str = "auto",
-    ):
-        """Initialize the parser.
+Loader that loads image captions
+By default, the loader utilizes the pre-trained BLIP image captioning model.
+https://huggingface.co/Salesforce/blip-image-captioning-base
 
-        Args:
-            api_key: API key for a service account
-            with the `ai.speechkit-stt.user` role.
-            iam_token: IAM token for a service account
-            with the `ai.speechkit-stt.user` role.
-            model: Recognition model name.
-              Defaults to general.
-            language: The language in ISO 639-1 format.
-              Defaults to automatic language recognition.
-        Either `api_key` or `iam_token` must be provided, but not both.
-        """
-        if (api_key is None) == (iam_token is None):
-            raise ValueError(
-                "Either 'api_key' or 'iam_token' must be provided, but not both."
-            )
-        self.api_key = api_key
-        self.iam_token = iam_token
-        self.model = model
-        self.language = language
+"""
+from typing import List, Union, Any, Tuple
 
-    def lazy_parse(self, blob: Blob) -> Iterator[Document]:
-        """Lazily parse the blob."""
+import requests
+from langchain.docstore.document import Document
+from langchain.document_loaders import ImageCaptionLoader, YoutubeAudioLoader
 
-        try:
-            from speechkit import configure_credentials, creds, model_repository
-            from speechkit.stt import AudioProcessingType
-        except ImportError:
-            raise ImportError(
-                "yandex-speechkit package not found, please install it with "
-                "`pip install yandex-speechkit`"
-            )
-        try:
-            from pydub import AudioSegment
-        except ImportError:
-            raise ImportError(
-                "pydub package not found, please install it with " "`pip install pydub`"
-            )
+from utils import get_device, NullContext, clear_torch_cache
 
-        if self.api_key:
-            configure_credentials(
-                yandex_credentials=creds.YandexCredentials(api_key=self.api_key)
-            )
+from importlib.metadata import distribution, PackageNotFoundError
+
+try:
+    assert distribution('bitsandbytes') is not None
+    have_bitsandbytes = True
+except (PackageNotFoundError, AssertionError):
+    have_bitsandbytes = False
+
+
+class H2OAudioCaptionLoader(ImageCaptionLoader):
+    """Loader that loads the transcriptions of audio"""
+
+    def __init__(self, path_audios: Union[str, List[str]] = None,
+                 asr_model='openai/whisper-medium',
+                 asr_gpu=True,
+                 gpu_id='auto',
+                 from_youtube=False):
+        super().__init__(path_audios)
+        self.audio_paths = path_audios
+        self.model = None
+        self.asr_model = asr_model
+        self.asr_gpu = asr_gpu
+        self.context_class = NullContext
+        self.gpu_id = gpu_id
+        self.device = 'cpu'
+        self.from_youtube = from_youtube
+        self.set_context()
+
+    def set_context(self):
+        if get_device() == 'cuda' and self.asr_gpu:
+            import torch
+            n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+            if n_gpus > 0:
+                self.context_class = torch.device
+                self.device = 'cuda'
+            else:
+                self.device = 'cpu'
         else:
-            configure_credentials(
-                yandex_credentials=creds.YandexCredentials(iam_token=self.iam_token)
+            self.device = 'cpu'
+
+    def load_model(self):
+        try:
+            import transformers
+        except ImportError:
+            raise ValueError(
+                "`transformers` package not found, please install with "
+                "`pip install transformers`."
             )
+        self.set_context()
+        if self.model:
+            if self.model.device != self.device:
+                self.model.to(self.device)
+            return self
+        if self.asr_gpu:
+            if self.gpu_id == 'auto':
+                # blip2 has issues with multi-GPU.  Error says need to somehow set language model in device map
+                # device_map = 'auto'
+                self.gpu_id = 0
+        else:
+            self.gpu_id = None
+        import torch
+        with torch.no_grad():
+            with self.context_class(self.device):
+                context_class_cast = NullContext if self.device == 'cpu' else torch.autocast
+                with context_class_cast(self.device):
+                    self.model = OpenAIWhisperParserLocal(device='cuda',
+                                                          device_id=self.gpu_id,
+                                                          lang_model=self.asr_model)
+        return self
 
-        audio = AudioSegment.from_file(blob.path)
+    def set_audio_paths(self, path_audios: Union[str, List[str]]):
+        """
+        Load from a list of audio files
+        """
+        if isinstance(path_audios, str):
+            self.audio_paths = [path_audios]
+        else:
+            self.audio_paths = path_audios
 
-        model = model_repository.recognition_model()
+    def load(self, prompt=None) -> List[Document]:
+        if self.model is None:
+            self.load_model()
 
-        model.model = self.model
-        model.language = self.language
-        model.audio_processing_type = AudioProcessingType.Full
+        if self.from_youtube:
+            save_dir = "/tmp/" + "_" + str(uuid.uuid4())[:10]
+            loader = GenericLoader(YoutubeAudioLoader(self.audio_paths, save_dir), self.model)
+            return loader.load()
+        else:
+            docs = []
+            for fil in self.audio_paths:
+                loader = GenericLoader.from_filesystem(
+                    os.path.dirname(fil),
+                    glob=os.path.basename(fil),
+                    parser=self.model)
+                docs += loader.load()
+            return docs
 
-        result = model.transcribe(audio)
-
-        for res in result:
-            yield Document(
-                page_content=res.normalized_text,
-                metadata={"source": blob.source},
-            )
+    def unload_model(self):
+        if hasattr(self, 'model') and hasattr(self.model, 'pipe') and hasattr(self.model.pipe, 'cpu'):
+            self.model.pipe.model.cpu()
+            self.model.pipe.cpu()
+            clear_torch_cache()

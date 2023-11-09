@@ -513,10 +513,13 @@ def test_make_add_db(repeat, db_type):
                                   auto_migrate_db=False,
                                   caption_loader=False,
                                   doctr_loader=False,
+                                  asr_loader=False,
                                   enable_captions=False,
                                   enable_doctr=False,
                                   enable_pix2struct=False,
+                                  enable_transcriptions=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
+                                  asr_model='openai/whisper-medium',
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
                                   enable_pdf_doctr=False,
@@ -1165,12 +1168,12 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
 @pytest.mark.parametrize("enable_doctr", [False, True])
 @pytest.mark.parametrize("enable_ocr", [False, True])
 @pytest.mark.parametrize("enable_captions", [False, True])
-@pytest.mark.parametrize("pre_load_caption_model", [False, True])
+@pytest.mark.parametrize("pre_load_image_audio_models", [False, True])
 @pytest.mark.parametrize("caption_gpu", [False, True])
 @pytest.mark.parametrize("captions_model", [None, 'Salesforce/blip2-flan-t5-xl'])
 @wrap_test_forked
 @pytest.mark.parallel10
-def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_captions,
+def test_png_add(captions_model, caption_gpu, pre_load_image_audio_models, enable_captions,
                  enable_doctr, enable_pix2struct, enable_ocr, db_type, file):
     if not have_gpus and caption_gpu:
         # if have no GPUs, don't enable caption on GPU
@@ -1178,7 +1181,7 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
     if not caption_gpu and captions_model == 'Salesforce/blip2-flan-t5-xl':
         # RuntimeError: "slow_conv2d_cpu" not implemented for 'Half'
         return
-    if not enable_captions and pre_load_caption_model:
+    if not enable_captions and pre_load_image_audio_models:
         # nothing to preload if not enabling captions
         return
     if captions_model == 'Salesforce/blip2-flan-t5-xl' and not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3):
@@ -1189,14 +1192,14 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
         return
     # FIXME (too many permutations):
     if enable_pix2struct and (
-            pre_load_caption_model or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
+            pre_load_image_audio_models or enable_captions or enable_ocr or enable_doctr or captions_model or caption_gpu):
         return
     if enable_pix2struct and 'kowalievska' in file:
         # FIXME: Not good for this
         return
     kill_weaviate(db_type)
     return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
-                       pre_load_caption_model=pre_load_caption_model,
+                       pre_load_image_audio_models=pre_load_image_audio_models,
                        enable_captions=enable_captions,
                        enable_ocr=enable_ocr,
                        enable_doctr=enable_doctr,
@@ -1206,7 +1209,7 @@ def test_png_add(captions_model, caption_gpu, pre_load_caption_model, enable_cap
 
 
 def run_png_add(captions_model=None, caption_gpu=False,
-                pre_load_caption_model=False,
+                pre_load_image_audio_models=False,
                 enable_captions=True,
                 enable_ocr=False,
                 enable_doctr=False,
@@ -1230,7 +1233,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                                                enable_pdf_ocr='auto',
                                                enable_pdf_doctr=False,
                                                caption_gpu=caption_gpu,
-                                               pre_load_caption_model=pre_load_caption_model,
+                                               pre_load_image_audio_models=pre_load_image_audio_models,
                                                captions_model=captions_model,
                                                enable_captions=enable_captions,
                                                enable_doctr=enable_doctr,
