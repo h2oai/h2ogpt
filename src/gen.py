@@ -223,6 +223,7 @@ def main(
         show_copy_button: bool = True,
         large_file_count_mode: bool = False,
         pre_load_embedding_model: bool = True,
+        embedding_gpu_id: Union[int, str] = 'auto',
 
         auth: Union[typing.List[typing.Tuple[str, str]], str] = None,
         auth_filename: str = None,
@@ -598,6 +599,7 @@ def main(
     :param show_copy_button: Whether to show copy button for chatbots
     :param large_file_count_mode: Whether to force manual update to UI of drop-downs, good idea if millions of chunks or documents
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
+    :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.
 
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
@@ -835,6 +837,7 @@ def main(
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3
+           whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
 
@@ -1244,6 +1247,47 @@ def main(
         print(f"Generating model with params:\n{locals_print}", flush=True)
         print("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), git_hash), flush=True)
 
+    # PRELOAD
+
+    if enable_captions:
+        if pre_load_image_audio_models and False:
+            from image_captions import H2OImageCaptionLoader
+            caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu, gpu_id=caption_gpu_id).load_model()
+        else:
+            caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
+    else:
+        caption_loader = False
+
+    if pre_load_embedding_model and \
+            langchain_mode != LangChainMode.DISABLED.value and \
+            not use_openai_embedding:
+        from src.gpt_langchain import get_embedding
+        hf_embedding_model = dict(name=hf_embedding_model,
+                                  model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                                      preload=True, gpu_id=embedding_gpu_id))
+
+    if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
+        if pre_load_image_audio_models and False:
+            from image_doctr import H2OOCRLoader
+            doctr_loader = H2OOCRLoader(layout_aware=True, gpu_id=doctr_gpu_id).load_model()
+        else:
+            doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
+    else:
+        doctr_loader = False
+
+    if enable_transcriptions:
+        if pre_load_image_audio_models:
+            from src.audio_langchain import H2OAudioCaptionLoader
+            asr_loader = H2OAudioCaptionLoader(asr_gpu=asr_gpu,
+                                               gpu_id=asr_gpu_id,
+                                               asr_model=asr_model).load_model()
+        else:
+            asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
+    else:
+        asr_loader = False
+
+    # DB SETUP
+
     if langchain_mode != LangChainMode.DISABLED.value:
         # SECOND PLACE where LangChain referenced, but all imports are kept local so not required
         from gpt_langchain import prep_langchain, get_some_dbs_from_hf, get_persist_directory
@@ -1268,6 +1312,7 @@ def main(
                                     hf_embedding_model,
                                     migrate_embedding_model,
                                     auto_migrate_db,
+                                    embedding_gpu_id=embedding_gpu_id,
                                     kwargs_make_db=locals(),
                                     verbose=verbose)
             finally:
@@ -1282,6 +1327,8 @@ def main(
         if os.environ.get("TEST_LANGCHAIN_IMPORT"):
             assert 'gpt_langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
             assert 'langchain' not in sys.modules, "Dev bug, import of langchain when should not have"
+
+    # MODEL SETUP
 
     if attention_sinks:
         if use_cache is False:
@@ -1494,43 +1541,6 @@ def main(
                                   base_model=score_model, tokenizer_base_model='', lora_weights='',
                                   inference_server='', prompt_type='', prompt_dict='',
                                   visible_models=None, h2ogpt_key=None)
-
-        if enable_captions:
-            if pre_load_image_audio_models:
-                from image_captions import H2OImageCaptionLoader
-                caption_loader = H2OImageCaptionLoader(caption_gpu=caption_gpu, gpu_id=caption_gpu_id).load_model()
-            else:
-                caption_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
-        else:
-            caption_loader = False
-
-        if pre_load_embedding_model and \
-                langchain_mode != LangChainMode.DISABLED.value and \
-                not use_openai_embedding:
-            from src.gpt_langchain import get_embedding
-            hf_embedding_model = dict(name=hf_embedding_model,
-                                      model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                                          preload=True))
-
-        if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
-            if pre_load_image_audio_models:
-                from image_doctr import H2OOCRLoader
-                doctr_loader = H2OOCRLoader(layout_aware=True, gpu_id=doctr_gpu_id)
-            else:
-                doctr_loader = 'gpu' if n_gpus > 0 and caption_gpu else 'cpu'
-        else:
-            doctr_loader = False
-
-        if enable_transcriptions:
-            if pre_load_image_audio_models:
-                from src.audio_langchain import OpenAIWhisperParserLocal
-                asr_loader = OpenAIWhisperParserLocal(device='cuda' if asr_gpu is not None else 'cpu',
-                                                      device_id=asr_gpu_id,
-                                                      lang_model=asr_model)
-            else:
-                asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
-        else:
-            asr_loader = False
 
         # assume gradio needs everything
         go_gradio(**locals())
