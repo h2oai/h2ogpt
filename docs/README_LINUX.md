@@ -97,6 +97,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     python -m nltk.downloader all
     # Optional: Required for PlayWright
     playwright install --with-deps
+    # Audio files and audio from youtube videos:
+    pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
     ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash

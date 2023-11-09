@@ -1184,6 +1184,12 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_optimum = False
 
+try:
+    assert distribution('librosa') is not None
+    have_librosa = True
+except (PackageNotFoundError, AssertionError):
+    have_librosa = False
+
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"

@@ -33,6 +33,7 @@ import yaml
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
+from langchain.document_loaders.generic import GenericLoader
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
@@ -43,6 +44,7 @@ from langchain.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
 
+from src.audio_langchain import OpenAIWhisperParserLocal
 from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
     set_userid_direct
 from src.output_parser import H2OPythonMRKLOutputParser
@@ -52,7 +54,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, get_ngpus_vis
+    get_test_name_core, download_simple, get_ngpus_vis, have_librosa
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -79,7 +81,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
-    UnstructuredExcelLoader, JSONLoader
+    UnstructuredExcelLoader, JSONLoader, YoutubeAudioLoader
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -1947,8 +1949,13 @@ if have_libreoffice or True:
 if have_jq:
     non_image_types.extend(["json", "jsonl"])
 
-file_types = non_image_types + image_types
+if have_librosa:
+    audio_types = ['mp3', 'ogg', 'flac', 'm4a']
+else:
+    audio_types = []
+set_audio_types = set(audio_types)
 
+file_types = non_image_types + image_types + audio_types
 
 def try_as_html(file):
     # try treating as html as occurs when scraping websites
@@ -2039,6 +2046,9 @@ def file_to_doc(file,
                 # json
                 jq_schema='.[]',
 
+                whisper_model='openai/whisper-medium',
+                whisper_gpu_id=0,
+
                 headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
                 selected_file_types=None,
@@ -2049,8 +2059,10 @@ def file_to_doc(file,
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
         set_image_types1 = set_image_types.intersection(set(selected_file_types))
+        set_audio_types1 = set_audio_types.intersection(set(selected_file_types))
     else:
         set_image_types1 = set_image_types
+        set_audio_types1 = set_audio_types
 
     assert db_type is not None
     chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
@@ -2132,6 +2144,12 @@ def file_to_doc(file,
         case2 = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
         case3 = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
         case4 = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
+
+        case_youtube1 = file_lower.startswith('https://www.youtube.com/watch?v=') and len(file_lower.split('https://www.youtube.com/watch?v=')) == 2
+        case_youtube2 = file_lower.startswith('http://www.youtube.com/watch?v=') and len(file_lower.split('http://www.youtube.com/watch?v=')) == 2
+        case_youtube3 = file_lower.startswith('www.youtube.com/watch?v=') and len(file_lower.split('www.youtube.com/watch?v=')) == 2
+        case_youtube4 = file_lower.startswith('youtube.com/watch?v=') and len(file_lower.split('youtube.com/watch?v=')) == 2
+
         if case1 or case2 or case3 or case4:
             if case1:
                 query = file.lower().split('arxiv:')[1].strip()
@@ -2163,6 +2181,13 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
+        elif case_youtube1 or case_youtube2 or case_youtube3 or case_youtube4:
+            save_dir = "/tmp/" + "_" + str(uuid.uuid4())[:10]
+            loader = GenericLoader(YoutubeAudioLoader([file], save_dir),
+                                   OpenAIWhisperParserLocal(device='cuda',
+                                                            device_id=whisper_gpu_id,
+                                                            lang_model=whisper_model))
+            docs1 = loader.load()
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
@@ -2263,6 +2288,10 @@ def file_to_doc(file,
     elif file.lower().endswith('.epub'):
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file, parser='UnstructuredEPubLoader')
+        doc1 = chunk_sources(docs1)
+    elif any(file.lower().endswith(x) for x in set_audio_types1):
+        docs1 = OpenAIWhisperParserLocal(file).load()
+        add_meta(docs1, file, parser='OpenAIWhisperParserLocal')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
         docs1 = []
