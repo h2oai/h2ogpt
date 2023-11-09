@@ -339,6 +339,7 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         if self.model is None:
             self.load_model()
 
+        # https://librosa.org/doc/main/generated/librosa.load.html
         if self.from_youtube:
             save_dir = "/tmp/" + "_" + str(uuid.uuid4())[:10]
             loader = GenericLoader(YoutubeAudioLoader(self.audio_paths, save_dir), self.model)
