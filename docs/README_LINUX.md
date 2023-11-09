@@ -97,8 +97,27 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     python -m nltk.downloader all
     # Optional: Required for PlayWright
     playwright install --with-deps
-    # Audio files and audio from youtube videos:
+    # Audio transcription from Youtube videos and local mp3 files:
     pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
+    ```
+  Note that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
+* Selenium needs to have chrome installed, e.g. on Ubuntu:
+    ```bash
+    sudo bash
+    apt install -y unzip xvfb libxi6 libgconf-2-4
+    apt install -y default-jdk
+    curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add
+    bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+    apt -y update
+    apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+    google-chrome --version  # e.g. Google Chrome 114.0.5735.198
+    # visit https://chromedriver.chromium.org/downloads and download matching version
+    # E.g.
+    wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+    unzip chromedriver_linux64.zip
+    sudo mv chromedriver /usr/bin/chromedriver
+    sudo chown root:root /usr/bin/chromedriver
+    sudo chmod +x /usr/bin/chromedriver
     ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash

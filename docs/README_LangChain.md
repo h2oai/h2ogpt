@@ -47,6 +47,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.pptx` : PowerPoint Document,
    - `.ppt` : PowerPoint Document,
    - `.xml`: XML,
+
    - `.apng` : APNG Image (optional),
    - `.blp` : BLP Image (optional),
    - `.bmp` : BMP Image (optional),
@@ -114,48 +115,12 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.xbm` : XBM Image (optional),
    - `.xpm` : XPM Image (optional).
 
-To support image captioning, on Ubuntu run:
-```bash
-sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libtesseract-dev
-```
-and ensure in `requirements_optional_langchain.txt` that `unstructured[local-inference]` and `pdf2image` are installed.  Otherwise, for no image support just `unstructured` is sufficient.
+   - `.mp3` : MP3 Audio (optional).
+   - `.ogg` : OGG Audio (optional).
+   - `.flac` : FLAC Audio (optional).
+   - `.aac` : AAC Audio (optional).
+   - `.au` : AU Audio (optional).
 
-OCR is disabled by default, but can be enabled if making database via `make_db.py`, and then on Ubuntu run:
-```bash
-sudo apt-get install tesseract-ocr libtesseract-dev
-```
-and ensure you `pip install pytesseract`.  See [Tesseract documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).
-
-To support Microsoft Office docx, doc, xls, xlsx, on Ubuntu run:
-```bash
-sudo apt-get install libreoffice
-```
-
-In some cases unstructured by itself cannot handle URL content properly, then we will use Selenium or PlayWright as backup methods if unstructured fails.  To have this be done, do:
-```bash
-pip install -r reqs_optional/requirements_optional_langchain.urls.txt
-```
-
-For Selenium, one needs to have chrome installed, e.g. on Ubuntu:
-```bash
-sudo bash
-apt install -y unzip xvfb libxi6 libgconf-2-4
-apt install -y default-jdk
-curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add
-bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
-apt -y update
-apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
-google-chrome --version  # e.g. Google Chrome 114.0.5735.198
-# visit https://chromedriver.chromium.org/downloads and download matching version
-# E.g.
-wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
-unzip chromedriver_linux64.zip
-sudo mv chromedriver /usr/bin/chromedriver
-sudo chown root:root /usr/bin/chromedriver
-sudo chmod +x /usr/bin/chromedriver
-```
-
-PlayWright is disabled by default as it hangs.
 
 ### Supported Meta Datatypes
 
@@ -168,14 +133,6 @@ PlayWright is disabled by default as it hangs.
    - `URL` : Any URL (i.e. `http://` or `https://`),
    - `ArXiv` : Any ArXiv name (e.g. `arXiv:1706.03762`),
    - `Text` : Paste Text into UI.
-
-To support ArXiv API, do:
-```bash
-pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
-```
-but pymupdf is AGPL, requiring any source code be made available, which is not an issue directly for h2oGPT, but it's like GPL and too strong a constraint for general commercial use.
-
-When pymupdf is installed, we will use `PyMuPDFLoader` by default to parse PDFs since it's better than `PyPDFLoader` and much better than `PDFMinerLoader`.
 
 ### Adding new file types
 

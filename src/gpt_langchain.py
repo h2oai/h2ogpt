@@ -1950,12 +1950,13 @@ if have_jq:
     non_image_types.extend(["json", "jsonl"])
 
 if have_librosa:
-    audio_types = ['mp3', 'ogg', 'flac', 'm4a']
+    audio_types = ['aac', 'au', 'mp3', 'ogg', 'flac', 'm4a', 'wav']
 else:
     audio_types = []
 set_audio_types = set(audio_types)
 
 file_types = non_image_types + image_types + audio_types
+
 
 def try_as_html(file):
     # try treating as html as occurs when scraping websites
@@ -2145,10 +2146,14 @@ def file_to_doc(file,
         case3 = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
         case4 = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
 
-        case_youtube1 = file_lower.startswith('https://www.youtube.com/watch?v=') and len(file_lower.split('https://www.youtube.com/watch?v=')) == 2
-        case_youtube2 = file_lower.startswith('http://www.youtube.com/watch?v=') and len(file_lower.split('http://www.youtube.com/watch?v=')) == 2
-        case_youtube3 = file_lower.startswith('www.youtube.com/watch?v=') and len(file_lower.split('www.youtube.com/watch?v=')) == 2
-        case_youtube4 = file_lower.startswith('youtube.com/watch?v=') and len(file_lower.split('youtube.com/watch?v=')) == 2
+        case_youtube1 = file_lower.startswith('https://www.youtube.com/watch?v=') and len(
+            file_lower.split('https://www.youtube.com/watch?v=')) == 2
+        case_youtube2 = file_lower.startswith('http://www.youtube.com/watch?v=') and len(
+            file_lower.split('http://www.youtube.com/watch?v=')) == 2
+        case_youtube3 = file_lower.startswith('www.youtube.com/watch?v=') and len(
+            file_lower.split('www.youtube.com/watch?v=')) == 2
+        case_youtube4 = file_lower.startswith('youtube.com/watch?v=') and len(
+            file_lower.split('youtube.com/watch?v=')) == 2
 
         if case1 or case2 or case3 or case4:
             if case1:
@@ -2290,7 +2295,13 @@ def file_to_doc(file,
         add_meta(docs1, file, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_audio_types1):
-        docs1 = OpenAIWhisperParserLocal(file).load()
+        loader = GenericLoader.from_filesystem(
+            os.path.dirname(file),
+            glob=os.path.basename(file),
+            parser=OpenAIWhisperParserLocal(device='cuda',
+                                            device_id=whisper_gpu_id,
+                                            lang_model=whisper_model))
+        docs1 = loader.load()
         add_meta(docs1, file, parser='OpenAIWhisperParserLocal')
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_types1):
