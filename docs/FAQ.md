@@ -37,6 +37,7 @@ docker run \
          --score_model=None \
          --max_max_new_tokens=2048 \
          --max_new_tokens=1024 \
+         --cut_distance=10000 \
          --hf_embedding_model=BAAI/bge-base-zh-v1.5 \
          --pre_prompt_query="注意并记住下面的信息，这将有助于在上下文结束后回答问题或祈使句。" \
          --prompt_query="仅根据上述上下文中提供的文档来源中的信息，" \
