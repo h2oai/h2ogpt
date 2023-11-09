@@ -92,6 +92,11 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
   Download the runnable file and open it from finder, it will take few minutes to unpack and run the application.
   These one-click installers are experimental, report any issues with steps to reproduce at https://github.com/h2oai/h2ogpt/issues.
 
+  **Note:** The app bundle is unsigned, if there are any issues in running the app
+  ```bash
+  $ xattr -dr com.apple.quarantine {file-path}/h2ogpt-osx-m1-gpu
+  $ chmod +x {file-path}/h2ogpt-osx-m1-gpu
+  ```
 * [macOS Manual Install and Run Docs](docs/README_MACOS.md)
 
 ---
