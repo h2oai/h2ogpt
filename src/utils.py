@@ -1193,7 +1193,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_librosa = False
 
-
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
@@ -1368,7 +1367,7 @@ def lg_to_gr(
             image_audio_loaders_options0.append('CaptionBlip2')
         else:
             image_audio_loaders_options0.append('Caption')
-    if kwargs['enable_transcriptions']:
+    if have_librosa and kwargs['enable_transcriptions']:
         if kwargs['max_quality'] and n_gpus > 0:
             image_audio_loaders_options0.append('ASRLarge')
         else:
@@ -1403,9 +1402,12 @@ def lg_to_gr(
             url_loaders_options.append('PlayWright')
     url_loaders_options0 = [url_loaders_options[0]]
 
-    assert set(image_audio_loaders_options0).issubset(image_audio_loaders_options)
-    assert set(pdf_loaders_options0).issubset(pdf_loaders_options)
-    assert set(url_loaders_options0).issubset(url_loaders_options)
+    assert set(image_audio_loaders_options0).issubset(image_audio_loaders_options), "%s %s" % (
+        image_audio_loaders_options0, image_audio_loaders_options)
+    assert set(pdf_loaders_options0).issubset(pdf_loaders_options), "%s %s" % (
+        pdf_loaders_options0, pdf_loaders_options)
+    assert set(url_loaders_options0).issubset(url_loaders_options), "%s %s" % (
+        url_loaders_options0, url_loaders_options)
 
     return image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
