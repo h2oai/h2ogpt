@@ -20,6 +20,7 @@ import typing
 import urllib.error
 import uuid
 import zipfile
+import tarfile
 from collections import defaultdict
 from datetime import datetime
 from functools import reduce
@@ -423,7 +424,11 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
         if gpu_id == 'auto':
             gpu_id = 0
-        if preload and isinstance(gpu_id, int) and gpu_id >= 0 and hasattr(embedding.client, 'to'):
+        if preload and \
+                isinstance(gpu_id, int) and \
+                gpu_id >= 0 and \
+                hasattr(embedding.client, 'to') and \
+                get_device() == 'cuda':
             embedding.client = embedding.client.to('cuda:%d' % gpu_id)
         embedding.client.preload = preload
     return embedding
@@ -1779,7 +1784,7 @@ def get_llm(use_openai_model=False,
 def get_device_dtype():
     # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
     import torch
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'
     # from utils import NullContext
     # context_class = NullContext if n_gpus > 1 or n_gpus == 0 else context_class
@@ -2715,6 +2720,13 @@ def file_to_doc(file,
             zip_ref.extractall(base_path)
             # recurse
             doc1 = path_to_docs_func(base_path)
+    elif file.lower().endswith('.tar.gz') or file.lower().endswith('.tgz'):
+        with tarfile.open(file, 'r') as tar_ref:
+            # don't put into temporary path, since want to keep references to docs inside tar.gz
+            # so just extract in path where
+            tar_ref.extractall(base_path)
+            # recurse
+            doc1 = path_to_docs_func(base_path)
     elif file.lower().endswith('.gz') or file.lower().endswith('.gzip'):
         if file.lower().endswith('.gz'):
             de_file = file.lower().replace('.gz', '')
@@ -3005,7 +3017,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         # globs_non_image_types = flatten_list([[x for x in path_or_paths if x.endswith(y)] for y in non_image_audio_types1])
         # But instead, allow fail so can collect unsupported too
         set_globs_image_audio_types = set(globs_image_audio_types)
-        globs_non_image_types.extend([os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_audio_types])
+        globs_non_image_types.extend(
+            [os.path.normpath(x) for x in path_or_paths if x not in set_globs_image_audio_types])
 
     # filter out any files to skip (e.g. if already processed them)
     # this is easy, but too aggressive in case a file changed, so parent probably passed existing_files=[]
@@ -3362,7 +3375,8 @@ def get_existing_db(db, persist_directory,
             got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
             if got_embedding:
                 use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
-            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model, gpu_id=embedding_gpu_id)
+            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                      gpu_id=embedding_gpu_id)
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             if use_chromamigdb:

@@ -179,7 +179,7 @@ def run_eval(  # for local function:
     eval_out_filename = os.path.join(scoring_path, eval_out_filename)
 
     # torch.device("cuda") leads to cuda:x cuda:y mismatches for multi-GPU consistently
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'
     context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
 

@@ -18,6 +18,7 @@ import threading
 import time
 import traceback
 import zipfile
+import tarfile
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import Tuple, Callable, Dict
@@ -235,6 +236,41 @@ def _zip_data(root_dirs=None, zip_file=None, base_dir='./'):
                     path_to_archive = os.path.relpath(file_to_archive, base_dir)
                     expt_zip.write(filename=file_to_archive, arcname=path_to_archive)
     return zip_file, zip_file
+
+
+def tar_data(root_dirs=None, tar_file=None, base_dir='./', fail_any_exception=False):
+    try:
+        return _tar_data(tar_file=tar_file, base_dir=base_dir, root_dirs=root_dirs)
+    except Exception as e:
+        traceback.print_exc()
+        print('Exception in tar archiving: %s' % str(e))
+        if not fail_any_exception:
+            raise
+
+
+def _tar_data(root_dirs=None, tar_file=None, base_dir='./'):
+    if isinstance(root_dirs, str):
+        root_dirs = [root_dirs]
+    if tar_file is None:
+        datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
+        host_name = os.getenv('HF_HOSTNAME', 'emptyhost')
+        tar_file = "data_%s_%s.tar.gz" % (datetime_str, host_name)
+    assert root_dirs is not None
+    base_path = os.path.dirname(tar_file)
+    if not os.path.isdir(base_path) and os.path.dirname(tar_file):
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        tar_file = os.path.join(base_path, os.path.basename(tar_file))
+    with tarfile.open(tar_file, "w:gz") as expt_tar:
+        for root_dir in root_dirs:
+            if root_dir is None:
+                continue
+            for root, d, files in os.walk(root_dir):
+                for file in files:
+                    file_to_archive = os.path.join(root, file)
+                    assert os.path.exists(file_to_archive)
+                    path_to_archive = os.path.relpath(file_to_archive, base_dir)
+                    expt_tar.add(name=file_to_archive, arcname=path_to_archive)
+    return tar_file, tar_file
 
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
@@ -734,7 +770,7 @@ def get_ngpus_vis(raise_if_exception=True):
     if ngpus_vis1 is None:
         import torch
         if get_device() == 'cuda':
-            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available else 0
+            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
         else:
             ngpus_vis1 = 0
 

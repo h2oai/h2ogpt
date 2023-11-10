@@ -26,7 +26,7 @@ class H2OPix2StructLoader(ImageCaptionLoader):
     def set_context(self):
         if get_device() == 'cuda':
             import torch
-            n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+            n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
             if n_gpus > 0:
                 self.context_class = torch.device
                 self.device = 'cuda'

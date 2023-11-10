@@ -98,7 +98,7 @@ def run_cli(  # for local function:
     check_locals(**locals())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'
     context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device
 
