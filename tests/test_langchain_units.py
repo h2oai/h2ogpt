@@ -16,7 +16,7 @@ from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainT
     docs_joiner_default, docs_token_handling_default, db_types, db_types_full
 from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
-    FakeTokenizer, get_token_count, flatten_list
+    FakeTokenizer, get_token_count, flatten_list, tar_data
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -640,6 +640,30 @@ def test_zip_add(db_type):
                 f.write(msg1)
             zip_file = './tmpdata/data.zip'
             zip_data(tmp_user_path, zip_file=zip_file, fail_any_exception=True)
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("World")
+            assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
+            assert docs[0].page_content == msg1
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@pytest.mark.parametrize("tar_type", ["tar.gz", "tgz"])
+@wrap_test_forked
+def test_tar_add(db_type, tar_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            msg1 = "Hello World"
+            test_file1 = os.path.join(tmp_user_path, 'test.txt')
+            with open(test_file1, "wt") as f:
+                f.write(msg1)
+            tar_file = f'./tmpdata/data.{tar_type}'
+            tar_data(tmp_user_path, tar_file=tar_file, fail_any_exception=True)
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
