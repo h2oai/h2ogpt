@@ -703,7 +703,8 @@ def go_gradio(**kwargs):
                     url_label = 'URLs'
                 text_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload
                 fileup_output_text = gr.Textbox(visible=False)
-                with gr.Accordion("Add URLs/Texts", open=False, visible=upload_visible and kwargs['actions_in_sidebar']):
+                with gr.Accordion("Add URLs/Texts", open=False,
+                                  visible=upload_visible and kwargs['actions_in_sidebar']):
                     fileup_output = gr.File(show_label=False,
                                             file_types=['.' + x for x in file_types],
                                             # file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
@@ -724,10 +725,12 @@ def go_gradio(**kwargs):
                                                 # placeholder="Enter Submits",
                                                 interactive=True,
                                                 visible=text_visible and kwargs['actions_in_sidebar'])
-                    github_textbox = gr.Textbox(label="Github URL", visible=False and kwargs['actions_in_sidebar'])  # FIXME WIP
+                    github_textbox = gr.Textbox(label="Github URL",
+                                                visible=False and kwargs['actions_in_sidebar'])  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
                 resources_acc_label = "Resources" if kwargs['actions_in_sidebar'] else "Sources/Agents"
-                resources_acc_visible = database_visible and (kwargs['actions_in_sidebar'] or not kwargs['actions_in_sidebar'] and not is_public)
+                resources_acc_visible = database_visible and (
+                            kwargs['actions_in_sidebar'] or not kwargs['actions_in_sidebar'] and not is_public)
                 with gr.Accordion(resources_acc_label, open=False, visible=resources_acc_visible):
                     langchain_choices0 = get_langchain_choices(selection_docs_state0)
                     serp_visible = os.environ.get('SERPAPI_API_KEY') is not None and have_serpapi
@@ -875,7 +878,8 @@ def go_gradio(**kwargs):
                             if not kwargs['actions_in_sidebar']:
                                 with gr.Row():
                                     add_chat_history_to_context = gr.Checkbox(label="Chat History",
-                                                                              value=kwargs['add_chat_history_to_context'])
+                                                                              value=kwargs[
+                                                                                  'add_chat_history_to_context'])
                                     add_search_to_context = gr.Checkbox(label="Web Search",
                                                                         value=kwargs['add_search_to_context'],
                                                                         visible=serp_visible)
@@ -1853,7 +1857,8 @@ def go_gradio(**kwargs):
         def clear_textbox():
             return gr.Textbox(value='')
 
-        update_user_db_url_func = functools.partial(update_db_func, is_url=True, is_txt=not kwargs['actions_in_sidebar'])
+        update_user_db_url_func = functools.partial(update_db_func, is_url=True,
+                                                    is_txt=not kwargs['actions_in_sidebar'])
 
         add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,
@@ -1869,13 +1874,25 @@ def go_gradio(**kwargs):
                               queue=queue,
                               api_name='add_url' if allow_upload_api else None)
 
-        eventdb2a = url_text.submit(fn=user_state_setup,
+        user_text_submit_kwargs = dict(fn=user_state_setup,
                                     inputs=[my_db_state, requests_state, url_text, url_text],
                                     outputs=[my_db_state, requests_state, url_text],
                                     queue=queue,
                                     show_progress='minimal')
+        eventdb2a = url_text.submit(**user_text_submit_kwargs)
         # work around https://github.com/gradio-app/gradio/issues/4733
         eventdb2 = eventdb2a.then(**add_url_kwargs, show_progress='full')
+
+        # small button version
+        add_url_kwargs_btn = add_url_kwargs.copy()
+        add_url_kwargs_btn.update(api_name='add_url_btn' if allow_upload_api else None)
+
+        def copy_text(instruction1):
+            return gr.Textbox(value=''), instruction1
+
+        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text])
+        eventdb2a_btn2 = eventdb2a_btn.then(**user_text_submit_kwargs)
+        eventdb2_btn = eventdb2a_btn2.then(**add_url_kwargs_btn, show_progress='full')
 
         update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
         add_text_outputs = [user_text_text, langchain_mode]
@@ -1901,6 +1918,7 @@ def go_gradio(**kwargs):
 
         db_events = [eventdb1a, eventdb1, eventdb1_api,
                      eventdb2a, eventdb2,
+                     eventdb2a_btn, eventdb2_btn,
                      eventdb3a, eventdb3]
         db_events.extend([event_attach1, event_attach2])
 
@@ -2598,6 +2616,12 @@ def go_gradio(**kwargs):
             eventdb2e = eventdb2d.then(**show_sources_kwargs)
             eventdb2f = eventdb2e.then(**get_viewable_sources_args)
             eventdb2g = eventdb2f.then(**viewable_kwargs)
+
+            eventdb2c_btn = eventdb2_btn.then(**get_sources_kwargs)
+            eventdb2d_btn = eventdb2c_btn.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
+            eventdb2e_btn = eventdb2d_btn.then(**show_sources_kwargs)
+            eventdb2f_btn = eventdb2e_btn.then(**get_viewable_sources_args)
+            eventdb2g_btn = eventdb2f_btn.then(**viewable_kwargs)
 
             eventdb1c = eventdb1.then(**get_sources_kwargs)
             eventdb1d = eventdb1c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
