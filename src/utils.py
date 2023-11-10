@@ -1353,7 +1353,7 @@ def lg_to_gr(
             image_audio_loaders_options0.append('CaptionBlip2')
         else:
             image_audio_loaders_options0.append('Caption')
-    if kwargs['enable_transcriptions']:
+    if have_librosa and kwargs['enable_transcriptions']:
         if kwargs['max_quality'] and n_gpus > 0:
             image_audio_loaders_options0.append('ASRLarge')
         else:
