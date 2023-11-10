@@ -838,6 +838,13 @@ def go_gradio(**kwargs):
                                             elem_id='prompt-form',
                                             container=True,
                                         )
+                                        add_button = gr.Button(
+                                            elem_id="add-button" if visible_upload else None,
+                                            value="",
+                                            label="URL/Text",
+                                            size="sm",
+                                            min_width=24,
+                                            visible=visible_upload)
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value="",
@@ -865,33 +872,35 @@ def go_gradio(**kwargs):
 
                             if not kwargs['actions_in_sidebar']:
                                 with gr.Row():
+                                    url_text = gr.Textbox(label='Add ' + url_label + '/Text',
+                                                          max_lines=1,
+                                                          interactive=True,
+                                                          elem_id='prompt-form',
+                                                          container=True)
+                                    user_text_text = gr.Textbox(label='Add Text',
+                                                                interactive=True,
+                                                                visible=False)
                                     add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                                               value=kwargs['add_chat_history_to_context'])
                                     add_search_to_context = gr.Checkbox(label="Web Search",
                                                                         value=kwargs['add_search_to_context'],
                                                                         visible=serp_visible)
-                                    max_quality = gr.Checkbox(label="Maximum Upload Quality",
+                                    max_quality = gr.Checkbox(label="Maximum Ingest Quality",
                                                               value=kwargs['max_quality'],
                                                               visible=not is_public)
                                     langchain_mode = gr.Radio(
                                         langchain_choices0,
                                         value=kwargs['langchain_mode'],
                                         label="Collections",
-                                        show_label=False,
+                                        show_label=True,
                                         visible=kwargs['langchain_mode'] != 'Disabled',
                                         min_width=100)
                                     langchain_action = gr.Radio(
                                         allowed_actions,
                                         value=default_action,
                                         label='Action',
-                                        show_label=False,
+                                        show_label=True,
                                         visible=True)
-                                    url_text = gr.Textbox(label='Add ' + url_label + '/Text',
-                                                          max_lines=1,
-                                                          interactive=True)
-                                    user_text_text = gr.Textbox(label='Add Text',
-                                                                interactive=True,
-                                                                visible=False)
 
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \

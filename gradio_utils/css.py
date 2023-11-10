@@ -91,6 +91,24 @@ def make_css_base() -> str:
         position: relative;
     }
     
+    #add-button {
+        position: absolute;
+        top: 45px;
+        right: 150px;
+        
+        display: flex;
+        justify-content: center;
+        border: 1px solid var(--primary-500) !important;
+        
+        @media (max-width: 563px) {
+          width: 76px;
+        }
+    }
+    
+    #add-button > img {
+        margin-right: 50;
+    }
+
     #attach-button {
         position: absolute;
         top: 45px;
@@ -100,8 +118,8 @@ def make_css_base() -> str:
         justify-content: center;
         border: 1px solid var(--primary-500) !important;
         
-        @media (max-width: 463px) {
-          width: 56px;
+        @media (max-width: 563px) {
+          width: 76px;
         }
     }
     
