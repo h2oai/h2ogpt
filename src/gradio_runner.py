@@ -715,18 +715,20 @@ def go_gradio(**kwargs):
                     if kwargs['actions_in_sidebar']:
                         max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
                                                   visible=not is_public)
-                        url_text = gr.Textbox(label=url_label,
-                                              # placeholder="Enter Submits",
-                                              max_lines=1,
-                                              interactive=True)
-                        user_text_text = gr.Textbox(label='Paste Text',
-                                                    # placeholder="Enter Submits",
-                                                    interactive=True,
-                                                    visible=text_visible)
-                        github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
+                    url_text = gr.Textbox(label=url_label,
+                                          # placeholder="Enter Submits",
+                                          max_lines=1,
+                                          interactive=True,
+                                          visible=kwargs['actions_in_sidebar'])
+                    user_text_text = gr.Textbox(label='Paste Text',
+                                                # placeholder="Enter Submits",
+                                                interactive=True,
+                                                visible=text_visible and kwargs['actions_in_sidebar'])
+                    github_textbox = gr.Textbox(label="Github URL", visible=False and kwargs['actions_in_sidebar'])  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
                 resources_acc_label = "Resources" if kwargs['actions_in_sidebar'] else "Sources/Agents"
-                with gr.Accordion(resources_acc_label, open=False, visible=database_visible):
+                resources_acc_visible = database_visible and (kwargs['actions_in_sidebar'] or not kwargs['actions_in_sidebar'] and not is_public)
+                with gr.Accordion(resources_acc_label, open=False, visible=resources_acc_visible):
                     langchain_choices0 = get_langchain_choices(selection_docs_state0)
                     serp_visible = os.environ.get('SERPAPI_API_KEY') is not None and have_serpapi
                     allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
@@ -829,7 +831,7 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     with gr.Row(elem_id="prompt-form-row"):
-                                        label_instruction = 'Ask anything'
+                                        label_instruction = 'Ask anything or Add URL/Text'
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
@@ -840,8 +842,7 @@ def go_gradio(**kwargs):
                                         )
                                         add_button = gr.Button(
                                             elem_id="add-button" if visible_upload else None,
-                                            value="",
-                                            label="URL/Text",
+                                            value="Add as URL/Text",
                                             size="sm",
                                             min_width=24,
                                             visible=visible_upload)
@@ -872,14 +873,6 @@ def go_gradio(**kwargs):
 
                             if not kwargs['actions_in_sidebar']:
                                 with gr.Row():
-                                    url_text = gr.Textbox(label='Add ' + url_label + '/Text',
-                                                          max_lines=1,
-                                                          interactive=True,
-                                                          elem_id='prompt-form',
-                                                          container=True)
-                                    user_text_text = gr.Textbox(label='Add Text',
-                                                                interactive=True,
-                                                                visible=False)
                                     add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                                               value=kwargs['add_chat_history_to_context'])
                                     add_search_to_context = gr.Checkbox(label="Web Search",
@@ -892,14 +885,14 @@ def go_gradio(**kwargs):
                                         langchain_choices0,
                                         value=kwargs['langchain_mode'],
                                         label="Collections",
-                                        show_label=True,
+                                        show_label=False,
                                         visible=kwargs['langchain_mode'] != 'Disabled',
                                         min_width=100)
                                     langchain_action = gr.Radio(
                                         allowed_actions,
                                         value=default_action,
                                         label='Action',
-                                        show_label=True,
+                                        show_label=False,
                                         visible=True)
 
                             visible_model_choice = bool(kwargs['model_lock']) and \

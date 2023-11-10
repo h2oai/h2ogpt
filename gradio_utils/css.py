@@ -94,7 +94,7 @@ def make_css_base() -> str:
     #add-button {
         position: absolute;
         top: 45px;
-        right: 150px;
+        right: 130px;
         
         display: flex;
         justify-content: center;
