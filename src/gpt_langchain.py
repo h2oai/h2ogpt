@@ -2062,12 +2062,37 @@ def file_to_doc(file,
                 from_ui=True,
                 ):
 
+    # SOME AUTODETECTION LOGIC FOR URL VS TEXT
+
+    file_stripped = file.strip()  # in case accidental spaces in front or at end
+    if file_stripped == '':
+        raise ValueError("Refusing to accept empty data")
+    file_lower = file_stripped.lower()
+    case1_arxiv = file_lower.startswith('arxiv:') and len(file_lower.split('arxiv:')) == 2
+    case2_arxiv = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
+    case3_arxiv = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
+    case4_arxiv = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
+
+    case1_youtube = file_lower.startswith('https://www.youtube.com/watch?v=') and len(
+        file_lower.split('https://www.youtube.com/watch?v=')) == 2
+    case2_youtube = file_lower.startswith('http://www.youtube.com/watch?v=') and len(
+        file_lower.split('http://www.youtube.com/watch?v=')) == 2
+    case3_youtube = file_lower.startswith('www.youtube.com/watch?v=') and len(
+        file_lower.split('www.youtube.com/watch?v=')) == 2
+    case4_youtube = file_lower.startswith('youtube.com/watch?v=') and len(
+        file_lower.split('youtube.com/watch?v=')) == 2
+
     if is_url and is_txt:
         # decide which
-        file_test = return_good_url(file)
-        if file_test is None:
-            is_url = False
-            is_txt = True
+        if case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv or \
+                case1_youtube or case2_youtube or case3_youtube or case4_youtube:
+            # force
+            is_txt = False
+        else:
+            file_test = return_good_url(file_stripped)
+            if file_test is None:
+                is_url = False
+                is_txt = True
 
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
@@ -2154,30 +2179,14 @@ def file_to_doc(file,
             file = source_file
 
     if is_url:
-        file = file.strip()  # in case accidental spaces in front or at end
-        file_lower = file.lower()
-        case1 = file_lower.startswith('arxiv:') and len(file_lower.split('arxiv:')) == 2
-        case2 = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
-        case3 = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
-        case4 = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
-
-        case_youtube1 = file_lower.startswith('https://www.youtube.com/watch?v=') and len(
-            file_lower.split('https://www.youtube.com/watch?v=')) == 2
-        case_youtube2 = file_lower.startswith('http://www.youtube.com/watch?v=') and len(
-            file_lower.split('http://www.youtube.com/watch?v=')) == 2
-        case_youtube3 = file_lower.startswith('www.youtube.com/watch?v=') and len(
-            file_lower.split('www.youtube.com/watch?v=')) == 2
-        case_youtube4 = file_lower.startswith('youtube.com/watch?v=') and len(
-            file_lower.split('youtube.com/watch?v=')) == 2
-
-        if case1 or case2 or case3 or case4:
-            if case1:
+        if case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv:
+            if case1_arxiv:
                 query = file.lower().split('arxiv:')[1].strip()
-            elif case2:
+            elif case2_arxiv:
                 query = file.lower().split('https://arxiv.org/abs/')[1].strip()
-            elif case2:
+            elif case2_arxiv:
                 query = file.lower().split('http://arxiv.org/abs/')[1].strip()
-            elif case3:
+            elif case3_arxiv:
                 query = file.lower().split('arxiv.org/abs/')[1].strip()
             else:
                 raise RuntimeError("Unexpected arxiv error for %s" % file)
@@ -2201,7 +2210,7 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
-        elif (case_youtube1 or case_youtube2 or case_youtube3 or case_youtube4) and enable_transcriptions:
+        elif (case1_youtube or case2_youtube or case3_youtube or case4_youtube) and enable_transcriptions:
             docs1 = []
             if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
