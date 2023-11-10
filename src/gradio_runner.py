@@ -714,7 +714,7 @@ def go_gradio(**kwargs):
                                             elem_id="warning", elem_classes="feedback",
                                             )
                     if kwargs['actions_in_sidebar']:
-                        max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
+                        max_quality = gr.Checkbox(label="Max Ingest Quality", value=kwargs['max_quality'],
                                                   visible=not is_public)
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
@@ -727,24 +727,34 @@ def go_gradio(**kwargs):
                                                 visible=text_visible and kwargs['actions_in_sidebar'])
                     github_textbox = gr.Textbox(label="Github URL",
                                                 visible=False and kwargs['actions_in_sidebar'])  # FIXME WIP
-                database_visible = kwargs['langchain_mode'] != 'Disabled'
-                resources_acc_label = "Resources" if kwargs['actions_in_sidebar'] else "Sources/Agents"
-                resources_acc_visible = database_visible and (
-                            kwargs['actions_in_sidebar'] or not kwargs['actions_in_sidebar'] and not is_public)
-                with gr.Accordion(resources_acc_label, open=False, visible=resources_acc_visible):
-                    langchain_choices0 = get_langchain_choices(selection_docs_state0)
-                    serp_visible = os.environ.get('SERPAPI_API_KEY') is not None and have_serpapi
-                    allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
-                    default_action = allowed_actions[0] if len(allowed_actions) > 0 else None
 
+                database_visible = kwargs['langchain_mode'] != 'Disabled'
+                resources_acc_visible = database_visible and (
+                        kwargs['actions_in_sidebar'] or not kwargs['actions_in_sidebar'] and not is_public)
+                langchain_choices0 = get_langchain_choices(selection_docs_state0)
+                serp_visible = os.environ.get('SERPAPI_API_KEY') is not None and have_serpapi
+                allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
+                default_action = allowed_actions[0] if len(allowed_actions) > 0 else None
+
+                max_quality = gr.Checkbox(label="Max Ingest Quality",
+                                          value=kwargs['max_quality'],
+                                          visible=not is_public)
+                if not kwargs['actions_in_sidebar']:
+                    add_chat_history_to_context = gr.Checkbox(label="Include Chat History",
+                                                              value=kwargs[
+                                                                  'add_chat_history_to_context'])
+                    add_search_to_context = gr.Checkbox(label="Include Web Search",
+                                                        value=kwargs['add_search_to_context'],
+                                                        visible=serp_visible)
+                with gr.Accordion("Resources", open=False, visible=resources_acc_visible):
+                    langchain_mode = gr.Radio(
+                        langchain_choices0,
+                        value=kwargs['langchain_mode'],
+                        label="Collections",
+                        show_label=True,
+                        visible=kwargs['langchain_mode'] != 'Disabled',
+                        min_width=100)
                     if kwargs['actions_in_sidebar']:
-                        langchain_mode = gr.Radio(
-                            langchain_choices0,
-                            value=kwargs['langchain_mode'],
-                            label="Collections",
-                            show_label=True,
-                            visible=kwargs['langchain_mode'] != 'Disabled',
-                            min_width=100)
                         add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                                   value=kwargs['add_chat_history_to_context'])
                         add_search_to_context = gr.Checkbox(label="Web Search",
@@ -855,7 +865,7 @@ def go_gradio(**kwargs):
                                             visible=visible_upload)
                                         add_button = gr.Button(
                                             elem_id="add-button" if visible_upload else None,
-                                            value="Add URL/Text",
+                                            value="Add as URL/Text",
                                             size="sm",
                                             min_width=mw0,
                                             visible=visible_upload and False)
@@ -875,35 +885,10 @@ def go_gradio(**kwargs):
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
 
-                            if not kwargs['actions_in_sidebar']:
-                                with gr.Row():
-                                    add_chat_history_to_context = gr.Checkbox(label="Chat History",
-                                                                              value=kwargs[
-                                                                                  'add_chat_history_to_context'])
-                                    add_search_to_context = gr.Checkbox(label="Web Search",
-                                                                        value=kwargs['add_search_to_context'],
-                                                                        visible=serp_visible)
-                                    max_quality = gr.Checkbox(label="Maximum Ingest Quality",
-                                                              value=kwargs['max_quality'],
-                                                              visible=not is_public)
-                                    langchain_mode = gr.Radio(
-                                        langchain_choices0,
-                                        value=kwargs['langchain_mode'],
-                                        label="Collections",
-                                        show_label=False,
-                                        visible=kwargs['langchain_mode'] != 'Disabled',
-                                        min_width=100)
-                                    langchain_action = gr.Radio(
-                                        allowed_actions,
-                                        value=default_action,
-                                        label='Action',
-                                        show_label=False,
-                                        visible=True)
-
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
-                            with gr.Row(visible=visible_model_choice):
+                            with gr.Row(visible=not kwargs['actions_in_sidebar'] or visible_model_choice):
                                 visible_models = gr.Dropdown(kwargs['all_possible_visible_models'],
                                                              label="Visible Models",
                                                              value=visible_models_state0,
@@ -913,6 +898,16 @@ def go_gradio(**kwargs):
                                                              elem_id="multi-selection",
                                                              filterable=False,
                                                              )
+                                mw0 = 100
+                                with gr.Column(min_width=mw0):
+                                    if not kwargs['actions_in_sidebar']:
+                                        langchain_action = gr.Radio(
+                                            allowed_actions,
+                                            value=default_action,
+                                            label='Action',
+                                            show_label=True,
+                                            visible=True,
+                                            min_width=mw0)
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
@@ -1875,10 +1870,10 @@ def go_gradio(**kwargs):
                               api_name='add_url' if allow_upload_api else None)
 
         user_text_submit_kwargs = dict(fn=user_state_setup,
-                                    inputs=[my_db_state, requests_state, url_text, url_text],
-                                    outputs=[my_db_state, requests_state, url_text],
-                                    queue=queue,
-                                    show_progress='minimal')
+                                       inputs=[my_db_state, requests_state, url_text, url_text],
+                                       outputs=[my_db_state, requests_state, url_text],
+                                       queue=queue,
+                                       show_progress='minimal')
         eventdb2a = url_text.submit(**user_text_submit_kwargs)
         # work around https://github.com/gradio-app/gradio/issues/4733
         eventdb2 = eventdb2a.then(**add_url_kwargs, show_progress='full')
