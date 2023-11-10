@@ -53,7 +53,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, get_ngpus_vis, have_librosa
+    get_test_name_core, download_simple, get_ngpus_vis, have_librosa, return_good_url
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -2061,6 +2061,14 @@ def file_to_doc(file,
                 is_public=False,
                 from_ui=True,
                 ):
+
+    if is_url and is_txt:
+        # decide which
+        file_test = return_good_url(file)
+        if file_test is None:
+            is_url = False
+            is_txt = True
+
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
         set_image_audio_types1 = set_image_types.intersection(set(selected_file_types))
@@ -2818,7 +2826,9 @@ def path_to_doc1(file,
                  ):
     assert db_type is not None
     if verbose:
-        if is_url:
+        if is_url and is_txt:
+            print("Ingesting URL or Text: %s" % file, flush=True)
+        elif is_url:
             print("Ingesting URL: %s" % file, flush=True)
         elif is_txt:
             print("Ingesting Text: %s" % file, flush=True)
@@ -2877,7 +2887,9 @@ def path_to_doc1(file,
                           "traceback": traceback.format_exc()})
             res = [exception_doc]
     if verbose:
-        if is_url:
+        if is_url and is_txt:
+            print("DONE Ingesting URL or Text: %s" % file, flush=True)
+        elif is_url:
             print("DONE Ingesting URL: %s" % file, flush=True)
         elif is_txt:
             print("DONE Ingesting Text: %s" % file, flush=True)
@@ -2952,6 +2964,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
     if not path_or_paths and not url and not text:
         return []
     elif url:
+        # ok if text too
         url = get_list_or_str(url)
         globs_non_image_types = url if isinstance(url, (list, tuple, types.GeneratorType)) else [url]
     elif text:
@@ -6228,7 +6241,7 @@ def _update_user_db(file,
 
     # expect string comparison, if dict then model object with name and get name not dict or model
     hf_embedding_model_str = get_hf_embedding_model_name(hf_embedding_model)
-    if is_txt and hf_embedding_model_str == 'fake':
+    if not is_url and is_txt and hf_embedding_model_str == 'fake':
         # avoid parallel if fake embedding since assume trivial ingestion
         n_jobs = 1
 

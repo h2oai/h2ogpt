@@ -61,7 +61,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis
+    get_ngpus_vis, have_librosa
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -692,59 +692,70 @@ def go_gradio(**kwargs):
                                            visible=True, interactive=True,
                                            type='value')
                 upload_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload
-                with gr.Accordion("Upload", open=False, visible=upload_visible):
-                    with gr.Column():
-                        with gr.Row(equal_height=False):
-                            fileup_output = gr.File(show_label=False,
-                                                    file_types=['.' + x for x in file_types],
-                                                    # file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
-                                                    file_count="multiple",
-                                                    scale=1,
-                                                    min_width=0,
-                                                    elem_id="warning", elem_classes="feedback",
-                                                    )
-                            fileup_output_text = gr.Textbox(visible=False)
-                    max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
-                                              visible=not is_public)
-                    url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
-                    url_label = 'URLs/ArXiv' if have_arxiv else 'URLs'
-                    url_text = gr.Textbox(label=url_label,
-                                          # placeholder="Enter Submits",
-                                          max_lines=1,
-                                          interactive=True)
-                    text_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload
-                    user_text_text = gr.Textbox(label='Paste Text',
-                                                # placeholder="Enter Submits",
-                                                interactive=True,
-                                                visible=text_visible)
-                    github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
+                url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
+                if have_arxiv and have_librosa:
+                    url_label = 'URLs/ArXiv/Youtube'
+                elif have_arxiv:
+                    url_label = 'URLs/ArXiv'
+                elif have_librosa:
+                    url_label = 'URLs/Youtube'
+                else:
+                    url_label = 'URLs'
+                text_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload
+                fileup_output_text = gr.Textbox(visible=False)
+                with gr.Accordion("Add URLs/Texts", open=False, visible=upload_visible and kwargs['actions_in_sidebar']):
+                    fileup_output = gr.File(show_label=False,
+                                            file_types=['.' + x for x in file_types],
+                                            # file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
+                                            file_count="multiple",
+                                            scale=1,
+                                            min_width=0,
+                                            elem_id="warning", elem_classes="feedback",
+                                            )
+                    if kwargs['actions_in_sidebar']:
+                        max_quality = gr.Checkbox(label="Maximum Ingest Quality", value=kwargs['max_quality'],
+                                                  visible=not is_public)
+                        url_text = gr.Textbox(label=url_label,
+                                              # placeholder="Enter Submits",
+                                              max_lines=1,
+                                              interactive=True)
+                        user_text_text = gr.Textbox(label='Paste Text',
+                                                    # placeholder="Enter Submits",
+                                                    interactive=True,
+                                                    visible=text_visible)
+                        github_textbox = gr.Textbox(label="Github URL", visible=False)  # FIXME WIP
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
-                with gr.Accordion("Resources", open=False, visible=database_visible):
+                resources_acc_label = "Resources" if kwargs['actions_in_sidebar'] else "Sources/Agents"
+                with gr.Accordion(resources_acc_label, open=False, visible=database_visible):
                     langchain_choices0 = get_langchain_choices(selection_docs_state0)
-                    langchain_mode = gr.Radio(
-                        langchain_choices0,
-                        value=kwargs['langchain_mode'],
-                        label="Collections",
-                        show_label=True,
-                        visible=kwargs['langchain_mode'] != 'Disabled',
-                        min_width=100)
-                    add_chat_history_to_context = gr.Checkbox(label="Chat History",
-                                                              value=kwargs['add_chat_history_to_context'])
-                    add_search_to_context = gr.Checkbox(label="Web Search",
-                                                        value=kwargs['add_search_to_context'],
-                                                        visible=os.environ.get('SERPAPI_API_KEY') is not None \
-                                                                and have_serpapi)
+                    serp_visible = os.environ.get('SERPAPI_API_KEY') is not None and have_serpapi
+                    allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
+                    default_action = allowed_actions[0] if len(allowed_actions) > 0 else None
+
+                    if kwargs['actions_in_sidebar']:
+                        langchain_mode = gr.Radio(
+                            langchain_choices0,
+                            value=kwargs['langchain_mode'],
+                            label="Collections",
+                            show_label=True,
+                            visible=kwargs['langchain_mode'] != 'Disabled',
+                            min_width=100)
+                        add_chat_history_to_context = gr.Checkbox(label="Chat History",
+                                                                  value=kwargs['add_chat_history_to_context'])
+                        add_search_to_context = gr.Checkbox(label="Web Search",
+                                                            value=kwargs['add_search_to_context'],
+                                                            visible=serp_visible)
                     document_subset = gr.Radio([x.name for x in DocumentSubset],
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,
                                                interactive=True,
                                                )
-                    allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
-                    langchain_action = gr.Radio(
-                        allowed_actions,
-                        value=allowed_actions[0] if len(allowed_actions) > 0 else None,
-                        label="Action",
-                        visible=True)
+                    if kwargs['actions_in_sidebar']:
+                        langchain_action = gr.Radio(
+                            allowed_actions,
+                            value=default_action,
+                            label="Action",
+                            visible=True)
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     if os.getenv('OPENAI_API_KEY') is None and LangChainAgent.JSON.value in allowed_agents:
                         allowed_agents.remove(LangChainAgent.JSON.value)
@@ -851,6 +862,36 @@ def go_gradio(**kwargs):
                                         retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
+
+                            if not kwargs['actions_in_sidebar']:
+                                with gr.Row():
+                                    add_chat_history_to_context = gr.Checkbox(label="Chat History",
+                                                                              value=kwargs['add_chat_history_to_context'])
+                                    add_search_to_context = gr.Checkbox(label="Web Search",
+                                                                        value=kwargs['add_search_to_context'],
+                                                                        visible=serp_visible)
+                                    max_quality = gr.Checkbox(label="Maximum Upload Quality",
+                                                              value=kwargs['max_quality'],
+                                                              visible=not is_public)
+                                    langchain_mode = gr.Radio(
+                                        langchain_choices0,
+                                        value=kwargs['langchain_mode'],
+                                        label="Collections",
+                                        show_label=False,
+                                        visible=kwargs['langchain_mode'] != 'Disabled',
+                                        min_width=100)
+                                    langchain_action = gr.Radio(
+                                        allowed_actions,
+                                        value=default_action,
+                                        label='Action',
+                                        show_label=False,
+                                        visible=True)
+                                    url_text = gr.Textbox(label='Add ' + url_label + '/Text',
+                                                          max_lines=1,
+                                                          interactive=True)
+                                    user_text_text = gr.Textbox(label='Add Text',
+                                                                interactive=True,
+                                                                visible=False)
 
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
@@ -1809,7 +1850,7 @@ def go_gradio(**kwargs):
         def clear_textbox():
             return gr.Textbox(value='')
 
-        update_user_db_url_func = functools.partial(update_db_func, is_url=True)
+        update_user_db_url_func = functools.partial(update_db_func, is_url=True, is_txt=not kwargs['actions_in_sidebar'])
 
         add_url_outputs = [url_text, langchain_mode]
         add_url_kwargs = dict(fn=update_user_db_url_func,

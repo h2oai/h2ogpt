@@ -257,6 +257,7 @@ def main(
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
         visible_all_prompter_models: bool = False,
+        actions_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
 
