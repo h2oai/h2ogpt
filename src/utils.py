@@ -770,7 +770,7 @@ def get_ngpus_vis(raise_if_exception=True):
     if ngpus_vis1 is None:
         import torch
         if get_device() == 'cuda':
-            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available else 0
+            ngpus_vis1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
         else:
             ngpus_vis1 = 0
 

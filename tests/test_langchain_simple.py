@@ -44,7 +44,7 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
         tokenizer_loader = AutoTokenizer
 
     load_in_8bit = True
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'
     device_map = {"": 0} if device == 'cuda' else "auto"
     tokenizer = tokenizer_loader.from_pretrained(model_name, padding_side="left")
