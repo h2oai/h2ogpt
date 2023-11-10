@@ -1389,7 +1389,7 @@ def lg_to_gr(
             url_loaders_options.append('PlayWright')
     url_loaders_options0 = [url_loaders_options[0]]
 
-    assert set(image_audio_loaders_options0).issubset(image_audio_loaders_options)
+    assert set(image_audio_loaders_options0).issubset(image_audio_loaders_options), "%s %s" % (image_audio_loaders_options0, image_audio_loaders_options)
     assert set(pdf_loaders_options0).issubset(pdf_loaders_options)
     assert set(url_loaders_options0).issubset(url_loaders_options)
 
