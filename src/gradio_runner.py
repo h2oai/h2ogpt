@@ -577,9 +577,9 @@ def go_gradio(**kwargs):
         else:
             extra_prompt_form = ""
         if kwargs['input_lines'] > 1:
-            instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
+            instruction_label = "Shift-Enter to Submit Query, Enter for more lines%s" % extra_prompt_form
         else:
-            instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
+            instruction_label = "Enter to Submit Query, Shift-Enter for more lines%s" % extra_prompt_form
 
         def get_langchain_choices(selection_docs_state1):
             langchain_modes = selection_docs_state1['langchain_modes']
@@ -840,21 +840,22 @@ def go_gradio(**kwargs):
                                             elem_id='prompt-form',
                                             container=True,
                                         )
-                                        add_button = gr.Button(
-                                            elem_id="add-button" if visible_upload else None,
-                                            value="Add as URL/Text",
-                                            size="sm",
-                                            min_width=24,
-                                            visible=visible_upload)
+                                        mw0 = 20
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value="",
                                             label="Upload File(s)",
                                             size="sm",
-                                            min_width=24,
+                                            min_width=mw0,
                                             file_types=['.' + x for x in file_types],
                                             file_count="multiple",
                                             visible=visible_upload)
+                                        add_button = gr.Button(
+                                            elem_id="add-button" if visible_upload else None,
+                                            value="Add URL/Text",
+                                            size="sm",
+                                            min_width=mw0,
+                                            visible=visible_upload and False)
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
