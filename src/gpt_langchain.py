@@ -2699,7 +2699,7 @@ def file_to_doc(file,
             zip_ref.extractall(base_path)
             # recurse
             doc1 = path_to_docs_func(base_path)
-    elif file.lower().endswith('.tar.gz'):
+    elif file.lower().endswith('.tar.gz') or file.lower().endswith('.tgz'):
         with tarfile.open(file, 'r') as tar_ref:
             # don't put into temporary path, since want to keep references to docs inside tar.gz
             # so just extract in path where
