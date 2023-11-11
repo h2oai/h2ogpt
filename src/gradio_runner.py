@@ -730,8 +730,6 @@ def go_gradio(**kwargs):
                                                 visible=False and kwargs['actions_in_sidebar'])  # FIXME WIP
 
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
-                resources_acc_visible = database_visible and (
-                        kwargs['actions_in_sidebar'] or not kwargs['actions_in_sidebar'] and not is_public)
                 langchain_choices0 = get_langchain_choices(selection_docs_state0)
                 serp_visible = os.environ.get('SERPAPI_API_KEY') is not None and have_serpapi
                 allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
@@ -748,14 +746,19 @@ def go_gradio(**kwargs):
                     add_search_to_context = gr.Checkbox(label="Include Web Search",
                                                         value=kwargs['add_search_to_context'],
                                                         visible=serp_visible)
-                with gr.Accordion("Resources", open=False, visible=resources_acc_visible):
-                    langchain_mode = gr.Radio(
-                        langchain_choices0,
+                resources_acc_label = "Resources" if not is_public else "Collections"
+                langchain_mode_radio_kwargs = dict(
+                        choices=langchain_choices0,
                         value=kwargs['langchain_mode'],
                         label="Collections",
                         show_label=True,
                         visible=kwargs['langchain_mode'] != 'Disabled',
                         min_width=100)
+                if is_public:
+                    langchain_mode = gr.Radio(**langchain_mode_radio_kwargs)
+                with gr.Accordion(resources_acc_label, open=False, visible=database_visible and not is_public):
+                    if not is_public:
+                        langchain_mode = gr.Radio(**langchain_mode_radio_kwargs)
                     if kwargs['actions_in_sidebar']:
                         add_chat_history_to_context = gr.Checkbox(label="Chat History",
                                                                   value=kwargs['add_chat_history_to_context'])
@@ -766,6 +769,7 @@ def go_gradio(**kwargs):
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,
                                                interactive=True,
+                                               visible=not is_public,
                                                )
                     if kwargs['actions_in_sidebar']:
                         langchain_action = gr.Radio(
@@ -786,7 +790,7 @@ def go_gradio(**kwargs):
                         label="Agents",
                         multiselect=True,
                         interactive=True,
-                        visible=True,
+                        visible=not is_public,
                         elem_id="langchain_agents",
                         filterable=False)
                 visible_doc_track = upload_visible and kwargs['visible_doc_track'] and not kwargs[
