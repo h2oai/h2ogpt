@@ -2256,8 +2256,8 @@ def file_to_doc(file,
             if only_unstructured_urls or only_playwright:
                 do_selenium = False
             if do_unstructured or use_unstructured:
-                docs1a = UnstructuredURLLoader(urls=[file]).load()
-                docs1a = [x for x in docs1a if x.page_content]
+                docs1a = UnstructuredURLLoader(urls=[file], headers=dict(ssl_verify="False")).load()
+                docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
                 add_parser(docs1a, 'UnstructuredURLLoader')
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
@@ -2265,7 +2265,7 @@ def file_to_doc(file,
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1a = asyncio.run(PlaywrightURLLoader(urls=[file]).aload())
                 # docs1 = PlaywrightURLLoader(urls=[file]).load()
-                docs1a = [x for x in docs1a if x.page_content]
+                docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
                 add_parser(docs1a, 'PlaywrightURLLoader')
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_selenium or do_selenium:
@@ -2276,7 +2276,7 @@ def file_to_doc(file,
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1a = SeleniumURLLoader(urls=[file]).load()
-                    docs1a = [x for x in docs1a if x.page_content]
+                    docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
                     add_parser(docs1a, 'SeleniumURLLoader')
                     docs1.extend(docs1a)
                 except WebDriverException as e:

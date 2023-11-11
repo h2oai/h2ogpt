@@ -1333,7 +1333,9 @@ def return_good_url(url):
         except Exception as e:
             response = None
             url_test = None
-        if response is not None and response.status_code < 400:
+        if response is not None:
+            # and response.status_code < 400:
+            # don't do status check, if got status, then is real URL regardless of goodness, not text
             return url_test
     return None
 
