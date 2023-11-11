@@ -2091,7 +2091,6 @@ def file_to_doc(file,
         if ' ' in file_stripped:
             # can't have literal space in URL
             is_url = False
-            is_txt = True
         elif case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv or \
                 case1_youtube or case2_youtube or case3_youtube or case4_youtube:
             # force
@@ -2100,7 +2099,8 @@ def file_to_doc(file,
             file_test = return_good_url(file_stripped)
             if file_test is None:
                 is_url = False
-                is_txt = True
+            else:
+                is_txt = False
 
     assert isinstance(model_loaders, dict)
     if selected_file_types is not None:
