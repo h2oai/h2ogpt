@@ -136,6 +136,10 @@ prompt_type_to_model_name = {
     "aquila_legacy": ['BAAI/AquilaChat2-34B'],
     "aquila_v1": ['BAAI/AquilaChat2-7B'],
     "mistralgerman": ['TheBloke/em_german_leo_mistral-GPTQ'],
+    "deepseek_coder": ['deepseek-ai/deepseek-coder-1.3b-instruct',
+                       'deepseek-ai/deepseek-coder-6.7b-instruct',
+                       'deepseek-ai/deepseek-coder-33b-instruct',
+                       ],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
@@ -962,6 +966,23 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = PreResponse
         if making_context:
             PreResponse = botstr + ''
+    elif prompt_type in [PromptType.deepseek_coder.value, str(PromptType.deepseek_coder.value),
+                         PromptType.deepseek_coder.name]:
+        # https://huggingface.co/deepseek-ai/deepseek-coder-33b-instruct
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer.\n"
+        promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
+        PreInput = None
+        PreInstruct = "### Instruction:\n"
+        PreResponse = "### Response:\n"
+        eos = '<｜end▁of▁sentence｜>'
+        terminate_response = [PreResponse, eos]
+        chat_sep = '\n'
+        chat_turn_sep = '\n<|EOT|>\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse += ""
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

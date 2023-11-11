@@ -160,31 +160,27 @@ Falcon: I'm good
 User: Go to the market?
 Falcon:"""
 
-
 # below doesn't actually work for xin, use alternative that works
-#prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
+# prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello! ASSISTANT: Hi!</s>USER: How are you? ASSISTANT: I'm good</s>USER: Go to the market? ASSISTANT:"""
 prompt_xwin = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Hello!\nASSISTANT: Hi!\nUSER: How are you?\nASSISTANT: I'm good\nUSER: Go to the market?\nASSISTANT:"""
 
-
 messages_with_context = [
-        {"role": "user", "content": "Hello!"},
-        {"role": "assistant", "content": "Hi!"},
-        {"role": "user", "content": "How are you?"},
-        {"role": "assistant", "content": "I'm good"},
-        {"role": "user", "content": "Go to the market?"},
-    ]
+    {"role": "user", "content": "Hello!"},
+    {"role": "assistant", "content": "Hi!"},
+    {"role": "user", "content": "How are you?"},
+    {"role": "assistant", "content": "I'm good"},
+    {"role": "user", "content": "Go to the market?"},
+]
 
 
-def get_mistral_prompt(messages):
+def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1"):
     from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
-    prompt_mistral = tokenizer.apply_chat_template(messages, tokenize=False)
-    return prompt_mistral
+    tokenizer = AutoTokenizer.from_pretrained(model)
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+    return prompt
 
 
 def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=True):
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("BAAI/AquilaChat2-34B-16K")
     from models.predict_aquila import get_conv_template
 
     template_map = {"AquilaChat2-7B": "aquila-v1",
@@ -226,12 +222,18 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              ('beluga', 'auto', None, prompt_beluga_sys),
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
-                             ('mistral', '', None, get_mistral_prompt(messages_with_context)),
+                             ('mistral', '', None, get_prompt_from_messages(messages_with_context)),
                              ('xwin', 'auto', None, prompt_xwin),
-                             ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False, model_base_name='AquilaChat2-34B-16K')),
-                             ('aquila', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-34B-16K')),
-                             ('aquila_legacy', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-34B')),
-                             ('aquila_v1', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True, model_base_name='AquilaChat2-7B')),
+                             ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False,
+                                                                    model_base_name='AquilaChat2-34B-16K')),
+                             ('aquila', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True,
+                                                                        model_base_name='AquilaChat2-34B-16K')),
+                             ('aquila_legacy', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True,
+                                                                               model_base_name='AquilaChat2-34B')),
+                             ('aquila_v1', 'auto', None, get_aquila_prompt(messages_with_context, with_sys=True,
+                                                                           model_base_name='AquilaChat2-7B')),
+                             ('deepseek_coder', 'auto', None, get_prompt_from_messages(messages_with_context,
+                                                                                       model='deepseek-ai/deepseek-coder-33b-instruct')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -350,16 +352,14 @@ prompt_falcon1801_sys = """System: You are an intelligent and helpful assistant.
 User: Go to the market?
 Falcon:"""
 
-
 prompt_xwin1 = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: Go to the market?
 ASSISTANT:"""
-
 
 prompt_mistrallite = """<|prompter|>Go to the market?</s><|assistant|>"""
 
 messages_no_context = [
-        {"role": "user", "content": "Go to the market?"},
-    ]
+    {"role": "user", "content": "Go to the market?"},
+]
 
 
 @pytest.mark.parametrize("prompt_type,system_prompt,expected",
@@ -377,12 +377,16 @@ messages_no_context = [
                              ('beluga', 'auto', prompt_beluga1_sys),
                              ('falcon_chat', '', prompt_falcon1801),
                              ('falcon_chat', 'auto', prompt_falcon1801_sys),
-                             ('mistral', '', get_mistral_prompt(messages_no_context)),
+                             ('mistral', '', get_prompt_from_messages(messages_no_context)),
+                             ('deepseek_coder', 'auto', get_prompt_from_messages(messages_no_context,
+                                                                                 model='deepseek-ai/deepseek-coder-33b-instruct')),
                              ('xwin', 'auto', prompt_xwin1),
                              ('mistrallite', '', prompt_mistrallite),
                              ('aquila', 'auto', get_aquila_prompt(messages_no_context, with_sys=True)),
-                             ('aquila_legacy', 'auto', get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-34B')),
-                             ('aquila_v1', 'auto', get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-7B')),
+                             ('aquila_legacy', 'auto',
+                              get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-34B')),
+                             ('aquila_v1', 'auto',
+                              get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-7B')),
                          ]
                          )
 @wrap_test_forked
