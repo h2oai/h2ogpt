@@ -864,11 +864,12 @@ def go_gradio(**kwargs):
                                             file_count="multiple",
                                             visible=visible_upload)
                                         add_button = gr.Button(
-                                            elem_id="add-button" if visible_upload else None,
+                                            elem_id="add-button" if visible_upload and not kwargs[
+                                                'actions_in_sidebar'] else None,
                                             value="Ingest as URL/Text",
                                             size="sm",
                                             min_width=mw0,
-                                            visible=visible_upload and False)
+                                            visible=visible_upload and not kwargs['actions_in_sidebar'])
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
