@@ -2066,7 +2066,6 @@ def file_to_doc(file,
                 is_public=False,
                 from_ui=True,
                 ):
-
     # SOME AUTODETECTION LOGIC FOR URL VS TEXT
 
     file_stripped = file.strip()  # in case accidental spaces in front or at end
@@ -2089,7 +2088,11 @@ def file_to_doc(file,
 
     if is_url and is_txt:
         # decide which
-        if case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv or \
+        if ' ' in file_stripped:
+            # can't have literal space in URL
+            is_url = False
+            is_txt = True
+        elif case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv or \
                 case1_youtube or case2_youtube or case3_youtube or case4_youtube:
             # force
             is_txt = False
