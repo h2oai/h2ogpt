@@ -1932,6 +1932,9 @@ def get_model(
     llama_type = llama_type_from_config or llama_type_from_name
     if "xgen" in base_model.lower() or 'llama2' in base_model.lower() or 'llama-2' in base_model.lower():
         llama_type = False
+    if os.getenv("listen_llama") is None:
+        # only old models need this, avoid unless override with ENV
+        llama_type = False
     if llama_type:
         if verbose:
             print("Detected as llama type from"

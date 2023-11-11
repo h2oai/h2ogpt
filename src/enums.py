@@ -46,6 +46,7 @@ class PromptType(Enum):
     aquila_legacy = 40
     aquila_v1 = 41
     mistralgerman = 42
+    deepseek_coder = 43
 
 
 class DocumentSubset(Enum):
