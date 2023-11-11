@@ -66,12 +66,11 @@ Supports CPU and MPS (Metal M1/M2).
   pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.14-cp310-cp310-macosx_11_0_arm64.whl
   ```
   - Pass difference value of `--model_path_llama` if download a different GGUF model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) and placed in repo folder or give this URL.
-* GGMLv3 (NOT RECOMMENDED) then compile:
+* If any issues, then compile:
     ```bash
     pip uninstall llama-cpp-python -y
     CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.14 --no-cache-dir
     ```
-  - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 * vLLM support
   ```bash
   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
