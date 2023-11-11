@@ -94,7 +94,7 @@ def make_css_base() -> str:
     #add-button {
         position: absolute;
         top: 48px;
-        right: 20px;
+        right: 50px;
         
         display: flex;
         justify-content: center;
@@ -111,7 +111,7 @@ def make_css_base() -> str:
 
     #attach-button {
         position: absolute;
-        top: 8px;
+        top: 48px;
         right: 20px;
         
         display: flex;
@@ -119,7 +119,7 @@ def make_css_base() -> str:
         border: 1px solid var(--primary-500) !important;
         
         @media (max-width: 563px) {
-          width: 76px;
+          width: 20px;
         }
     }
     

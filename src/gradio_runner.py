@@ -703,8 +703,7 @@ def go_gradio(**kwargs):
                     url_label = 'URLs'
                 text_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_text_upload
                 fileup_output_text = gr.Textbox(visible=False)
-                with gr.Accordion("Add URLs/Texts", open=False,
-                                  visible=upload_visible and kwargs['actions_in_sidebar']):
+                with gr.Accordion("Upload", open=False, visible=upload_visible and kwargs['actions_in_sidebar']):
                     fileup_output = gr.File(show_label=False,
                                             file_types=['.' + x for x in file_types],
                                             # file_types=['*', '*.*'],  # for iPhone etc. needs to be unconstrained else doesn't work with extension-based restrictions
@@ -736,9 +735,10 @@ def go_gradio(**kwargs):
                 allowed_actions = [x for x in langchain_actions if x in visible_langchain_actions]
                 default_action = allowed_actions[0] if len(allowed_actions) > 0 else None
 
-                max_quality = gr.Checkbox(label="Max Ingest Quality",
-                                          value=kwargs['max_quality'],
-                                          visible=not is_public)
+                if not kwargs['actions_in_sidebar']:
+                    max_quality = gr.Checkbox(label="Max Ingest Quality",
+                                              value=kwargs['max_quality'],
+                                              visible=not is_public)
                 if not kwargs['actions_in_sidebar']:
                     add_chat_history_to_context = gr.Checkbox(label="Include Chat History",
                                                               value=kwargs[
@@ -857,7 +857,7 @@ def go_gradio(**kwargs):
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value="",
-                                            label="Upload File(s)",
+                                            label="+",
                                             size="sm",
                                             min_width=mw0,
                                             file_types=['.' + x for x in file_types],
