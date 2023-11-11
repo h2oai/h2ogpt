@@ -577,9 +577,9 @@ def go_gradio(**kwargs):
         else:
             extra_prompt_form = ""
         if kwargs['input_lines'] > 1:
-            instruction_label = "Shift-Enter to Submit Query, Enter for more lines%s" % extra_prompt_form
+            instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
         else:
-            instruction_label = "Enter to Submit Query, Shift-Enter for more lines%s" % extra_prompt_form
+            instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
 
         def get_langchain_choices(selection_docs_state1):
             langchain_modes = selection_docs_state1['langchain_modes']
