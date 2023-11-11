@@ -844,7 +844,7 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     with gr.Row(elem_id="prompt-form-row"):
-                                        label_instruction = 'Ask anything or Add URL/Text'
+                                        label_instruction = 'Ask anything or Ingest as URL/Text'
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
@@ -865,7 +865,7 @@ def go_gradio(**kwargs):
                                             visible=visible_upload)
                                         add_button = gr.Button(
                                             elem_id="add-button" if visible_upload else None,
-                                            value="Add as URL/Text",
+                                            value="Ingest as URL/Text",
                                             size="sm",
                                             min_width=mw0,
                                             visible=visible_upload and False)
@@ -905,7 +905,7 @@ def go_gradio(**kwargs):
                                             allowed_actions,
                                             value=default_action,
                                             label='Action',
-                                            show_label=True,
+                                            show_label=visible_model_choice,
                                             visible=True,
                                             min_width=mw0)
 
