@@ -91,17 +91,35 @@ def make_css_base() -> str:
         position: relative;
     }
     
+    #add-button {
+        position: absolute;
+        top: 48px;
+        right: 50px;
+        
+        display: flex;
+        justify-content: center;
+        border: 1px solid var(--primary-500) !important;
+        
+        @media (max-width: 563px) {
+          width: 76px;
+        }
+    }
+    
+    #add-button > img {
+        margin-right: 50;
+    }
+
     #attach-button {
         position: absolute;
-        top: 45px;
+        top: 48px;
         right: 20px;
         
         display: flex;
         justify-content: center;
         border: 1px solid var(--primary-500) !important;
         
-        @media (max-width: 463px) {
-          width: 56px;
+        @media (max-width: 563px) {
+          width: 20px;
         }
     }
     

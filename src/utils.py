@@ -1324,6 +1324,20 @@ def url_alive(url):
             return False
 
 
+def return_good_url(url):
+    # ignore status code, just see if exists or not
+    for prefix in ['', 'http://', 'http://', 'https://www.', 'http://www.']:
+        try:
+            url_test = prefix + url
+            response = requests.head(url_test)
+        except Exception as e:
+            response = None
+            url_test = None
+        if response is not None and response.status_code < 400:
+            return url_test
+    return None
+
+
 def dict_to_html(x, small=True, api=False):
     df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
     df.index = df.index + 1
