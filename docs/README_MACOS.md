@@ -59,17 +59,17 @@ Supports CPU and MPS (Metal M1/M2).
      ```
 * Metal M1/M2 Only:  Install and setup GPU-specific dependencies to support LLaMa.cpp on GPU:
 * GGUF:
-  See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) for other releases, try to stick to same version.  One roughly follows:
+  See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases) for other releases, try to stick to same version.  One roughly follows:
   ```bash
   pip uninstall -y llama-cpp-python llama-cpp-python-cuda
   # GGUF:
-  pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.10-cp310-cp310-macosx_11_0_arm64.whl
+  pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.14-cp310-cp310-macosx_11_0_arm64.whl
   ```
   - Pass difference value of `--model_path_llama` if download a different GGUF model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) and placed in repo folder or give this URL.
 * GGMLv3 (NOT RECOMMENDED) then compile:
     ```bash
     pip uninstall llama-cpp-python -y
-    CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.1.78 --no-cache-dir
+    CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.14 --no-cache-dir
     ```
   - **Note** Only supports v3 ggml 4 bit quantized models for MPS, so use llama models ends with `ggmlv3` & `q4_x.bin`.
 * vLLM support

@@ -151,7 +151,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     See [exllama](README_GPU.md#exllama) about running exllama models.
 
 * GPU Optional: Support LLaMa.cpp with CUDA:
-  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels), E.g.:
+  * Download/Install from [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases), E.g.:
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
