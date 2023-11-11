@@ -155,12 +155,12 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.14+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
       pip uninstall -y llama-cpp-python
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.9+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.14+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
       ```
       For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
        ```bash
@@ -177,7 +177,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     export LLAMA_CUBLAS=1
     export CMAKE_ARGS=-DLLAMA_CUBLAS=on
     export FORCE_CMAKE=1
-    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.11 --no-cache-dir --verbose
+    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.14 --no-cache-dir --verbose
    ```
   * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
     That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
