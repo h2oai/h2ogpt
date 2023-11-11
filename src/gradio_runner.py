@@ -573,9 +573,11 @@ def go_gradio(**kwargs):
         user_can_do_sum = kwargs['langchain_mode'] != LangChainMode.DISABLED.value and \
                           (kwargs['visible_side_bar'] or kwargs['visible_system_tab'])
         if user_can_do_sum:
-            extra_prompt_form = ".  For summarization, no query required, just click submit"
+            extra_prompt_form = ".  Just Click Submit for simple Summarization/Extraction"
         else:
             extra_prompt_form = ""
+        if allow_upload:
+            extra_prompt_form += ".  Click Ingest to add as URL/ArXiv/YouTube/Text"
         if kwargs['input_lines'] > 1:
             instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
         else:
@@ -844,7 +846,7 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     with gr.Row(elem_id="prompt-form-row"):
-                                        label_instruction = 'Ask anything or Ingest as URL/Text'
+                                        label_instruction = 'Ask anything or Ingest'
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
@@ -866,7 +868,7 @@ def go_gradio(**kwargs):
                                         add_button = gr.Button(
                                             elem_id="add-button" if visible_upload and not kwargs[
                                                 'actions_in_sidebar'] else None,
-                                            value="Ingest as URL/Text",
+                                            value="Ingest",
                                             size="sm",
                                             min_width=mw0,
                                             visible=visible_upload and not kwargs['actions_in_sidebar'])
