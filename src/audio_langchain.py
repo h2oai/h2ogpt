@@ -268,8 +268,7 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
     def __init__(self, path_audios: Union[str, List[str]] = None,
                  asr_model='openai/whisper-medium',
                  asr_gpu=True,
-                 gpu_id='auto',
-                 from_youtube=False):
+                 gpu_id='auto'):
         super().__init__(path_audios)
         self.audio_paths = path_audios
         self.model = None
@@ -279,7 +278,6 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         self.gpu_id = gpu_id if isinstance(gpu_id, int) else 0
         self.device = 'cpu'
         self.device_map = {"": 'cpu'}
-        self.from_youtube = from_youtube
         self.set_context()
 
     def set_context(self):
@@ -335,12 +333,12 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         else:
             self.audio_paths = path_audios
 
-    def load(self, prompt=None) -> List[Document]:
+    def load(self, from_youtube=False) -> List[Document]:
         if self.model is None:
             self.load_model()
 
         # https://librosa.org/doc/main/generated/librosa.load.html
-        if self.from_youtube:
+        if from_youtube:
             save_dir = "/tmp/" + "_" + str(uuid.uuid4())[:10]
             loader = GenericLoader(YoutubeAudioLoader(self.audio_paths, save_dir), self.model)
             return loader.load()

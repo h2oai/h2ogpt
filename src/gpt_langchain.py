@@ -2232,10 +2232,9 @@ def file_to_doc(file,
                 model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
                                                              asr_gpu=model_loaders['asr'] == 'gpu',
                                                              gpu_id=asr_gpu_id,
-                                                             from_youtube=True,
                                                              )
             model_loaders['asr'].set_audio_paths([file])
-            docs1c = model_loaders['asr'].load()
+            docs1c = model_loaders['asr'].load(from_youtube=True)
             docs1c = [x for x in docs1c if x.page_content]
             add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
             # caption didn't set source, so fix-up meta
@@ -2357,10 +2356,9 @@ def file_to_doc(file,
             model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
                                                          asr_gpu=model_loaders['asr'] == 'gpu',
                                                          gpu_id=asr_gpu_id,
-                                                         from_youtube=False,
                                                          )
         model_loaders['asr'].set_audio_paths([file])
-        docs1c = model_loaders['asr'].load()
+        docs1c = model_loaders['asr'].load(from_youtube=False)
         docs1c = [x for x in docs1c if x.page_content]
         add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
         # caption didn't set source, so fix-up meta
