@@ -1017,7 +1017,15 @@ def go_gradio(**kwargs):
                     doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
                                                     interactive=False,
                                                     visible=kwargs['langchain_mode'] != 'Disabled')
-                    file_types_str = ' '.join(file_types) + ' URL ArXiv TEXT'
+                    if have_arxiv and have_librosa:
+                        file_types_extra = ' URL YouTube ArXiv TEXT'
+                    elif have_librosa:
+                        file_types_extra = ' URL YouTube TEXT'
+                    elif have_arxiv:
+                        file_types_extra = ' URL ArXiv TEXT'
+                    else:
+                        file_types_extra = ' URL TEXT'
+                    file_types_str = ' '.join(file_types) + file_types_extra
                     gr.Textbox(value=file_types_str, label='Document Types Supported',
                                lines=2,
                                interactive=False,
