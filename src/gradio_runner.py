@@ -897,13 +897,6 @@ def go_gradio(**kwargs):
                                             else:
                                                 return '🔴'
 
-                                        def check_btn(btn):
-                                            """Checks for correct button text before invoking transcribe()"""
-                                            if btn != 'Speak': raise Exception('Recording...')
-
-                                        def transcribe():
-                                            return 'Success'
-
                                         audio_state = gr.State(value=None)
                                         audio_output = gr.HTML(visible=False)
                                         audio_text = gr.Textbox(value="", visible=False)
