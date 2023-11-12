@@ -748,12 +748,12 @@ def go_gradio(**kwargs):
                                                         visible=serp_visible)
                 resources_acc_label = "Resources" if not is_public else "Collections"
                 langchain_mode_radio_kwargs = dict(
-                        choices=langchain_choices0,
-                        value=kwargs['langchain_mode'],
-                        label="Collections",
-                        show_label=True,
-                        visible=kwargs['langchain_mode'] != 'Disabled',
-                        min_width=100)
+                    choices=langchain_choices0,
+                    value=kwargs['langchain_mode'],
+                    label="Collections",
+                    show_label=True,
+                    visible=kwargs['langchain_mode'] != 'Disabled',
+                    min_width=100)
                 if is_public:
                     langchain_mode = gr.Radio(**langchain_mode_radio_kwargs)
                 with gr.Accordion(resources_acc_label, open=False, visible=database_visible and not is_public):
@@ -860,6 +860,12 @@ def go_gradio(**kwargs):
                                             container=True,
                                         )
                                         mw0 = 20
+                                        mic_button = gr.Button(
+                                            elem_id="microphone-button" if kwargs['visible_sst'] else None,
+                                            value="🔴",
+                                            size="sm",
+                                            min_width=mw0,
+                                            visible=kwargs['visible_sst'])
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value="",
@@ -876,6 +882,39 @@ def go_gradio(**kwargs):
                                             size="sm",
                                             min_width=mw0,
                                             visible=visible_upload and not kwargs['actions_in_sidebar'])
+
+                                    # AUDIO
+                                    if kwargs['visible_sst']:
+                                        def click_js():
+                                            return """function audioRecord() {
+                                            var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); 
+                                            xPathRes.singleNodeValue.click();}"""
+
+                                        def action(btn):
+                                            """Changes button text on click"""
+                                            if btn == '🔴':
+                                                return '⭕'
+                                            else:
+                                                return '🔴'
+
+                                        def check_btn(btn):
+                                            """Checks for correct button text before invoking transcribe()"""
+                                            if btn != 'Speak': raise Exception('Recording...')
+
+                                        def transcribe():
+                                            return 'Success'
+
+                                        audio_state = gr.State(value=None)
+                                        audio_output = gr.HTML(visible=False)
+                                        audio_text = gr.Textbox(value="", visible=False)
+                                        audio = gr.Audio(source='microphone', streaming=True, visible=False,
+                                                         elem_id='audio')
+                                        # audio = gr.Audio(source='microphone', streaming=True, show_label=False, container=False, elem_id="microphone-button", min_width=20)
+                                        mic_button.click(fn=action, inputs=mic_button, outputs=mic_button) \
+                                            .then(fn=lambda: None, _js=click_js())
+                                        from sst import transcribe
+                                        audio.stream(fn=transcribe, inputs=[audio_state, audio],
+                                                     outputs=[audio_state, instruction])
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
