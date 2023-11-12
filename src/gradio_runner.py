@@ -910,7 +910,7 @@ def go_gradio(**kwargs):
                                         if kwargs['pre_load_image_audio_models'] and kwargs['sst_model'] == kwargs['asr_model']:
                                             transcriber = asr_loader.model.pipe
                                         else:
-                                            transcriber = get_transcriber()
+                                            transcriber = get_transcriber(model=kwargs['sst_model'])
                                         transcriber_func = functools.partial(transcribe, transcriber=transcriber)
                                         audio.stream(fn=transcriber_func, inputs=[audio_state, audio],
                                                      outputs=[audio_state, instruction])

@@ -1,10 +1,7 @@
 
-def get_transcriber():
+def get_transcriber(model="openai/whisper-base.en"):
     from transformers import pipeline
-
-    #p = pipeline("automatic-speech-recognition")
-
-    transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
+    transcriber = pipeline("automatic-speech-recognition", model=model)
     return transcriber
 
 
