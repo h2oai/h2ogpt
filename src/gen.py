@@ -371,6 +371,7 @@ def main(
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
         asr_model: str = "openai/whisper-medium",
+        sst_model: str = "openai/whisper-base.en",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
 
@@ -842,6 +843,7 @@ def main(
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
+    :param sst_model: Name of model for SST, can be same as asr_model, which will then use same model for conserving GPU
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
 

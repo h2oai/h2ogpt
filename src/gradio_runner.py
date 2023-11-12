@@ -21,6 +21,7 @@ from iterators import TimeoutIterator
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
+from src.sst import get_transcriber
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -906,7 +907,12 @@ def go_gradio(**kwargs):
                                         mic_button.click(fn=action, inputs=mic_button, outputs=mic_button) \
                                             .then(fn=lambda: None, _js=click_js())
                                         from sst import transcribe
-                                        audio.stream(fn=transcribe, inputs=[audio_state, audio],
+                                        if kwargs['pre_load_image_audio_models'] and kwargs['sst_model'] == kwargs['asr_model']:
+                                            transcriber = asr_loader.model.pipe
+                                        else:
+                                            transcriber = get_transcriber()
+                                        transcriber_func = functools.partial(transcribe, transcriber=transcriber)
+                                        audio.stream(fn=transcriber_func, inputs=[audio_state, audio],
                                                      outputs=[audio_state, instruction])
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
