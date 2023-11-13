@@ -4671,7 +4671,9 @@ def go_gradio(**kwargs):
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                 )
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
-        print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (kwargs['server_name'], server_port),
+        showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
+        print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (showed_server_name,
+                                                                              server_port),
               flush=True)
 
     if kwargs['open_browser']:
