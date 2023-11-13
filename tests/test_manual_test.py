@@ -101,3 +101,9 @@ def test_async_gradio():
     raise NotImplementedError("""MANUAL TEST FOR NOW
     run test_client_summarization and confirm see multiple _acalls at same time before ends for gpt.h2o.ai
     """)
+
+@wrap_test_forked
+def test_stt_gradio():
+    raise NotImplementedError("""MANUAL TEST FOR NOW
+    use STT in gradio UI.  Ensure can stop recording and edit and continue with edits preserved, etc.
+    """)
