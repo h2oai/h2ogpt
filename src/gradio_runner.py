@@ -4670,18 +4670,21 @@ def go_gradio(**kwargs):
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                 )
+    showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
-        showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
         print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (showed_server_name,
                                                                               server_port),
               flush=True)
+    if server_port is None:
+        server_port = '7860'
+    local_url = "http://%s:%s" % (showed_server_name, server_port)
 
     if kwargs['open_browser']:
         # Open URL in a new tab, if a browser window is already open.
-        if server_port is None:
-            server_port = '7860'
         import webbrowser
-        webbrowser.open_new_tab('http://localhost:%s' % server_port)
+        webbrowser.open_new_tab(local_url)
+    else:
+        print("Use local URL: %s" % local_url, flush=True)
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()
