@@ -374,11 +374,17 @@ def main(
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
 
-        enable_sst: bool = 'auto',
+        enable_stt: bool = 'auto',
         stt_model: str = "openai/whisper-base.en",
         stt_gpu: bool = True,
         stt_gpu_id: Union[int, str] = 'auto',
         stt_continue_mode: int = 1,
+
+        enable_tts: bool = 'auto',
+        tts_gpu: bool = True,
+        tts_gpu_id: Union[int, str] = 'auto',
+        tts_model: str = 'microsoft/speecht5_tts',
+        tts_gan_model: str = 'microsoft/speecht5_hifigan',
 
         # json
         jq_schema='.[]',
@@ -850,7 +856,7 @@ def main(
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
 
-    :param enable_sst: Whether to enable and show Speech-to-Text (STT) with microphone in UI
+    :param enable_stt: Whether to enable and show Speech-to-Text (STT) with microphone in UI
          Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.
     :param stt_model: Name of model for STT, can be same as asr_model, which will then use same model for conserving GPU
     :param stt_gpu: Whther to use gpu for STT model

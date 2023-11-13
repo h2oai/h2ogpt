@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa, have_wavio
+    get_ngpus_vis, have_librosa, have_wavio, have_soundfile
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -847,12 +847,20 @@ def go_gradio(**kwargs):
                                          kwargs['langchain_mode'] != 'Disabled'
 
                         if not have_wavio:
-                            if kwargs['enable_sst'] == 'auto':
-                                kwargs['enable_sst'] = False
-                            elif kwargs['enable_sst'] is True:
+                            if kwargs['enable_stt'] == 'auto':
+                                kwargs['enable_stt'] = False
+                            elif kwargs['enable_stt'] is True:
                                 raise RuntimeError("STT packages not installed")
-                        elif kwargs['enable_sst'] == 'auto':
-                            kwargs['enable_sst'] = True
+                        elif kwargs['enable_stt'] == 'auto':
+                            kwargs['enable_stt'] = True
+
+                        if not have_soundfile:
+                            if kwargs['enable_tts'] == 'auto':
+                                kwargs['enable_tts'] = False
+                            elif kwargs['enable_tts'] is True:
+                                raise RuntimeError("TTS packages not installed")
+                        elif kwargs['enable_tts'] == 'auto':
+                            kwargs['enable_tts'] = True
 
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
@@ -871,11 +879,11 @@ def go_gradio(**kwargs):
                                         )
                                         mw0 = 20
                                         mic_button = gr.Button(
-                                            elem_id="microphone-button" if kwargs['enable_sst'] else None,
+                                            elem_id="microphone-button" if kwargs['enable_stt'] else None,
                                             value="🔴",
                                             size="sm",
                                             min_width=mw0,
-                                            visible=kwargs['enable_sst'])
+                                            visible=kwargs['enable_stt'])
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value="",
@@ -894,7 +902,7 @@ def go_gradio(**kwargs):
                                             visible=visible_upload and not kwargs['actions_in_sidebar'])
 
                                     # AUDIO
-                                    if kwargs['enable_sst']:
+                                    if kwargs['enable_stt']:
                                         def click_js():
                                             return """function audioRecord() {
                                             var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); 
@@ -918,7 +926,7 @@ def go_gradio(**kwargs):
                                         audio = gr.Audio(source='microphone', streaming=True, visible=False,
                                                          elem_id='audio')
                                         mic_button.click(fn=lambda: None, _js=click_js()) \
-                                        .then(
+                                            .then(
                                             fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
                                             inputs=[mic_button, audio_pretext, instruction, audio_state],
                                             outputs=[mic_button, audio_pretext, instruction, audio_state])
@@ -943,6 +951,23 @@ def go_gradio(**kwargs):
 
                                         instruction.input(update_audio_state, inputs=instruction, outputs=audio_state)
 
+                                    if kwargs['enable_tts']:
+                                        def click_js2():
+                                            return """function audioPlay() {
+                                            var xPathRes = document.evaluate ('//*[@id="audio_play"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                                            xPathRes.singleNodeValue.click();}"""
+
+                                        speak_button = gr.Button("Speak")
+                                        from src.tts import predict_from_text, get_tts_model
+                                        processor_tts, model_tts, vocoder_tts = \
+                                            get_tts_model(t5_model=kwargs['tts_model'],
+                                                          t5_gan_model=kwargs['tts_gan_model'],
+                                                          use_gpu=kwargs['tts_gpu'],
+                                                          gpu_id=kwargs['tts_gpu_id'])
+                                        predict_from_text_func = functools.partial(predict_from_text,
+                                                                                   processor=processor_tts,
+                                                                                   model=model_tts,
+                                                                                   vocoder=vocoder_tts)
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
                                     mw1 = 50
@@ -1368,7 +1393,17 @@ def go_gradio(**kwargs):
                         chat_token_count = gr.Textbox(label="Chat Token Count Result", value=None,
                                                       visible=not is_public and not kwargs['model_lock'],
                                                       interactive=False)
-
+                    with gr.Row():
+                        speaker_radio = gr.Radio(label="Speaker", choices=["BDL (male)",
+                                                                           "CLB (female)",
+                                                                           "KSP (male)",
+                                                                           "RMS (male)",
+                                                                           "SLT (female)",
+                                                                           "Surprise Me!"
+                                                                           ],
+                                                 value="SLT (female)",
+                                                 visible=kwargs['enable_tts'])
+                        speech = gr.Audio(label="Generated Speech", type="numpy")
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
                 with models_tab:
@@ -4584,6 +4619,10 @@ def go_gradio(**kwargs):
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
+        speak_button.click(predict_from_text_func,
+                           inputs=[instruction, speaker_radio],
+                           outputs=speech)
+
         if kwargs['auth'] is not None:
             auth = authf
             load_func = user_state_setup
@@ -4677,14 +4716,13 @@ def go_gradio(**kwargs):
               flush=True)
     if server_port is None:
         server_port = '7860'
-    local_url = "http://%s:%s" % (showed_server_name, server_port)
 
     if kwargs['open_browser']:
         # Open URL in a new tab, if a browser window is already open.
         import webbrowser
-        webbrowser.open_new_tab(local_url)
+        webbrowser.open_new_tab(demo.local_url)
     else:
-        print("Use local URL: %s" % local_url, flush=True)
+        print("Use local URL: %s" % demo.local_url, flush=True)
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

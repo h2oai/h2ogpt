@@ -106,8 +106,15 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # For STT below may also be required
     sudo apt remove libavcodec-ffmpeg-extra56
     sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
+    # for TTS:
+    pip install torchaudio soundfile
     ```
     For STT, ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
+* HNSW issue:
+    In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
+   ```bash
+   pip uninstall hnswlib==0.7.0
+   ```
 * Selenium needs to have chrome installed, e.g. on Ubuntu:
     ```bash
     sudo bash
