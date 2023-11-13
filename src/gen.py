@@ -51,7 +51,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, url_alive
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
+    url_alive
 
 start_faulthandler()
 import_matplotlib()
@@ -257,7 +258,6 @@ def main(
         chat_tables: bool = False,
         visible_h2ogpt_header: bool = True,
         visible_all_prompter_models: bool = False,
-        visible_sst: bool = True,
         actions_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
@@ -371,9 +371,14 @@ def main(
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
         asr_model: str = "openai/whisper-medium",
-        sst_model: str = "openai/whisper-base.en",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
+
+        enable_sst: bool = 'auto',
+        stt_model: str = "openai/whisper-base.en",
+        stt_gpu: bool = True,
+        stt_gpu_id: Union[int, str] = 'auto',
+        stt_continue_mode = 1,
 
         # json
         jq_schema='.[]',
@@ -671,7 +676,6 @@ def main(
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
-    :param visible_sst: Whether to enable and make SST visible
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
@@ -843,9 +847,19 @@ def main(
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
-    :param sst_model: Name of model for SST, can be same as asr_model, which will then use same model for conserving GPU
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
+
+    :param enable_sst: Whether to enable and show Speech-to-Text (STT) with microphone in UI
+         Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.
+    :param stt_model: Name of model for STT, can be same as asr_model, which will then use same model for conserving GPU
+    :param stt_gpu: Whther to use gpu for STT model
+    :param stt_gpu_id: If not using asr_model, then which GPU to go on if using cuda
+    :param stt_continue_mode: How to continue speech with button control
+           0: Always append audio regardless of start/stop of recording, so always appends in STT model for full STT conversion
+              Only can edit after hit stop and then submit, if hit record again edits are lost since using only audio stream for STT conversion
+           1: If hit stop, text made so far is saved and audio cleared, so next recording will be separate text conversion
+              Can make edits on any text after hitting stop and they are preserved
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema

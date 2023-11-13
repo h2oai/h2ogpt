@@ -100,13 +100,14 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     playwright install --with-deps
     # Audio transcription from Youtube videos and local mp3 files:
     pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
-    # SST from microphone
+    # STT from microphone
     sudo apt-get install ffmpeg
+    pip install wavio
+    # For STT below may also be required
     sudo apt remove libavcodec-ffmpeg-extra56
     sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
-    pip install wavio
     ```
-    For SST, ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
+    For STT, ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
 * Selenium needs to have chrome installed, e.g. on Ubuntu:
     ```bash
     sudo bash

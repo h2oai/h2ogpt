@@ -21,7 +21,7 @@ from iterators import TimeoutIterator
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
-from src.sst import get_transcriber
+from src.stt import get_transcriber
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa
+    get_ngpus_vis, have_librosa, have_wavio
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -845,6 +845,15 @@ def go_gradio(**kwargs):
                         visible_upload = (allow_upload_to_user_data or
                                           allow_upload_to_my_data) and \
                                          kwargs['langchain_mode'] != 'Disabled'
+
+                        if not have_wavio:
+                            if kwargs['enable_sst'] == 'auto':
+                                kwargs['enable_sst'] = False
+                            elif kwargs['enable_sst'] is True:
+                                raise RuntimeError("STT packages not installed")
+                        elif kwargs['enable_sst'] == 'auto':
+                            kwargs['enable_sst'] = True
+
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
                         with col_chat:
@@ -862,11 +871,11 @@ def go_gradio(**kwargs):
                                         )
                                         mw0 = 20
                                         mic_button = gr.Button(
-                                            elem_id="microphone-button" if kwargs['visible_sst'] else None,
+                                            elem_id="microphone-button" if kwargs['enable_sst'] else None,
                                             value="🔴",
                                             size="sm",
                                             min_width=mw0,
-                                            visible=kwargs['visible_sst'])
+                                            visible=kwargs['enable_sst'])
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value="",
@@ -885,35 +894,51 @@ def go_gradio(**kwargs):
                                             visible=visible_upload and not kwargs['actions_in_sidebar'])
 
                                     # AUDIO
-                                    if kwargs['visible_sst']:
+                                    if kwargs['enable_sst']:
                                         def click_js():
                                             return """function audioRecord() {
                                             var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); 
                                             xPathRes.singleNodeValue.click();}"""
 
-                                        def action(btn):
+                                        def action(btn, text0, instruction1, audio_state1, stt_continue_mode=1):
+                                            if stt_continue_mode == 1:
+                                                text0 = instruction1
+                                                audio_state1 = None
+                                            else:
+                                                text0 = ''
                                             """Changes button text on click"""
                                             if btn == '🔴':
-                                                return '⭕'
+                                                return '⭕', text0, instruction1, audio_state1
                                             else:
-                                                return '🔴'
+                                                return '🔴', text0, instruction1, audio_state1
 
                                         audio_state = gr.State(value=None)
+                                        audio_pretext = gr.Textbox(value='', visible=False)
                                         audio_output = gr.HTML(visible=False)
-                                        audio_text = gr.Textbox(value="", visible=False)
                                         audio = gr.Audio(source='microphone', streaming=True, visible=False,
                                                          elem_id='audio')
-                                        # audio = gr.Audio(source='microphone', streaming=True, show_label=False, container=False, elem_id="microphone-button", min_width=20)
-                                        mic_button.click(fn=action, inputs=mic_button, outputs=mic_button) \
+                                        mic_button.click(
+                                            fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
+                                            inputs=[mic_button, audio_pretext, instruction, audio_state],
+                                            outputs=[mic_button, audio_pretext, instruction, audio_state]) \
                                             .then(fn=lambda: None, _js=click_js())
-                                        from sst import transcribe
-                                        if kwargs['pre_load_image_audio_models'] and kwargs['sst_model'] == kwargs['asr_model']:
+                                        from stt import transcribe
+                                        if kwargs['pre_load_image_audio_models'] and \
+                                                kwargs['stt_model'] == kwargs['asr_model']:
                                             transcriber = asr_loader.model.pipe
                                         else:
-                                            transcriber = get_transcriber(model=kwargs['sst_model'])
-                                        transcriber_func = functools.partial(transcribe, transcriber=transcriber)
-                                        audio.stream(fn=transcriber_func, inputs=[audio_state, audio],
+                                            transcriber = get_transcriber(model=kwargs['stt_model'],
+                                                                          use_gpu=kwargs['stt_gpu'],
+                                                                          gpu_id=kwargs['stt_gpu_id'])
+                                        transcriber_func = functools.partial(transcribe, transcriber=transcriber,
+                                                                             debug=kwargs['debug'])
+                                        audio.stream(fn=transcriber_func, inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
+
+                                        def update_audio_state(instruction1):
+                                            return instruction1
+
+                                        instruction.input(update_audio_state, inputs=instruction, outputs=audio_state)
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
