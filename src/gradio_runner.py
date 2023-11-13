@@ -933,6 +933,7 @@ def go_gradio(**kwargs):
                                         transcriber_func = functools.partial(transcribe,
                                                                              transcriber=transcriber,
                                                                              debug=kwargs['debug'],
+                                                                             max_chunks=20 if is_public else None,
                                                                              )
                                         audio.stream(fn=transcriber_func, inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
