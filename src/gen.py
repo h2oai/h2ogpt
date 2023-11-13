@@ -378,7 +378,7 @@ def main(
         stt_model: str = "openai/whisper-base.en",
         stt_gpu: bool = True,
         stt_gpu_id: Union[int, str] = 'auto',
-        stt_continue_mode = 1,
+        stt_continue_mode: int = 1,
 
         # json
         jq_schema='.[]',

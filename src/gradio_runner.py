@@ -917,11 +917,11 @@ def go_gradio(**kwargs):
                                         audio_output = gr.HTML(visible=False)
                                         audio = gr.Audio(source='microphone', streaming=True, visible=False,
                                                          elem_id='audio')
-                                        mic_button.click(
+                                        mic_button.click(fn=lambda: None, _js=click_js()) \
+                                        .then(
                                             fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
                                             inputs=[mic_button, audio_pretext, instruction, audio_state],
-                                            outputs=[mic_button, audio_pretext, instruction, audio_state]) \
-                                            .then(fn=lambda: None, _js=click_js())
+                                            outputs=[mic_button, audio_pretext, instruction, audio_state])
                                         from stt import transcribe
                                         if kwargs['pre_load_image_audio_models'] and \
                                                 kwargs['stt_model'] == kwargs['asr_model']:
@@ -930,8 +930,10 @@ def go_gradio(**kwargs):
                                             transcriber = get_transcriber(model=kwargs['stt_model'],
                                                                           use_gpu=kwargs['stt_gpu'],
                                                                           gpu_id=kwargs['stt_gpu_id'])
-                                        transcriber_func = functools.partial(transcribe, transcriber=transcriber,
-                                                                             debug=kwargs['debug'])
+                                        transcriber_func = functools.partial(transcribe,
+                                                                             transcriber=transcriber,
+                                                                             debug=kwargs['debug'],
+                                                                             )
                                         audio.stream(fn=transcriber_func, inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
 

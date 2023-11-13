@@ -1,3 +1,4 @@
+import numpy as np
 from src.utils import get_device
 
 
@@ -15,17 +16,16 @@ def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto')
     return transcriber
 
 
-def transcribe(text0, stream, new_chunk, transcriber=None, debug=False):
-    import numpy as np
+def transcribe(text0, chunks, new_chunk, transcriber=None, debug=False):
+    # assume sampling rate always same
+    # keep chunks so don't normalize on noise periods, which would then saturate noise with non-noise
     sr, y = new_chunk
-    y = y.astype(np.float32)
-    y /= np.max(np.abs(y) + 1E-7)
+    chunks = chunks + [y] if chunks else [y]
+    stream = np.concatenate(chunks)
+    stream = stream.astype(np.float32)
+    stream /= np.max(np.abs(stream) + 1E-7)
 
-    if stream is not None:
-        stream = np.concatenate([stream, y])
-    else:
-        stream = y
     text = transcriber({"sampling_rate": sr, "raw": stream})["text"]
     if debug:
-        print("stream.shape: %s %s" % (str(stream.shape), text))
-    return stream, text0 + text
+        print("y.shape: %s stream.shape: %s text0=%s text=%s" % (str(y.shape), str(stream.shape), text0, text))
+    return chunks, text0 + text
