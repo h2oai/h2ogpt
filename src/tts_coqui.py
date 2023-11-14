@@ -294,7 +294,6 @@ def get_roles():
     chatbot_role = gr.Dropdown(
         label="Speech Style",
         choices=allowed_roles(),
-        max_choices=1,
         value=allowed_roles()[0],
     )
     return chatbot_role

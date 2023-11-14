@@ -512,6 +512,16 @@ def go_gradio(**kwargs):
         url_loaders_options0, url_loaders_options = lg_to_gr(**kwargs)
     jq_schema0 = '.[]'
 
+    def click_js():
+        return """function audioRecord() {
+        var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        xPathRes.singleNodeValue.click();}"""
+
+    # def click_js2():
+    #    return """function audioStop() {
+    #    var xPathRes = document.evaluate ('//*[@id="human_audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+    #    xPathRes.singleNodeValue.click();}"""
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -695,6 +705,8 @@ def go_gradio(**kwargs):
                                            type='value')
                     visible_speak_me = kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None
                     speak_me_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
+                    # speak_me_cancel_button = gr.Button("Cancel Speak Instruction", visible=visible_speak_me, size='sm')
+                    # speak_me_cancel_button.click(fn=lambda: None, _js=click_js2())
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('xxt'):
                         from src.tts_coqui import get_roles
                         chatbot_role = get_roles()
@@ -898,11 +910,6 @@ def go_gradio(**kwargs):
 
                                     # AUDIO
                                     if kwargs['enable_stt']:
-                                        def click_js():
-                                            return """function audioRecord() {
-                                            var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); 
-                                            xPathRes.singleNodeValue.click();}"""
-
                                         def action(btn, text0, instruction1, audio_state1, stt_continue_mode=1):
                                             if stt_continue_mode == 1:
                                                 text0 = instruction1
@@ -1367,14 +1374,16 @@ def go_gradio(**kwargs):
                                                 streaming=True,
                                                 interactive=False,
                                                 show_label=True,
-                                                autoplay=True)
+                                                autoplay=True,
+                                                elem_id='human_audio')
                         speech_bot = gr.Audio(value=None,
                                               label="Generated Bot Speech",
                                               type="numpy",
                                               streaming=True,
                                               interactive=False,
                                               show_label=True,
-                                              autoplay=True)
+                                              autoplay=True,
+                                              elem_id='bot_audio')
                         speech_bot2 = gr.Audio(value=None,
                                                label="Generated Bot 2 Speech",
                                                type="numpy",
@@ -1382,7 +1391,8 @@ def go_gradio(**kwargs):
                                                interactive=False,
                                                show_label=True,
                                                autoplay=False,
-                                               visible=False)
+                                               visible=False,
+                                               elem_id='bot2_audio')
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
                 with models_tab:
@@ -4616,6 +4626,19 @@ def go_gradio(**kwargs):
                                                          outputs=chat_token_count,
                                                          api_name='count_tokens' if allow_api else None)
 
+        speak_events = []
+        if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
+            if kwargs['tts_model'].startswith('xxt'):
+                speak_me_event = speak_me_button.click(kwargs['predict_from_text_func'],
+                                                       inputs=[instruction, chatbot_role],
+                                                       outputs=speech_human)
+                speak_events.append(speak_me_event)
+            elif kwargs['tts_model'].startswith('microsoft'):
+                speak_me_event = speak_me_button.click(kwargs['predict_from_text_func'],
+                                                       inputs=[instruction, speaker],
+                                                       outputs=speech_human)
+                speak_events.append(speak_me_event)
+
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
         stop_btn.click(lambda: None, None, None,
@@ -4628,19 +4651,10 @@ def go_gradio(**kwargs):
                                [clear_event] +
                                [submit_event_nochat_api, submit_event_nochat] +
                                [load_model_event, load_model_event2] +
-                               [count_tokens_event]
+                               [count_tokens_event] +
+                               speak_events
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
-
-        if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
-            if kwargs['tts_model'].startswith('xxt'):
-                speak_me_button.click(kwargs['predict_from_text_func'],
-                                      inputs=[instruction, chatbot_role],
-                                      outputs=speech_human)
-            elif kwargs['tts_model'].startswith('microsoft'):
-                speak_me_button.click(kwargs['predict_from_text_func'],
-                                      inputs=[instruction, speaker],
-                                      outputs=speech_human)
 
         if kwargs['auth'] is not None:
             auth = authf

@@ -16,6 +16,24 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=Fa
         return f'h2oGPT [Model: {base_model}{inference_server}]'
 
 
+def get_avatars(base_model, model_path_llama):
+    if base_model == 'llama':
+        base_model = model_path_llama
+    human_avatar = "models/human.jpg"
+    if 'llama2' in base_model:
+        bot_avatar = "models/lama2.jpeg"
+    elif 'llama-2' in base_model:
+        bot_avatar = "models/lama2.jpeg"
+    elif 'llama' in base_model:
+        bot_avatar = "models/lama.jpeg"
+    else:
+        #bot_avatar = "models/hf-logo.png"
+        bot_avatar = "models/h2oai.png"
+    human_avatar = human_avatar if os.path.isfile(human_avatar) else None
+    bot_avatar = bot_avatar if os.path.isfile(bot_avatar) else None
+    return human_avatar, bot_avatar
+
+
 def make_chatbots(output_label0, output_label0_model2, **kwargs):
     visible_models = kwargs['visible_models']
     all_models = kwargs['all_possible_visible_models']
@@ -28,11 +46,16 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                         model_state_lock["model_path_llama"],
                                         model_state_lock["inference_server"],
                                         debug=bool(os.environ.get('DEBUG_MODEL_LOCK', 0)))
+        if kwargs['avatars']:
+            avatar_images = get_avatars(model_state_lock["base_model"], model_state_lock["model_path_llama"])
+        else:
+            avatar_images = None
         chat_kwargs.append(dict(render_markdown=kwargs.get('render_markdown', True),
                                 label=output_label,
                                 elem_classes='chatsmall',
                                 height=kwargs['height'] or 400,
                                 min_width=min_width,
+                                avatar_images=avatar_images,
                                 show_copy_button=kwargs['show_copy_button'],
                                 visible=kwargs['model_lock'] and (visible_models is None or
                                                                   model_state_locki in visible_models or
@@ -78,11 +101,16 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     if len(kwargs['model_states']) > 0:
         assert len(text_outputs) == len(kwargs['model_states'])
 
+    if kwargs['avatars']:
+        avatar_images = get_avatars(kwargs["base_model"], kwargs["model_path_llama"])
+    else:
+        avatar_images = None
     no_model_lock_chat_kwargs = dict(render_markdown=kwargs.get('render_markdown', True),
                                      elem_classes='chatsmall',
                                      height=kwargs['height'] or 400,
                                      min_width=min_width,
                                      show_copy_button=kwargs['show_copy_button'],
+                                     avatar_images=avatar_images,
                                      )
     with gr.Row():
         text_output = gr.Chatbot(label=output_label0,
