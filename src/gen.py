@@ -1357,9 +1357,10 @@ def main(
     model_xxt, supported_languages_xxt = None, None
     latent_map_xxt = None
     predict_from_text_func = None
+    generate_speech_func = None
     if enable_tts:
         if tts_model.startswith('microsoft'):
-            from src.tts import predict_from_text, get_tts_model
+            from src.tts import predict_from_text, get_tts_model, generate_speech
             processor_tts, model_tts, vocoder_tts = \
                 get_tts_model(t5_model=tts_model,
                               t5_gan_model=tts_gan_model,
@@ -1369,8 +1370,13 @@ def main(
                                                        processor=processor_tts,
                                                        model=model_tts,
                                                        vocoder=vocoder_tts)
+            generate_speech_func = functools.partial(generate_speech,
+                                                     processor=processor_tts,
+                                                     model=model_tts,
+                                                     vocoder=vocoder_tts,
+                                                     verbose=verbose)
         elif tts_model.startswith('xxt'):
-            from src.tts_coqui import get_xxt, get_latent_map, predict_from_text
+            from src.tts_coqui import get_xxt, get_latent_map, predict_from_text, generate_speech
             model_xxt, supported_languages_xxt = get_xxt()
             latent_map_xxt = get_latent_map(model=model_xxt)
             predict_from_text_func = functools.partial(predict_from_text,
@@ -1379,6 +1385,12 @@ def main(
                                                        latent_map=latent_map_xxt,
                                                        verbose=verbose,
                                                        )
+
+            generate_speech_func = functools.partial(generate_speech,
+                                                     model=model_xxt,
+                                                     supported_languages=supported_languages_xxt,
+                                                     latent_map=latent_map_xxt,
+                                                     verbose=verbose)
 
     # DB SETUP
 

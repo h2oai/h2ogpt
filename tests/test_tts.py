@@ -1,4 +1,7 @@
+import pytest
+
 from src.tts_sentence_parsing import init_sentence_state
+from tests.test_sentence_parsing import bot_list
 
 
 def test_sentence_to_wave():
@@ -87,3 +90,16 @@ def test_full_generate_speech():
     assert sentences == sentences_expected
     assert len(sentences) == len(audios)
     print(audios)
+
+
+@pytest.mark.parametrize("bot, sentences_expected", bot_list)
+def test_predict_from_text(bot, sentences_expected):
+    speeches = []
+    from src.tts import get_tts_model, get_speakers
+    processor, model, vocoder = get_tts_model()
+    speaker = get_speakers()[0]
+
+    from src.tts import predict_from_text
+    for sr, speech in predict_from_text(bot, speaker, processor=processor, model=model, vocoder=vocoder, verbose=True):
+        speeches.append(speech)
+    assert len(speeches) == len(sentences_expected)

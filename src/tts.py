@@ -23,7 +23,7 @@ def get_speech_model():
     import torch
     from datasets import load_dataset
 
-    processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts") #.to("cuda:0")
+    processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")  # .to("cuda:0")
     model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts").to("cuda:0")
     vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan").to("cuda:0")
 
@@ -40,9 +40,9 @@ def gen_t5(text, processor=None, model=None, speaker_embedding=None, vocoder=Non
 
 
 def get_tts_model(t5_model="microsoft/speecht5_tts",
-                          t5_gan_model="microsoft/speecht5_hifigan",
-                          use_gpu=True,
-                          gpu_id='auto'):
+                  t5_gan_model="microsoft/speecht5_hifigan",
+                  use_gpu=True,
+                  gpu_id='auto'):
     if gpu_id == 'auto':
         gpu_id = 0
     if use_gpu:
@@ -55,6 +55,25 @@ def get_tts_model(t5_model="microsoft/speecht5_tts",
     vocoder = SpeechT5HifiGan.from_pretrained(t5_gan_model).to(model.device)
 
     return processor, model, vocoder
+
+
+def get_speakers():
+    return ["SLT (female)",
+            "BDL (male)",
+            "CLB (female)",
+            "KSP (male)",
+            "RMS (male)",
+            "Surprise Me!"
+            ]
+
+
+def get_speakers_gr():
+    import gradio as gr
+    choices = get_speakers()
+    return gr.Dropdown(label="Speech Style",
+                       choices=choices,
+                       max_choices=1,
+                       value=choices[0])
 
 
 def process_audio(sampling_rate, waveform):
@@ -70,7 +89,7 @@ def process_audio(sampling_rate, waveform):
         waveform = librosa.resample(waveform, orig_sr=sampling_rate, target_sr=16000)
 
     # limit to 30 seconds
-    waveform = waveform[:16000*30]
+    waveform = waveform[:16000 * 30]
 
     # make PyTorch tensor
     waveform = torch.tensor(waveform)
@@ -93,6 +112,30 @@ def predict_from_audio(processor, model, speaker_embedding, vocoder, audio, mic_
 
     speech = (speech.numpy() * 32767).astype(np.int16)
     return 16000, speech
+
+
+def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
+                    sentence_state=None,
+                    return_as_byte=True, return_gradio=False,
+                    is_final=False, verbose=False):
+    if model is None or processor is None or vocoder is None:
+        processor, model, vocoder = get_tts_model()
+    if sentence_state is None:
+        sentence_state = init_sentence_state()
+
+    sentence, sentence_state = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
+    if sentence:
+        if verbose:
+            print("BG: inserting sentence to queue")
+        audio = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
+    else:
+        no_audio = b"" if return_as_byte else None
+        if return_gradio:
+            import gradio as gr
+            audio = gr.Audio(value=no_audio, autoplay=False)
+        else:
+            audio = no_audio
+    return audio, sentence, sentence_state
 
 
 def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, verbose=False):
@@ -135,7 +178,7 @@ def _predict_from_text(text, speaker, processor=None, model=None, vocoder=None):
         x[x == 0] = -1.0
         speaker_embedding *= x
 
-        #speaker_embedding = np.random.rand(512).astype(np.float32) * 0.3 - 0.15
+        # speaker_embedding = np.random.rand(512).astype(np.float32) * 0.3 - 0.15
     else:
         speaker_embedding = np.load(speaker_embeddings[speaker[:3]])
 
@@ -173,15 +216,16 @@ def test_bark():
     import time
     from transformers import AutoProcessor, AutoModel
 
-    #bark_model = "suno/bark"
+    # bark_model = "suno/bark"
     bark_model = "suno/bark-small"
 
-    #processor = AutoProcessor.from_pretrained("suno/bark-small")
+    # processor = AutoProcessor.from_pretrained("suno/bark-small")
     processor = AutoProcessor.from_pretrained(bark_model)
     model = AutoModel.from_pretrained(bark_model).to("cuda")
 
     inputs = processor(
-        text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
+        text=[
+            "Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
         return_tensors="pt",
     )
     inputs = inputs.to("cuda")
@@ -190,6 +234,6 @@ def test_bark():
     print("Duration: %s" % (time.time() - t0), flush=True)
     import scipy
 
-    #sampling_rate = model.config.sample_rate
-    sampling_rate = 24*1024
+    # sampling_rate = model.config.sample_rate
+    sampling_rate = 24 * 1024
     scipy.io.wavfile.write("bark_out.wav", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
