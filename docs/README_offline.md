@@ -66,7 +66,7 @@ If all data has been put into `~/.cache` by HF transformers and GGUF/GGML files 
 * For LangChain support, download embedding model:
     ```python
     hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-    model_kwargs = 'cpu'
+    model_kwargs = dict(device='cpu')
     from langchain.embeddings import HuggingFaceEmbeddings
     embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
     ```
