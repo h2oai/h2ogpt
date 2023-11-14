@@ -52,7 +52,7 @@ from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive
+    url_alive, have_wavio, have_soundfile
 
 start_faulthandler()
 import_matplotlib()
@@ -898,6 +898,7 @@ def main(
     llamacpp_dict = str_to_dict(llamacpp_dict)
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
+    base_model0 = base_model  # for prompt infer
     base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
         switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict.get('n_gqa', 0))
 
@@ -1029,6 +1030,25 @@ def main(
         langchain_action, langchain_actions)
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
+
+    # auto-set stt and tts
+    if not have_wavio:
+        if enable_stt == 'auto':
+            enable_stt = False
+        elif enable_stt is True:
+            raise RuntimeError("STT packages not installed")
+    elif enable_stt == 'auto':
+        enable_stt = True
+
+    if not have_soundfile:
+        if enable_tts == 'auto':
+            enable_tts = False
+        elif enable_tts is True:
+            raise RuntimeError("TTS packages not installed")
+    elif enable_tts == 'auto':
+        enable_tts = True
+    if cli or not gradio:
+        enable_stt = enable_tts = False
 
     # auto-set langchain_mode
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
@@ -1189,12 +1209,15 @@ def main(
     # get defaults
     if base_model:
         model_lower = base_model.lower()
+        model_lower0 = base_model0.lower()
     elif model_lock:
         # have 0th model be thought of as normal model
         assert len(model_lock) > 0 and model_lock[0]['base_model'], "model_lock: %s" % model_lock
         model_lower = model_lock[0]['base_model'].lower()
+        model_lower0 = model_lock[0]['base_model'].lower()
     else:
         model_lower = ''
+        model_lower0 = ''
     if not gradio:
         # force, else not single response like want to look at
         stream_output = False
@@ -1237,6 +1260,7 @@ def main(
         examples, \
         task_info = \
         get_generate_params(model_lower,
+                            model_lower0,
                             chat,
                             stream_output, show_examples,
                             prompt_type, prompt_dict,
@@ -1312,6 +1336,48 @@ def main(
     else:
         asr_loader = False
 
+    if enable_stt:
+        from src.stt import transcribe
+        if pre_load_image_audio_models and \
+                stt_model == asr_model:
+            transcriber = asr_loader.model.pipe
+        else:
+            from src.stt import get_transcriber
+            transcriber = get_transcriber(model=stt_model,
+                                          use_gpu=stt_gpu,
+                                          gpu_id=stt_gpu_id)
+        transcriber_func = functools.partial(transcribe,
+                                             transcriber=transcriber,
+                                             debug=debug,
+                                             max_chunks=20 if is_public else None,
+                                             )
+
+    model_xxt, supported_languages_xxt = None, None
+    latent_map_xxt = None
+    predict_from_text_func = None
+    if enable_tts:
+        if tts_model.startswith('microsoft'):
+            from src.tts import predict_from_text, get_tts_model
+            processor_tts, model_tts, vocoder_tts = \
+                get_tts_model(t5_model=tts_model,
+                              t5_gan_model=tts_gan_model,
+                              use_gpu=tts_gpu,
+                              gpu_id=tts_gpu_id)
+            predict_from_text_func = functools.partial(predict_from_text,
+                                                       processor=processor_tts,
+                                                       model=model_tts,
+                                                       vocoder=vocoder_tts)
+        elif tts_model.startswith('xxt'):
+            from src.tts_coqui import get_xxt, get_latent_map, predict_from_text
+            model_xxt, supported_languages_xxt = get_xxt()
+            latent_map_xxt = get_latent_map(model=model_xxt)
+            predict_from_text_func = functools.partial(predict_from_text,
+                                                       model=model_xxt,
+                                                       supported_languages=supported_languages_xxt,
+                                                       latent_map=latent_map_xxt,
+                                                       verbose=verbose,
+                                                       )
+
     # DB SETUP
 
     if langchain_mode != LangChainMode.DISABLED.value:
@@ -1385,7 +1451,7 @@ def main(
                                       hf_model_dict=hf_model_dict,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
-                            base_model=None, tokenizer_base_model=None, lora_weights=None,
+                            base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
                             )
@@ -1418,7 +1484,8 @@ def main(
 
         # get default model
         model_states = []
-        model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
+        model_list = [dict(base_model=base_model, base_model0=base_model0,
+                           tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
                            visible_models=None, h2ogpt_key=None)]
         model_list[0].update(other_model_state_defaults)
@@ -1452,6 +1519,7 @@ def main(
                     model_dict[k] = model_list0[0][k]
 
             model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
+            model_dict['base_model0'] = model_dict['base_model']
             model_dict['base_model'], model_dict['model_path_llama'], \
                 model_dict['load_gptq'], \
                 model_dict['load_awq'], \
@@ -1486,17 +1554,17 @@ def main(
                 llamacpp_dict1 = model_dict.get('llamacpp_dict', {}) or {}
                 load_gptq1 = model_dict.get('load_gptq', '')
                 load_awq1 = model_dict.get('load_awq', '')
-                model_lower10 = model_lower1
+                model_lower10 = model_dict['base_model0'].lower()
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
                                          return_dict=True,
                                          system_prompt=system_prompt)
-                if model_lower1 in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
+                if model_lower10 in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    **get_prompt_kwargs)
-                elif model_lower10 in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
+                elif model_lower1 in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    **get_prompt_kwargs)
                 else:
@@ -2758,7 +2826,7 @@ def evaluate(
         chat_conversation = []
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
-    # This doesn't do switch-a-roo, assume already done
+    # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
     model_lower = base_model.lower()
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
@@ -3802,6 +3870,7 @@ def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **
 
 
 def get_generate_params(model_lower,
+                        model_lower0,
                         chat,
                         stream_output, show_examples,
                         prompt_type, prompt_dict,
@@ -3843,10 +3912,15 @@ def get_generate_params(model_lower,
     max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
-    if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
-        prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        if verbose:
-            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+    if not prompt_type and prompt_type != 'custom':
+        if model_lower0 in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[model_lower0]
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower0), flush=True)
+        elif model_lower in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
@@ -3896,7 +3970,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
+        if not prompt_type and model_lower0 in inv_prompt_type_to_model_lower and prompt_type != 'custom':
+            prompt_type = inv_prompt_type_to_model_lower[model_lower0]
+        elif not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
             prompt_type = inv_prompt_type_to_model_lower[model_lower]
         elif model_lower:
             # default is plain, because might rely upon trust_remote_code to handle prompting

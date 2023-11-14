@@ -1,3 +1,4 @@
+from __future__ import annotations
 import base64
 from io import BytesIO
 import numpy as np

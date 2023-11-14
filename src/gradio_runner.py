@@ -21,7 +21,6 @@ from iterators import TimeoutIterator
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
-from src.stt import get_transcriber
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -578,7 +577,7 @@ def go_gradio(**kwargs):
         else:
             extra_prompt_form = ""
         if allow_upload:
-            extra_prompt_form += ".  Click Ingest to add as URL/ArXiv/YouTube/Text"
+            extra_prompt_form += ".  Click Ingest to add this text as URL/ArXiv/YouTube/Text.  Click + to Upload File(s)."
         if kwargs['input_lines'] > 1:
             instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
         else:
@@ -694,6 +693,18 @@ def go_gradio(**kwargs):
                     radio_chats = gr.Radio(value=None, label="Saved Chats", show_label=False,
                                            visible=True, interactive=True,
                                            type='value')
+                    visible_speak_me = kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None
+                    speak_me_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
+                    if kwargs['enable_tts'] and kwargs['tts_model'].startswith('xxt'):
+                        from src.tts_coqui import get_roles
+                        chatbot_role = get_roles()
+                    else:
+                        chatbot_role = gr.Dropdown(visible=False)
+                    if kwargs['enable_tts'] and kwargs['tts_model'].startswith('microsoft'):
+                        from src.stt import get_speakers
+                        speaker = get_speakers()
+                    else:
+                        speaker = gr.Radio(visible=False)
                 upload_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload
                 url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
                 if have_arxiv and have_librosa:
@@ -846,22 +857,6 @@ def go_gradio(**kwargs):
                                           allow_upload_to_my_data) and \
                                          kwargs['langchain_mode'] != 'Disabled'
 
-                        if not have_wavio:
-                            if kwargs['enable_stt'] == 'auto':
-                                kwargs['enable_stt'] = False
-                            elif kwargs['enable_stt'] is True:
-                                raise RuntimeError("STT packages not installed")
-                        elif kwargs['enable_stt'] == 'auto':
-                            kwargs['enable_stt'] = True
-
-                        if not have_soundfile:
-                            if kwargs['enable_tts'] == 'auto':
-                                kwargs['enable_tts'] = False
-                            elif kwargs['enable_tts'] is True:
-                                raise RuntimeError("TTS packages not installed")
-                        elif kwargs['enable_tts'] == 'auto':
-                            kwargs['enable_tts'] = True
-
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
                         with col_chat:
@@ -930,20 +925,9 @@ def go_gradio(**kwargs):
                                             fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
                                             inputs=[mic_button, audio_pretext, instruction, audio_state],
                                             outputs=[mic_button, audio_pretext, instruction, audio_state])
-                                        from stt import transcribe
-                                        if kwargs['pre_load_image_audio_models'] and \
-                                                kwargs['stt_model'] == kwargs['asr_model']:
-                                            transcriber = asr_loader.model.pipe
-                                        else:
-                                            transcriber = get_transcriber(model=kwargs['stt_model'],
-                                                                          use_gpu=kwargs['stt_gpu'],
-                                                                          gpu_id=kwargs['stt_gpu_id'])
-                                        transcriber_func = functools.partial(transcribe,
-                                                                             transcriber=transcriber,
-                                                                             debug=kwargs['debug'],
-                                                                             max_chunks=20 if is_public else None,
-                                                                             )
-                                        audio.stream(fn=transcriber_func, inputs=[audio_pretext, audio_state, audio],
+                                        from src.stt import transcribe
+                                        audio.stream(fn=kwargs['transcriber_func'],
+                                                     inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
 
                                         def update_audio_state(instruction1):
@@ -951,23 +935,6 @@ def go_gradio(**kwargs):
 
                                         instruction.input(update_audio_state, inputs=instruction, outputs=audio_state)
 
-                                    if kwargs['enable_tts']:
-                                        def click_js2():
-                                            return """function audioPlay() {
-                                            var xPathRes = document.evaluate ('//*[@id="audio_play"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                                            xPathRes.singleNodeValue.click();}"""
-
-                                        speak_button = gr.Button("Speak")
-                                        from src.tts import predict_from_text, get_tts_model
-                                        processor_tts, model_tts, vocoder_tts = \
-                                            get_tts_model(t5_model=kwargs['tts_model'],
-                                                          t5_gan_model=kwargs['tts_gan_model'],
-                                                          use_gpu=kwargs['tts_gpu'],
-                                                          gpu_id=kwargs['tts_gpu_id'])
-                                        predict_from_text_func = functools.partial(predict_from_text,
-                                                                                   processor=processor_tts,
-                                                                                   model=model_tts,
-                                                                                   vocoder=vocoder_tts)
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
                                     mw1 = 50
@@ -1394,16 +1361,28 @@ def go_gradio(**kwargs):
                                                       visible=not is_public and not kwargs['model_lock'],
                                                       interactive=False)
                     with gr.Row():
-                        speaker_radio = gr.Radio(label="Speaker", choices=["BDL (male)",
-                                                                           "CLB (female)",
-                                                                           "KSP (male)",
-                                                                           "RMS (male)",
-                                                                           "SLT (female)",
-                                                                           "Surprise Me!"
-                                                                           ],
-                                                 value="SLT (female)",
-                                                 visible=kwargs['enable_tts'])
-                        speech = gr.Audio(label="Generated Speech", type="numpy")
+                        speech_human = gr.Audio(value=None,
+                                                label="Generated Human Speech",
+                                                type="numpy",
+                                                streaming=True,
+                                                interactive=False,
+                                                show_label=True,
+                                                autoplay=True)
+                        speech_bot = gr.Audio(value=None,
+                                              label="Generated Bot Speech",
+                                              type="numpy",
+                                              streaming=True,
+                                              interactive=False,
+                                              show_label=True,
+                                              autoplay=True)
+                        speech_bot2 = gr.Audio(value=None,
+                                               label="Generated Bot 2 Speech",
+                                               type="numpy",
+                                               streaming=True,
+                                               interactive=False,
+                                               show_label=True,
+                                               autoplay=False,
+                                               visible=False)
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
                 with models_tab:
@@ -3286,13 +3265,14 @@ def go_gradio(**kwargs):
                  API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
             :return: last element is True if should run bot, False if should just yield history
             """
-            isize = len(input_args_list) + 1  # states + chat history
+            isize = len(input_args_list) + 2  # states + chatbot_role + chat history
             # don't deepcopy, can contain model itself
             args_list = list(args).copy()
             model_state1 = args_list[-isize]
             my_db_state1 = args_list[-isize + 1]
             selection_docs_state1 = args_list[-isize + 2]
             requests_state1 = args_list[-isize + 3]
+            chatbot_role1 = args_list[-2]
             history = args_list[-1]
             if not history:
                 history = []
@@ -3313,7 +3293,7 @@ def go_gradio(**kwargs):
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1
+                max_time1, stream_output1, chatbot_role1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
@@ -3371,7 +3351,7 @@ def go_gradio(**kwargs):
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1
+                max_time1, stream_output1, chatbot_role1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3380,7 +3360,7 @@ def go_gradio(**kwargs):
             yield history, error, extra, save_dict
             return
 
-        def get_response(fun1, history):
+        def get_response(fun1, history, chatbot_role1):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
@@ -3389,8 +3369,21 @@ def go_gradio(**kwargs):
             error = ''
             extra = ''
             save_dict = dict()
+
+            audio1 = None
+            from src.tts_coqui import generate_speech, prepare_speech, init_sentence_state
+            audio0 = prepare_speech()
+            sentence_state = init_sentence_state()
+            generate_speech_func = functools.partial(generate_speech,
+                                                     chatbot_role=chatbot_role1,
+                                                     model=kwargs['model_xxt'],
+                                                     supported_languages=kwargs['supported_languages_xxt'],
+                                                     latent_map=kwargs['latent_map_xxt'],
+                                                     sentence_state=sentence_state,
+                                                     verbose=verbose)
+
             if not fun1:
-                yield history, error, extra, save_dict
+                yield history, error, extra, save_dict, audio1
                 return
             try:
                 for output_fun in fun1():
@@ -3400,25 +3393,39 @@ def go_gradio(**kwargs):
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
                     history[-1][1] = bot_message
-                    yield history, error, extra, save_dict
+
+                    while True:
+                        audio1, sentence, sentence_state = generate_speech_func(bot_message, is_final=False)
+                        if audio0 is not None:
+                            yield history, error, extra, save_dict, audio0
+                            audio0 = None
+                        if sentence is not None:
+                            yield history, error, extra, save_dict, audio1
+                        else:
+                            # while True to handle case when streaming is fast enough that see multiple sentences in single go
+                            break
+                audio1, sentence, sentence_state = generate_speech_func(history[-1][1], is_final=True)
+                if audio0 is not None:
+                    yield history, error, extra, save_dict, audio0
+                yield history, error, extra, save_dict, audio1
             except StopIteration:
-                yield history, error, extra, save_dict
+                yield history, error, extra, save_dict, audio1
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, error, extra, save_dict
+                    yield history, error, extra, save_dict, audio1
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e), extra, save_dict
+                    yield history, str(e), extra, save_dict, audio1
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex, extra, save_dict
+                yield history, ex, extra, save_dict, audio1
                 raise
             finally:
                 # clear_torch_cache()
@@ -3441,22 +3448,24 @@ def go_gradio(**kwargs):
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1 = prep_bot(*args, retry=retry)
+                max_time1, stream_output1, \
+                chatbot_role1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
             history_str_old = ''
             error_old = ''
+            audio1 = None
             try:
                 tgen0 = time.time()
-                for res in get_response(fun1, history):
+                for res in get_response(fun1, history, chatbot_role1):
                     do_yield = False
-                    history, error, extra, save_dict = res
+                    history, error, extra, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
                     if stream_output1 and do_yield:
-                        yield history, error
+                        yield history, error, audio1
                         history_str_old = history_str
                         error_old = error
 
@@ -3466,7 +3475,7 @@ def go_gradio(**kwargs):
                         break
 
                 # yield if anything left over
-                yield history, error
+                yield history, error, audio1
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
@@ -3527,7 +3536,7 @@ def go_gradio(**kwargs):
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, \
                         valid_key, h2ogpt_key1, \
-                        max_time1, stream_output1 = \
+                        max_time1, stream_output1, chatbot_role1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if num_visible_bots == 1:
                         # no need to lag, will be faster this way
@@ -3639,14 +3648,16 @@ def go_gradio(**kwargs):
                          outputs=text_output,
                          )
         bot_args = dict(fn=bot,
-                        inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state] + [
-                            text_output],
-                        outputs=[text_output, chat_exception_text],
+                        inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
+                                              chatbot_role] + [
+                                   text_output],
+                        outputs=[text_output, chat_exception_text, speech_bot],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
-                              inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state] + [
-                                  text_output],
-                              outputs=[text_output, chat_exception_text],
+                              inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
+                                                    chatbot_role] + [
+                                         text_output],
+                              outputs=[text_output, chat_exception_text, speech_bot],
                               )
         retry_user_args = dict(fn=functools.partial(user, retry=True),
                                inputs=inputs_list + [text_output],
@@ -3663,14 +3674,15 @@ def go_gradio(**kwargs):
                           outputs=text_output2,
                           )
         bot_args2 = dict(fn=bot,
-                         inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state] + [
-                             text_output2],
-                         outputs=[text_output2, chat_exception_text],
+                         inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state,
+                                                chatbot_role] + [
+                                    text_output2],
+                         outputs=[text_output2, chat_exception_text, speech_bot2],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
                                inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
-                                                      requests_state] + [text_output2],
-                               outputs=[text_output2, chat_exception_text],
+                                                      requests_state, chatbot_role] + [text_output2],
+                               outputs=[text_output2, chat_exception_text, speech_bot2],
                                )
         retry_user_args2 = dict(fn=functools.partial(user, retry=True),
                                 inputs=inputs_list2 + [text_output2],
@@ -3692,17 +3704,18 @@ def go_gradio(**kwargs):
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
                                                  all_possible_visible_models=kwargs['all_possible_visible_models']),
-                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
+                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, chatbot_role] +
                                    text_outputs,
-                            outputs=text_outputs + [chat_exception_text],
+                            outputs=text_outputs + [chat_exception_text, speech_bot],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
                                                        all_possible_visible_models=kwargs[
                                                            'all_possible_visible_models'],
                                                        retry=True),
-                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state] +
+                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state,
+                                                        chatbot_role] +
                                          text_outputs,
-                                  outputs=text_outputs + [chat_exception_text],
+                                  outputs=text_outputs + [chat_exception_text, speech_bot],
                                   )
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
                                                         sanitize_user_prompt=kwargs['sanitize_user_prompt'],
@@ -4619,9 +4632,15 @@ def go_gradio(**kwargs):
                        ,
                        queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
 
-        speak_button.click(predict_from_text_func,
-                           inputs=[instruction, speaker_radio],
-                           outputs=speech)
+        if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
+            if kwargs['tts_model'].startswith('xxt'):
+                speak_me_button.click(kwargs['predict_from_text_func'],
+                                      inputs=[instruction, chatbot_role],
+                                      outputs=speech_human)
+            elif kwargs['tts_model'].startswith('microsoft'):
+                speak_me_button.click(kwargs['predict_from_text_func'],
+                                      inputs=[instruction, speaker],
+                                      outputs=speech_human)
 
         if kwargs['auth'] is not None:
             auth = authf

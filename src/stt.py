@@ -32,3 +32,18 @@ def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, debu
     if debug:
         print("y.shape: %s stream.shape: %s text0=%s text=%s" % (str(y.shape), str(stream.shape), text0, text))
     return chunks, text0 + text
+
+
+def get_speakers():
+    import gradio as gr
+    choices = ["SLT (female)",
+               "BDL (male)",
+               "CLB (female)",
+               "KSP (male)",
+               "RMS (male)",
+               "Surprise Me!"
+               ]
+    return gr.Dropdown(label="Speech Style",
+                       choices=choices,
+                       max_choices=1,
+                       value=choices[0])
