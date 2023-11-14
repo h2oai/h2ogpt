@@ -7,6 +7,7 @@ import soundfile as sf
 import torch
 import librosa
 
+from src.tts_sentence_parsing import init_sentence_state, get_sentence
 
 speaker_embeddings = {
     "BDL": "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy",
@@ -94,7 +95,23 @@ def predict_from_audio(processor, model, speaker_embedding, vocoder, audio, mic_
     return 16000, speech
 
 
-def predict_from_text(text, speaker, processor=None, model=None, vocoder=None):
+def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, verbose=False):
+    sentence_state = init_sentence_state()
+    while True:
+        sentence, sentence_state = get_sentence(text, sentence_state=sentence_state, is_final=False, verbose=verbose)
+        if sentence is not None:
+            sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
+            yield sr, speech
+        else:
+            break
+
+    sentence, sentence_state = get_sentence(text, sentence_state=sentence_state, is_final=True, verbose=verbose)
+    if sentence:
+        sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
+        yield sr, speech
+
+
+def _predict_from_text(text, speaker, processor=None, model=None, vocoder=None):
     if len(text.strip()) == 0:
         return 16000, np.zeros(0).astype(np.int16)
 
