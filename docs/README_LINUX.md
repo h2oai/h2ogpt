@@ -108,8 +108,14 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
     # for TTS:
     pip install torchaudio soundfile
+    # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
+    pip install TTS==0.20.2 deepspeed==0.11.1 noisereduce==3.0.0 pydantic==1.10.13 emoji==2.8.0 ffmpeg-python==0.2.0 trainer==0.0.31 pysbd==0.3.4 coqpit==0.0.17
+    # for Coqui XTTS language helpers
+    pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
     ```
-    For STT, ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
+* STT and TTS Notes:
+  * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
+  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu117`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 * HNSW issue:
     In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
    ```bash
