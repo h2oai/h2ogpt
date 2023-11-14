@@ -94,7 +94,7 @@ def make_css_base() -> str:
     #microphone-button {
         position: absolute;
         top: 48px;
-        right: 100px;
+        right: 125px;
 
         display: flex;
         justify-content: center;
@@ -112,7 +112,7 @@ def make_css_base() -> str:
     #add-button {
         position: absolute;
         top: 48px;
-        right: 50px;
+        right: 75px;
         
         display: flex;
         justify-content: center;
@@ -137,12 +137,12 @@ def make_css_base() -> str:
         border: 1px solid var(--primary-500) !important;
         
         @media (max-width: 563px) {
-          width: 20px;
+          width: 40px;
         }
     }
     
     #attach-button > img {
-        margin-right: 0;
+        margin-right: 40;
     }
     
     #prompt-form > label > textarea {
@@ -150,7 +150,7 @@ def make_css_base() -> str:
         
         @media (max-width: 463px) {
           min-height: 94px;
-          padding-right: 120px;
+          padding-right: 130px;
         }
     }
 
