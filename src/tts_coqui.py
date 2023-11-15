@@ -8,6 +8,7 @@ import io
 import time
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
+from src.tts_utils import prepare_speech
 
 
 def get_xxt():
@@ -82,22 +83,6 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None):
     return gpt_cond_latent, speaker_embedding
 
 
-def get_wave_header(frame_input=b"", channels=1, sample_width=2, sample_rate=24000):
-    import wave
-    # This will create a wave header then append the frame input
-    # It should be first on a streaming wav file
-    # Other frames better should not have it (else you will hear some artifacts each chunk start)
-    wav_buf = io.BytesIO()
-    with wave.open(wav_buf, "wb") as vfout:
-        vfout.setnchannels(channels)
-        vfout.setsampwidth(sample_width)
-        vfout.setframerate(sample_rate)
-        vfout.writeframes(frame_input)
-
-    wav_buf.seek(0)
-    return wav_buf.read()
-
-
 def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
     if model is None:
         model, supported_languages = get_xxt()
@@ -152,9 +137,6 @@ def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
         return None
 
 
-def prepare_speech(sr=24000):
-    # Must set autoplay to True first
-    return get_wave_header(sample_rate=sr)
 
 
 def generate_speech(response, chatbot_role=None, model=None, supported_languages=None, latent_map=None,

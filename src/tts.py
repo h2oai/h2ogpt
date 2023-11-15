@@ -8,6 +8,7 @@ import torch
 import librosa
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
+from src.tts_utils import prepare_speech
 
 speaker_embeddings = {
     "BDL": "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy",
@@ -148,6 +149,8 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
 
 
 def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, verbose=False):
+    audio0 = prepare_speech(sr=16000)
+    yield audio0
     sentence_state = init_sentence_state()
     speaker_embedding = get_speaker_embedding(speaker, model.device)
 
@@ -156,7 +159,7 @@ def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, v
                                                          verbose=verbose)
         if sentence is not None:
             audio = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder,
-                                            speaker_embedding=speaker_embedding)
+                                       speaker_embedding=speaker_embedding)
             yield audio
         else:
             if is_done:
@@ -165,7 +168,7 @@ def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, v
     sentence, sentence_state, _ = get_sentence(text, sentence_state=sentence_state, is_final=True, verbose=verbose)
     if sentence:
         audio = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder,
-                                        speaker_embedding=speaker_embedding)
+                                   speaker_embedding=speaker_embedding)
         yield audio
 
 

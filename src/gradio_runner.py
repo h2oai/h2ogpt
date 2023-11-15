@@ -3386,7 +3386,7 @@ def go_gradio(**kwargs):
                 from src.tts import get_speaker_embedding
                 speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
                 # audio0 = 16000, np.array([]).astype(np.int16)
-                from src.tts_coqui import prepare_speech
+                from src.tts_utils import prepare_speech
                 audio0 = prepare_speech(sr=16000)
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               speaker=speaker1,
@@ -3395,7 +3395,7 @@ def go_gradio(**kwargs):
                                                               verbose=verbose)
             elif kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, "None"]:
                 audio1 = None
-                from src.tts_coqui import prepare_speech
+                from src.tts_utils import prepare_speech
                 audio0 = prepare_speech()
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               chatbot_role=chatbot_role1,
