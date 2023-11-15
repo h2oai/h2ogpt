@@ -162,6 +162,27 @@ def clean_sentence(sentence, verbose=False):
     if sentence.startswith('.') or sentence.startswith('?') or sentence.startswith('!') or sentence.startswith(','):
         sentence = sentence[1:]
 
+    if sentence == '1.':
+        sentence = 'One'
+    if sentence == '2.':
+        sentence = 'Two'
+    if sentence == '3.':
+        sentence = 'Three'
+    if sentence == '4.':
+        sentence = 'Four'
+    if sentence == '5.':
+        sentence = 'Five'
+    if sentence == '6.':
+        sentence = 'Six'
+    if sentence == '7.':
+        sentence = 'Seven'
+    if sentence == '8.':
+        sentence = 'Eight'
+    if sentence == '9.':
+        sentence = 'Nine'
+    if sentence == '10.':
+        sentence = 'Ten'
+
     if len(sentence) == 0:
         if verbose:
             print("EMPTY SENTENCE after processing")
