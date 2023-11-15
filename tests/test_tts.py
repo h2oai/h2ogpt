@@ -1,9 +1,10 @@
 import pytest
-
+from tests.utils import wrap_test_forked
 from src.tts_sentence_parsing import init_sentence_state
 from tests.test_sentence_parsing import bot_list
 
 
+@wrap_test_forked
 def test_sentence_to_wave():
     from src.tts_coqui import sentence_to_wave, get_xxt, get_latent_map
 
@@ -26,6 +27,7 @@ def test_sentence_to_wave():
         pass
 
 
+@wrap_test_forked
 def test_generate_speech():
     from src.tts_coqui import generate_speech, get_xxt, get_latent_map
 
@@ -39,6 +41,7 @@ def test_generate_speech():
                         model=model, supported_languages=supported_languages, latent_map=latent_map)
 
 
+@wrap_test_forked
 def test_full_generate_speech():
     from src.tts_coqui import generate_speech, get_xxt, get_latent_map
     bot = 'I am an AI assistant.  What do you want from me?  I am very busy.'
@@ -92,6 +95,7 @@ def test_full_generate_speech():
     print(audios)
 
 
+@wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
 def test_predict_from_text(bot, sentences_expected):
     speeches = []

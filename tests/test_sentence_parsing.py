@@ -24,6 +24,7 @@ bot_list = [
 ]
 
 
+@wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
 def test_get_sentence(bot, sentences_expected):
     def response_gen():
@@ -51,6 +52,7 @@ def test_get_sentence(bot, sentences_expected):
     assert sentences == sentences_expected
 
 
+@wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
 def test_get_sentence2(bot, sentences_expected):
     def response_gen():
