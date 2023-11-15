@@ -63,8 +63,8 @@ def get_speakers():
             "CLB (female)",
             "KSP (male)",
             "RMS (male)",
-            "Surprise Me!"
-            "",
+            "Surprise Me!",
+            "None",
             ]
 
 

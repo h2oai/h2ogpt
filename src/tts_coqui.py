@@ -285,7 +285,7 @@ def get_latent_map(model=None):
 
 
 def allowed_roles():
-    roles = ["Female AI Assistant", "Male AI Assistant", "AI Beard The Pirate"]
+    roles = ["Female AI Assistant", "Male AI Assistant", "AI Beard The Pirate", "None"]
     return roles
 
 

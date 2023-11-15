@@ -707,7 +707,8 @@ def go_gradio(**kwargs):
                                            visible=True, interactive=True,
                                            type='value')
                     visible_speak_me = kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None
-                    speak_me_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
+                    speak_human_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
+                    speak_bot_button = gr.Button("Speak Response", visible=visible_speak_me, size='sm')
                     # speak_me_cancel_button = gr.Button("Cancel Speak Instruction", visible=visible_speak_me, size='sm')
                     # speak_me_cancel_button.click(fn=lambda: None, _js=click_js2())
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('xxt'):
@@ -3381,7 +3382,7 @@ def go_gradio(**kwargs):
             audio1 = None
             from src.tts_sentence_parsing import init_sentence_state
             sentence_state = init_sentence_state()
-            if kwargs['tts_model'].startswith('microsoft') and speaker1:
+            if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
                 from src.tts import get_speaker_embedding
                 speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
                 audio0 = None
@@ -3390,7 +3391,7 @@ def go_gradio(**kwargs):
                                                               speaker_embedding=speaker_embedding,
                                                               sentence_state=sentence_state,
                                                               verbose=verbose)
-            elif kwargs['tts_model'].startswith('xxt') and chatbot_role1:
+            elif kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, "None"]:
                 from src.tts_coqui import prepare_speech
                 audio0 = prepare_speech()
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
@@ -4665,15 +4666,33 @@ def go_gradio(**kwargs):
         speak_events = []
         if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
             if kwargs['tts_model'].startswith('xxt'):
-                speak_me_event = speak_me_button.click(kwargs['predict_from_text_func'],
-                                                       inputs=[instruction, chatbot_role],
-                                                       outputs=speech_human)
-                speak_events.append(speak_me_event)
+                speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
+                                                             inputs=[instruction, chatbot_role],
+                                                             outputs=speech_human)
+                speak_events.extend([speak_human_event])
             elif kwargs['tts_model'].startswith('microsoft'):
-                speak_me_event = speak_me_button.click(kwargs['predict_from_text_func'],
-                                                       inputs=[instruction, speaker],
-                                                       outputs=speech_human)
-                speak_events.append(speak_me_event)
+                speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
+                                                             inputs=[instruction, speaker],
+                                                             outputs=speech_human)
+                speak_events.extend([speak_human_event])
+
+        def wrap_pred_func(chatbot_role1, speaker1, visible_models1, text_output1, text_output21, *args,
+                           all_models=[]):
+            # FIXME: Choose first visible
+            text_outputs1 = list(args)
+            text_outputss = [text_output1, text_output21] + text_outputs1
+            text_outputss = [x[-1][1] for x in text_outputss if len(x) >= 1 and len(x[-1]) == 2 and x[-1][1]]
+            response = text_outputss[0] if text_outputss else None
+            if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
+                if kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, 'None']:
+                    yield from kwargs['predict_from_text_func'](response, chatbot_role1)
+                elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
+                    yield from kwargs['predict_from_text_func'](response, speaker1)
+
+        speak_bot_event = speak_bot_button.click(wrap_pred_func,
+                                                 inputs=[chatbot_role, speaker, visible_models, text_output,
+                                                         text_output2] + text_outputs,
+                                                 outputs=speech_bot)
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
