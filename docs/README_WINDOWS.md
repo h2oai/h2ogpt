@@ -116,12 +116,12 @@ For newer builds of windows versions of 10/11.
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.14+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
       pip uninstall -y llama-cpp-python
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.14+cpuavx2-cp310-cp310-win_amd64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-win_amd64.whl
       ```
       For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
        ```bash
@@ -138,7 +138,7 @@ For newer builds of windows versions of 10/11.
     set LLAMA_CUBLAS=1
     set CMAKE_ARGS=-DLLAMA_CUBLAS=on
     set FORCE_CMAKE=1
-    pip install llama-cpp-python==0.2.14 --no-cache-dir --verbose
+    pip install llama-cpp-python==0.2.18 --no-cache-dir --verbose
     ```
   * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
     That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
