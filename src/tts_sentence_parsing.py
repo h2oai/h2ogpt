@@ -37,71 +37,51 @@ def pack_state(sentence_state, *args):
     return sentence_state
 
 
-def split_sentences_preserve_words(sentence, n=350):
+def split_sentences(sentence, n=350):
     """
-    Splits a sentence by spaces into smaller sentences, each with a maximum length of n characters.
-    This function ensures that words are not broken up.
+    Splits a sentence by spaces into smaller sentences, each with a maximum length of n characters,
+    while preserving whitespace characters like new lines.
     """
-    words = sentence.split()
+    # Splitting on spaces while preserving all whitespace characters in a list
+    words = re.split('(\s+)', sentence)
     sentences = []
-    current_sentence = ""
-
-    for word in words:
-        # Check if adding the next word would exceed the limit
-        if len(current_sentence) + len(word) + 1 > n:
-            if current_sentence:
-                sentences.append(current_sentence)
-                current_sentence = word
-            else:
-                # If the current word itself is longer than n and there's no current sentence,
-                # the word is added as a separate sentence.
-                sentences.append(word)
-        else:
-            if current_sentence:
-                # Add a space before the word if it's not the first word in the sentence
-                current_sentence += " "
-            current_sentence += word
-
-    # Add the last sentence if it exists
-    if current_sentence:
-        sentences.append(current_sentence)
-
-    return sentences
-
-
-def split_sentences_optimized(sentence, n=350):
-    """
-    Optimized function to split a sentence by spaces into smaller sentences,
-    each with a maximum length of n characters. This function avoids unnecessary string concatenations.
-    """
-    words = sentence.split()
-    sentences = []
+    current_sentence = []
     current_length = 0
 
-    # Using a list to build sentences instead of string concatenation
-    current_sentence = []
-
     for word in words:
-        word_length = len(word)
+        # Skip empty strings which can occur due to consecutive whitespace
+        if word == '':
+            continue
 
-        # Check if adding the next word would exceed the limit
-        if current_length + word_length + len(current_sentence) > n:
-            if current_sentence:
-                sentences.append(" ".join(current_sentence))
-                current_sentence = [word]
-                current_length = word_length
-            else:
-                # If the current word itself is longer than n and there's no current sentence,
-                # the word is added as a separate sentence.
-                sentences.append(word)
+        # Check if the word is a whitespace character
+        if word.isspace():
+            if word == '\n':
+                # If it's a newline, end the current sentence and start a new one
+                sentences.append("".join(current_sentence))
+                current_sentence = []
                 current_length = 0
+            else:
+                # For other whitespace characters, add them to the current sentence
+                current_sentence.append(word)
+                current_length += len(word)
         else:
-            current_sentence.append(word)
-            current_length += word_length
+            # Check if adding the next word would exceed the limit
+            if current_length + len(word) > n:
+                if current_sentence:
+                    sentences.append("".join(current_sentence))
+                    current_sentence = [word]
+                    current_length = len(word)
+                else:
+                    # If the word itself is longer than n and there's no current sentence
+                    sentences.append(word)
+                    current_length = 0
+            else:
+                current_sentence.append(word)
+                current_length += len(word)
 
     # Add the last sentence if it exists
     if current_sentence:
-        sentences.append(" ".join(current_sentence))
+        sentences.append("".join(current_sentence))
 
     return sentences
 
@@ -112,7 +92,7 @@ def _get_sentences(response, verbose=False, min_start=15, max_length=350):
     # refuse to tokenize first 15 characters into sentence, so language detection works and logic simpler
     sentences = nltk.sent_tokenize(response[min_start:])
     # split any long sentences
-    sentences = flatten_list([split_sentences_optimized(x, max_length) for x in sentences])
+    sentences = flatten_list([split_sentences(x, max_length) for x in sentences])
     # drop empty sentences
     sentences = [x for x in sentences if x.strip()]
     # restore first min_start if set

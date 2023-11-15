@@ -5,6 +5,9 @@ from tests.utils import wrap_test_forked
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
 
 bot_list = [
+    ("""Sure, I'd be happy to help! Here are some fun facts about the color purple:
+
+1. Pur""", ["Sure, I'd be happy to help!", 'Here are some fun facts about the color purple:\n\n1.', 'Pur']),
     ('Purple', ['Purple']),
     ('I am an AI assistant.  What do you want from me?  I am very busy.',
      ['I am an AI assistant.', 'What do you want from me?', 'I am very busy.']),
@@ -42,7 +45,7 @@ bot_list = [
                  "And if you ever need a listening ear or someone to bounce ideas off of, don't hesitate to reach out.",
                  "I'm always here for you!",
                  "Let's make the most of our time together and see how we can work towards achieving your goals and aspirations.",
-                 'Looking forward to connecting with you soon!', 'Best regards, [Your Name]']),
+                 'Looking forward to connecting with you soon!', 'Best regards,\n\n[Your Name]']),
     (""". I'm doing well, thanks for asking! How about you? Feel free to share anything that's been on your mind lately.
 
 . If you have any specific topics or questions you'd like me to address, just let me know and I'll do my best to provide helpful insights and information.
