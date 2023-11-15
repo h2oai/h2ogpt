@@ -3387,16 +3387,16 @@ def go_gradio(**kwargs):
             if kwargs['tts_model'].startswith('microsoft'):
                 audio0 = None
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
-                                                         speaker=speaker1,
-                                                         sentence_state=sentence_state,
-                                                         verbose=verbose)
+                                                              speaker=speaker1,
+                                                              sentence_state=sentence_state,
+                                                              verbose=verbose)
             elif kwargs['tts_model'].startswith('xxt'):
                 from src.tts_coqui import prepare_speech
                 audio0 = prepare_speech()
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
-                                                         chatbot_role=chatbot_role1,
-                                                         sentence_state=sentence_state,
-                                                         verbose=verbose)
+                                                              chatbot_role=chatbot_role1,
+                                                              sentence_state=sentence_state,
+                                                              verbose=verbose)
             else:
                 generate_speech_func_func = None
                 audio0 = None
@@ -3431,8 +3431,9 @@ def go_gradio(**kwargs):
                     if audio0 is not None:
                         yield history, error, extra, save_dict, audio0
                 yield history, error, extra, save_dict, audio1
-            except StopIteration:
-                yield history, error, extra, save_dict, audio1
+            # except StopIteration:
+            # Don't do extra yield, if streaming acts as new chunk
+            #    yield history, error, extra, save_dict, audio1
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
@@ -3727,7 +3728,8 @@ def go_gradio(**kwargs):
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
                                                  all_possible_visible_models=kwargs['all_possible_visible_models']),
-                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, chatbot_role, speaker] +
+                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, chatbot_role,
+                                                  speaker] +
                                    text_outputs,
                             outputs=text_outputs + [chat_exception_text, speech_bot],
                             )
