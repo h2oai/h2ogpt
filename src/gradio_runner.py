@@ -586,15 +586,15 @@ def go_gradio(**kwargs):
         user_can_do_sum = kwargs['langchain_mode'] != LangChainMode.DISABLED.value and \
                           (kwargs['visible_side_bar'] or kwargs['visible_system_tab'])
         if user_can_do_sum:
-            extra_prompt_form = ".  Just Click Submit for simple Summarization/Extraction"
+            extra_prompt_form = ".  Just Click Submit for simple Summarize/Extract"
         else:
             extra_prompt_form = ""
         if allow_upload:
-            extra_prompt_form += ".  Click Ingest to add this text as URL/ArXiv/YouTube/Text.  Click + to Upload File(s)."
+            extra_prompt_form += ".  Clicking Ingest adds text as URL/ArXiv/YouTube/Text."
         if kwargs['input_lines'] > 1:
-            instruction_label = "Shift-Enter to Submit, Enter for more lines%s" % extra_prompt_form
+            instruction_label = "Shift-Enter to Submit, Enter adds lines%s" % extra_prompt_form
         else:
-            instruction_label = "Enter to Submit, Shift-Enter for more lines%s" % extra_prompt_form
+            instruction_label = "Enter to Submit, Shift-Enter adds lines%s" % extra_prompt_form
 
         def get_langchain_choices(selection_docs_state1):
             langchain_modes = selection_docs_state1['langchain_modes']
