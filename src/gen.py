@@ -256,7 +256,9 @@ def main(
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
-        visible_h2ogpt_header: bool = True,
+        visible_h2ogpt_links: bool = True,
+        visible_h2ogpt_qrcode: bool = True,
+        visible_h2ogpt_logo: bool = True,
         visible_all_prompter_models: bool = False,
         actions_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
@@ -681,7 +683,9 @@ def main(
     :param visible_login_tab: "" for Login tab (needed for persistence or to enter key for UI access to models and ingestion)
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
-    :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
+    :param visible_h2ogpt_links: Whether github stars, URL are visible
+    :param visible_h2ogpt_qrcode: Whether QR code is visible
+    :param visible_h2ogpt_logo: Whether central logo is visible
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
