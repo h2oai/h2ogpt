@@ -139,7 +139,7 @@ def _get_sentences(response, verbose=False, min_start=15, max_length=350):
 def get_sentence(response, sentence_state, is_final=False, verbose=False):
     # get state items
     sentence_list, index = unpack_state(sentence_state)
-    sentences = _get_sentences(response[index:], verbose=verbose)
+    sentences = _get_sentences(response[index:], min_start=15 if index > 0 else 0, verbose=verbose)
 
     if len(sentences) >= 2:
         # detected new completed sentence
