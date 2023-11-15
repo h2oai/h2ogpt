@@ -713,7 +713,7 @@ def go_gradio(**kwargs):
                     else:
                         chatbot_role = gr.Dropdown(visible=False)
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('microsoft'):
-                        from src.stt import get_speakers_gr
+                        from src.tts import get_speakers_gr
                         speaker = get_speakers_gr()
                     else:
                         speaker = gr.Radio(visible=False)
