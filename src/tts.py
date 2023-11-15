@@ -116,8 +116,9 @@ def predict_from_audio(processor, model, speaker_embedding, vocoder, audio, mic_
 
 def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
                     sentence_state=None,
-                    return_as_byte=True, return_gradio=False,
+                    return_as_byte=False, return_gradio=False,
                     is_final=False, verbose=False):
+    assert not return_as_byte, "Not supported"
     if model is None or processor is None or vocoder is None:
         processor, model, vocoder = get_tts_model()
     if sentence_state is None:
