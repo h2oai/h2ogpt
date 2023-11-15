@@ -9,7 +9,8 @@ def setup_nltk():
     nltk.download("punkt")
 
 
-setup_nltk()
+# if followed installation, then should already be done, don't break air-gap
+# setup_nltk()
 
 sentence_keys = ['sentence_list', 'index']
 
