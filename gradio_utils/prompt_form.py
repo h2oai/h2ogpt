@@ -26,8 +26,11 @@ def get_avatars(base_model, model_path_llama):
         bot_avatar = "models/lama2.jpeg"
     elif 'llama' in base_model:
         bot_avatar = "models/lama.jpeg"
+    elif 'openai' in base_model:
+        bot_avatar = "models/openai.png"
+    elif 'hugging' in base_model.lower():
+        bot_avatar = "models/hf-logo.png"
     else:
-        #bot_avatar = "models/hf-logo.png"
         bot_avatar = "models/h2oai.png"
     human_avatar = human_avatar if os.path.isfile(human_avatar) else None
     bot_avatar = bot_avatar if os.path.isfile(bot_avatar) else None
