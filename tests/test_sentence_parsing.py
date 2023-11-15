@@ -34,14 +34,14 @@ bot_list = [
 
 . Best regards,
 
-[Your Name]""", [". I'm doing well, thanks for asking!",
-                 "How about you? Feel free to share anything that's been on your mind lately.",
-                 ". If you have any specific topics or questions you'd like me to help you with, just let me know.",
-                 "I'm here to assist you in any way possible.",
-                 ". And if you ever need a listening ear or someone to bounce ideas off of, don't hesitate to reach out.",
-                 "I'm always here for you!",
-                 ". Let's make the most of our time together and see how we can work towards achieving your goals and aspirations.",
-                 '. Looking forward to connecting with you soon!', '. Best regards, [Your Name]']),
+[Your Name]""", [". I'm doing well, thanks for asking!", 'How about you?',
+                 "Feel free to share anything that's been on your mind lately.", '.',
+                 "If you have any specific topics or questions you'd like me to help you with, just let me know.",
+                 "I'm here to assist you in any way possible.", '.',
+                 "And if you ever need a listening ear or someone to bounce ideas off of, don't hesitate to reach out.",
+                 "I'm always here for you!", '.',
+                 "Let's make the most of our time together and see how we can work towards achieving your goals and aspirations.",
+                 '.', 'Looking forward to connecting with you soon!', '.', 'Best regards, [Your Name]']),
     (""". I'm doing well, thanks for asking! How about you? Feel free to share anything that's been on your mind lately.
 
 . If you have any specific topics or questions you'd like me to address, just let me know and I'll do my best to provide helpful insights and information.
@@ -51,13 +51,19 @@ bot_list = [
 . Whether we're discussing current events, personal experiences, or anything else under the sun, my goal is always to foster a positive and productive dialogue.
 
 . So, what's on your mind today? Let's dive in and explore some ideas together!""",
-     [". I'm doing well, thanks for asking!",
-      "How about you? Feel free to share anything that's been on your mind lately.",
-      ". If you have any specific topics or questions you'd like me to address, just let me know and I'll do my best to provide helpful insights and information.",
-      ". Alternatively, if you just want to chat about something random or share some thoughts, that's great too!",
-      "I'm here to listen and engage in meaningful conversations.",
-      ". Whether we're discussing current events, personal experiences, or anything else under the sun, my goal is always to foster a positive and productive dialogue.",
-      ". So, what's on your mind today?", "Let's dive in and explore some ideas together!"]),
+     [". I'm doing well, thanks for asking!", 'How about you?',
+      "Feel free to share anything that's been on your mind lately.", '.',
+      "If you have any specific topics or questions you'd like me to address, just let me know and I'll do my best to provide helpful insights and information.",
+      '.', "Alternatively, if you just want to chat about something random or share some thoughts, that's great too!",
+      "I'm here to listen and engage in meaningful conversations.", '.',
+      "Whether we're discussing current events, personal experiences, or anything else under the sun, my goal is always to foster a positive and productive dialogue.",
+      '.', "So, what's on your mind today?", "Let's dive in and explore some ideas together!"]),
+    (
+        """I do not have the ability to feel emotions or do things in the physical world. However, I am programmed to respond to your message and assist you with any queries you may have. So, I'm functioning perfectly fine and ready to help you out! how about you? is there anything I can assist you with today?""",
+        ["""I do not have the ability to feel emotions or do things in the physical world.""",
+         """However, I am programmed to respond to your message and assist you with any queries you may have.""",
+         """So, I'm functioning perfectly fine and ready to help you out!""", """how about you?""",
+         """is there anything I can assist you with today?"""])
 ]
 
 
