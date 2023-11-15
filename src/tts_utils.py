@@ -1,5 +1,6 @@
 import io
 import wave
+import numpy as np
 
 
 def get_wave_header(frame_input=b"", channels=1, sample_width=2, sample_rate=24000):
@@ -20,3 +21,11 @@ def get_wave_header(frame_input=b"", channels=1, sample_width=2, sample_rate=240
 def prepare_speech(sr=24000):
     # Must set autoplay to True first
     return get_wave_header(sample_rate=sr)
+
+
+def get_no_audio(return_as_byte=True, sr=None):
+    if return_as_byte:
+        return b""
+    else:
+        assert sr is not None
+        return sr, np.array([]).astype(np.int16)

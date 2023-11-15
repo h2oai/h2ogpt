@@ -3386,26 +3386,35 @@ def go_gradio(**kwargs):
                 from src.tts import get_speaker_embedding
                 speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
                 # audio0 = 16000, np.array([]).astype(np.int16)
-                from src.tts_utils import prepare_speech
-                audio0 = prepare_speech(sr=16000)
+                from src.tts_utils import prepare_speech, get_no_audio
+                sr = 16000
+                audio0 = prepare_speech(sr=sr)
+                no_audio = get_no_audio(sr=sr)
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               speaker=speaker1,
                                                               speaker_embedding=speaker_embedding,
                                                               sentence_state=sentence_state,
+                                                              return_as_byte=True,
+                                                              sr=sr,
                                                               verbose=verbose)
             elif kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, "None"]:
                 audio1 = None
-                from src.tts_utils import prepare_speech
-                audio0 = prepare_speech()
+                from src.tts_utils import prepare_speech, get_no_audio
+                sr = 24000
+                audio0 = prepare_speech(sr=sr)
+                no_audio = get_no_audio(sr=sr)
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               chatbot_role=chatbot_role1,
                                                               sentence_state=sentence_state,
+                                                              return_as_byte=True,
+                                                              sr=sr,
                                                               verbose=verbose)
             else:
                 generate_speech_func_func = None
                 audio0 = None
                 audio1 = None
-            return audio0, audio1, generate_speech_func_func
+                no_audio = None
+            return audio0, audio1, no_audio, generate_speech_func_func
 
         def get_response(fun1, history, chatbot_role1, speaker1):
             """
@@ -3417,7 +3426,7 @@ def go_gradio(**kwargs):
             extra = ''
             save_dict = dict()
 
-            audio0, audio1, generate_speech_func_func = prepare_audio(chatbot_role1, speaker1)
+            audio0, audio1, no_audio, generate_speech_func_func = prepare_audio(chatbot_role1, speaker1)
 
             if not fun1:
                 yield history, error, extra, save_dict, audio1
@@ -3457,23 +3466,23 @@ def go_gradio(**kwargs):
                 yield history, error, extra, save_dict, audio1
             except StopIteration:
                 # print("STOP ITERATION", flush=True)
-                yield history, error, extra, save_dict, None
+                yield history, error, extra, save_dict, no_audio
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, error, extra, save_dict, None
+                    yield history, error, extra, save_dict, no_audio
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e), extra, save_dict, None
+                    yield history, str(e), extra, save_dict, no_audio
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex, extra, save_dict, None
+                yield history, ex, extra, save_dict, no_audio
                 raise
             finally:
                 # clear_torch_cache()
@@ -3503,6 +3512,8 @@ def go_gradio(**kwargs):
             extra = ''
             history_str_old = ''
             error_old = ''
+            from src.tts_utils import get_no_audio
+            no_audio = get_no_audio()
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1):
@@ -3522,7 +3533,7 @@ def go_gradio(**kwargs):
                         break
 
                 # yield if anything left over
-                yield history, error, None
+                yield history, error, no_audio
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
@@ -3622,6 +3633,14 @@ def go_gradio(**kwargs):
             exceptions_old_str = exceptions_str
             extras = extras_old = [''] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
+            if kwargs['tts_model'].startswith('microsoft'):
+                from src.tts_utils import prepare_speech, get_no_audio
+                no_audio = get_no_audio(sr=16000)
+            elif kwargs['tts_model'].startswith('xxt'):
+                from src.tts_utils import prepare_speech, get_no_audio
+                no_audio = get_no_audio(sr=24000)
+            else:
+                no_audio = None
 
             tgen0 = time.time()
             try:
@@ -3655,8 +3674,9 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
-                    audios = [x[4] if x is not None and not isinstance(x, BaseException) else None for x in res1]
-                    audio1 = audios[0] if len(audios) == 1 else None
+                    audios = [x[4] if x is not None and not isinstance(x, BaseException) else no_audio for x in res1]
+                    audio1 = audios[0] if len(audios) == 1 else no_audio
+                    do_yield |= audio1 != no_audio
 
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if stream_output1 and do_yield:
@@ -3675,9 +3695,9 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over as can happen (FIXME: Understand better)
                 if len(bots) > 1:
-                    yield tuple(bots + [exceptions_str, None])
+                    yield tuple(bots + [exceptions_str, no_audio])
                 else:
-                    yield bots[0], exceptions_str, None
+                    yield bots[0], exceptions_str, no_audio
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)

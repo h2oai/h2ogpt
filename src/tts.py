@@ -8,7 +8,7 @@ import torch
 import librosa
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
-from src.tts_utils import prepare_speech
+from src.tts_utils import prepare_speech, get_no_audio
 
 speaker_embeddings = {
     "BDL": "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy",
@@ -139,7 +139,7 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
     else:
         if verbose:
             print("no audio")
-        no_audio = b"" if return_as_byte else sr, np.array([]).astype(np.int16)
+        no_audio = get_no_audio(sr=sr, return_as_byte=return_as_byte)
         if return_gradio:
             import gradio as gr
             audio = gr.Audio(value=no_audio, autoplay=False)
@@ -198,8 +198,7 @@ def get_speaker_embedding(speaker, device):
 def _predict_from_text(text, speaker, processor=None, model=None, vocoder=None, speaker_embedding=None,
                        return_as_byte=True, sr=16000):
     if len(text.strip()) == 0:
-        no_audio = b"" if return_as_byte else sr, np.array([]).astype(np.int16)
-        return no_audio
+        return get_no_audio(sr=sr, return_as_byte=return_as_byte)
     if speaker_embedding is None:
         speaker_embedding = get_speaker_embedding(speaker, model.device)
 

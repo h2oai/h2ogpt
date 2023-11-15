@@ -8,7 +8,7 @@ import io
 import time
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
-from src.tts_utils import prepare_speech
+from src.tts_utils import prepare_speech, get_no_audio
 
 
 def get_xxt():
@@ -137,11 +137,9 @@ def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
         return None
 
 
-
-
 def generate_speech(response, chatbot_role=None, model=None, supported_languages=None, latent_map=None,
                     sentence_state=None,
-                    return_as_byte=True, return_gradio=False,
+                    return_as_byte=True, sr=24000, return_gradio=False,
                     is_final=False, verbose=False):
     if model is None or supported_languages is None:
         model, supported_languages = get_xxt()
@@ -152,7 +150,8 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
     if sentence_state is None:
         sentence_state = init_sentence_state()
 
-    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
+    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final,
+                                               verbose=verbose)
     if sentence:
         t0 = time.time()
         if verbose:
@@ -163,13 +162,14 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
                                  model=model,
                                  latent_map=latent_map,
                                  return_as_byte=return_as_byte,
+                                 sr=sr,
                                  return_gradio=return_gradio)
         if verbose:
             print("done sentence_to_wave: %s" % (time.time() - t0), flush=True)
     else:
         if verbose:
             print("No audio", flush=True)
-        no_audio = b"" if return_as_byte else None
+        no_audio = get_no_audio(sr=sr, return_as_byte=return_as_byte)
         if return_gradio:
             import gradio as gr
             audio = gr.Audio(value=no_audio, autoplay=False)
@@ -179,7 +179,7 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
 
 
 def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
-                     return_as_byte=False, model=None,
+                     return_as_byte=False, sr=24000, model=None,
                      return_gradio=True, language='autodetect', verbose=False):
     """
     generate speech audio file per sentence
@@ -225,7 +225,7 @@ def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
             if filter_output:
                 data_s16 = np.frombuffer(wav_bytestream, dtype=np.int16, count=len(wav_bytestream) // 2, offset=0)
                 float_data = data_s16 * 0.5 ** 15
-                reduced_noise = nr.reduce_noise(y=float_data, sr=24000, prop_decrease=0.8, n_fft=1024)
+                reduced_noise = nr.reduce_noise(y=float_data, sr=sr, prop_decrease=0.8, n_fft=1024)
                 wav_bytestream = (reduced_noise * 32767).astype(np.int16)
                 wav_bytestream = wav_bytestream.tobytes()
 
@@ -236,7 +236,7 @@ def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
                         f.setnchannels(1)
                         # 2 bytes per sample.
                         f.setsampwidth(2)
-                        f.setframerate(24000)
+                        f.setframerate(sr)
                         f.writeframes(wav_bytestream)
 
                     ret_value = audio_unique_filename
@@ -287,8 +287,9 @@ def get_roles():
     return chatbot_role
 
 
-def predict_from_text(response, chatbot_role, model=None, supported_languages=None, latent_map=None, verbose=False):
-    audio0 = prepare_speech()
+def predict_from_text(response, chatbot_role, model=None, supported_languages=None, latent_map=None,
+                      return_as_byte=True, sr=24000, verbose=False):
+    audio0 = prepare_speech(sr=sr)
     yield audio0
     sentence_state = init_sentence_state()
     generate_speech_func = functools.partial(generate_speech,
@@ -297,6 +298,8 @@ def predict_from_text(response, chatbot_role, model=None, supported_languages=No
                                              supported_languages=supported_languages,
                                              latent_map=latent_map,
                                              sentence_state=sentence_state,
+                                             return_as_byte=return_as_byte,
+                                             sr=sr,
                                              verbose=verbose)
     while True:
         audio1, sentence, sentence_state = generate_speech_func(response, is_final=False)
