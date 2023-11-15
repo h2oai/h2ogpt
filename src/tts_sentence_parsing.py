@@ -146,12 +146,14 @@ def get_sentence(response, sentence_state, is_final=False, verbose=False):
         # find new index
         index_delta = response[index:].index(sentences[0])
         index += index_delta + len(sentences[0])
+        sentence_list.append(sentences[0])
         # only clean for result, to avoid mis-handling of sentences index
         cleaned_sentence = clean_sentence(sentences[0], verbose=verbose)
         return cleaned_sentence, pack_state(sentence_state, sentence_list, index), False
     elif is_final:
         # then just return last sentence
         cleaned_sentence = clean_sentence(' '.join(sentences), verbose=verbose)
+        sentence_list.append(' '.join(sentences))
         return cleaned_sentence, pack_state(sentence_state, sentence_list, index), True
     else:
         return None, pack_state(sentence_state, sentence_list, index), True

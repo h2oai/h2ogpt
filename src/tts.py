@@ -136,8 +136,8 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
             audio = gr.Audio(value=no_audio, autoplay=False)
         else:
             audio = no_audio
-    # if sentence or audio:
-    #    print("sentence: %s len %s" % (sentence, audio[1].shape if len(audio) == 2 else None), flush=True)
+    if sentence or audio:
+       print("sentence: %s len %s" % (sentence, audio[1].shape if len(audio) == 2 else None), flush=True)
     return audio, sentence, sentence_state
 
 

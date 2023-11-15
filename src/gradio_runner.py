@@ -3433,26 +3433,27 @@ def go_gradio(**kwargs):
                     audio1, sentence, sentence_state = generate_speech_func_func(history[-1][1], is_final=True)
                     if audio0 is not None:
                         yield history, error, extra, save_dict, audio0
+                else:
+                    audio1 = None
                 yield history, error, extra, save_dict, audio1
-            # except StopIteration:
-            # Don't do extra yield, if streaming acts as new chunk
-            #    yield history, error, extra, save_dict, audio1
+            except StopIteration:
+                yield history, error, extra, save_dict, None
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, error, extra, save_dict, audio1
+                    yield history, error, extra, save_dict, None
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e), extra, save_dict, audio1
+                    yield history, str(e), extra, save_dict, None
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex, extra, save_dict, audio1
+                yield history, ex, extra, save_dict, None
                 raise
             finally:
                 # clear_torch_cache()
@@ -3482,7 +3483,6 @@ def go_gradio(**kwargs):
             extra = ''
             history_str_old = ''
             error_old = ''
-            audio1 = None
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1):
@@ -3502,7 +3502,7 @@ def go_gradio(**kwargs):
                         break
 
                 # yield if anything left over
-                yield history, error, audio1
+                yield history, error, None
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
