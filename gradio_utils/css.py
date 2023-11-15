@@ -150,7 +150,7 @@ def make_css_base() -> str:
         
         @media (max-width: 463px) {
           min-height: 94px;
-          padding-right: 130px;
+          padding-right: 140px;
         }
     }
 
