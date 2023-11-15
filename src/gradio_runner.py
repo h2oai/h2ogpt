@@ -3269,6 +3269,9 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
+        def extra_isize():
+            return 2
+
         def prep_bot(*args, retry=False, which_model=0):
             """
 
@@ -3278,7 +3281,7 @@ def go_gradio(**kwargs):
                  API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
             :return: last element is True if should run bot, False if should just yield history
             """
-            isize = len(input_args_list) + 3  # states + chatbot_role + speaker + chat history
+            isize = len(input_args_list) + extra_isize() + 1  # states + chatbot_role + speaker + chat history
             # don't deepcopy, can contain model itself
             args_list = list(args).copy()
             model_state1 = args_list[-isize]
@@ -3374,6 +3377,28 @@ def go_gradio(**kwargs):
             yield history, error, extra, save_dict
             return
 
+        def prepare_audio(chatbot_role1, speaker1):
+            audio1 = None
+            from src.tts_sentence_parsing import init_sentence_state
+            sentence_state = init_sentence_state()
+            if kwargs['tts_model'].startswith('microsoft') and speaker1:
+                audio0 = None
+                generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
+                                                              speaker=speaker1,
+                                                              sentence_state=sentence_state,
+                                                              verbose=verbose)
+            elif kwargs['tts_model'].startswith('xxt') and chatbot_role1:
+                from src.tts_coqui import prepare_speech
+                audio0 = prepare_speech()
+                generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
+                                                              chatbot_role=chatbot_role1,
+                                                              sentence_state=sentence_state,
+                                                              verbose=verbose)
+            else:
+                generate_speech_func_func = None
+                audio0 = None
+            return audio0, audio1, generate_speech_func_func
+
         def get_response(fun1, history, chatbot_role1, speaker1):
             """
             bot that consumes history for user input
@@ -3384,25 +3409,7 @@ def go_gradio(**kwargs):
             extra = ''
             save_dict = dict()
 
-            audio1 = None
-            from src.tts_sentence_parsing import init_sentence_state
-            sentence_state = init_sentence_state()
-            if kwargs['tts_model'].startswith('microsoft'):
-                audio0 = None
-                generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
-                                                              speaker=speaker1,
-                                                              sentence_state=sentence_state,
-                                                              verbose=verbose)
-            elif kwargs['tts_model'].startswith('xxt'):
-                from src.tts_coqui import prepare_speech
-                audio0 = prepare_speech()
-                generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
-                                                              chatbot_role=chatbot_role1,
-                                                              sentence_state=sentence_state,
-                                                              verbose=verbose)
-            else:
-                generate_speech_func_func = None
-                audio0 = None
+            audio0, audio1, generate_speech_func_func = prepare_audio(chatbot_role1, speaker1)
 
             if not fun1:
                 yield history, error, extra, save_dict, audio1
@@ -3535,7 +3542,7 @@ def go_gradio(**kwargs):
             assert len(all_possible_visible_models) == len(model_states1)
             visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
 
-            isize = len(input_args_list) + 1  # states + chat history
+            isize = len(input_args_list) + extra_isize() + 1  # states + chatbot_role + speaker + chat history
             db1s = None
             requests_state1 = None
             valid_key = False
@@ -3546,6 +3553,7 @@ def go_gradio(**kwargs):
             try:
                 gen_list = []
                 num_visible_bots = sum(visible_list)
+                first_visible = True
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
                     args_list1.insert(-isize + 2,
@@ -3571,7 +3579,11 @@ def go_gradio(**kwargs):
                     else:
                         lag = 1e-3
                     if visible_list[chatboti]:
-                        gen1 = get_response(fun1, history)
+                        gen1 = get_response(fun1, history,
+                                            chatbot_role1 if first_visible else None,
+                                            speaker1 if first_visible else None)
+                        # FIXME: only first visible chatbot is allowed to speak for now
+                        first_visible = False
                         # always use stream or not, so do not block any iterator/generator
                         gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=False)
                         # else timeout will truncate output for non-streaming case
@@ -3630,12 +3642,15 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
+                    audios = [x[4] if x is not None and not isinstance(x, BaseException) else None for x in res1]
+                    audio1 = audios[0] if len(audios) == 1 else None
+
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if stream_output1 and do_yield:
                         if len(bots) > 1:
-                            yield tuple(bots + [exceptions_str])
+                            yield tuple(bots + [exceptions_str, audio1])
                         else:
-                            yield bots[0], exceptions_str
+                            yield bots[0], exceptions_str, audio1
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
                         if verbose:
                             print("Took too long all_bot: %s" % (time.time() - tgen0), flush=True)
@@ -3647,9 +3662,9 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over as can happen (FIXME: Understand better)
                 if len(bots) > 1:
-                    yield tuple(bots + [exceptions_str])
+                    yield tuple(bots + [exceptions_str, None])
                 else:
-                    yield bots[0], exceptions_str
+                    yield bots[0], exceptions_str, None
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
