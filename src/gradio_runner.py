@@ -3382,9 +3382,12 @@ def go_gradio(**kwargs):
             from src.tts_sentence_parsing import init_sentence_state
             sentence_state = init_sentence_state()
             if kwargs['tts_model'].startswith('microsoft') and speaker1:
+                from src.tts import get_speaker_embedding
+                speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
                 audio0 = None
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               speaker=speaker1,
+                                                              speaker_embedding=speaker_embedding,
                                                               sentence_state=sentence_state,
                                                               verbose=verbose)
             elif kwargs['tts_model'].startswith('xxt') and chatbot_role1:

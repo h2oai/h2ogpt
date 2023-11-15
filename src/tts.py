@@ -64,6 +64,7 @@ def get_speakers():
             "KSP (male)",
             "RMS (male)",
             "Surprise Me!"
+            "",
             ]
 
 
@@ -115,6 +116,7 @@ def predict_from_audio(processor, model, speaker_embedding, vocoder, audio, mic_
 
 
 def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
+                    speaker_embedding=None,
                     sentence_state=None,
                     return_as_byte=False, return_gradio=False,
                     is_final=False, verbose=False):
@@ -124,11 +126,13 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
     if sentence_state is None:
         sentence_state = init_sentence_state()
 
-    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
+    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final,
+                                               verbose=verbose)
     if sentence:
         if verbose:
             print("BG: inserting sentence to queue")
-        audio = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
+        audio = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder,
+                                   speaker_embedding=speaker_embedding)
     else:
         no_audio = b"" if return_as_byte else None
         if return_gradio:
@@ -141,10 +145,14 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
 
 def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, verbose=False):
     sentence_state = init_sentence_state()
+    speaker_embedding = get_speaker_embedding(speaker, model.device)
+
     while True:
-        sentence, sentence_state, is_done = get_sentence(text, sentence_state=sentence_state, is_final=False, verbose=verbose)
+        sentence, sentence_state, is_done = get_sentence(text, sentence_state=sentence_state, is_final=False,
+                                                         verbose=verbose)
         if sentence is not None:
-            sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
+            sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder,
+                                            speaker_embedding=speaker_embedding)
             yield sr, speech
         else:
             if is_done:
@@ -152,20 +160,12 @@ def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, v
 
     sentence, sentence_state, _ = get_sentence(text, sentence_state=sentence_state, is_final=True, verbose=verbose)
     if sentence:
-        sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
+        sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder,
+                                        speaker_embedding=speaker_embedding)
         yield sr, speech
 
 
-def _predict_from_text(text, speaker, processor=None, model=None, vocoder=None):
-    if len(text.strip()) == 0:
-        return 16000, np.zeros(0).astype(np.int16)
-
-    inputs = processor(text=text, return_tensors="pt")
-
-    # limit input length
-    input_ids = inputs["input_ids"]
-    input_ids = input_ids[..., :model.config.max_text_positions].to(model.device)
-
+def get_speaker_embedding(speaker, device):
     if speaker == "Surprise Me!":
         # load one of the provided speaker embeddings at random
         idx = np.random.randint(len(speaker_embeddings))
@@ -184,7 +184,21 @@ def _predict_from_text(text, speaker, processor=None, model=None, vocoder=None):
     else:
         speaker_embedding = np.load(speaker_embeddings[speaker[:3]])
 
-    speaker_embedding = torch.tensor(speaker_embedding).unsqueeze(0).to(model.device)
+    speaker_embedding = torch.tensor(speaker_embedding).unsqueeze(0).to(device)
+    return speaker_embedding
+
+
+def _predict_from_text(text, speaker, processor=None, model=None, vocoder=None, speaker_embedding=None):
+    if len(text.strip()) == 0:
+        return 16000, np.zeros(0).astype(np.int16)
+    if speaker_embedding is None:
+        speaker_embedding = get_speaker_embedding(speaker, model.device)
+
+    inputs = processor(text=text, return_tensors="pt")
+
+    # limit input length
+    input_ids = inputs["input_ids"]
+    input_ids = input_ids[..., :model.config.max_text_positions].to(model.device)
 
     speech = model.generate_speech(input_ids, speaker_embedding, vocoder=vocoder)
 
