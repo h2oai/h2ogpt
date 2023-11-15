@@ -37,20 +37,6 @@ def pack_state(sentence_state, *args):
     return sentence_state
 
 
-def split_sentence(sentence, max_length=350, verbose=False):
-    if len(sentence) < max_length:
-        # no problem continue on
-        sentences = [sentence]
-    else:
-        # Until now nltk likely split sentences properly but we need additional
-        # check for longer sentence and split at last possible position
-        # Do whatever necessary, first break at hypens then spaces and then even split very long words
-        sentences = textwrap.wrap(sentence, max_length)
-        if verbose:
-            print("SPLITTED LONG SENTENCE:", sentences)
-    return sentences
-
-
 def split_sentences_preserve_words(sentence, n=350):
     """
     Splits a sentence by spaces into smaller sentences, each with a maximum length of n characters.
@@ -125,13 +111,15 @@ def _get_sentences(response, verbose=False, min_start=15, max_length=350):
     import nltk
     # refuse to tokenize first 15 characters into sentence, so language detection works and logic simpler
     sentences = nltk.sent_tokenize(response[min_start:])
-    sentences = flatten_list([split_sentence(sentence, verbose=verbose) for sentence in sentences])
-    sentences = [x for x in sentences if x.strip()]
-    if sentences:
-        sentences[0] = response[:min_start] + sentences[0]
-
     # split any long sentences
     sentences = flatten_list([split_sentences_optimized(x, max_length) for x in sentences])
+    # drop empty sentences
+    sentences = [x for x in sentences if x.strip()]
+    # restore first min_start if set
+    if sentences and min_start > 0:
+        sentences[0] = response[:min_start] + sentences[0]
+    elif min_start > 0:
+        sentences.append(response[:min_start])
 
     return sentences
 

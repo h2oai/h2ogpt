@@ -5,6 +5,7 @@ from tests.utils import wrap_test_forked
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
 
 bot_list = [
+    ('Purple', ['Purple']),
     ('I am an AI assistant.  What do you want from me?  I am very busy.',
      ['I am an AI assistant.', 'What do you want from me?', 'I am very busy.']),
     (
