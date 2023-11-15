@@ -106,4 +106,5 @@ def test_predict_from_text(bot, sentences_expected):
     from src.tts import predict_from_text
     for sr, speech in predict_from_text(bot, speaker, processor=processor, model=model, vocoder=vocoder, verbose=True):
         speeches.append(speech)
+    sentences_expected = [x for x in sentences_expected if x not in ['.', ',', '!', '?']]
     assert len(speeches) == len(sentences_expected)

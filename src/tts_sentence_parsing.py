@@ -177,8 +177,14 @@ def clean_sentence(sentence, verbose=False):
 
     sentence = sentence.strip()
 
+    if sentence.startswith('. ') or sentence.startswith('? ') or sentence.startswith('! ') or sentence.startswith(', '):
+        sentence = sentence[2:]
+    if sentence.startswith('.') or sentence.startswith('?') or sentence.startswith('!') or sentence.startswith(','):
+        sentence = sentence[1:]
+
     if len(sentence) == 0:
-        print("EMPTY SENTENCE after processing")
+        if verbose:
+            print("EMPTY SENTENCE after processing")
         return
 
     if verbose:
