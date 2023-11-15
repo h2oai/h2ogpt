@@ -170,7 +170,7 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
     if sentence_state is None:
         sentence_state = init_sentence_state()
 
-    sentence, sentence_state = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
+    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
     if sentence:
         if verbose:
             print("BG: inserting sentence to queue")

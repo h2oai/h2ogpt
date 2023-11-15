@@ -123,7 +123,7 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
     if sentence_state is None:
         sentence_state = init_sentence_state()
 
-    sentence, sentence_state = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
+    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
     if sentence:
         if verbose:
             print("BG: inserting sentence to queue")
@@ -141,14 +141,15 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
 def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, verbose=False):
     sentence_state = init_sentence_state()
     while True:
-        sentence, sentence_state = get_sentence(text, sentence_state=sentence_state, is_final=False, verbose=verbose)
+        sentence, sentence_state, is_done = get_sentence(text, sentence_state=sentence_state, is_final=False, verbose=verbose)
         if sentence is not None:
             sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
             yield sr, speech
         else:
-            break
+            if is_done:
+                break
 
-    sentence, sentence_state = get_sentence(text, sentence_state=sentence_state, is_final=True, verbose=verbose)
+    sentence, sentence_state, _ = get_sentence(text, sentence_state=sentence_state, is_final=True, verbose=verbose)
     if sentence:
         sr, speech = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder)
         yield sr, speech

@@ -58,21 +58,22 @@ def get_sentence(response, sentence_state, is_final=False, verbose=False):
                     print("Last Sentence: ", last_sentence)
 
                 return last_sentence, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence,
-                                                 stored_sentence_hash)
+                                                 stored_sentence_hash), True
         except:
             print("ERROR on last sentence history is : %s" % response)
 
+    dif = len(text_to_generate) - len(sentence_list)
     if len(text_to_generate) > 1:
 
-        dif = len(text_to_generate) - len(sentence_list)
-
         if dif == 1 and len(sentence_list) != 0:
+            # will rely upon is_final=True for last_sentence
             return None, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence,
-                                    stored_sentence_hash)
+                                    stored_sentence_hash), True
 
         if dif == 2 and len(sentence_list) != 0 and stored_sentence is not None:
+            # will rely upon is_final=True for last_sentence
             return None, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence,
-                                    stored_sentence_hash)
+                                    stored_sentence_hash), True
 
         # All this complexity due to trying append first short sentence to next one for proper language auto-detect
         if stored_sentence is not None and stored_sentence_hash is None and dif > 1:
@@ -85,22 +86,25 @@ def get_sentence(response, sentence_state, is_final=False, verbose=False):
             stored_sentence_hash = None
         else:
             sentence = text_to_generate[len(sentence_list)]
+        # if do below, need to skip empty sentences etc.
+        # if len(sentence) > 0 and sentence.strip()[0] in [".", "!", "?"]:
+        #     sentence = sentence[1:]
 
         # too short sentence just append to next one if there is any
         # this is for proper language detection
         if len(sentence) <= 15 and stored_sentence_hash is None and stored_sentence is None:
-            if sentence[-1] in [".", "!", "?"]:
+            if len(sentence) > 0 and sentence[-1] in [".", "!", "?"]:
                 if stored_sentence_hash != hash(sentence):
                     stored_sentence = sentence
                     stored_sentence_hash = hash(sentence)
                     print("Storing:", stored_sentence)
                     return None, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence,
-                                            stored_sentence_hash)
+                                            stored_sentence_hash), dif <= 1
 
         sentence_hash = hash(sentence)
         if stored_sentence_hash is not None and sentence_hash == stored_sentence_hash:
             return None, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence,
-                                    stored_sentence_hash)
+                                    stored_sentence_hash), dif <= 1
 
         if sentence_hash not in sentence_hash_list:
             sentence_hash_list.append(sentence_hash)
@@ -108,9 +112,9 @@ def get_sentence(response, sentence_state, is_final=False, verbose=False):
             if verbose:
                 print("New Sentence: ", sentence)
             return sentence, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence,
-                                        stored_sentence_hash)
+                                        stored_sentence_hash), dif <= 1
 
-    return None, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence, stored_sentence_hash)
+    return None, pack_state(sentence_state, sentence_list, sentence_hash_list, stored_sentence, stored_sentence_hash), dif <= 1
 
 
 def clean_sentence(sentence, verbose=False, max_length=350):
