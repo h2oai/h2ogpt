@@ -152,9 +152,9 @@ def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
         return None
 
 
-def prepare_speech():
+def prepare_speech(sr=24000):
     # Must set autoplay to True first
-    return get_wave_header()
+    return get_wave_header(sample_rate=sr)
 
 
 def generate_speech(response, chatbot_role=None, model=None, supported_languages=None, latent_map=None,
@@ -172,8 +172,9 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
 
     sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final, verbose=verbose)
     if sentence:
+        t0 = time.time()
         if verbose:
-            print("BG: inserting sentence to queue")
+            print("sentence_to_wave: %s" % sentence)
 
         audio = sentence_to_wave(chatbot_role, sentence,
                                  supported_languages,
@@ -181,7 +182,11 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
                                  latent_map=latent_map,
                                  return_as_byte=return_as_byte,
                                  return_gradio=return_gradio)
+        if verbose:
+            print("done sentence_to_wave: %s" % (time.time() - t0), flush=True)
     else:
+        if verbose:
+            print("No audio", flush=True)
         no_audio = b"" if return_as_byte else None
         if return_gradio:
             import gradio as gr
@@ -200,7 +205,8 @@ def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
     import noisereduce as nr
     import wave
 
-    sentence_list = clean_sentence(sentence, verbose=verbose)
+    sentence = clean_sentence(sentence, verbose=verbose)
+    sentence_list = [sentence]
 
     try:
         wav_bytestream = b""

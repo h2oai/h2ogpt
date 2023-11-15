@@ -129,7 +129,8 @@ def get_sentence(response, sentence_state, is_final=False, verbose=False):
 
 def clean_sentence(sentence, verbose=False):
     if sentence is None or len(sentence) == 0:
-        print("empty sentence")
+        if verbose:
+            print("empty sentence")
         return []
 
     # Remove code blocks

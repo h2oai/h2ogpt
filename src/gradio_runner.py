@@ -3379,19 +3379,22 @@ def go_gradio(**kwargs):
             return
 
         def prepare_audio(chatbot_role1, speaker1):
-            audio1 = None
             from src.tts_sentence_parsing import init_sentence_state
             sentence_state = init_sentence_state()
             if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
+                audio1 = None
                 from src.tts import get_speaker_embedding
                 speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
-                audio0 = None
+                # audio0 = 16000, np.array([]).astype(np.int16)
+                from src.tts_coqui import prepare_speech
+                audio0 = prepare_speech(sr=16000)
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               speaker=speaker1,
                                                               speaker_embedding=speaker_embedding,
                                                               sentence_state=sentence_state,
                                                               verbose=verbose)
             elif kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, "None"]:
+                audio1 = None
                 from src.tts_coqui import prepare_speech
                 audio0 = prepare_speech()
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
@@ -3401,6 +3404,7 @@ def go_gradio(**kwargs):
             else:
                 generate_speech_func_func = None
                 audio0 = None
+                audio1 = None
             return audio0, audio1, generate_speech_func_func
 
         def get_response(fun1, history, chatbot_role1, speaker1):
@@ -3434,20 +3438,25 @@ def go_gradio(**kwargs):
                                 yield history, error, extra, save_dict, audio0
                                 audio0 = None
                             if sentence is not None:
+                                # print("in %s %s" % (sentence is None, audio1 is None), flush=True)
                                 yield history, error, extra, save_dict, audio1
                             else:
+                                # print("break %s %s" % (sentence is None, audio1 is None), flush=True)
                                 # while True to handle case when streaming is fast enough that see multiple sentences in single go
                                 break
                     else:
                         yield history, error, extra, save_dict, audio0
                 if generate_speech_func_func:
+                    # print("final %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
                     audio1, sentence, sentence_state = generate_speech_func_func(history[-1][1], is_final=True)
                     if audio0 is not None:
                         yield history, error, extra, save_dict, audio0
                 else:
                     audio1 = None
+                # print("final2 %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
                 yield history, error, extra, save_dict, audio1
             except StopIteration:
+                # print("STOP ITERATION", flush=True)
                 yield history, error, extra, save_dict, None
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
