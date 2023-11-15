@@ -16,17 +16,19 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=Fa
         return f'h2oGPT [Model: {base_model}{inference_server}]'
 
 
-def get_avatars(base_model, model_path_llama):
+def get_avatars(base_model, model_path_llama, inference_server=''):
     if base_model == 'llama':
         base_model = model_path_llama
+    if inference_server is None:
+        inference_server = ''
     human_avatar = "models/human.jpg"
-    if 'llama2' in base_model:
+    if 'llama2' in base_model.lower():
         bot_avatar = "models/lama2.jpeg"
-    elif 'llama-2' in base_model:
+    elif 'llama-2' in base_model.lower():
         bot_avatar = "models/lama2.jpeg"
-    elif 'llama' in base_model:
+    elif 'llama' in base_model.lower():
         bot_avatar = "models/lama.jpeg"
-    elif 'openai' in base_model:
+    elif 'openai' in base_model.lower() or 'openai' in inference_server.lower():
         bot_avatar = "models/openai.png"
     elif 'hugging' in base_model.lower():
         bot_avatar = "models/hf-logo.png"
@@ -50,7 +52,9 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                         model_state_lock["inference_server"],
                                         debug=bool(os.environ.get('DEBUG_MODEL_LOCK', 0)))
         if kwargs['avatars']:
-            avatar_images = get_avatars(model_state_lock["base_model"], model_state_lock["model_path_llama"])
+            avatar_images = get_avatars(model_state_lock["base_model"],
+                                        model_state_lock["model_path_llama"],
+                                        model_state_lock["inference_server"])
         else:
             avatar_images = None
         chat_kwargs.append(dict(render_markdown=kwargs.get('render_markdown', True),
@@ -105,7 +109,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         assert len(text_outputs) == len(kwargs['model_states'])
 
     if kwargs['avatars']:
-        avatar_images = get_avatars(kwargs["base_model"], kwargs["model_path_llama"])
+        avatar_images = get_avatars(kwargs["base_model"], kwargs["model_path_llama"],
+                                    kwargs["inference_server"])
     else:
         avatar_images = None
     no_model_lock_chat_kwargs = dict(render_markdown=kwargs.get('render_markdown', True),
