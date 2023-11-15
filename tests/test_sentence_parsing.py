@@ -10,7 +10,7 @@ bot_list = [
      ['I am an AI assistant.', 'What do you want from me?', 'I am very busy.']),
     (
         """, I am not capable of having a personal identity or physical existence. I am a computer program designed to assist and provide information to users based on their queries. My primary function is to understand natural language input and generate accurate and helpful responses. I do not have beliefs, values, or feelings, but I strive to provide the best possible service to my users. My knowledge base is constantly expanding as I learn from new data and interactions with users. However, my responses are limited by the accuracy and completeness of the information available to me.""",
-        [""", I am not capable of having a personal identity or physical existence.""",
+        ["""I am not capable of having a personal identity or physical existence.""",
          """I am a computer program designed to assist and provide information to users based on their queries.""",
          """My primary function is to understand natural language input and generate accurate and helpful responses.""",
          """I do not have beliefs, values, or feelings, but I strive to provide the best possible service to my users.""",
@@ -18,7 +18,7 @@ bot_list = [
          """However, my responses are limited by the accuracy and completeness of the information available to me."""]),
     (
         """. I am not a physical being, but rather a program designed to assist and provide information to users. My primary function is to answer questions accurately and efficiently based on the available data. I do not have a personal identity or beliefs, and I do not have the ability to feel emotions or make decisions independently. My responses are generated solely based on the input provided by the user and the knowledge I have been trained on.""",
-        [""". I am not a physical being, but rather a program designed to assist and provide information to users.""",
+        ["""I am not a physical being, but rather a program designed to assist and provide information to users.""",
          """My primary function is to answer questions accurately and efficiently based on the available data.""",
          """I do not have a personal identity or beliefs, and I do not have the ability to feel emotions or make decisions independently.""",
          """My responses are generated solely based on the input provided by the user and the knowledge I have been trained on."""]),
@@ -35,14 +35,14 @@ bot_list = [
 
 . Best regards,
 
-[Your Name]""", [". I'm doing well, thanks for asking!", 'How about you?',
-                 "Feel free to share anything that's been on your mind lately.", '.',
+[Your Name]""", ["I'm doing well, thanks for asking!", 'How about you?',
+                 "Feel free to share anything that's been on your mind lately.",
                  "If you have any specific topics or questions you'd like me to help you with, just let me know.",
-                 "I'm here to assist you in any way possible.", '.',
+                 "I'm here to assist you in any way possible.",
                  "And if you ever need a listening ear or someone to bounce ideas off of, don't hesitate to reach out.",
-                 "I'm always here for you!", '.',
+                 "I'm always here for you!",
                  "Let's make the most of our time together and see how we can work towards achieving your goals and aspirations.",
-                 '.', 'Looking forward to connecting with you soon!', '.', 'Best regards, [Your Name]']),
+                 'Looking forward to connecting with you soon!', 'Best regards, [Your Name]']),
     (""". I'm doing well, thanks for asking! How about you? Feel free to share anything that's been on your mind lately.
 
 . If you have any specific topics or questions you'd like me to address, just let me know and I'll do my best to provide helpful insights and information.
@@ -52,13 +52,13 @@ bot_list = [
 . Whether we're discussing current events, personal experiences, or anything else under the sun, my goal is always to foster a positive and productive dialogue.
 
 . So, what's on your mind today? Let's dive in and explore some ideas together!""",
-     [". I'm doing well, thanks for asking!", 'How about you?',
-      "Feel free to share anything that's been on your mind lately.", '.',
+     ["I'm doing well, thanks for asking!", 'How about you?',
+      "Feel free to share anything that's been on your mind lately.",
       "If you have any specific topics or questions you'd like me to address, just let me know and I'll do my best to provide helpful insights and information.",
-      '.', "Alternatively, if you just want to chat about something random or share some thoughts, that's great too!",
-      "I'm here to listen and engage in meaningful conversations.", '.',
+      "Alternatively, if you just want to chat about something random or share some thoughts, that's great too!",
+      "I'm here to listen and engage in meaningful conversations.",
       "Whether we're discussing current events, personal experiences, or anything else under the sun, my goal is always to foster a positive and productive dialogue.",
-      '.', "So, what's on your mind today?", "Let's dive in and explore some ideas together!"]),
+      "So, what's on your mind today?", "Let's dive in and explore some ideas together!"]),
     (
         """I do not have the ability to feel emotions or do things in the physical world. However, I am programmed to respond to your message and assist you with any queries you may have. So, I'm functioning perfectly fine and ready to help you out! how about you? is there anything I can assist you with today?""",
         ["""I do not have the ability to feel emotions or do things in the physical world.""",
