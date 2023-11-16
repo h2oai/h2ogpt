@@ -59,6 +59,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
             avatar_images = None
         chat_kwargs.append(dict(render_markdown=kwargs.get('render_markdown', True),
                                 label=output_label,
+                                show_label=kwargs.get('visible_chatbot_label', True),
                                 elem_classes='chatsmall',
                                 height=kwargs['height'] or 400,
                                 min_width=min_width,
@@ -114,6 +115,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     else:
         avatar_images = None
     no_model_lock_chat_kwargs = dict(render_markdown=kwargs.get('render_markdown', True),
+                                     show_label=kwargs.get('visible_chatbot_label', True),
                                      elem_classes='chatsmall',
                                      height=kwargs['height'] or 400,
                                      min_width=min_width,
