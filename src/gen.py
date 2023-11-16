@@ -935,7 +935,7 @@ def main(
     text_context_list = str_to_list(text_context_list)
     llamacpp_dict = str_to_dict(llamacpp_dict)
     tts_coquiai_roles = str_to_dict(tts_coquiai_roles)
-    tts_coquiai_roles_state0 = tts_coquiai_roles
+    roles_state0 = tts_coquiai_roles
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
     base_model0 = base_model  # for prompt infer

@@ -163,7 +163,7 @@ def go_gradio(**kwargs):
     my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
     visible_models_state0 = kwargs['visible_models_state0']
-    tts_coquiai_roles_state0 = kwargs['tts_coquiai_roles_state0']
+    roles_state0 = kwargs['roles_state0']
     # For Heap analytics
     is_heap_analytics_enabled = kwargs['enable_heap_analytics']
     heap_app_id = kwargs['heap_app_id']
@@ -555,7 +555,7 @@ def go_gradio(**kwargs):
         chat_state = gr.State({})
         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
             from src.tts_coqui import get_role_to_wave_map
-            roles_state = gr.State(tts_coquiai_roles_state0 if tts_coquiai_roles_state0 else get_role_to_wave_map())
+            roles_state = gr.State(roles_state0 if roles_state0 else get_role_to_wave_map())
         else:
             roles_state = gr.State([])
         docs_state00 = kwargs['document_choice'] + [DocumentChoice.ALL.value]
@@ -2889,6 +2889,7 @@ def go_gradio(**kwargs):
                     args_list.insert(1, my_db_state0.copy())
                     args_list.insert(2, selection_docs_state0.copy())
                     args_list.insert(3, requests_state0.copy())
+                    args_list.insert(4, roles_state0.copy())
                 user_kwargs = args_list[len(input_args_list)]
                 assert isinstance(user_kwargs, str)
                 user_kwargs = ast.literal_eval(user_kwargs)
@@ -3352,6 +3353,7 @@ def go_gradio(**kwargs):
             """
             isize = len(input_args_list) + 1  # states + chat history
             # don't deepcopy, can contain model itself
+            # NOTE: Update plain_api in evaluate_nochat too
             args_list = list(args).copy()
             model_state1 = args_list[-isize]
             my_db_state1 = args_list[-isize + 1]
