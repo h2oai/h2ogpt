@@ -48,6 +48,9 @@ def run_cli(  # for local function:
         hyde_level=None,
         hyde_template=None,
         doc_json_mode=None,
+        chatbot_role=None,
+        speaker=None,
+        tts_language=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
