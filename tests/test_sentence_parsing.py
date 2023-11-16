@@ -99,13 +99,13 @@ def test_get_sentence(bot, sentences_expected):
         sentence, sentence_state, _ = get_sentence(response,
                                                    sentence_state=sentence_state,
                                                    is_final=False, verbose=True)
-        if sentence is not None:
+        if sentence:
             print(sentence)
             sentences.append(sentence)
     sentence, sentence_state, _ = get_sentence(response,
                                                sentence_state=sentence_state,
                                                is_final=True, verbose=True)
-    if sentence is not None:
+    if sentence:
         print(sentence)
         sentences.append(sentence)
     assert sentences == sentences_expected
