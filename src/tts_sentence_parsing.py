@@ -146,6 +146,7 @@ def clean_sentence(sentence, verbose=False):
     sentence = sentence.replace(")", " ")
 
     sentence = sentence.replace("Dr. ", "Doctor ")
+    sentence = sentence.replace(" w/ ", " with ")
 
     # filter out emojis
     import emoji
