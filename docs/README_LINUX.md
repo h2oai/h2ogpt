@@ -109,8 +109,12 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # for TTS:
     pip install torchaudio==2.0.1 soundfile==0.12.1
     # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
-    pip install TTS==0.20.2 deepspeed==0.11.1 noisereduce==3.0.0 pydantic==1.10.13 emoji==2.8.0 ffmpeg-python==0.2.0 trainer==0.0.31 pysbd==0.3.4 coqpit==0.0.17
-    # for Coqui XTTS language helpers
+    # pydantic can't be >=2.0
+    # relaxed versions to avoid conflicts
+    pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
+    # avoid excessive TTS constraint on transformers
+    pip install tokenizers-0.14.1 transformers-4.35.0
+    # for Coqui XTTS language helpers (specific versions probably not required)
     pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
     ```
 * STT and TTS Notes:
