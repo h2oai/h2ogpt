@@ -1450,7 +1450,7 @@ def go_gradio(**kwargs):
                             roles1[name] = process_audio(roles1[name])
                             return gr.Dropdown(choices=list(roles1.keys())), roles1
 
-                        add_role.click(add_role_func,
+                        add_role_event = add_role.click(add_role_func,
                                        inputs=[role_name_to_add, ref_voice_clone, mic_voice_clone, roles_state,
                                                choose_mic_voice_clone],
                                        outputs=[chatbot_role, roles_state])
@@ -2313,7 +2313,7 @@ def go_gradio(**kwargs):
                                          outputs=[my_db_state, requests_state, login_btn],
                                          show_progress='minimal')
 
-        def login(db1s, selection_docs_state1, requests_state1, chat_state1, langchain_mode1,
+        def login(db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, langchain_mode1,
                   username1, password1,
                   text_output1, text_output21, *text_outputs1,
                   auth_filename=None, num_model_lock=0, pre_authorized=False):
@@ -2334,6 +2334,7 @@ def go_gradio(**kwargs):
 
                 success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1 = \
                     load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
+                              roles_state1=roles_state1,
                               chat_state1=chat_state1, langchain_mode1=langchain_mode1,
                               text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
                               username_override=username1, password_to_check=password1)
@@ -2344,7 +2345,7 @@ def go_gradio(**kwargs):
             if success1:
                 requests_state1['username'] = username1
             label_instruction1 = 'Ask anything, %s' % requests_state1['username']
-            return db1s, selection_docs_state1, requests_state1, chat_state1, \
+            return db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, \
                 text_result, \
                 gr.update(label=label_instruction1), \
                 df_langchain_mode_paths1, \
@@ -2363,11 +2364,11 @@ def go_gradio(**kwargs):
                                             num_model_lock=len(text_outputs),
                                             pre_authorized=True,
                                             )
-        login_inputs = [my_db_state, selection_docs_state, requests_state, chat_state,
+        login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state, chat_state,
                         langchain_mode,
                         username_text, password_text,
                         text_output, text_output2] + text_outputs
-        login_outputs = [my_db_state, selection_docs_state, requests_state, chat_state,
+        login_outputs = [my_db_state, selection_docs_state, requests_state, roles_state, chat_state,
                          login_result_text,
                          instruction,
                          langchain_mode_path_text,
@@ -2383,6 +2384,7 @@ def go_gradio(**kwargs):
             .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
 
         def load_auth(db1s, requests_state1, auth_filename=None, selection_docs_state1=None,
+                      roles_state1=None,
                       chat_state1=None, langchain_mode1=None,
                       text_output1=None, text_output21=None, text_outputs1=None,
                       username_override=None, password_to_check=None):
@@ -2410,6 +2412,8 @@ def go_gradio(**kwargs):
                                 set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
                             if 'selection_docs_state' in auth_user:
                                 update_auth_selection(auth_user, selection_docs_state1)
+                            if 'roles_state' in auth_user:
+                                roles_state1.update(auth_user['roles_state'])
                             if 'chat_state' in auth_user:
                                 chat_state1.update(auth_user['chat_state'])
                             if 'text_output' in auth_user:
@@ -2443,7 +2447,7 @@ def go_gradio(**kwargs):
                     # unexpected in testing or normally
                     raise
 
-        def save_auth(selection_docs_state1, requests_state1,
+        def save_auth(selection_docs_state1, requests_state1, roles_state1,
                       chat_state1, langchain_mode1,
                       text_output1, text_output21, text_outputs1,
                       auth_filename=None, auth_access=None, auth_freeze=None, guest_name=None,
@@ -2462,6 +2466,9 @@ def go_gradio(**kwargs):
                         auth_user = auth_dict[username1]
                         if selection_docs_state1:
                             update_auth_selection(auth_user, selection_docs_state1, save=True)
+                        if roles_state1:
+                            # overwrite
+                            auth_user['roles_state'] = roles_state1
                         if chat_state1:
                             # overwrite
                             auth_user['chat_state'] = chat_state1
@@ -2478,7 +2485,9 @@ def go_gradio(**kwargs):
         def save_auth_wrap(*args, **kwargs):
             save_auth(args[0], args[1],
                       args[2], args[3],
-                      args[4], args[5], args[6:], **kwargs
+                      args[4], args[5],
+                      args[6],
+                      args[7:], **kwargs
                       )
 
         save_auth_func = functools.partial(save_auth_wrap,
@@ -2489,10 +2498,11 @@ def go_gradio(**kwargs):
                                            )
 
         save_auth_kwargs = dict(fn=save_auth_func,
-                                inputs=[selection_docs_state, requests_state,
+                                inputs=[selection_docs_state, requests_state, roles_state,
                                         chat_state, langchain_mode, text_output, text_output2] + text_outputs
                                 )
         lg_change_event_auth = lg_change_event.then(**save_auth_kwargs)
+        add_role_event_save_event = add_role_event.then(**save_auth_kwargs)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
                                auth_filename=None, auth_freeze=None, guest_name=None):
@@ -2574,8 +2584,9 @@ def go_gradio(**kwargs):
                 db1s[langchain_mode2] = [None] * length_db1()
             if valid:
                 chat_state1 = None
+                roles_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
-                save_auth_func(selection_docs_state1, requests_state1,
+                save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                                chat_state1, langchain_mode2,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -2666,8 +2677,9 @@ def go_gradio(**kwargs):
 
             if changed_state:
                 chat_state1 = None
+                roles_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
-                save_auth_func(selection_docs_state1, requests_state1,
+                save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                                chat_state1, langchain_mode2,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -4118,10 +4130,11 @@ def go_gradio(**kwargs):
             # save saved chats and chatbots to auth file
             selection_docs_state1 = None
             langchain_mode2 = None
+            roles_state1 = None
             text_output1 = chat_list[0]
             text_output21 = chat_list[1]
             text_outputs1 = chat_list[2:]
-            save_auth_func(selection_docs_state1, requests_state1,
+            save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                            chat_state1, langchain_mode2,
                            text_output1, text_output21, text_outputs1,
                            )
@@ -4202,8 +4215,9 @@ def go_gradio(**kwargs):
             # save chat to auth file
             selection_docs_state1 = None
             langchain_mode2 = None
+            roles_state1 = None
             text_output1, text_output21, text_outputs1 = None, None, None
-            save_auth_func(selection_docs_state1, requests_state1,
+            save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                            chat_state1, langchain_mode2,
                            text_output1, text_output21, text_outputs1,
                            )
