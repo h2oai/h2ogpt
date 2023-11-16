@@ -2627,6 +2627,7 @@ def evaluate(
         my_db_state,
         selection_docs_state,
         requests_state,
+        roles_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,

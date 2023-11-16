@@ -938,7 +938,9 @@ def go_gradio(**kwargs):
                                             .then(
                                             fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
                                             inputs=[mic_button, audio_pretext, instruction, audio_state],
-                                            outputs=[mic_button, audio_pretext, instruction, audio_state])
+                                            outputs=[mic_button, audio_pretext, instruction, audio_state],
+                                            api_name='mic' if allow_api else None,
+                                        )
                                         from src.stt import transcribe
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
@@ -1451,9 +1453,12 @@ def go_gradio(**kwargs):
                             return gr.Dropdown(choices=list(roles1.keys())), roles1
 
                         add_role_event = add_role.click(add_role_func,
-                                       inputs=[role_name_to_add, ref_voice_clone, mic_voice_clone, roles_state,
-                                               choose_mic_voice_clone],
-                                       outputs=[chatbot_role, roles_state])
+                                                        inputs=[role_name_to_add, ref_voice_clone, mic_voice_clone,
+                                                                roles_state,
+                                                                choose_mic_voice_clone],
+                                                        outputs=[chatbot_role, roles_state],
+                                                        api_name='add_role' if allow_api else None,
+                                                        )
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
                 with models_tab:
@@ -2945,15 +2950,23 @@ def go_gradio(**kwargs):
             if 'system_prompt' in user_kwargs and user_kwargs['system_prompt'] is None:
                 # avoid worrying about below default_kwargs -> args_list that checks if None
                 user_kwargs['system_prompt'] = 'None'
+            # by default don't do TTS unless specifically requested
+            if 'chatbot_role' not in user_kwargs:
+                user_kwargs['chatbot_role'] = 'None'
+            if 'speaker' not in user_kwargs:
+                user_kwargs['speaker'] = 'None'
 
             set1 = set(list(default_kwargs1.keys()))
             set2 = set(eval_func_param_names)
             assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
+
             # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
             model_state1 = args_list[0]
             my_db_state1 = args_list[1]
             selection_docs_state1 = args_list[2]
             requests_state1 = args_list[3]
+            roles_state1 = args_list[4]
+
             args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
@@ -2986,30 +2999,34 @@ def go_gradio(**kwargs):
                 assert isinstance(model_state1['h2ogpt_key'], str)
                 args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
-            # local key, not for remote server unless same, will be passed through
-            h2ogpt_key1 = args_list[eval_func_param_names.index('h2ogpt_key')]
+            # final full bot() like input for prep_bot etc.
+            instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')]
+            history = [[instruction_nochat1, None]]
+            # NOTE: Set requests_state1 to None, so don't allow UI-like access, in case modify state via API
+            requests_state1_bot = None
+            args_list_bot = args_list + [model_state1, my_db_state1, selection_docs_state1, requests_state1_bot,
+                                         roles_state1] + [history]
 
-            max_time1 = args_list[eval_func_param_names.index('max_time')]
-
-            # final full evaluate args list
-            args_list = [model_state1, my_db_state1, selection_docs_state1, requests_state1] + args_list
-
-            # NOTE: Don't allow UI-like access, in case modify state via API
-            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
-                                     kwargs['enforce_h2ogpt_ui_key'],
-                                     kwargs['h2ogpt_api_keys'], h2ogpt_key1,
-                                     requests_state1=None)
-            evaluate_local = evaluate if valid_key else evaluate_fake
+            # at this point like bot() as input
+            history, fun1, langchain_mode1, db1, requests_state1, \
+                valid_key, h2ogpt_key1, \
+                max_time1, stream_output1, \
+                chatbot_role1, speaker1, tts_language1, roles_state1 = prep_bot(*args_list_bot)
 
             save_dict = dict()
             ret = {}
             ret_old = None
             try:
                 tgen0 = time.time()
-                gen1 = evaluate_local(*tuple(args_list), **kwargs1)
-                # NOTE: could use iterator with timeout=0 but not required unless some other reason found
-                # gen1 = TimeoutIterator(gen1, timeout=0, sentinel=None, raise_on_exception=True)
-                for res_dict in gen1:
+                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1):
+                    history, error, extra, save_dict, audio1 = res
+                    res_dict = {}
+                    res_dict['response'] = history[-1][1]
+                    res_dict['error'] = error
+                    res_dict['extra'] = extra
+                    res_dict['save_dict'] = save_dict
+                    res_dict['audio'] = audio1
+
                     error = res_dict.get('error', '')
                     extra = res_dict.get('extra', '')
                     save_dict = res_dict.get('save_dict', {})
@@ -3359,7 +3376,7 @@ def go_gradio(**kwargs):
             my_db_state1 = args_list[-isize + 1]
             selection_docs_state1 = args_list[-isize + 2]
             requests_state1 = args_list[-isize + 3]
-            roles_map1 = args_list[-isize + 4]
+            roles_state1 = args_list[-isize + 4]
             history = args_list[-1]
             if not history:
                 history = []
@@ -3383,7 +3400,7 @@ def go_gradio(**kwargs):
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_map1
+                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
@@ -3436,12 +3453,13 @@ def go_gradio(**kwargs):
                            my_db_state1,
                            selection_docs_state1,
                            requests_state1,
+                           roles_state1,
                            *tuple(args_list),
                            **kwargs_evaluate)
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_map1
+                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3450,7 +3468,7 @@ def go_gradio(**kwargs):
             yield history, error, extra, save_dict
             return
 
-        def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_map1):
+        def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1):
             from src.tts_sentence_parsing import init_sentence_state
             sentence_state = init_sentence_state()
             if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
@@ -3476,7 +3494,7 @@ def go_gradio(**kwargs):
                 sr = 24000
                 audio0 = prepare_speech(sr=sr)
                 no_audio = get_no_audio(sr=sr)
-                latent = get_latent(roles_map1[chatbot_role1], model=kwargs['model_xtt'])
+                latent = get_latent(roles_state1[chatbot_role1], model=kwargs['model_xtt'])
                 generate_speech_func_func = functools.partial(kwargs['generate_speech_func'],
                                                               latent=latent,
                                                               language=tts_language1,
@@ -3491,7 +3509,7 @@ def go_gradio(**kwargs):
                 no_audio = None
             return audio0, audio1, no_audio, generate_speech_func_func
 
-        def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_map1):
+        def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
@@ -3502,7 +3520,7 @@ def go_gradio(**kwargs):
             save_dict = dict()
 
             audio0, audio1, no_audio, generate_speech_func_func = \
-                prepare_audio(chatbot_role1, speaker1, tts_language1, roles_map1)
+                prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1)
 
             if not fun1:
                 yield history, error, extra, save_dict, audio1
@@ -3582,7 +3600,7 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_map1 = prep_bot(*args, retry=retry)
+                chatbot_role1, speaker1, tts_language1, roles_state1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
@@ -3592,7 +3610,7 @@ def go_gradio(**kwargs):
             no_audio = get_no_audio()
             try:
                 tgen0 = time.time()
-                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_map1):
+                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1):
                     do_yield = False
                     history, error, extra, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
@@ -3671,7 +3689,7 @@ def go_gradio(**kwargs):
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, \
                         valid_key, h2ogpt_key1, \
-                        max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_map1 = \
+                        max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if num_visible_bots == 1:
                         # no need to lag, will be faster this way
@@ -3683,7 +3701,7 @@ def go_gradio(**kwargs):
                                             chatbot_role1 if first_visible else None,
                                             speaker1 if first_visible else None,
                                             tts_language1 if first_visible else None,
-                                            roles_map1 if first_visible else None,
+                                            roles_state1 if first_visible else None,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
@@ -3867,7 +3885,8 @@ def go_gradio(**kwargs):
                                                        all_possible_visible_models=kwargs[
                                                            'all_possible_visible_models'],
                                                        retry=True),
-                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, roles_state] +
+                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state,
+                                                        roles_state] +
                                          text_outputs,
                                   outputs=text_outputs + [chat_exception_text, speech_bot],
                                   )
@@ -4273,7 +4292,8 @@ def go_gradio(**kwargs):
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
         no_chat_args = dict(fn=fun,
-                            inputs=[model_state, my_db_state, selection_docs_state, requests_state, roles_state] + inputs_list,
+                            inputs=[model_state, my_db_state, selection_docs_state, requests_state,
+                                    roles_state] + inputs_list,
                             outputs=text_output_nochat,
                             queue=queue,
                             )
@@ -4782,15 +4802,19 @@ def go_gradio(**kwargs):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
                                                              inputs=[instruction, chatbot_role, tts_language,
                                                                      roles_state],
-                                                             outputs=speech_human)
+                                                             outputs=speech_human,
+                                                             api_name='speak_human' if allow_api else None,
+                                                             )
                 speak_events.extend([speak_human_event])
             elif kwargs['tts_model'].startswith('microsoft'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
                                                              inputs=[instruction, speaker],
-                                                             outputs=speech_human)
+                                                             outputs=speech_human,
+                                                             api_name='speak_human' if allow_api else None,
+                                                             )
                 speak_events.extend([speak_human_event])
 
-        def wrap_pred_func(chatbot_role1, speaker1, tts_language1, roles_map1,
+        def wrap_pred_func(chatbot_role1, speaker1, tts_language1, roles_state1,
                            visible_models1, text_output1, text_output21, *args,
                            all_models=[]):
             # FIXME: Choose first visible
@@ -4800,7 +4824,7 @@ def go_gradio(**kwargs):
             response = text_outputss[0] if text_outputss else None
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
                 if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
-                    yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_map1)
+                    yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_state1)
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, speaker1)
 
@@ -4808,7 +4832,9 @@ def go_gradio(**kwargs):
                                                  inputs=[chatbot_role, speaker, tts_language, roles_state,
                                                          visible_models, text_output,
                                                          text_output2] + text_outputs,
-                                                 outputs=speech_bot)
+                                                 outputs=speech_bot,
+                                                 api_name='speak_bot' if allow_api else None,
+                                                 )
         speak_events.extend([speak_bot_event])
 
         def stop_audio_func():

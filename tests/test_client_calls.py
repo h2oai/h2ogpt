@@ -341,7 +341,7 @@ def test_client_chat_nostream_llama7b():
            'am a student' in res_dict['response'] or \
            "My name is John." in res_dict['response'] or \
            "how can I assist" in res_dict['response'] or \
-           "I'm LLaMA"  in res_dict['response']
+           "I'm LLaMA" in res_dict['response']
 
 
 @pytest.mark.need_tokens
@@ -2630,7 +2630,8 @@ def test_client_load_unload_models(model_choice):
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] +
                          model_names_curated +
                          ['zephyr-7b-beta.Q5_K_M.gguf'] +
-                         ['https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
+                         [
+                             'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
 @wrap_test_forked
 def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:
@@ -3859,3 +3860,40 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     assert """23,222 million""" in response
     sources = [x['source'] for x in res_dict['sources']]
     assert 'femsa1.pdf' in sources[0]
+
+
+@wrap_test_forked
+def test_client1_tts():
+    from src.gen import main
+    main(base_model='llama', chat=False,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'Who are you?'
+    kwargs = dict(instruction_nochat=prompt, chatbot_role="Female AI Assistant", speaker="SLT (female)")
+    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    res = ast.literal_eval(res)
+
+    response = res['response']
+    assert response
+    assert 'endoftext' not in response
+
+    # convert audio to file
+    audio = res['audio']
+    import io
+    from pydub import AudioSegment
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+    # sample_rate=24000  # coqui
+    sample_rate = 16000
+    filename = '/tmp/myfile.wav'
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sample_rate, channels=channels).export(
+        filename, format='wav')
+
+    # pip install playsound
+    from playsound import playsound
+    playsound(filename)

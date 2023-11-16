@@ -212,6 +212,7 @@ These are not part of normal installation instructions and are experimental.
     ```bash
     wget https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
     pip install requirements-parser pytest-instafail
+    pip install playsound
     pytest --instafail -s -v tests
     # for client tests
     make -C client setup
