@@ -519,11 +519,6 @@ def go_gradio(**kwargs):
         var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         xPathRes.singleNodeValue.click();}"""
 
-    # def click_js2():
-    #    return """function audioStop() {
-    #    var xPathRes = document.evaluate ('//*[@id="human_audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-    #    xPathRes.singleNodeValue.click();}"""
-
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
