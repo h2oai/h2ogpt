@@ -266,7 +266,7 @@ def go_gradio(**kwargs):
     kwargs['gpu_id'] = str(kwargs['gpu_id'])
 
     no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
-    chat_name0 = get_chatbot_name(kwargs.get("base_model"), kwargs.get("model_path_llama"))
+    chat_name0 = get_chatbot_name(kwargs.get("base_model"), kwargs.get("llamacpp_dict", {}).get("model_path_llama"))
     output_label0 = chat_name0 if kwargs.get('base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
@@ -301,7 +301,7 @@ def go_gradio(**kwargs):
         if model_active_choice1 is not None:
             if isinstance(model_active_choice1, str):
                 base_model_list = [
-                    x['base_model'] if x['base_model'] != 'llama' or not x.get('model_path_llama', '') else x[
+                    x['base_model'] if x['base_model'] != 'llama' or not x.get("llamacpp_dict", {}).get('model_path_llama', '') else x.get("llamacpp_dict", {})[
                         'model_path_llama'] for x in model_states]
                 if model_active_choice1 in base_model_list:
                     # if dups, will just be first one
@@ -4252,6 +4252,7 @@ def go_gradio(**kwargs):
             model_name, model_path_llama1, load_gptq, load_awq, n_gqa1 = \
                 switch_a_roo_llama(model_name, model_path_llama1, load_gptq, load_awq, n_gqa1)
 
+            # after getting results, we always keep all items related to llama.cpp, gptj, gpt4all inside llamacpp_dict
             llamacpp_dict = str_to_dict(llamacpp_dict_more1)
             llamacpp_dict.update(dict(model_path_llama=model_path_llama1,
                                       model_name_gptj=model_name_gptj1,

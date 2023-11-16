@@ -913,6 +913,11 @@ def main(
     llamacpp_dict['model_name_gptj'] = model_name_gptj
     llamacpp_dict['model_name_gpt4all_llama'] = model_name_gpt4all_llama
     llamacpp_dict['model_name_exllama_if_no_config'] = model_name_exllama_if_no_config
+    # ensure not used by accident
+    del model_path_llama
+    del model_name_gptj
+    del model_name_gpt4all_llama
+    del model_name_exllama_if_no_config
     # if user overrides but doesn't set these:
     if 'n_batch' not in llamacpp_dict:
         llamacpp_dict['n_batch'] = 128
@@ -1455,10 +1460,7 @@ def main(
                                       revision=revision, use_gpu_id=use_gpu_id, gpu_id=gpu_id,
                                       compile_model=compile_model,
                                       use_cache=use_cache,
-                                      llamacpp_dict=llamacpp_dict, model_path_llama=model_path_llama,
-                                      model_name_gptj=model_name_gptj,
-                                      model_name_gpt4all_llama=model_name_gpt4all_llama,
-                                      model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                                      llamacpp_dict=llamacpp_dict,
                                       rope_scaling=rope_scaling,
                                       max_seq_len=max_seq_len,
                                       exllama_dict=exllama_dict,
@@ -1487,7 +1489,7 @@ def main(
             get_langchain_prompts(pre_prompt_query, prompt_query,
                                   pre_prompt_summary, prompt_summary,
                                   model_name, inference_server,
-                                  model_path_llama,
+                                  llamacpp_dict['model_path_llama'],
                                   doc_json_mode)
 
     if cli:
@@ -1538,15 +1540,15 @@ def main(
 
             model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
             model_dict['base_model0'] = model_dict['base_model']
-            model_dict['base_model'], model_dict['model_path_llama'], \
+            model_dict['base_model'], model_dict['llamacpp_dict']['model_path_llama'], \
                 model_dict['load_gptq'], \
                 model_dict['load_awq'], \
                 model_dict['llamacpp_dict']['n_gqa'] = \
                 switch_a_roo_llama(model_dict['base_model'],
-                                   model_dict['model_path_llama'],
+                                   model_dict['llamacpp_dict']['model_path_llama'],
                                    model_dict['load_gptq'],
                                    model_dict['load_awq'],
-                                   model_dict.get('llamacpp_dict', {}).get('n_gqa', 0))
+                                   model_dict['llamacpp_dict'].get('n_gqa', 0))
 
             # begin prompt adjustments
             # get query prompt for (say) last base model if using model lock
@@ -1555,7 +1557,7 @@ def main(
                                       pre_prompt_summary, prompt_summary,
                                       model_dict['base_model'],
                                       model_dict['inference_server'],
-                                      model_dict['model_path_llama'],
+                                      model_dict['llamacpp_dict']['model_path_llama'],
                                       doc_json_mode))
             # if mixed setup, choose non-empty so best models best
             # FIXME: Make per model dict passed through to evaluate
@@ -1567,11 +1569,6 @@ def main(
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
-                model_path_llama1 = model_dict.get('model_path_llama', '').lower()
-                model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {}) or {}
-                llamacpp_dict1 = model_dict.get('llamacpp_dict', {}) or {}
-                load_gptq1 = model_dict.get('load_gptq', '')
-                load_awq1 = model_dict.get('load_awq', '')
                 model_lower10 = model_dict['base_model0'].lower()
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
@@ -1627,8 +1624,9 @@ def main(
         visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
         all_possible_visible_models = [
             x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
-                                       not x.get('model_path_llama', '') else x.get(
-                'model_path_llama', '') for xi, x in enumerate(model_states)]
+                                       not x.get('llamacpp_dict').get('model_path_llama', '')
+            else x.get('llamacpp_dict').get('model_path_llama', '')
+            for xi, x in enumerate(model_states)]
         visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
                                  visible_models is None or
                                  x in visible_models or

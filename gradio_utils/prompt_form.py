@@ -48,12 +48,12 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     min_width = 250 if kwargs['gradio_size'] in ['small', 'large', 'medium'] else 160
     for model_state_locki, model_state_lock in enumerate(kwargs['model_states']):
         output_label = get_chatbot_name(model_state_lock["base_model"],
-                                        model_state_lock["model_path_llama"],
+                                        model_state_lock['llamacpp_dict']["model_path_llama"],
                                         model_state_lock["inference_server"],
                                         debug=bool(os.environ.get('DEBUG_MODEL_LOCK', 0)))
         if kwargs['avatars']:
             avatar_images = get_avatars(model_state_lock["base_model"],
-                                        model_state_lock["model_path_llama"],
+                                        model_state_lock['llamacpp_dict']["model_path_llama"],
                                         model_state_lock["inference_server"])
         else:
             avatar_images = None
@@ -109,7 +109,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         assert len(text_outputs) == len(kwargs['model_states'])
 
     if kwargs['avatars']:
-        avatar_images = get_avatars(kwargs["base_model"], kwargs["model_path_llama"],
+        avatar_images = get_avatars(kwargs["base_model"], kwargs['llamacpp_dict']["model_path_llama"],
                                     kwargs["inference_server"])
     else:
         avatar_images = None
