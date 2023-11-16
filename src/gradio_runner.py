@@ -711,7 +711,7 @@ def go_gradio(**kwargs):
                     speak_bot_button = gr.Button("Speak Response", visible=visible_speak_me, size='sm')
                     # speak_me_cancel_button = gr.Button("Cancel Speak Instruction", visible=visible_speak_me, size='sm')
                     # speak_me_cancel_button.click(fn=lambda: None, _js=click_js2())
-                    if kwargs['enable_tts'] and kwargs['tts_model'].startswith('xxt'):
+                    if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                         from src.tts_coqui import get_roles
                         chatbot_role = get_roles()
                     else:
@@ -3397,7 +3397,7 @@ def go_gradio(**kwargs):
                                                               return_as_byte=True,
                                                               sr=sr,
                                                               verbose=verbose)
-            elif kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, "None"]:
+            elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
                 audio1 = None
                 from src.tts_utils import prepare_speech, get_no_audio
                 sr = 24000
@@ -3636,7 +3636,7 @@ def go_gradio(**kwargs):
             if kwargs['tts_model'].startswith('microsoft'):
                 from src.tts_utils import prepare_speech, get_no_audio
                 no_audio = get_no_audio(sr=16000)
-            elif kwargs['tts_model'].startswith('xxt'):
+            elif kwargs['tts_model'].startswith('tts_models/'):
                 from src.tts_utils import prepare_speech, get_no_audio
                 no_audio = get_no_audio(sr=24000)
             else:
@@ -4698,7 +4698,7 @@ def go_gradio(**kwargs):
 
         speak_events = []
         if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
-            if kwargs['tts_model'].startswith('xxt'):
+            if kwargs['tts_model'].startswith('tts_models/'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
                                                              inputs=[instruction, chatbot_role],
                                                              outputs=speech_human)
@@ -4717,7 +4717,7 @@ def go_gradio(**kwargs):
             text_outputss = [x[-1][1] for x in text_outputss if len(x) >= 1 and len(x[-1]) == 2 and x[-1][1]]
             response = text_outputss[0] if text_outputss else None
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
-                if kwargs['tts_model'].startswith('xxt') and chatbot_role1 not in [None, 'None']:
+                if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, chatbot_role1)
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, speaker1)

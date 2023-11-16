@@ -387,7 +387,9 @@ def main(
         tts_gpu: bool = True,
         tts_gpu_id: Union[int, str] = 'auto',
         tts_model: str = 'microsoft/speecht5_tts',
+
         tts_gan_model: str = 'microsoft/speecht5_hifigan',
+        tts_coquiai_deepspeed: bool = True,
 
         # json
         jq_schema='.[]',
@@ -872,6 +874,24 @@ def main(
               Only can edit after hit stop and then submit, if hit record again edits are lost since using only audio stream for STT conversion
            1: If hit stop, text made so far is saved and audio cleared, so next recording will be separate text conversion
               Can make edits on any text after hitting stop and they are preserved
+
+    :param enable_tts: Whether to enable TTS
+    :param tts_gpu: Whether to use GPU if present for TTS
+    :param tts_gpu_id: Which GPU ID to use for TTS
+    :param tts_model: Which model to use.
+                   For microsoft, use 'microsoft/speecht5_tts'
+                   For coqui.ai use one given by doing in python:
+                   ```python
+                   from src.tts_coqui import list_models
+                   list_models()
+                   ```
+                   e.g. 'tts_models/multilingual/multi-dataset/xtts_v2'
+
+                   Note that coqui.ai models are better, but have non-commercial research license, while microsoft ones are mit.
+                   So coqui.ai ones can be used for non-commercial activities only, and one should agree to their license.
+
+    :param tts_gan_model: For microsoft model, which gan model to use, e.g. 'microsoft/speecht5_hifigan'
+    :param tts_coquiai_deepspeed: For coqui.ai models, whether to use deepspeed for faster inference
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -1363,8 +1383,8 @@ def main(
                                              max_chunks=20 if is_public else None,
                                              )
 
-    model_xxt, supported_languages_xxt = None, None
-    latent_map_xxt = None
+    model_xtt, supported_languages_xtt = None, None
+    latent_map_xtt = None
     predict_from_text_func = None
     generate_speech_func = None
     if enable_tts:
@@ -1374,7 +1394,8 @@ def main(
                 get_tts_model(t5_model=tts_model,
                               t5_gan_model=tts_gan_model,
                               use_gpu=tts_gpu,
-                              gpu_id=tts_gpu_id)
+                              gpu_id=tts_gpu_id,
+                              )
             predict_from_text_func = functools.partial(predict_from_text,
                                                        processor=processor_tts,
                                                        model=model_tts,
@@ -1384,21 +1405,25 @@ def main(
                                                      model=model_tts,
                                                      vocoder=vocoder_tts,
                                                      verbose=verbose)
-        elif tts_model.startswith('xxt'):
-            from src.tts_coqui import get_xxt, get_latent_map, predict_from_text, generate_speech
-            model_xxt, supported_languages_xxt = get_xxt()
-            latent_map_xxt = get_latent_map(model=model_xxt)
+        elif tts_model.startswith('tts_models/'):
+            from src.tts_coqui import get_xtt, get_latent_map, predict_from_text, generate_speech
+            model_xtt, supported_languages_xtt = get_xtt(model_name=tts_model,
+                                                         deepspeed=tts_coquiai_deepspeed,
+                                                         use_gpu=tts_gpu,
+                                                         gpu_id=tts_gpu_id,
+                                                         )
+            latent_map_xtt = get_latent_map(model=model_xtt)
             predict_from_text_func = functools.partial(predict_from_text,
-                                                       model=model_xxt,
-                                                       supported_languages=supported_languages_xxt,
-                                                       latent_map=latent_map_xxt,
+                                                       model=model_xtt,
+                                                       supported_languages=supported_languages_xtt,
+                                                       latent_map=latent_map_xtt,
                                                        verbose=verbose,
                                                        )
 
             generate_speech_func = functools.partial(generate_speech,
-                                                     model=model_xxt,
-                                                     supported_languages=supported_languages_xxt,
-                                                     latent_map=latent_map_xxt,
+                                                     model=model_xtt,
+                                                     supported_languages=supported_languages_xtt,
+                                                     latent_map=latent_map_xtt,
                                                      verbose=verbose)
 
     # DB SETUP

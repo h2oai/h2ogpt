@@ -6,12 +6,12 @@ from tests.test_sentence_parsing import bot_list
 
 @wrap_test_forked
 def test_sentence_to_wave():
-    from src.tts_coqui import sentence_to_wave, get_xxt, get_latent_map
+    from src.tts_coqui import sentence_to_wave, get_xtt, get_latent_map
 
     chatbot_role = "Female AI Assistant"
     sentence = "I am an AI assistant.  I can help you with any tasks."
     # supported_languages = ["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja"]
-    model, supported_languages = get_xxt()
+    model, supported_languages = get_xtt()
     latent_map = get_latent_map(model=model)
     generated_speech = sentence_to_wave(chatbot_role, sentence,
                                         supported_languages,
@@ -29,10 +29,10 @@ def test_sentence_to_wave():
 
 @wrap_test_forked
 def test_generate_speech():
-    from src.tts_coqui import generate_speech, get_xxt, get_latent_map
+    from src.tts_coqui import generate_speech, get_xtt, get_latent_map
 
     chatbot_role = "Female AI Assistant"
-    model, supported_languages = get_xxt()
+    model, supported_languages = get_xtt()
     latent_map = get_latent_map(model=model)
 
     response = 'I am an AI assistant.  What do you want from me?  I am very busy.'
@@ -43,7 +43,7 @@ def test_generate_speech():
 
 @wrap_test_forked
 def test_full_generate_speech():
-    from src.tts_coqui import generate_speech, get_xxt, get_latent_map
+    from src.tts_coqui import generate_speech, get_xtt, get_latent_map
     bot = 'I am an AI assistant.  What do you want from me?  I am very busy.'
 
     def response_gen():
@@ -51,7 +51,7 @@ def test_full_generate_speech():
             yield word1
 
     chatbot_role = "Female AI Assistant"
-    model, supported_languages = get_xxt()
+    model, supported_languages = get_xtt()
     latent_map = get_latent_map(model=model)
 
     response = ""

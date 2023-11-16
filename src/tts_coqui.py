@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import functools
-
+import os
 import numpy as np
 import uuid
-import io
 import time
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
 from src.tts_utils import prepare_speech, get_no_audio
+from src.utils import cuda_vis_check
 
 
-def get_xxt():
-    import os
+def list_models():
+    from TTS.utils.manage import ModelManager
+    return ModelManager().list_tts_models()
+
+
+def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspeed=True, use_gpu=True, gpu_id='auto'):
+    import torch
+    n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
+    if n_gpus1 == 0:
+        use_gpu = False
 
     # By using XTTS you agree to CPML license https://coqui.ai/cpml
     os.environ["COQUI_TOS_AGREED"] = "1"
@@ -25,7 +34,7 @@ def get_xxt():
     print("Downloading if not downloaded Coqui XTTS V2")
 
     from TTS.utils.manage import ModelManager
-    model_name = "tts_models/multilingual/multi-dataset/xtts_v2"
+
     ModelManager().download_model(model_name)
     model_path = os.path.join(get_user_data_dir("tts"), model_name.replace("/", "--"))
     print("XTTS downloaded")
@@ -43,16 +52,20 @@ def get_xxt():
         checkpoint_path=os.path.join(model_path, "model.pth"),
         vocab_path=os.path.join(model_path, "vocab.json"),
         eval=True,
-        use_deepspeed=True,
+        use_deepspeed=deepspeed,
     )
-    model.cuda()
+    if use_gpu:
+        if gpu_id == 'auto':
+            model.cuda()
+        else:
+            model.cuda(device='cuda:%d' % gpu_id)
     print("Done loading TTS")
     return model, supported_languages
 
 
 def get_latent(speaker_wav, voice_cleanup=False, model=None):
     if model is None:
-        model, supported_languages = get_xxt()
+        model, supported_languages = get_xtt()
 
     import subprocess
 
@@ -85,7 +98,7 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None):
 
 def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
     if model is None:
-        model, supported_languages = get_xxt()
+        model, supported_languages = get_xtt()
 
     gpt_cond_latent, speaker_embedding = latent_tuple
 
@@ -142,11 +155,12 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
                     return_as_byte=True, sr=24000, return_gradio=False,
                     is_final=False, verbose=False):
     if model is None or supported_languages is None:
-        model, supported_languages = get_xxt()
+        model, supported_languages = get_xtt()
     if latent_map is None:
         latent_map = get_latent_map(model=model)
     if chatbot_role is None:
         chatbot_role = allowed_roles()[0]
+    assert chatbot_role, "Missing chatbot_role: %s" % str(chatbot_role)
     if sentence_state is None:
         sentence_state = init_sentence_state()
 

@@ -1,8 +1,8 @@
 ## Frequently asked questions
 
-### Speech-to-Text (SST)
+### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
-Suppose one has 4 GPUs and one wants accurate document Q/A and SST, then one can run:
+Suppose one has 4 GPUs and one wants accurate document Q/A and STT and TTS, then one can run:
 ```text
 python generate.py --pre_load_image_audio_models=True \
                    --score_model=None \
@@ -13,9 +13,11 @@ python generate.py --pre_load_image_audio_models=True \
                    --doctr_gpu_id=2 \
                    --asr_gpu_id=3 \
                    --asr_model=openai/whisper-large-v3 \
-                   --sst_model=openai/whisper-large-v3
+                   --sst_model=openai/whisper-large-v3 \
+                   --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
+                   --tts_gpu_id=2
 ```
-So then the SST and ASR models are the same model and all GPU related models are preloaded for fast document handling. Use of `--enable_pdf_doctr=on` will be slower for long PDFs, but generally converts pages to images then OCRs the full image, so more generally handles PDF content.
+So then the SST and ASR models are the same model and all GPU related models are preloaded for fast document handling. Use of `--enable_pdf_doctr=on` will be slower for long PDFs, but generally converts pages to images then OCRs the full image, so more generally handles PDF content.  note that STT and TTS models are always preloaded if used.
 
 ### Non-English languages
 
