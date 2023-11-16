@@ -409,7 +409,6 @@ def get_languages_gr():
         label="Language",
         info="Select an output language for the synthesised speech",
         choices=choices,
-        max_choices=1,
         value=choices[0],
         visible=False,
     )

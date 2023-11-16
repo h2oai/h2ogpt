@@ -37,10 +37,11 @@ def pack_state(sentence_state, *args):
     return sentence_state
 
 
-def split_sentences(sentence, n=350):
+def split_sentences(sentence, n=250):
     """
     Splits a sentence by spaces into smaller sentences, each with a maximum length of n characters,
     while preserving whitespace characters like new lines.
+    # 250 due to [!] Warning: The text length exceeds the character limit of 250 for language 'en', this might cause truncated audio.
     """
     # Splitting on spaces while preserving all whitespace characters in a list
     words = re.split('(\s+)', sentence)
@@ -86,7 +87,7 @@ def split_sentences(sentence, n=350):
     return sentences
 
 
-def _get_sentences(response, verbose=False, min_start=15, max_length=350):
+def _get_sentences(response, verbose=False, min_start=15, max_length=250):
     # no mutations of characters allowed here, only breaking apart or merging
     import nltk
     # refuse to tokenize first 15 characters into sentence, so language detection works and logic simpler

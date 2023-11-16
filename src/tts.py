@@ -74,7 +74,6 @@ def get_speakers_gr():
     choices = get_speakers()
     return gr.Dropdown(label="Speech Style",
                        choices=choices,
-                       max_choices=1,
                        value=choices[0])
 
 

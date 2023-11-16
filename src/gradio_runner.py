@@ -936,7 +936,9 @@ def go_gradio(**kwargs):
                                         audio_pretext = gr.Textbox(value='', visible=False)
                                         audio_output = gr.HTML(visible=False)
                                         audio = gr.Audio(source='microphone', streaming=True, visible=False,
-                                                         elem_id='audio')
+                                                         max_length=30 if is_public else None,
+                                                         elem_id='audio',
+                                                         )
                                         mic_button.click(fn=lambda: None, _js=click_js()) \
                                             .then(
                                             fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
@@ -1415,25 +1417,42 @@ def go_gradio(**kwargs):
                             label="File for Clone (x clears example, for new file)",
                             type="filepath",
                             value="models/female.wav",
+                            max_length=30 if is_public else None,
                         )
+
+                        def process_audio(file1, t1=0, t2=30):
+                            # use no more than 30 seconds
+                            from pydub import AudioSegment
+                            # in milliseconds
+                            t1 = t1 * 1000
+                            t2 = t2 * 1000
+                            newAudio = AudioSegment.from_wav(file1)[t1:t2]
+                            new_file = file1 + '.new.wav'
+                            newAudio.export(new_file, format="wav")
+                            return new_file
+
+                        ref_voice_clone.upload(process_audio, inputs=ref_voice_clone, outputs=ref_voice_clone)
                         mic_voice_clone = gr.Audio(
                             label="Microphone for Clone (x clears, for new file)",
                             type="filepath",
                             source="microphone",
+                            max_length=30 if is_public else None,
                         )
+                        mic_voice_clone.upload(process_audio, inputs=mic_voice_clone, outputs=mic_voice_clone)
                         choose_mic_voice_clone = gr.Checkbox(
                             label="Use Mic for Cloning",
                             value=False,
                             info="If unchecked, uses File",
                         )
-                        role_name_to_add = gr.Textbox(value='', info="Name of Role to add")
-                        add_role = gr.Button(value="Add Role from reference")
+                        role_name_to_add = gr.Textbox(value='', info="Name of Speaker to add", label="Speaker Style")
+                        add_role = gr.Button(value="Voice Clone")
 
                         def add_role_func(name, file, mic, roles1, use_mic):
                             if use_mic and os.path.isfile(mic):
                                 roles1[name] = mic
                             elif os.path.isfile(file):
                                 roles1[name] = file
+                            roles1[name] = process_audio(roles1[name])
                             return gr.Dropdown(choices=list(roles1.keys())), roles1
 
                         add_role.click(add_role_func,
@@ -4751,13 +4770,7 @@ def go_gradio(**kwargs):
                                                          outputs=chat_token_count,
                                                          api_name='count_tokens' if allow_api else None)
 
-        def stop_audio_func():
-            return None, None
-
         speak_events = []
-        if kwargs['enable_tts']:
-            stop_speak_event = stop_speak_button.click(stop_audio_func, outputs=[speech_human, speech_bot])
-            speak_events.extend([stop_speak_event])
         if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
             if kwargs['tts_model'].startswith('tts_models/'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
@@ -4790,6 +4803,15 @@ def go_gradio(**kwargs):
                                                          visible_models, text_output,
                                                          text_output2] + text_outputs,
                                                  outputs=speech_bot)
+        speak_events.extend([speak_bot_event])
+
+        def stop_audio_func():
+            return None, None
+
+        if kwargs['enable_tts']:
+            stop_speak_button.click(stop_audio_func,
+                                    outputs=[speech_human, speech_bot],
+                                    cancels=speak_events)
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
