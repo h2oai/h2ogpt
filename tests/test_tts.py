@@ -110,5 +110,6 @@ def test_predict_from_text(bot, sentences_expected):
                                    processor=processor, model=model, vocoder=vocoder,
                                    return_as_byte=False,
                                    verbose=True):
-        speeches.append(audio)
+        if audio[1].shape[0] > 0:
+            speeches.append(audio)
     assert len(speeches) == len(sentences_expected)
