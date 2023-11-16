@@ -42,7 +42,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```
   On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, and flash attention:
+* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS:
   ```bash
   conda install cudatoolkit-dev -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX
@@ -51,16 +51,21 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   export CUDA_HOME=/usr/local/cuda-11.7
   ```
-  This is also required for A100/H100+ and use CUDA 11.8+.
+  This is required for A100/H100+ and use CUDA 11.8+.
 
-  If you do not plan to use one of those packages, you can just use the non-dev version:
+  If you do not plan to use one of those packages, you can just use the non-dev version
   ```bash
   conda install cudatoolkit=11.7 -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX 
   ```
-  Choose cu118 for A100/H100+.
+  Choose 11.8+ for A100/H100+.  If want cuda 11.8+ and need those packages for building etc., then use the native NVIDIA install of cuda toolkit.
   
-* Install dependencies:
+* Prepare to install dependencies:
+   ```bash
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu117"
+   ```
+  Choose cu118+ for A100/H100+.
+* Install primary dependencies
     ```bash
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
@@ -72,9 +77,9 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
-    Choose `cu118` for A100/H100+.
+   ```bash
+  ```
 * Install document question-answer dependencies:
-   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` (or choose cu118 for A100+) for GPU install:
     ```bash
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
