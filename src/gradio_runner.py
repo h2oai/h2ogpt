@@ -1412,27 +1412,34 @@ def go_gradio(**kwargs):
                         else:
                             tts_language = gr.Dropdown(visible=False)
 
-                        ref_gr = gr.Audio(
-                            label="Reference Audio",
-                            info="Click on the ✎ button to upload your own target speaker audio",
+                        ref_voice_clone = gr.Audio(
+                            label="File for Clone (x clears example, for new file)",
                             type="filepath",
                             value="models/female.wav",
                         )
-                        mic_gr = gr.Audio(
-                            source="microphone",
+                        mic_voice_clone = gr.Audio(
+                            label="Microphone for Clone (x clears, for new file)",
                             type="filepath",
-                            info="Use your microphone to record audio",
-                            label="Use Microphone for Reference",
+                            source="microphone",
+                        )
+                        choose_mic_voice_clone = gr.Checkbox(
+                            label="Use Mic for Cloning",
+                            value=False,
+                            info="If unchecked, uses File",
                         )
                         role_name_to_add = gr.Textbox(value='', info="Name of Role to add")
                         add_role = gr.Button(value="Add Role from reference")
 
-                        def add_role_func(name, file, mic, roles1):
-                            roles1.append(name)
-                            return gr.Dropdown(choices=roles1), roles1
+                        def add_role_func(name, file, mic, roles1, use_mic):
+                            if use_mic and os.path.isfile(mic):
+                                roles1[name] = mic
+                            elif os.path.isfile(file):
+                                roles1[name] = file
+                            return gr.Dropdown(choices=list(roles1.keys())), roles1
 
                         add_role.click(add_role_func,
-                                       inputs=[role_name_to_add, ref_gr, mic_gr, roles_state],
+                                       inputs=[role_name_to_add, ref_voice_clone, mic_voice_clone, roles_state,
+                                               choose_mic_voice_clone],
                                        outputs=[chatbot_role, roles_state])
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)

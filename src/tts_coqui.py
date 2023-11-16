@@ -78,7 +78,7 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, ma
     # note diffusion_conditioning not used on hifigan (default mode), it will be empty but need to pass it to model.inference
     # latent = (gpt_cond_latent, speaker_embedding)
     latent = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
-                                            max_ref_length=max_ref_length, sr=sr)
+                                            max_ref_length=max_ref_length, load_sr=sr)
     return latent
 
 
@@ -136,12 +136,17 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None):
         return None
 
 
-def generate_speech(response, model=None, supported_languages=None,
+def generate_speech(response,
+                    model=None,
+                    language='autodetect',
+                    supported_languages=None,
                     latent=None,
                     sentence_state=None,
-                    return_as_byte=True, sr=24000, return_gradio=False,
-                    language='autodetect',
-                    is_final=False, verbose=False):
+                    return_as_byte=True,
+                    sr=24000,
+                    return_gradio=False,
+                    is_final=False,
+                    verbose=False):
     if model is None or supported_languages is None:
         model, supported_languages = get_xtt()
     if sentence_state is None:
@@ -298,7 +303,6 @@ def predict_from_text(response, chatbot_role, language, roles_map,
     latent = get_latent(roles_map[chatbot_role], model=model)
     sentence_state = init_sentence_state()
     generate_speech_func = functools.partial(generate_speech,
-                                             chatbot_role=chatbot_role,
                                              model=model,
                                              language=language,
                                              supported_languages=supported_languages,
