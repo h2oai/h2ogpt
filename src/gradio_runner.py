@@ -716,8 +716,7 @@ def go_gradio(**kwargs):
                     visible_speak_me = kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None
                     speak_human_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
                     speak_bot_button = gr.Button("Speak Response", visible=visible_speak_me, size='sm')
-                    # speak_me_cancel_button = gr.Button("Cancel Speak Instruction", visible=visible_speak_me, size='sm')
-                    # speak_me_cancel_button.click(fn=lambda: None, _js=click_js2())
+                    stop_speak_button = gr.Button("Stop/Clear Speak", visible=visible_speak_me, size='sm')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                         from src.tts_coqui import get_roles
                         chatbot_role = get_roles(choices=list(roles_state.value.keys()))
@@ -4753,6 +4752,11 @@ def go_gradio(**kwargs):
                                                          api_name='count_tokens' if allow_api else None)
 
         speak_events = []
+        if kwargs['enable_tts']:
+            def stop_audio_func():
+                return None, None
+            stop_speak_event = stop_speak_button.click(stop_audio_func, outputs=[speech_human, speech_bot])
+            speak_events.extend([stop_speak_event])
         if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
             if kwargs['tts_model'].startswith('tts_models/'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
