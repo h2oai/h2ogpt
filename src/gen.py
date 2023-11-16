@@ -888,8 +888,9 @@ def main(
                    ```
                    e.g. 'tts_models/multilingual/multi-dataset/xtts_v2'
 
-                   Note that coqui.ai models are better, but have non-commercial research license, while microsoft ones are mit.
-                   So coqui.ai ones can be used for non-commercial activities only, and one should agree to their license.
+                   Note that coqui.ai models are better, but some have non-commercial research license, while microsoft models are MIT.
+                   So coqui.ai ones can be used for non-commercial activities only, and one should agree to their license, see: https://coqui.ai/cpml
+                   Commercial use of xtts_v2 should be obtained through their product offering at https://coqui.ai/
 
     :param tts_gan_model: For microsoft model, which gan model to use, e.g. 'microsoft/speecht5_hifigan'
     :param tts_coquiai_deepspeed: For coqui.ai models, whether to use deepspeed for faster inference
