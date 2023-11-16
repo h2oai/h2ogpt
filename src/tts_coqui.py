@@ -4,6 +4,7 @@ import functools
 import os
 import numpy as np
 import uuid
+import subprocess
 import time
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
@@ -75,17 +76,17 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, ma
 
     # create as function as we can populate here with voice cleanup/filtering
     # note diffusion_conditioning not used on hifigan (default mode), it will be empty but need to pass it to model.inference
-    # latent_map = (gpt_cond_latent, speaker_embedding)
-    latent_map = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
-                                                max_ref_length=max_ref_length, sr=sr)
-    return latent_map
+    # latent = (gpt_cond_latent, speaker_embedding)
+    latent = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
+                                            max_ref_length=max_ref_length, sr=sr)
+    return latent
 
 
-def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
+def get_voice_streaming(prompt, language, latent, suffix="0", model=None):
     if model is None:
         model, supported_languages = get_xtt()
 
-    gpt_cond_latent, speaker_embedding = latent_tuple
+    gpt_cond_latent, speaker_embedding = latent
 
     try:
         t0 = time.time()
@@ -135,20 +136,18 @@ def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
         return None
 
 
-def generate_speech(response, chatbot_role=None, model=None, supported_languages=None, latent_map=None,
+def generate_speech(response, model=None, supported_languages=None,
+                    latent=None,
                     sentence_state=None,
                     return_as_byte=True, sr=24000, return_gradio=False,
                     language='autodetect',
                     is_final=False, verbose=False):
     if model is None or supported_languages is None:
         model, supported_languages = get_xtt()
-    if latent_map is None:
-        latent_map = get_latent_map(model=model)
-    if chatbot_role is None:
-        chatbot_role = allowed_roles()[0]
-    assert chatbot_role, "Missing chatbot_role: %s" % str(chatbot_role)
     if sentence_state is None:
         sentence_state = init_sentence_state()
+    if latent is None:
+        latent = get_latent("models/female.wav", model=model)
 
     sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final,
                                                verbose=verbose)
@@ -157,10 +156,10 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
         if verbose:
             print("sentence_to_wave: %s" % sentence)
 
-        audio = sentence_to_wave(chatbot_role, sentence,
+        audio = sentence_to_wave(sentence,
                                  supported_languages,
                                  model=model,
-                                 latent_map=latent_map,
+                                 latent=latent,
                                  return_as_byte=return_as_byte,
                                  sr=sr,
                                  language=language,
@@ -179,7 +178,7 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
     return audio, sentence, sentence_state
 
 
-def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
+def sentence_to_wave(sentence, supported_languages, latent=None,
                      return_as_byte=False, sr=24000, model=None,
                      return_gradio=True, language='autodetect', verbose=False):
     """
@@ -202,7 +201,7 @@ def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
 
                 # exists at least 1 alphanumeric (utf-8)
                 audio_stream = get_voice_streaming(
-                    sentence, language, latent_map[chatbot_role],
+                    sentence, language, latent,
                     model=model,
                 )
             else:
@@ -265,42 +264,45 @@ def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
     return
 
 
-def get_latent_map(model=None):
-    latent_map = {}
-    latent_map["Female AI Assistant"] = get_latent("models/female.wav", model=model)
-    latent_map["Male AI Assistant"] = get_latent("models/male.wav", model=model)
-    latent_map["AI Beard The Pirate"] = get_latent("models/pirate_by_coqui.wav", model=model)
-    return latent_map
+def get_role_to_wave_map():
+    # only for test and initializing state
+    roles_map = {}
+    roles_map["Female AI Assistant"] = "models/female.wav"
+    roles_map["Male AI Assistant"] = "models/male.wav"
+    roles_map["AI Beard The Pirate"] = "models/pirate_by_coqui.wav"
+    return roles_map
 
 
 def allowed_roles():
-    roles = ["Female AI Assistant", "Male AI Assistant", "AI Beard The Pirate", "None"]
-    return roles
+    return list(get_role_to_wave_map().keys())
 
 
-def get_roles():
+def get_roles(choices=None):
+    if choices is None:
+        choices = allowed_roles()
     import gradio as gr
     chatbot_role = gr.Dropdown(
         label="Speech Style",
-        choices=allowed_roles(),
-        value=allowed_roles()[0],
+        choices=choices,
+        value=choices[0],
     )
     return chatbot_role
 
 
-def predict_from_text(response, chatbot_role, model=None,
-                      language='autodetect',
-                      supported_languages=None, latent_map=None,
+def predict_from_text(response, chatbot_role, language, roles_map,
+                      model=None,
+                      supported_languages=None,
                       return_as_byte=True, sr=24000, verbose=False):
     audio0 = prepare_speech(sr=sr)
     yield audio0
+    latent = get_latent(roles_map[chatbot_role], model=model)
     sentence_state = init_sentence_state()
     generate_speech_func = functools.partial(generate_speech,
                                              chatbot_role=chatbot_role,
                                              model=model,
                                              language=language,
                                              supported_languages=supported_languages,
-                                             latent_map=latent_map,
+                                             latent=latent,
                                              sentence_state=sentence_state,
                                              return_as_byte=return_as_byte,
                                              sr=sr,
@@ -314,10 +316,6 @@ def predict_from_text(response, chatbot_role, model=None,
 
     audio1, sentence, sentence_state = generate_speech_func(response, is_final=True)
     yield audio1
-
-
-import uuid
-import subprocess
 
 
 def filter_wave_1(speaker_wav):

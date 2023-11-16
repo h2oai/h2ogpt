@@ -390,6 +390,7 @@ def main(
 
         tts_gan_model: str = 'microsoft/speecht5_hifigan',
         tts_coquiai_deepspeed: bool = True,
+        tts_coquiai_roles: dict = None,
 
         # json
         jq_schema='.[]',
@@ -892,6 +893,8 @@ def main(
 
     :param tts_gan_model: For microsoft model, which gan model to use, e.g. 'microsoft/speecht5_hifigan'
     :param tts_coquiai_deepspeed: For coqui.ai models, whether to use deepspeed for faster inference
+    :param tts_coquiai_roles: role dictionary mapping name (key) to wave file (value)
+           If None, then just use default from get_role_to_wave_map()
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -922,6 +925,8 @@ def main(
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
     llamacpp_dict = str_to_dict(llamacpp_dict)
+    tts_coquiai_roles = str_to_dict(tts_coquiai_roles)
+    tts_coquiai_roles_state0 = tts_coquiai_roles
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
     base_model0 = base_model  # for prompt infer
@@ -1384,7 +1389,6 @@ def main(
                                              )
 
     model_xtt, supported_languages_xtt = None, None
-    latent_map_xtt = None
     predict_from_text_func = None
     generate_speech_func = None
     if enable_tts:
@@ -1406,24 +1410,21 @@ def main(
                                                      vocoder=vocoder_tts,
                                                      verbose=verbose)
         elif tts_model.startswith('tts_models/'):
-            from src.tts_coqui import get_xtt, get_latent_map, predict_from_text, generate_speech
+            from src.tts_coqui import get_xtt, predict_from_text, generate_speech
             model_xtt, supported_languages_xtt = get_xtt(model_name=tts_model,
                                                          deepspeed=tts_coquiai_deepspeed,
                                                          use_gpu=tts_gpu,
                                                          gpu_id=tts_gpu_id,
                                                          )
-            latent_map_xtt = get_latent_map(model=model_xtt)
             predict_from_text_func = functools.partial(predict_from_text,
                                                        model=model_xtt,
                                                        supported_languages=supported_languages_xtt,
-                                                       latent_map=latent_map_xtt,
                                                        verbose=verbose,
                                                        )
 
             generate_speech_func = functools.partial(generate_speech,
                                                      model=model_xtt,
                                                      supported_languages=supported_languages_xtt,
-                                                     latent_map=latent_map_xtt,
                                                      verbose=verbose)
 
     # DB SETUP
