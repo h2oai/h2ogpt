@@ -392,6 +392,10 @@ def main(
         tts_coquiai_deepspeed: bool = True,
         tts_coquiai_roles: dict = None,
 
+        chatbot_role: str = "Female AI Assistant",
+        speaker: str = "SLT (female)",
+        tts_language: str = 'autodetect',
+
         # json
         jq_schema='.[]',
 
@@ -897,6 +901,10 @@ def main(
     :param tts_coquiai_roles: role dictionary mapping name (key) to wave file (value)
            If None, then just use default from get_role_to_wave_map()
 
+    :param chatbot_role: Default role for coqui models
+    :param speaker: Default speaker for microsoft models
+    :param tts_language: Default language for coqui models
+
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
            See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
@@ -1324,6 +1332,9 @@ def main(
                             hyde_level,
                             hyde_template,
                             doc_json_mode,
+                            chatbot_role,
+                            speaker,
+                            tts_language,
                             verbose,
                             )
 
@@ -2674,6 +2685,10 @@ def evaluate(
         hyde_template,
         doc_json_mode,
 
+        chatbot_role,
+        speaker,
+        tts_language,
+
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
         caption_loader=None,
@@ -3938,6 +3953,9 @@ def get_generate_params(model_lower,
                         hyde_level,
                         hyde_template,
                         doc_json_mode,
+                        chatbot_role,
+                        speaker,
+                        tts_language,
                         verbose,
                         ):
     use_defaults = False
@@ -4135,6 +4153,10 @@ y = np.random.randint(0, 1, 100)
                     hyde_level,
                     hyde_template,
                     doc_json_mode,
+
+                    chatbot_role,
+                    speaker,
+                    tts_language,
                     ]
         # adjust examples if non-chat mode
         if not chat:

@@ -3327,10 +3327,6 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def extra_isize():
-            # chatbot_role + speaker + tts_language + roles_map
-            return 4
-
         def prep_bot(*args, retry=False, which_model=0):
             """
 
@@ -3340,17 +3336,14 @@ def go_gradio(**kwargs):
                  API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
             :return: last element is True if should run bot, False if should just yield history
             """
-            isize = len(input_args_list) + extra_isize() + 1  # states + extra + chat history
+            isize = len(input_args_list) + 1  # states + chat history
             # don't deepcopy, can contain model itself
             args_list = list(args).copy()
             model_state1 = args_list[-isize]
             my_db_state1 = args_list[-isize + 1]
             selection_docs_state1 = args_list[-isize + 2]
             requests_state1 = args_list[-isize + 3]
-            chatbot_role1 = args_list[-5]
-            speaker1 = args_list[-4]
-            tts_language1 = args_list[-3]
-            roles_map1 = args_list[-2]
+            roles_map1 = args_list[-isize + 4]
             history = args_list[-1]
             if not history:
                 history = []
@@ -3368,6 +3361,9 @@ def go_gradio(**kwargs):
                                      kwargs['enforce_h2ogpt_ui_key'],
                                      kwargs['h2ogpt_api_keys'], h2ogpt_key1,
                                      requests_state1=requests_state1)
+            chatbot_role1 = args_list[eval_func_param_names.index('chatbot_role')]
+            speaker1 = args_list[eval_func_param_names.index('speaker')]
+            tts_language1 = args_list[eval_func_param_names.index('tts_language')]
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
@@ -3630,7 +3626,7 @@ def go_gradio(**kwargs):
             assert len(all_possible_visible_models) == len(model_states1)
             visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
 
-            isize = len(input_args_list) + extra_isize() + 1  # states + extra + chat history
+            isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             requests_state1 = None
             valid_key = False
@@ -3644,8 +3640,8 @@ def go_gradio(**kwargs):
                 first_visible = True
                 for chatboti, (chatbot1, model_state1) in enumerate(zip(chatbots, model_states1)):
                     args_list1 = args_list0.copy()
-                    args_list1.insert(-isize + 2,
-                                      model_state1)  # insert at -2 so is at -3, and after chatbot1 added, at -4
+                    # insert at -2 so is at -3, and after chatbot1 added, at -4
+                    args_list1.insert(-isize + 2, model_state1)
                     # if at start, have None in response still, replace with '' so client etc. acts like normal
                     # assumes other parts of code treat '' and None as if no response yet from bot
                     # can't do this later in bot code as racy with threaded generators
@@ -3791,13 +3787,13 @@ def go_gradio(**kwargs):
                          )
         bot_args = dict(fn=bot,
                         inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
-                                              chatbot_role, speaker, tts_language, roles_state] + [
+                                              roles_state] + [
                                    text_output],
                         outputs=[text_output, chat_exception_text, speech_bot],
                         )
         retry_bot_args = dict(fn=functools.partial(bot, retry=True),
                               inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
-                                                    chatbot_role, speaker, tts_language, roles_state] + [
+                                                    roles_state] + [
                                          text_output],
                               outputs=[text_output, chat_exception_text, speech_bot],
                               )
@@ -3817,14 +3813,13 @@ def go_gradio(**kwargs):
                           )
         bot_args2 = dict(fn=bot,
                          inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state,
-                                                chatbot_role, speaker, tts_language, roles_state] + [
+                                                roles_state] + [
                                     text_output2],
                          outputs=[text_output2, chat_exception_text, speech_bot2],
                          )
         retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
                                inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
-                                                      requests_state, chatbot_role, speaker, tts_language,
-                                                      roles_state] + [
+                                                      requests_state, roles_state] + [
                                           text_output2],
                                outputs=[text_output2, chat_exception_text, speech_bot2],
                                )
@@ -3848,8 +3843,7 @@ def go_gradio(**kwargs):
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
                                                  all_possible_visible_models=kwargs['all_possible_visible_models']),
-                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, chatbot_role,
-                                                  speaker, tts_language, roles_state] +
+                            inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, roles_state] +
                                    text_outputs,
                             outputs=text_outputs + [chat_exception_text, speech_bot],
                             )
@@ -3857,8 +3851,7 @@ def go_gradio(**kwargs):
                                                        all_possible_visible_models=kwargs[
                                                            'all_possible_visible_models'],
                                                        retry=True),
-                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state,
-                                                        chatbot_role, speaker, tts_language, roles_state] +
+                                  inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, roles_state] +
                                          text_outputs,
                                   outputs=text_outputs + [chat_exception_text, speech_bot],
                                   )
