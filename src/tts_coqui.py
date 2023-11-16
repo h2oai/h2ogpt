@@ -63,37 +63,22 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
     return model, supported_languages
 
 
-def get_latent(speaker_wav, voice_cleanup=False, model=None):
+def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, max_ref_length=60, sr=24000):
     if model is None:
         model, supported_languages = get_xtt()
 
-    import subprocess
-
     if voice_cleanup:
-        try:
-            cleanup_filter = "lowpass=8000,highpass=75,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02"
-            resample_filter = "-ac 1 -ar 22050"
-            out_filename = speaker_wav + str(uuid.uuid4()) + ".wav"  # ffmpeg to know output format
-            # we will use newer ffmpeg as that has afftn denoise filter
-            shell_command = f"ffmpeg -y -i {speaker_wav} -af {cleanup_filter} {resample_filter} {out_filename}".split(
-                " ")
-
-            command_result = subprocess.run([item for item in shell_command], capture_output=False, text=True,
-                                            check=True)
-            speaker_wav = out_filename
-            print("Filtered microphone input")
-        except subprocess.CalledProcessError:
-            # There was an error - command exited with non-zero code
-            print("Error: failed filtering, use original microphone input")
+        speaker_wav = filter_wave_1(speaker_wav)
+        # speaker_wav = filter_wave_2(speaker_wav)
     else:
         speaker_wav = speaker_wav
 
     # create as function as we can populate here with voice cleanup/filtering
-    (
-        gpt_cond_latent,
-        speaker_embedding,
-    ) = model.get_conditioning_latents(audio_path=speaker_wav)
-    return gpt_cond_latent, speaker_embedding
+    # note diffusion_conditioning not used on hifigan (default mode), it will be empty but need to pass it to model.inference
+    # latent_map = (gpt_cond_latent, speaker_embedding)
+    latent_map = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
+                                                max_ref_length=max_ref_length, sr=sr)
+    return latent_map
 
 
 def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
@@ -153,6 +138,7 @@ def get_voice_streaming(prompt, language, latent_tuple, suffix="0", model=None):
 def generate_speech(response, chatbot_role=None, model=None, supported_languages=None, latent_map=None,
                     sentence_state=None,
                     return_as_byte=True, sr=24000, return_gradio=False,
+                    language='autodetect',
                     is_final=False, verbose=False):
     if model is None or supported_languages is None:
         model, supported_languages = get_xtt()
@@ -177,6 +163,7 @@ def generate_speech(response, chatbot_role=None, model=None, supported_languages
                                  latent_map=latent_map,
                                  return_as_byte=return_as_byte,
                                  sr=sr,
+                                 language=language,
                                  return_gradio=return_gradio)
         if verbose:
             print("done sentence_to_wave: %s" % (time.time() - t0), flush=True)
@@ -210,7 +197,7 @@ def sentence_to_wave(chatbot_role, sentence, supported_languages, latent_map={},
 
             if any(c.isalnum() for c in sentence):
                 if language == "autodetect":
-                    # on first call autodetect, nexts sentence calls will use same language
+                    # on first call autodetect, next sentence calls will use same language
                     language = detect_language(sentence, supported_languages, verbose=verbose)
 
                 # exists at least 1 alphanumeric (utf-8)
@@ -301,7 +288,9 @@ def get_roles():
     return chatbot_role
 
 
-def predict_from_text(response, chatbot_role, model=None, supported_languages=None, latent_map=None,
+def predict_from_text(response, chatbot_role, model=None,
+                      language='autodetect',
+                      supported_languages=None, latent_map=None,
                       return_as_byte=True, sr=24000, verbose=False):
     audio0 = prepare_speech(sr=sr)
     yield audio0
@@ -309,6 +298,7 @@ def predict_from_text(response, chatbot_role, model=None, supported_languages=No
     generate_speech_func = functools.partial(generate_speech,
                                              chatbot_role=chatbot_role,
                                              model=model,
+                                             language=language,
                                              supported_languages=supported_languages,
                                              latent_map=latent_map,
                                              sentence_state=sentence_state,
@@ -324,3 +314,100 @@ def predict_from_text(response, chatbot_role, model=None, supported_languages=No
 
     audio1, sentence, sentence_state = generate_speech_func(response, is_final=True)
     yield audio1
+
+
+import uuid
+import subprocess
+
+
+def filter_wave_1(speaker_wav):
+    try:
+        cleanup_filter = "lowpass=8000,highpass=75,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02"
+        resample_filter = "-ac 1 -ar 22050"
+        out_filename = speaker_wav + str(uuid.uuid4()) + ".wav"  # ffmpeg to know output format
+        # we will use newer ffmpeg as that has afftn denoise filter
+        shell_command = f"ffmpeg -y -i {speaker_wav} -af {cleanup_filter} {resample_filter} {out_filename}".split(
+            " ")
+
+        command_result = subprocess.run([item for item in shell_command], capture_output=False, text=True,
+                                        check=True)
+        speaker_wav = out_filename
+        print("Filtered microphone input")
+    except subprocess.CalledProcessError:
+        # There was an error - command exited with non-zero code
+        print("Error: failed filtering, use original microphone input")
+        return speaker_wav
+
+
+def filter_wave_2(speaker_wav):
+    # Filtering for microphone input, as it has BG noise, maybe silence in beginning and end
+    # This is fast filtering not perfect
+
+    # Apply all on demand
+    lowpassfilter = denoise = trim = loudness = True
+
+    if lowpassfilter:
+        lowpass_highpass = "lowpass=8000,highpass=75,"
+    else:
+        lowpass_highpass = ""
+
+    if trim:
+        # better to remove silence in beginning and end for microphone
+        trim_silence = "areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,areverse,silenceremove=start_periods=1:start_silence=0:start_threshold=0.02,"
+    else:
+        trim_silence = ""
+
+    try:
+        out_filename = (
+                speaker_wav + str(uuid.uuid4()) + ".wav"
+        )  # ffmpeg to know output format
+
+        # we will use newer ffmpeg as that has afftn denoise filter
+        shell_command = f"./ffmpeg -y -i {speaker_wav} -af {lowpass_highpass}{trim_silence} {out_filename}".split(
+            " "
+        )
+
+        command_result = subprocess.run(
+            [item for item in shell_command],
+            capture_output=False,
+            text=True,
+            check=True,
+        )
+        speaker_wav = out_filename
+        print("Filtered microphone input")
+    except subprocess.CalledProcessError:
+        # There was an error - command exited with non-zero code
+        print("Error: failed filtering, use original microphone input")
+    return speaker_wav
+
+
+def get_languages_gr():
+    import gradio as gr
+    choices = [
+        "autodetect",
+        "en",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "pl",
+        "tr",
+        "ru",
+        "nl",
+        "cs",
+        "ar",
+        "zh-cn",
+        "ja",
+        "ko",
+        "hu"
+    ]
+    language_gr = gr.Dropdown(
+        label="Language",
+        info="Select an output language for the synthesised speech",
+        choices=choices,
+        max_choices=1,
+        value=choices[0],
+        visible=False,
+    )
+    return language_gr
