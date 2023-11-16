@@ -252,11 +252,11 @@ def test_client1api_lean_lock_choose_model():
                     'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
                     'compile_model': True, 'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
-                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf',
                                       'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                                       'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                                       'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf',
                     'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                     'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                     'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
@@ -272,11 +272,11 @@ def test_client1api_lean_lock_choose_model():
                     'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
                     'compile_model': True, 'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
-                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf',
                                       'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                                       'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                                       'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf',
                     'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
                     'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
                     'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
@@ -1280,7 +1280,7 @@ Summarize"""
         base_model = 'llama'
     else:
         base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
-    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf'
     # model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q8_0.gguf'
     res_dict, client = run_client_chat_with_server(prompt=prompt,
                                                    max_seq_len=max_seq_len,
@@ -1298,7 +1298,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_agents=[],
                                 user_path=None,
                                 langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
-                                model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                                model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf',
                                 docs_ordering_type='reverse_ucurve_sort',
                                 max_seq_len=None):
     if langchain_mode == 'Disabled':
@@ -2549,7 +2549,7 @@ def test_client_load_unload_models(model_choice):
     max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
-    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf'
     model_name_gptj = ''
     model_name_gpt4all_llama = ''
     n_gpu_layers = 100
@@ -2628,7 +2628,7 @@ def test_client_load_unload_models(model_choice):
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] +
                          model_names_curated +
                          ['zephyr-7b-beta.Q5_K_M.gguf'] +
-                         ['https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
+                         ['https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf'])
 @wrap_test_forked
 def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:
