@@ -2349,6 +2349,7 @@ def go_gradio(**kwargs):
                 text_result, \
                 gr.update(label=label_instruction1), \
                 df_langchain_mode_paths1, \
+                gr.update(choices=list(roles_state1.keys())), \
                 gr.update(choices=list(chat_state1.keys()), value=None), \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), \
@@ -2372,6 +2373,7 @@ def go_gradio(**kwargs):
                          login_result_text,
                          instruction,
                          langchain_mode_path_text,
+                         chatbot_role,
                          radio_chats,
                          langchain_mode,
                          text_output, text_output2] + text_outputs
