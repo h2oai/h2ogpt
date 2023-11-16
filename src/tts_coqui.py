@@ -275,6 +275,7 @@ def get_role_to_wave_map():
     roles_map["Female AI Assistant"] = "models/female.wav"
     roles_map["Male AI Assistant"] = "models/male.wav"
     roles_map["AI Beard The Pirate"] = "models/pirate_by_coqui.wav"
+    roles_map["None"] = ""
     return roles_map
 
 

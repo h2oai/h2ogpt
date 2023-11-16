@@ -4751,10 +4751,11 @@ def go_gradio(**kwargs):
                                                          outputs=chat_token_count,
                                                          api_name='count_tokens' if allow_api else None)
 
+        def stop_audio_func():
+            return None, None
+
         speak_events = []
         if kwargs['enable_tts']:
-            def stop_audio_func():
-                return None, None
             stop_speak_event = stop_speak_button.click(stop_audio_func, outputs=[speech_human, speech_bot])
             speak_events.extend([stop_speak_event])
         if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None:
@@ -4792,20 +4793,23 @@ def go_gradio(**kwargs):
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
-        stop_btn.click(lambda: None, None, None,
-                       cancels=submits1 + submits2 + submits3 + submits4 +
-                               [submit_event_nochat, submit_event_nochat2] +
-                               [eventdb1, eventdb2, eventdb3] +
-                               [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a, eventdb12] +
-                               db_events +
-                               [eventdbloadla, eventdbloadlb] +
-                               [clear_event] +
-                               [submit_event_nochat_api, submit_event_nochat] +
-                               [load_model_event, load_model_event2] +
-                               [count_tokens_event] +
-                               speak_events
-                       ,
-                       queue=False, api_name='stop' if allow_api else None).then(clear_torch_cache, queue=False)
+        stop_event = stop_btn.click(lambda: None, None, None,
+                                    cancels=submits1 + submits2 + submits3 + submits4 +
+                                            [submit_event_nochat, submit_event_nochat2] +
+                                            [eventdb1, eventdb2, eventdb3] +
+                                            [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a,
+                                             eventdb12] +
+                                            db_events +
+                                            [eventdbloadla, eventdbloadlb] +
+                                            [clear_event] +
+                                            [submit_event_nochat_api, submit_event_nochat] +
+                                            [load_model_event, load_model_event2] +
+                                            [count_tokens_event] +
+                                            speak_events
+                                    ,
+                                    queue=False, api_name='stop' if allow_api else None) \
+            .then(clear_torch_cache, queue=False) \
+            .then(stop_audio_func, outputs=[speech_human, speech_bot])
 
         if kwargs['auth'] is not None:
             auth = authf
