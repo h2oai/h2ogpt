@@ -101,6 +101,9 @@ def test_predict_from_text(bot, sentences_expected):
     speaker = get_speakers()[0]
 
     from src.tts import predict_from_text
-    for sr, speech in predict_from_text(bot, speaker, processor=processor, model=model, vocoder=vocoder, verbose=True):
-        speeches.append(speech)
+    for audio in predict_from_text(bot, speaker,
+                                   processor=processor, model=model, vocoder=vocoder,
+                                   return_as_byte=False,
+                                   verbose=True):
+        speeches.append(audio)
     assert len(speeches) == len(sentences_expected)

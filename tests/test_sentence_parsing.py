@@ -5,6 +5,18 @@ from tests.utils import wrap_test_forked
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
 
 bot_list = [
+    ("""Coastal City (Tue) - TC, GF (Wed) - the week’s still young! w/ Elizabeth (AeroTech, Oceanic); LUNA team and champions; Marina Financial Group CIO; GBA corporate bank, Alex Mercer (Jordan dialed in); GEC opening gala (where leaders of Nation A & Nation B meet along with a host of delegates from GEC Gov agencies and select CEOs in Country X.) Coastal City Energy and Water Agency (a pivotal agency for the area; and a mature organization in autoML; fan of LLM Studio and h2oGPTe) - notes below; our meeting excited them to accelerate a transformative partnership - energizing the agency!
+
+"Making Coastal City a leader in AI technology" - very productive meetings with CIO & data & AI teams of the Energy and Water Agency, CIO of Marina Financial in Capital City, Board member of AeroTech, partner XYZ Corp.. The agency will be gateway to all the agencies of the country and a transformative partnership for h2o as well. (Closing imminently.) and Sam & XYZ Corp partnership in the region. The region will be a great area for AI and the people of this region are aspiring for change & seek true partnership and co-creation! They are ready to be makers and joining our movement!""",
+     ['Coastal City  - the week’s still young!',
+      'with Elizabeth ; GEC opening gala  where leaders of Nation A & Nation B meet along with a host of delegates from GEC Gov',
+      'agencies and select CEOs in Country X.',
+      'Coastal City Energy and Water Agency  - notes below; our meeting excited them to accelerate a transformative partnership - energizing the agency!',
+      '"Making Coastal City a leader in AI technology" - very productive meetings with CIO & data & AI teams of the Energy and Water Agency, CIO of Marina Financial in Capital City, Board member of AeroTech, partner XYZ Corp..',
+      'The agency will be gateway to all the agencies of the country and a transformative partnership for h2o as well.',
+      'and Sam & XYZ Corp partnership in the region.',
+      'The region will be a great area for AI and the people of this region are aspiring for change & seek true partnership and co-creation!',
+      'They are ready to be makers and joining our movement!']),
     ("""Sure, I'd be happy to help! Here are some fun facts about the color purple:
 
 1. Pur""", ["Sure, I'd be happy to help!", 'Here are some fun facts about the color purple:\n\n1.', 'Pur']),
