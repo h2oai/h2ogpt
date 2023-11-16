@@ -4261,6 +4261,9 @@ def go_gradio(**kwargs):
                                       n_batch=n_batch1,
                                       n_gqa=n_gqa1,
                                       ))
+            del model_path_llama1
+            del model_name_gptj1
+            del model_name_gpt4all_llama1
 
             # ensure no API calls reach here
             if is_public:
