@@ -3881,8 +3881,17 @@ def test_client1_tts():
     assert response
     assert 'endoftext' not in response
 
+    play_audio(res)
+
+
+def play_audio(res):
     # convert audio to file
     audio = res['audio']
+
+    if audio == b'':
+        # no audio
+        return
+
     import io
     from pydub import AudioSegment
     s = io.BytesIO(audio)
@@ -3891,9 +3900,50 @@ def test_client1_tts():
     # sample_rate=24000  # coqui
     sample_rate = 16000
     filename = '/tmp/myfile.wav'
-    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sample_rate, channels=channels).export(
-        filename, format='wav')
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sample_rate, channels=channels)
+    if audio.duration_seconds < 0.5:
+        # FIXME: why are some very short, but not zero, audio outputs?
+        return
+    audio = audio.export(filename, format='wav')
 
     # pip install playsound
     from playsound import playsound
     playsound(filename)
+
+
+@wrap_test_forked
+def test_client1_tts_stream():
+    from src.gen import main
+    main(base_model='llama', chat=False,
+         stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'Who are you?'
+    kwargs = dict(instruction_nochat=prompt, chatbot_role="Female AI Assistant", speaker="SLT (female)",
+                  stream_output=True)
+
+    job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
+    job_outputs_num = 0
+    while not job.done():
+        outputs_list = job.communicator.job.outputs
+        job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+        for num in range(job_outputs_num_new):
+            res = outputs_list[job_outputs_num + num]
+            res = ast.literal_eval(res)
+            print('Stream %d: %s\n' % (num, res['response']), flush=True)
+            play_audio(res)
+        job_outputs_num += job_outputs_num_new
+        time.sleep(0.01)
+
+    outputs_list = job.outputs()
+    job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+    for num in range(job_outputs_num_new):
+        res = outputs_list[job_outputs_num + num]
+        res = ast.literal_eval(res)
+        print('Final Stream %d: %s\n' % (num, res['response']), flush=True)
+        play_audio(res)
+    job_outputs_num += job_outputs_num_new
+    print("total job_outputs_num=%d" % job_outputs_num, flush=True)
