@@ -67,7 +67,9 @@ def test_full_generate_speech():
                             supported_languages=supported_languages,
                             latent=latent,
                             sentence_state=sentence_state,
-                            return_as_byte=False, return_gradio=False,
+                            return_as_byte=False,
+                            return_nonbyte_as_file=True,
+                            return_gradio=False,
                             is_final=False, verbose=True)
         if sentence is not None:
             print(sentence)
@@ -80,7 +82,9 @@ def test_full_generate_speech():
                         supported_languages=supported_languages,
                         latent=latent,
                         sentence_state=sentence_state,
-                        return_as_byte=False, return_gradio=False,
+                        return_as_byte=False,
+                        return_nonbyte_as_file=True,
+                        return_gradio=False,
                         is_final=True, verbose=True)
     if sentence is not None:
         print(sentence)

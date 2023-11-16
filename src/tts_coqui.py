@@ -143,6 +143,7 @@ def generate_speech(response,
                     latent=None,
                     sentence_state=None,
                     return_as_byte=True,
+                    return_nonbyte_as_file=False,
                     sr=24000,
                     return_gradio=False,
                     is_final=False,
@@ -166,6 +167,7 @@ def generate_speech(response,
                                  model=model,
                                  latent=latent,
                                  return_as_byte=return_as_byte,
+                                 return_nonbyte_as_file=return_nonbyte_as_file,
                                  sr=sr,
                                  language=language,
                                  return_gradio=return_gradio)
@@ -174,7 +176,7 @@ def generate_speech(response,
     else:
         if verbose:
             print("No audio", flush=True)
-        no_audio = get_no_audio(sr=sr, return_as_byte=return_as_byte)
+        no_audio = get_no_audio(sr=sr, return_as_byte=return_as_byte, return_nonbyte_as_file=return_nonbyte_as_file)
         if return_gradio:
             import gradio as gr
             audio = gr.Audio(value=no_audio, autoplay=False)
@@ -184,7 +186,9 @@ def generate_speech(response,
 
 
 def sentence_to_wave(sentence, supported_languages, latent=None,
-                     return_as_byte=False, sr=24000, model=None,
+                     return_as_byte=False,
+                     return_nonbyte_as_file=False,
+                     sr=24000, model=None,
                      return_gradio=True, language='autodetect', verbose=False):
     """
     generate speech audio file per sentence
@@ -236,15 +240,22 @@ def sentence_to_wave(sentence, supported_languages, latent=None,
 
             if audio_stream is not None:
                 if not return_as_byte:
-                    audio_unique_filename = "/tmp/" + str(uuid.uuid4()) + ".wav"
-                    with wave.open(audio_unique_filename, "w") as f:
-                        f.setnchannels(1)
-                        # 2 bytes per sample.
-                        f.setsampwidth(2)
-                        f.setframerate(sr)
-                        f.writeframes(wav_bytestream)
+                    if return_nonbyte_as_file:
+                        audio_unique_filename = "/tmp/" + str(uuid.uuid4()) + ".wav"
+                        with wave.open(audio_unique_filename, "w") as f:
+                            f.setnchannels(1)
+                            # 2 bytes per sample.
+                            f.setsampwidth(2)
+                            f.setframerate(sr)
+                            f.writeframes(wav_bytestream)
 
-                    ret_value = audio_unique_filename
+                        ret_value = audio_unique_filename
+                    else:
+                        data_s16 = np.frombuffer(wav_bytestream, dtype=np.int16, count=len(wav_bytestream) // 2, offset=0)
+                        float_data = data_s16 * 0.5 ** 15
+                        reduced_noise = nr.reduce_noise(y=float_data, sr=sr, prop_decrease=0.8, n_fft=1024)
+                        wav_np = (reduced_noise * 32767).astype(np.int16)
+                        ret_value = wav_np
                 else:
                     ret_value = wav_bytestream
                 if return_gradio:

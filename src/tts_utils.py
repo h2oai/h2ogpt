@@ -23,9 +23,12 @@ def prepare_speech(sr=24000):
     return get_wave_header(sample_rate=sr)
 
 
-def get_no_audio(return_as_byte=True, sr=None):
+def get_no_audio(return_as_byte=True, return_nonbyte_as_file=False, sr=None):
     if return_as_byte:
         return b""
     else:
-        assert sr is not None
-        return sr, np.array([]).astype(np.int16)
+        if return_nonbyte_as_file:
+            return None
+        else:
+            assert sr is not None
+            return sr, np.array([]).astype(np.int16)
