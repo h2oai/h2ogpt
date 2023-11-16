@@ -102,12 +102,12 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
     # STT from microphone
     sudo apt-get install ffmpeg
-    pip install wavio
+    pip install wavio==0.0.8
     # For STT below may also be required
     sudo apt remove libavcodec-ffmpeg-extra56
     sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
     # for TTS:
-    pip install torchaudio soundfile
+    pip install torchaudio==2.0.1 soundfile==0.12.1
     # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
     pip install TTS==0.20.2 deepspeed==0.11.1 noisereduce==3.0.0 pydantic==1.10.13 emoji==2.8.0 ffmpeg-python==0.2.0 trainer==0.0.31 pysbd==0.3.4 coqpit==0.0.17
     # for Coqui XTTS language helpers
@@ -144,7 +144,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip uninstall -y auto-gptq
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-    pip install optimum==1.13.3
+    pip install optimum==1.14.1
     ```
     This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
