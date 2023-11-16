@@ -103,17 +103,7 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None):
         for i, chunk in enumerate(chunks):
             if first_chunk:
                 first_chunk_time = time.time() - t0
-                metrics_text = f"Latency to first audio chunk: {round(first_chunk_time * 1000)} milliseconds\n"
                 first_chunk = False
-            # print(f"Received chunk {i} of audio length {chunk.shape[-1]}")
-
-            # In case output is required to be multiple voice files
-            # out_file = f'{char}_{i}.wav'
-            # write(out_file, 24000, chunk.detach().cpu().numpy().squeeze())
-            # audio = AudioSegment.from_file(out_file)
-            # audio.export(out_file, format='wav')
-            # return out_file
-            # directly return chunk as bytes for streaming
             chunk = chunk.detach().cpu().numpy().squeeze()
             chunk = (chunk * 32767).astype(np.int16)
 
@@ -121,19 +111,11 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None):
 
     except RuntimeError as e:
         if "device-side assert" in str(e):
-            # cannot do anything on cuda device side error, need tor estart
-            print(
-                f"Exit due to: Unrecoverable exception caused by prompt:{prompt}",
-                flush=True,
-            )
-            print("Cuda device-assert Runtime encountered need restart")
+            print(f"Restarted required due to exception: %s" % str(e), flush=True)
         else:
-            print("RuntimeError: non device-side assert error:", str(e))
-            # Does not require warning happens on empty chunk and at end
-            return None
-        return None
-    except:
-        return None
+            print("Failed to generate wave: %s" % str(e))
+    except Exception as e:
+        print("Failed to generate wave: %s" % str(e))
 
 
 def generate_speech(response,
@@ -217,16 +199,14 @@ def sentence_to_wave(sentence, supported_languages, latent=None,
                 # likely got a ' or " or some other text without alphanumeric in it
                 audio_stream = None
 
-            # XTTS is actually using streaming response but we are playing audio by sentence
-            # If you want direct XTTS voice streaming (send each chunk to voice ) you may set DIRECT_STREAM=1 environment variable
             if audio_stream is not None:
                 frame_length = 0
                 for chunk in audio_stream:
                     try:
                         wav_bytestream += chunk
                         frame_length += len(chunk)
-                    except:
-                        # hack to continue on playing. sometimes last chunk is empty , will be fixed on next TTS
+                    except Exception as e:
+                        print("Exception in chunk appending: %s" % str(e), flush=True)
                         continue
 
             # Filter output for better voice
@@ -251,7 +231,8 @@ def sentence_to_wave(sentence, supported_languages, latent=None,
 
                         ret_value = audio_unique_filename
                     else:
-                        data_s16 = np.frombuffer(wav_bytestream, dtype=np.int16, count=len(wav_bytestream) // 2, offset=0)
+                        data_s16 = np.frombuffer(wav_bytestream, dtype=np.int16, count=len(wav_bytestream) // 2,
+                                                 offset=0)
                         float_data = data_s16 * 0.5 ** 15
                         reduced_noise = nr.reduce_noise(y=float_data, sr=sr, prop_decrease=0.8, n_fft=1024)
                         wav_np = (reduced_noise * 32767).astype(np.int16)
@@ -265,19 +246,10 @@ def sentence_to_wave(sentence, supported_languages, latent=None,
                     return ret_value
     except RuntimeError as e:
         if "device-side assert" in str(e):
-            # cannot do anything on cuda device side error, need tor estart
-            print(
-                f"Exit due to: Unrecoverable exception caused by prompt:{sentence}",
-                flush=True,
-            )
-            gr.Warning("Unhandled Exception encounter, please retry in a minute")
-            print("Cuda device-assert Runtime encountered need restart")
+            print(f"Restarted required due to exception: %s" % str(e), flush=True)
         else:
-            print("RuntimeError: non device-side assert error:", str(e))
-            raise e
-
-    print("All speech ended")
-    return
+            print("Failed to generate wave: %s" % str(e))
+            raise
 
 
 def get_role_to_wave_map():
