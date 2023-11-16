@@ -142,7 +142,7 @@ def main(
 
         # llama and gpt4all settings
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
-        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf',
+        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
         model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
         model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
         model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',

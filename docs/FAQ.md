@@ -329,11 +329,9 @@ python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta
 python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF
 python generate.py --base_model=TheBloke/zephyr-7B-beta-AWQ
 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf
-python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K.gguf
+python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
 ```
 Some are these are non-quantized models with links HF links, some specific files on local disk ending in `.gguf`.  Given `TheBloke` HF names, if a quantized model, h2oGPT pulls the recommended model from his repository.  You can also provide a resolved web link directly, or a file.
-
-Note that some models seem to be corrupted, like `zephyr-7b-beta.Q6_K_M.gguf` even though supposedly larger and more accurate, so one has to be careful assuming all quantized models are correct.
 
 Watch out for typos.  h2oGPT broadly detects if the URL is valid, but Hugging Face just returns a redirect for resolved links, leading to page containing `Entry not found` if one makes a mistake in the file name, e.g. `https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguffoo`.
 
