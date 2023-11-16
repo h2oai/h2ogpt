@@ -18,6 +18,7 @@ def test_sentence_to_wave():
                                         latent=latent,
                                         model=model,
                                         return_as_byte=False,
+                                        return_nonbyte_as_file=True,
                                         return_gradio=False)
     print(generated_speech, flush=True)
 
