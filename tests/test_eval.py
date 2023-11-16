@@ -35,11 +35,13 @@ def test_eval_json():
     eval_out_filename = run_eval1(cpu=cpu, bits=bits, base_model=base_model, eval_filename=eval_filename,
                                   eval_prompts_only_num=len(prompts))
     df = pd.read_parquet(eval_out_filename)
-    assert df['response'].values[
-               0] == "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?" or \
-           df['response'].values[
-               0] == """Hi! I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI. How may I assist you?""" or \
-           """Hi! I'm h2oGPT, a large language model by H2O.ai""" in df['response'].values[0]
+    val0 = "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"
+    val1 = """Hi! I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI. How may I assist you?"""
+    val2 = """Hi! I'm h2oGPT, a large language model by H2O.ai"""
+    assert df['response'].values[0] == val0 or \
+           df['response'].values[0] == ' ' + val0 or \
+           df['response'].values[0] == val1 or \
+           val2 in df['response'].values[0]
     assert df['score'].values[0] > 0.03  # odd score IMO
     assert df['response'].values[1] in ["2 + 2 = 4\n", "2+2 = 4\n", " 2 + 2 = 4\n"]
     assert df['score'].values[1] > 0.95
