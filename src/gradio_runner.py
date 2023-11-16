@@ -4273,7 +4273,7 @@ def go_gradio(**kwargs):
         # NOTE: clear of instruction/iinput for nochat has to come after score,
         # because score for nochat consumes actual textbox, while chat consumes chat history filled by user()
         no_chat_args = dict(fn=fun,
-                            inputs=[model_state, my_db_state, selection_docs_state, requests_state] + inputs_list,
+                            inputs=[model_state, my_db_state, selection_docs_state, requests_state, roles_state] + inputs_list,
                             outputs=text_output_nochat,
                             queue=queue,
                             )
@@ -4293,7 +4293,7 @@ def go_gradio(**kwargs):
 
         submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str,
                                                           inputs=[model_state, my_db_state, selection_docs_state,
-                                                                  requests_state,
+                                                                  requests_state, roles_state,
                                                                   inputs_dict_str],
                                                           outputs=text_output_nochat_api,
                                                           queue=True,  # required for generator
