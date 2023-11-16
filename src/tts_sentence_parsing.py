@@ -132,7 +132,7 @@ def clean_sentence(sentence, verbose=False):
     if sentence is None or len(sentence) == 0:
         if verbose:
             print("empty sentence")
-        return []
+        return ''
 
     # Remove code blocks
     sentence = re.sub("```.*```", "", sentence, flags=re.DOTALL)
@@ -189,7 +189,7 @@ def clean_sentence(sentence, verbose=False):
     if len(sentence) == 0:
         if verbose:
             print("EMPTY SENTENCE after processing")
-        return
+        return ''
 
     if verbose:
         print("Sentence for speech: %s" % sentence)
