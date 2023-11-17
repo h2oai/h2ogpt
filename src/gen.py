@@ -1437,9 +1437,9 @@ def main(
     model_xtt, supported_languages_xtt = None, None
     predict_from_text_func = None
     generate_speech_func = None
+    return_as_byte = True  # outside conditional since used without other checks
     if enable_tts:
         # NOTE: required bytes for now for audio streaming to work, else untested combine_audios()
-        return_as_byte = True
         if tts_model.startswith('microsoft'):
             from src.tts import predict_from_text, get_tts_model, generate_speech
             processor_tts, model_tts, vocoder_tts = \
