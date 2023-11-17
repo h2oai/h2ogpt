@@ -49,7 +49,7 @@ pip uninstall -y weasyprint
 conda install -y -c conda-forge weasyprint
 
 # STT from microphone
-apt-get install ffmpeg
+apt-get install -y ffmpeg
 pip install wavio==0.0.8
 # For STT below may also be required
 apt remove libavcodec-ffmpeg-extra56
