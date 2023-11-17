@@ -285,6 +285,8 @@ def predict_from_text(response, chatbot_role, language, roles_map,
                       model=None,
                       supported_languages=None,
                       return_as_byte=True, sr=24000, verbose=False):
+    if chatbot_role == "None":
+        return
     audio0 = prepare_speech(sr=sr)
     yield audio0
     latent = get_latent(roles_map[chatbot_role], model=model)

@@ -152,6 +152,8 @@ def generate_speech(response, speaker, model=None, processor=None, vocoder=None,
 
 
 def predict_from_text(text, speaker, processor=None, model=None, vocoder=None, return_as_byte=True, verbose=False):
+    if speaker == "None":
+        return
     if return_as_byte:
         audio0 = prepare_speech(sr=16000)
         yield audio0
