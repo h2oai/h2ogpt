@@ -44,6 +44,10 @@ One can use this action word, or some extension of it like `Nimbus Clouds` so th
 
 NOTE: Action/Stop voice control over assistant is **experimental**, so disabled by default by passing an empty list. It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
 
+To fully disable TTS and STT, pass `--enable_tts=False --enable_stt=False` or to just launch with disabled pass `--chatbot_role=None --speakerNone` and you can always choose speaker once in the UI.
+
+There is currently no TTS for CLI.
+
 ### Non-English languages
 
 There are a few changes that may be required for other languages:

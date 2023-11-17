@@ -393,8 +393,8 @@ def main(
         tts_coquiai_deepspeed: bool = True,
         tts_coquiai_roles: dict = None,
 
-        chatbot_role: str = "Female AI Assistant",
-        speaker: str = "SLT (female)",
+        chatbot_role: str = "None", # '"Female AI Assistant",
+        speaker: str = "None", # "SLT (female)",
         tts_language: str = 'autodetect',
         tts_action_phrases: typing.List[str] = [],  # ['Nimbus'],
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
@@ -906,8 +906,8 @@ def main(
     :param tts_coquiai_roles: role dictionary mapping name (key) to wave file (value)
            If None, then just use default from get_role_to_wave_map()
 
-    :param chatbot_role: Default role for coqui models
-    :param speaker: Default speaker for microsoft models
+    :param chatbot_role: Default role for coqui models.  If 'None', then don't by default speak when launching h2oGPT for coqui model choice.
+    :param speaker: Default speaker for microsoft models  If 'None', then don't by default speak when launching h2oGPT for microsoft model choice.
     :param tts_language: Default language for coqui models
     :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
            Set to None or empty list to avoid any special action words
