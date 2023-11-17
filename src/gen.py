@@ -1433,6 +1433,8 @@ def main(
     predict_from_text_func = None
     generate_speech_func = None
     if enable_tts:
+        # NOTE: required bytes for now for audio streaming to work, else untested combine_audios()
+        return_as_byte = True
         if tts_model.startswith('microsoft'):
             from src.tts import predict_from_text, get_tts_model, generate_speech
             processor_tts, model_tts, vocoder_tts = \
@@ -1444,11 +1446,13 @@ def main(
             predict_from_text_func = functools.partial(predict_from_text,
                                                        processor=processor_tts,
                                                        model=model_tts,
+                                                       return_as_byte=return_as_byte,
                                                        vocoder=vocoder_tts)
             generate_speech_func = functools.partial(generate_speech,
                                                      processor=processor_tts,
                                                      model=model_tts,
                                                      vocoder=vocoder_tts,
+                                                     return_as_byte=return_as_byte,
                                                      verbose=verbose)
         elif tts_model.startswith('tts_models/'):
             if not have_TTS:
@@ -1465,12 +1469,14 @@ def main(
             predict_from_text_func = functools.partial(predict_from_text,
                                                        model=model_xtt,
                                                        supported_languages=supported_languages_xtt,
+                                                       return_as_byte=return_as_byte,
                                                        verbose=verbose,
                                                        )
 
             generate_speech_func = functools.partial(generate_speech,
                                                      model=model_xtt,
                                                      supported_languages=supported_languages_xtt,
+                                                     return_as_byte=return_as_byte,
                                                      verbose=verbose)
 
     # DB SETUP

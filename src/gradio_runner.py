@@ -971,7 +971,8 @@ def go_gradio(**kwargs):
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
 
-                                    if kwargs['enable_stt'] and (kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']):
+                                    if kwargs['enable_stt'] and (
+                                            kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']):
                                         def detect_words(action_text1, stop_text1, text):
                                             got_action_word = False
                                             action_words = kwargs['tts_action_phrases']
@@ -3125,7 +3126,8 @@ def go_gradio(**kwargs):
                         # yield as it goes, else need to wait since predict only returns first yield
                         if isinstance(ret, dict):
                             ret_old = ret.copy()  # copy normal one first
-                            ret['audio'] = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000)
+                            ret['audio'] = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
+                                                          expect_bytes=kwargs['return_as_byte'])
                             audios = []  # reset accumulation
                             yield ret
                         else:
@@ -3142,7 +3144,8 @@ def go_gradio(**kwargs):
                 # yield if anything left over as can happen (FIXME: Understand better)
                 # return back last ret
                 if isinstance(ret, dict):
-                    ret['audio'] = combine_audios(audios, audio=None)
+                    ret['audio'] = combine_audios(audios, audio=None,
+                                                  expect_bytes=kwargs['return_as_byte'])
                 yield ret
 
             finally:
@@ -3553,7 +3556,7 @@ def go_gradio(**kwargs):
                                                               speaker=speaker1,
                                                               speaker_embedding=speaker_embedding,
                                                               sentence_state=sentence_state,
-                                                              return_as_byte=True,
+                                                              return_as_byte=kwargs['return_as_byte'],
                                                               sr=sr,
                                                               verbose=verbose)
             elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
@@ -3568,7 +3571,7 @@ def go_gradio(**kwargs):
                                                               latent=latent,
                                                               language=tts_language1,
                                                               sentence_state=sentence_state,
-                                                              return_as_byte=True,
+                                                              return_as_byte=kwargs['return_as_byte'],
                                                               sr=sr,
                                                               verbose=verbose)
             else:
@@ -3690,7 +3693,8 @@ def go_gradio(**kwargs):
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
                     if stream_output1 and do_yield:
-                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000)
+                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
+                                                expect_bytes=kwargs['return_as_byte'])
                         audios = []  # reset accumulation
 
                         yield history, error, audio1
@@ -3705,7 +3709,8 @@ def go_gradio(**kwargs):
                         break
 
                 # yield if anything left over
-                final_audio = combine_audios(audios, audio=no_audio)
+                final_audio = combine_audios(audios, audio=no_audio,
+                                             expect_bytes=kwargs['return_as_byte'])
                 yield history, error, final_audio
             finally:
                 clear_torch_cache()
@@ -3863,7 +3868,8 @@ def go_gradio(**kwargs):
 
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if stream_output1 and do_yield:
-                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000)
+                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
+                                                expect_bytes=kwargs['return_as_byte'])
                         audios = []  # reset accumulation
 
                         if len(bots) > 1:
@@ -3882,7 +3888,8 @@ def go_gradio(**kwargs):
                         print("Generate exceptions: %s" % exceptions_reduced, flush=True)
 
                 # yield if anything left over as can happen (FIXME: Understand better)
-                final_audio = combine_audios(audios, audio=no_audio)
+                final_audio = combine_audios(audios, audio=no_audio,
+                                             expect_bytes=kwargs['return_as_byte'])
                 if len(bots) > 1:
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
