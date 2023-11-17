@@ -1,19 +1,16 @@
-# Explain things in UI
+# UI overview
 
-`generate.py` by default runs a gradio server with a UI.  Key benefits of the UI include:
-* Save, export, import chat histories and undo or regenerate last query-response pair
-* Upload and control documents of various kinds for document Q/A
-* Choose which specific collection to query, or just chat with LLM
-* Choose specific documents out of collection for asking questions
-* Multi-model or side-by-side 2-model comparison view
-* RLHF response score evaluation for every query-response
+By default, `generate.py` runs a Gradio server with a UI. Key benefits of the UI include:
+* Save, export, and import chat histories, and undo or regenerate the last query-response pair.
+* Upload and control documents of various kinds for document Q/A.
+* Choose which specific collection to query, or just chat with an LLM.
+* Choose specific documents out of a collection for asking questions.
+* Multi-model or side-by-side 2-model comparison view.
+* RLHF response score evaluation for every query-response.
 
+We have deactivated background uploads by disabling telemetry for Hugging Face, Gradio, and Chroma. To prevent font downloads, run `generate.py` with `--gradio_offline_level=2`. For more information, see the [offline mode documentation](README_offline.md).
 
-We disable background uploads by disabling telemetry for Hugging Face, gradio, and chroma, and one can additionally avoid downloads (of fonts) by running `generate.py` with `--gradio_offline_level=2`.  See [Offline Documentation](README_offline.md) for details.
-
-
-
-All the buttons are also accessible via gradio client API.
+All of the UI buttons are also accessible through the Gradio client API.
 
 ![ui_4.png](ui_4.png)
 
@@ -23,12 +20,12 @@ All the buttons are also accessible via gradio client API.
 
 | Button | Purpose                                                                                                                       |
 |--------|-------------------------------------------------------------------------------------------------------------------------------|
-| Submit | Same as hitting enter (in chat mode) so submit question or imperitive                                                         |
-| Stop   | Stop generation, although LLM may continue in background until completed even if chat view stopped                            |
-| Save   | Save the chat into left-panel Chats                                                                                           |
-| Redo   | Re-run the query with (potentially) new settings or re-sample if sampling is enabled.  Turn on sampling if want new sampling. |
-| Undo   | Remove last query-reponse pair                                                                                                |
-| Clear  | Clear the chat                                                                                                                |
+| Submit | Equivalent to pressing enter in chat mode. Submit a question or imperative.                                                         |
+| Stop   | Stop generation. Note that the LLM may continue in the background until completed even if the chat view is stopped.                            |
+| Save   | Save the chat into left-panel Chats.                                                                                           |
+| Redo   | Re-run the query with (potentially) new settings or re-sample if sampling is enabled. Turn on sampling if you want new sampling. |
+| Undo   | Remove the last query-reponse pair.                                                                                                |
+| Clear  | Clear the chat.                                                                                                                |
 
 
 ## Left Accordions
@@ -39,12 +36,13 @@ All the buttons are also accessible via gradio client API.
 
 | Accordion           | Purpose                                                                                      |
 |---------------------|----------------------------------------------------------------------------------------------|
-| Chats               | Saved chats, placed here after clicking "Save" button                                        |
+| Chats               | Saved chats, which are placed here after clicking the **Save** button.                                        |
 | Upload              | Drag-Drop or select to upload document(s), enter/paste URL or ArXiv, enter/paste raw text    |
 | Database Collection | Control Collection uploading to and query                                                    |
 | Database Subset     | Control if query uses "Relevant" documents or relevant sources, or All sources in collection |
 
 ### Data Collection of Sources
+
 Collections (defaults to value set by `--langchain_mode=` and visible items set by `--langchain_modes`):
 * LLM: Single query-response, no chat context or docs used
 * UserData: Shared and persistent. Writable if `--allow_upload_to_user_data=True`. Rebuilt from path `--user_path` if set.
@@ -201,7 +199,7 @@ which looks like:
 
 ![image](https://github.com/h2oai/h2ogpt/assets/15376332/973199b4-6769-4ad3-84c1-a61f81f0ed3d)
 
-One can add `--visible_login_tab=False` to remove the login tab.
+To remove the login tab, you can add `--visible_login_tab=False`.
 
 
 
