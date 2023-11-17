@@ -2623,7 +2623,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={})
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='')
     return
 
 
@@ -3013,6 +3013,7 @@ def evaluate(
         text = ''
         sources = ''
         response = ''
+        response_no_refs = ''
         # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
         gen_hyper_langchain = dict(do_sample=do_sample,
@@ -3144,7 +3145,9 @@ def evaluate(
             prompt = r['prompt']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
-            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers)
+            response_no_refs = r['response_no_refs']
+            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers,
+                       response_no_refs=response_no_refs)
         if save_dir:
             # estimate using tiktoken
             extra_dict = gen_hyper_langchain.copy()
@@ -3169,7 +3172,8 @@ def evaluate(
                              output=response, base_model=base_model, save_dir=save_dir,
                              where_from='run_qa_db',
                              extra_dict=extra_dict)
-            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers)
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
+                       response_no_refs=response)
             if verbose:
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' %
@@ -3253,7 +3257,8 @@ def evaluate(
                     text = responses['choices'][0]['text']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     collected_events = []
                     tgen0 = time.time()
@@ -3263,7 +3268,8 @@ def evaluate(
                         text += event_text  # append the text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
-                        yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                        yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                   response_no_refs=response)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
@@ -3300,7 +3306,8 @@ def evaluate(
                     text = responses["choices"][0]["message"]["content"]
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
@@ -3309,7 +3316,8 @@ def evaluate(
                             text += delta['content']
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
@@ -3437,11 +3445,13 @@ def evaluate(
                     sources = res_dict['sources']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={})
+                    res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={},
+                                    response_no_refs=text)
                     text0 = ''
                     tgen0 = time.time()
                     while not job.done():
@@ -3470,7 +3480,8 @@ def evaluate(
                                 continue
                             # save old
                             text0 = response
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                             if time.time() - tgen0 > max_time:
                                 if verbose:
                                     print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
@@ -3510,7 +3521,8 @@ def evaluate(
                         prompt_and_text = prompt + text
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={},
+                               response_no_refs=response)
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
@@ -3546,7 +3558,8 @@ def evaluate(
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     tgen0 = time.time()
                     text = ""
@@ -3558,7 +3571,8 @@ def evaluate(
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             sources = ''
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
@@ -3578,7 +3592,8 @@ def evaluate(
                                    ))
             save_dict = dict(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                              where_from=where_from, extra_dict=extra_dict)
-            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={})
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                       response_no_refs=response)
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -3591,8 +3606,10 @@ def evaluate(
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
         sources = ''
-        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources=sources, save_dict=dict(),
-                   llm_answers={})
+        response = model(prompt, max_length=max_new_tokens)[0][key]
+        yield dict(response=response, sources=sources, save_dict=dict(),
+                   llm_answers={},
+                   response_no_refs=response)
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -3714,7 +3731,8 @@ def evaluate(
                     bucket = queue.Queue()
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
-                    ret = dict(response='', sources='', save_dict=dict(), llm_answers={})
+                    ret = dict(response='', sources='', save_dict=dict(), llm_answers={},
+                               response_no_refs='')
                     outputs = ""
                     sources = ''
                     tgen0 = time.time()
@@ -3726,7 +3744,8 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                             if stream_output:
                                 yield ret
                             if time.time() - tgen0 > max_time:
@@ -3765,7 +3784,8 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
@@ -3778,7 +3798,8 @@ def evaluate(
                     save_dict = dict(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                      where_from="evaluate_%s" % str(stream_output),
                                      extra_dict=extra_dict)
-                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                               response_no_refs=response)
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)

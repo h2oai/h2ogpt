@@ -3522,6 +3522,7 @@ def go_gradio(**kwargs):
             error = ''
             extra = ''
             save_dict = dict()
+            output_no_refs = ''
 
             audio0, audio1, no_audio, generate_speech_func_func = \
                 prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1)
@@ -3532,6 +3533,7 @@ def go_gradio(**kwargs):
             try:
                 for output_fun in fun1():
                     output = output_fun['response']
+                    output_no_refs = output_fun['response_no_refs']
                     extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     save_dict = output_fun.get('save_dict', {})
                     # ensure good visually, else markdown ignores multiple \n
@@ -3540,7 +3542,7 @@ def go_gradio(**kwargs):
 
                     if generate_speech_func_func is not None:
                         while True:
-                            audio1, sentence, sentence_state = generate_speech_func_func(bot_message, is_final=False)
+                            audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=False)
                             if audio0 is not None:
                                 yield history, error, extra, save_dict, audio0
                                 audio0 = None
@@ -3555,7 +3557,7 @@ def go_gradio(**kwargs):
                         yield history, error, extra, save_dict, audio0
                 if generate_speech_func_func:
                     # print("final %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
-                    audio1, sentence, sentence_state = generate_speech_func_func(history[-1][1], is_final=True)
+                    audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=True)
                     if audio0 is not None:
                         yield history, error, extra, save_dict, audio0
                 else:
