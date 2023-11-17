@@ -28,7 +28,7 @@ All of the UI buttons are also accessible through the Gradio client API.
 | Clear  | Clear the chat.                                                                                                                |
 
 
-## Left accordions
+## Left Accordions
 
 ![ui_1.png](ui_1.png)
 
