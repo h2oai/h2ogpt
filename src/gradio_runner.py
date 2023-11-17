@@ -942,7 +942,7 @@ def go_gradio(**kwargs):
                                         audio_pretext = gr.Textbox(value='', visible=False)
                                         audio_output = gr.HTML(visible=False)
                                         audio = gr.Audio(source='microphone', streaming=True, visible=False,
-                                                         max_length=30 if is_public else None,
+                                                         # max_length=30 if is_public else None,
                                                          elem_id='audio',
                                                          )
                                         mic_button.click(fn=lambda: None, _js=click_js()) \
@@ -1467,7 +1467,7 @@ def go_gradio(**kwargs):
                             label="File for Clone (x resets)",
                             type="filepath",
                             value="models/female.wav",
-                            max_length=30 if is_public else None,
+                            # max_length=30 if is_public else None,
                         )
 
                         def process_audio(file1, t1=0, t2=30):
@@ -1486,7 +1486,7 @@ def go_gradio(**kwargs):
                             label="Mic for Clone (x resets)",
                             type="filepath",
                             source="microphone",
-                            max_length=30 if is_public else None,
+                            # max_length=30 if is_public else None,
                         )
                         mic_voice_clone.upload(process_audio, inputs=mic_voice_clone, outputs=mic_voice_clone)
                         choose_mic_voice_clone = gr.Checkbox(
