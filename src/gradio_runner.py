@@ -3514,14 +3514,9 @@ def go_gradio(**kwargs):
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
 
-            fun1 = partial(evaluate_local,
-                           model_state1,
-                           my_db_state1,
-                           selection_docs_state1,
-                           requests_state1,
-                           roles_state1,
-                           *tuple(args_list),
-                           **kwargs_evaluate)
+            eval_args = (model_state1, my_db_state1, selection_docs_state1, requests_state1, roles_state1)
+            assert len(eval_args) == len(input_args_list)
+            fun1 = partial(evaluate_local, *eval_args, *tuple(args_list), **kwargs_evaluate)
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \

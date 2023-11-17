@@ -121,7 +121,11 @@ def run_cli(  # for local function:
         model_state = dict(model=model, tokenizer=tokenizer, device=device)
         model_state.update(model_dict)
         requests_state0 = {}
-        fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0, requests_state0,
+        roles_state0 = None
+        args = (model_state, my_db_state0, selection_docs_state0, requests_state0, roles_state0)
+        assert len(args) == len(input_args_list)
+        fun = partial(evaluate,
+                      *args,
                       **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
                                    **locals()))
 
