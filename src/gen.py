@@ -912,6 +912,11 @@ def main(
     :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
            Set to None or empty list to avoid any special action words
     :param tts_stop_phrases:  Like tts_action_phrases but to stop h2oGPT from speaking and generating
+
+            NOTE: Action/Stop phrases should be rare but easy (phonetic) words for Whisper to recognize.
+                  E.g. asking GPT-4 a couple good ones are ['Nimbus'] and ['Yonder'],
+                  and one can help Whisper by saying "Nimbus Clouds" which still works as "stop word" as trigger.
+
     :param sst_floor: Floor in wave square amplitude below which ignores the chunk of audio
                       This helps avoid long silence messing up the transcription.
 
