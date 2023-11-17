@@ -40,7 +40,9 @@ In order to activate AI Voice Assistant mode, add:
 --tts_action_phrases="['Nimbus']"
 --tts_stop_phrases="['Yonder']"
 ```
-NOTE: Action/Stop voice control over assistant is experimental, so disabled by default. It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
+One can use this action word, or some extension of it like `Nimbus Clouds` so the ASR is ensured to get what is said.
+
+NOTE: Action/Stop voice control over assistant is **experimental**, so disabled by default by passing an empty list. It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
 
 ### Non-English languages
 
