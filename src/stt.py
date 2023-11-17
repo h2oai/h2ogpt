@@ -26,6 +26,8 @@ def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_
     # keep chunks so don't normalize on noise periods, which would then saturate noise with non-noise
     sr, y = new_chunk
     avg = np.average(np.abs(y))
+    if not np.isfinite(avg):
+        avg = 0.0
     if avg > sst_floor:
         if debug or True:
             print("Got possible chunk: %s" % avg, flush=True)
