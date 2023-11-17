@@ -3862,12 +3862,7 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     assert 'femsa1.pdf' in sources[0]
 
 
-@pytest.mark.parametrize("tts_model", [
-    'microsoft/speecht5_tts',
-    'tts_models/multilingual/multi-dataset/xtts_v2'
-])
-@wrap_test_forked
-def test_client1_tts(tts_model):
+def set_env(tts_model):
     from src.tts_coqui import list_models
     coqui_models = list_models()
     if tts_model.startswith('tts_models/'):
@@ -3877,6 +3872,16 @@ def test_client1_tts(tts_model):
         sr = 24000
     else:
         sr = 16000
+    return sr
+
+
+@pytest.mark.parametrize("tts_model", [
+    'microsoft/speecht5_tts',
+    'tts_models/multilingual/multi-dataset/xtts_v2'
+])
+@wrap_test_forked
+def test_client1_tts(tts_model):
+    sr = set_env(tts_model)
 
     from src.gen import main
     main(base_model='llama', chat=False,
@@ -3925,12 +3930,18 @@ def play_audio(res, sr=16000):
     playsound(filename)
 
 
+@pytest.mark.parametrize("tts_model", [
+    'microsoft/speecht5_tts',
+    'tts_models/multilingual/multi-dataset/xtts_v2'
+])
 @wrap_test_forked
-def test_client1_tts_stream():
+def test_client1_tts_stream(tts_model):
+    sr = set_env(tts_model)
+
     from src.gen import main
     main(base_model='llama', chat=False,
+         tts_model=tts_model,
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
-    sr = 16000
 
     from gradio_client import Client
     client = Client(get_inf_server())
