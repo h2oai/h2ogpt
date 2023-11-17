@@ -148,6 +148,11 @@ def clean_sentence(sentence, verbose=False):
     sentence = sentence.replace("Dr. ", "Doctor ")
     sentence = sentence.replace(" w/ ", " with ")
 
+    sentence = sentence.replace('H2O.ai', "aych two oh ae eye.")
+    sentence = sentence.replace('H2O.AI', "aych two oh ae eye.")
+    sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
+    sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
+
     # filter out emojis
     import emoji
     sentence = ''.join([x for x in sentence if not emoji.is_emoji(x)])
