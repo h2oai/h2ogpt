@@ -3862,10 +3862,25 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     assert 'femsa1.pdf' in sources[0]
 
 
+@pytest.mark.parametrize("tts_model", [
+    'microsoft/speecht5_tts',
+    'tts_models/multilingual/multi-dataset/xtts_v2'
+])
 @wrap_test_forked
-def test_client1_tts():
+def test_client1_tts(tts_model):
+    from src.tts_coqui import list_models
+    coqui_models = list_models()
+    if tts_model.startswith('tts_models/'):
+        assert tts_model in coqui_models, tts_model
+        # for deepspeed, needs to be same as torch for compilation of kernel
+        os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
+        sr = 24000
+    else:
+        sr = 16000
+
     from src.gen import main
     main(base_model='llama', chat=False,
+         tts_model=tts_model,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from gradio_client import Client
@@ -3880,11 +3895,12 @@ def test_client1_tts():
     response = res['response']
     assert response
     assert 'endoftext' not in response
+    print(response, flush=True)
 
-    play_audio(res)
+    play_audio(res, sr=sr)
 
 
-def play_audio(res):
+def play_audio(res, sr=16000):
     # convert audio to file
     audio = res['audio']
 
@@ -3897,10 +3913,8 @@ def play_audio(res):
     s = io.BytesIO(audio)
     channels = 1
     sample_width = 2
-    # sample_rate=24000  # coqui
-    sample_rate = 16000
     filename = '/tmp/myfile.wav'
-    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sample_rate, channels=channels)
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
     if audio.duration_seconds < 0.5:
         # FIXME: why are some very short, but not zero, audio outputs?
         return
@@ -3916,6 +3930,7 @@ def test_client1_tts_stream():
     from src.gen import main
     main(base_model='llama', chat=False,
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
+    sr = 16000
 
     from gradio_client import Client
     client = Client(get_inf_server())
@@ -3934,7 +3949,7 @@ def test_client1_tts_stream():
             res = outputs_list[job_outputs_num + num]
             res = ast.literal_eval(res)
             print('Stream %d: %s\n' % (num, res['response']), flush=True)
-            play_audio(res)
+            play_audio(res, sr=sr)
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
@@ -3944,6 +3959,6 @@ def test_client1_tts_stream():
         res = outputs_list[job_outputs_num + num]
         res = ast.literal_eval(res)
         print('Final Stream %d: %s\n' % (num, res['response']), flush=True)
-        play_audio(res)
+        play_audio(res, sr=sr)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
