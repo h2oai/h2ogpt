@@ -1167,9 +1167,17 @@ def go_gradio(**kwargs):
 
                     chat_exception_text = gr.Textbox(value="", visible=True, label='Chat Exceptions',
                                                      interactive=False)
+                    with gr.Row():
+                        count_chat_tokens_btn = gr.Button(value="Count Chat Tokens",
+                                                          visible=not is_public and not kwargs['model_lock'],
+                                                          interactive=not is_public, size='sm')
+                        chat_token_count = gr.Textbox(label="Chat Token Count Result", value=None,
+                                                      visible=not is_public and not kwargs['model_lock'],
+                                                      interactive=False)
                 expert_tab = gr.TabItem("Expert") \
                     if kwargs['visible_expert_tab'] else gr.Row(visible=False)
                 with expert_tab:
+                    gr.Markdown("Prompt Control")
                     with gr.Row():
                         with gr.Column():
                             prompt_type = gr.Dropdown(prompt_types_strings,
@@ -1215,6 +1223,7 @@ def go_gradio(**kwargs):
                             prompt_summary = gr.Textbox(label="Summary Prompt",
                                                         info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
+                    gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
                                                                label="Force Image-Audio Reader",
@@ -1278,6 +1287,7 @@ def go_gradio(**kwargs):
                                                        label="Embed text",
                                                        info="For LangChain, whether to embed text",
                                                        visible=False)
+                    gr.Markdown("LLM Control")
                     with gr.Row():
                         stream_output = gr.components.Checkbox(label="Stream output",
                                                                value=kwargs['stream_output'])
@@ -1369,13 +1379,7 @@ def go_gradio(**kwargs):
                                                       visible=False,  # no longer support nochat in UI
                                                       interactive=not is_public,
                                                       )
-                    with gr.Row():
-                        count_chat_tokens_btn = gr.Button(value="Count Chat Tokens",
-                                                          visible=not is_public and not kwargs['model_lock'],
-                                                          interactive=not is_public, size='sm')
-                        chat_token_count = gr.Textbox(label="Chat Token Count Result", value=None,
-                                                      visible=not is_public and not kwargs['model_lock'],
-                                                      interactive=False)
+                    gr.Markdown("Speech Control and Voice Cloning")
                     with gr.Row():
                         speech_human = gr.Audio(value=None,
                                                 label="Generated Human Speech",
