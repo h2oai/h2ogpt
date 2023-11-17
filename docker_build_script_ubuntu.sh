@@ -35,16 +35,16 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
 
 # Install base python dependencies
-pip -r requirements.txt
-pip -r reqs_optional/requirements_optional_langchain.txt
-pip -r reqs_optional/requirements_optional_gpt4all.txt
+pip install -r requirements.txt
+pip install -r reqs_optional/requirements_optional_langchain.txt
+pip install -r reqs_optional/requirements_optional_gpt4all.txt
 # for commercial purposes remove the below line
-pip -r reqs_optional/requirements_optional_langchain.gpllike.txt
-pip -r reqs_optional/requirements_optional_langchain.urls.txt
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 
-pip -r reqs_optional/requirements_optional_doctr.txt
+pip install -r reqs_optional/requirements_optional_doctr.txt
 # go back to older onnx so Tesseract OCR still works
-pip onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
+pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
 pip uninstall -y weasyprint
 conda install -y -c conda-forge weasyprint
 
@@ -69,22 +69,22 @@ chmod -R a+rwx /h2ogpt_conda
 
 # Install prebuilt dependencies
 for i in 1 2 3 4; do python3.10 -m nltk.downloader all && break || sleep 1; done  # retry as frequently fails with github downloading issues
-pip https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
-pip optimum==1.14.1
+pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
+pip install optimum==1.14.1
 
 # GGUF only on GPU for now, due to llama_cpp_python absolute import "bug"
 pip uninstall -y llama-cpp-python
 pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
 
-pip autoawq
-pip git+https://github.com/tomaarsen/attention_sinks.git
-pip https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
-pip flash-attn==2.3.1.post1 --no-build-isolation
+pip install autoawq
+pip install git+https://github.com/tomaarsen/attention_sinks.git
+pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+pip install flash-attn==2.3.1.post1 --no-build-isolation
 playwright install --with-deps
 
 # Uninstall duckdb and use own so can control thread count per db
-python3.10 -m pip uninstall -y pyduckdb duckdb && \
-pip https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/duckdb-0.8.2.dev4026%2Bgdcd8c1ffc5-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall
+pip uninstall -y pyduckdb duckdb && \
+pip install https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/duckdb-0.8.2.dev4026%2Bgdcd8c1ffc5-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall
 
 # setup tiktoken cache
 export TIKTOKEN_CACHE_DIR=/workspace/tiktoken_cache
