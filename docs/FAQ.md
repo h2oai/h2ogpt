@@ -18,7 +18,8 @@ python generate.py --base_model=llama \
                    --asr_model=openai/whisper-large-v3 \
                    --sst_model=openai/whisper-large-v3 \
                    --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
-                   --tts_gpu_id=2
+                   --tts_gpu_id=2 \
+                   --system_prompt="You are a helpful assistant named Jennifer who can hear and speak."
 ```
 So then the SST and ASR models are the same model and all GPU related models are preloaded for fast document handling. Use of `--enable_pdf_doctr=on` will be slower for long PDFs, but generally converts pages to images then OCRs the full image, so more generally handles PDF content.  note that STT and TTS models are always preloaded if used.
 
@@ -28,8 +29,11 @@ python generate.py --base_model=llama \
                    --pre_load_image_audio_models=True \
                    --asr_model=openai/whisper-large-v3 \
                    --sst_model=openai/whisper-large-v3 \
-                   --tts_model=tts_models/multilingual/multi-dataset/xtts_v2
+                   --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
+                   --system_prompt="You are a helpful assistant named Jennifer who can hear and speak."
 ```
+
+The system prompt is helpful to let LLM know it can actually listen and speak, but the prompt is not too specific about details, else LLMs tend to add extra parenthetical gesturing that is not appropriate for TTS.
 
 ### Non-English languages
 
