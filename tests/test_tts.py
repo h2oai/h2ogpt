@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from tests.utils import wrap_test_forked
 from src.tts_sentence_parsing import init_sentence_state
@@ -6,6 +8,7 @@ from tests.test_sentence_parsing import bot_list
 
 @wrap_test_forked
 def test_sentence_to_wave():
+    os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
     from src.tts_coqui import sentence_to_wave, get_xtt, get_latent, get_role_to_wave_map
 
     chatbot_role = "Female AI Assistant"
@@ -30,6 +33,7 @@ def test_sentence_to_wave():
 
 @wrap_test_forked
 def test_generate_speech():
+    os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
     from src.tts_coqui import generate_speech, get_xtt, get_latent, get_role_to_wave_map
 
     chatbot_role = "Female AI Assistant"
@@ -43,6 +47,7 @@ def test_generate_speech():
 
 @wrap_test_forked
 def test_full_generate_speech():
+    os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
     from src.tts_coqui import generate_speech, get_xtt, get_latent, get_role_to_wave_map
     bot = 'I am an AI assistant.  What do you want from me?  I am very busy.'
 
