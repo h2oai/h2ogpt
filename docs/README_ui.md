@@ -36,12 +36,13 @@ All of the UI buttons are also accessible through the Gradio client API.
 
 | Accordion           | Purpose                                                                                      |
 |---------------------|----------------------------------------------------------------------------------------------|
-| Chats               | Saved chats are placed here after clicking the **Save** button.                                        |
+| Chats               | Saved chats, which are placed here after clicking the **Save** button.                                        |
 | Upload              | Drag-Drop or select to upload document(s), enter/paste URL or ArXiv, enter/paste raw text    |
 | Database Collection | Control Collection uploading to and query                                                    |
 | Database Subset     | Control if query uses "Relevant" documents or relevant sources, or All sources in collection |
 
 ### Data Collection of Sources
+
 Collections (defaults to value set by `--langchain_mode=` and visible items set by `--langchain_modes`):
 * LLM: Single query-response, no chat context or docs used
 * UserData: Shared and persistent. Writable if `--allow_upload_to_user_data=True`. Rebuilt from path `--user_path` if set.
