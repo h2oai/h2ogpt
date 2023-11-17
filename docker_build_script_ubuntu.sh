@@ -52,8 +52,8 @@ conda install -y -c conda-forge weasyprint
 apt-get install -y ffmpeg
 pip install wavio==0.0.8
 # For STT below may also be required
-apt remove libavcodec-ffmpeg-extra56
-apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
+#apt remove libavcodec-ffmpeg-extra56
+#apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
 # for TTS:
 pip install torchaudio soundfile==0.12.1
 # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
