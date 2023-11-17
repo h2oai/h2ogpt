@@ -4354,6 +4354,18 @@ def merge_chat_conversation_history(chat_conversation1, history):
     return history
 
 
+def remove_refs(text, keep_sources_in_context, langchain_mode):
+    # md -> back to text, maybe not super important if model trained enough
+    if not keep_sources_in_context and langchain_mode != 'Disabled' and text.find(super_source_prefix) >= 0:
+        # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
+        import re
+        text = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', text,
+                      flags=re.DOTALL)
+        if text.endswith('\n<p>'):
+            text = text[:-4]
+    return text
+
+
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
@@ -4403,14 +4415,7 @@ def history_to_context(history, langchain_mode=None,
                                 making_context=True,
                                 system_prompt=system_prompt,
                                 histi=histi)
-            # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context and langchain_mode != 'Disabled' and prompt.find(super_source_prefix) >= 0:
-                # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
-                import re
-                prompt = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', prompt,
-                                flags=re.DOTALL)
-                if prompt.endswith('\n<p>'):
-                    prompt = prompt[:-4]
+            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode)
             prompt = prompt.replace('<br>', chat_turn_sep)
             if not prompt.endswith(chat_turn_sep):
                 prompt += chat_turn_sep

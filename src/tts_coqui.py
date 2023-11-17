@@ -129,7 +129,8 @@ def generate_speech(response,
                     sr=24000,
                     return_gradio=False,
                     is_final=False,
-                    verbose=False):
+                    verbose=False,
+                    debug=False):
     if model is None or supported_languages is None:
         model, supported_languages = get_xtt()
     if sentence_state is None:
@@ -156,7 +157,7 @@ def generate_speech(response,
         if verbose:
             print("done sentence_to_wave: %s" % (time.time() - t0), flush=True)
     else:
-        if verbose:
+        if verbose and debug:  # too much in general
             print("No audio", flush=True)
         no_audio = get_no_audio(sr=sr, return_as_byte=return_as_byte, return_nonbyte_as_file=return_nonbyte_as_file)
         if return_gradio:
@@ -367,7 +368,7 @@ def filter_wave_2(speaker_wav):
     return speaker_wav
 
 
-def get_languages_gr():
+def get_languages_gr(visible=True):
     import gradio as gr
     choices = [
         "autodetect",
@@ -393,6 +394,6 @@ def get_languages_gr():
         info="Select an output language for the synthesised speech",
         choices=choices,
         value=choices[0],
-        visible=False,
+        visible=visible,
     )
     return language_gr

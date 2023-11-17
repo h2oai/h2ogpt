@@ -65,7 +65,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry
+    get_model_retry, remove_refs
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -941,7 +941,6 @@ def go_gradio(**kwargs):
                                             outputs=[mic_button, audio_pretext, instruction, audio_state],
                                             api_name='mic' if allow_api else None,
                                         )
-                                        from src.stt import transcribe
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
@@ -1410,7 +1409,7 @@ def go_gradio(**kwargs):
                                                elem_id='bot2_audio')
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                             from src.tts_coqui import get_languages_gr
-                            tts_language = get_languages_gr()
+                            tts_language = get_languages_gr(visible=True)
                         else:
                             tts_language = gr.Dropdown(visible=False)
 
@@ -3015,14 +3014,15 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1 = prep_bot(*args_list_bot)
+                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = prep_bot(*args_list_bot)
 
             save_dict = dict()
             ret = {}
             ret_old = None
             try:
                 tgen0 = time.time()
-                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1):
+                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+                                        langchain_action1):
                     history, error, extra, save_dict, audio1 = res
                     res_dict = {}
                     res_dict['response'] = history[-1][1]
@@ -3404,7 +3404,8 @@ def go_gradio(**kwargs):
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1
+                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, \
+                langchain_action1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
                 return dummy_return
@@ -3463,7 +3464,7 @@ def go_gradio(**kwargs):
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1
+                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1
 
         def gen1_fake(fun1, history):
             error = ''
@@ -3472,10 +3473,16 @@ def go_gradio(**kwargs):
             yield history, error, extra, save_dict
             return
 
-        def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1):
+        def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1):
             from src.tts_sentence_parsing import init_sentence_state
             sentence_state = init_sentence_state()
-            if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
+            if langchain_action1 in [LangChainAction.EXTRACT.value]:
+                # don't do audio for extraction in any case
+                generate_speech_func_func = None
+                audio0 = None
+                audio1 = None
+                no_audio = None
+            elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
                 audio1 = None
                 from src.tts import get_speaker_embedding
                 speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
@@ -3513,7 +3520,7 @@ def go_gradio(**kwargs):
                 no_audio = None
             return audio0, audio1, no_audio, generate_speech_func_func
 
-        def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1):
+        def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
@@ -3525,7 +3532,7 @@ def go_gradio(**kwargs):
             output_no_refs = ''
 
             audio0, audio1, no_audio, generate_speech_func_func = \
-                prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1)
+                prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1)
 
             if not fun1:
                 yield history, error, extra, save_dict, audio1
@@ -3606,7 +3613,7 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1 = prep_bot(*args, retry=retry)
+                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             extra = ''
@@ -3616,7 +3623,8 @@ def go_gradio(**kwargs):
             no_audio = get_no_audio()
             try:
                 tgen0 = time.time()
-                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1):
+                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+                                        langchain_action1):
                     do_yield = False
                     history, error, extra, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
@@ -3666,6 +3674,8 @@ def go_gradio(**kwargs):
             assert len(all_possible_visible_models) == len(model_states1)
             visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
 
+            langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
+
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             requests_state1 = None
@@ -3695,7 +3705,8 @@ def go_gradio(**kwargs):
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, \
                         valid_key, h2ogpt_key1, \
-                        max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1 = \
+                        max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, \
+                        langchain_action1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if num_visible_bots == 1:
                         # no need to lag, will be faster this way
@@ -3708,6 +3719,7 @@ def go_gradio(**kwargs):
                                             speaker1 if first_visible else None,
                                             tts_language1 if first_visible else None,
                                             roles_state1 if first_visible else None,
+                                            langchain_action1,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
@@ -4828,6 +4840,11 @@ def go_gradio(**kwargs):
             text_outputss = [text_output1, text_output21] + text_outputs1
             text_outputss = [x[-1][1] for x in text_outputss if len(x) >= 1 and len(x[-1]) == 2 and x[-1][1]]
             response = text_outputss[0] if text_outputss else None
+
+            keep_sources_in_context1 = False
+            langchain_mode1 = None  # so always tries
+            response = remove_refs(response, keep_sources_in_context1, langchain_mode1)
+
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
                 if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_state1)
