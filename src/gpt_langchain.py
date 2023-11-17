@@ -3115,6 +3115,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                 "Public instance only allows up to %d documents "
                 "(including in zip) (%d for API) updated at a time." % (max_docs_public, max_docs_public_api))
 
+    def no_tqdm(x):
+        return x
+    my_tqdm = no_tqdm if not verbose else tqdm
+
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
@@ -3123,7 +3127,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         )
     else:
         documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
-                     enumerate(tqdm(globs_non_image_types))]
+                     enumerate(my_tqdm(globs_non_image_types))]
 
     # do images separately since can't fork after cuda in parent, so can't be parallel
     if n_jobs_image != 1 and len(globs_image_audio_types) > 1:
@@ -3134,7 +3138,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
         )
     else:
         image_documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
-                           enumerate(tqdm(globs_image_audio_types))]
+                           enumerate(my_tqdm(globs_image_audio_types))]
 
     # unload loaders (image loaders, includes enable_pdf_doctr that uses same loader)
     for name, loader in model_loaders.items():
@@ -3761,7 +3765,8 @@ def _make_db(use_openai_embedding=False,
             raise RuntimeError("Expected no new files! %s" % langchain_mode)
         if len(sources) == 0 and os.getenv('SHOULD_NEW_FILES') is not None:
             raise RuntimeError("Expected new files! %s" % langchain_mode)
-        print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
+        if verbose:
+            print("Loaded %s sources for potentially adding to %s" % (len(sources), langchain_mode), flush=True)
 
         # see if got sources
         if not sources:
