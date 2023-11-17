@@ -135,9 +135,9 @@ def clean_sentence(sentence, verbose=False):
         return ''
 
     # Remove code blocks
-    sentence = re.sub("```.*```", "", sentence, flags=re.DOTALL)
-    sentence = re.sub("`.*`", "", sentence, flags=re.DOTALL)
-    sentence = re.sub("\(.*\)", "", sentence, flags=re.DOTALL)
+    sentence = re.sub("```.*?```", "", sentence, flags=re.DOTALL)
+    sentence = re.sub("`.*?`", "", sentence, flags=re.DOTALL)
+    sentence = re.sub("\(.*?\)", "", sentence, flags=re.DOTALL)
 
     # remove marks
     sentence = sentence.replace("```", "")

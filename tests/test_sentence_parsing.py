@@ -5,11 +5,15 @@ from tests.utils import wrap_test_forked
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
 
 bot_list = [
+    (
+    """- NVIDIA's Speech-to-Text (STT) models perform best under low noise conditions but are outperformed by Whisper under high noise levels (SNR < 10 dB).""",
+    [
+        "- NVIDIA's Speech-to-Text  models perform best under low noise conditions but are outperformed by Whisper under high noise levels ."]),
     ("""Coastal City (Tue) - TC, GF (Wed) - the week’s still young! w/ Elizabeth (AeroTech, Oceanic); LUNA team and champions; Marina Financial Group CIO; GBA corporate bank, Alex Mercer (Jordan dialed in); GEC opening gala (where leaders of Nation A & Nation B meet along with a host of delegates from GEC Gov agencies and select CEOs in Country X.) Coastal City Energy and Water Agency (a pivotal agency for the area; and a mature organization in autoML; fan of LLM Studio and h2oGPTe) - notes below; our meeting excited them to accelerate a transformative partnership - energizing the agency!
 
 "Making Coastal City a leader in AI technology" - very productive meetings with CIO & data & AI teams of the Energy and Water Agency, CIO of Marina Financial in Capital City, Board member of AeroTech, partner XYZ Corp.. The agency will be gateway to all the agencies of the country and a transformative partnership for h2o as well. (Closing imminently.) and Sam & XYZ Corp partnership in the region. The region will be a great area for AI and the people of this region are aspiring for change & seek true partnership and co-creation! They are ready to be makers and joining our movement!""",
-     ['Coastal City  - the week’s still young!',
-      'with Elizabeth ; GEC opening gala  where leaders of Nation A & Nation B meet along with a host of delegates from GEC Gov',
+     ['Coastal City  - TC, GF  - the week’s still young!',
+      'with Elizabeth ; LUNA team and champions; Marina Financial Group CIO; GBA corporate bank, Alex Mercer ; GEC opening gala  where leaders of Nation A & Nation B meet along with a host of delegates from GEC Gov',
       'agencies and select CEOs in Country X.',
       'Coastal City Energy and Water Agency  - notes below; our meeting excited them to accelerate a transformative partnership - energizing the agency!',
       '"Making Coastal City a leader in AI technology" - very productive meetings with CIO & data & AI teams of the Energy and Water Agency, CIO of Marina Financial in Capital City, Board member of AeroTech, partner XYZ Corp..',
@@ -85,7 +89,7 @@ bot_list = [
 
 @wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
-def test_get_sentence(bot, sentences_expected):
+def test_get_sentence_stream(bot, sentences_expected):
     def response_gen():
         for word1 in bot.split(' '):
             yield word1
@@ -113,7 +117,7 @@ def test_get_sentence(bot, sentences_expected):
 
 @wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
-def test_get_sentence2(bot, sentences_expected):
+def test_get_sentence_no_stream(bot, sentences_expected):
     def response_gen():
         yield bot
 
