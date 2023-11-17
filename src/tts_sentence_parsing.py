@@ -1,7 +1,7 @@
 import textwrap
 import re
 
-from src.utils import flatten_list
+from src.utils import flatten_list, have_emoji, have_langid
 
 
 def setup_nltk():
@@ -154,8 +154,9 @@ def clean_sentence(sentence, verbose=False):
     sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
 
     # filter out emojis
-    import emoji
-    sentence = ''.join([x for x in sentence if not emoji.is_emoji(x)])
+    if have_emoji:
+        import emoji
+        sentence = ''.join([x for x in sentence if not emoji.is_emoji(x)])
 
     # fix floating expressions
     sentence = re.sub(r'(\d+)\.(\d+)', r"\1 dot \2", sentence)
@@ -203,6 +204,10 @@ def clean_sentence(sentence, verbose=False):
 
 
 def detect_language(prompt, supported_languages, verbose=False):
+    if not have_langid:
+        # if no package, just return english
+        return "en"
+
     import langid
     # Fast language autodetection
     if len(prompt) > 15:

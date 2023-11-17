@@ -52,7 +52,7 @@ from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive, have_wavio, have_soundfile, have_deepspeed
+    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS
 
 start_faulthandler()
 import_matplotlib()
@@ -1088,25 +1088,6 @@ def main(
     assert len(
         set(langchain_agents).difference(langchain_agents_list)) == 0, "Invalid langchain_agents %s" % langchain_agents
 
-    # auto-set stt and tts
-    if not have_wavio:
-        if enable_stt == 'auto':
-            enable_stt = False
-        elif enable_stt is True:
-            raise RuntimeError("STT packages not installed")
-    elif enable_stt == 'auto':
-        enable_stt = True
-
-    if not have_soundfile:
-        if enable_tts == 'auto':
-            enable_tts = False
-        elif enable_tts is True:
-            raise RuntimeError("TTS packages not installed")
-    elif enable_tts == 'auto':
-        enable_tts = True
-    if cli or not gradio:
-        enable_stt = enable_tts = False
-
     # auto-set langchain_mode
     langchain_mode = os.environ.get("LANGCHAIN_MODE", langchain_mode)
     if have_langchain and langchain_mode is None:
@@ -1291,6 +1272,32 @@ def main(
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
+    # auto-set stt and tts.
+    # Done early here for lg_to_gr() and preload of db to know what's enabled
+    if not (have_soundfile and have_librosa and have_wavio):
+        if enable_stt == 'auto':
+            enable_stt = False
+        elif enable_stt is True:
+            raise RuntimeError("STT packages (soundfile, librosa, wavio) not installed")
+    elif enable_stt == 'auto':
+        enable_stt = True
+
+    if not (have_soundfile and have_librosa and have_wavio):
+        if enable_tts == 'auto':
+            enable_tts = False
+        elif enable_tts is True:
+            raise RuntimeError("TTS packages (soundfile, librosa, wavio) not installed")
+    elif enable_tts == 'auto':
+        enable_tts = True
+    if cli or not gradio:
+        enable_stt = enable_tts = False
+    if not have_langchain and enable_transcriptions:
+        print("Must install langchain for transcription, disabling", flush=True)
+        enable_transcriptions = False
+    if not (have_soundfile and have_librosa and have_wavio) and enable_tts:
+        enable_tts = False
+        print("soundfile, librosa, and wavio not installed, disabling TTS", flush=True)
+
     # defaults
     caption_loader = None
     doctr_loader = None
@@ -1368,6 +1375,10 @@ def main(
     else:
         caption_loader = False
 
+    if not have_langchain and pre_load_embedding_model:
+        print("Must install langchain for preloading embedding model, disabling", flush=True)
+        pre_load_embedding_model = False
+
     if pre_load_embedding_model and \
             langchain_mode != LangChainMode.DISABLED.value and \
             not use_openai_embedding:
@@ -1375,6 +1386,11 @@ def main(
         hf_embedding_model = dict(name=hf_embedding_model,
                                   model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
                                                       preload=True, gpu_id=embedding_gpu_id))
+
+    if not (have_doctr and have_langchain) and enable_doctr:
+        print("Must install DocTR and LangChain installed if enabled DocTR, disabling", flush=True)
+        enable_doctr = False
+        enable_pdf_ocr = 'off'
 
     if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
         if pre_load_image_audio_models:
@@ -1413,9 +1429,6 @@ def main(
                                              sst_floor=sst_floor,
                                              )
 
-    if tts_coquiai_deepspeed and not have_deepspeed:
-        raise ImportError("Install deepspeed or set --tts_coquiai_deepspeed=False")
-
     model_xtt, supported_languages_xtt = None, None
     predict_from_text_func = None
     generate_speech_func = None
@@ -1438,6 +1451,11 @@ def main(
                                                      vocoder=vocoder_tts,
                                                      verbose=verbose)
         elif tts_model.startswith('tts_models/'):
+            if not have_TTS:
+                raise ImportError("Selected non-default Coqui models, but did not install TTS")
+            if not have_deepspeed and tts_coquiai_deepspeed:
+                tts_coquiai_deepspeed = False
+                print("deepspeed not installed, disabling", flush=True)
             from src.tts_coqui import get_xtt, predict_from_text, generate_speech
             model_xtt, supported_languages_xtt = get_xtt(model_name=tts_model,
                                                          deepspeed=tts_coquiai_deepspeed,

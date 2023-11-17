@@ -1,7 +1,9 @@
 from __future__ import annotations
 import base64
+import time
 from io import BytesIO
 import numpy as np
+import scipy
 import wavio
 import soundfile as sf
 import torch
@@ -238,13 +240,11 @@ def text_to_speech(text, sr=16000):
     inputs = processor(text=text, return_tensors="pt")
     speech = model.generate_speech(inputs["input_ids"], speaker_embedding, vocoder=vocoder)
 
-    import soundfile as sf
     sf.write("speech.wav", speech.numpy(), samplerate=sr)
 
 
 def test_bark():
     # Too slow, 20s on GPU
-    import time
     from transformers import AutoProcessor, AutoModel
 
     # bark_model = "suno/bark"
@@ -263,7 +263,6 @@ def test_bark():
     t0 = time.time()
     speech_values = model.generate(**inputs, do_sample=True)
     print("Duration: %s" % (time.time() - t0), flush=True)
-    import scipy
 
     # sampling_rate = model.config.sample_rate
     sampling_rate = 24 * 1024
