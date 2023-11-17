@@ -912,10 +912,6 @@ def main(
     :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
            Set to None or empty list to avoid any special action words
     :param tts_stop_phrases:  Like tts_action_phrases but to stop h2oGPT from speaking and generating
-
-    NOTE: Action/Stop voice control over assistant is experimental, so disabled by default.
-          It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
-
     :param sst_floor: Floor in wave square amplitude below which ignores the chunk of audio
                       This helps avoid long silence messing up the transcription.
 
@@ -950,6 +946,8 @@ def main(
     llamacpp_dict = str_to_dict(llamacpp_dict)
     tts_coquiai_roles = str_to_dict(tts_coquiai_roles)
     roles_state0 = tts_coquiai_roles
+    tts_action_phrases = str_to_list(tts_action_phrases)
+    tts_stop_phrases = str_to_list(tts_stop_phrases)
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
     base_model0 = base_model  # for prompt infer

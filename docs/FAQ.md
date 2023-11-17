@@ -35,6 +35,13 @@ python generate.py --base_model=llama \
 
 The system prompt is helpful to let LLM know it can actually listen and speak, but the prompt is not too specific about details, else LLMs tend to add extra parenthetical gesturing that is not appropriate for TTS.
 
+In order to activate AI Voice Assistant mode, add:
+```bash
+--tts_action_phrases="['Nimbus']"
+--tts_stop_phrases="['Yonder']"
+```
+NOTE: Action/Stop voice control over assistant is experimental, so disabled by default. It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
+
 ### Non-English languages
 
 There are a few changes that may be required for other languages:

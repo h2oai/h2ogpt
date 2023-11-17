@@ -971,7 +971,7 @@ def go_gradio(**kwargs):
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
 
-                                    if kwargs['enable_stt']:
+                                    if kwargs['enable_stt'] and (kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']):
                                         def detect_words(action_text1, stop_text1, text):
                                             got_action_word = False
                                             action_words = kwargs['tts_action_phrases']
@@ -1000,11 +1000,11 @@ def go_gradio(**kwargs):
 
                                         action_text = gr.Textbox(value='', visible=False)
                                         stop_text = gr.Textbox(value='', visible=False)
-                                        if kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']:
-                                            # avoid if no action word, may take extra time
-                                            instruction.change(fn=detect_words,
-                                                               inputs=[action_text, stop_text, instruction],
-                                                               outputs=[action_text, stop_text, instruction])
+
+                                        # avoid if no action word, may take extra time
+                                        instruction.change(fn=detect_words,
+                                                           inputs=[action_text, stop_text, instruction],
+                                                           outputs=[action_text, stop_text, instruction])
 
                                         def clear_audio_state():
                                             return None
