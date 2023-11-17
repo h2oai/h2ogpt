@@ -21,6 +21,7 @@ from iterators import TimeoutIterator
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
+from src.tts_utils import combine_audios
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -3019,6 +3020,7 @@ def go_gradio(**kwargs):
             save_dict = dict()
             ret = {}
             ret_old = None
+            audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
@@ -3073,11 +3075,17 @@ def go_gradio(**kwargs):
                         ret = '<br>' + fix_text_for_gradio(res_dict['response'])
                     if stream_output1 and ret != ret_old:
                         # yield as it goes, else need to wait since predict only returns first yield
-                        yield ret
                         if isinstance(ret, dict):
-                            ret_old = ret.copy()
+                            ret_old = ret.copy()  # copy normal one first
+                            ret['audio'] = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000)
+                            audios = []  # reset accumulation
+                            yield ret
                         else:
                             ret_old = ret
+                            yield ret
+                    else:
+                        # collect unstreamed audios
+                        audios.append(res_dict['audio'])
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
                         if verbose:
                             print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
@@ -3085,6 +3093,8 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over as can happen (FIXME: Understand better)
                 # return back last ret
+                if isinstance(ret, dict):
+                    ret['audio'] = combine_audios(audios, audio=None)
                 yield ret
 
             finally:
@@ -3621,6 +3631,7 @@ def go_gradio(**kwargs):
             error_old = ''
             from src.tts_utils import get_no_audio
             no_audio = get_no_audio()
+            audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
@@ -3631,9 +3642,14 @@ def go_gradio(**kwargs):
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
                     if stream_output1 and do_yield:
+                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000)
+                        audios = []  # reset accumulation
+
                         yield history, error, audio1
                         history_str_old = history_str
                         error_old = error
+                    else:
+                        audios.append(audio1)
 
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
                         if verbose:
@@ -3641,7 +3657,8 @@ def go_gradio(**kwargs):
                         break
 
                 # yield if anything left over
-                yield history, error, no_audio
+                final_audio = combine_audios(audios, audio=no_audio)
+                yield history, error, final_audio
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1)
@@ -3684,6 +3701,8 @@ def go_gradio(**kwargs):
             extras = []
             exceptions = []
             save_dicts = []
+            audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
+            chatbot_role1 = None
             try:
                 gen_list = []
                 num_visible_bots = sum(visible_list)
@@ -3789,16 +3808,21 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
-                    audios = [x[4] if x is not None and not isinstance(x, BaseException) else no_audio for x in res1]
-                    audio1 = audios[0] if len(audios) == 1 else no_audio
+                    audios_gen = [x[4] if x is not None and not isinstance(x, BaseException) else no_audio for x in res1]
+                    audio1 = audios_gen[0] if len(audios_gen) == 1 else no_audio
                     do_yield |= audio1 != no_audio
 
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if stream_output1 and do_yield:
+                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000)
+                        audios = []  # reset accumulation
+
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
                         else:
                             yield bots[0], exceptions_str, audio1
+                    else:
+                        audios.append(audio1)
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
                         if verbose:
                             print("Took too long all_bot: %s" % (time.time() - tgen0), flush=True)
@@ -3809,10 +3833,11 @@ def go_gradio(**kwargs):
                         print("Generate exceptions: %s" % exceptions_reduced, flush=True)
 
                 # yield if anything left over as can happen (FIXME: Understand better)
+                final_audio = combine_audios(audios, audio=no_audio)
                 if len(bots) > 1:
-                    yield tuple(bots + [exceptions_str, no_audio])
+                    yield tuple(bots + [exceptions_str, final_audio])
                 else:
-                    yield bots[0], exceptions_str, no_audio
+                    yield bots[0], exceptions_str, final_audio
             finally:
                 clear_torch_cache()
                 clear_embeddings(langchain_mode1, db1s)
