@@ -77,8 +77,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
-   ```bash
-  ```
 * Install document question-answer dependencies:
     ```bash
     # May be required for jq package:
