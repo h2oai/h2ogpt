@@ -75,6 +75,9 @@ _H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     hyde_level="hyde_level",
     hyde_template="hyde_template",
     doc_json_mode="doc_json_mode",
+    chatbot_role="chatbot_role",
+    speaker="speaker",
+    tts_language="tts_language",
 )
 
 
@@ -142,6 +145,9 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     hyde_level=0,
     hyde_template=None,
     doc_json_mode=False,
+    chatbot_role="None",
+    speaker="None",
+    tts_language="autodetect",
 )
 
 
@@ -236,6 +242,9 @@ class TextCompletionCreator:
         hyde_level: int = 0,
         hyde_template: Optional[str] = None,
         doc_json_mode: bool = False,
+        chatbot_role="None",
+        speaker="None",
+        tts_language="autodetect",
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -286,6 +295,9 @@ class TextCompletionCreator:
                      None, 'None', 'auto' uses internal value and enable
                      '{query}' is minimal template one can pass
         :param doc_json_mode: whether to give JSON to LLM and get JSON response back
+        :param chatbot_role: See h2oGPT server docs
+        :param speaker: See h2oGPT server docs
+        :param tts_language: See h2oGPT server docs
         """
         args = locals().copy()
         args["prompt_type"] = prompt_type.value  # convert to serializable type
@@ -371,6 +383,9 @@ class ChatCompletionCreator:
         hyde_level: int = 0,
         hyde_template: Optional[str] = None,
         doc_json_mode: bool = False,
+        chatbot_role="None",
+        speaker="None",
+        tts_language="autodetect",
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -420,6 +435,9 @@ class ChatCompletionCreator:
                      None, 'None', 'auto' uses internal value and enable
                      '{query}' is minimal template one can pass
         :param doc_json_mode: whether to give JSON to LLM and get JSON response back
+        :param chatbot_role: See h2oGPT server docs
+        :param speaker: See h2oGPT server docs
+        :param tts_language: See h2oGPT server docs
         """
         args = locals().copy()
         args["prompt_type"] = prompt_type.value  # convert to serializable type
