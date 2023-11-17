@@ -41,7 +41,7 @@ def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000):
     if audio or audios:
         is_bytes = False
         if audios:
-            is_bytes = isinstance(audios[0], bytes)
+            is_bytes |= isinstance(audios[0], bytes)
         if audio:
             is_bytes |= isinstance(audio, bytes)
         assert audio is None or isinstance(audio, bytes)
