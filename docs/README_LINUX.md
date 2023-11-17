@@ -97,8 +97,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: Improved OCR with DocTR:
     conda install -y -c conda-forge pygobject
     pip install -r reqs_optional/requirements_optional_doctr.txt
-    #            For DocTR: go back to older onnx so Tesseract OCR still works
+    # For DocTR: go back to older onnx so Tesseract OCR still works
     pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
+    # now using conda for some things, need weasyprint from conda too else library mismatch
+    pip uninstall weasyprint
+    conda install -y -c conda-forge weasyprint
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: Required for PlayWright
@@ -112,13 +115,13 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     sudo apt remove libavcodec-ffmpeg-extra56
     sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
     # for TTS:
-    pip install torchaudio==2.0.1 soundfile==0.12.1
+    pip install torchaudio soundfile==0.12.1
     # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
     # pydantic can't be >=2.0
     # relaxed versions to avoid conflicts
     pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
-    # avoid excessive TTS constraint on transformers
-    pip install tokenizers-0.14.1 transformers-4.35.0
+    # undo excessive TTS constraint on transformers that seems to have no impact on h2oGPT usage
+    pip install transformers==4.35.0
     # for Coqui XTTS language helpers (specific versions probably not required)
     pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
     ```
@@ -247,25 +250,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
    ```bash
    pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
    ```
-  or do manually:
-    ```bash
-    sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
-    cd $sp
-    rm -rf openvllm* openai_vllm*
-    cp -a openai openvllm
-    file0=`ls|grep openai|grep dist-info`
-    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
-    cp -a $file0 $file1
-    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
-    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
-    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
-    find openvllm* -type f | xargs sed -i 's/ openai/ openvllm/g'
-    find openvllm* -type f | xargs sed -i 's/openai /openvllm /g'
-    find openvllm* -type f | xargs sed -i 's/OpenAI/vLLM/g'
-    find openvllm* -type f | xargs sed -i 's/\/openai/\/vllm/g'
-    ```
 
 ### Compile Install Issues
   * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
