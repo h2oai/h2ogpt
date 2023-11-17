@@ -2,9 +2,21 @@
 
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
-For Coqui.ai models like xtts_v2, if deepspeed was installed (default) then ensure `CUDA_HOME` env is set to same version as torch installation, and that the cuda installation has full dev installation with `nvcc`, so that cuda kernels can be compiled.  To avoid this, pass `--tts_coquiai_deepspeed=False`.
+To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
 
-Suppose one has 4 GPUs and one wants accurate document Q/A and STT and TTS, then one can run:
+For basic STT and TTS, nothing is required to pass, but you should select `Speech Style` under Chats in left sidebar, since not speaking by default.
+
+To make h2oGPT speak by default, run instead something like:
+```bash
+python generate.py --base_model=llama \
+                   --chatbot_role="Female AI Assistant" \
+                   --speaker="SLT (female)"
+```
+By default, we effectively set `--chatbot_role="None" --speaker"None"` so you otherwise have to always choose speaker once UI is started.
+
+For the most advanced setup, one can use Coqui.ai models like xtts_v2.  If deepspeed was installed, then ensure `CUDA_HOME` env is set to same version as torch installation, and that the CUDA installation has full dev installation with `nvcc`, so that cuda kernels can be compiled.
+
+Then, suppose one has 4 GPUs and one wants accurate document Q/A and STT and TTS with the best quality, then one can run:
 ```bash
 python generate.py --base_model=llama \
                    --pre_load_image_audio_models=True \
@@ -19,9 +31,11 @@ python generate.py --base_model=llama \
                    --sst_model=openai/whisper-large-v3 \
                    --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
                    --tts_gpu_id=2 \
+                   --chatbot_role="Female AI Assistant" \
+                   --speaker="SLT (female)" \
                    --system_prompt="You are a helpful assistant named Jennifer who can hear and speak."
 ```
-So then the SST and ASR models are the same model and all GPU related models are preloaded for fast document handling. Use of `--enable_pdf_doctr=on` will be slower for long PDFs, but generally converts pages to images then OCRs the full image, so more generally handles PDF content.  note that STT and TTS models are always preloaded if used.
+So then the SST and ASR models are the same model and all GPU related models are preloaded for fast document handling. Use of `--enable_pdf_doctr=on` will be slower for long PDFs, but generally converts pages to images then OCRs the full image, so more generally handles PDF content.  Note that STT and TTS models are always preloaded if not disabled.
 
 Or all on single GPU focused on high-quality speech components:
 ```bash
@@ -30,9 +44,10 @@ python generate.py --base_model=llama \
                    --asr_model=openai/whisper-large-v3 \
                    --sst_model=openai/whisper-large-v3 \
                    --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
+                   --chatbot_role="Female AI Assistant",
+                   --speaker="SLT (female)",
                    --system_prompt="You are a helpful assistant named Jennifer who can hear and speak."
 ```
-
 The system prompt is helpful to let LLM know it can actually listen and speak, but the prompt is not too specific about details, else LLMs tend to add extra parenthetical gesturing that is not appropriate for TTS.
 
 In order to activate AI Voice Assistant mode, add:
@@ -44,9 +59,22 @@ One can use this action word, or some extension of it like `Nimbus Clouds` so th
 
 NOTE: Action/Stop voice control over assistant is **experimental**, so disabled by default by passing an empty list. It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
 
-To fully disable TTS and STT, pass `--enable_tts=False --enable_stt=False` or to just launch with disabled pass `--chatbot_role=None --speakerNone` and you can always choose speaker once in the UI.
-
 There is currently no TTS for CLI.
+
+### Voice Cloning
+
+Follow these steps:
+* Ensure passing `--tts_model=tts_models/multilingual/multi-dataset/xtts_v2` as only it supports cloning
+* Go to expert panel as shown below
+* Select File or Mic
+  * Select either File for Cloning (Some wave, mp4a, etc. file).  It will be uploaded and reduced to at most 30 seconds automatically.
+    * If one already present, as is default, then click x and select or drop file.
+  * Or select Mic for Clone and record your voice.  Use no more than around 30 seconds.
+    * Click Use Mic for Cloning if that is what is intended, so we know whether to use the file or mic.
+* Select Speaker Style name, which will appear in drop-down under chats after done.  If logged in, this is saved to the user state for next login.
+* Click Clone Voice button, and within second the speaker is an option in the sidebar under chats as another style.
+
+![voice_clone.png](voice_clone.png)
 
 ### Non-English languages
 

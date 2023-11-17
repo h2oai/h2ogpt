@@ -393,8 +393,8 @@ def main(
         tts_coquiai_deepspeed: bool = True,
         tts_coquiai_roles: dict = None,
 
-        chatbot_role: str = "None", # '"Female AI Assistant",
-        speaker: str = "None", # "SLT (female)",
+        chatbot_role: str = "None",  # "Female AI Assistant",
+        speaker: str = "None",  # "SLT (female)",
         tts_language: str = 'autodetect',
         tts_action_phrases: typing.List[str] = [],  # ['Nimbus'],
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
