@@ -61,6 +61,10 @@ NOTE: Action/Stop voice control over assistant is **experimental**, so disabled 
 
 There is currently no TTS for CLI.
 
+In the expert panel you can replay any h2oGPT generation or speak instruction generation.
+
+If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
+
 ### Voice Cloning
 
 Follow these steps:
@@ -75,6 +79,7 @@ Follow these steps:
 * Click Clone Voice button, and within second the speaker is an option in the sidebar under chats as another style.
 
 ![voice_clone.png](voice_clone.png)
+
 
 ### Non-English languages
 
