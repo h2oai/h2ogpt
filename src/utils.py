@@ -1242,6 +1242,12 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_soundfile = False
 
+try:
+    assert distribution('deepspeed') is not None
+    have_deepspeed = True
+except (PackageNotFoundError, AssertionError):
+    have_deepspeed = False
+
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"

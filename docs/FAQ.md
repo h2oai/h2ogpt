@@ -2,6 +2,8 @@
 
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
+For Coqui.ai models like xtts_v2, if deepspeed was installed (default) then ensure `CUDA_HOME` env is set to same version as torch installation, and that the cuda installation has full dev installation with `nvcc`, so that cuda kernels can be compiled.  To avoid this, pass `--tts_coquiai_deepspeed=False`.
+
 Suppose one has 4 GPUs and one wants accurate document Q/A and STT and TTS, then one can run:
 ```bash
 python generate.py --base_model=llama \

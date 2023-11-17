@@ -52,7 +52,7 @@ from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive, have_wavio, have_soundfile
+    url_alive, have_wavio, have_soundfile, have_deepspeed
 
 start_faulthandler()
 import_matplotlib()
@@ -1401,6 +1401,9 @@ def main(
                                              debug=debug,
                                              max_chunks=20 if is_public else None,
                                              )
+
+    if tts_coquiai_deepspeed and not have_deepspeed:
+        raise ImportError("Install deepspeed or set --tts_coquiai_deepspeed=False")
 
     model_xtt, supported_languages_xtt = None, None
     predict_from_text_func = None
