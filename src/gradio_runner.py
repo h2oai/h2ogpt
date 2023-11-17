@@ -1411,7 +1411,7 @@ def go_gradio(**kwargs):
                             tts_language = gr.Dropdown(visible=False)
 
                         ref_voice_clone = gr.Audio(
-                            label="File for Clone (x clears example, for new file)",
+                            label="File for Clone (x resets)",
                             type="filepath",
                             value="models/female.wav",
                             max_length=30 if is_public else None,
@@ -1430,7 +1430,7 @@ def go_gradio(**kwargs):
 
                         ref_voice_clone.upload(process_audio, inputs=ref_voice_clone, outputs=ref_voice_clone)
                         mic_voice_clone = gr.Audio(
-                            label="Microphone for Clone (x clears, for new file)",
+                            label="Mic for Clone (x resets)",
                             type="filepath",
                             source="microphone",
                             max_length=30 if is_public else None,
@@ -1442,7 +1442,7 @@ def go_gradio(**kwargs):
                             info="If unchecked, uses File",
                         )
                         role_name_to_add = gr.Textbox(value='', info="Name of Speaker to add", label="Speaker Style")
-                        add_role = gr.Button(value="Voice Clone")
+                        add_role = gr.Button(value="Clone Voice for new Speech Style")
 
                         def add_role_func(name, file, mic, roles1, use_mic):
                             if use_mic and os.path.isfile(mic):
