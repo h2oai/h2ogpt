@@ -267,14 +267,16 @@ def allowed_roles():
     return list(get_role_to_wave_map().keys())
 
 
-def get_roles(choices=None):
+def get_roles(choices=None, value=None):
     if choices is None:
         choices = allowed_roles()
+    if value is None:
+        value = choices[0]
     import gradio as gr
     chatbot_role = gr.Dropdown(
         label="Speech Style",
         choices=choices,
-        value=choices[0],
+        value=value,
     )
     return chatbot_role
 
@@ -368,7 +370,7 @@ def filter_wave_2(speaker_wav):
     return speaker_wav
 
 
-def get_languages_gr(visible=True):
+def get_languages_gr(visible=True, value=None):
     import gradio as gr
     choices = [
         "autodetect",
@@ -389,11 +391,13 @@ def get_languages_gr(visible=True):
         "ko",
         "hu"
     ]
+    if value is None:
+        value = choices[0]
     language_gr = gr.Dropdown(
         label="Language",
         info="Select an output language for the synthesised speech",
         choices=choices,
-        value=choices[0],
+        value=value,
         visible=visible,
     )
     return language_gr

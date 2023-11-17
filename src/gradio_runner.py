@@ -714,12 +714,12 @@ def go_gradio(**kwargs):
                     stop_speak_button = gr.Button("Stop/Clear Speak", visible=visible_speak_me, size='sm')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                         from src.tts_coqui import get_roles
-                        chatbot_role = get_roles(choices=list(roles_state.value.keys()))
+                        chatbot_role = get_roles(choices=list(roles_state.value.keys()), value=kwargs['chatbot_role'])
                     else:
                         chatbot_role = gr.Dropdown(visible=False)
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('microsoft'):
                         from src.tts import get_speakers_gr
-                        speaker = get_speakers_gr()
+                        speaker = get_speakers_gr(value=kwargs['speaker'])
                     else:
                         speaker = gr.Radio(visible=False)
                 upload_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload
@@ -1409,7 +1409,7 @@ def go_gradio(**kwargs):
                                                elem_id='bot2_audio')
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                             from src.tts_coqui import get_languages_gr
-                            tts_language = get_languages_gr(visible=True)
+                            tts_language = get_languages_gr(visible=True, value=kwargs['tts_language'])
                         else:
                             tts_language = gr.Dropdown(visible=False)
 

@@ -69,12 +69,14 @@ def get_speakers():
             ]
 
 
-def get_speakers_gr():
+def get_speakers_gr(value=None):
     import gradio as gr
     choices = get_speakers()
+    if value is None:
+        value = choices[0]
     return gr.Dropdown(label="Speech Style",
                        choices=choices,
-                       value=choices[0])
+                       value=value)
 
 
 def process_audio(sampling_rate, waveform):
