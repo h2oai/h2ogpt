@@ -396,6 +396,9 @@ def main(
         chatbot_role: str = "Female AI Assistant",
         speaker: str = "SLT (female)",
         tts_language: str = 'autodetect',
+        tts_action_phrases: typing.List[str] = [],  # ['Nimbus'],
+        tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
+        sst_floor: float = 100,
 
         # json
         jq_schema='.[]',
@@ -906,6 +909,15 @@ def main(
     :param chatbot_role: Default role for coqui models
     :param speaker: Default speaker for microsoft models
     :param tts_language: Default language for coqui models
+    :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
+           Set to None or empty list to avoid any special action words
+    :param tts_stop_phrases:  Like tts_action_phrases but to stop h2oGPT from speaking and generating
+
+    NOTE: Action/Stop voice control over assistant is experimental, so disabled by default.
+          It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
+
+    :param sst_floor: Floor in wave square amplitude below which ignores the chunk of audio
+                      This helps avoid long silence messing up the transcription.
 
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
@@ -1400,6 +1412,7 @@ def main(
                                              transcriber=transcriber,
                                              debug=debug,
                                              max_chunks=20 if is_public else None,
+                                             sst_floor=sst_floor,
                                              )
 
     if tts_coquiai_deepspeed and not have_deepspeed:

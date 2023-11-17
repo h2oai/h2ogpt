@@ -520,7 +520,17 @@ def go_gradio(**kwargs):
         var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         xPathRes.singleNodeValue.click();}"""
 
-    with demo:
+    def click_submit():
+        return """function check() {
+  document.getElementById("submit").click();
+}"""
+
+    def click_stop():
+        return """function check() {
+  document.getElementById("stop").click();
+}"""
+
+    with (demo):
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(
@@ -946,25 +956,63 @@ def go_gradio(**kwargs):
                                                      inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
 
-                                        def update_audio_state(instruction1):
-                                            return instruction1
-
-                                        instruction.input(update_audio_state, inputs=instruction, outputs=audio_state)
-
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
                                     mw1 = 50
                                     mw2 = 50
                                     with gr.Column(min_width=mw1):
                                         submit = gr.Button(value='Submit', variant='primary', size='sm',
-                                                           min_width=mw1)
+                                                           min_width=mw1, elem_id="submit")
                                         stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
-                                                             min_width=mw1)
+                                                             min_width=mw1, elem_id='stop')
                                         save_chat_btn = gr.Button("Save", size='sm', min_width=mw1)
                                     with gr.Column(min_width=mw2):
                                         retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
                                         undo = gr.Button("Undo", size='sm', min_width=mw2)
                                         clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
+
+                                    if kwargs['enable_stt']:
+                                        def detect_words(action_text1, stop_text1, text):
+                                            got_action_word = False
+                                            action_words = kwargs['tts_action_phrases']
+                                            if action_words:
+                                                for action_word in action_words:
+                                                    if action_word.lower() in text.lower():
+                                                        text = text[:text.lower().index(action_word.lower())]
+                                                        print("Got action: %s %s" % (action_text1, text), flush=True)
+                                                        got_action_word = True
+                                            if got_action_word:
+                                                action_text1 = action_text1 + '.'
+
+                                            got_stop_word = False
+                                            stop_words = kwargs['tts_stop_phrases']
+                                            if stop_words:
+                                                for stop_word in stop_words:
+                                                    if stop_word.lower() in text.lower():
+                                                        text = text[:text.lower().index(stop_word.lower())]
+                                                        print("Got stop: %s %s" % (stop_text1, text), flush=True)
+                                                        got_stop_word = True
+
+                                            if got_stop_word:
+                                                stop_text1 = stop_text1 + '.'
+
+                                            return action_text1, stop_text1, text
+
+                                        action_text = gr.Textbox(value='', visible=False)
+                                        stop_text = gr.Textbox(value='', visible=False)
+                                        if kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']:
+                                            # avoid if no action word, may take extra time
+                                            instruction.change(fn=detect_words,
+                                                               inputs=[action_text, stop_text, instruction],
+                                                               outputs=[action_text, stop_text, instruction])
+
+                                        def clear_audio_state():
+                                            return None
+
+                                        action_text.change(fn=clear_audio_state, outputs=audio_state) \
+                                            .then(fn=lambda: None, _js=click_submit())
+                                        stop_text.change(fn=clear_audio_state, outputs=audio_state) \
+                                            .then(fn=lambda: None, _js=click_stop())
 
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
@@ -3808,7 +3856,8 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
-                    audios_gen = [x[4] if x is not None and not isinstance(x, BaseException) else no_audio for x in res1]
+                    audios_gen = [x[4] if x is not None and not isinstance(x, BaseException) else no_audio for x in
+                                  res1]
                     audio1 = audios_gen[0] if len(audios_gen) == 1 else no_audio
                     do_yield |= audio1 != no_audio
 

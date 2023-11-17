@@ -16,19 +16,31 @@ def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto')
     return transcriber
 
 
-def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, debug=False):
+def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_floor=100.0, debug=False):
     if max_chunks is not None and len(chunks) > max_chunks:
         # refuse to update
         return chunks, text0
+    if chunks is None:
+        chunks = []
     # assume sampling rate always same
     # keep chunks so don't normalize on noise periods, which would then saturate noise with non-noise
     sr, y = new_chunk
-    chunks = chunks + [y] if chunks else [y]
-    stream = np.concatenate(chunks)
-    stream = stream.astype(np.float32)
-    stream /= np.max(np.abs(stream) + 1E-7)
+    avg = np.average(np.abs(y))
+    if avg > sst_floor:
+        if debug:
+            print("Got chunk: %s" % avg, flush=True)
+        chunks = chunks + [y] if chunks else [y]
+    else:
+        if debug:
+            print("Rejected chunk: %s" % avg, flush=True)
+    if chunks:
+        stream = np.concatenate(chunks)
+        stream = stream.astype(np.float32)
+        stream /= np.max(np.abs(stream) + 1E-7)
 
-    text = transcriber({"sampling_rate": sr, "raw": stream})["text"]
-    if debug:
-        print("y.shape: %s stream.shape: %s text0=%s text=%s" % (str(y.shape), str(stream.shape), text0, text))
+        text = transcriber({"sampling_rate": sr, "raw": stream})["text"]
+        if debug:
+            print("y.shape: %s stream.shape: %s text0=%s text=%s" % (str(y.shape), str(stream.shape), text0, text))
+    else:
+        text = ''
     return chunks, text0 + text
