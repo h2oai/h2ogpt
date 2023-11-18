@@ -796,8 +796,7 @@ def main(
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
-           Not supported yet for openai_chat when using document collection instead of LLM
-           Also not supported when using CLI mode
+           Not supported when using CLI mode
     :param add_search_to_context: Include web search in context as augmented prompt
     :param context: Default context to use (for system pre-context in gradio UI)
            context comes before chat_conversation and any document Q/A from text_context_list
