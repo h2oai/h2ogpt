@@ -5004,7 +5004,6 @@ def get_chain(query=None,
     target = None
     scores = []
     num_docs_before_cut = 0
-    use_llm_if_no_docs = True
 
     if len(text_context_list) > 0:
         # turn into documents to make easy to manage and add meta
