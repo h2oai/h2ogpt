@@ -7,7 +7,7 @@ def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto')
         gpu_id = 0
     device = get_device()
     if device == 'cpu' or not use_gpu:
-        device_map = {"", 'cpu'}
+        device_map = 'auto'  #{"", 'cpu'}
     else:
         device_map = {"": gpu_id} if gpu_id >= 0 else {'': 'cuda'}
 
