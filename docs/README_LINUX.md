@@ -74,10 +74,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
     # broad support, but no training-time or data creation dependencies
     
-    # CPU only:
-    pip install -r requirements.txt
-    
-    # GPU only:
     pip install -r requirements.txt
     ```
 * Install document question-answer dependencies:
