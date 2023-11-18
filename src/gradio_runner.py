@@ -1428,7 +1428,12 @@ def go_gradio(**kwargs):
                                                       visible=False,  # no longer support nochat in UI
                                                       interactive=not is_public,
                                                       )
-                    gr.Markdown("Speech Control and Voice Cloning")
+                    clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
+                    if clone_visible:
+                        markdown_label = "Speech Control and Voice Cloning"
+                    else:
+                        markdown_label = "Speech Control"
+                    gr.Markdown(markdown_label)
                     with gr.Row():
                         speech_human = gr.Audio(value=None,
                                                 label="Generated Human Speech",
@@ -1468,6 +1473,7 @@ def go_gradio(**kwargs):
                             type="filepath",
                             value="models/female.wav",
                             # max_length=30 if is_public else None,
+                            visible=clone_visible,
                         )
 
                         def process_audio(file1, t1=0, t2=30):
@@ -1487,15 +1493,18 @@ def go_gradio(**kwargs):
                             type="filepath",
                             source="microphone",
                             # max_length=30 if is_public else None,
+                            visible=clone_visible,
                         )
                         mic_voice_clone.upload(process_audio, inputs=mic_voice_clone, outputs=mic_voice_clone)
                         choose_mic_voice_clone = gr.Checkbox(
                             label="Use Mic for Cloning",
                             value=False,
                             info="If unchecked, uses File",
+                            visible=clone_visible,
                         )
-                        role_name_to_add = gr.Textbox(value='', info="Name of Speaker to add", label="Speaker Style")
-                        add_role = gr.Button(value="Clone Voice for new Speech Style")
+                        role_name_to_add = gr.Textbox(value='', info="Name of Speaker to add", label="Speaker Style",
+                                                      visible=clone_visible)
+                        add_role = gr.Button(value="Clone Voice for new Speech Style", visible=clone_visible)
 
                         def add_role_func(name, file, mic, roles1, use_mic):
                             if use_mic and os.path.isfile(mic):
