@@ -58,7 +58,6 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
-export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -66,7 +65,6 @@ docker run \
        -p 7860:7860 \
        --rm --init \
        --network host \
-       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        -v /etc/passwd:/etc/passwd:ro \
        -v /etc/group:/etc/group:ro \
        -u `id -u`:`id -g` \
@@ -96,7 +94,6 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
-export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -113,7 +110,6 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
-       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=TheBloke/Llama-2-7b-Chat-GPTQ \
           --load_gptq=model \
@@ -135,7 +131,6 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
-export CUDA_VISIBLE_DEVICES=0
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -152,7 +147,6 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
-       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --prompt_type=llama2 \
@@ -323,11 +317,9 @@ One can run an inference server in one docker and h2oGPT in another docker.
 For the TGI server run (e.g. to run on GPU 0)
 ```bash
 export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
-export CUDA_VISIBLE_DEVICES=0
-docker run -d --gpus all \
+docker run -d --gpus '"device=0"' \
        --shm-size 1g \
        --network host \
-       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        -p 6112:80 \
        -v $HOME/.cache/huggingface/hub/:/data ghcr.io/huggingface/text-generation-inference:0.9.3 \
        --model-id $MODEL \
@@ -335,13 +327,12 @@ docker run -d --gpus all \
        --max-total-tokens 8192 \
        --max-stop-sequences 6 &>> logs.infserver.txt
 ```
-Each docker can run on any system where network can reach or on same system on different GPUs.  E.g. replace `--gpus all` with `--gpus '"device=0,3"'` to run on GPUs 0 and 3, and note the extra quotes, and then `unset CUDA_VISIBLE_DEVICES` and avoid passing that into the docker image.  This multi-device format is required to avoid TGI server getting confused about which GPUs are available.
+Each docker can run on any system where network can reach or on same system on different GPUs.  E.g. replace `--gpus all` with `--gpus '"device=0,3"'` to run on GPUs 0 and 3, and note the extra quotes.  This multi-device format is required to avoid TGI server getting confused about which GPUs are available.
 
 One a low-memory GPU system can add other options to limit batching, e.g.:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub/
 export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
-unset CUDA_VISIBLE_DEVICES
 docker run -d --gpus '"device=0"' \
         --shm-size 1g \
         -p 6112:80 \
@@ -357,7 +348,6 @@ docker run -d --gpus '"device=0"' \
 Then wait till it comes up (e.g. check docker logs for detached container hash in logs.infserver.txt), about 30 seconds for 7B LLaMa2 on 1 GPU.  Then for h2oGPT, just run one of the commands like the above, but add e.g. `--inference_server=192.168.0.1:6112` to the docker command line.  E.g. using same export's as above, run:
 ```bash
 export GRADIO_SERVER_PORT=7860
-export CUDA_VISIBLE_DEVICES=0
 mkdir -p ~/.cache
 mkdir -p ~/save
 mkdir -p ~/user_path
@@ -365,7 +355,7 @@ mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
 docker run -d \
-       --gpus all \
+       --gpus '"device=0"' \
        --runtime=nvidia \
        --shm-size=2g \
        -p $GRADIO_SERVER_PORT:$GRADIO_SERVER_PORT \
@@ -380,7 +370,6 @@ docker run -d \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
-       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=$MODEL \
           --inference_server=http://localhost:6112 \
@@ -435,15 +424,13 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
-export CUDA_VISIBLE_DEVICES=0
 docker run \
-       --gpus all \
+       --gpus '"device=0"' \
        --runtime=nvidia \
        --shm-size=2g \
        -p 7860:7860 \
        --rm --init \
        --network host \
-       -e CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
        -v /etc/passwd:/etc/passwd:ro \
        -v /etc/group:/etc/group:ro \
        -u `id -u`:`id -g` \
