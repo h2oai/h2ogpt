@@ -47,13 +47,13 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   conda install cudatoolkit-dev -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX
   ```
-  which gives CUDA 11.7, or if you prefer follow [CUDA Toolkit](INSTALL.md#installing-cuda-toolkit), then do:
+  which gives CUDA 11.7, or if you prefer follow [CUDA Toolkit](INSTALL.md#install-cuda-toolkit), then do:
   ```bash
   export CUDA_HOME=/usr/local/cuda-11.7
   ```
-  This is required for A100/H100+ and use CUDA 11.8+.
+  For A100/H100+, you should use CUDA 11.8+ and use this native install from NVIDIA rather than conda for supporting all h2oGPT features (TTS deepspeed requires nvcc).
 
-  If you do not plan to use one of those packages, you can just use the non-dev version
+  If you do not plan to use packages like deepspeed in coqui's TTS or build other packages (i.e. only use binaries), you can just use the non-dev version:
   ```bash
   conda install cudatoolkit=11.7 -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX 

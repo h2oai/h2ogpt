@@ -99,7 +99,7 @@ For newer builds of windows versions of 10/11.
     # CPU
     pip install auto_gptq==0.4.2
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-    pip install optimum==1.13.3
+    pip install optimum==1.14.1
    ```
 * AutoAWQ support:
    ```bash
