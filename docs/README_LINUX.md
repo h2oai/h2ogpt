@@ -64,7 +64,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
    ```bash
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu117"
    ```
-  Choose cu118+ for A100/H100+.
+  Choose cu118+ for A100/H100+.  Or for CPU set
+   ```bash
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
+   ```
 * Install primary dependencies
     ```bash
     # fix any bad env
@@ -72,10 +75,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # broad support, but no training-time or data creation dependencies
     
     # CPU only:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
+    pip install -r requirements.txt
     
     # GPU only:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
+    pip install -r requirements.txt
     ```
 * Install document question-answer dependencies:
     ```bash
