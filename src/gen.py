@@ -378,13 +378,13 @@ def main(
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
 
-        enable_stt: bool = 'auto',
+        enable_stt: Union[str, bool] = 'auto',
         stt_model: str = "openai/whisper-base.en",
         stt_gpu: bool = True,
         stt_gpu_id: Union[int, str] = 'auto',
         stt_continue_mode: int = 1,
 
-        enable_tts: bool = 'auto',
+        enable_tts: Union[str, bool] = 'auto',
         tts_gpu: bool = True,
         tts_gpu_id: Union[int, str] = 'auto',
         tts_model: str = 'microsoft/speecht5_tts',
@@ -1278,8 +1278,12 @@ def main(
 
     # auto-set stt and tts.
     # Done early here for lg_to_gr() and preload of db to know what's enabled
+    if cli or not gradio:
+        enable_stt = enable_tts = False
+
     if not (have_soundfile and have_librosa and have_wavio):
         if enable_stt == 'auto':
+            print("soundfile, librosa, and wavio not installed, disabling STT", flush=True)
             enable_stt = False
         elif enable_stt is True:
             raise RuntimeError("STT packages (soundfile, librosa, wavio) not installed")
@@ -1288,13 +1292,12 @@ def main(
 
     if not (have_soundfile and have_librosa and have_wavio):
         if enable_tts == 'auto':
+            print("soundfile, librosa, and wavio not installed, disabling TTS", flush=True)
             enable_tts = False
         elif enable_tts is True:
             raise RuntimeError("TTS packages (soundfile, librosa, wavio) not installed")
     elif enable_tts == 'auto':
         enable_tts = True
-    if cli or not gradio:
-        enable_stt = enable_tts = False
     if not have_langchain and enable_transcriptions:
         print("Must install langchain for transcription, disabling", flush=True)
         enable_transcriptions = False
