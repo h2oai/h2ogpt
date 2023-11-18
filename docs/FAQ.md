@@ -884,6 +884,7 @@ This warning can be safely ignored.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
    - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
    - `H2OGPT_BASE_PATH`: Choose base folder for all files except personal/scratch files
+   - `LLAMACPP_PATH`: Choose directory where url downloads for llama models are kept.
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.
 
 > **_NOTE:_**  Scripts can accept different environment variables to control query arguments. For instance, if a Python script takes an argument like `--load_8bit=True`, the corresponding ENV variable would follow this format: `H2OGPT_LOAD_8BIT=True` (regardless of capitalization). It is important to ensure that the environment variable is assigned the exact value that would have been used for the script's query argument.
