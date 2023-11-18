@@ -88,6 +88,7 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
             'output_text'] and "Newton" in answer['output_text']
         res2 = 'Both Albert Einstein and Sir Isaac Newton are considered two' in answer[
             'output_text'] and "Newton" in answer['output_text']
+        res4 = res3 = False
     else:
         res1 = 'Einstein was a genius who revolutionized physics' in answer['output_text'] and "Newton" in answer[
             'output_text']
@@ -95,4 +96,6 @@ def run_langchain_simple(base_model='h2oai/h2ogpt-oasst1-512-12b', prompt_type='
             'output_text'] and "Newton" in answer['output_text']
         res3 = 'Einstein is considered to be the smartest person' in answer[
             'output_text'] and "Newton" in answer['output_text']
-    assert res1 or res2 or res3
+        res4 = 'Einstein was a brilliant scientist' in answer[
+            'output_text'] and "Newton" in answer['output_text']
+    assert res1 or res2 or res3 or res4

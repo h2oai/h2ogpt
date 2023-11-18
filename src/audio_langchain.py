@@ -175,6 +175,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             device_map = {"", 'cpu'}
         else:
             device_map = {"": device_id} if device_id >= 0 else {'': 'cuda'}
+        # https://huggingface.co/blog/asr-chunking
         self.pipe = pipeline(
             "automatic-speech-recognition",
             model=self.lang_model,

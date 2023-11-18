@@ -145,6 +145,10 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          hyde_level=0,
                          hyde_template=None,
                          doc_json_mode=False,
+
+                         chatbot_role='None',
+                         speaker='None',
+                         tts_language='autodetect',
                          )
     diff = 0
     if version is None:

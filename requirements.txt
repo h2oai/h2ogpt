@@ -1,7 +1,7 @@
 # for generate (gradio server) and finetune
 datasets==2.13.0
 sentencepiece==0.1.99
-gradio==3.49.0
+gradio==3.50.2
 huggingface_hub==0.16.4
 appdirs==1.4.4
 fire==0.5.0
@@ -20,9 +20,9 @@ pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.41.1
-accelerate==0.23.0
+accelerate==0.24.1
 peft==0.5.0
-transformers==4.34.1
+transformers==4.35.0
 tokenizers==0.14.1
 APScheduler==3.10.1
 

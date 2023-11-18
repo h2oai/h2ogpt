@@ -47,6 +47,9 @@ class PromptType(Enum):
     aquila_v1 = 41
     mistralgerman = 42
     deepseek_coder = 43
+    open_chat = 44
+    open_chat_correct = 44
+    open_chat_code = 44
 
 
 class DocumentSubset(Enum):
@@ -181,19 +184,14 @@ def t5_type(model_name):
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary,
                           model_name, inference_server, model_path_llama,
                           doc_json_mode):
-    if model_name and ('falcon' in model_name or
-                       'Llama-2'.lower() in model_name.lower() or
-                       model_path_llama and 'llama-2' in model_path_llama.lower()) or \
-            model_name in [None, '']:
-        # use when no model, like no --base_model
-        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
-        prompt_query1 = "According to only the information in the document sources provided within the context above, "
-    elif inference_server and inference_server.startswith('openai'):
+    if inference_server and inference_server.startswith('openai'):
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
         prompt_query1 = "According to (primarily) the information in the document sources provided within context above, "
     else:
-        pre_prompt_query1 = ""
-        prompt_query1 = ""
+        # use when no model, like no --base_model as well.
+        # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
+        prompt_query1 = "According to only the information in the document sources provided within the context above, "
 
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
     prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"

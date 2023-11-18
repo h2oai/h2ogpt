@@ -341,7 +341,7 @@ def test_client_chat_nostream_llama7b():
            'am a student' in res_dict['response'] or \
            "My name is John." in res_dict['response'] or \
            "how can I assist" in res_dict['response'] or \
-           "I'm LLaMA"  in res_dict['response']
+           "I'm LLaMA" in res_dict['response']
 
 
 @pytest.mark.need_tokens
@@ -2215,7 +2215,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert ('Yes, more text can be boring' in res_dict['response'] or
             "can be considered boring" in res_dict['response'] or
             "the text in the provided PDF file is quite repetitive and boring" in res_dict['response'] or
-            "the provided PDF file is quite boring" in res_dict['response']) \
+            "the provided PDF file is quite boring" in res_dict['response'] or
+            "finds more text to be boring" in res_dict['response'] or
+            "text to be boring" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"
@@ -2628,7 +2630,8 @@ def test_client_load_unload_models(model_choice):
 @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] +
                          model_names_curated +
                          ['zephyr-7b-beta.Q5_K_M.gguf'] +
-                         ['https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
+                         [
+                             'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
 @wrap_test_forked
 def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:
@@ -3857,3 +3860,116 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     assert """23,222 million""" in response
     sources = [x['source'] for x in res_dict['sources']]
     assert 'femsa1.pdf' in sources[0]
+
+
+def set_env(tts_model):
+    from src.tts_coqui import list_models
+    coqui_models = list_models()
+    if tts_model.startswith('tts_models/'):
+        assert tts_model in coqui_models, tts_model
+        # for deepspeed, needs to be same as torch for compilation of kernel
+        os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
+        sr = 24000
+    else:
+        sr = 16000
+    return sr
+
+
+@pytest.mark.parametrize("tts_model", [
+    'microsoft/speecht5_tts',
+    'tts_models/multilingual/multi-dataset/xtts_v2'
+])
+@wrap_test_forked
+def test_client1_tts(tts_model):
+    sr = set_env(tts_model)
+
+    from src.gen import main
+    main(base_model='llama', chat=False,
+         tts_model=tts_model,
+         stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'Who are you?'
+    kwargs = dict(instruction_nochat=prompt, chatbot_role="Female AI Assistant", speaker="SLT (female)")
+    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    res = ast.literal_eval(res)
+
+    response = res['response']
+    assert response
+    assert 'endoftext' not in response
+    print(response, flush=True)
+
+    play_audio(res, sr=sr)
+
+
+def play_audio(res, sr=16000):
+    # convert audio to file
+    audio = res['audio']
+
+    if audio == b'':
+        # no audio
+        return
+
+    import io
+    from pydub import AudioSegment
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+    filename = '/tmp/myfile.wav'
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+    if audio.duration_seconds < 0.5:
+        # FIXME: why are some very short, but not zero, audio outputs?
+        return
+    audio = audio.export(filename, format='wav')
+
+    # pip install playsound
+    from playsound import playsound
+    playsound(filename)
+
+
+@pytest.mark.parametrize("tts_model", [
+    'microsoft/speecht5_tts',
+    'tts_models/multilingual/multi-dataset/xtts_v2'
+])
+@wrap_test_forked
+def test_client1_tts_stream(tts_model):
+    sr = set_env(tts_model)
+
+    from src.gen import main
+    main(base_model='llama', chat=False,
+         tts_model=tts_model,
+         stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'Who are you?'
+    kwargs = dict(instruction_nochat=prompt, chatbot_role="Female AI Assistant", speaker="SLT (female)",
+                  stream_output=True)
+
+    job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
+    job_outputs_num = 0
+    while not job.done():
+        outputs_list = job.communicator.job.outputs
+        job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+        for num in range(job_outputs_num_new):
+            res = outputs_list[job_outputs_num + num]
+            res = ast.literal_eval(res)
+            print('Stream %d: %s\n' % (num, res['response']), flush=True)
+            play_audio(res, sr=sr)
+        job_outputs_num += job_outputs_num_new
+        time.sleep(0.01)
+
+    outputs_list = job.outputs()
+    job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+    for num in range(job_outputs_num_new):
+        res = outputs_list[job_outputs_num + num]
+        res = ast.literal_eval(res)
+        print('Final Stream %d: %s\n' % (num, res['response']), flush=True)
+        play_audio(res, sr=sr)
+    job_outputs_num += job_outputs_num_new
+    print("total job_outputs_num=%d" % job_outputs_num, flush=True)

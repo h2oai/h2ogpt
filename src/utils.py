@@ -1229,6 +1229,42 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_librosa = False
 
+try:
+    assert distribution('wavio') is not None
+    have_wavio = True
+except (PackageNotFoundError, AssertionError):
+    have_wavio = False
+
+try:
+    assert distribution('soundfile') is not None
+    have_soundfile = True
+except (PackageNotFoundError, AssertionError):
+    have_soundfile = False
+
+try:
+    assert distribution('deepspeed') is not None
+    have_deepspeed = True
+except (PackageNotFoundError, AssertionError):
+    have_deepspeed = False
+
+try:
+    assert distribution('emoji') is not None
+    have_emoji = True
+except (PackageNotFoundError, AssertionError):
+    have_emoji = False
+
+try:
+    assert distribution('langid') is not None
+    have_langid = True
+except (PackageNotFoundError, AssertionError):
+    have_langid = False
+
+try:
+    assert distribution('TTS') is not None
+    have_TTS = True
+except (PackageNotFoundError, AssertionError):
+    have_TTS = False
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"

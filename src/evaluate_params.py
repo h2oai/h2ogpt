@@ -1,4 +1,4 @@
-input_args_list = ['model_state', 'my_db_state', 'selection_docs_state', 'requests_state']
+input_args_list = ['model_state', 'my_db_state', 'selection_docs_state', 'requests_state', 'roles_state']
 
 no_default_param_names = [
     'instruction',
@@ -42,6 +42,7 @@ eval_func_param_names = ['instruction',
                          'chunk_size',
                          'document_subset',
                          'document_choice',
+
                          'pre_prompt_query',
                          'prompt_query',
                          'pre_prompt_summary',
@@ -52,6 +53,7 @@ eval_func_param_names = ['instruction',
                         ['visible_models',
                          'h2ogpt_key',
                          'add_search_to_context',
+
                          'chat_conversation',
                          'text_context_list',
                          'docs_ordering_type',
@@ -63,6 +65,10 @@ eval_func_param_names = ['instruction',
                          'hyde_level',
                          'hyde_template',
                          'doc_json_mode',
+
+                         'chatbot_role',
+                         'speaker',
+                         'tts_language',
                          ]
 
 # form evaluate defaults for submit_nochat_api

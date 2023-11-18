@@ -395,6 +395,7 @@ class H2OLlamaCpp(LlamaCpp):
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
         self.count_input_tokens += self.get_num_tokens(prompt)
+        stop = self.prompter.stop_sequences
 
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
@@ -407,6 +408,7 @@ class H2OLlamaCpp(LlamaCpp):
                 text_chunk = token  # ["choices"][0]["text"]
                 text += text_chunk
             self.count_output_tokens += self.get_num_tokens(text)
+            text = self.remove_stop_text(text, stop=stop)
             return text
         else:
             params = self._get_parameters(stop)
@@ -414,7 +416,17 @@ class H2OLlamaCpp(LlamaCpp):
             result = self.client(prompt=prompt, **params)
             text = result["choices"][0]["text"]
             self.count_output_tokens += self.get_num_tokens(text)
+            text = self.remove_stop_text(text, stop=stop)
             return text
+
+    def remove_stop_text(self, text, stop=None):
+        # remove stop sequences from the end of the generated text
+        if stop is None:
+            return text
+        for stop_seq in stop:
+            if stop_seq in text:
+                text = text[:text.index(stop_seq)]
+        return text
 
     def _stream(
             self,
@@ -424,8 +436,17 @@ class H2OLlamaCpp(LlamaCpp):
             **kwargs: Any,
     ) -> Iterator[GenerationChunk]:
         # parent expects only see actual new tokens, not prompt too
+        total_text = ''
         for chunk in super()._stream(prompt, stop=stop, run_manager=run_manager, **kwargs):
-            yield chunk
+            # remove stop sequences from the end of the generated text
+            total_text += chunk.text
+            got_stop = False
+            if stop:
+                for stop_seq in stop:
+                    if stop_seq in total_text:
+                        got_stop = True
+            if not got_stop:
+                yield chunk
 
     def get_token_ids(self, text: str) -> List[int]:
         return self.client.tokenize(b" " + text.encode("utf-8"))

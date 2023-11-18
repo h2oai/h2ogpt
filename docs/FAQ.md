@@ -1,5 +1,86 @@
 ## Frequently asked questions
 
+### Speech-to-Text (STT) and Text-to_Speech (TTS)
+
+To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
+
+For basic STT and TTS, nothing is required to pass, but you should select `Speech Style` under Chats in left sidebar, since not speaking by default.
+
+To make h2oGPT speak by default, run instead something like:
+```bash
+python generate.py --base_model=llama \
+                   --chatbot_role="Female AI Assistant" \
+                   --speaker="SLT (female)"
+```
+By default, we effectively set `--chatbot_role="None" --speaker"None"` so you otherwise have to always choose speaker once UI is started.
+
+For the most advanced setup, one can use Coqui.ai models like xtts_v2.  If deepspeed was installed, then ensure `CUDA_HOME` env is set to same version as torch installation, and that the CUDA installation has full dev installation with `nvcc`, so that cuda kernels can be compiled.
+
+Then, suppose one has 4 GPUs and one wants accurate document Q/A and STT and TTS with the best quality, then one can run:
+```bash
+python generate.py --base_model=llama \
+                   --pre_load_image_audio_models=True \
+                   --score_model=None \
+                   --embedding_gpu_id=0 \
+                   --caption_gpu_id=1 \
+                   --captions_model=Salesforce/blip2-flan-t5-xl \
+                   --enable_pdf_doctr=on \
+                   --doctr_gpu_id=2 \
+                   --asr_gpu_id=3 \
+                   --asr_model=openai/whisper-large-v3 \
+                   --sst_model=openai/whisper-large-v3 \
+                   --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
+                   --tts_gpu_id=2 \
+                   --chatbot_role="Female AI Assistant" \
+                   --speaker="SLT (female)" \
+                   --system_prompt="You are a helpful assistant named Jennifer who can hear and speak."
+```
+So then the SST and ASR models are the same model and all GPU related models are preloaded for fast document handling. Use of `--enable_pdf_doctr=on` will be slower for long PDFs, but generally converts pages to images then OCRs the full image, so more generally handles PDF content.  Note that STT and TTS models are always preloaded if not disabled.
+
+Or all on single GPU focused on high-quality speech components:
+```bash
+python generate.py --base_model=llama \
+                   --pre_load_image_audio_models=True \
+                   --asr_model=openai/whisper-large-v3 \
+                   --sst_model=openai/whisper-large-v3 \
+                   --tts_model=tts_models/multilingual/multi-dataset/xtts_v2 \
+                   --chatbot_role="Female AI Assistant",
+                   --speaker="SLT (female)",
+                   --system_prompt="You are a helpful assistant named Jennifer who can hear and speak."
+```
+The system prompt is helpful to let LLM know it can actually listen and speak, but the prompt is not too specific about details, else LLMs tend to add extra parenthetical gesturing that is not appropriate for TTS.
+
+In order to activate AI Voice Assistant mode, add:
+```bash
+--tts_action_phrases="['Nimbus']"
+--tts_stop_phrases="['Yonder']"
+```
+One can use this action word, or some extension of it like `Nimbus Clouds` so the ASR is ensured to get what is said.
+
+NOTE: Action/Stop voice control over assistant is **experimental**, so disabled by default by passing an empty list. It works well if only want voice control, but currently typing lots of text leads to text box blinking too much, so it is disabled by default.
+
+There is currently no TTS for CLI.
+
+In the expert panel you can replay any h2oGPT generation or speak instruction generation.
+
+If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
+
+### Voice Cloning
+
+Follow these steps:
+* Ensure passing `--tts_model=tts_models/multilingual/multi-dataset/xtts_v2` as only it supports cloning
+* Go to expert panel as shown below
+* Select File or Mic
+  * Select either File for Cloning (Some wave, mp4a, etc. file).  It will be uploaded and reduced to at most 30 seconds automatically.
+    * If one already present, as is default, then click x and select or drop file.
+  * Or select Mic for Clone and record your voice.  Use no more than around 30 seconds.
+    * Click Use Mic for Cloning if that is what is intended, so we know whether to use the file or mic.
+* Select Speaker Style name, which will appear in drop-down under chats after done.  If logged in, this is saved to the user state for next login.
+* Click Clone Voice button, and within second the speaker is an option in the sidebar under chats as another style.
+
+![voice_clone.png](voice_clone.png)
+
+
 ### Non-English languages
 
 There are a few changes that may be required for other languages:
@@ -587,6 +668,12 @@ For some models, you can restrict the use of context to use less memory.  This d
 python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048
 ```
 even though normal value is `--max_seq_len=4096` if the option is not passed as inferred from the model `config.json`.
+
+Also try smaller GGUF models for GPU, e.g.:
+```bash
+python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False
+```
+This only uses 2GB of GPU even during usage.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
 
 On CPU case, a good model that's still low memory is to run:
 ```bash

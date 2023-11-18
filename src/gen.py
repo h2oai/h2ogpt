@@ -51,7 +51,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
-    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, url_alive
+    have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
+    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS
 
 start_faulthandler()
 import_matplotlib()
@@ -255,11 +256,15 @@ def main(
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
-        visible_h2ogpt_header: bool = True,
+        visible_h2ogpt_links: bool = True,
+        visible_h2ogpt_qrcode: bool = True,
+        visible_h2ogpt_logo: bool = True,
+        visible_chatbot_label: bool = True,
         visible_all_prompter_models: bool = False,
         actions_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
+        avatars: bool = True,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -372,6 +377,28 @@ def main(
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
+
+        enable_stt: bool = 'auto',
+        stt_model: str = "openai/whisper-base.en",
+        stt_gpu: bool = True,
+        stt_gpu_id: Union[int, str] = 'auto',
+        stt_continue_mode: int = 1,
+
+        enable_tts: bool = 'auto',
+        tts_gpu: bool = True,
+        tts_gpu_id: Union[int, str] = 'auto',
+        tts_model: str = 'microsoft/speecht5_tts',
+
+        tts_gan_model: str = 'microsoft/speecht5_hifigan',
+        tts_coquiai_deepspeed: bool = True,
+        tts_coquiai_roles: dict = None,
+
+        chatbot_role: str = "None",  # "Female AI Assistant",
+        speaker: str = "None",  # "SLT (female)",
+        tts_language: str = 'autodetect',
+        tts_action_phrases: typing.List[str] = [],  # ['Nimbus'],
+        tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
+        sst_floor: float = 100,
 
         # json
         jq_schema='.[]',
@@ -667,12 +694,16 @@ def main(
     :param visible_login_tab: "" for Login tab (needed for persistence or to enter key for UI access to models and ingestion)
     :param visible_hosts_tab: "" for hosts tab
     :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
-    :param visible_h2ogpt_header: Whether github stars, URL, logo, and QR code are visible
+    :param visible_h2ogpt_links: Whether github stars, URL are visible
+    :param visible_h2ogpt_qrcode: Whether QR code is visible
+    :param visible_h2ogpt_logo: Whether central logo is visible
+    :param visible_chatbot_label: Whether to show label in chatbot (e.g. if only one model for own purpose, then can set to False)
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
+    :param avatars: Whether to show avatars in chatbot
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
@@ -765,8 +796,7 @@ def main(
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
-           Not supported yet for openai_chat when using document collection instead of LLM
-           Also not supported when using CLI mode
+           Not supported when using CLI mode
     :param add_search_to_context: Include web search in context as augmented prompt
     :param context: Default context to use (for system pre-context in gradio UI)
            context comes before chat_conversation and any document Q/A from text_context_list
@@ -843,6 +873,52 @@ def main(
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
 
+    :param enable_stt: Whether to enable and show Speech-to-Text (STT) with microphone in UI
+         Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.
+    :param stt_model: Name of model for STT, can be same as asr_model, which will then use same model for conserving GPU
+    :param stt_gpu: Whther to use gpu for STT model
+    :param stt_gpu_id: If not using asr_model, then which GPU to go on if using cuda
+    :param stt_continue_mode: How to continue speech with button control
+           0: Always append audio regardless of start/stop of recording, so always appends in STT model for full STT conversion
+              Only can edit after hit stop and then submit, if hit record again edits are lost since using only audio stream for STT conversion
+           1: If hit stop, text made so far is saved and audio cleared, so next recording will be separate text conversion
+              Can make edits on any text after hitting stop and they are preserved
+
+    :param enable_tts: Whether to enable TTS
+    :param tts_gpu: Whether to use GPU if present for TTS
+    :param tts_gpu_id: Which GPU ID to use for TTS
+    :param tts_model: Which model to use.
+                   For microsoft, use 'microsoft/speecht5_tts'
+                   For coqui.ai use one given by doing in python:
+                   ```python
+                   from src.tts_coqui import list_models
+                   list_models()
+                   ```
+                   e.g. 'tts_models/multilingual/multi-dataset/xtts_v2'
+
+                   Note that coqui.ai models are better, but some have non-commercial research license, while microsoft models are MIT.
+                   So coqui.ai ones can be used for non-commercial activities only, and one should agree to their license, see: https://coqui.ai/cpml
+                   Commercial use of xtts_v2 should be obtained through their product offering at https://coqui.ai/
+
+    :param tts_gan_model: For microsoft model, which gan model to use, e.g. 'microsoft/speecht5_hifigan'
+    :param tts_coquiai_deepspeed: For coqui.ai models, whether to use deepspeed for faster inference
+    :param tts_coquiai_roles: role dictionary mapping name (key) to wave file (value)
+           If None, then just use default from get_role_to_wave_map()
+
+    :param chatbot_role: Default role for coqui models.  If 'None', then don't by default speak when launching h2oGPT for coqui model choice.
+    :param speaker: Default speaker for microsoft models  If 'None', then don't by default speak when launching h2oGPT for microsoft model choice.
+    :param tts_language: Default language for coqui models
+    :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
+           Set to None or empty list to avoid any special action words
+    :param tts_stop_phrases:  Like tts_action_phrases but to stop h2oGPT from speaking and generating
+
+            NOTE: Action/Stop phrases should be rare but easy (phonetic) words for Whisper to recognize.
+                  E.g. asking GPT-4 a couple good ones are ['Nimbus'] and ['Yonder'],
+                  and one can help Whisper by saying "Nimbus Clouds" which still works as "stop word" as trigger.
+
+    :param sst_floor: Floor in wave square amplitude below which ignores the chunk of audio
+                      This helps avoid long silence messing up the transcription.
+
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
            See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
@@ -872,8 +948,13 @@ def main(
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
     llamacpp_dict = str_to_dict(llamacpp_dict)
+    tts_coquiai_roles = str_to_dict(tts_coquiai_roles)
+    roles_state0 = tts_coquiai_roles
+    tts_action_phrases = str_to_list(tts_action_phrases)
+    tts_stop_phrases = str_to_list(tts_stop_phrases)
 
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
+    base_model0 = base_model  # for prompt infer
     base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
         switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict.get('n_gqa', 0))
 
@@ -882,6 +963,11 @@ def main(
     llamacpp_dict['model_name_gptj'] = model_name_gptj
     llamacpp_dict['model_name_gpt4all_llama'] = model_name_gpt4all_llama
     llamacpp_dict['model_name_exllama_if_no_config'] = model_name_exllama_if_no_config
+    # ensure not used by accident
+    del model_path_llama
+    del model_name_gptj
+    del model_name_gpt4all_llama
+    del model_name_exllama_if_no_config
     # if user overrides but doesn't set these:
     if 'n_batch' not in llamacpp_dict:
         llamacpp_dict['n_batch'] = 128
@@ -1165,12 +1251,15 @@ def main(
     # get defaults
     if base_model:
         model_lower = base_model.lower()
+        model_lower0 = base_model0.lower()
     elif model_lock:
         # have 0th model be thought of as normal model
         assert len(model_lock) > 0 and model_lock[0]['base_model'], "model_lock: %s" % model_lock
         model_lower = model_lock[0]['base_model'].lower()
+        model_lower0 = model_lock[0]['base_model'].lower()
     else:
         model_lower = ''
+        model_lower0 = ''
     if not gradio:
         # force, else not single response like want to look at
         stream_output = False
@@ -1186,6 +1275,32 @@ def main(
 
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
+
+    # auto-set stt and tts.
+    # Done early here for lg_to_gr() and preload of db to know what's enabled
+    if not (have_soundfile and have_librosa and have_wavio):
+        if enable_stt == 'auto':
+            enable_stt = False
+        elif enable_stt is True:
+            raise RuntimeError("STT packages (soundfile, librosa, wavio) not installed")
+    elif enable_stt == 'auto':
+        enable_stt = True
+
+    if not (have_soundfile and have_librosa and have_wavio):
+        if enable_tts == 'auto':
+            enable_tts = False
+        elif enable_tts is True:
+            raise RuntimeError("TTS packages (soundfile, librosa, wavio) not installed")
+    elif enable_tts == 'auto':
+        enable_tts = True
+    if cli or not gradio:
+        enable_stt = enable_tts = False
+    if not have_langchain and enable_transcriptions:
+        print("Must install langchain for transcription, disabling", flush=True)
+        enable_transcriptions = False
+    if not (have_soundfile and have_librosa and have_wavio) and enable_tts:
+        enable_tts = False
+        print("soundfile, librosa, and wavio not installed, disabling TTS", flush=True)
 
     # defaults
     caption_loader = None
@@ -1213,6 +1328,7 @@ def main(
         examples, \
         task_info = \
         get_generate_params(model_lower,
+                            model_lower0,
                             chat,
                             stream_output, show_examples,
                             prompt_type, prompt_dict,
@@ -1239,6 +1355,9 @@ def main(
                             hyde_level,
                             hyde_template,
                             doc_json_mode,
+                            chatbot_role,
+                            speaker,
+                            tts_language,
                             verbose,
                             )
 
@@ -1260,6 +1379,10 @@ def main(
     else:
         caption_loader = False
 
+    if not have_langchain and pre_load_embedding_model:
+        print("Must install langchain for preloading embedding model, disabling", flush=True)
+        pre_load_embedding_model = False
+
     if pre_load_embedding_model and \
             langchain_mode != LangChainMode.DISABLED.value and \
             not use_openai_embedding:
@@ -1267,6 +1390,11 @@ def main(
         hf_embedding_model = dict(name=hf_embedding_model,
                                   model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
                                                       preload=True, gpu_id=embedding_gpu_id))
+
+    if not (have_doctr and have_langchain) and enable_doctr:
+        print("Must install DocTR and LangChain installed if enabled DocTR, disabling", flush=True)
+        enable_doctr = False
+        enable_pdf_ocr = 'off'
 
     if enable_doctr or enable_pdf_ocr in [True, 'auto', 'on']:
         if pre_load_image_audio_models:
@@ -1287,6 +1415,73 @@ def main(
             asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
     else:
         asr_loader = False
+
+    if enable_stt:
+        from src.stt import transcribe
+        if pre_load_image_audio_models and \
+                stt_model == asr_model:
+            transcriber = asr_loader.model.pipe
+        else:
+            from src.stt import get_transcriber
+            transcriber = get_transcriber(model=stt_model,
+                                          use_gpu=stt_gpu,
+                                          gpu_id=stt_gpu_id)
+        transcriber_func = functools.partial(transcribe,
+                                             transcriber=transcriber,
+                                             debug=debug,
+                                             max_chunks=20 if is_public else None,
+                                             sst_floor=sst_floor,
+                                             )
+
+    model_xtt, supported_languages_xtt = None, None
+    predict_from_text_func = None
+    generate_speech_func = None
+    return_as_byte = True  # outside conditional since used without other checks
+    if enable_tts:
+        # NOTE: required bytes for now for audio streaming to work, else untested combine_audios()
+        if tts_model.startswith('microsoft'):
+            from src.tts import predict_from_text, get_tts_model, generate_speech
+            processor_tts, model_tts, vocoder_tts = \
+                get_tts_model(t5_model=tts_model,
+                              t5_gan_model=tts_gan_model,
+                              use_gpu=tts_gpu,
+                              gpu_id=tts_gpu_id,
+                              )
+            predict_from_text_func = functools.partial(predict_from_text,
+                                                       processor=processor_tts,
+                                                       model=model_tts,
+                                                       return_as_byte=return_as_byte,
+                                                       vocoder=vocoder_tts)
+            generate_speech_func = functools.partial(generate_speech,
+                                                     processor=processor_tts,
+                                                     model=model_tts,
+                                                     vocoder=vocoder_tts,
+                                                     return_as_byte=return_as_byte,
+                                                     verbose=verbose)
+        elif tts_model.startswith('tts_models/'):
+            if not have_TTS:
+                raise ImportError("Selected non-default Coqui models, but did not install TTS")
+            if not have_deepspeed and tts_coquiai_deepspeed:
+                tts_coquiai_deepspeed = False
+                print("deepspeed not installed, disabling", flush=True)
+            from src.tts_coqui import get_xtt, predict_from_text, generate_speech
+            model_xtt, supported_languages_xtt = get_xtt(model_name=tts_model,
+                                                         deepspeed=tts_coquiai_deepspeed,
+                                                         use_gpu=tts_gpu,
+                                                         gpu_id=tts_gpu_id,
+                                                         )
+            predict_from_text_func = functools.partial(predict_from_text,
+                                                       model=model_xtt,
+                                                       supported_languages=supported_languages_xtt,
+                                                       return_as_byte=return_as_byte,
+                                                       verbose=verbose,
+                                                       )
+
+            generate_speech_func = functools.partial(generate_speech,
+                                                     model=model_xtt,
+                                                     supported_languages=supported_languages_xtt,
+                                                     return_as_byte=return_as_byte,
+                                                     verbose=verbose)
 
     # DB SETUP
 
@@ -1347,10 +1542,7 @@ def main(
                                       revision=revision, use_gpu_id=use_gpu_id, gpu_id=gpu_id,
                                       compile_model=compile_model,
                                       use_cache=use_cache,
-                                      llamacpp_dict=llamacpp_dict, model_path_llama=model_path_llama,
-                                      model_name_gptj=model_name_gptj,
-                                      model_name_gpt4all_llama=model_name_gpt4all_llama,
-                                      model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                                      llamacpp_dict=llamacpp_dict,
                                       rope_scaling=rope_scaling,
                                       max_seq_len=max_seq_len,
                                       exllama_dict=exllama_dict,
@@ -1361,7 +1553,7 @@ def main(
                                       hf_model_dict=hf_model_dict,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
-                            base_model=None, tokenizer_base_model=None, lora_weights=None,
+                            base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
                             )
@@ -1379,7 +1571,7 @@ def main(
             get_langchain_prompts(pre_prompt_query, prompt_query,
                                   pre_prompt_summary, prompt_summary,
                                   model_name, inference_server,
-                                  model_path_llama,
+                                  llamacpp_dict['model_path_llama'],
                                   doc_json_mode)
 
     if cli:
@@ -1394,7 +1586,8 @@ def main(
 
         # get default model
         model_states = []
-        model_list = [dict(base_model=base_model, tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
+        model_list = [dict(base_model=base_model, base_model0=base_model0,
+                           tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                            inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
                            visible_models=None, h2ogpt_key=None)]
         model_list[0].update(other_model_state_defaults)
@@ -1428,15 +1621,16 @@ def main(
                     model_dict[k] = model_list0[0][k]
 
             model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
-            model_dict['base_model'], model_dict['model_path_llama'], \
+            model_dict['base_model0'] = model_dict['base_model']
+            model_dict['base_model'], model_dict['llamacpp_dict']['model_path_llama'], \
                 model_dict['load_gptq'], \
                 model_dict['load_awq'], \
                 model_dict['llamacpp_dict']['n_gqa'] = \
                 switch_a_roo_llama(model_dict['base_model'],
-                                   model_dict['model_path_llama'],
+                                   model_dict['llamacpp_dict']['model_path_llama'],
                                    model_dict['load_gptq'],
                                    model_dict['load_awq'],
-                                   model_dict.get('llamacpp_dict', {}).get('n_gqa', 0))
+                                   model_dict['llamacpp_dict'].get('n_gqa', 0))
 
             # begin prompt adjustments
             # get query prompt for (say) last base model if using model lock
@@ -1445,7 +1639,7 @@ def main(
                                       pre_prompt_summary, prompt_summary,
                                       model_dict['base_model'],
                                       model_dict['inference_server'],
-                                      model_dict['model_path_llama'],
+                                      model_dict['llamacpp_dict']['model_path_llama'],
                                       doc_json_mode))
             # if mixed setup, choose non-empty so best models best
             # FIXME: Make per model dict passed through to evaluate
@@ -1457,22 +1651,17 @@ def main(
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
-                model_path_llama1 = model_dict.get('model_path_llama', '').lower()
-                model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {}) or {}
-                llamacpp_dict1 = model_dict.get('llamacpp_dict', {}) or {}
-                load_gptq1 = model_dict.get('load_gptq', '')
-                load_awq1 = model_dict.get('load_awq', '')
-                model_lower10 = model_lower1
+                model_lower10 = model_dict['base_model0'].lower()
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
                                          return_dict=True,
                                          system_prompt=system_prompt)
-                if model_lower1 in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
+                if model_lower10 in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    **get_prompt_kwargs)
-                elif model_lower10 in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
+                elif model_lower1 in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    **get_prompt_kwargs)
                 else:
@@ -1517,8 +1706,9 @@ def main(
         visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
         all_possible_visible_models = [
             x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
-                                       not x.get('model_path_llama', '') else x.get(
-                'model_path_llama', '') for xi, x in enumerate(model_states)]
+                                       not x.get('llamacpp_dict').get('model_path_llama', '')
+            else x.get('llamacpp_dict').get('model_path_llama', '')
+            for xi, x in enumerate(model_states)]
         visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
                                  visible_models is None or
                                  x in visible_models or
@@ -2472,7 +2662,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={})
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='')
     return
 
 
@@ -2481,6 +2671,7 @@ def evaluate(
         my_db_state,
         selection_docs_state,
         requests_state,
+        roles_state,
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
@@ -2538,6 +2729,10 @@ def evaluate(
         hyde_level,
         hyde_template,
         doc_json_mode,
+
+        chatbot_role,
+        speaker,
+        tts_language,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2734,7 +2929,7 @@ def evaluate(
         chat_conversation = []
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
-    # This doesn't do switch-a-roo, assume already done
+    # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
     model_lower = base_model.lower()
     if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
         prompt_type = inv_prompt_type_to_model_lower[model_lower]
@@ -2857,6 +3052,7 @@ def evaluate(
         text = ''
         sources = ''
         response = ''
+        response_no_refs = ''
         # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
         gen_hyper_langchain = dict(do_sample=do_sample,
@@ -2988,7 +3184,9 @@ def evaluate(
             prompt = r['prompt']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
-            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers)
+            response_no_refs = r['response_no_refs']
+            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers,
+                       response_no_refs=response_no_refs)
         if save_dir:
             # estimate using tiktoken
             extra_dict = gen_hyper_langchain.copy()
@@ -3013,7 +3211,8 @@ def evaluate(
                              output=response, base_model=base_model, save_dir=save_dir,
                              where_from='run_qa_db',
                              extra_dict=extra_dict)
-            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers)
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
+                       response_no_refs=response)
             if verbose:
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' %
@@ -3097,7 +3296,8 @@ def evaluate(
                     text = responses['choices'][0]['text']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     collected_events = []
                     tgen0 = time.time()
@@ -3107,7 +3307,8 @@ def evaluate(
                         text += event_text  # append the text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
-                        yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                        yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                   response_no_refs=response)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
@@ -3144,7 +3345,8 @@ def evaluate(
                     text = responses["choices"][0]["message"]["content"]
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
@@ -3153,7 +3355,8 @@ def evaluate(
                             text += delta['content']
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
@@ -3281,11 +3484,13 @@ def evaluate(
                     sources = res_dict['sources']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={})
+                    res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={},
+                                    response_no_refs=text)
                     text0 = ''
                     tgen0 = time.time()
                     while not job.done():
@@ -3314,7 +3519,8 @@ def evaluate(
                                 continue
                             # save old
                             text0 = response
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                             if time.time() - tgen0 > max_time:
                                 if verbose:
                                     print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
@@ -3354,7 +3560,8 @@ def evaluate(
                         prompt_and_text = prompt + text
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={},
+                               response_no_refs=response)
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
@@ -3390,7 +3597,8 @@ def evaluate(
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                 else:
                     tgen0 = time.time()
                     text = ""
@@ -3402,7 +3610,8 @@ def evaluate(
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             sources = ''
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
@@ -3422,7 +3631,8 @@ def evaluate(
                                    ))
             save_dict = dict(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                              where_from=where_from, extra_dict=extra_dict)
-            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={})
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                       response_no_refs=response)
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -3435,8 +3645,10 @@ def evaluate(
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
         sources = ''
-        yield dict(response=model(prompt, max_length=max_new_tokens)[0][key], sources=sources, save_dict=dict(),
-                   llm_answers={})
+        response = model(prompt, max_length=max_new_tokens)[0][key]
+        yield dict(response=response, sources=sources, save_dict=dict(),
+                   llm_answers={},
+                   response_no_refs=response)
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -3558,7 +3770,8 @@ def evaluate(
                     bucket = queue.Queue()
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
-                    ret = dict(response='', sources='', save_dict=dict(), llm_answers={})
+                    ret = dict(response='', sources='', save_dict=dict(), llm_answers={},
+                               response_no_refs='')
                     outputs = ""
                     sources = ''
                     tgen0 = time.time()
@@ -3570,7 +3783,8 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                            ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response)
                             if stream_output:
                                 yield ret
                             if time.time() - tgen0 > max_time:
@@ -3609,7 +3823,8 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                               response_no_refs=response)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
@@ -3622,7 +3837,8 @@ def evaluate(
                     save_dict = dict(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                      where_from="evaluate_%s" % str(stream_output),
                                      extra_dict=extra_dict)
-                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={})
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                               response_no_refs=response)
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
@@ -3778,6 +3994,7 @@ def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **
 
 
 def get_generate_params(model_lower,
+                        model_lower0,
                         chat,
                         stream_output, show_examples,
                         prompt_type, prompt_dict,
@@ -3802,6 +4019,9 @@ def get_generate_params(model_lower,
                         hyde_level,
                         hyde_template,
                         doc_json_mode,
+                        chatbot_role,
+                        speaker,
+                        tts_language,
                         verbose,
                         ):
     use_defaults = False
@@ -3819,10 +4039,15 @@ def get_generate_params(model_lower,
     max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
-    if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
-        prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        if verbose:
-            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+    if not prompt_type and prompt_type != 'custom':
+        if model_lower0 in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[model_lower0]
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower0), flush=True)
+        elif model_lower in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
@@ -3872,7 +4097,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
+        if not prompt_type and model_lower0 in inv_prompt_type_to_model_lower and prompt_type != 'custom':
+            prompt_type = inv_prompt_type_to_model_lower[model_lower0]
+        elif not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
             prompt_type = inv_prompt_type_to_model_lower[model_lower]
         elif model_lower:
             # default is plain, because might rely upon trust_remote_code to handle prompting
@@ -3992,6 +4219,10 @@ y = np.random.randint(0, 1, 100)
                     hyde_level,
                     hyde_template,
                     doc_json_mode,
+
+                    chatbot_role,
+                    speaker,
+                    tts_language,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -4162,6 +4393,18 @@ def merge_chat_conversation_history(chat_conversation1, history):
     return history
 
 
+def remove_refs(text, keep_sources_in_context, langchain_mode):
+    # md -> back to text, maybe not super important if model trained enough
+    if not keep_sources_in_context and langchain_mode != 'Disabled' and text.find(super_source_prefix) >= 0:
+        # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
+        import re
+        text = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', text,
+                      flags=re.DOTALL)
+        if text.endswith('\n<p>'):
+            text = text[:-4]
+    return text
+
+
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
@@ -4211,14 +4454,7 @@ def history_to_context(history, langchain_mode=None,
                                 making_context=True,
                                 system_prompt=system_prompt,
                                 histi=histi)
-            # md -> back to text, maybe not super important if model trained enough
-            if not keep_sources_in_context and langchain_mode != 'Disabled' and prompt.find(super_source_prefix) >= 0:
-                # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
-                import re
-                prompt = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', prompt,
-                                flags=re.DOTALL)
-                if prompt.endswith('\n<p>'):
-                    prompt = prompt[:-4]
+            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode)
             prompt = prompt.replace('<br>', chat_turn_sep)
             if not prompt.endswith(chat_turn_sep):
                 prompt += chat_turn_sep

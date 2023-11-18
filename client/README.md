@@ -38,6 +38,7 @@ make -C client build
 ```
 Distribution wheel file can be found in the `client/dist` directory.  This wheel can be installed in the primary h2oGPT environment or any other environment, e.g.
 ```bash
+pip uninstall -y h2ogpt_client
 pip install client/dist/h2ogpt_client-*-py3-none-any.whl
 ```
 

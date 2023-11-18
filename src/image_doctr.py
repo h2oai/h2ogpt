@@ -22,7 +22,7 @@ class H2OOCRLoader(ImageCaptionLoader):
         super().__init__(path_images)
         self._ocr_model = None
         self.layout_aware = layout_aware
-        self.gpu_id = gpu_id
+        self.gpu_id = gpu_id if isinstance(gpu_id, int) else 0
 
         self.device = 'cpu'
         # ensure self.device set

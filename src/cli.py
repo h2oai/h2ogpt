@@ -1,7 +1,7 @@
 import copy
 import torch
 
-from evaluate_params import eval_func_param_names
+from evaluate_params import eval_func_param_names, input_args_list
 from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry
 from prompter import non_hf_types
 from utils import clear_torch_cache, NullContext, get_kwargs
@@ -48,6 +48,9 @@ def run_cli(  # for local function:
         hyde_level=None,
         hyde_template=None,
         doc_json_mode=None,
+        chatbot_role=None,
+        speaker=None,
+        tts_language=None,
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
@@ -118,11 +121,12 @@ def run_cli(  # for local function:
         model_state = dict(model=model, tokenizer=tokenizer, device=device)
         model_state.update(model_dict)
         requests_state0 = {}
-        fun = partial(evaluate, model_state, my_db_state0, selection_docs_state0, requests_state0,
-                      **get_kwargs(evaluate, exclude_names=['model_state',
-                                                            'my_db_state',
-                                                            'selection_docs_state',
-                                                            'requests_state'] + eval_func_param_names,
+        roles_state0 = None
+        args = (model_state, my_db_state0, selection_docs_state0, requests_state0, roles_state0)
+        assert len(args) == len(input_args_list)
+        fun = partial(evaluate,
+                      *args,
+                      **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
                                    **locals()))
 
         example1 = examples[-1]  # pick reference example

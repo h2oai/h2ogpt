@@ -182,13 +182,13 @@ python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --visible_subm
 where one can still at least hit enter to submit queries. This looks like:
 ![chat_tabless.png](chat_tabless.png)
 
-One can add `--visible_h2ogpt_header=False` to remove the h2oGPT header, which looks like:
+One can add `--visible_h2ogpt_links=False --visible_h2ogpt_links=False --visible_h2ogpt_qrcode=False` to remove the h2oGPT header, which looks like:
 ![chat_headerless.png](chat_headerless.png)
 
 
 For Windows, one can show only the chat view by doing:
 ```winbatch
-"C:\Program Files\h2oGPT\Python\pythonw.exe" "C:\Program Files\h2oGPT\h2oGPT.launch.pyw" --base_model='llama' --prompt_type=llama2 --visible_side_bar=False --visible_chat_tab=True --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --visible_h2ogpt_header=False --visible_login_tab=False
+"C:\Program Files\h2oGPT\Python\pythonw.exe" "C:\Program Files\h2oGPT\h2oGPT.launch.pyw" --base_model='llama' --prompt_type=llama2 --visible_side_bar=False --visible_chat_tab=True --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --visible_h2ogpt_links=False --visible_login_tab=False
 ```
 
 which looks like:

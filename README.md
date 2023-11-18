@@ -14,6 +14,9 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Attention Sinks** for [arbitrarily long](https://github.com/tomaarsen/attention_sinks) generation (LLaMa-2, Mistral, MPT, Pythia, Falcon, etc.)
 - **UI** or CLI with streaming of all models
   - **Upload** and **View** documents through the UI (control multiple collaborative or personal collections)
+  - **Voice STT** using Whisper with streaming audio conversion
+  - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
+  - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
   - **Bake-off** UI mode against many models at same time
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
   - **Authentication** in the UI by user/password
@@ -209,6 +212,7 @@ These are not part of normal installation instructions and are experimental.
     ```bash
     wget https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
     pip install requirements-parser pytest-instafail
+    pip install playsound
     pytest --instafail -s -v tests
     # for client tests
     make -C client setup

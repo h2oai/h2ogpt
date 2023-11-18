@@ -42,7 +42,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```
   On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, and flash attention:
+* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS:
   ```bash
   conda install cudatoolkit-dev -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX
@@ -51,16 +51,21 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```bash
   export CUDA_HOME=/usr/local/cuda-11.7
   ```
-  This is also required for A100/H100+ and use CUDA 11.8+.
+  This is required for A100/H100+ and use CUDA 11.8+.
 
-  If you do not plan to use one of those packages, you can just use the non-dev version:
+  If you do not plan to use one of those packages, you can just use the non-dev version
   ```bash
   conda install cudatoolkit=11.7 -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX 
   ```
-  Choose cu118 for A100/H100+.
+  Choose 11.8+ for A100/H100+.  If want cuda 11.8+ and need those packages for building etc., then use the native NVIDIA install of cuda toolkit.
   
-* Install dependencies:
+* Prepare to install dependencies:
+   ```bash
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu117"
+   ```
+  Choose cu118+ for A100/H100+.
+* Install primary dependencies
     ```bash
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
@@ -72,9 +77,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # GPU only:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cu117
     ```
-    Choose `cu118` for A100/H100+.
 * Install document question-answer dependencies:
-   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` (or choose cu118 for A100+) for GPU install:
     ```bash
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
@@ -83,6 +86,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Required for CPU: LLaMa/GPT4All:
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
     # Optional: PyMuPDF/ArXiv:
+    #   Note!! that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
@@ -91,16 +95,42 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     # Optional: Improved OCR with DocTR:
     conda install -y -c conda-forge pygobject
     pip install -r reqs_optional/requirements_optional_doctr.txt
-    #            For DocTR: go back to older onnx so Tesseract OCR still works
+    # For DocTR: go back to older onnx so Tesseract OCR still works
     pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
+    # now using conda for some things, need weasyprint from conda too else library mismatch
+    pip uninstall weasyprint
+    conda install -y -c conda-forge weasyprint
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: Required for PlayWright
     playwright install --with-deps
     # Audio transcription from Youtube videos and local mp3 files:
     pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
+    # STT from microphone
+    sudo apt-get install ffmpeg
+    pip install wavio==0.0.8
+    # For STT below may also be required
+    # sudo apt remove libavcodec-ffmpeg-extra56
+    # sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
+    # for TTS:
+    pip install torchaudio soundfile==0.12.1
+    # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
+    # pydantic can't be >=2.0
+    # relaxed versions to avoid conflicts
+    pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
+    # undo excessive TTS constraint on transformers that seems to have no impact on h2oGPT usage
+    pip install transformers==4.35.0
+    # for Coqui XTTS language helpers (specific versions probably not required)
+    pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
     ```
-  Note that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
+* STT and TTS Notes:
+  * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
+  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu117`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
+* HNSW issue:
+    In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
+   ```bash
+   pip uninstall hnswlib==0.7.0
+   ```
 * Selenium needs to have chrome installed, e.g. on Ubuntu:
     ```bash
     sudo bash
@@ -124,7 +154,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip uninstall -y auto-gptq
     pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-    pip install optimum==1.13.3
+    pip install optimum==1.14.1
     ```
     This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
     ```bash
@@ -155,12 +185,13 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.14+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+      python -m pip install llama-cpp-python --prefer-binary --upgrade --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu118
+      # pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
       pip uninstall -y llama-cpp-python
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.14+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
       ```
       For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
        ```bash
@@ -177,7 +208,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     export LLAMA_CUBLAS=1
     export CMAKE_ARGS=-DLLAMA_CUBLAS=on
     export FORCE_CMAKE=1
-    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.14 --no-cache-dir --verbose
+    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.18 --no-cache-dir --verbose
    ```
   * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
     That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
@@ -217,25 +248,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
    ```bash
    pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
    ```
-  or do manually:
-    ```bash
-    sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
-    cd $sp
-    rm -rf openvllm* openai_vllm*
-    cp -a openai openvllm
-    file0=`ls|grep openai|grep dist-info`
-    file1=`echo $file0|sed 's/openai-/openvllm-/g'`
-    cp -a $file0 $file1
-    find openvllm -name '*.py' | xargs sed -i 's/from openai /from openvllm /g'
-    find openvllm -name '*.py' | xargs sed -i 's/openai\./openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/from openai\./from openvllm./g'
-    find openvllm -name '*.py' | xargs sed -i 's/import openai/import openvllm/g'
-    find openvllm -name '*.py' | xargs sed -i 's/OpenAI/vLLM/g'
-    find openvllm* -type f | xargs sed -i 's/ openai/ openvllm/g'
-    find openvllm* -type f | xargs sed -i 's/openai /openvllm /g'
-    find openvllm* -type f | xargs sed -i 's/OpenAI/vLLM/g'
-    find openvllm* -type f | xargs sed -i 's/\/openai/\/vllm/g'
-    ```
 
 ### Compile Install Issues
   * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
