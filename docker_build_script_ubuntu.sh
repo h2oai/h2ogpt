@@ -45,8 +45,6 @@ pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 pip install -r reqs_optional/requirements_optional_doctr.txt
 # go back to older onnx so Tesseract OCR still works
 pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
-pip uninstall -y weasyprint
-conda install -y -c conda-forge weasyprint
 
 # STT from microphone
 apt-get install -y ffmpeg
@@ -72,7 +70,8 @@ for i in 1 2 3 4; do python3.10 -m nltk.downloader all && break || sleep 1; done
 pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
 pip install optimum==1.14.1
 
-# GGUF only on GPU for now, due to llama_cpp_python absolute import "bug"
+pip uninstall -y llama-cpp-python-cuda
+pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
 pip uninstall -y llama-cpp-python
 pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
 

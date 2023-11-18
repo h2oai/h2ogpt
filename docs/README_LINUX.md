@@ -185,8 +185,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      python -m pip install llama-cpp-python --prefer-binary --upgrade --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu118
-      # pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
