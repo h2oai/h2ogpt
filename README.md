@@ -195,7 +195,6 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
 These are not part of normal installation instructions and are experimental.
 
-* [SerpAPI web search augmentation](docs/README_SerpAPI.md) -- in Beta testing. Working well but hits file closed failure under intense use.
 * [Agents](docs/README_Agents.md) -- in Alpha testing.  Optimal for OpenAI, but that also fails sometimes.
 
 ### Roadmap
