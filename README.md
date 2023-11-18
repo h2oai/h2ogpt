@@ -17,6 +17,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
+  - **AI Assistant Voice Control Mode** to hands-free control h2oGPT chat
   - **Bake-off** UI mode against many models at same time
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
   - **Authentication** in the UI by user/password
