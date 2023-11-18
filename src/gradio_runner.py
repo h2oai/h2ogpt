@@ -3535,7 +3535,8 @@ def go_gradio(**kwargs):
             error = ''
             extra = ''
             save_dict = dict()
-            yield history, error, extra, save_dict
+            audio1 = None
+            yield history, error, extra, save_dict, audio1
             return
 
         def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1):

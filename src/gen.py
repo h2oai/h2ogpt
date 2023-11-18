@@ -2665,7 +2665,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='')
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='', audio=None)
     return
 
 
