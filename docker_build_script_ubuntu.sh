@@ -45,6 +45,8 @@ pip install -r reqs_optional/requirements_optional_langchain.urls.txt
 pip install -r reqs_optional/requirements_optional_doctr.txt
 # go back to older onnx so Tesseract OCR still works
 pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
+# need python weasyprint, not just conda library
+pip install weasyprint==60.1
 
 # STT from microphone
 apt-get install -y ffmpeg
