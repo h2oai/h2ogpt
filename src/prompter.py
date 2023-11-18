@@ -140,6 +140,10 @@ prompt_type_to_model_name = {
                        'deepseek-ai/deepseek-coder-6.7b-instruct',
                        'deepseek-ai/deepseek-coder-33b-instruct',
                        ],
+    "open_chat": ['openchat/openchat_3.5', 'TheBloke/openchat_3.5-GPTQ', 'TheBloke/openchat_3.5-GGUF',
+                  'TheBloke/openchat_3.5-AWQ', 'TheBloke/openchat_3.5-16k-AWQ'],
+    "open_chat_correct": [],  # can be any from open_chat list, by using this prompt
+    "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
@@ -983,6 +987,39 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = PreResponse
         if making_context:
             PreResponse += ""
+    elif prompt_type in [PromptType.open_chat.value, str(PromptType.open_chat.value),
+                         PromptType.open_chat.name] or \
+            prompt_type in [PromptType.open_chat_correct.value, str(PromptType.open_chat_correct.value),
+                         PromptType.open_chat_correct.name] or \
+            prompt_type in [PromptType.open_chat_code.value, str(PromptType.open_chat_code.value),
+                         PromptType.open_chat_code.name]:
+        # https://huggingface.co/TheBloke/openchat_3.5-GPTQ#prompt-template-openchat
+        # https://github.com/imoneoi/openchat/tree/master#-inference-with-transformers
+        # GPT4 Correct User: Hello<|end_of_turn|>GPT4 Correct Assistant: Hi<|end_of_turn|>GPT4 Correct User: How are you today?<|end_of_turn|>GPT4 Correct Assistant:
+        # GPT4 User: {prompt}<|end_of_turn|>GPT4 Assistant:
+        # GPT4 User: {prompt}<|end_of_turn|>GPT4 Assistant:
+        # Code User: Implement quicksort using C++<|end_of_turn|>Code Assistant:
+        promptA = promptB = ""  # no apparent system prompt
+        PreInput = None
+        if prompt_type in [PromptType.open_chat.value, str(PromptType.open_chat.value),
+                         PromptType.open_chat.name]:
+            PreInstruct = "GPT4 User: "
+            PreResponse = "GPT4 Assistant:"
+        elif prompt_type in [PromptType.open_chat_correct.value, str(PromptType.open_chat_correct.value),
+                         PromptType.open_chat_correct.name]:
+            PreInstruct = "GPT4 Correct User: "
+            PreResponse = "GPT4 Correct Assistant:"
+        else:
+            PreInstruct = "Code User: "
+            PreResponse = "Code Assistant:"
+        eos = '<|end_of_turn|>'
+        terminate_response = [PreResponse, eos]
+        chat_sep = eos
+        chat_turn_sep = eos
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse += " "
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
