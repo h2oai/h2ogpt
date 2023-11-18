@@ -568,7 +568,7 @@ def go_gradio(**kwargs):
             from src.tts_coqui import get_role_to_wave_map
             roles_state = gr.State(roles_state0 if roles_state0 else get_role_to_wave_map())
         else:
-            roles_state = gr.State([])
+            roles_state = gr.State({})
         docs_state00 = kwargs['document_choice'] + [DocumentChoice.ALL.value]
         docs_state0 = []
         [docs_state0.append(x) for x in docs_state00 if x not in docs_state0]
