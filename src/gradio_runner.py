@@ -4915,7 +4915,7 @@ def go_gradio(**kwargs):
             text_outputs1 = list(args)
             text_outputss = [text_output1, text_output21] + text_outputs1
             text_outputss = [x[-1][1] for x in text_outputss if len(x) >= 1 and len(x[-1]) == 2 and x[-1][1]]
-            response = text_outputss[0] if text_outputss else None
+            response = text_outputss[0] if text_outputss else ''
 
             keep_sources_in_context1 = False
             langchain_mode1 = None  # so always tries
