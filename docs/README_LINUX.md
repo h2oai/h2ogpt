@@ -59,6 +59,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   export CUDA_HOME=$CONDA_PREFIX 
   ```
   Choose 11.8+ for A100/H100+.  If want cuda 11.8+ and need those packages for building etc., then use the native NVIDIA install of cuda toolkit.
+
+  In order to avoid removing the original CUDA toolkit/driver you have, on NVIDIA's website, use the `runfile (local)` installer, and choose to not install driver or overwrite `/usr/local/cuda` link and just install the toolkit, and rely upon the `CUDA_HOME` env to point to the desired CUDA version.
   
 * Prepare to install dependencies:
    ```bash
