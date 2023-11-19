@@ -11,7 +11,6 @@ import pathlib
 import pickle
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 import traceback
@@ -29,7 +28,6 @@ from urllib.parse import urlparse
 
 import filelock
 import tabulate
-import yaml
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
@@ -61,12 +59,11 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import get_model, SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
+from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
 from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
-from pydantic import ConfigDict
 
 import_matplotlib()
 
@@ -5059,11 +5056,9 @@ def get_chain(query=None,
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     from src.output_parser import H2OMRKLOutputParser
-    from langchain.agents import AgentType, load_tools, initialize_agent, create_vectorstore_agent, \
-        create_json_agent
-    from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_python_agent, JsonToolkit
     if LangChainAgent.SEARCH.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
+        from langchain.agents import load_tools, AgentType, initialize_agent
         tools = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
         if does_support_functiontools(inference_server, model_name):
             agent_type = AgentType.OPENAI_FUNCTIONS
@@ -5091,6 +5086,9 @@ def get_chain(query=None,
 
     if LangChainAgent.COLLECTION.value in langchain_agents:
         if db:
+            from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit
+            from langchain.agents import create_vectorstore_agent
+
             output_parser = H2OMRKLOutputParser()
             vectorstore_info = VectorStoreInfo(
                 name=langchain_mode,
@@ -5112,6 +5110,8 @@ def get_chain(query=None,
     if LangChainAgent.PYTHON.value in langchain_agents:
         # non-thread safe things inside worker, but only after in fork, so ok
         if does_support_functiontools(inference_server, model_name):
+            from langchain.agents import AgentType
+            from langchain_experimental.agents.agent_toolkits import create_python_agent
             chain = create_python_agent(
                 llm=llm,
                 tool=PythonREPLTool(),
@@ -5134,6 +5134,7 @@ def get_chain(query=None,
     if LangChainAgent.PANDAS.value in langchain_agents:
         document_choice = get_single_document(document_choice, db, extension='csv')
         if document_choice and does_support_functiontools(inference_server, model_name):
+            from langchain.agents import AgentType
             df = pd.read_csv(document_choice)
             chain = create_pandas_dataframe_agent(
                 llm,
@@ -5163,8 +5164,11 @@ def get_chain(query=None,
             with open(document_choice[0], 'rt') as f:
                 data = json.loads(f.read())
             json_spec = JsonSpec(dict_=data, max_value_length=4000)
-            json_toolkit = JsonToolkit(spec=json_spec)
 
+            from langchain.agents.agent_toolkits import JsonToolkit
+            from langchain.agents import create_json_agent
+
+            json_toolkit = JsonToolkit(spec=json_spec)
             chain = create_json_agent(
                 llm=llm, toolkit=json_toolkit,
                 verbose=verbose,
@@ -5186,6 +5190,7 @@ def get_chain(query=None,
         document_choice = get_single_document(document_choice, db, extension='csv')
         if document_choice:
             if does_support_functiontools(inference_server, model_name):
+                from langchain.agents import AgentType
                 chain = create_csv_agent(
                     llm,
                     document_choice,
@@ -5196,6 +5201,7 @@ def get_chain(query=None,
                 )
             else:
                 output_parser = H2OPythonMRKLOutputParser()
+                from langchain.agents import AgentType
                 chain = create_csv_agent(
                     llm,
                     document_choice,
