@@ -517,8 +517,9 @@ def go_gradio(**kwargs):
 
     def click_js():
         return """function audioRecord() {
-        var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        xPathRes.singleNodeValue.click();}"""
+        document.getElementsByClassName('record-button')[0].click()
+        document.getElementsByClassName('stop-button')[0].click()
+}"""
 
     def click_submit():
         return """function check() {
@@ -895,8 +896,8 @@ def go_gradio(**kwargs):
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
-                                            placeholder=instruction_label,
-                                            info=None,
+                                            info=instruction_label,
+                                            #info=None,
                                             elem_id='prompt-form',
                                             container=True,
                                         )
@@ -944,7 +945,7 @@ def go_gradio(**kwargs):
                                         audio_state = gr.State(value=None)
                                         audio_pretext = gr.Textbox(value='', visible=False)
                                         audio_output = gr.HTML(visible=False)
-                                        audio = gr.Audio(sources=['microphone'], streaming=True, visible=True,
+                                        audio = gr.Audio(sources=['microphone'], streaming=True, visible=False,
                                                          # max_length=30 if is_public else None,
                                                          elem_id='audio',
                                                          waveform_options=dict(show_controls=True),
@@ -957,7 +958,7 @@ def go_gradio(**kwargs):
                                                                  outputs=[mic_button, audio_pretext, instruction,
                                                                           audio_state],
                                                                  api_name='mic' if allow_api else None,
-                                                     show_progress='hidden')
+                                                                 show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
                                         mic_button.click(fn=lambda: None, js=click_js()) \
                                             .then(**mic_button_kwargs)
