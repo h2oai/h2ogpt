@@ -1,9 +1,9 @@
 import os
 import typing
 import json
-from pydantic import model_validator
 from langchain.llms import SagemakerEndpoint
 from langchain.llms.sagemaker_endpoint import LLMContentHandler
+from pydantic.v1 import root_validator
 
 from src.utils import FakeTokenizer
 
@@ -44,8 +44,7 @@ class H2OSagemakerEndpoint(SagemakerEndpoint):
     aws_secret_access_key: str = ""
     tokenizer: typing.Any = None
 
-    @model_validator(mode='after')
-    @classmethod
+    @root_validator()
     def validate_environment(cls, values: typing.Dict) -> typing.Dict:
         """Validate that AWS credentials to and python package exists in environment."""
         try:

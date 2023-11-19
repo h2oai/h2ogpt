@@ -3,12 +3,14 @@ from functools import partial
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from typing import Any, Dict, List, Optional
-from pydantic import model_validator, Field
+from pydantic import Field
 from exllama.model import ExLlama, ExLlamaCache, ExLlamaConfig
 from exllama.tokenizer import ExLlamaTokenizer
 from exllama.generator import ExLlamaGenerator
 from exllama.lora import ExLlamaLora
 import os, glob
+
+from pydantic.v1 import root_validator
 
 BROKEN_UNICODE = b'\\ufffd'.decode('unicode_escape')
 
@@ -115,8 +117,7 @@ class Exllama(LLM):
 
         return apply_to
 
-    @model_validator(mode='after')
-    @classmethod
+    @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         model_param_names = [
             "temperature",

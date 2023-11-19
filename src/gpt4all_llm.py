@@ -3,8 +3,8 @@ import os
 from typing import Dict, Any, Optional, List, Iterator
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema.output import GenerationChunk
-from pydantic import model_validator
 from langchain.llms import gpt4all
+from pydantic.v1 import root_validator
 
 from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 
@@ -245,8 +245,7 @@ class H2OGPT4All(gpt4all.GPT4All):
     iinput: Any = ''
     """Path to the pre-trained GPT4All model file."""
 
-    @model_validator(mode='after')
-    @classmethod
+    @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that the python package exists in the environment."""
         try:
@@ -323,8 +322,7 @@ class H2OLlamaCpp(LlamaCpp):
     count_output_tokens: Any = 0
     n_gpus: Any = -1
 
-    @model_validator(mode='after')
-    @classmethod
+    @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that llama-cpp-python library is installed."""
         if isinstance(values["model_path"], str):

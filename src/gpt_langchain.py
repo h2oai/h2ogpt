@@ -42,6 +42,7 @@ from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
+from pydantic.v1 import root_validator
 from tqdm import tqdm
 
 from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
@@ -65,7 +66,7 @@ from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
-from pydantic import model_validator, ConfigDict
+from pydantic import ConfigDict
 
 import_matplotlib()
 
@@ -537,10 +538,8 @@ class GradioInference(H2Oagenerate, LLM):
     min_max_new_tokens: Any = 256
     max_input_tokens: Any = -1
     max_total_input_tokens: Any = -1
-    model_config = ConfigDict(extra="forbid")
 
-    #@model_validator(mode='after')
-    @classmethod
+    @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that python package exists in environment."""
 
