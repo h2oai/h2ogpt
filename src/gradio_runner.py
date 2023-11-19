@@ -961,7 +961,8 @@ def go_gradio(**kwargs):
                                             .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
-                                                     outputs=[audio_state, instruction])
+                                                     outputs=[audio_state, instruction],
+                                                     show_progress='hidden')
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
