@@ -5016,7 +5016,7 @@ def go_gradio(**kwargs):
                 load_event6 = load_event5.then(**get_viewable_sources_args)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
-    demo.queue(api_open=kwargs['api_open'])
+    demo.queue(default_concurrency_limit=kwargs['concurrency_limit'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
     favicon_path = favicon_file
     if not os.path.isfile(favicon_file):
@@ -5074,7 +5074,7 @@ def go_gradio(**kwargs):
                 ssl_verify=kwargs['ssl_verify'],
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
-                max_threads=kwargs['concurrency_count'],
+                max_threads=max(40, 2 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'], int) else None,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
