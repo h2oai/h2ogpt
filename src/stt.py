@@ -64,7 +64,7 @@ def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_
         text = ''
 
     # work-around race
-    # if text0 == text:
-    #     text = ''
+    if text0 == text:
+        text = ''
 
     return chunks_new, text0 + text

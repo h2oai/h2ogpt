@@ -57,3 +57,5 @@ def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, exp
         if is_bytes:
             combined_wav = combined_wav.export(format='raw').read()
         return combined_wav
+    # audio just empty stream, but not None, else would nuke audio
+    return audio
