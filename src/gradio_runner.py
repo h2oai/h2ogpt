@@ -727,7 +727,7 @@ def go_gradio(**kwargs):
                         from src.tts_coqui import get_roles
                         chatbot_role = get_roles(choices=list(roles_state.value.keys()), value=kwargs['chatbot_role'])
                     else:
-                        chatbot_role = gr.Dropdown(visible=False)
+                        chatbot_role = gr.Dropdown(choices=['None'], visible=False, value='None')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('microsoft'):
                         from src.tts import get_speakers_gr
                         speaker = get_speakers_gr(value=kwargs['speaker'])
@@ -934,8 +934,11 @@ def go_gradio(**kwargs):
                                                 text0 = ''
                                             """Changes button text on click"""
                                             if btn == '🔴':
+                                                text0 = ''  # only pull from instruction1
                                                 return '⭕', text0, instruction1, audio_state1
                                             else:
+                                                if os.getenv('HARD_ASSERTS') and text0 != instruction1:
+                                                    assert text0 == instruction1
                                                 return '🔴', text0, instruction1, audio_state1
 
                                         audio_state = gr.State(value=None)
@@ -945,13 +948,17 @@ def go_gradio(**kwargs):
                                                          # max_length=30 if is_public else None,
                                                          elem_id='audio',
                                                          )
+                                        mic_button_kwargs = dict(fn=functools.partial(action,
+                                                                                      stt_continue_mode=kwargs[
+                                                                                          'stt_continue_mode']),
+                                                                 inputs=[mic_button, audio_pretext, instruction,
+                                                                         audio_state],
+                                                                 outputs=[mic_button, audio_pretext, instruction,
+                                                                          audio_state],
+                                                                 api_name='mic' if allow_api else None, )
+                                        # JS first, then python, but all in one click instead of using .then() that will delay
                                         mic_button.click(fn=lambda: None, _js=click_js()) \
-                                            .then(
-                                            fn=functools.partial(action, stt_continue_mode=kwargs['stt_continue_mode']),
-                                            inputs=[mic_button, audio_pretext, instruction, audio_state],
-                                            outputs=[mic_button, audio_pretext, instruction, audio_state],
-                                            api_name='mic' if allow_api else None,
-                                        )
+                                            .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction])
@@ -3792,10 +3799,10 @@ def go_gradio(**kwargs):
                         lag = 1e-3
                     if visible_list[chatboti]:
                         gen1 = get_response(fun1, history,
-                                            chatbot_role1 if first_visible else None,
-                                            speaker1 if first_visible else None,
-                                            tts_language1 if first_visible else None,
-                                            roles_state1 if first_visible else None,
+                                            chatbot_role1 if first_visible else 'None',
+                                            speaker1 if first_visible else 'None',
+                                            tts_language1 if first_visible else 'autodetect',
+                                            roles_state1 if first_visible else {},
                                             langchain_action1,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
@@ -3866,8 +3873,12 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
-                    audios_gen = [x[4] if x is not None and not isinstance(x, BaseException) else no_audio for x in
+                    audios_gen = [x[4] if x is not None and not isinstance(x, BaseException) else None for x in
                                   res1]
+                    audios_gen = [x for x in audios_gen if x is not None]
+                    if os.getenv('HARD_ASSERTS'):
+                        # FIXME: should only be 0 or 1 speaker in all_bot mode for now
+                        assert len(audios_gen) in [0, 1], "Wrong len audios_gen: %s" % len(audios_gen)
                     audio1 = audios_gen[0] if len(audios_gen) == 1 else no_audio
                     do_yield |= audio1 != no_audio
 
