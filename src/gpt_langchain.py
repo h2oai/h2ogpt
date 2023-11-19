@@ -34,14 +34,13 @@ import yaml
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
-from langchain.document_loaders.generic import GenericLoader
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
-from langchain.tools import PythonREPLTool
+from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from tqdm import tqdm
 
@@ -66,6 +65,7 @@ from prompter import non_hf_types, PromptType, Prompter
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
+from pydantic import model_validator, ConfigDict
 
 import_matplotlib()
 
@@ -448,7 +448,7 @@ def get_answer_from_sources(chain, sources, question):
 from functools import partial
 from typing import Any, Dict, List, Optional, Iterable
 
-from pydantic import Extra, Field, root_validator
+from pydantic import Field
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun, AsyncCallbackManagerForLLMRun
 from langchain.llms.base import LLM
@@ -537,13 +537,10 @@ class GradioInference(H2Oagenerate, LLM):
     min_max_new_tokens: Any = 256
     max_input_tokens: Any = -1
     max_total_input_tokens: Any = -1
+    model_config = ConfigDict(extra="forbid")
 
-    class Config:
-        """Configuration for this pydantic object."""
-
-        extra = Extra.forbid
-
-    @root_validator()
+    #@model_validator(mode='after')
+    @classmethod
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that python package exists in environment."""
 

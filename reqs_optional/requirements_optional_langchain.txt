@@ -1,6 +1,6 @@
 # optional for chat with PDF
-langchain==0.0.321
-langchain_experimental==0.0.33
+langchain==0.0.338
+langchain_experimental==0.0.42
 pypdf==3.14.0
 # avoid textract, requires old six
 #textract==1.6.5

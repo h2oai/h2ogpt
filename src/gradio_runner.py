@@ -909,7 +909,7 @@ def go_gradio(**kwargs):
                                             visible=kwargs['enable_stt'])
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
-                                            value="",
+                                            value=None,
                                             label="Upload",
                                             size="sm",
                                             min_width=mw0,
@@ -944,9 +944,10 @@ def go_gradio(**kwargs):
                                         audio_state = gr.State(value=None)
                                         audio_pretext = gr.Textbox(value='', visible=False)
                                         audio_output = gr.HTML(visible=False)
-                                        audio = gr.Audio(source='microphone', streaming=True, visible=False,
+                                        audio = gr.Audio(sources=['microphone'], streaming=True, visible=True,
                                                          # max_length=30 if is_public else None,
                                                          elem_id='audio',
+                                                         waveform_options=dict(show_controls=True),
                                                          )
                                         mic_button_kwargs = dict(fn=functools.partial(action,
                                                                                       stt_continue_mode=kwargs[
@@ -955,13 +956,15 @@ def go_gradio(**kwargs):
                                                                          audio_state],
                                                                  outputs=[mic_button, audio_pretext, instruction,
                                                                           audio_state],
-                                                                 api_name='mic' if allow_api else None, )
+                                                                 api_name='mic' if allow_api else None,
+                                                     show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
-                                        mic_button.click(fn=lambda: None, _js=click_js()) \
+                                        mic_button.click(fn=lambda: None, js=click_js()) \
                                             .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
-                                                     outputs=[audio_state, instruction])
+                                                     outputs=[audio_state, instruction],
+                                                     show_progress='hidden')
 
                                 submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
                                 with submit_buttons:
@@ -1018,9 +1021,9 @@ def go_gradio(**kwargs):
                                             return None
 
                                         action_text.change(fn=clear_audio_state, outputs=audio_state) \
-                                            .then(fn=lambda: None, _js=click_submit())
+                                            .then(fn=lambda: None, js=click_submit())
                                         stop_text.change(fn=clear_audio_state, outputs=audio_state) \
-                                            .then(fn=lambda: None, _js=click_stop())
+                                            .then(fn=lambda: None, js=click_stop())
 
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
@@ -1146,7 +1149,7 @@ def go_gradio(**kwargs):
                             file_source = gr.File(interactive=False,
                                                   label="Download File w/Sources")
                         with gr.Column(scale=2):
-                            sources_text = gr.HTML(label='Sources Added', interactive=False)
+                            sources_text = gr.HTML(label='Sources Added')
 
                     doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
                                                     interactive=False,
@@ -1498,7 +1501,7 @@ def go_gradio(**kwargs):
                         mic_voice_clone = gr.Audio(
                             label="Mic for Clone (x resets)",
                             type="filepath",
-                            source="microphone",
+                            sources=["microphone"],
                             # max_length=30 if is_public else None,
                             visible=clone_visible,
                         )
@@ -1916,7 +1919,7 @@ def go_gradio(**kwargs):
                     if 'h2ogpt-research' in kwargs['base_model']:
                         description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
-                    gr.Markdown(value=description, show_label=False, interactive=False)
+                    gr.Markdown(value=description, show_label=False)
 
                 login_tab = gr.TabItem("Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
@@ -3193,7 +3196,7 @@ def go_gradio(**kwargs):
             None,
             None,
             None,
-            _js=wrap_js_to_lambda(0, get_dark_js()),
+            js=wrap_js_to_lambda(0, get_dark_js()),
             api_name="dark" if allow_api else None,
             queue=False,
         )
@@ -3217,7 +3220,7 @@ def go_gradio(**kwargs):
 
         def visible_toggle(x):
             x = 'off' if x == 'on' else 'on'
-            return x, gr.Column.update(visible=True if x == 'on' else False)
+            return x, gr.update(visible=True if x == 'on' else False)
 
         side_bar_btn.click(fn=visible_toggle,
                            inputs=side_bar_text,
@@ -4777,7 +4780,7 @@ def go_gradio(**kwargs):
             return gr.Textbox(visible=x)
 
         def compare_column_fun(x):
-            return gr.Column.update(visible=x)
+            return gr.Column(visible=x)
 
         def compare_prompt_fun(x):
             return gr.Dropdown(visible=x)
@@ -4999,7 +5002,7 @@ def go_gradio(**kwargs):
             get_dark_js() if kwargs['dark'] else None,
             get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
 
-        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs, _js=app_js)
+        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs, js=app_js)
 
         if load_func:
             load_event2 = load_event.then(load_login_func,
@@ -5012,7 +5015,7 @@ def go_gradio(**kwargs):
                 load_event6 = load_event5.then(**get_viewable_sources_args)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
-    demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
+    demo.queue(api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
     favicon_path = favicon_file
     if not os.path.isfile(favicon_file):
@@ -5070,6 +5073,7 @@ def go_gradio(**kwargs):
                 ssl_verify=kwargs['ssl_verify'],
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
+                max_threads=kwargs['concurrency_count'],
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):

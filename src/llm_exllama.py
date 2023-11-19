@@ -3,7 +3,7 @@ from functools import partial
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from typing import Any, Dict, List, Optional
-from pydantic import Field, root_validator
+from pydantic import model_validator, Field
 from exllama.model import ExLlama, ExLlamaCache, ExLlamaConfig
 from exllama.tokenizer import ExLlamaTokenizer
 from exllama.generator import ExLlamaGenerator
@@ -115,7 +115,8 @@ class Exllama(LLM):
 
         return apply_to
 
-    @root_validator()
+    @model_validator(mode='after')
+    @classmethod
     def validate_environment(cls, values: Dict) -> Dict:
         model_param_names = [
             "temperature",
