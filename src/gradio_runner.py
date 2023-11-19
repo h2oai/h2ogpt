@@ -5016,7 +5016,7 @@ def go_gradio(**kwargs):
                 load_event6 = load_event5.then(**get_viewable_sources_args)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
-    demo.queue(default_concurrency_limit=kwargs['concurrency_limit'], api_open=kwargs['api_open'])
+    demo.queue(default_concurrency_limit=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
     favicon_path = favicon_file
     if not os.path.isfile(favicon_file):
