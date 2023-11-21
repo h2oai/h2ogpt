@@ -1304,6 +1304,11 @@ def main(
     if not (have_soundfile and have_librosa and have_wavio) and enable_tts:
         enable_tts = False
         print("soundfile, librosa, and wavio not installed, disabling TTS", flush=True)
+    if n_gpus == 0:
+        tts_gpu = False
+        stt_gpu = False
+        caption_gpu = False
+        asr_gpu = False
 
     # defaults
     caption_loader = None
