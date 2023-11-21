@@ -960,7 +960,7 @@ def go_gradio(**kwargs):
                                                                  show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
                                         mic_button.click(fn=lambda: None, js=click_js()) \
-                                            .then(**mic_button_kwargs, show_progress='hidden')
+                                            .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction],
