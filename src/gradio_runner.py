@@ -896,7 +896,7 @@ def go_gradio(**kwargs):
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
                                             info=instruction_label,
-                                            #info=None,
+                                            # info=None,
                                             elem_id='prompt-form',
                                             container=True,
                                         )
@@ -1956,9 +1956,10 @@ def go_gradio(**kwargs):
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False,
+        zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text],
+                                  concurrency_limit=None,
                                   api_name='zip_data' if allow_api else None)
-        s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False,
+        s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, concurrency_limit=None,
                                     api_name='s3up_data' if allow_api else None)
 
         def clear_file_list():
@@ -2190,7 +2191,7 @@ def go_gradio(**kwargs):
         def resize_col_tabs(x):
             return gr.Dropdown(scale=x)
 
-        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, queue=False)
+        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, concurrency_limit=None)
 
         def resize_chatbots(x, num_model_lock=0):
             if num_model_lock == 0:
@@ -2201,7 +2202,7 @@ def go_gradio(**kwargs):
 
         resize_chatbots_func = functools.partial(resize_chatbots, num_model_lock=len(text_outputs))
         text_outputs_height.change(fn=resize_chatbots_func, inputs=text_outputs_height,
-                                   outputs=[text_output, text_output2] + text_outputs, queue=False)
+                                   outputs=[text_output, text_output2] + text_outputs, concurrency_limit=None)
 
         def update_dropdown(x):
             if DocumentChoice.ALL.value in x:
@@ -2459,8 +2460,9 @@ def go_gradio(**kwargs):
                                              outputs=login_outputs,
                                              queue=not kwargs['large_file_count_mode'])
 
-        admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
-            .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
+        admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row,
+                                  concurrency_limit=None) \
+            .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, concurrency_limit=None)
 
         def load_auth(db1s, requests_state1, auth_filename=None, selection_docs_state1=None,
                       roles_state1=None,
@@ -3198,7 +3200,7 @@ def go_gradio(**kwargs):
             None,
             js=wrap_js_to_lambda(0, get_dark_js()),
             api_name="dark" if allow_api else None,
-            queue=False,
+            concurrency_limit=None,
         )
 
         # Handle uploads from API
@@ -3225,22 +3227,22 @@ def go_gradio(**kwargs):
         side_bar_btn.click(fn=visible_toggle,
                            inputs=side_bar_text,
                            outputs=[side_bar_text, side_bar],
-                           queue=False)
+                           concurrency_limit=None)
 
         doc_count_btn.click(fn=visible_toggle,
                             inputs=doc_count_text,
                             outputs=[doc_count_text, row_doc_track],
-                            queue=False)
+                            concurrency_limit=None)
 
         submit_buttons_btn.click(fn=visible_toggle,
                                  inputs=submit_buttons_text,
                                  outputs=[submit_buttons_text, submit_buttons],
-                                 queue=False)
+                                 concurrency_limit=None)
 
         visible_model_btn.click(fn=visible_toggle,
                                 inputs=visible_models_text,
                                 outputs=[visible_models_text, visible_models],
-                                queue=False)
+                                concurrency_limit=None)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -4312,7 +4314,7 @@ def go_gradio(**kwargs):
         remove_chat_event = remove_chat_btn.click(remove_chat,
                                                   inputs=[radio_chats, chat_state],
                                                   outputs=[radio_chats, chat_state],
-                                                  queue=False, api_name='remove_chat')
+                                                  concurrency_limit=None, api_name='remove_chat')
 
         def get_chats1(chat_state1):
             base = 'chats'
@@ -4322,7 +4324,8 @@ def go_gradio(**kwargs):
                 f.write(json.dumps(chat_state1, indent=2))
             return filename
 
-        export_chat_event = export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
+        export_chat_event = export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file,
+                                                   concurrency_limit=None,
                                                    api_name='export_chats' if allow_api else None)
 
         def add_chats_from_file(db1s, requests_state1, file, chat_state1, radio_chats1, chat_exception_text1,
@@ -4379,14 +4382,14 @@ def go_gradio(**kwargs):
                                                                 chat_exception_text],
                                                         outputs=[chatsup_output, chat_state, radio_chats,
                                                                  chat_exception_text],
-                                                        queue=False,
+                                                        concurrency_limit=None,
                                                         api_name='add_to_chats' if allow_api else None)
 
         clear_chat_event = clear_chat_btn.click(fn=clear_texts,
                                                 inputs=[text_output, text_output2] + text_outputs,
                                                 outputs=[text_output, text_output2] + text_outputs,
-                                                queue=False, api_name='clear' if allow_api else None) \
-            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
+                                                concurrency_limit=None, api_name='clear' if allow_api else None) \
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, concurrency_limit=None) \
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         clear_eventa = save_chat_btn.click(user_state_setup,
@@ -4440,7 +4443,7 @@ def go_gradio(**kwargs):
         submit_event_nochat_api_plain = submit_nochat_api_plain.click(fun_with_dict_str_plain,
                                                                       inputs=inputs_dict_str,
                                                                       outputs=text_output_nochat_api,
-                                                                      queue=False,
+                                                                      concurrency_limit=None,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name,
@@ -4620,10 +4623,10 @@ def go_gradio(**kwargs):
         get_prompt_str_func1 = functools.partial(get_prompt_str, which=1)
         get_prompt_str_func2 = functools.partial(get_prompt_str, which=2)
         prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict, system_prompt],
-                           outputs=prompt_dict, queue=False)
+                           outputs=prompt_dict, concurrency_limit=None)
         prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2, system_prompt],
                             outputs=prompt_dict2,
-                            queue=False)
+                            concurrency_limit=None)
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown(value=x)
@@ -4769,12 +4772,12 @@ def go_gradio(**kwargs):
                                                        [lora_choice, lora_choice2, new_lora, lora_options_state] +
                                                        [server_choice, server_choice2, new_server,
                                                         server_options_state],
-                                               queue=False)
+                                               concurrency_limit=None)
 
         go_event = go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None,
-                                queue=False) \
-            .then(lambda: gr.update(visible=True), None, normal_block, queue=False) \
-            .then(**load_model_args, queue=False).then(**prompt_update_args, queue=False)
+                                concurrency_limit=None) \
+            .then(lambda: gr.update(visible=True), None, normal_block, concurrency_limit=None) \
+            .then(**load_model_args, concurrency_limit=None).then(**prompt_update_args, concurrency_limit=None)
 
         def compare_textbox_fun(x):
             return gr.Textbox(visible=x)
@@ -4802,18 +4805,18 @@ def go_gradio(**kwargs):
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2] + text_outputs,
                        None,
                        preprocess=False,
-                       api_name='flag' if allow_api else None, queue=False)
+                       api_name='flag' if allow_api else None, concurrency_limit=None)
         flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output_nochat], None,
                               preprocess=False,
-                              api_name='flag_nochat' if allow_api else None, queue=False)
+                              api_name='flag_nochat' if allow_api else None, concurrency_limit=None)
 
         def get_system_info():
             if is_public:
-                time.sleep(10)  # delay to avoid spam since queue=False
+                time.sleep(10)  # delay to avoid spam since concurrency_limit=None
             return gr.Textbox(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
-                                        api_name='system_info' if allow_api else None, queue=False)
+                                        api_name='system_info' if allow_api else None, concurrency_limit=None)
 
         def get_system_info_dict(system_input1, **kwargs1):
             if system_input1 != os.getenv("ADMIN_PASS", ""):
@@ -4836,7 +4839,7 @@ def go_gradio(**kwargs):
                                               inputs=system_input,
                                               outputs=system_text2,
                                               api_name='system_info_dict' if allow_api else None,
-                                              queue=False,  # queue to avoid spam
+                                              concurrency_limit=None,  # queue to avoid spam
                                               )
 
         def get_hash():
@@ -4845,7 +4848,7 @@ def go_gradio(**kwargs):
         system_event = system_btn3.click(get_hash,
                                          outputs=system_text3,
                                          api_name='system_hash' if allow_api else None,
-                                         queue=False,
+                                         concurrency_limit=None,
                                          )
 
         def get_model_names():
@@ -4863,7 +4866,7 @@ def go_gradio(**kwargs):
         models_list_event = system_btn4.click(get_model_names,
                                               outputs=system_text4,
                                               api_name='model_names' if allow_api else None,
-                                              queue=False,
+                                              concurrency_limit=None,
                                               )
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
@@ -4984,8 +4987,8 @@ def go_gradio(**kwargs):
                                             [count_tokens_event] +
                                             speak_events
                                     ,
-                                    queue=False, api_name='stop' if allow_api else None) \
-            .then(clear_torch_cache, queue=False) \
+                                    concurrency_limit=None, api_name='stop' if allow_api else None) \
+            .then(clear_torch_cache, concurrency_limit=None) \
             .then(stop_audio_func, outputs=[speech_human, speech_bot])
 
         if kwargs['auth'] is not None:
@@ -5073,7 +5076,8 @@ def go_gradio(**kwargs):
                 ssl_verify=kwargs['ssl_verify'],
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
-                max_threads=max(40, 2 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'], int) else None,
+                max_threads=max(40, 2 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
+                                                                                   int) else None,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):

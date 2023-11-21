@@ -37,7 +37,7 @@ tensorboard==2.13.0
 neptune==1.2.0
 
 # for gradio client
-gradio_client==0.7.1
+gradio_client==0.7.0
 beautifulsoup4==4.12.2
 markdown==3.4.3
 
@@ -62,7 +62,7 @@ instructorembedding==1.0.1
 # for gpt4all .env file, but avoid worrying about imports
 python-dotenv==1.0.0
 
-text-generation==0.6.0
+text-generation==0.6.1
 # for tokenization when don't have HF tokenizer
 tiktoken==0.4.0
 
