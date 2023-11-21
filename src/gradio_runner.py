@@ -517,9 +517,8 @@ def go_gradio(**kwargs):
 
     def click_js():
         return """function audioRecord() {
-        document.getElementsByClassName('record-button')[0].click()
-        document.getElementsByClassName('stop-button')[0].click()
-}"""
+    var xPathRes = document.evaluate ('//*[contains(@class, "record")]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); 
+    xPathRes.singleNodeValue.click();}"""
 
     def click_submit():
         return """function check() {
