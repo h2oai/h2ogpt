@@ -1,14 +1,14 @@
 ## Client APIs
 
-A Gradio API and an OpenAI-compliant API are supported.  One can also use `curl` to some extent for basic API.
+A Gradio API and an OpenAI-compliant API are supported. You can also use `curl` to some extent for basic API.
 
 ### OpenAI Compliant Python Client Library
 
-An OpenAI compliant client is available. Refer the [README](../client/README.md) for more details.
+An OpenAI compliant client is available. For more information, refer to the [h2oGPT client README](../client/README.md).
 
 ### Gradio Client API
 
-h2oGPT's `generate.py` by default runs a gradio server, which also gives access to client API using Gradio client.  One can use it with h2oGPT, or independently of h2oGPT repository by installing an env:
+h2oGPT's `generate.py` by default runs a gradio server, which also gives access to client API using the [Gradio Python client](https://www.gradio.app/docs/python-client). You can use it with h2oGPT, or independently of h2oGPT repository by installing an env:
 ```bash
 conda create -n gradioclient -y
 conda activate gradioclient
@@ -39,7 +39,7 @@ response = ast.literal_eval(res)['response']
 print(response)
 ```
 
-One can also stream the response.  Here is a complete example code of streaming to console each updated text fragment so appears to stream in console:
+You can also stream the response. The following is a complete example code of streaming each updated text fragment to the console so that they appear to stream in the console:
 ```python
 from gradio_client import Client
 import ast
@@ -77,9 +77,9 @@ if len(res_final) > 0:
 
 ### h2oGPT Gradio Wrapper
 
-One can run client code with h2oGPT wrapper class for Gradio's client, which adds extra exception handling and adds h2oGPT specific calls.
+You can run client code with the h2oGPT wrapper class for Gradio's client, which adds extra exception handling and h2oGPT-specific calls.
 
-For talking to just LLM, Document Q/A, summarization, and extraction, one can do:
+For talking to just LLM, Document Q/A, summarization, and extraction, you can do:
 ```python
 def test_readme_example(local_server):
     # self-contained example used for readme, to be copied to README_CLIENT.md if changed, setting local_server = True at first
@@ -114,7 +114,7 @@ test_readme_example(local_server=True)
 
 For other ways to use gradio client, see example [test code](../src/client_test.py) or other tests in our [tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py).  E.g. `test_client_chat_stream_langchain_steps3` in [client tests](https://github.com/h2oai/h2ogpt/blob/main/tests/test_client_calls.py) uses many different API calls for docs etc.s
 
-Any element in [gradio_runner.py](../src/gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
+Note that any element in [gradio_runner.py](../src/gradio_runner.py) with `api_name` defined can be accessed via the gradio client.
 
 #### Listing models
 
@@ -130,17 +130,17 @@ Loaded as API: http://localhost:7860/ ✔
 
 ### h2oGPT Server options for efficient Summarization and Extraction
 
-One can choose h2oGPT server to have `--async_output=True` and `--num_async=10` (or some optimal value) to enable full parallel summarization when the h2oGPT server uses `--inference_server` that points to Gradio Inference Server, vLLM, text-generation inference (TGI) server, or OpenAI servers to allow for high tokens/sec.
+You can specify the h2oGPT server to have `--async_output=True` and `--num_async=10` (or some optimal value) to enable full parallel summarization when the h2oGPT server uses `--inference_server` that points to Gradio Inference Server, vLLM, text-generation inference (TGI) server, or OpenAI servers to allow for high tokens/sec.
 
 ### Curl Client API
 
-As long as objects within the `gradio_runner.py` for a given api_name are for a function without `gr.State()` objects, then curl can work.  Full `curl` capability is not supported in Gradio [yet](https://github.com/gradio-app/gradio/issues/4932).
+As long as objects within the `gradio_runner.py` file for a given api_name are for a function without `gr.State()` objects, then curl can work. Note that full `curl` capability is [not yet supported in Gradio](https://github.com/gradio-app/gradio/issues/4932).
 
 For example, for a server launched as:
 ```bash
 python generate.py --base_model=TheBloke/Llama-2-7b-Chat-GPTQ --load_gptq="model" --use_safetensors=True --prompt_type=llama2 --save_dir=fooasdf --system_prompt='auto'
 ```
-one can use the `submit_nochat_plain_api` that has no `state` objects to perform chat via `curl` by doing:
+you can use the `submit_nochat_plain_api`, which has no `state` objects, to perform chat via `curl` by entering the following command:
 ```bash
 curl 127.0.0.1:7860/api/submit_nochat_plain_api -X POST -d '{"data": ["{\"instruction_nochat\": \"Who are you?\"}"]}' -H 'Content-Type: application/json'
 ```
@@ -148,4 +148,4 @@ and get back for a 7B LLaMA2-chat GPTQ model:
 
 `{"data":["{'response': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'sources': '', 'save_dict': {'prompt': \"<s>[INST] <<SYS>>\\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\\n\\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\\n<</SYS>>\\n\\nWho are you? [/INST]\", 'output': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'base_model': 'TheBloke/Llama-2-7b-Chat-GPTQ', 'save_dir': 'fooasdf', 'where_from': 'evaluate_False', 'extra_dict': {'num_beams': 1, 'do_sample': False, 'repetition_penalty': 1.07, 'num_return_sequences': 1, 'renormalize_logits': True, 'remove_invalid_values': True, 'use_cache': True, 'eos_token_id': 2, 'bos_token_id': 1, 'num_prompt_tokens': 5, 't_generate': 9.243812322616577, 'ntokens': 120, 'tokens_persecond': 12.981605669647344}, 'error': None, 'extra': None}}"],"is_generating":true,"duration":39.33809685707092,"average_duration":39.33809685707092}`
 
-This contains the full dictionary of `data` from `curl` operation as well is the data contents that are a string of a dictionary like when using the API `submit_nochat_api` for Gradio client.  This inner string of a dictionary can be parsed as a literal python string to get keys `response`, `source`, `save_dict`, where `save_dict` contains meta data about the query such as generation hyperparameters, tokens generated, etc.
+This response contains the full dictionary of `data` from the `curl` operation as well as the data contents that are a string of a dictionary like when using the API `submit_nochat_api` for Gradio client.  This inner string of a dictionary can be parsed as a literal python string to get keys `response`, `source`, `save_dict`, where `save_dict` contains metadata about the query such as generation hyperparameters, tokens generated, etc.
