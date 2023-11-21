@@ -82,6 +82,9 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * Install document question-answer dependencies:
     ```bash
+    # For DocTR, using conda for some things, need weasyprint from conda too else library mismatch
+    conda install weasyprint -c conda-forge -y
+    pip install weasyprint
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
     # Required for Doc Q/A: LangChain:
@@ -99,25 +102,21 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     conda install -y -c conda-forge pygobject
     pip install -r reqs_optional/requirements_optional_doctr.txt
     # For DocTR: go back to older onnx so Tesseract OCR still works
-    pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
-    # now using conda for some things, need weasyprint from conda too else library mismatch
-    pip uninstall weasyprint
-    conda install -y -c conda-forge weasyprint
+    pip install onnxruntime==1.15.0
+    # GPU only:
+    pip install onnxruntime-gpu==1.15.0
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: Required for PlayWright
     playwright install --with-deps
     # Audio transcription from Youtube videos and local mp3 files:
     pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
-    # STT from microphone
-    sudo apt-get install ffmpeg
     pip install wavio==0.0.8
-    # For STT below may also be required
-    # sudo apt remove libavcodec-ffmpeg-extra56
-    # sudo apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
+    # STT from microphone (may not be required if ffmpeg installed above)
+    sudo apt-get install ffmpeg
     # for TTS:
     pip install torchaudio soundfile==0.12.1
-    # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
+    # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
     # pydantic can't be >=2.0
     # relaxed versions to avoid conflicts
     pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
