@@ -718,7 +718,7 @@ and ensure you choose CUDA 12.1 if using bitsandbytes 0.39.0 since that is last 
 Automatic sharding can be enabled with `--use_gpu_id=False`.  This is disabled by default, as in rare cases torch hits a bug with `cuda:x cuda:y mismatch`.  E.g. to use GPU IDs 0 and 3, one can run:
 ```bash
 export HUGGING_FACE_HUB_TOKEN=<hf_...>
-exoprt CUDA_VISIBLE_DEVICES="0,3"
+export CUDA_VISIBLE_DEVICES="0,3"
 export GRADIO_SERVER_PORT=7860
 python generate.py \
           --base_model=meta-llama/Llama-2-7b-chat-hf \

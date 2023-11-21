@@ -18,11 +18,11 @@ def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto')
 
 def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_floor=100.0, reject_no_new_text=True,
                debug=False):
+    if chunks is None:
+        chunks = []
     if max_chunks is not None and len(chunks) > max_chunks:
         # refuse to update
         return chunks, text0
-    if chunks is None:
-        chunks = []
     # assume sampling rate always same
     # keep chunks so don't normalize on noise periods, which would then saturate noise with non-noise
     sr, y = new_chunk

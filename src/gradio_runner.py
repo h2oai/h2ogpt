@@ -934,11 +934,11 @@ def go_gradio(**kwargs):
                                                 text0 = ''
                                             """Changes button text on click"""
                                             if btn == '🔴':
-                                                text0 = ''  # only pull from instruction1
-                                                return '⭕', text0, instruction1, audio_state1
-                                            else:
                                                 if os.getenv('HARD_ASSERTS') and text0 != instruction1:
                                                     assert text0 == instruction1
+                                                return '⭕', text0, instruction1, audio_state1
+                                            else:
+                                                text0 = ''  # only pull from instruction1
                                                 return '🔴', text0, instruction1, audio_state1
 
                                         audio_state = gr.State(value=None)
@@ -960,7 +960,7 @@ def go_gradio(**kwargs):
                                                                  show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
                                         mic_button.click(fn=lambda: None, js=click_js()) \
-                                            .then(**mic_button_kwargs)
+                                            .then(**mic_button_kwargs, show_progress='hidden')
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
                                                      outputs=[audio_state, instruction],
