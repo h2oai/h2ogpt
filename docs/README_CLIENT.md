@@ -39,7 +39,7 @@ response = ast.literal_eval(res)['response']
 print(response)
 ```
 
-You can also stream the response. The following is a complete example code of how to stream each updated text fragment to the console so that they appear to stream in the console:
+You can also stream the response. The following is a complete example code of streaming each updated text fragment to the console so that they appear to stream in the console:
 ```python
 from gradio_client import Client
 import ast
