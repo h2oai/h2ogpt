@@ -31,7 +31,7 @@ h2ogpt:
     replicate: 
       enabled: false
 
-# -- Example configs to when not using Model Lock and External LLM
+# -- Example configs to use when not using Model Lock and External LLM
   # overrideConfig:
   #   base_model: h2oai/h2ogpt-4096-llama2-7b-chat
   #   use_safetensors: True
