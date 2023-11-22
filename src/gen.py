@@ -3058,7 +3058,7 @@ def evaluate(
 
     if do_langchain_path:
         text = ''
-        sources = ''
+        sources = []
         response = ''
         response_no_refs = ''
         # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
@@ -3298,7 +3298,7 @@ def evaluate(
                     request_timeout=max_time,
                 )
                 text = ''
-                sources = ''
+                sources = []
                 response = ''
                 if not stream_output:
                     text = responses['choices'][0]['text']
@@ -3347,7 +3347,7 @@ def evaluate(
                     request_timeout=max_time,
                 )
                 text = ""
-                sources = ''
+                sources = []
                 response = ""
                 if not stream_output:
                     text = responses["choices"][0]["message"]["content"]
@@ -3483,7 +3483,7 @@ def evaluate(
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
                 text = ''
-                sources = ''
+                sources = []
                 strex = ''
                 if not stream_output:
                     res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
@@ -3574,8 +3574,7 @@ def evaluate(
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
                 response = ''
-                extra = ''
-                sources = ''
+                sources = []
 
                 # prompt must include all human-bot like tokens, already added by prompt
                 # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
@@ -3617,7 +3616,7 @@ def evaluate(
                             text += text_chunk
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            sources = ''
+                            sources = []
                             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
                                        response_no_refs=response)
                         if time.time() - tgen0 > max_time:
@@ -3652,7 +3651,7 @@ def evaluate(
         else:
             raise RuntimeError("No such task type %s" % tokenizer)
         # NOTE: uses max_length only
-        sources = ''
+        sources = []
         response = model(prompt, max_length=max_new_tokens)[0][key]
         yield dict(response=response, sources=sources, save_dict=dict(),
                    llm_answers={},
@@ -3781,7 +3780,7 @@ def evaluate(
                     ret = dict(response='', sources='', save_dict=dict(), llm_answers={},
                                response_no_refs='')
                     outputs = ""
-                    sources = ''
+                    sources = []
                     tgen0 = time.time()
                     try:
                         for new_text in streamer:
@@ -3827,7 +3826,7 @@ def evaluate(
                     # skip first IDs
                     ntokens = sum([len(s) - input_ids_len for s in outputs.sequences]) if save_dir else -1
                     outputs = [decoder(s[input_ids_len:]) for s in outputs.sequences]
-                    sources = ''
+                    sources = []
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)

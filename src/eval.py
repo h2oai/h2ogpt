@@ -245,7 +245,7 @@ def run_eval(  # for local function:
             gener = fun(*tuple(ex), exi=exi) if eval_as_output else fun(*tuple(ex))
             for res_fun in gener:
                 res = res_fun['response']
-                extra = res_fun['sources']
+                sources = res_fun['sources']
                 print(res)
                 if smodel:
                     score_with_prompt = False
