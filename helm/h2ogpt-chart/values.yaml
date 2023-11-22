@@ -43,14 +43,6 @@ h2ogpt:
   #   max_new_tokens: 1024
 
   overrideConfig:
-    base_model: 
-    use_safetensors: 
-    prompt_type: 
-    save_dir: 
-    use_gpu_id: 
-    score_model: 
-    max_max_new_tokens: 
-    max_new_tokens: 
 
   service:
     type: NodePort
