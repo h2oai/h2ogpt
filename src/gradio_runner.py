@@ -3081,7 +3081,8 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = prep_bot(*args_list_bot)
+                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = \
+                prep_bot(*args_list_bot, kwargs_eval=kwargs1)
 
             save_dict = dict()
             ret = {}
@@ -3441,7 +3442,7 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def prep_bot(*args, retry=False, which_model=0):
+        def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None):
             """
 
             :param args:
@@ -3533,7 +3534,9 @@ def go_gradio(**kwargs):
 
             eval_args = (model_state1, my_db_state1, selection_docs_state1, requests_state1, roles_state1)
             assert len(eval_args) == len(input_args_list)
-            fun1 = partial(evaluate_local, *eval_args, *tuple(args_list), **kwargs_evaluate)
+            if kwargs_eval is None:
+                kwargs_eval = kwargs_evaluate
+            fun1 = partial(evaluate_local, *eval_args, *tuple(args_list), **kwargs_eval)
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
