@@ -5893,7 +5893,7 @@ def get_sources_answer(query, docs, answer, scores, show_rank,
 
     if len(docs) == 0:
         sources = []
-        ret = answer + sources
+        ret = answer
         return ret, sources, answer
 
     sources = [dict(score=score, content=get_doc(x), source=get_source(x), orig_index=x.metadata.get('orig_index', 0))
