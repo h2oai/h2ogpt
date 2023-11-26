@@ -876,6 +876,8 @@ def main(
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
+    :param asr_use_better: Whether to use BetterTransformer
+    :param asr_use_faster: Whether to use faster_whisper package and models
 
     :param enable_stt: Whether to enable and show Speech-to-Text (STT) with microphone in UI
          Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.
