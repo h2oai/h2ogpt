@@ -926,23 +926,28 @@ def go_gradio(**kwargs):
 
                                     # AUDIO
                                     if kwargs['enable_stt']:
-                                        def action(btn, text0, instruction1, audio_state1, stt_continue_mode=1):
-                                            if stt_continue_mode == 1:
-                                                text0 = instruction1
-                                                audio_state1 = None
-                                            else:
-                                                text0 = ''
+                                        def action(btn, instruction1, audio_state1, stt_continue_mode=1):
+                                            # print("B0: %s %s" % (audio_state1[0], instruction1), flush=True)
                                             """Changes button text on click"""
                                             if btn == '🔴':
-                                                if os.getenv('HARD_ASSERTS') and text0 != instruction1:
-                                                    assert text0 == instruction1
-                                                return '⭕', text0, instruction1, audio_state1
+                                                audio_state1[3] = 'on'
+                                                # print("A: %s %s" % (audio_state1[0], instruction1), flush=True)
+                                                if stt_continue_mode == 1:
+                                                    audio_state1[0] = instruction1
+                                                    audio_state1[1] = instruction1
+                                                    audio_state1[2] = None
+                                                return '⭕', instruction1, audio_state1
                                             else:
-                                                text0 = ''  # only pull from instruction1
-                                                return '🔴', text0, instruction1, audio_state1
+                                                audio_state1[3] = 'off'
+                                                if stt_continue_mode == 1:
+                                                    audio_state1[0] = None  # indicates done for race case
+                                                    instruction1 = audio_state1[1]
+                                                    audio_state1[2] = []
+                                                # print("B1: %s %s" % (audio_state1[0], instruction1), flush=True)
+                                                return '🔴', instruction1, audio_state1
 
-                                        audio_state = gr.State(value=None)
-                                        audio_pretext = gr.Textbox(value='', visible=False)
+                                        # while audio state used, entries are pre_text, instruction source, and audio chunks, condition
+                                        audio_state = gr.State(value=[None, None, None, 'off'])
                                         audio_output = gr.HTML(visible=False)
                                         audio = gr.Audio(sources=['microphone'], streaming=True, visible=False,
                                                          # max_length=30 if is_public else None,
@@ -952,9 +957,9 @@ def go_gradio(**kwargs):
                                         mic_button_kwargs = dict(fn=functools.partial(action,
                                                                                       stt_continue_mode=kwargs[
                                                                                           'stt_continue_mode']),
-                                                                 inputs=[mic_button, audio_pretext, instruction,
+                                                                 inputs=[mic_button, instruction,
                                                                          audio_state],
-                                                                 outputs=[mic_button, audio_pretext, instruction,
+                                                                 outputs=[mic_button, instruction,
                                                                           audio_state],
                                                                  api_name='mic' if allow_api else None,
                                                                  show_progress='hidden')
@@ -962,7 +967,7 @@ def go_gradio(**kwargs):
                                         mic_button.click(fn=lambda: None, js=click_js(), concurrency_limit=None) \
                                             .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
-                                                     inputs=[audio_pretext, audio_state, audio],
+                                                     inputs=[audio_state, audio],
                                                      outputs=[audio_state, instruction],
                                                      show_progress='hidden')
 

@@ -16,26 +16,35 @@ def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto')
     return transcriber
 
 
-def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_floor=100.0, reject_no_new_text=True,
+def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_floor=100.0, reject_no_new_text=True,
                debug=False):
-    if chunks is None:
-        chunks = []
-    if max_chunks is not None and len(chunks) > max_chunks:
+    if audio_state1[0] is None:
+        audio_state1[0] = ''
+    if audio_state1[2] is None:
+        audio_state1[2] = []
+    if max_chunks is not None and len(audio_state1[2]) > max_chunks:
         # refuse to update
-        return chunks, text0
+        return audio_state1[2], audio_state1[0]
+    if audio_state1[3] == 'off':
+        if debug:
+            print("Already ended", flush=True)
+        return audio_state1, audio_state1[1]
     # assume sampling rate always same
     # keep chunks so don't normalize on noise periods, which would then saturate noise with non-noise
     sr, y = new_chunk
-    avg = np.average(np.abs(y))
+    if y.shape[0] == 0:
+        avg = 0.0
+    else:
+        avg = np.average(np.abs(y))
     if not np.isfinite(avg):
         avg = 0.0
     if avg > sst_floor:
-        if debug or True:
+        if debug:
             print("Got possible chunk: %s" % avg, flush=True)
-        chunks_new = chunks + [y] if chunks else [y]
+        chunks_new = audio_state1[2] + [y]
     else:
-        chunks_new = chunks
-        if debug or True:
+        chunks_new = audio_state1[2]
+        if debug:
             print("Rejected quiet chunk: %s" % avg, flush=True)
     if chunks_new:
         stream = np.concatenate(chunks_new)
@@ -44,8 +53,11 @@ def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_
         stream /= max_stream
         text = transcriber({"sampling_rate": sr, "raw": stream})["text"]
 
-        if chunks:
-            stream0 = np.concatenate(chunks)
+        if audio_state1[2]:
+            try:
+                stream0 = np.concatenate(audio_state1[2])
+            except:
+                raise
             stream0 = stream0.astype(np.float32)
             max_stream0 = np.max(np.abs(stream0) + 1E-7)
             stream0 /= max_stream0
@@ -53,18 +65,25 @@ def transcribe(text0, chunks, new_chunk, transcriber=None, max_chunks=None, sst_
         else:
             text_y = None
 
-        if debug or True:
+        if debug:
             print("y.shape: %s stream.shape: %s text0=%s text=%s text_y=%s" % (
-            str(y.shape), str(stream.shape), text0, text, text_y))
+            str(y.shape), str(stream.shape), audio_state1[0], text, text_y))
         if reject_no_new_text and (text == text_y):
-            print("Rejected non-textual chunk: %s" % avg, flush=True)
+            if debug:
+                print("Rejected non-textual chunk: %s" % avg, flush=True)
             # if didn't generate text, reject the chunk.  E.g. when typing on keyboard that ends up being loud enough but is definitely not words.
-            chunks_new = chunks
+        else:
+            audio_state1[2] = chunks_new
     else:
         text = ''
+        # print("H9: %s %s" % (audio_state1[0], text), flush=True)
 
     # work-around race
-    if text0 == text:
+    if audio_state1[0] == text:
+        # print("H10: %s %s" % (audio_state1[0], text), flush=True)
         text = ''
 
-    return chunks_new, text0 + text
+    if audio_state1[0] is not None:
+        # For race, when action hits done while streaming occurs, to know now to use updated result
+        audio_state1[1] = audio_state1[0] + text
+    return audio_state1, audio_state1[1]
