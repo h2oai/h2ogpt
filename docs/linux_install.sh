@@ -74,7 +74,7 @@ fi
     sudo google-chrome --version  # e.g. Google Chrome 114.0.5735.198
     # visit https://chromedriver.chromium.org/downloads and download matching version
     # E.g.
-    sudo rm -rf chromedriver_linux64.zip chomedriver
+    sudo rm -rf chromedriver_linux64.zip chromedriver
     sudo wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
     sudo unzip chromedriver_linux64.zip
     sudo mv chromedriver /usr/bin/chromedriver
