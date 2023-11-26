@@ -959,7 +959,7 @@ def go_gradio(**kwargs):
                                                                  api_name='mic' if allow_api else None,
                                                                  show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
-                                        mic_button.click(fn=lambda: None, js=click_js()) \
+                                        mic_button.click(fn=lambda: None, js=click_js(), concurrency_limit=None) \
                                             .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
                                                      inputs=[audio_pretext, audio_state, audio],
@@ -1530,6 +1530,7 @@ def go_gradio(**kwargs):
                                                                 choose_mic_voice_clone],
                                                         outputs=[chatbot_role, roles_state],
                                                         api_name='add_role' if allow_api else None,
+                                                        concurrency_limit=None,
                                                         )
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
@@ -2129,7 +2130,7 @@ def go_gradio(**kwargs):
         def copy_text(instruction1):
             return gr.Textbox(value=''), instruction1
 
-        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text])
+        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text], concurrency_limit=None)
         eventdb2a_btn2 = eventdb2a_btn.then(**user_text_submit_kwargs)
         eventdb2_btn = eventdb2a_btn2.then(**add_url_kwargs_btn, show_progress='full')
 
@@ -2372,7 +2373,7 @@ def go_gradio(**kwargs):
                                               inputs=[my_db_state, requests_state,
                                                       delete_sources_btn, delete_sources_btn],
                                               outputs=[my_db_state, requests_state, delete_sources_btn],
-                                              show_progress='minimal')
+                                              show_progress='minimal', concurrency_limit=None)
         eventdb90 = eventdb90a.then(fn=delete_sources1,
                                     inputs=[my_db_state, selection_docs_state, requests_state, document_choice,
                                             langchain_mode],
@@ -2389,7 +2390,7 @@ def go_gradio(**kwargs):
         eventdb_logina = login_btn.click(user_state_setup,
                                          inputs=[my_db_state, requests_state, login_btn, login_btn],
                                          outputs=[my_db_state, requests_state, login_btn],
-                                         show_progress='minimal')
+                                         show_progress='minimal', concurrency_limit=None)
 
         def login(db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, langchain_mode1,
                   username1, password1,
@@ -4395,7 +4396,7 @@ def go_gradio(**kwargs):
         clear_eventa = save_chat_btn.click(user_state_setup,
                                            inputs=[my_db_state, requests_state, langchain_mode],
                                            outputs=[my_db_state, requests_state, langchain_mode],
-                                           show_progress='minimal')
+                                           show_progress='minimal', concurrency_limit=None)
         save_chat_func = functools.partial(save_chat,
                                            auth_filename=kwargs['auth_filename'],
                                            auth_freeze=kwargs['auth_freeze'],
@@ -4969,7 +4970,7 @@ def go_gradio(**kwargs):
         if kwargs['enable_tts']:
             stop_speak_button.click(stop_audio_func,
                                     outputs=[speech_human, speech_bot],
-                                    cancels=speak_events)
+                                    cancels=speak_events, concurrency_limit=None)
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
