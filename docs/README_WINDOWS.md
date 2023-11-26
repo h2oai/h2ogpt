@@ -61,11 +61,11 @@ For newer builds of windows versions of 10/11.
        ```
   * For GPU:
       ```bash
-      pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
+      pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
        ```
     In some cases this may lead to the message `No GPU` and in which case you can run next something like:
       ```bash
-      pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu117
+      pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118
        ```
    Choose `cu118` for A100/H100+.
  * Optional: for bitsandbytes 4-bit and 8-bit:
@@ -75,7 +75,7 @@ For newer builds of windows versions of 10/11.
    ```
 * Install document question-answer dependencies
 
-   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` for GPU install:
+   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu118` for GPU install:
    ```bash
     # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt
@@ -116,7 +116,7 @@ For newer builds of windows versions of 10/11.
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu118
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
@@ -130,7 +130,7 @@ For newer builds of windows versions of 10/11.
     * GPU GGMLv3 ONLY (no longer recommended):
       ```bash
       pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu118
       ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
@@ -151,7 +151,7 @@ For newer builds of windows versions of 10/11.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
     ```bash
-    pip install attention_sinks --extra-index-url https://download.pytorch.org/whl/cu117
+    pip install attention_sinks --extra-index-url https://download.pytorch.org/whl/cu118
   ```
 * SERP for search:
   ```bash

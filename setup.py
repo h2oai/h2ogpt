@@ -32,7 +32,7 @@ for req_file in req_files:
     install_requires.extend(x)
     dependency_links.extend(y)
 
-dependency_links.append('https://download.pytorch.org/whl/cu117')
+dependency_links.append('https://download.pytorch.org/whl/cu118')
 
 # FLASH
 install_flashattention = parse_requirements('reqs_optional/requirements_optional_flashattention.txt')

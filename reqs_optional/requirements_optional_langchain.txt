@@ -1,20 +1,20 @@
 # optional for chat with PDF
-langchain==0.0.338
+langchain==0.0.340
 langchain_experimental==0.0.42
-pypdf==3.14.0
+pypdf==3.17.1
 # avoid textract, requires old six
 #textract==1.6.5
-pypdfium2==4.19.0
+pypdfium2==4.24.0
 
 # for HF embeddings
 sentence_transformers==2.2.2
 
 # optional: for OpenAI endpoint or embeddings (requires key)
-openai==0.28.1
-replicate==0.10.0
+openai==1.3.5
+replicate==0.20.0
 
 # local vector db
-chromadb==0.4.13
+chromadb==0.4.18
 
 # chroma migration
 chroma-migrate==0.0.7
@@ -30,7 +30,7 @@ https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
 
 # strong support for images
 # Requires on Ubuntu: sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-unstructured[local-inference]==0.9.0
+unstructured[local-inference]==0.11.0
 #pdf2image==1.16.3
 #pytesseract==0.3.10
 pillow==9.5.0
@@ -55,4 +55,6 @@ jq==1.4.1; platform_machine == "x86_64"
 pip-licenses==4.3.0
 
 # weaviate vector db
-weaviate-client==3.22.1
+weaviate-client==3.25.3
+
+# vllm==0.2.2

@@ -1,2 +1,2 @@
 gpt4all==1.0.5
-llama-cpp-python==0.2.11
+llama-cpp-python==0.2.19

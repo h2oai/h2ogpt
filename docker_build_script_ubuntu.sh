@@ -26,6 +26,22 @@ apt-get update && apt-get install -y \
 # Run upgrades
 apt-get upgrade -y
 
+# Selenium
+apt install -y unzip xvfb libxi6 libgconf-2-4
+apt install -y default-jdk
+curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add
+bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+apt -y update
+apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+google-chrome --version  # e.g. Google Chrome 114.0.5735.198
+# visit https://chromedriver.chromium.org/downloads and download matching version
+# E.g.
+wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+unzip chromedriver_linux64.zip
+sudo mv chromedriver /usr/bin/chromedriver
+sudo chown root:root /usr/bin/chromedriver
+sudo chmod +x /usr/bin/chromedriver
+
 # Install conda
 wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh && \
     mkdir -p /h2ogpt_conda && \
@@ -49,16 +65,12 @@ pip install onnxruntime==1.15.0 onnxruntime-gpu==1.15.0
 pip install weasyprint==60.1
 
 # STT from microphone
-apt-get install -y ffmpeg
-pip install wavio==0.0.8
+pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8
 # For STT below may also be required
-#apt remove libavcodec-ffmpeg-extra56
-#apt install --reinstall libavcodec58 libavdevice58 libavfilter7 libavformat58 libavresample4 libavutil56 libpostproc55 libswresample3 libswscale5
+apt-get install -y ffmpeg
 # for TTS:
 pip install torchaudio soundfile==0.12.1
 # for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
-# pydantic can't be >=2.0
-# relaxed versions to avoid conflicts
 pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
 # undo excessive TTS constraint on transformers that seems to have no impact on h2oGPT usage
 pip install transformers==4.35.0
@@ -77,10 +89,13 @@ pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/d
 pip uninstall -y llama-cpp-python
 pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
 
-pip install autoawq
-pip install git+https://github.com/tomaarsen/attention_sinks.git
-pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
-pip install flash-attn==2.3.1.post1 --no-build-isolation
+pip install autoawq==0.1.7
+pip install sacrebleu==2.3.1 --upgrade
+
+pip install attention_sinks --no-deps
+
+pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+pip install flash-attn==2.3.4 --no-build-isolation
 playwright install --with-deps
 
 # Uninstall duckdb and use own so can control thread count per db

@@ -42,36 +42,32 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   ```
   On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS:
+* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS use of deepspeed, by going to [CUDA Toolkit](INSTALL.md#install-cuda-toolkit).  In order to avoid removing the original CUDA toolkit/driver you have, on NVIDIA's website, use the `runfile (local)` installer, and choose to not install driver or overwrite `/usr/local/cuda` link and just install the toolkit, and rely upon the `CUDA_HOME` env to point to the desired CUDA version.  Then do:
   ```bash
-  conda install cudatoolkit-dev -c conda-forge -y
-  export CUDA_HOME=$CONDA_PREFIX
+  export CUDA_HOME=/usr/local/cuda-11.8
   ```
-  which gives CUDA 11.7, or if you prefer follow [CUDA Toolkit](INSTALL.md#install-cuda-toolkit), then do:
+  Or if you do not plan to use packages like deepspeed in coqui's TTS or build other packages (i.e. only use binaries), you can just use the non-dev version from conda if preferred:
   ```bash
-  export CUDA_HOME=/usr/local/cuda-11.7
-  ```
-  For A100/H100+, you should use CUDA 11.8+ and use this native install from NVIDIA rather than conda for supporting all h2oGPT features (TTS deepspeed requires nvcc).
-
-  If you do not plan to use packages like deepspeed in coqui's TTS or build other packages (i.e. only use binaries), you can just use the non-dev version:
-  ```bash
-  conda install cudatoolkit=11.7 -c conda-forge -y
+  conda install cudatoolkit=11.8 -c conda-forge -y
   export CUDA_HOME=$CONDA_PREFIX 
   ```
-  Choose 11.8+ for A100/H100+.  If want cuda 11.8+ and need those packages for building etc., then use the native NVIDIA install of cuda toolkit.
+  Do not install `cudatoolkit-dev` as it only goes up to cuda 11.7 that is no longer supported.
 
-  In order to avoid removing the original CUDA toolkit/driver you have, on NVIDIA's website, use the `runfile (local)` installer, and choose to not install driver or overwrite `/usr/local/cuda` link and just install the toolkit, and rely upon the `CUDA_HOME` env to point to the desired CUDA version.
-
-  Place the `CUDA_HOME` export into your `~/.bashrc` or before starting h2oGPT for deepspeed to work.
+* Place the `CUDA_HOME` export into your `~/.bashrc` or before starting h2oGPT for TTS's use of deepspeed to work.
   
 * Prepare to install dependencies:
    ```bash
-   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu117"
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
    ```
   Choose cu118+ for A100/H100+.  Or for CPU set
    ```bash
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
    ```
+* Optional: For document Q/A and use of DocTR.  Install before other pips to avoid long conflict checks.
+   ```bash
+   conda install weasyprint pygobject -c conda-forge -y
+   ```
+   Avoids library mismatch.
 * Install primary dependencies
     ```bash
     # fix any bad env
@@ -80,11 +76,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     
     pip install -r requirements.txt
     ```
-* Install document question-answer dependencies:
+* Optional: Install document question-answer dependencies:
     ```bash
-    # For DocTR, using conda for some things, need weasyprint from conda too else library mismatch
-    conda install weasyprint -c conda-forge -y
-    pip install weasyprint
     # May be required for jq package:
     sudo apt-get -y install autoconf libtool
     # Required for Doc Q/A: LangChain:
@@ -98,40 +91,38 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
     sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-    # Optional: Improved OCR with DocTR:
-    conda install -y -c conda-forge pygobject
-    pip install -r reqs_optional/requirements_optional_doctr.txt
-    # For DocTR: go back to older onnx so Tesseract OCR still works
-    pip install onnxruntime==1.15.0
-    # GPU only:
-    pip install onnxruntime-gpu==1.15.0
+    # Optional: For DocTR
+      pip install -r reqs_optional/requirements_optional_doctr.txt
+      # For DocTR: go back to older onnx so Tesseract OCR still works
+      pip install onnxruntime==1.15.0
+      # GPU only:
+      pip install onnxruntime-gpu==1.15.0
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
     # Optional: Required for PlayWright
     playwright install --with-deps
     # Audio transcription from Youtube videos and local mp3 files:
-    pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13
-    pip install wavio==0.0.8
+      pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8
     # STT from microphone (may not be required if ffmpeg installed above)
     sudo apt-get install ffmpeg
-    # for TTS:
-    pip install torchaudio soundfile==0.12.1
+    # for any TTS:
+      pip install torchaudio soundfile==0.12.1
     # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
-    # pydantic can't be >=2.0
-    # relaxed versions to avoid conflicts
-    pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
-    # undo excessive TTS constraint on transformers that seems to have no impact on h2oGPT usage
-    pip install transformers==4.35.0
-    # for Coqui XTTS language helpers (specific versions probably not required)
-    pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
+      # pydantic can't be >=2.0
+      # relaxed versions to avoid conflicts
+      pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
+      # for Coqui XTTS language helpers (specific versions probably not required)
+      pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
     ```
 * STT and TTS Notes:
   * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
-  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu117`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
+  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 * HNSW issue:
     In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
    ```bash
    pip uninstall hnswlib==0.7.0
+   # restore correct version
+   pip install chroma-hnswlib==0.7.3
    ```
 * Selenium needs to have chrome installed, e.g. on Ubuntu:
     ```bash
@@ -153,8 +144,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * GPU Optional: For AutoGPTQ support on x86_64 linux
     ```bash
-    pip uninstall -y auto-gptq
-    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
+    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
     pip install optimum==1.14.1
     ```
@@ -166,8 +156,9 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 * GPU Optional: For AutoAWQ support on x86_64 linux
     ```bash
-    pip uninstall -y autoawq
-    pip install autoawq==0.1.6
+    pip uninstall -y autoawq ; pip install autoawq==0.1.7
+    # fix version since don't need lm-eval to have its version of 1.5.0
+    pip install sacrebleu==2.3.1 --upgrade
     ```
     If this has issues, you need to build:
     ```bash
@@ -178,7 +169,7 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
     ```
 * GPU Optional: For exllama support on x86_64 linux
     ```bash
-    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
+    pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir
     ```
     See [exllama](README_GPU.md#exllama) about running exllama models.
 
@@ -195,14 +186,6 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
       pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
       ```
       For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
-       ```bash
-        CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-       ```
-    * GPU GGMLv3 ONLY (no longer recommended):
-      ```bash
-      pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-linux_x86_64.whl
-      ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
    ```bash
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
@@ -223,11 +206,12 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
     ```bash
-    pip install attention_sinks
+    pip install attention_sinks --no-deps
+    # --no-deps is to avoid going back to old transformers/tokenizers https://github.com/tomaarsen/attention_sinks/issues/26
   ```
 * GPU Optional: Support amazon/MistralLite with flash attention 2
    ```bash
-    pip install flash-attn==2.3.1.post1 --no-build-isolation
+    pip install flash-attn==2.3.4 --no-build-isolation
   ```
 * Control Core Count for chroma < 0.4 using chromamigdb package:
     * Duckdb used by Chroma < 0.4 uses DuckDB 0.8.1 that has no control over number of threads per database, `import duckdb` leads to all virtual cores as threads and each db consumes another number of threads equal to virtual cores.  To prevent this, one can rebuild duckdb using [this modification](https://github.com/h2oai/duckdb/commit/dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad) or one can try to use the prebuild wheel for x86_64 built on Ubuntu 20.
