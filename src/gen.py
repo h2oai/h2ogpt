@@ -377,6 +377,8 @@ def main(
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
+        asr_use_better: bool = True,
+        asr_use_faster: bool = True,
 
         enable_stt: Union[str, bool] = 'auto',
         stt_model: str = "openai/whisper-base.en",
@@ -868,7 +870,7 @@ def main(
     :param doctr_gpu: If support doctr, then use GPU if exists
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
 
-    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3
+    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
@@ -876,7 +878,7 @@ def main(
     :param enable_stt: Whether to enable and show Speech-to-Text (STT) with microphone in UI
          Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.
     :param stt_model: Name of model for STT, can be same as asr_model, which will then use same model for conserving GPU
-    :param stt_gpu: Whther to use gpu for STT model
+    :param stt_gpu: Whether to use gpu for STT model
     :param stt_gpu_id: If not using asr_model, then which GPU to go on if using cuda
     :param stt_continue_mode: How to continue speech with button control
            0: Always append audio regardless of start/stop of recording, so always appends in STT model for full STT conversion
@@ -1418,7 +1420,9 @@ def main(
             from src.audio_langchain import H2OAudioCaptionLoader
             asr_loader = H2OAudioCaptionLoader(asr_gpu=asr_gpu,
                                                gpu_id=asr_gpu_id,
-                                               asr_model=asr_model).load_model()
+                                               asr_model=asr_model,
+                                               use_better=asr_use_better,
+                                               use_faster=asr_use_faster).load_model()
         else:
             asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
     else:

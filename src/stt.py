@@ -35,6 +35,9 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
     if y.shape[0] == 0:
         avg = 0.0
     else:
+        # stereo to mono if needed
+        if len(y.shape) > 1:
+            y = np.mean(y, dim=0)
         avg = np.average(np.abs(y))
     if not np.isfinite(avg):
         avg = 0.0

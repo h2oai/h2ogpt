@@ -110,6 +110,8 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             device_id: int = 0,
             lang_model: Optional[str] = None,
             forced_decoder_ids: Optional[Tuple[Dict]] = None,
+            use_better=True,
+            use_faster=True,
     ):
         """Initialize the parser.
 
@@ -175,13 +177,37 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             device_map = {"", 'cpu'}
         else:
             device_map = {"": device_id} if device_id >= 0 else {'': 'cuda'}
+
+        if use_faster and have_use_faster and self.lang_model in ['openai/whisper-large-v2',
+                                                                  'openai/whisper-large-v3']:
+            # pip install git+https://github.com/SYSTRAN/faster-whisper.git
+            from faster_whisper import WhisperModel
+            model_size = "large-v3" if self.lang_model == 'openai/whisper-large-v3' else "large-v2"
+            # Run on GPU with FP16
+            model = WhisperModel(model_size, device=self.device, compute_type="float16")
+            # or run on GPU with INT8
+            # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
+            # or run on CPU with INT8
+            # model = WhisperModel(model_size, device="cpu", compute_type="int8")
+        else:
+            model = self.lang_model
+
         # https://huggingface.co/blog/asr-chunking
         self.pipe = pipeline(
             "automatic-speech-recognition",
-            model=self.lang_model,
+            model=model,
             chunk_length_s=30,
             device_map=device_map,
         )
+        if use_better:
+            # even faster if not doing real time ASR
+            # stride_length_s=5,  batch_size=8
+            try:
+                from optimum.bettertransformer import BetterTransformer
+                self.pipe.model = BetterTransformer.transform(self.pipe.model)
+            except Exception as e:
+                print("No optimum, not using BetterTransformer: %s" % str(e), flush=True)
+
         if forced_decoder_ids is not None:
             try:
                 self.pipe.model.config.forced_decoder_ids = forced_decoder_ids
@@ -252,7 +278,7 @@ import requests
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader, YoutubeAudioLoader
 
-from utils import get_device, NullContext, clear_torch_cache
+from utils import get_device, NullContext, clear_torch_cache, have_use_faster
 
 from importlib.metadata import distribution, PackageNotFoundError
 
@@ -269,7 +295,10 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
     def __init__(self, path_audios: Union[str, List[str]] = None,
                  asr_model='openai/whisper-medium',
                  asr_gpu=True,
-                 gpu_id='auto'):
+                 gpu_id='auto',
+                 use_better=True,
+                 use_faster=True,
+                 ):
         super().__init__(path_audios)
         self.audio_paths = path_audios
         self.model = None
@@ -280,6 +309,8 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         self.device = 'cpu'
         self.device_map = {"": 'cpu'}
         self.set_context()
+        self.use_better = use_better
+        self.use_faster = use_faster
 
     def set_context(self):
         if get_device() == 'cuda' and self.asr_gpu:
@@ -322,7 +353,10 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
                 with context_class_cast(self.device):
                     self.model = OpenAIWhisperParserLocal(device=self.device,
                                                           device_id=self.gpu_id,
-                                                          lang_model=self.asr_model)
+                                                          lang_model=self.asr_model,
+                                                          use_better=self.use_better,
+                                                          use_faster=self.use_faster,
+                                                          )
         return self
 
     def set_audio_paths(self, path_audios: Union[str, List[str]]):

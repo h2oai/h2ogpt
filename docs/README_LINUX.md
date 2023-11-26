@@ -113,6 +113,8 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
       pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
       # for Coqui XTTS language helpers (specific versions probably not required)
       pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
+    # For faster whisper:
+    pip install git+https://github.com/SYSTRAN/faster-whisper.git
     ```
 * STT and TTS Notes:
   * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.

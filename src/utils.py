@@ -1265,6 +1265,13 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_TTS = False
 
+try:
+    assert distribution('use_faster') is not None
+    have_use_faster = True
+except (PackageNotFoundError, AssertionError):
+    have_use_faster = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
