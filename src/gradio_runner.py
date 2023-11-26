@@ -3086,7 +3086,8 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = prep_bot(*args_list_bot)
+                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = \
+                prep_bot(*args_list_bot, kwargs_eval=kwargs1)
 
             save_dict = dict()
             ret = {}
@@ -3096,21 +3097,21 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         langchain_action1):
-                    history, error, extra, save_dict, audio1 = res
+                    history, error, sources, save_dict, audio1 = res
                     res_dict = {}
                     res_dict['response'] = history[-1][1]
                     res_dict['error'] = error
-                    res_dict['extra'] = extra
+                    res_dict['sources'] = sources
                     res_dict['save_dict'] = save_dict
                     res_dict['audio'] = audio1
 
                     error = res_dict.get('error', '')
-                    extra = res_dict.get('extra', '')
+                    sources = res_dict.get('sources', [])
                     save_dict = res_dict.get('save_dict', {})
 
                     # update save_dict
                     save_dict['error'] = error
-                    save_dict['extra'] = extra
+                    save_dict['sources'] = sources
                     save_dict['valid_key'] = valid_key
                     save_dict['h2ogpt_key'] = h2ogpt_key1
                     if str_api and plain_api:
@@ -3446,7 +3447,7 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def prep_bot(*args, retry=False, which_model=0):
+        def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None):
             """
 
             :param args:
@@ -3538,7 +3539,9 @@ def go_gradio(**kwargs):
 
             eval_args = (model_state1, my_db_state1, selection_docs_state1, requests_state1, roles_state1)
             assert len(eval_args) == len(input_args_list)
-            fun1 = partial(evaluate_local, *eval_args, *tuple(args_list), **kwargs_evaluate)
+            if kwargs_eval is None:
+                kwargs_eval = kwargs_evaluate
+            fun1 = partial(evaluate_local, *eval_args, *tuple(args_list), **kwargs_eval)
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
@@ -3546,10 +3549,10 @@ def go_gradio(**kwargs):
 
         def gen1_fake(fun1, history):
             error = ''
-            extra = ''
+            sources = []
             save_dict = dict()
             audio1 = None
-            yield history, error, extra, save_dict, audio1
+            yield history, error, sources, save_dict, audio1
             return
 
         def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1):
@@ -3606,7 +3609,7 @@ def go_gradio(**kwargs):
             :return:
             """
             error = ''
-            extra = ''
+            sources = []
             save_dict = dict()
             output_no_refs = ''
 
@@ -3614,13 +3617,13 @@ def go_gradio(**kwargs):
                 prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1)
 
             if not fun1:
-                yield history, error, extra, save_dict, audio1
+                yield history, error, sources, save_dict, audio1
                 return
             try:
                 for output_fun in fun1():
                     output = output_fun['response']
                     output_no_refs = output_fun['response_no_refs']
-                    extra = output_fun['sources']  # FIXME: can show sources in separate text box etc.
+                    sources = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     save_dict = output_fun.get('save_dict', {})
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
@@ -3630,45 +3633,45 @@ def go_gradio(**kwargs):
                         while True:
                             audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=False)
                             if audio0 is not None:
-                                yield history, error, extra, save_dict, audio0
+                                yield history, error, sources, save_dict, audio0
                                 audio0 = None
                             if sentence is not None:
                                 # print("in %s %s" % (sentence is None, audio1 is None), flush=True)
-                                yield history, error, extra, save_dict, audio1
+                                yield history, error, sources, save_dict, audio1
                             else:
                                 # print("break %s %s" % (sentence is None, audio1 is None), flush=True)
                                 # while True to handle case when streaming is fast enough that see multiple sentences in single go
                                 break
                     else:
-                        yield history, error, extra, save_dict, audio0
+                        yield history, error, sources, save_dict, audio0
                 if generate_speech_func_func:
                     # print("final %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
                     audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=True)
                     if audio0 is not None:
-                        yield history, error, extra, save_dict, audio0
+                        yield history, error, sources, save_dict, audio0
                 else:
                     audio1 = None
                 # print("final2 %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
-                yield history, error, extra, save_dict, audio1
+                yield history, error, sources, save_dict, audio1
             except StopIteration:
                 # print("STOP ITERATION", flush=True)
-                yield history, error, extra, save_dict, no_audio
+                yield history, error, sources, save_dict, no_audio
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, error, extra, save_dict, no_audio
+                    yield history, error, sources, save_dict, no_audio
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e), extra, save_dict, no_audio
+                    yield history, str(e), sources, save_dict, no_audio
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex, extra, save_dict, no_audio
+                yield history, ex, sources, save_dict, no_audio
                 raise
             finally:
                 # clear_torch_cache()
@@ -3695,7 +3698,7 @@ def go_gradio(**kwargs):
                 chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
-            extra = ''
+            sources = []
             history_str_old = ''
             error_old = ''
             from src.tts_utils import get_no_audio
@@ -3706,7 +3709,7 @@ def go_gradio(**kwargs):
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         langchain_action1):
                     do_yield = False
-                    history, error, extra, save_dict, audio1 = res
+                    history, error, sources, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
@@ -3744,7 +3747,7 @@ def go_gradio(**kwargs):
             else:
                 save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
             save_dict['error'] = error
-            save_dict['extra'] = extra
+            save_dict['sources'] = sources
             save_dict['which_api'] = 'bot'
             save_generate_output(**save_dict)
 
@@ -3769,7 +3772,7 @@ def go_gradio(**kwargs):
             requests_state1 = None
             valid_key = False
             h2ogpt_key1 = ''
-            extras = []
+            sources_all = []
             exceptions = []
             save_dicts = []
             audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
@@ -3836,7 +3839,7 @@ def go_gradio(**kwargs):
                 ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                  x not in [None, '', 'None']])
             exceptions_old_str = exceptions_str
-            extras = extras_old = [''] * len(bots_old)
+            sources = sources_all_old = [[]] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
             if kwargs['tts_model'].startswith('microsoft'):
                 from src.tts_utils import prepare_speech, get_no_audio
@@ -3865,9 +3868,9 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions != exceptions_old
                     exceptions_old = exceptions.copy()
 
-                    extras = [x[2] if x is not None and not isinstance(x, BaseException) else y
-                              for x, y in zip(res1, extras_old)]
-                    extras_old = extras.copy()
+                    sources_all = [x[2] if x is not None and not isinstance(x, BaseException) else y
+                              for x, y in zip(res1, sources_all_old)]
+                    sources_all_old = sources_all.copy()
 
                     save_dicts = [x[3] if x is not None and not isinstance(x, BaseException) else y
                                   for x, y in zip(res1, save_dicts_old)]
@@ -3921,7 +3924,7 @@ def go_gradio(**kwargs):
                 clear_embeddings(langchain_mode1, db1s)
 
             # save
-            for extra, error, save_dict, model_name in zip(extras, exceptions, save_dicts, all_possible_visible_models):
+            for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts, all_possible_visible_models):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 if requests_state1:
@@ -3929,7 +3932,7 @@ def go_gradio(**kwargs):
                 else:
                     save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
                 save_dict['error'] = error
-                save_dict['extra'] = extra
+                save_dict['sources'] = sources
                 save_dict['which_api'] = 'all_bot_%s' % model_name
                 save_dict['valid_key'] = valid_key
                 save_dict['h2ogpt_key'] = h2ogpt_key1
