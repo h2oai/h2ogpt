@@ -176,7 +176,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
         if self.device == 'cpu':
             device_map = {"", 'cpu'}
         else:
-            device_map = {"": device_id} if device_id >= 0 else {'': 'cuda'}
+            device_map = {"": 'cuda:%d' % device_id} if device_id >= 0 else {'': 'cuda'}
 
         if use_faster and have_use_faster and self.lang_model in ['openai/whisper-large-v2',
                                                                   'openai/whisper-large-v3']:
@@ -197,6 +197,8 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             "automatic-speech-recognition",
             model=model,
             chunk_length_s=30,
+            stride_length_s=5,
+            batch_size=8,
             device_map=device_map,
         )
         if use_better:
@@ -204,7 +206,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             # stride_length_s=5,  batch_size=8
             try:
                 from optimum.bettertransformer import BetterTransformer
-                self.pipe.model = BetterTransformer.transform(self.pipe.model)
+                self.pipe.model = BetterTransformer.transform(self.pipe.model, use_flash_attention_2=True)
             except Exception as e:
                 print("No optimum, not using BetterTransformer: %s" % str(e), flush=True)
 

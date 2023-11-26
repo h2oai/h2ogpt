@@ -1271,6 +1271,14 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_use_faster = False
 
+try:
+    assert distribution('flash_attn') is not None
+    have_flash_attention = True
+    have_flash_attention_2 = distribution('flash_attn').version.startswith('2.')
+except (PackageNotFoundError, AssertionError):
+    have_flash_attention = False
+    have_flash_attention_2 = False
+
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"

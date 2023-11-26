@@ -52,7 +52,7 @@ from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS
+    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2
 
 start_faulthandler()
 import_matplotlib()
@@ -122,6 +122,7 @@ def main(
         load_4bit: bool = False,
         low_bit_mode: int = 1,
         load_half: bool = None,
+        use_flash_attention_2=True,
         load_gptq: str = '',
         use_autogptq: bool = False,
         load_awq: str = '',
@@ -419,6 +420,7 @@ def main(
            If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
+    :param use_flash_attention_2: Whether to try to use flash attention 2 if avaialble when loading HF models
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. 'model' for TheBloke models
     :param use_autogptq: whether to use AutoGPTQ (True) or HF Transformers (False)
            Some models are only supported by one or the other
@@ -1219,6 +1221,7 @@ def main(
         if load_half is None:
             # wouldn't work if specified True, but respect
             load_half = False
+        use_flash_attention_2 = False
         load_gptq = ''
         load_awq = ''
         load_exllama = False
@@ -1237,6 +1240,8 @@ def main(
         if score_model == 'auto':
             score_model = ''
     else:
+        if not have_flash_attention_2:
+            use_flash_attention_2 = False
         if load_half is None:
             load_half = True
         # CUDA GPUs visible
@@ -1548,7 +1553,7 @@ def main(
     truncation_generation = truncation_generation and not attention_sinks
 
     other_model_state_defaults = dict(load_8bit=load_8bit, load_4bit=load_4bit, low_bit_mode=low_bit_mode,
-                                      load_half=load_half,
+                                      load_half=load_half, use_flash_attention_2=use_flash_attention_2,
                                       load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
                                       use_safetensors=use_safetensors,
                                       revision=revision, use_gpu_id=use_gpu_id, gpu_id=gpu_id,
@@ -1906,6 +1911,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
         device_map = {'': 'cpu'}
         model_kwargs['load_in_8bit'] = False
         model_kwargs['load_in_4bit'] = False
+        model_kwargs['use_flash_attention_2'] = False
     print('device_map: %s' % device_map, flush=True)
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
@@ -2031,6 +2037,7 @@ def get_model(
         load_4bit: bool = False,
         low_bit_mode: int = 1,
         load_half: bool = True,
+        use_flash_attention_2: bool = True,
         load_gptq: str = '',
         use_autogptq: bool = False,
         load_awq: str = '',
@@ -2257,6 +2264,7 @@ def get_model(
                         load_4bit=load_4bit,
                         low_bit_mode=low_bit_mode,
                         load_half=load_half,
+                        use_flash_attention_2=use_flash_attention_2,
                         load_gptq=load_gptq,
                         use_autogptq=use_autogptq,
                         load_awq=load_awq,
@@ -2294,6 +2302,7 @@ def get_hf_model(load_8bit: bool = False,
                  load_4bit: bool = False,
                  low_bit_mode: int = 1,
                  load_half: bool = True,
+                 use_flash_attention_2: bool = True,
                  load_gptq: str = '',
                  use_autogptq: bool = False,
                  load_awq: str = '',
@@ -2391,6 +2400,7 @@ def get_hf_model(load_8bit: bool = False,
                 device_map = "auto"
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      load_in_4bit=load_4bit,
+                                     use_flash_attention_2=use_flash_attention_2,
                                      device_map=device_map,
                                      ))
         if 'mpt-' in base_model.lower() and gpu_id is not None and gpu_id >= 0:
@@ -2609,6 +2619,7 @@ def get_score_model(score_model: str = None,
                     load_4bit: bool = False,
                     low_bit_mode=1,
                     load_half: bool = True,
+                    use_flash_attention_2: bool = True,
                     load_gptq: str = '',
                     use_autogptq: bool = False,
                     load_awq: str = '',
@@ -2645,6 +2656,7 @@ def get_score_model(score_model: str = None,
         load_4bit = False
         low_bit_mode = 1
         load_half = False
+        use_flash_attention_2 = False
         load_gptq = ''
         use_autogptq = False
         load_awq = ''
