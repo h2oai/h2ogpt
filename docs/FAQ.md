@@ -65,6 +65,12 @@ In the expert panel you can replay any h2oGPT generation or speak instruction ge
 
 If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
 
+### Faster ASR
+
+For fast performance, one can use `distil-whisper/distil-large-v2` as the model, which is about 10x faster for similar accuracy.
+
+In addition, faster_whisper package is used by default if using large v2 or v3, which is about 4x faster for similar accuracy.
+
 ### Voice Cloning
 
 Follow these steps:

@@ -1266,7 +1266,7 @@ except (PackageNotFoundError, AssertionError):
     have_TTS = False
 
 try:
-    assert distribution('use_faster') is not None
+    assert distribution('faster_whisper') is not None
     have_use_faster = True
 except (PackageNotFoundError, AssertionError):
     have_use_faster = False
