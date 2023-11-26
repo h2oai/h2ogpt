@@ -46,9 +46,8 @@ fi
     # for any TTS:
       pip install torchaudio soundfile==0.12.1
     # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
-      # pydantic can't be >=2.0
       # relaxed versions to avoid conflicts
-      pip install TTS deepspeed noisereduce pydantic==1.10.13 emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
+      pip install TTS deepspeed noisereduce emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
       # for Coqui XTTS language helpers (specific versions probably not required)
       pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
     # For faster whisper:

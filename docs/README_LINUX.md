@@ -65,10 +65,10 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
    ```
 
 * Run (`bash docs/linux_install.sh`)[linux_install.sh] for full normal document Q/A installation.  To allow all (GPL too) packages, run:
-```bash
-GPLOK=1 bash docs/linux_install.sh
-```
-One can pick and choose different optional things to install instead, or edit the script if any issues.  See script for notes about installation.
+    ```bash
+    GPLOK=1 bash docs/linux_install.sh
+    ```
+One can pick and choose different optional things to install instead by commenting them out in the shell script, or edit the script if any issues.  See script for notes about installation.
 
 ---
 
