@@ -6,6 +6,7 @@ from src.tts_sentence_parsing import init_sentence_state
 from tests.test_sentence_parsing import bot_list
 
 
+@pytest.mark.audio
 @wrap_test_forked
 def test_sentence_to_wave():
     os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
@@ -31,6 +32,7 @@ def test_sentence_to_wave():
         pass
 
 
+@pytest.mark.audio
 @wrap_test_forked
 def test_generate_speech():
     os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
@@ -45,6 +47,7 @@ def test_generate_speech():
         generate_speech(char, model=model, supported_languages=supported_languages, latent=latent)
 
 
+@pytest.mark.audio
 @wrap_test_forked
 def test_full_generate_speech():
     os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
@@ -102,6 +105,7 @@ def test_full_generate_speech():
     print(audios)
 
 
+@pytest.mark.audio
 @wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
 def test_predict_from_text(bot, sentences_expected):
