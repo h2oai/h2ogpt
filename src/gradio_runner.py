@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa
+    get_ngpus_vis, have_librosa, have_gradio_pdf
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -1203,6 +1203,11 @@ def go_gradio(**kwargs):
                     doc_view3 = gr.JSON(visible=False)
                     doc_view4 = gr.Markdown(visible=False)
                     doc_view5 = gr.HTML(visible=False)
+                    if have_gradio_pdf:
+                        from gradio_pdf import PDF
+                        doc_view6 = PDF(visible=False)
+                    else:
+                        doc_view6 = gr.HTML(visible=False)
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
@@ -1865,12 +1870,16 @@ def go_gradio(**kwargs):
 
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
                             doc_count_btn = gr.Button("Toggle SideBar Document Count/Show Newest", variant="secondary",
-                                                      size="sm")
+                                                      size="sm",
+                                                      visible=langchain_mode != LangChainMode.DISABLED.value)
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
                             visible_model_btn = gr.Button("Toggle Visible Models", variant="secondary", size="sm")
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
                             text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
                                                             step=50, label='Chat Height')
+                            pdf_height = gr.Slider(minimum=100, maximum=3000, value=kwargs['pdf_height'] or 800,
+                                                            step=50, label='PDF Viewer Height',
+                                                   visible=have_gradio_pdf and langchain_mode != LangChainMode.DISABLED.value)
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
                         with gr.Column(scale=4):
                             pass
@@ -2211,6 +2220,11 @@ def go_gradio(**kwargs):
         text_outputs_height.change(fn=resize_chatbots_func, inputs=text_outputs_height,
                                    outputs=[text_output, text_output2] + text_outputs, concurrency_limit=None)
 
+        def resize_pdf_viewer_func(x):
+            return gr.update(height=x)
+
+        pdf_height.change(fn=resize_pdf_viewer_func, inputs=pdf_height, outputs=doc_view6, concurrency_limit=None)
+
         def update_dropdown(x):
             if DocumentChoice.ALL.value in x:
                 x.remove(DocumentChoice.ALL.value)
@@ -2311,8 +2325,8 @@ def go_gradio(**kwargs):
         eventdb_viewa.then(fn=show_doc_func,
                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                    view_document_choice, view_raw_text_checkbox,
-                                   text_context_list],
-                           outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5])
+                                   text_context_list, pdf_height],
+                           outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5, doc_view6])
 
         show_doc_func_api = functools.partial(show_doc_func, api=True)
         get_document_api_btn.click(fn=show_doc_func_api,
@@ -5114,6 +5128,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
              single_document_choice1,
              view_raw_text_checkbox1,
              text_context_list1,
+             pdf_height,
              dbs1=None,
              load_db_if_exists1=None,
              db_type1=None,
@@ -5226,11 +5241,11 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     dummy1 = gr.update(visible=False, value=None)
     # backup is text dump of db version
     if content:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
         if view_raw_text_checkbox1:
             return dummy_ret
     else:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
 
     if not isinstance(file, str):
         return dummy_ret
@@ -5240,7 +5255,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
+            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5248,7 +5263,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5257,7 +5272,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```python\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5267,7 +5282,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```text\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5288,7 +5303,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             df = func(file).head(100)
         except:
             return dummy_ret
-        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1
+        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1
     port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     import pathlib
     absolute_path_string = os.path.abspath(file)
@@ -5296,7 +5311,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     url = get_url(absolute_path_string, from_str=True)
     img_url = url.replace("""<a href=""", """<img src=""")
     if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
-        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1
+        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1
     elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
 
         # account for when use `wget -b -m -k -o wget.log -e robots=off`
@@ -5309,20 +5324,14 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             # if file is online, then might as well use google(?)
             document1 = file
             return gr.update(visible=True,
-                             value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
+                             value=f"""<iframe width="1000" height="{pdf_height}" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
 </iframe>
-"""), dummy1, dummy1, dummy1, dummy1
+"""), dummy1, dummy1, dummy1, dummy1, dummy1
+        elif have_gradio_pdf and os.path.isfile(file):
+            from gradio_pdf import PDF
+            return dummy1, dummy1, dummy1, dummy1, dummy1, PDF(file, visible=True, label=file, show_label=True, height=pdf_height)
         else:
-            # FIXME: This doesn't work yet, just return dummy result for now
-            if False:
-                ip = get_local_ip()
-                document1 = url_path.replace('file://', f'http://{ip}:{port}/')
-                # document1 = url
-                return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
-<iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
-</object>"""), dummy1, dummy1, dummy1, dummy1
-            else:
-                return dummy_ret
+            return dummy_ret
     else:
         return dummy_ret
 

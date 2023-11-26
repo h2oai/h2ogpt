@@ -1280,6 +1280,13 @@ except (PackageNotFoundError, AssertionError):
     have_flash_attention_2 = False
 
 
+try:
+    assert distribution('gradio_pdf') is not None
+    have_gradio_pdf = True
+except (PackageNotFoundError, AssertionError):
+    have_gradio_pdf = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"

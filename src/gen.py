@@ -265,6 +265,7 @@ def main(
         actions_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
+        pdf_height: int = 800,
         avatars: bool = True,
 
         sanitize_user_prompt: bool = False,
@@ -707,6 +708,7 @@ def main(
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
+    :param pdf_height: Height of PDF viewer in UI
     :param avatars: Whether to show avatars in chatbot
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)

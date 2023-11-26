@@ -181,6 +181,12 @@ fi
    pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
 #   ```
 
+#* PDF View support
+#   ```bash
+   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl
+#   ```
+
+
 ### Compile Install Issues
 #  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
 #    * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:

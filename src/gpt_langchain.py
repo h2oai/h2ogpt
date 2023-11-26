@@ -176,6 +176,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             if db_type == 'chroma':
                 import chromadb
                 api = chromadb.PersistentClient(path=persist_directory)
+                from_kwargs.update(dict(client=api))
                 if hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
                     max_batch_size = api._producer.max_batch_size
                 else:
