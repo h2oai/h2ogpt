@@ -70,7 +70,7 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
 
         if debug:
             print("y.shape: %s stream.shape: %s text0=%s text=%s text_y=%s" % (
-            str(y.shape), str(stream.shape), audio_state1[0], text, text_y))
+                str(y.shape), str(stream.shape), audio_state1[0], text, text_y))
         if reject_no_new_text and (text == text_y):
             if debug:
                 print("Rejected non-textual chunk: %s" % avg, flush=True)

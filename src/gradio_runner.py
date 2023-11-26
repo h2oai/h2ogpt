@@ -2135,7 +2135,8 @@ def go_gradio(**kwargs):
         def copy_text(instruction1):
             return gr.Textbox(value=''), instruction1
 
-        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text], concurrency_limit=None)
+        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text],
+                                         concurrency_limit=None)
         eventdb2a_btn2 = eventdb2a_btn.then(**user_text_submit_kwargs)
         eventdb2_btn = eventdb2a_btn2.then(**add_url_kwargs_btn, show_progress='full')
 
@@ -3874,7 +3875,7 @@ def go_gradio(**kwargs):
                     exceptions_old = exceptions.copy()
 
                     sources_all = [x[2] if x is not None and not isinstance(x, BaseException) else y
-                              for x, y in zip(res1, sources_all_old)]
+                                   for x, y in zip(res1, sources_all_old)]
                     sources_all_old = sources_all.copy()
 
                     save_dicts = [x[3] if x is not None and not isinstance(x, BaseException) else y
@@ -3929,7 +3930,8 @@ def go_gradio(**kwargs):
                 clear_embeddings(langchain_mode1, db1s)
 
             # save
-            for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts, all_possible_visible_models):
+            for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts,
+                                                             all_possible_visible_models):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 if requests_state1:
