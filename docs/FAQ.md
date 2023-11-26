@@ -69,7 +69,7 @@ If you want to stop generation of speech, click "Stop" in top-right to stop gene
 
 For fast performance, one can use `distil-whisper/distil-large-v2` as the model, which is about 10x faster for similar accuracy.
 
-In addition, faster_whisper package is used by default if using large v2 or v3, which is about 4x faster for similar accuracy.
+In addition, faster_whisper package can be used if using large v2 or v3, which is about 4x faster and 2x less memory for similar accuracy.
 
 ### Voice Cloning
 

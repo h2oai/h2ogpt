@@ -379,7 +379,7 @@ def main(
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
         asr_use_better: bool = True,
-        asr_use_faster: bool = True,
+        asr_use_faster: bool = False,
 
         enable_stt: Union[str, bool] = 'auto',
         stt_model: str = "openai/whisper-base.en",
@@ -877,7 +877,7 @@ def main(
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
     :param asr_use_better: Whether to use BetterTransformer
-    :param asr_use_faster: Whether to use faster_whisper package and models
+    :param asr_use_faster: Whether to use faster_whisper package and models (loads normal whisper then unloads it, to get this into pipeline)
 
     :param enable_stt: Whether to enable and show Speech-to-Text (STT) with microphone in UI
          Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.

@@ -111,7 +111,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             lang_model: Optional[str] = None,
             forced_decoder_ids: Optional[Tuple[Dict]] = None,
             use_better=True,
-            use_faster=True,
+            use_faster=False,
     ):
         """Initialize the parser.
 
@@ -178,24 +178,10 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
         else:
             device_map = {"": 'cuda:%d' % device_id} if device_id >= 0 else {'': 'cuda'}
 
-        if use_faster and have_use_faster and self.lang_model in ['openai/whisper-large-v2',
-                                                                  'openai/whisper-large-v3']:
-            # pip install git+https://github.com/SYSTRAN/faster-whisper.git
-            from faster_whisper import WhisperModel
-            model_size = "large-v3" if self.lang_model == 'openai/whisper-large-v3' else "large-v2"
-            # Run on GPU with FP16
-            model = WhisperModel(model_size, device=self.device, compute_type="float16")
-            # or run on GPU with INT8
-            # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
-            # or run on CPU with INT8
-            # model = WhisperModel(model_size, device="cpu", compute_type="int8")
-        else:
-            model = self.lang_model
-
         # https://huggingface.co/blog/asr-chunking
         self.pipe = pipeline(
             "automatic-speech-recognition",
-            model=model,
+            model=self.lang_model,
             chunk_length_s=30,
             stride_length_s=5,
             batch_size=8,
@@ -209,6 +195,24 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
                 self.pipe.model = BetterTransformer.transform(self.pipe.model, use_flash_attention_2=True)
             except Exception as e:
                 print("No optimum, not using BetterTransformer: %s" % str(e), flush=True)
+
+        if use_faster and have_use_faster and self.lang_model in ['openai/whisper-large-v2',
+                                                                  'openai/whisper-large-v3']:
+            self.pipe.model.to('cpu')
+            del self.pipe.model
+            clear_torch_cache()
+            print("Using faster_whisper", flush=True)
+            # has to come here, no framework and no config for model
+            # pip install git+https://github.com/SYSTRAN/faster-whisper.git
+            from faster_whisper import WhisperModel
+            model_size = "large-v3" if self.lang_model == 'openai/whisper-large-v3' else "large-v2"
+            # Run on GPU with FP16
+            model = WhisperModel(model_size, device=self.device, compute_type="float16")
+            # or run on GPU with INT8
+            # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
+            # or run on CPU with INT8
+            # model = WhisperModel(model_size, device="cpu", compute_type="int8")
+            self.pipe.model = model
 
         if forced_decoder_ids is not None:
             try:
@@ -299,7 +303,7 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
                  asr_gpu=True,
                  gpu_id='auto',
                  use_better=True,
-                 use_faster=True,
+                 use_faster=False,
                  ):
         super().__init__(path_audios)
         self.audio_paths = path_audios
