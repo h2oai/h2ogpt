@@ -2,6 +2,13 @@
 set -o pipefail
 set -ex
 
+which sudo
+retVal=$?
+if [ $retVal -ne 0 ]; then
+  echo "No sudo"
+  alias sudo=' '
+fi
+
 #* Optional: For document Q/A and use of DocTR.  Install before other pips to avoid long conflict checks.
 #   ```bash
    conda install weasyprint pygobject -c conda-forge -y
