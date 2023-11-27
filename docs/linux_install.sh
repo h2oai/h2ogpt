@@ -59,9 +59,9 @@ fi
 #* HNSW issue:
 #    In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
 #   ```bash
-   pip uninstall -y hnswlib==0.7.0
+   pip uninstall -y hnswlib chroma-hnswlib
    # restore correct version
-   pip install chroma-hnswlib==0.7.3
+   pip install chroma-hnswlib==0.7.3 --upgrade
 #   ```
 #* Selenium needs to have chrome installed, e.g. on Ubuntu:
 #    ```bash
