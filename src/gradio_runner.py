@@ -5107,22 +5107,30 @@ def go_gradio(**kwargs):
     if server_port is not None:
         server_port = int(server_port)
 
-    demo.launch(share=kwargs['share'],
-                server_name=kwargs['server_name'],
-                show_error=True,
-                server_port=server_port,
-                favicon_path=favicon_path,
-                prevent_thread_lock=True,
-                auth=auth,
-                auth_message=auth_message,
-                root_path=kwargs['root_path'],
-                ssl_keyfile=kwargs['ssl_keyfile'],
-                ssl_verify=kwargs['ssl_verify'],
-                ssl_certfile=kwargs['ssl_certfile'],
-                ssl_keyfile_password=kwargs['ssl_keyfile_password'],
-                max_threads=max(40, 2 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
-                                                                                   int) else None,
-                )
+    max_threads = max(40, 2 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
+                                                                                   int) else None
+    if kwargs['google_auth']:
+        import uvicorn
+        from gradio_utils.google_auth import get_app
+        app = get_app(demo)
+        uvicorn.run(app, host=kwargs['server_name'], port=7859)#, workers=max_threads)
+    else:
+        demo.launch(share=kwargs['share'],
+                    server_name=kwargs['server_name'],
+                    show_error=True,
+                    server_port=server_port,
+                    favicon_path=favicon_path,
+                    prevent_thread_lock=True,
+                    auth=auth,
+                    auth_message=auth_message,
+                    root_path=kwargs['root_path'],
+                    ssl_keyfile=kwargs['ssl_keyfile'],
+                    ssl_verify=kwargs['ssl_verify'],
+                    ssl_certfile=kwargs['ssl_certfile'],
+                    ssl_keyfile_password=kwargs['ssl_keyfile_password'],
+                    max_threads=max_threads,
+                    )
+
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
         print("Started Gradio Server and/or GUI: server_name: %s port: %s" % (showed_server_name,

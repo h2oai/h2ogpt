@@ -232,6 +232,7 @@ def main(
         auth_access: str = 'open',
         auth_freeze: bool = False,
         auth_message: str = None,
+        google_auth: bool = False,
         guest_name: str = "guest",
         enforce_h2ogpt_api_key: bool = None,
         enforce_h2ogpt_ui_key: bool = None,
@@ -648,6 +649,7 @@ def main(
          'closed': Stick to existing users
     :param auth_freeze: whether freeze authentication based upon current file, no longer update file
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
+    :param google_auth: Whether to use google auth
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
