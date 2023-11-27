@@ -2361,64 +2361,81 @@ def file_to_doc(file,
         docs1.extend(docs1c)
         doc1 = chunk_sources(docs1)
     elif any(file.lower().endswith(x) for x in set_image_audio_types1):
+        handled = False
+        e = None
         docs1 = []
-        if verbose:
-            print("BEGIN: Tesseract", flush=True)
         if have_tesseract and enable_ocr:
-            # OCR, somewhat works, but not great
-            docs1a = UnstructuredImageLoader(file, strategy='ocr_only').load()
-            # docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
-            docs1a = [x for x in docs1a if x.page_content]
-            add_meta(docs1a, file, parser='UnstructuredImageLoader')
-            docs1.extend(docs1a)
-        if verbose:
-            print("END: Tesseract", flush=True)
+            if verbose:
+                print("BEGIN: Tesseract", flush=True)
+            try:
+                # OCR, somewhat works, but not great
+                docs1a = UnstructuredImageLoader(file, strategy='ocr_only').load()
+                # docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
+                docs1a = [x for x in docs1a if x.page_content]
+                add_meta(docs1a, file, parser='UnstructuredImageLoader')
+                docs1.extend(docs1a)
+            except BaseException as e0:
+                print("UnstructuredImageLoader: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1) > 0
+            if verbose:
+                print("END: Tesseract", flush=True)
         if have_doctr and enable_doctr:
             if verbose:
                 print("BEGIN: DocTR", flush=True)
-            if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
-                if verbose:
-                    print("Reuse DocTR", flush=True)
-                model_loaders['doctr'].load_model()
-            else:
-                if verbose:
-                    print("Fresh DocTR", flush=True)
-                from image_doctr import H2OOCRLoader
-                model_loaders['doctr'] = H2OOCRLoader(layout_aware=True)
-            model_loaders['doctr'].set_document_paths([file])
-            docs1c = model_loaders['doctr'].load()
-            docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, parser='H2OOCRLoader: %s' % 'DocTR')
-            # caption didn't set source, so fix-up meta
-            hash_of_file = hash_file(file)
-            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-            docs1.extend(docs1c)
+            try:
+                if model_loaders['doctr'] is not None and not isinstance(model_loaders['doctr'], (str, bool)):
+                    if verbose:
+                        print("Reuse DocTR", flush=True)
+                    model_loaders['doctr'].load_model()
+                else:
+                    if verbose:
+                        print("Fresh DocTR", flush=True)
+                    from image_doctr import H2OOCRLoader
+                    model_loaders['doctr'] = H2OOCRLoader(layout_aware=True)
+                model_loaders['doctr'].set_document_paths([file])
+                docs1c = model_loaders['doctr'].load()
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='H2OOCRLoader: %s' % 'DocTR')
+                # caption didn't set source, so fix-up meta
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                docs1.extend(docs1c)
+            except BaseException as e0:
+                print("H2OOCRLoader: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1) > 0
             if verbose:
                 print("END: DocTR", flush=True)
         if enable_captions:
             # BLIP
             if verbose:
                 print("BEGIN: BLIP", flush=True)
-            if model_loaders['caption'] is not None and not isinstance(model_loaders['caption'], (str, bool)):
-                # assumes didn't fork into this process with joblib, else can deadlock
-                if verbose:
-                    print("Reuse BLIP", flush=True)
-                model_loaders['caption'].load_model()
-            else:
-                if verbose:
-                    print("Fresh BLIP", flush=True)
-                from image_captions import H2OImageCaptionLoader
-                model_loaders['caption'] = H2OImageCaptionLoader(caption_gpu=model_loaders['caption'] == 'gpu',
-                                                                 blip_model=captions_model,
-                                                                 blip_processor=captions_model)
-            model_loaders['caption'].set_image_paths([file])
-            docs1c = model_loaders['caption'].load()
-            docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model)
-            # caption didn't set source, so fix-up meta
-            hash_of_file = hash_file(file)
-            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-            docs1.extend(docs1c)
+            try:
+                if model_loaders['caption'] is not None and not isinstance(model_loaders['caption'], (str, bool)):
+                    # assumes didn't fork into this process with joblib, else can deadlock
+                    if verbose:
+                        print("Reuse BLIP", flush=True)
+                    model_loaders['caption'].load_model()
+                else:
+                    if verbose:
+                        print("Fresh BLIP", flush=True)
+                    from image_captions import H2OImageCaptionLoader
+                    model_loaders['caption'] = H2OImageCaptionLoader(caption_gpu=model_loaders['caption'] == 'gpu',
+                                                                     blip_model=captions_model,
+                                                                     blip_processor=captions_model)
+                model_loaders['caption'].set_image_paths([file])
+                docs1c = model_loaders['caption'].load()
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model)
+                # caption didn't set source, so fix-up meta
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                docs1.extend(docs1c)
+            except BaseException as e0:
+                print("H2OImageCaptionLoader: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1) > 0
 
             if verbose:
                 print("END: BLIP", flush=True)
@@ -2426,26 +2443,37 @@ def file_to_doc(file,
             # BLIP
             if verbose:
                 print("BEGIN: Pix2Struct", flush=True)
-            if model_loaders['pix2struct'] is not None and not isinstance(model_loaders['pix2struct'], (str, bool)):
-                if verbose:
-                    print("Reuse pix2struct", flush=True)
-                model_loaders['pix2struct'].load_model()
-            else:
-                if verbose:
-                    print("Fresh pix2struct", flush=True)
-                from image_pix2struct import H2OPix2StructLoader
-                model_loaders['pix2struct'] = H2OPix2StructLoader()
-            model_loaders['pix2struct'].set_image_paths([file])
-            docs1c = model_loaders['pix2struct'].load()
-            docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
-            # caption didn't set source, so fix-up meta
-            hash_of_file = hash_file(file)
-            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-            docs1.extend(docs1c)
+            try:
+                if model_loaders['pix2struct'] is not None and not isinstance(model_loaders['pix2struct'], (str, bool)):
+                    if verbose:
+                        print("Reuse pix2struct", flush=True)
+                    model_loaders['pix2struct'].load_model()
+                else:
+                    if verbose:
+                        print("Fresh pix2struct", flush=True)
+                    from image_pix2struct import H2OPix2StructLoader
+                    model_loaders['pix2struct'] = H2OPix2StructLoader()
+                model_loaders['pix2struct'].set_image_paths([file])
+                docs1c = model_loaders['pix2struct'].load()
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'])
+                # caption didn't set source, so fix-up meta
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                docs1.extend(docs1c)
+            except BaseException as e0:
+                print("H2OPix2StructLoader: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1) > 0
             if verbose:
                 print("END: Pix2Struct", flush=True)
         doc1 = chunk_sources(docs1)
+        if len(doc1) == 0:
+            # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
+            if handled:
+                raise ValueError("%s had no valid text, but meta data was parsed" % file)
+            else:
+                raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
     elif file.lower().endswith('.msg'):
         raise RuntimeError("Not supported, GPL3 license")
         # docs1 = OutlookMessageLoader(file).load()
