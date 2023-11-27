@@ -36,7 +36,7 @@ fi
       # GPU only:
       pip install onnxruntime-gpu==1.15.0
     # Optional: for supporting unstructured package
-    python -m nltk.downloader all
+    for i in 1 2 3 4; do python -m nltk.downloader all && break || sleep 1; done  # retry as frequently fails with github downloading issues
     # Optional: Required for PlayWright
     playwright install --with-deps
     # Audio transcription from Youtube videos and local mp3 files:
@@ -164,6 +164,7 @@ fi
 #* Control Core Count for chroma < 0.4 using chromamigdb package:
 #    * Duckdb used by Chroma < 0.4 uses DuckDB 0.8.1 that has no control over number of threads per database, `import duckdb` leads to all virtual cores as threads and each db consumes another number of threads equal to virtual cores.  To prevent this, one can rebuild duckdb using [this modification](https://github.com/h2oai/duckdb/commit/dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad) or one can try to use the prebuild wheel for x86_64 built on Ubuntu 20.
 #        ```bash
+        pip uninstall -y pyduckdb duckdb
         pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg9698e9e6a8.d20230907-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall --no-deps
 #      ```
 #* SERP for search:
@@ -176,6 +177,7 @@ fi
   pwd0=`pwd`
   sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
   cd $sp
+  sed -i 's/posthog\.capture/return\n            posthog.capture/' chromadb/telemetry/posthog.py
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
   cd $pwd0
 #    ```
