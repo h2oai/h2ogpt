@@ -4782,7 +4782,8 @@ def go_gradio(**kwargs):
             .then(**prompt_update_args) \
             .then(**chatbot_update_args) \
             .then(**nochat_update_args) \
-            .then(clear_torch_cache)
+            .then(clear_torch_cache) \
+            .then(**save_auth_kwargs)
 
         unload_model_event = unload_model_button.click(**unload_model_args,
                                                        api_name='unload_model' if allow_api and not is_public else None) \
@@ -4827,7 +4828,8 @@ def go_gradio(**kwargs):
                                                      api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
             .then(**chatbot_update_args2) \
-            .then(clear_torch_cache)
+            .then(clear_torch_cache) \
+            .then(**save_auth_kwargs)
 
         unload_model_event2 = unload_model_button2.click(**unload_model_args2,
                                                          api_name='unload_model2' if allow_api and not is_public else None) \
