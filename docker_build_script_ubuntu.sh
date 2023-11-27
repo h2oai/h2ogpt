@@ -85,9 +85,9 @@ pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_g
 pip install optimum==1.14.1
 
 pip uninstall -y llama-cpp-python-cuda
-pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
 pip uninstall -y llama-cpp-python
-pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
+pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.19+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl
 
 pip install autoawq==0.1.7
 pip install sacrebleu==2.3.1 --upgrade
