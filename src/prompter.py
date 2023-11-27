@@ -569,7 +569,9 @@ ASSISTANT:
         humanstr = PreInstruct
         botstr = PreResponse
     elif prompt_type in [PromptType.openai_chat.value, str(PromptType.openai_chat.value),
-                         PromptType.openai_chat.name]:
+                         PromptType.openai_chat.name] or \
+            [PromptType.anthropic.value, str(PromptType.anthropic.value),
+                         PromptType.anthropic.name]:
         # prompting and termination all handled by endpoint
         preprompt = """"""
         start = ''

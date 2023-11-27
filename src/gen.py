@@ -47,7 +47,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
-    max_input_tokens_public_api, model_token_mapping_outputs
+    max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -471,6 +471,10 @@ def main(
                              Or Address can be for AWS SageMaker:
                               Use: "sagemaker_chat:<endpoint name>" for chat models that AWS sets up as dialog
                               Use: "sagemaker:<endpoint name>" for foundation models that AWS only text as inputs
+
+                            Or Address can be for Anthropic Claude.  Ensure key is set in env ANTHROPIC_API_KEY
+                              Use: "anthropic:<model name>"
+                              E.g. "anthropic:claude-2"
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -2221,7 +2225,8 @@ def get_model(
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
             inference_server.startswith('replicate') or
-            inference_server.startswith('sagemaker')
+            inference_server.startswith('sagemaker') or
+            inference_server.startswith('anthropic')
     ):
         max_output_len = None
         if inference_server.startswith('openai'):
@@ -2234,6 +2239,18 @@ def get_model(
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in model_token_mapping_outputs:
                 max_output_len = model_token_mapping_outputs[base_model]
+            else:
+                max_output_len = None
+        if inference_server.startswith('anthropic'):
+            assert os.getenv('ANTHROPIC_API_KEY'), "Set environment for ANTHROPIC_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in anthropic_mapping:
+                max_seq_len = anthropic_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in anthropic_mapping_outputs:
+                max_output_len = anthropic_mapping_outputs[base_model]
             else:
                 max_output_len = None
         if inference_server.startswith('replicate'):
@@ -2255,7 +2272,7 @@ def get_model(
             assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        if inference_server.startswith('openai') or tokenizer is None:
+        if inference_server.startswith('openai') or tokenizer is None or inference_server.startswith('anthropic'):
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
             assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
@@ -3078,7 +3095,8 @@ def evaluate(
                            inference_server.startswith('replicate') or \
                            inference_server.startswith('sagemaker') or \
                            inference_server.startswith('openai_azure_chat') or \
-                           inference_server.startswith('openai_azure')
+                           inference_server.startswith('openai_azure') or \
+                           inference_server.startswith('anthropic')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \

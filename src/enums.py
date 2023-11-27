@@ -50,6 +50,7 @@ class PromptType(Enum):
     open_chat = 44
     open_chat_correct = 44
     open_chat_code = 44
+    anthropic = 21
 
 
 class DocumentSubset(Enum):
@@ -156,6 +157,20 @@ model_token_mapping.update({
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
 })
+
+anthropic_mapping = {
+    "claude-2.1": 200000,
+    "claude-2": 100000,
+    "claude-2.0": 100000,
+    "claude-instant-1.2": 100000
+}
+
+anthropic_mapping_outputs = {
+    "claude-2.1": 4096,
+    "claude-2": 4096,
+    "claude-2.0": 4096,
+    "claude-instant-1.2": 4096,
+}
 
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
                                  "gpt-4-1106-preview", "gpt-35-turbo-1106"]
