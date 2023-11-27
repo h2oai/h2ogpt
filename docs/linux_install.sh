@@ -2,9 +2,7 @@
 set -o pipefail
 set -ex
 
-which sudo
-retVal=$?
-if [ $retVal -ne 0 ]; then
+if ! test -f /usr/bin/sudo; then
   echo "No sudo"
   alias sudo=' '
 fi

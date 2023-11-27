@@ -1947,7 +1947,7 @@ def go_gradio(**kwargs):
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
                     gr.Markdown(
-                        value="#### Login page to persist your state (database, documents, chat, chat history)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
+                        value="#### Login page to persist your state (database, documents, chat, chat history, model list)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
@@ -2419,7 +2419,10 @@ def go_gradio(**kwargs):
                                          outputs=[my_db_state, requests_state, login_btn],
                                          show_progress='minimal', concurrency_limit=None)
 
-        def login(db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, langchain_mode1,
+        def login(db1s, selection_docs_state1, requests_state1, roles_state1,
+                  model_options_state1, lora_options_state1, server_options_state1,
+                  chat_state1,
+                  langchain_mode1,
                   username1, password1,
                   text_output1, text_output21, *text_outputs1,
                   auth_filename=None, num_model_lock=0, pre_authorized=False):
@@ -2441,6 +2444,9 @@ def go_gradio(**kwargs):
                 success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1 = \
                     load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
                               roles_state1=roles_state1,
+                              model_options_state1=model_options_state1,
+                              lora_options_state1=lora_options_state1,
+                              server_options_state1=server_options_state1,
                               chat_state1=chat_state1, langchain_mode1=langchain_mode1,
                               text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
                               username_override=username1, password_to_check=password1)
@@ -2451,15 +2457,17 @@ def go_gradio(**kwargs):
             if success1:
                 requests_state1['username'] = username1
             label_instruction1 = 'Ask anything, %s' % requests_state1['username']
-            return db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, \
-                text_result, \
-                gr.update(label=label_instruction1), \
-                df_langchain_mode_paths1, \
-                gr.update(choices=list(roles_state1.keys())), \
-                gr.update(choices=list(chat_state1.keys()), value=None), \
-                gr.update(choices=get_langchain_choices(selection_docs_state1),
-                          value=langchain_mode1), \
-                text_output1, text_output21, *tuple(text_outputs1)
+            return db1s, selection_docs_state1, requests_state1, roles_state1, \
+                   model_options_state1, lora_options_state1, server_options_state1, \
+                   chat_state1, \
+                   text_result, \
+                   gr.update(label=label_instruction1), \
+                   df_langchain_mode_paths1, \
+                   gr.update(choices=list(roles_state1.keys())), \
+                   gr.update(choices=list(chat_state1.keys()), value=None), \
+                   gr.update(choices=get_langchain_choices(selection_docs_state1),
+                             value=langchain_mode1), \
+                   text_output1, text_output21, *tuple(text_outputs1)
 
         login_func = functools.partial(login,
                                        auth_filename=kwargs['auth_filename'],
@@ -2471,11 +2479,15 @@ def go_gradio(**kwargs):
                                             num_model_lock=len(text_outputs),
                                             pre_authorized=True,
                                             )
-        login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state, chat_state,
+        login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state,
+                        model_options_state, lora_options_state, server_options_state,
+                        chat_state,
                         langchain_mode,
                         username_text, password_text,
                         text_output, text_output2] + text_outputs
-        login_outputs = [my_db_state, selection_docs_state, requests_state, roles_state, chat_state,
+        login_outputs = [my_db_state, selection_docs_state, requests_state, roles_state,
+                         model_options_state, lora_options_state, server_options_state,
+                         chat_state,
                          login_result_text,
                          instruction,
                          langchain_mode_path_text,
@@ -2494,6 +2506,9 @@ def go_gradio(**kwargs):
 
         def load_auth(db1s, requests_state1, auth_filename=None, selection_docs_state1=None,
                       roles_state1=None,
+                      model_options_state1=None,
+                      lora_options_state1=None,
+                      server_options_state1=None,
                       chat_state1=None, langchain_mode1=None,
                       text_output1=None, text_output21=None, text_outputs1=None,
                       username_override=None, password_to_check=None):
@@ -2523,6 +2538,12 @@ def go_gradio(**kwargs):
                                 update_auth_selection(auth_user, selection_docs_state1)
                             if 'roles_state' in auth_user:
                                 roles_state1.update(auth_user['roles_state'])
+                            if 'model_options_state' in auth_user:
+                                model_options_state1.update(auth_user['model_options_state'])
+                            if 'lora_options_state' in auth_user:
+                                lora_options_state1.update(auth_user['lora_options_state'])
+                            if 'server_options_state' in auth_user:
+                                server_options_state1.update(auth_user['server_options_state'])
                             if 'chat_state' in auth_user:
                                 chat_state1.update(auth_user['chat_state'])
                             if 'text_output' in auth_user:
@@ -2557,6 +2578,7 @@ def go_gradio(**kwargs):
                     raise
 
         def save_auth(selection_docs_state1, requests_state1, roles_state1,
+                      model_options_state1, lora_options_state1, server_options_state1,
                       chat_state1, langchain_mode1,
                       text_output1, text_output21, text_outputs1,
                       auth_filename=None, auth_access=None, auth_freeze=None, guest_name=None,
@@ -2578,6 +2600,15 @@ def go_gradio(**kwargs):
                         if roles_state1:
                             # overwrite
                             auth_user['roles_state'] = roles_state1
+                        if model_options_state1:
+                            # overwrite
+                            auth_user['model_options_state'] = model_options_state1
+                        if lora_options_state1:
+                            # overwrite
+                            auth_user['lora_options_state'] = lora_options_state1
+                        if server_options_state1:
+                            # overwrite
+                            auth_user['server_options_state'] = server_options_state1
                         if chat_state1:
                             # overwrite
                             auth_user['chat_state'] = chat_state1
@@ -2592,11 +2623,10 @@ def go_gradio(**kwargs):
                         save_auth_dict(auth_dict, auth_filename)
 
         def save_auth_wrap(*args, **kwargs):
-            save_auth(args[0], args[1],
-                      args[2], args[3],
-                      args[4], args[5],
-                      args[6],
-                      args[7:], **kwargs
+            save_auth(args[0], args[1], args[2],
+                      args[3], args[4], args[5],
+                      args[6], args[7], args[8], args[9],
+                      args[10:], **kwargs
                       )
 
         save_auth_func = functools.partial(save_auth_wrap,
@@ -2608,6 +2638,7 @@ def go_gradio(**kwargs):
 
         save_auth_kwargs = dict(fn=save_auth_func,
                                 inputs=[selection_docs_state, requests_state, roles_state,
+                                        model_options_state, lora_options_state, server_options_state,
                                         chat_state, langchain_mode, text_output, text_output2] + text_outputs
                                 )
         lg_change_event_auth = lg_change_event.then(**save_auth_kwargs)
@@ -2694,8 +2725,12 @@ def go_gradio(**kwargs):
             if valid:
                 chat_state1 = None
                 roles_state1 = None
+                model_options_state1 = None
+                lora_options_state1 = None
+                server_options_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
                 save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                               model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -2787,8 +2822,12 @@ def go_gradio(**kwargs):
             if changed_state:
                 chat_state1 = None
                 roles_state1 = None
+                model_options_state1 = None
+                lora_options_state1 = None
+                server_options_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
                 save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                               model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -4317,10 +4356,14 @@ def go_gradio(**kwargs):
             selection_docs_state1 = None
             langchain_mode2 = None
             roles_state1 = None
+            model_options_state1 = None
+            lora_options_state1 = None
+            server_options_state1 = None
             text_output1 = chat_list[0]
             text_output21 = chat_list[1]
             text_outputs1 = chat_list[2:]
             save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                           model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
                            text_output1, text_output21, text_outputs1,
                            )
@@ -4403,8 +4446,12 @@ def go_gradio(**kwargs):
             selection_docs_state1 = None
             langchain_mode2 = None
             roles_state1 = None
+            model_options_state1 = None
+            lora_options_state1 = None
+            server_options_state1 = None
             text_output1, text_output21, text_outputs1 = None, None, None
             save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                           model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
                            text_output1, text_output21, text_outputs1,
                            )
@@ -4501,6 +4548,7 @@ def go_gradio(**kwargs):
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
                        system_prompt1,
                        exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                       model_options_state1, lora_options_state1, server_options_state1,
                        unload=False):
             if unload:
                 model_name = no_model_str
@@ -4525,9 +4573,9 @@ def go_gradio(**kwargs):
                                       n_batch=n_batch1,
                                       n_gqa=n_gqa1,
                                       ))
-            del model_path_llama1
-            del model_name_gptj1
-            del model_name_gpt4all_llama1
+            # del model_path_llama1
+            # del model_name_gptj1
+            # del model_name_gpt4all_llama1
 
             # ensure no API calls reach here
             if is_public:
@@ -4569,9 +4617,14 @@ def go_gradio(**kwargs):
                 lora_weights = no_lora_str
                 server_name = no_server_str
                 return kwargs['model_state_none'].copy(), \
-                    model_name, lora_weights, server_name, prompt_type_old, max_seq_len1, \
+                    model_name, lora_weights, server_name, \
+                    prompt_type_old, max_seq_len1, \
                     gr.Slider(maximum=256), \
-                    gr.Slider(maximum=256)
+                    gr.Slider(maximum=256), \
+                    model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1, \
+                    load_gptq, load_awq, n_gqa1, \
+                    n_batch1, n_gpu_layers1, llamacpp_dict_more1, \
+                    model_options_state1, lora_options_state1, server_options_state1
 
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
@@ -4643,12 +4696,24 @@ def go_gradio(**kwargs):
 
             max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
 
+            # FIXME: Ensure stored in login state
+            if model_options_state1 and model_name0 not in model_options_state1[0]:
+                model_options_state1[0].extend([model_name0])
+            if lora_options_state1 and lora_weights not in lora_options_state1[0]:
+                lora_options_state1[0].extend([lora_weights])
+            if server_options_state1 and server_name not in server_options_state1[0]:
+                server_options_state1[0].extend([server_name])
+
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
             return model_state_new, model_name, lora_weights, server_name, \
                 prompt_type1, max_seq_len1new, \
                 gr.Slider(maximum=max_max_new_tokens1), \
-                gr.Slider(maximum=max_max_new_tokens1)
+                gr.Slider(maximum=max_max_new_tokens1), \
+                model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1, \
+                load_gptq, load_awq, n_gqa1, \
+                n_batch1, n_gpu_layers1, llamacpp_dict_more1, \
+                model_options_state1, lora_options_state1, server_options_state1
 
         def get_prompt_str(prompt_type1, prompt_dict1, system_prompt1, which=0):
             if prompt_type1 in ['', None]:
@@ -4692,11 +4757,16 @@ def go_gradio(**kwargs):
                              model_attention_sinks, model_sink_dict,
                              model_truncation_generation,
                              model_hf_model_dict,
+                             model_options_state, lora_options_state, server_options_state,
                              ]
         load_model_outputs = [model_state, model_used, lora_used, server_used,
                               # if prompt_type changes, prompt_dict will change via change rule
                               prompt_type, max_seq_len_used,
                               max_new_tokens, min_new_tokens,
+                              model_path_llama, model_name_gptj, model_name_gpt4all_llama,
+                              model_load_gptq, model_load_awq, n_gqa,
+                              n_batch, n_gpu_layers, llamacpp_dict_more,
+                              model_options_state, lora_options_state, server_options_state,
                               ]
         load_model_args = dict(fn=load_model,
                                inputs=load_model_inputs, outputs=load_model_outputs)
@@ -4735,11 +4805,16 @@ def go_gradio(**kwargs):
                               model_attention_sinks2, model_sink_dict2,
                               model_truncation_generation2,
                               model_hf_model_dict2,
+                              model_options_state, lora_options_state, server_options_state,
                               ]
         load_model_outputs2 = [model_state2, model_used2, lora_used2, server_used2,
                                # if prompt_type2 changes, prompt_dict2 will change via change rule
                                prompt_type2, max_seq_len_used2,
-                               max_new_tokens2, min_new_tokens2
+                               max_new_tokens2, min_new_tokens2,
+                               model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
+                               model_load_gptq2, model_load_awq2, n_gqa2,
+                               n_batch2, n_gpu_layers2, llamacpp_dict_more2,
+                               model_options_state, lora_options_state, server_options_state,
                                ]
         load_model_args2 = dict(fn=load_model,
                                 inputs=load_model_inputs2, outputs=load_model_outputs2)
