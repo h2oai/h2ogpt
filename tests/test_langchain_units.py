@@ -1799,6 +1799,7 @@ def test_chroma_filtering():
         # SHOW DOC
         single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]
         text_context_list1 = []
+        pdf_height = 800
         for view_raw_text_checkbox1 in [True, False]:
             print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
             from src.gradio_runner import show_doc
@@ -1807,6 +1808,7 @@ def test_chroma_filtering():
                                 single_document_choice1,
                                 view_raw_text_checkbox1,
                                 text_context_list1,
+                                pdf_height,
                                 dbs1=dbs1,
                                 hf_embedding_model1=hf_embedding_model,
                                 **other_kwargs

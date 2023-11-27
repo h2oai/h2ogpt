@@ -2332,7 +2332,7 @@ def go_gradio(**kwargs):
         get_document_api_btn.click(fn=show_doc_func_api,
                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                            view_document_choice, view_raw_text_checkbox,
-                                           text_context_list],
+                                           text_context_list, pdf_height],
                                    outputs=get_document_api_text, api_name='get_document_api')
 
         # Get inputs to evaluate() and make_db()
