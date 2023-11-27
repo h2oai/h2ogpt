@@ -8,6 +8,7 @@ Loader that uses H2O DocTR OCR models to extract text from images
 from typing import List, Union, Any, Tuple, Optional
 
 import requests
+import torch
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader
 import numpy as np
@@ -115,7 +116,7 @@ class H2OOCRLoader(ImageCaptionLoader):
             raise ValueError(f"Could not get image data for {document_path}")
         document_words = []
         for image in images:
-            ocr_output = model([image])
+            ocr_output = model([torch.tensor(image, device=self.device)])
             page_words = []
             page_boxes = []
             for block_num, block in enumerate(ocr_output.pages[0].blocks):
