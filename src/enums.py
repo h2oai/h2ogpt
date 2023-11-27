@@ -124,7 +124,7 @@ no_server_str = no_lora_str = no_model_str = '[None/Remove]'
 
 # from site-packages/langchain/llms/openai.py
 # but needed since ChatOpenAI doesn't have this information
-model_token_mapping = {
+gpt_token_mapping = {
     "gpt-4": 8192,
     "gpt-4-0314": 8192,
     "gpt-4-0613": 8192,  # supports function tools
@@ -137,6 +137,11 @@ model_token_mapping = {
     "gpt-3.5-turbo-16k": 16385,
     "gpt-3.5-turbo-16k-0613": 16385,  # supports function tools
     "gpt-3.5-turbo-instruct": 4096,
+    "gpt-4-1106-preview": 128000,  # 4096 output
+    "gpt-35-turbo-1106": 16385,  # 4096 output
+}
+model_token_mapping = gpt_token_mapping.copy()
+model_token_mapping.update({
     "text-ada-001": 2049,
     "ada": 2049,
     "text-babbage-001": 2040,
@@ -150,9 +155,14 @@ model_token_mapping = {
     "code-davinci-001": 8001,
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
-}
+})
 
-openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613"]
+openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
+                                 "gpt-4-1106-preview", "gpt-35-turbo-1106"]
+
+# https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
+model_token_mapping_outputs = model_token_mapping.copy()
+model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096, "gpt-35-turbo-1106": 4096})
 
 
 def does_support_functiontools(inference_server, model_name):

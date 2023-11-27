@@ -1,7 +1,7 @@
 import os
 import ast
 import time
-from enums import PromptType  # also supports imports from this file from other files
+from enums import PromptType, gpt_token_mapping  # also supports imports from this file from other files
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -155,11 +155,7 @@ model_names_curated = ['llama',
                        'HuggingFaceH4/zephyr-7b-beta',
                        'TheBloke/zephyr-7B-beta-GGUF',
                        'TheBloke/zephyr-7B-beta-AWQ'] + model_names_curated_big
-openai_gpts = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k",
-               "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
-               "gpt-4", "gpt-4-32k",
-               "gpt-4-0613", "gpt-4-32k-0613",
-               ]
+openai_gpts = list(gpt_token_mapping.keys())
 if os.getenv('OPENAI_API_KEY'):
     prompt_type_to_model_name.update({
         "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],

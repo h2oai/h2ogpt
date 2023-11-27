@@ -47,7 +47,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
-    max_input_tokens_public_api
+    max_input_tokens_public_api, model_token_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -2223,6 +2223,7 @@ def get_model(
             inference_server.startswith('replicate') or
             inference_server.startswith('sagemaker')
     ):
+        max_output_len = None
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
@@ -2231,6 +2232,10 @@ def get_model(
                 max_seq_len = model_token_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in model_token_mapping_outputs:
+                max_output_len = model_token_mapping_outputs[base_model]
+            else:
+                max_output_len = None
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2254,6 +2259,9 @@ def get_model(
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
             assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
+            if max_output_len is not None:
+                tokenizer.max_output_len = max_output_len
+
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -4370,7 +4378,9 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 def get_max_max_new_tokens(model_state, **kwargs):
     if not isinstance(model_state['tokenizer'], (str, type(None))) or not kwargs.get('truncation_generation', False):
-        if hasattr(model_state['tokenizer'], 'model_max_length'):
+        if hasattr(model_state['tokenizer'], 'max_output_len'):
+            max_max_new_tokens = model_state['tokenizer'].max_output_len
+        elif hasattr(model_state['tokenizer'], 'model_max_length'):
             max_max_new_tokens = model_state['tokenizer'].model_max_length
         else:
             # e.g. fast up, no model
