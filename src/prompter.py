@@ -93,6 +93,7 @@ prompt_type_to_model_name = {
     # "wizard2": [],
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
+    "orca2": ['TheBloke/Orca-2-13B-GGUF', 'microsoft/Orca-2-13b'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5', 'lmsys/vicuna-13b-v1.5-16k'],
     "one_shot": ['lmsys/fastchat-t5-3b-v1.0'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-7b-instruct'],
@@ -634,6 +635,25 @@ ASSISTANT:
         # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
+
+        PreInstruct = """<|im_start|>user
+"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|><|im_start|>assistant
+"""
+        terminate_response = ['<|im_end|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.orca2.value, str(PromptType.orca2.value),
+                         PromptType.orca2.name]:
+        # https://huggingface.co/microsoft/Orca-2-13b#getting-started-with-orca-2
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "You are Orca, an AI language model created by Microsoft. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior."
         promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """<|im_start|>user
