@@ -1,3 +1,7 @@
+#!/bin/bash
+set -o pipefail
+set -ex
+
 #* Optional: For document Q/A and use of DocTR.  Install before other pips to avoid long conflict checks.
 #   ```bash
    conda install weasyprint pygobject -c conda-forge -y
