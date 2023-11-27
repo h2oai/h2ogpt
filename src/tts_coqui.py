@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import io
 import os
 import numpy as np
 import uuid
@@ -8,7 +9,7 @@ import subprocess
 import time
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
-from src.tts_utils import prepare_speech, get_no_audio
+from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change
 from src.utils import cuda_vis_check
 
 
@@ -82,7 +83,7 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, ma
     return latent
 
 
-def get_voice_streaming(prompt, language, latent, suffix="0", model=None):
+def get_voice_streaming(prompt, language, latent, suffix="0", model=None, sr=24000, tts_speed=1.0):
     if model is None:
         model, supported_languages = get_xtt()
 
@@ -107,6 +108,8 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None):
             chunk = chunk.detach().cpu().numpy().squeeze()
             chunk = (chunk * 32767).astype(np.int16)
 
+            chunk = chunk_speed_change(chunk, sr, tts_speed=tts_speed)
+
             yield chunk.tobytes()
 
     except RuntimeError as e:
@@ -127,6 +130,7 @@ def generate_speech(response,
                     return_as_byte=True,
                     return_nonbyte_as_file=False,
                     sr=24000,
+                    tts_speed=1.0,
                     return_gradio=False,
                     is_final=False,
                     verbose=False,
@@ -147,6 +151,7 @@ def generate_speech(response,
 
         audio = sentence_to_wave(sentence,
                                  supported_languages,
+                                 tts_speed,
                                  model=model,
                                  latent=latent,
                                  return_as_byte=return_as_byte,
@@ -168,7 +173,8 @@ def generate_speech(response,
     return audio, sentence, sentence_state
 
 
-def sentence_to_wave(sentence, supported_languages, latent=None,
+def sentence_to_wave(sentence, supported_languages, tts_speed,
+                     latent=None,
                      return_as_byte=False,
                      return_nonbyte_as_file=False,
                      sr=24000, model=None,
@@ -195,6 +201,7 @@ def sentence_to_wave(sentence, supported_languages, latent=None,
                 audio_stream = get_voice_streaming(
                     sentence, language, latent,
                     model=model,
+                    tts_speed=tts_speed,
                 )
             else:
                 # likely got a ' or " or some other text without alphanumeric in it
@@ -217,7 +224,8 @@ def sentence_to_wave(sentence, supported_languages, latent=None,
                 float_data = data_s16 * 0.5 ** 15
                 reduced_noise = nr.reduce_noise(y=float_data, sr=sr, prop_decrease=0.8, n_fft=1024)
                 wav_bytestream = (reduced_noise * 32767).astype(np.int16)
-                wav_bytestream = wav_bytestream.tobytes()
+                if return_as_byte:
+                    wav_bytestream = wav_bytestream.tobytes()
 
             if audio_stream is not None:
                 if not return_as_byte:
@@ -281,7 +289,7 @@ def get_roles(choices=None, value=None):
     return chatbot_role
 
 
-def predict_from_text(response, chatbot_role, language, roles_map,
+def predict_from_text(response, chatbot_role, language, roles_map, tts_speed,
                       model=None,
                       supported_languages=None,
                       return_as_byte=True, sr=24000, verbose=False):
@@ -299,6 +307,7 @@ def predict_from_text(response, chatbot_role, language, roles_map,
                                              sentence_state=sentence_state,
                                              return_as_byte=return_as_byte,
                                              sr=sr,
+                                             tts_speed=tts_speed,
                                              verbose=verbose)
     while True:
         audio1, sentence, sentence_state = generate_speech_func(response, is_final=False)

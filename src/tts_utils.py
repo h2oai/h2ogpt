@@ -1,5 +1,10 @@
 import io
+
+import librosa
 import numpy as np
+import pydub
+
+from src.utils import have_pyrubberband
 
 
 # Keep non-native package imports out of global space
@@ -59,3 +64,44 @@ def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, exp
         return combined_wav
     # audio just empty stream, but not None, else would nuke audio
     return audio
+
+
+def chunk_speed_change(chunk, sr, tts_speed=1.0):
+    if tts_speed == 1.0:
+        return chunk
+
+    if have_pyrubberband:
+        import pyrubberband as pyrb
+        chunk = pyrb.time_stretch(chunk, sr, tts_speed)
+        chunk = (chunk * 32767).astype(np.int16)
+        return chunk
+
+    if tts_speed < 1.0:
+        # chunk = chunk.astype(np.float32)
+        # chunk = 0.5 * chunk / np.max(chunk)
+        # chunk = librosa.effects.time_stretch(chunk, rate=tts_speed)
+        return chunk
+
+    # speed-up
+    from pydub import AudioSegment
+    from pydub.effects import speedup
+
+    s = io.BytesIO(chunk)
+    channels = 1
+    sample_width = 2
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+    # chunk = speedup(audio, tts_speed, 150).export(format='raw').read()
+    chunk = pydub_to_np(speedup(audio, tts_speed, 150))
+    # audio = audio._spawn(audio.raw_data, overrides={
+    #    "frame_rate": int(audio.frame_rate * tts_speed)
+    # })
+    # chunk = np.array(audio.get_array_of_samples())
+
+    return chunk
+
+
+def pydub_to_np(audio: pydub.AudioSegment) -> (np.ndarray, int):
+    """
+    Converts pydub audio segment into np.int16 of shape [duration_in_seconds*sample_rate, channels],
+    """
+    return np.array(audio.get_array_of_samples(), dtype=np.int16).reshape((-1, audio.channels))

@@ -400,6 +400,7 @@ def main(
         chatbot_role: str = "None",  # "Female AI Assistant",
         speaker: str = "None",  # "SLT (female)",
         tts_language: str = 'autodetect',
+        tts_speed: float = 1.0,
         tts_action_phrases: typing.List[str] = [],  # ['Nimbus'],
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
         sst_floor: float = 100,
@@ -874,7 +875,7 @@ def main(
     :param doctr_gpu: If support doctr, then use GPU if exists
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
 
-    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2
+    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
@@ -916,6 +917,7 @@ def main(
     :param chatbot_role: Default role for coqui models.  If 'None', then don't by default speak when launching h2oGPT for coqui model choice.
     :param speaker: Default speaker for microsoft models  If 'None', then don't by default speak when launching h2oGPT for microsoft model choice.
     :param tts_language: Default language for coqui models
+    :param tts_speed: Default speed of TTS, < 1.0 (needs rubberband) for slower than normal, > 1.0 for faster.  Tries to keep fixed pitch.
     :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
            Set to None or empty list to avoid any special action words
     :param tts_stop_phrases:  Like tts_action_phrases but to stop h2oGPT from speaking and generating
@@ -1320,6 +1322,8 @@ def main(
         stt_gpu = False
         caption_gpu = False
         asr_gpu = False
+    if is_public:
+        stt_model = 'distil-whisper/distil-large-v2'
 
     # defaults
     caption_loader = None
@@ -1377,6 +1381,7 @@ def main(
                             chatbot_role,
                             speaker,
                             tts_language,
+                            tts_speed,
                             verbose,
                             )
 
@@ -2761,6 +2766,7 @@ def evaluate(
         chatbot_role,
         speaker,
         tts_language,
+        tts_speed,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -4049,6 +4055,7 @@ def get_generate_params(model_lower,
                         chatbot_role,
                         speaker,
                         tts_language,
+                        tts_speed,
                         verbose,
                         ):
     use_defaults = False
@@ -4250,6 +4257,7 @@ y = np.random.randint(0, 1, 100)
                     chatbot_role,
                     speaker,
                     tts_language,
+                    tts_speed,
                     ]
         # adjust examples if non-chat mode
         if not chat:

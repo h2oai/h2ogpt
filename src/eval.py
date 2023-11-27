@@ -70,6 +70,7 @@ def run_eval(  # for local function:
         chatbot_role=None,
         speaker=None,
         tts_language=None,
+        tts_speed=None,
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,

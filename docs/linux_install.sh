@@ -41,6 +41,9 @@ fi
     playwright install --with-deps
     # Audio transcription from Youtube videos and local mp3 files:
       pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8
+    # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
+      sudo apt-get install -y rubberband-cli
+      pip install pyrubberband==0.3.0
     # STT from microphone (may not be required if ffmpeg installed above)
     sudo apt-get install ffmpeg
     # for any TTS:

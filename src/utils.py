@@ -1279,12 +1279,17 @@ except (PackageNotFoundError, AssertionError):
     have_flash_attention = False
     have_flash_attention_2 = False
 
-
 try:
     assert distribution('gradio_pdf') is not None
     have_gradio_pdf = True
 except (PackageNotFoundError, AssertionError):
     have_gradio_pdf = False
+
+try:
+    assert distribution('pyrubberband') is not None
+    have_pyrubberband = True
+except (PackageNotFoundError, AssertionError):
+    have_pyrubberband = False
 
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
