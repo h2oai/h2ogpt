@@ -12,7 +12,7 @@ import torch
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader
 import numpy as np
-from utils import get_device, clear_torch_cache
+from utils import get_device, clear_torch_cache, NullContext
 from doctr.utils.common_types import AbstractFile
 
 
@@ -36,7 +36,7 @@ class H2OOCRLoader(ImageCaptionLoader):
             if n_gpus > 0:
                 self.context_class = torch.device
                 if self.gpu_id is not None:
-                    self.device = torch.device("cuda:%d" % self.gpu_id)
+                    self.device = "cuda:%d" % self.gpu_id
                 else:
                     self.device = 'cuda'
             else:
@@ -84,13 +84,15 @@ class H2OOCRLoader(ImageCaptionLoader):
     def load(self, prompt=None) -> List[Document]:
         if self._ocr_model is None:
             self.load_model()
+        context_class = torch.cuda.device(self.gpu_id) if 'cuda' in str(self.device) else NullContext
         results = []
-        for document_path in self.document_paths:
-            caption, metadata = self._get_captions_and_metadata(
-                model=self._ocr_model, document_path=document_path
-            )
-            doc = Document(page_content=" \n".join(caption), metadata=metadata)
-            results.append(doc)
+        with context_class:
+            for document_path in self.document_paths:
+                caption, metadata = self._get_captions_and_metadata(
+                    model=self._ocr_model, document_path=document_path
+                )
+                doc = Document(page_content=" \n".join(caption), metadata=metadata)
+                results.append(doc)
 
         return results
 
@@ -116,7 +118,7 @@ class H2OOCRLoader(ImageCaptionLoader):
             raise ValueError(f"Could not get image data for {document_path}")
         document_words = []
         for image in images:
-            ocr_output = model([torch.tensor(image, device=self.device)])
+            ocr_output = model([image])
             page_words = []
             page_boxes = []
             for block_num, block in enumerate(ocr_output.pages[0].blocks):
