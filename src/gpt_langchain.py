@@ -300,7 +300,7 @@ def add_to_db(db, sources, db_type='faiss',
             # else see RuntimeError: Index seems to be corrupted or unsupported
             import chromadb
             api = chromadb.PersistentClient(path=db._persist_directory)
-            if hasattr(api._producer, 'max_batch_size'):
+            if hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
                 max_batch_size = api._producer.max_batch_size
             else:
                 max_batch_size = 1000

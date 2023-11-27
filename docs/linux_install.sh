@@ -187,7 +187,6 @@ fi
   pwd0=`pwd`
   sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
   cd $sp
-  sed -i 's/posthog\.capture/return\n            posthog.capture/' chromadb/telemetry/posthog.py
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
   cd $pwd0
 #    ```
