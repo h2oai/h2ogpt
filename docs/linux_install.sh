@@ -2,6 +2,7 @@
 set -o pipefail
 set -ex
 
+shopt -s expand_aliases
 if ! test -f /usr/bin/sudo; then
   echo "No sudo"
   alias sudo=' '
