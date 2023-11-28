@@ -571,8 +571,8 @@ ASSISTANT:
         botstr = PreResponse
     elif prompt_type in [PromptType.openai_chat.value, str(PromptType.openai_chat.value),
                          PromptType.openai_chat.name] or \
-            [PromptType.anthropic.value, str(PromptType.anthropic.value),
-                         PromptType.anthropic.name]:
+            prompt_type in [PromptType.anthropic.value, str(PromptType.anthropic.value),
+                            PromptType.anthropic.name]:
         # prompting and termination all handled by endpoint
         preprompt = """"""
         start = ''
@@ -992,7 +992,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
                          PromptType.deepseek_coder.name]:
         # https://huggingface.co/deepseek-ai/deepseek-coder-33b-instruct
         if system_prompt in [None, 'None', 'auto']:
-            system_prompt = "You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer.\n"
+            system_prompt = "You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer\n"
         promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
         PreInput = None
         PreInstruct = "### Instruction:\n"
@@ -1008,9 +1008,9 @@ Remember to tailor the activities to the birthday child's interests and preferen
     elif prompt_type in [PromptType.open_chat.value, str(PromptType.open_chat.value),
                          PromptType.open_chat.name] or \
             prompt_type in [PromptType.open_chat_correct.value, str(PromptType.open_chat_correct.value),
-                         PromptType.open_chat_correct.name] or \
+                            PromptType.open_chat_correct.name] or \
             prompt_type in [PromptType.open_chat_code.value, str(PromptType.open_chat_code.value),
-                         PromptType.open_chat_code.name]:
+                            PromptType.open_chat_code.name]:
         # https://huggingface.co/TheBloke/openchat_3.5-GPTQ#prompt-template-openchat
         # https://github.com/imoneoi/openchat/tree/master#-inference-with-transformers
         # GPT4 Correct User: Hello<|end_of_turn|>GPT4 Correct Assistant: Hi<|end_of_turn|>GPT4 Correct User: How are you today?<|end_of_turn|>GPT4 Correct Assistant:
@@ -1020,11 +1020,11 @@ Remember to tailor the activities to the birthday child's interests and preferen
         promptA = promptB = ""  # no apparent system prompt
         PreInput = None
         if prompt_type in [PromptType.open_chat.value, str(PromptType.open_chat.value),
-                         PromptType.open_chat.name]:
+                           PromptType.open_chat.name]:
             PreInstruct = "GPT4 User: "
             PreResponse = "GPT4 Assistant:"
         elif prompt_type in [PromptType.open_chat_correct.value, str(PromptType.open_chat_correct.value),
-                         PromptType.open_chat_correct.name]:
+                             PromptType.open_chat_correct.name]:
             PreInstruct = "GPT4 Correct User: "
             PreResponse = "GPT4 Correct Assistant:"
         else:
