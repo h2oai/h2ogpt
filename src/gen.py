@@ -1286,10 +1286,6 @@ def main(
     first_para = False
     text_limit = None
 
-    if compile_model is None:
-        # too avoid noisy CLI
-        compile_model = not cli
-
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
 
@@ -2074,7 +2070,7 @@ def get_model(
         offload_folder: str = None,
         rope_scaling: dict = None,
         max_seq_len: int = None,
-        compile_model: bool = True,
+        compile_model: bool = False,
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
@@ -2356,7 +2352,7 @@ def get_hf_model(load_8bit: bool = False,
                  trust_remote_code: bool = True,
                  offload_folder: str = None,
                  rope_scaling: dict = None,
-                 compile_model: bool = True,
+                 compile_model: bool = False,
 
                  llama_type: bool = False,
                  config_kwargs=None,
