@@ -188,7 +188,7 @@ fi
   sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
   cd $sp
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
-  sed -i 's/Status.PROGRESS,/Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
+  sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
   cd $pwd0
 #    ```
 #* vLLM support
