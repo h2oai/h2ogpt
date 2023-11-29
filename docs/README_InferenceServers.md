@@ -218,7 +218,7 @@ conda install python=3.10 -y
 ```
 Assuming torch was installed with CUDA 11.8, and you have installed cuda locally in `/usr/local/cuda-11.8`, then can start in OpenAI compliant mode.  E.g. for LLaMa 65B on 2*A100 GPUs:
 ```bash
-CUDA_HOME=/usr/local/cuda-11.8 pip install vllm ray pandas gputil==1.4.0
+CUDA_HOME=/usr/local/cuda-11.8 pip install https://github.com/vllm-project/vllm/releases/download/v0.2.2/vllm-0.2.2+cu118-cp310-cp310-manylinux1_x86_64.whl ray pandas gputil==1.4.0
 export NCCL_IGNORE_DISABLED_P2P=1
 export CUDA_VISIBLE_DEVICESs=0,1
 python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-research-oasst1-llama-65b --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=2 --seed 1234 --max-num-batched-tokens=2048
