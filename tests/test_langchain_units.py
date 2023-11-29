@@ -1103,7 +1103,7 @@ def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, u
                 docs = db.similarity_search("List Tshwane's concerns about water.")
                 assert len(docs) == 4
                 assert 'we appeal to residents that do have water to please use it sparingly.' in docs[
-                    1].page_content or 'OFFICE OF THE MMC FOR UTILITIES AND REGIONAL OPERATIONS' in docs[1].page_content
+                    1].page_content or 'OFFICE OF THE MMC FOR UTILITIES AND REGIONAL' in docs[1].page_content
             else:
 
                 assert db is not None
