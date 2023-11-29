@@ -48,10 +48,10 @@ class PromptType(Enum):
     mistralgerman = 42
     deepseek_coder = 43
     open_chat = 44
-    open_chat_correct = 44
-    open_chat_code = 44
-    anthropic = 45
-    orca2 = 46
+    open_chat_correct = 45
+    open_chat_code = 46
+    anthropic = 47
+    orca2 = 48
 
 
 class DocumentSubset(Enum):
