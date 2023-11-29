@@ -171,7 +171,7 @@ def run_cli(  # for local function:
                     outr += res  # just is one thing
                     if sources:
                         # show sources at end after model itself had streamed to std rest of response
-                        print('\n\n' + sources, flush=True)
+                        print('\n\n' + str(sources), flush=True)
             all_generations.append(outr + '\n')
             if not cli_loop:
                 break
