@@ -445,13 +445,12 @@ def main(
                              Or Address can be "openai_azure_chat" or "openai_azure" for Azure OpenAI API
                              e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
-                             e.g. python generate.py --inference_server="openai_azure_chat:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=gpt-3.5-turbo
-                             e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=text-davinci-003
+                             e.g. python generate.py --inference_server="openai_azure_chat:<deployment_name>:<baseurl>:<api_version>:<access key>" --base_model=gpt-3.5-turbo
+                             e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<access key>" --base_model=text-davinci-003
                              Optionals (Replace with None or just leave empty but keep :)
                                  <deployment_name> of some deployment name
                                  <baseurl>: e.g. "<endpoint>.openai.azure.com" for some <endpoint> without https://
                                  <api_version> of some api, e.g. 2023-05-15
-                                 <model_version> e.g. 0613
 
                              Or Address can be for vLLM:
                               Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
@@ -3323,7 +3322,8 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai, inf_type, deployment_name, base_url, api_version, api_key = set_openai(inference_server)
+            openai_client, inf_type, deployment_name, openai_api_base, api_version, api_key = set_openai(
+                inference_server)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []
@@ -3338,8 +3338,8 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
-            if inf_type == 'vllm' or inference_server == 'openai':
-                responses = openai.Completion.create(
+            if inf_type == 'vllm' or inference_server == 'openai_client':
+                responses = openai_client.Completion.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
@@ -3389,7 +3389,7 @@ def evaluate(
                             messages0.append(
                                 {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
                 messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
-                responses = openai.ChatCompletion.create(
+                responses = openai_client.ChatCompletion.create(
                     model=base_model,
                     messages=messages0,
                     stream=stream_output,

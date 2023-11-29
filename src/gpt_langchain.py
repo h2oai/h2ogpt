@@ -1462,8 +1462,14 @@ def get_llm(use_openai_model=False,
         # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
+        if use_openai_model or inference_server.startswith('openai'):
+            # cannot use non-chat model, uses old openai. stuff if go through to H2OOpenAI with chat model
+            chat_model = (model_name.startswith("gpt-3.5-turbo") or model_name.startswith("gpt-4")) and "-instruct" not in model_name
+        else:
+            chat_model = None
+
         # FIXME: Will later import be ignored?  I think so, so should be fine
-        openai, inf_type, deployment_name, base_url, api_version, api_key = set_openai(inference_server)
+        openai_client, inf_type, deployment_name, openai_api_base, openai_api_version, openai_api_key = set_openai(inference_server)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
@@ -1473,7 +1479,7 @@ def get_llm(use_openai_model=False,
                             )
 
         kwargs_extra = {}
-        if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
+        if inf_type == 'openai_chat' or inf_type == 'vllm_chat' or chat_model:
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
@@ -1483,20 +1489,17 @@ def get_llm(use_openai_model=False,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          async_sem=async_sem,
                                          ))
-            openai_api_key = openai.api_key
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             kwargs_extra.update(
                 dict(openai_api_type='azure', system_prompt=system_prompt, chat_conversation=chat_conversation))
             # FIXME: Support context, iinput
-            openai_api_key = openai.api_key
         elif inf_type == 'openai_azure':
             cls = H2OAzureOpenAI
             kwargs_extra.update(dict(openai_api_type='azure'))
             kwargs_extra.update(model_kwargs)
             model_kwargs = {}
             # FIXME: Support context, iinput
-            openai_api_key = openai.api_key
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
@@ -1507,7 +1510,7 @@ def get_llm(use_openai_model=False,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
-                                         openai_api_base=openai.api_base,
+                                         openai_api_base=openai_api_base,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=None,
                                          async_sem=async_sem,
@@ -1517,21 +1520,16 @@ def get_llm(use_openai_model=False,
                 model_kwargs = {}
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
-            openai_api_key = openai.api_key
 
         if deployment_name:
             kwargs_extra.update(dict(deployment_name=deployment_name))
-        if api_version:
-            kwargs_extra.update(dict(openai_api_version=api_version))
-        elif openai.api_version:
-            kwargs_extra.update(dict(openai_api_version=openai.api_version))
+        elif openai_api_version:
+            kwargs_extra.update(dict(openai_api_version=openai_api_version))
         elif inf_type in ['openai_azure', 'openai_azure_chat']:
-            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-10-01-preview
-            kwargs_extra.update(dict(openai_api_version="2023-10-01-preview"))
-        if base_url:
-            kwargs_extra.update(dict(openai_api_base=base_url))
-        else:
-            kwargs_extra.update(dict(openai_api_base=openai.api_base))
+            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-12-01-preview
+            kwargs_extra.update(dict(openai_api_version="2023-12-01-preview"))
+        if openai_api_base:
+            kwargs_extra.update(dict(openai_api_base=openai_api_base))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,

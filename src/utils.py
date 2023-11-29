@@ -1291,7 +1291,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_pyrubberband = False
 
-
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
@@ -1311,14 +1310,10 @@ def set_openai(inference_server):
             openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
         return openvllm, inf_type, None, None, None, openvllm.api_key
     else:
-        import openai
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        openai.api_base = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-
+        api_key = os.getenv("OPENAI_API_KEY")
         base_url = None
         deployment_type = None
         api_version = None
-        api_key = openai.api_key
         inf_type = inference_server.split(':')[0].strip()
         if len(inference_server.split(':')) >= 2:
             deployment_type = inference_server.split(':')[1].strip()
@@ -1330,14 +1325,15 @@ def set_openai(inference_server):
         if inference_server.startswith('openai_azure'):
             if api_version in ['None', None]:
                 # for function tools support
-                api_version = "2023-10-01-preview"
+                api_version = "2023-12-01-preview"
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 # use this instead if exists
-                openai.api_key = api_key = os.getenv('OPENAI_AZURE_KEY')
+                api_key = os.getenv("OPENAI_AZURE_KEY")
+
         if len(inference_server.split(':')) >= 5:
             api_key0 = inference_server.split(':')[4].strip()
             if api_key0 not in ['None', None]:
-                openai.api_key = api_key = api_key0
+                api_key = api_key0
 
         if deployment_type == 'None':
             deployment_type = None
@@ -1345,7 +1341,15 @@ def set_openai(inference_server):
             base_url = None
         if base_url == 'None':
             base_url = None
-        return openai, inf_type, deployment_type, base_url, api_version, api_key
+
+        from openai import OpenAI, AzureOpenAI
+        if 'azure' in inference_server:
+            client = AzureOpenAI(azure_deployment=deployment_type, azure_endpoint=base_url, api_version=api_version,
+                                 api_key=api_key)
+        else:
+            client = OpenAI(base_url=base_url, api_key=api_key)
+
+        return client, inf_type, deployment_type, base_url, api_version, api_key
 
 
 def get_list_or_str(x):

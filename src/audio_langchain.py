@@ -25,7 +25,11 @@ class OpenAIWhisperParser(BaseBlobParser):
         import io
 
         try:
-            import openai
+            from openai import OpenAI
+            if self.api_key:
+                client = OpenAI(api_key=self.api_key)
+            else:
+                client = OpenAI()
         except ImportError:
             raise ImportError(
                 "openai package not found, please install it with "
@@ -37,10 +41,6 @@ class OpenAIWhisperParser(BaseBlobParser):
             raise ImportError(
                 "pydub package not found, please install it with " "`pip install pydub`"
             )
-
-        # Set the API key if provided
-        if self.api_key:
-            openai.api_key = self.api_key
 
         # Audio file from disk
         audio = AudioSegment.from_file(blob.path)
@@ -65,7 +65,7 @@ class OpenAIWhisperParser(BaseBlobParser):
             attempts = 0
             while attempts < 3:
                 try:
-                    transcript = openai.Audio.transcribe("whisper-1", file_obj)
+                    transcript = client.audio.transcribe("whisper-1", file_obj)
                     break
                 except Exception as e:
                     attempts += 1
