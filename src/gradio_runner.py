@@ -5214,8 +5214,8 @@ def go_gradio(**kwargs):
                 ssl_verify=kwargs['ssl_verify'],
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
-                max_threads=max(40, 2 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
-                                                                                   int) else None,
+                max_threads=max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
+                                                                                   int) else 128,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
