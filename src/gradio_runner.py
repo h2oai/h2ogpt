@@ -1903,6 +1903,8 @@ def go_gradio(**kwargs):
                     with system_row:
                         with gr.Accordion("Admin", open=False, visible=True):
                             with gr.Column():
+                                close_btn = gr.Button(value="Shutdown h2oGPT", size='sm',
+                                                      visible=kwargs['close_button'] and kwargs['h2ogpt_pid'] is not None)
                                 with gr.Row():
                                     system_btn = gr.Button(value='Get System Info', size='sm')
                                     system_text = gr.Textbox(label='System Info', interactive=False,
@@ -4955,6 +4957,17 @@ def go_gradio(**kwargs):
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
                                         api_name='system_info' if allow_api else None, concurrency_limit=None)
+
+        def shutdown_func(h2ogpt_pid):
+            import psutil
+            parent = psutil.Process(h2ogpt_pid)
+            for child in parent.children(recursive=True):
+                child.kill()
+            parent.kill()
+
+        shutdown_event = close_btn.click(functools.partial(shutdown_func, h2ogpt_pid=kwargs['h2ogpt_pid']),
+                                         api_name='shutdown' if allow_api and not is_public and kwargs['h2ogpt_pid'] is not None else None,
+                                         concurrency_limit=None)
 
         def get_system_info_dict(system_input1, **kwargs1):
             if system_input1 != os.getenv("ADMIN_PASS", ""):

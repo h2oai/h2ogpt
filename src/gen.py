@@ -194,6 +194,7 @@ def main(
         server_name: str = "0.0.0.0",
         share: bool = False,
         open_browser: bool = False,
+        close_button: bool = True,
         root_path: str = "",
         ssl_verify: bool = True,
         ssl_keyfile: str | None = None,
@@ -1048,6 +1049,8 @@ def main(
     if not auth_filename:
         auth_filename = "auth.json"
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
+
+    h2ogpt_pid = os.getpid() if close_button and not is_public else None
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
