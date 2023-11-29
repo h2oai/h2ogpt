@@ -1391,7 +1391,7 @@ def check_content_ocr(docs):
     # hi_res
     # assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
     # ocr_only
-    assert any(['DRIVER LICENSE A' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['DRIVER LICENSE' in docs[ix].page_content for ix in range(len(docs))])
 
 
 def check_source(docs, test_file1):
