@@ -414,7 +414,13 @@ def run_client_chat(prompt='',
 
 
 def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
-    return run_client_gen(client, kwargs, do_md_to_text=do_md_to_text)
+    kwargs['answer_with_sources'] = True
+    kwargs['show_accordions'] = True
+    kwargs['append_sources_to_answer'] = True
+    kwargs['show_link_in_sources'] = True
+    res_dict, client = run_client_gen(client, kwargs, do_md_to_text=do_md_to_text)
+    res_dict['response'] += str(res_dict['sources_str'])
+    return res_dict, client
     # FIXME: https://github.com/gradio-app/gradio/issues/6592
 
     assert kwargs['chat'], "Chat mode only"
