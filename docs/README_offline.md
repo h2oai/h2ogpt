@@ -104,7 +104,7 @@ but nothing prevents gradio from working without this.  So a simple firewall blo
 
 For non-HF models, you must specify the file name as we cannot map HF name to file name for GGUF/GPTQ etc. files automagically without internet.  E.g. after running one of the offline preparation ways above, run:
 ```
-HF_DATASETS_OFFLINE=1;TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --gradio_offline_level=2 --base_model=llama --llama_model_path=zephyr-7b-beta.Q5_K_M.gguf
+HF_DATASETS_OFFLINE=1;TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --gradio_offline_level=2 --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf
 ```
 That is, you cannot do:
 ```
