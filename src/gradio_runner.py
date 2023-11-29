@@ -3701,7 +3701,7 @@ def go_gradio(**kwargs):
                 prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1)
 
             if not fun1:
-                yield history, error, sources, save_dict, audio1
+                yield history, error, sources, sources_str, save_dict, audio1
                 return
             try:
                 for output_fun in fun1():
