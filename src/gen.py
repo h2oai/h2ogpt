@@ -2035,6 +2035,8 @@ def get_model_retry(**kwargs):
                     'safetensors' in stre or \
                     'not appear to have a file named pytorch_model.bin' in stre:
                 kwargs['use_safetensors'] = True
+            if 'current architecture does not support Flash Attention 2' in stre:
+                kwargs['use_flash_attention_2'] = False
             clear_torch_cache()
             if trial >= trials - 1:
                 raise
