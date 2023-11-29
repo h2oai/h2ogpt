@@ -15,10 +15,12 @@ def test_sentence_to_wave():
     chatbot_role = "Female AI Assistant"
     sentence = "I am an AI assistant.  I can help you with any tasks."
     # supported_languages = ["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja"]
+    tts_speed = 1.0
     model, supported_languages = get_xtt()
     latent = get_latent(get_role_to_wave_map()[chatbot_role], model=model)
     generated_speech = sentence_to_wave(sentence,
                                         supported_languages,
+                                        tts_speed,
                                         latent=latent,
                                         model=model,
                                         return_as_byte=False,
