@@ -3141,7 +3141,11 @@ def go_gradio(**kwargs):
                 args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
             # final full bot() like input for prep_bot etc.
-            instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')]
+            instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')] or \
+                                  args_list[eval_func_param_names.index('instruction')]
+            args_list[eval_func_param_names.index('instruction_nochat')] = \
+                args_list[eval_func_param_names.index('instruction')] = \
+                instruction_nochat1
             history = [[instruction_nochat1, None]]
             # NOTE: Set requests_state1 to None, so don't allow UI-like access, in case modify state via API
             requests_state1_bot = None

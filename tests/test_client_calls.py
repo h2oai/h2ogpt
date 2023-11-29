@@ -139,7 +139,7 @@ def test_client1api_lean(save_dir, admin_pass):
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
-    client1 = get_client(serialize=True)
+    client1 = get_client(serialize=False)
 
     from gradio_utils.grclient import GradioClient
     client2 = GradioClient(get_inf_server())
@@ -203,7 +203,7 @@ def test_client1api_lean_lock_choose_model():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     for prompt_type in ['human_bot', None, '', 'plain']:
         for visible_models in [None, 0, base1, 1, base2]:
             base_model = base1 if visible_models in [None, 0, base1] else base2
@@ -294,7 +294,7 @@ def test_client1api_lean_chat_server():
     prompt = 'Who are you?'
 
     kwargs = dict(instruction_nochat=prompt)
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
     res = client.predict(str(dict(kwargs)), api_name=api_name)
 
@@ -2030,7 +2030,7 @@ def test_client_stress(repeat):
     prompt = "Tell a very long kid's story about birds."
     # prompt = "Say exactly only one word."
 
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     kwargs = dict(
         instruction='',
         max_new_tokens=200,
@@ -2062,7 +2062,7 @@ def test_client_stress_stream(repeat):
     stream_output = True
     chat = False
 
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     kwargs, args = get_args(prompt, prompt_type, chat=chat, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     res_dict, client = run_client_gen(client, kwargs, do_md_to_text=False)
@@ -3617,7 +3617,7 @@ def test_client_summarization_from_text():
 
     # PURE client code
     from gradio_client import Client
-    client = Client(get_inf_server(), serialize=True)
+    client = Client(get_inf_server(), serialize=False)
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
@@ -3668,7 +3668,7 @@ def test_client_summarization_from_url(url, top_k_docs):
 
     # PURE client code
     from gradio_client import Client
-    client = Client(get_inf_server(), serialize=True)
+    client = Client(get_inf_server(), serialize=False)
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
