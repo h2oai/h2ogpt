@@ -3,6 +3,9 @@ import pytest
 
 @pytest.mark.parametrize("local_server", [True, False])
 def test_readme_example(local_server):
+    if local_server:
+        from src.gen import main
+        main(base_model='llama', chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
 
     # self-contained example used for readme, to be copied to README_CLIENT.md if changed, setting local_server = True at first
     import os
