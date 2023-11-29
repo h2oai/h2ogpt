@@ -52,6 +52,7 @@ class PromptType(Enum):
     open_chat_code = 46
     anthropic = 47
     orca2 = 48
+    jais = 49
 
 
 class DocumentSubset(Enum):
