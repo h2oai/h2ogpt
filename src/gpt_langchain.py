@@ -3462,15 +3462,23 @@ def get_existing_db(db, persist_directory,
             if use_chromamigdb:
                 from chromamigdb.config import Settings
                 chroma_class = ChromaMig
+                api_kwargs = {}
             else:
                 from chromadb.config import Settings
                 chroma_class = Chroma
-            client_settings = Settings(anonymized_telemetry=False,
-                                       **chroma_settings,
-                                       persist_directory=persist_directory)
+                if os.path.isdir(persist_directory):
+                    import chromadb
+                    api_kwargs = dict(client=chromadb.PersistentClient(path=persist_directory))
+                else:
+                    api_kwargs = {}
+            if not api_kwargs:
+                client_settings = Settings(anonymized_telemetry=False,
+                                           **chroma_settings,
+                                           persist_directory=persist_directory)
+                api_kwargs = dict(client_settings=client_settings)
             db = chroma_class(persist_directory=persist_directory, embedding_function=embedding,
                               collection_name=langchain_mode.replace(' ', '_'),
-                              client_settings=client_settings)
+                              **api_kwargs)
             try:
                 db.similarity_search('')
             except BaseException as e:
@@ -3481,7 +3489,7 @@ def get_existing_db(db, persist_directory,
                     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
                     db = chroma_class(persist_directory=persist_directory, embedding_function=embedding,
                                       collection_name=langchain_mode.replace(' ', '_'),
-                                      client_settings=client_settings)
+                                      **api_kwargs)
                     # should work now, let fail if not
                     db.similarity_search('')
                     save_embed(db, use_openai_embedding, hf_embedding_model)
