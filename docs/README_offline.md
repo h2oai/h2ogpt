@@ -102,6 +102,16 @@ If the front-end can still access internet, but just backend should not, then on
 Note that gradio attempts to download [iframeResizer.contentWindow.min.js](https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.3.1/iframeResizer.contentWindow.min.js),
 but nothing prevents gradio from working without this.  So a simple firewall block is sufficient.  For more details, see: https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/10324.
 
+For non-HF models, you must specify the file name as we cannot map HF name to file name for GGUF/GPTQ etc. files automagically without internet.  E.g. after running one of the offline preparation ways above, run:
+```
+HF_DATASETS_OFFLINE=1;TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --gradio_offline_level=2 --base_model=llama --llama_model_path=zephyr-7b-beta.Q5_K_M.gguf
+```
+That is, you cannot do:
+```
+HF_DATASETS_OFFLINE=1;TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --gradio_offline_level=2 --base_model=TheBloke/zephyr-7B-beta-GGUF
+```
+since the mapping from that name to get file etc. is not trivial and only possible with internet.
+
 ### Disable access or port
 
 To ensure nobody can access your gradio server, disable the port via firewall.  If that is a hassle, then one can enable authentication by adding to CLI when running `python generate.py`:
