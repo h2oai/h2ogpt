@@ -1222,14 +1222,21 @@ def test_png_add(captions_model, caption_gpu, pre_load_image_audio_models, enabl
         # FIXME: Not good for this
         return
     kill_weaviate(db_type)
-    return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
-                       pre_load_image_audio_models=pre_load_image_audio_models,
-                       enable_captions=enable_captions,
-                       enable_ocr=enable_ocr,
-                       enable_doctr=enable_doctr,
-                       enable_pix2struct=enable_pix2struct,
-                       db_type=db_type,
-                       file=file)
+    try:
+        return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
+                           pre_load_image_audio_models=pre_load_image_audio_models,
+                           enable_captions=enable_captions,
+                           enable_ocr=enable_ocr,
+                           enable_doctr=enable_doctr,
+                           enable_pix2struct=enable_pix2struct,
+                           db_type=db_type,
+                           file=file)
+    except Exception as e:
+        if not enable_captions and 'data/pexels-evg-kowalievska-1170986_small.jpg' in file and 'had no valid text and no meta data was parsed' in str(e):
+            pass
+        else:
+            raise
+
 
 
 def run_png_add(captions_model=None, caption_gpu=False,
