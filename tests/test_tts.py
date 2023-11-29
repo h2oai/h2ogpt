@@ -113,9 +113,10 @@ def test_predict_from_text(bot, sentences_expected):
     from src.tts import get_tts_model, get_speakers
     processor, model, vocoder = get_tts_model()
     speaker = get_speakers()[0]
+    tts_speed = 1.0
 
     from src.tts import predict_from_text
-    for audio in predict_from_text(bot, speaker,
+    for audio in predict_from_text(bot, speaker, tts_speed,
                                    processor=processor, model=model, vocoder=vocoder,
                                    return_as_byte=False,
                                    verbose=True):
