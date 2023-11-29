@@ -136,7 +136,7 @@ export VLLM_CACHE=/workspace/.vllm_cache
 cd /h2ogpt_conda
 python -m venv vllm_env --system-site-packages
 # gputil is for rayWorker in vllm to run as non-root
-/h2ogpt_conda/vllm_env/bin/python -m pip install vllm ray pandas gputil==1.4.0
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://github.com/vllm-project/vllm/releases/download/v0.2.2/vllm-0.2.2+cu118-cp310-cp310-manylinux1_x86_64.whl ray pandas gputil==1.4.0
 mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
