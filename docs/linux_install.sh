@@ -35,6 +35,8 @@ if [ "${GPLOK}" -eq "1" ]
 then
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 fi
+    # Optional: FAISS
+    pip install -r reqs_optional/requirements_optional_faiss.txt
     # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: support docx, pptx, ArXiv, etc. required by some python packages
@@ -54,6 +56,8 @@ fi
     # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
       sudo apt-get install -y rubberband-cli
       pip install pyrubberband==0.3.0
+    # Optional: Only for testing for now
+    pip install playsound==1.3.0
     # STT from microphone (may not be required if ffmpeg installed above)
     sudo apt-get install ffmpeg
     # for any TTS:
