@@ -23,7 +23,8 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Authentication** in the UI by user/password
   - **State Preservation** in the UI by user/password
 - **Linux, Docker, macOS, and Windows** support
-  - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit
+  - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
+  - [**Easy MAC Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)
 - **OpenAI-compliant Python client API** for client-server control
 - **Web-Search** integration with Chat and Document Q/A
