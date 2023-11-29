@@ -22,6 +22,7 @@ chroma-migrate==0.0.7
 duckdb==0.7.1
 https://h2o-release.s3.amazonaws.com/h2ogpt/chromamigdb-0.3.25-py3-none-any.whl
 https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
+pydantic-settings==2.1.0
 
 # server vector db
 #pymilvus==2.2.8
