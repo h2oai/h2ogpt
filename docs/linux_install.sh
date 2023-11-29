@@ -189,7 +189,7 @@ fi
   cd $sp
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
   sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
-  sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue/g' gradio_client/utils.py
+  sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
   cd $pwd0
 #    ```
 #* vLLM support
