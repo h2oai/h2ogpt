@@ -69,6 +69,7 @@ eval_func_param_names = ['instruction',
                          'chatbot_role',
                          'speaker',
                          'tts_language',
+                         'tts_speed',
                          ]
 
 # form evaluate defaults for submit_nochat_api

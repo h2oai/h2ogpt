@@ -139,7 +139,7 @@ def test_client1api_lean(save_dir, admin_pass):
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
-    client1 = get_client(serialize=True)
+    client1 = get_client(serialize=False)
 
     from gradio_utils.grclient import GradioClient
     client2 = GradioClient(get_inf_server())
@@ -203,7 +203,7 @@ def test_client1api_lean_lock_choose_model():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     for prompt_type in ['human_bot', None, '', 'plain']:
         for visible_models in [None, 0, base1, 1, base2]:
             base_model = base1 if visible_models in [None, 0, base1] else base2
@@ -294,7 +294,7 @@ def test_client1api_lean_chat_server():
     prompt = 'Who are you?'
 
     kwargs = dict(instruction_nochat=prompt)
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
     res = client.predict(str(dict(kwargs)), api_name=api_name)
 
@@ -2030,7 +2030,7 @@ def test_client_stress(repeat):
     prompt = "Tell a very long kid's story about birds."
     # prompt = "Say exactly only one word."
 
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     kwargs = dict(
         instruction='',
         max_new_tokens=200,
@@ -2062,7 +2062,7 @@ def test_client_stress_stream(repeat):
     stream_output = True
     chat = False
 
-    client = get_client(serialize=True)
+    client = get_client(serialize=False)
     kwargs, args = get_args(prompt, prompt_type, chat=chat, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     res_dict, client = run_client_gen(client, kwargs, do_md_to_text=False)
@@ -2217,7 +2217,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "the text in the provided PDF file is quite repetitive and boring" in res_dict['response'] or
             "the provided PDF file is quite boring" in res_dict['response'] or
             "finds more text to be boring" in res_dict['response'] or
-            "text to be boring" in res_dict['response']) \
+            "text to be boring" in res_dict['response'] or
+            "author finds more text to be boring" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"
@@ -2233,7 +2234,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     # is not actual data!
     assert isinstance(res[1], str)
     res = res[0]
-    with open(res['name'], 'rb') as f:
+    with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
@@ -2242,7 +2243,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     res = client.predict(langchain_mode2, api_name='/get_sources')
     assert isinstance(res[1], str)
     res = res[0]
-    with open(res['name'], 'rb') as f:
+    with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
@@ -2253,7 +2254,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert isinstance(res[1], str)
     res = res[0]
     # is not actual data!
-    with open(res['name'], 'rb') as f:
+    with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
@@ -2262,7 +2263,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     res = client.predict(langchain_mode2, api_name='/get_viewable_sources')
     assert isinstance(res[1], str)
     res = res[0]
-    with open(res['name'], 'rb') as f:
+    with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
@@ -2282,7 +2283,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert isinstance(res[1], str)
     res = res[0]
     # is not actual data!
-    with open(res['name'], 'rb') as f:
+    with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
     assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
@@ -2298,8 +2299,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     file_to_get = sources_expected[3]
     view_raw_text = False
     text_context_list = None
+    pdf_height = 1000
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, pdf_height, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
@@ -2309,7 +2311,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
 
     view_raw_text = True  # dict of metadatas stays dict instead of string
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, pdf_height, api_name='/get_document_api'))
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)
@@ -3617,7 +3619,7 @@ def test_client_summarization_from_text():
 
     # PURE client code
     from gradio_client import Client
-    client = Client(get_inf_server(), serialize=True)
+    client = Client(get_inf_server(), serialize=False)
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
@@ -3668,7 +3670,7 @@ def test_client_summarization_from_url(url, top_k_docs):
 
     # PURE client code
     from gradio_client import Client
-    client = Client(get_inf_server(), serialize=True)
+    client = Client(get_inf_server(), serialize=False)
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'

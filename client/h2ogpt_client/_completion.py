@@ -78,6 +78,7 @@ _H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     chatbot_role="chatbot_role",
     speaker="speaker",
     tts_language="tts_language",
+    tts_speed="tts_speed",
 )
 
 
@@ -148,6 +149,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     chatbot_role="None",
     speaker="None",
     tts_language="autodetect",
+    tts_speed=1.0,
 )
 
 
@@ -245,6 +247,7 @@ class TextCompletionCreator:
         chatbot_role="None",
         speaker="None",
         tts_language="autodetect",
+        tts_speed=1.0,
     ) -> "TextCompletion":
         """
         Creates a new text completion.
@@ -298,6 +301,7 @@ class TextCompletionCreator:
         :param chatbot_role: See h2oGPT server docs
         :param speaker: See h2oGPT server docs
         :param tts_language: See h2oGPT server docs
+        :param tts_speed: See h2oGPT server docs
         """
         args = locals().copy()
         args["prompt_type"] = prompt_type.value  # convert to serializable type
@@ -386,6 +390,7 @@ class ChatCompletionCreator:
         chatbot_role="None",
         speaker="None",
         tts_language="autodetect",
+        tts_speed=1.0,
     ) -> "ChatCompletion":
         """
         Creates a new chat completion.
@@ -438,6 +443,7 @@ class ChatCompletionCreator:
         :param chatbot_role: See h2oGPT server docs
         :param speaker: See h2oGPT server docs
         :param tts_language: See h2oGPT server docs
+        :param tts_speed: See h2oGPT server docs
         """
         args = locals().copy()
         args["prompt_type"] = prompt_type.value  # convert to serializable type

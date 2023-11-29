@@ -3,8 +3,8 @@ from io import IOBase
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from langchain._api import warn_deprecated
-from langchain.agents.agent import AgentExecutor, BaseSingleActionAgent
-from langchain.agents.agent_toolkits.pandas.prompt import (
+from langchain.agents import AgentExecutor, BaseSingleActionAgent
+from langchain_experimental.agents.agent_toolkits.pandas.prompt import (
     FUNCTIONS_WITH_DF,
     FUNCTIONS_WITH_MULTI_DF,
     MULTI_DF_PREFIX,
@@ -25,7 +25,7 @@ from langchain.schema import BasePromptTemplate
 from langchain.schema.language_model import BaseLanguageModel
 from langchain.schema.messages import SystemMessage
 from langchain.tools import BaseTool
-from langchain.tools.python.tool import PythonAstREPLTool
+from langchain_experimental.tools.python.tool import PythonAstREPLTool
 
 
 def _get_multi_prompt(

@@ -6,6 +6,7 @@ from src.tts_sentence_parsing import init_sentence_state
 from tests.test_sentence_parsing import bot_list
 
 
+@pytest.mark.audio
 @wrap_test_forked
 def test_sentence_to_wave():
     os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
@@ -14,10 +15,12 @@ def test_sentence_to_wave():
     chatbot_role = "Female AI Assistant"
     sentence = "I am an AI assistant.  I can help you with any tasks."
     # supported_languages = ["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja"]
+    tts_speed = 1.0
     model, supported_languages = get_xtt()
     latent = get_latent(get_role_to_wave_map()[chatbot_role], model=model)
     generated_speech = sentence_to_wave(sentence,
                                         supported_languages,
+                                        tts_speed,
                                         latent=latent,
                                         model=model,
                                         return_as_byte=False,
@@ -31,6 +34,7 @@ def test_sentence_to_wave():
         pass
 
 
+@pytest.mark.audio
 @wrap_test_forked
 def test_generate_speech():
     os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
@@ -45,6 +49,7 @@ def test_generate_speech():
         generate_speech(char, model=model, supported_languages=supported_languages, latent=latent)
 
 
+@pytest.mark.audio
 @wrap_test_forked
 def test_full_generate_speech():
     os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
@@ -102,6 +107,7 @@ def test_full_generate_speech():
     print(audios)
 
 
+@pytest.mark.audio
 @wrap_test_forked
 @pytest.mark.parametrize("bot, sentences_expected", bot_list)
 def test_predict_from_text(bot, sentences_expected):
@@ -109,9 +115,10 @@ def test_predict_from_text(bot, sentences_expected):
     from src.tts import get_tts_model, get_speakers
     processor, model, vocoder = get_tts_model()
     speaker = get_speakers()[0]
+    tts_speed = 1.0
 
     from src.tts import predict_from_text
-    for audio in predict_from_text(bot, speaker,
+    for audio in predict_from_text(bot, speaker, tts_speed,
                                    processor=processor, model=model, vocoder=vocoder,
                                    return_as_byte=False,
                                    verbose=True):

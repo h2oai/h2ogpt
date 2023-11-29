@@ -13,6 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, Generator, Any, Union, List
 import ast
+from packaging import version
 
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
@@ -22,7 +23,7 @@ from huggingface_hub.utils import (
 )
 
 from gradio_client import utils
-from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint
+from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint, EndpointV3Compatibility
 from gradio_client import Client
 
 
@@ -75,9 +76,10 @@ class GradioClient(Client):
             src: str,
             hf_token: str | None = None,
             max_workers: int = 40,
-            serialize: bool = True,
+            serialize: bool = None,
             output_dir: str | Path | None = DEFAULT_TEMP_DIR,
             verbose: bool = True,
+            auth: tuple[str, str] | None = None,
             h2ogpt_key: str = None,
     ):
         """
@@ -89,6 +91,10 @@ class GradioClient(Client):
             output_dir: The directory to save files that are downloaded from the remote API. If None, reads from the GRADIO_TEMP_DIR environment variable. Defaults to a temporary directory on your machine.
             verbose: Whether the client should print statements to the console.
         """
+        if serialize is None:
+            # else converts inputs arbitrarily and outputs mutate
+            # False keeps as-is and is normal for h2oGPT
+            serialize = False
         self.args = tuple([src])
         self.kwargs = dict(
             hf_token=hf_token,
@@ -103,9 +109,13 @@ class GradioClient(Client):
         self.hf_token = hf_token
         self.serialize = serialize
         self.space_id = None
-        self.output_dir = output_dir
+        self.cookies: dict[str, str] = {}
+        self.output_dir = (
+            str(output_dir) if isinstance(output_dir, Path) else output_dir
+        )
         self.max_workers = max_workers
         self.src = src
+        self.auth = auth
         self.config = None
         self.server_hash = None
         self.h2ogpt_key = h2ogpt_key
@@ -154,16 +164,24 @@ class GradioClient(Client):
             print(f"Loaded as API: {self.src} ✔")
 
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
+        self.sse_url = urllib.parse.urljoin(self.src, utils.SSE_URL)
+        self.sse_data_url = urllib.parse.urljoin(self.src, utils.SSE_DATA_URL)
         self.ws_url = urllib.parse.urljoin(
             self.src.replace("http", "ws", 1), utils.WS_URL
         )
         self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
         self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
+        if self.auth is not None:
+            self._login(self.auth)
         self.config = self._get_config()
+        self.app_version = version.parse(self.config.get("version", "2.0"))
+        self._info = self._get_api_info()
         self.session_hash = str(uuid.uuid4())
 
+        protocol = self.config.get("protocol")
+        endpoint_class = Endpoint if protocol == "sse" else EndpointV3Compatibility
         self.endpoints = [
-            Endpoint(self, fn_index, dependency)
+            endpoint_class(self, fn_index, dependency)
             for fn_index, dependency in enumerate(self.config["dependencies"])
         ]
 
@@ -646,7 +664,7 @@ class GradioClient(Client):
                     if langchain_action != LangChainAction.EXTRACT.value:
                         response = response.strip()
                     else:
-                        response = [r.strip() for r in response]
+                        response = [r.strip() for r in ast.literal_eval(response)]
                     sources = res["sources"]
                     scores_out = [x["score"] for x in sources]
                     texts_out = [x["content"] for x in sources]

@@ -1,7 +1,7 @@
 import os
 import ast
 import time
-from enums import PromptType  # also supports imports from this file from other files
+from enums import PromptType, gpt_token_mapping  # also supports imports from this file from other files
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -93,6 +93,7 @@ prompt_type_to_model_name = {
     # "wizard2": [],
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
+    "orca2": ['TheBloke/Orca-2-13B-GGUF', 'microsoft/Orca-2-13b'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5', 'lmsys/vicuna-13b-v1.5-16k'],
     "one_shot": ['lmsys/fastchat-t5-3b-v1.0'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-7b-instruct'],
@@ -142,7 +143,7 @@ prompt_type_to_model_name = {
                        ],
     "open_chat": ['openchat/openchat_3.5', 'TheBloke/openchat_3.5-GPTQ', 'TheBloke/openchat_3.5-GGUF',
                   'TheBloke/openchat_3.5-AWQ', 'TheBloke/openchat_3.5-16k-AWQ'],
-    "open_chat_correct": [],  # can be any from open_chat list, by using this prompt
+    "open_chat_correct": ['berkeley-nest/Starling-LM-7B-alpha'],  # can be any from open_chat list, by using this prompt
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
@@ -155,11 +156,7 @@ model_names_curated = ['llama',
                        'HuggingFaceH4/zephyr-7b-beta',
                        'TheBloke/zephyr-7B-beta-GGUF',
                        'TheBloke/zephyr-7B-beta-AWQ'] + model_names_curated_big
-openai_gpts = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k",
-               "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
-               "gpt-4", "gpt-4-32k",
-               "gpt-4-0613", "gpt-4-32k-0613",
-               ]
+openai_gpts = list(gpt_token_mapping.keys())
 if os.getenv('OPENAI_API_KEY'):
     prompt_type_to_model_name.update({
         "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],
@@ -573,7 +570,9 @@ ASSISTANT:
         humanstr = PreInstruct
         botstr = PreResponse
     elif prompt_type in [PromptType.openai_chat.value, str(PromptType.openai_chat.value),
-                         PromptType.openai_chat.name]:
+                         PromptType.openai_chat.name] or \
+            prompt_type in [PromptType.anthropic.value, str(PromptType.anthropic.value),
+                            PromptType.anthropic.name]:
         # prompting and termination all handled by endpoint
         preprompt = """"""
         start = ''
@@ -636,6 +635,25 @@ ASSISTANT:
         # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
+
+        PreInstruct = """<|im_start|>user
+"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|><|im_start|>assistant
+"""
+        terminate_response = ['<|im_end|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.orca2.value, str(PromptType.orca2.value),
+                         PromptType.orca2.name]:
+        # https://huggingface.co/microsoft/Orca-2-13b#getting-started-with-orca-2
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "You are Orca, an AI language model created by Microsoft. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior."
         promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
 
         PreInstruct = """<|im_start|>user
@@ -974,7 +992,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
                          PromptType.deepseek_coder.name]:
         # https://huggingface.co/deepseek-ai/deepseek-coder-33b-instruct
         if system_prompt in [None, 'None', 'auto']:
-            system_prompt = "You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer.\n"
+            system_prompt = "You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer\n"
         promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
         PreInput = None
         PreInstruct = "### Instruction:\n"
@@ -990,9 +1008,9 @@ Remember to tailor the activities to the birthday child's interests and preferen
     elif prompt_type in [PromptType.open_chat.value, str(PromptType.open_chat.value),
                          PromptType.open_chat.name] or \
             prompt_type in [PromptType.open_chat_correct.value, str(PromptType.open_chat_correct.value),
-                         PromptType.open_chat_correct.name] or \
+                            PromptType.open_chat_correct.name] or \
             prompt_type in [PromptType.open_chat_code.value, str(PromptType.open_chat_code.value),
-                         PromptType.open_chat_code.name]:
+                            PromptType.open_chat_code.name]:
         # https://huggingface.co/TheBloke/openchat_3.5-GPTQ#prompt-template-openchat
         # https://github.com/imoneoi/openchat/tree/master#-inference-with-transformers
         # GPT4 Correct User: Hello<|end_of_turn|>GPT4 Correct Assistant: Hi<|end_of_turn|>GPT4 Correct User: How are you today?<|end_of_turn|>GPT4 Correct Assistant:
@@ -1002,11 +1020,11 @@ Remember to tailor the activities to the birthday child's interests and preferen
         promptA = promptB = ""  # no apparent system prompt
         PreInput = None
         if prompt_type in [PromptType.open_chat.value, str(PromptType.open_chat.value),
-                         PromptType.open_chat.name]:
+                           PromptType.open_chat.name]:
             PreInstruct = "GPT4 User: "
             PreResponse = "GPT4 Assistant:"
         elif prompt_type in [PromptType.open_chat_correct.value, str(PromptType.open_chat_correct.value),
-                         PromptType.open_chat_correct.name]:
+                             PromptType.open_chat_correct.name]:
             PreInstruct = "GPT4 Correct User: "
             PreResponse = "GPT4 Correct Assistant:"
         else:

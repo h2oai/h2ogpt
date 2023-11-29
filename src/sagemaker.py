@@ -1,9 +1,9 @@
 import os
 import typing
 import json
-from pydantic import root_validator
 from langchain.llms import SagemakerEndpoint
 from langchain.llms.sagemaker_endpoint import LLMContentHandler
+from pydantic.v1 import root_validator
 
 from src.utils import FakeTokenizer
 

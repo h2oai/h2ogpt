@@ -8,10 +8,11 @@ Loader that uses H2O DocTR OCR models to extract text from images
 from typing import List, Union, Any, Tuple, Optional
 
 import requests
+import torch
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader
 import numpy as np
-from utils import get_device, clear_torch_cache
+from utils import get_device, clear_torch_cache, NullContext
 from doctr.utils.common_types import AbstractFile
 
 
@@ -22,7 +23,7 @@ class H2OOCRLoader(ImageCaptionLoader):
         super().__init__(path_images)
         self._ocr_model = None
         self.layout_aware = layout_aware
-        self.gpu_id = gpu_id if isinstance(gpu_id, int) else 0
+        self.gpu_id = gpu_id if isinstance(gpu_id, int) and gpu_id >= 0 else 0
 
         self.device = 'cpu'
         # ensure self.device set
@@ -35,7 +36,7 @@ class H2OOCRLoader(ImageCaptionLoader):
             if n_gpus > 0:
                 self.context_class = torch.device
                 if self.gpu_id is not None:
-                    self.device = torch.device("cuda:%d" % self.gpu_id)
+                    self.device = "cuda:%d" % self.gpu_id
                 else:
                     self.device = 'cuda'
             else:
@@ -83,13 +84,15 @@ class H2OOCRLoader(ImageCaptionLoader):
     def load(self, prompt=None) -> List[Document]:
         if self._ocr_model is None:
             self.load_model()
+        context_class = torch.cuda.device(self.gpu_id) if 'cuda' in str(self.device) else NullContext
         results = []
-        for document_path in self.document_paths:
-            caption, metadata = self._get_captions_and_metadata(
-                model=self._ocr_model, document_path=document_path
-            )
-            doc = Document(page_content=" \n".join(caption), metadata=metadata)
-            results.append(doc)
+        with context_class:
+            for document_path in self.document_paths:
+                caption, metadata = self._get_captions_and_metadata(
+                    model=self._ocr_model, document_path=document_path
+                )
+                doc = Document(page_content=" \n".join(caption), metadata=metadata)
+                results.append(doc)
 
         return results
 

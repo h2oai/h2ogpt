@@ -47,12 +47,12 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
-    max_input_tokens_public_api
+    max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS
+    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2
 
 start_faulthandler()
 import_matplotlib()
@@ -122,6 +122,7 @@ def main(
         load_4bit: bool = False,
         low_bit_mode: int = 1,
         load_half: bool = None,
+        use_flash_attention_2=True,
         load_gptq: str = '',
         use_autogptq: bool = False,
         load_awq: str = '',
@@ -264,6 +265,7 @@ def main(
         actions_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
+        pdf_height: int = 800,
         avatars: bool = True,
 
         sanitize_user_prompt: bool = False,
@@ -377,6 +379,8 @@ def main(
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
+        asr_use_better: bool = True,
+        asr_use_faster: bool = False,
 
         enable_stt: Union[str, bool] = 'auto',
         stt_model: str = "openai/whisper-base.en",
@@ -396,6 +400,7 @@ def main(
         chatbot_role: str = "None",  # "Female AI Assistant",
         speaker: str = "None",  # "SLT (female)",
         tts_language: str = 'autodetect',
+        tts_speed: float = 1.0,
         tts_action_phrases: typing.List[str] = [],  # ['Nimbus'],
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
         sst_floor: float = 100,
@@ -417,6 +422,7 @@ def main(
            If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
+    :param use_flash_attention_2: Whether to try to use flash attention 2 if avaialble when loading HF models
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. 'model' for TheBloke models
     :param use_autogptq: whether to use AutoGPTQ (True) or HF Transformers (False)
            Some models are only supported by one or the other
@@ -439,13 +445,12 @@ def main(
                              Or Address can be "openai_azure_chat" or "openai_azure" for Azure OpenAI API
                              e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
                              e.g. python generate.py --inference_server="openai" --base_model=text-davinci-003
-                             e.g. python generate.py --inference_server="openai_azure_chat:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=gpt-3.5-turbo
-                             e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<model_version>" --base_model=text-davinci-003
+                             e.g. python generate.py --inference_server="openai_azure_chat:<deployment_name>:<baseurl>:<api_version>:<access key>" --base_model=gpt-3.5-turbo
+                             e.g. python generate.py --inference_server="openai_azure:<deployment_name>:<baseurl>:<api_version>:<access key>" --base_model=text-davinci-003
                              Optionals (Replace with None or just leave empty but keep :)
                                  <deployment_name> of some deployment name
                                  <baseurl>: e.g. "<endpoint>.openai.azure.com" for some <endpoint> without https://
                                  <api_version> of some api, e.g. 2023-05-15
-                                 <model_version> e.g. 0613
 
                              Or Address can be for vLLM:
                               Use: "vllm:IP:port" for OpenAI-compliant vLLM endpoint
@@ -465,6 +470,10 @@ def main(
                              Or Address can be for AWS SageMaker:
                               Use: "sagemaker_chat:<endpoint name>" for chat models that AWS sets up as dialog
                               Use: "sagemaker:<endpoint name>" for foundation models that AWS only text as inputs
+
+                            Or Address can be for Anthropic Claude.  Ensure key is set in env ANTHROPIC_API_KEY
+                              Use: "anthropic:<model name>"
+                              E.g. "anthropic:claude-2"
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -703,6 +712,7 @@ def main(
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
+    :param pdf_height: Height of PDF viewer in UI
     :param avatars: Whether to show avatars in chatbot
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
@@ -868,15 +878,17 @@ def main(
     :param doctr_gpu: If support doctr, then use GPU if exists
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
 
-    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3
+    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
+    :param asr_use_better: Whether to use BetterTransformer
+    :param asr_use_faster: Whether to use faster_whisper package and models (loads normal whisper then unloads it, to get this into pipeline)
 
     :param enable_stt: Whether to enable and show Speech-to-Text (STT) with microphone in UI
          Note STT model is always preloaded, but if stt_model=asr_model and pre_load_image_audio_models=True, then asr model is used as STT model.
     :param stt_model: Name of model for STT, can be same as asr_model, which will then use same model for conserving GPU
-    :param stt_gpu: Whther to use gpu for STT model
+    :param stt_gpu: Whether to use gpu for STT model
     :param stt_gpu_id: If not using asr_model, then which GPU to go on if using cuda
     :param stt_continue_mode: How to continue speech with button control
            0: Always append audio regardless of start/stop of recording, so always appends in STT model for full STT conversion
@@ -908,6 +920,7 @@ def main(
     :param chatbot_role: Default role for coqui models.  If 'None', then don't by default speak when launching h2oGPT for coqui model choice.
     :param speaker: Default speaker for microsoft models  If 'None', then don't by default speak when launching h2oGPT for microsoft model choice.
     :param tts_language: Default language for coqui models
+    :param tts_speed: Default speed of TTS, < 1.0 (needs rubberband) for slower than normal, > 1.0 for faster.  Tries to keep fixed pitch.
     :param tts_action_phrases: Phrases or words to use as action word to trigger click of Submit hands-free assistant style
            Set to None or empty list to avoid any special action words
     :param tts_stop_phrases:  Like tts_action_phrases but to stop h2oGPT from speaking and generating
@@ -1217,6 +1230,7 @@ def main(
         if load_half is None:
             # wouldn't work if specified True, but respect
             load_half = False
+        use_flash_attention_2 = False
         load_gptq = ''
         load_awq = ''
         load_exllama = False
@@ -1235,6 +1249,8 @@ def main(
         if score_model == 'auto':
             score_model = ''
     else:
+        if not have_flash_attention_2:
+            use_flash_attention_2 = False
         if load_half is None:
             load_half = True
         # CUDA GPUs visible
@@ -1268,10 +1284,6 @@ def main(
     # hard-coded defaults
     first_para = False
     text_limit = None
-
-    if compile_model is None:
-        # too avoid noisy CLI
-        compile_model = not cli
 
     if offload_folder:
         offload_folder = makedirs(offload_folder, exist_ok=True, tmp_ok=True, use_base=True)
@@ -1309,6 +1321,8 @@ def main(
         stt_gpu = False
         caption_gpu = False
         asr_gpu = False
+    if is_public:
+        stt_model = 'distil-whisper/distil-large-v2'
 
     # defaults
     caption_loader = None
@@ -1366,6 +1380,7 @@ def main(
                             chatbot_role,
                             speaker,
                             tts_language,
+                            tts_speed,
                             verbose,
                             )
 
@@ -1418,7 +1433,9 @@ def main(
             from src.audio_langchain import H2OAudioCaptionLoader
             asr_loader = H2OAudioCaptionLoader(asr_gpu=asr_gpu,
                                                gpu_id=asr_gpu_id,
-                                               asr_model=asr_model).load_model()
+                                               asr_model=asr_model,
+                                               use_better=asr_use_better,
+                                               use_faster=asr_use_faster).load_model()
         else:
             asr_loader = 'gpu' if n_gpus > 0 and asr_gpu else 'cpu'
     else:
@@ -1544,7 +1561,7 @@ def main(
     truncation_generation = truncation_generation and not attention_sinks
 
     other_model_state_defaults = dict(load_8bit=load_8bit, load_4bit=load_4bit, low_bit_mode=low_bit_mode,
-                                      load_half=load_half,
+                                      load_half=load_half, use_flash_attention_2=use_flash_attention_2,
                                       load_gptq=load_gptq, load_awq=load_awq, load_exllama=load_exllama,
                                       use_safetensors=use_safetensors,
                                       revision=revision, use_gpu_id=use_gpu_id, gpu_id=gpu_id,
@@ -1902,6 +1919,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
         device_map = {'': 'cpu'}
         model_kwargs['load_in_8bit'] = False
         model_kwargs['load_in_4bit'] = False
+        model_kwargs['use_flash_attention_2'] = False
     print('device_map: %s' % device_map, flush=True)
 
     load_in_8bit = model_kwargs.get('load_in_8bit', False)
@@ -2016,6 +2034,8 @@ def get_model_retry(**kwargs):
                     'safetensors' in stre or \
                     'not appear to have a file named pytorch_model.bin' in stre:
                 kwargs['use_safetensors'] = True
+            if 'current architecture does not support Flash Attention 2' in stre:
+                kwargs['use_flash_attention_2'] = False
             clear_torch_cache()
             if trial >= trials - 1:
                 raise
@@ -2027,6 +2047,7 @@ def get_model(
         load_4bit: bool = False,
         low_bit_mode: int = 1,
         load_half: bool = True,
+        use_flash_attention_2: bool = True,
         load_gptq: str = '',
         use_autogptq: bool = False,
         load_awq: str = '',
@@ -2050,7 +2071,7 @@ def get_model(
         offload_folder: str = None,
         rope_scaling: dict = None,
         max_seq_len: int = None,
-        compile_model: bool = True,
+        compile_model: bool = False,
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
@@ -2201,8 +2222,10 @@ def get_model(
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
             inference_server.startswith('replicate') or
-            inference_server.startswith('sagemaker')
+            inference_server.startswith('sagemaker') or
+            inference_server.startswith('anthropic')
     ):
+        max_output_len = None
         if inference_server.startswith('openai'):
             assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
@@ -2211,6 +2234,22 @@ def get_model(
                 max_seq_len = model_token_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in model_token_mapping_outputs:
+                max_output_len = model_token_mapping_outputs[base_model]
+            else:
+                max_output_len = None
+        if inference_server.startswith('anthropic'):
+            assert os.getenv('ANTHROPIC_API_KEY'), "Set environment for ANTHROPIC_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in anthropic_mapping:
+                max_seq_len = anthropic_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in anthropic_mapping_outputs:
+                max_output_len = anthropic_mapping_outputs[base_model]
+            else:
+                max_output_len = None
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2230,10 +2269,13 @@ def get_model(
             assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        if inference_server.startswith('openai') or tokenizer is None:
+        if inference_server.startswith('openai') or tokenizer is None or inference_server.startswith('anthropic'):
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
             assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
+            if max_output_len is not None:
+                tokenizer.max_output_len = max_output_len
+
         return inference_server, tokenizer, inference_server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
     if base_model in non_hf_types:
@@ -2253,6 +2295,7 @@ def get_model(
                         load_4bit=load_4bit,
                         low_bit_mode=low_bit_mode,
                         load_half=load_half,
+                        use_flash_attention_2=use_flash_attention_2,
                         load_gptq=load_gptq,
                         use_autogptq=use_autogptq,
                         load_awq=load_awq,
@@ -2290,6 +2333,7 @@ def get_hf_model(load_8bit: bool = False,
                  load_4bit: bool = False,
                  low_bit_mode: int = 1,
                  load_half: bool = True,
+                 use_flash_attention_2: bool = True,
                  load_gptq: str = '',
                  use_autogptq: bool = False,
                  load_awq: str = '',
@@ -2309,7 +2353,7 @@ def get_hf_model(load_8bit: bool = False,
                  trust_remote_code: bool = True,
                  offload_folder: str = None,
                  rope_scaling: dict = None,
-                 compile_model: bool = True,
+                 compile_model: bool = False,
 
                  llama_type: bool = False,
                  config_kwargs=None,
@@ -2387,6 +2431,7 @@ def get_hf_model(load_8bit: bool = False,
                 device_map = "auto"
             model_kwargs.update(dict(load_in_8bit=load_8bit,
                                      load_in_4bit=load_4bit,
+                                     use_flash_attention_2=use_flash_attention_2,
                                      device_map=device_map,
                                      ))
         if 'mpt-' in base_model.lower() and gpu_id is not None and gpu_id >= 0:
@@ -2605,6 +2650,7 @@ def get_score_model(score_model: str = None,
                     load_4bit: bool = False,
                     low_bit_mode=1,
                     load_half: bool = True,
+                    use_flash_attention_2: bool = True,
                     load_gptq: str = '',
                     use_autogptq: bool = False,
                     load_awq: str = '',
@@ -2641,6 +2687,7 @@ def get_score_model(score_model: str = None,
         load_4bit = False
         low_bit_mode = 1
         load_half = False
+        use_flash_attention_2 = False
         load_gptq = ''
         use_autogptq = False
         load_awq = ''
@@ -2670,7 +2717,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='', audio=None)
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='', sources_str='', audio=None)
     return
 
 
@@ -2741,6 +2788,7 @@ def evaluate(
         chatbot_role,
         speaker,
         tts_language,
+        tts_speed,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -3044,7 +3092,8 @@ def evaluate(
                            inference_server.startswith('replicate') or \
                            inference_server.startswith('sagemaker') or \
                            inference_server.startswith('openai_azure_chat') or \
-                           inference_server.startswith('openai_azure')
+                           inference_server.startswith('openai_azure') or \
+                           inference_server.startswith('anthropic')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
@@ -3193,8 +3242,9 @@ def evaluate(
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
             response_no_refs = r['response_no_refs']
+            sources_str = r['sources_str']
             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers,
-                       response_no_refs=response_no_refs)
+                       response_no_refs=response_no_refs, sources_str=sources_str)
         if save_dir:
             # estimate using tiktoken
             extra_dict = gen_hyper_langchain.copy()
@@ -3220,7 +3270,7 @@ def evaluate(
                              where_from='run_qa_db',
                              extra_dict=extra_dict)
             yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
-                       response_no_refs=response)
+                       response_no_refs=response, sources_str=sources_str)
             if verbose:
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' %
@@ -3273,7 +3323,8 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai, inf_type, deployment_name, base_url, api_version, api_key = set_openai(inference_server)
+            openai_client, inf_type, deployment_name, openai_api_base, api_version, api_key = set_openai(
+                inference_server)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []
@@ -3288,8 +3339,8 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
-            if inf_type == 'vllm' or inference_server == 'openai':
-                responses = openai.Completion.create(
+            if inf_type == 'vllm' or inference_server == 'openai_client':
+                responses = openai_client.Completion.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
@@ -3305,7 +3356,7 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
                 else:
                     collected_events = []
                     tgen0 = time.time()
@@ -3316,7 +3367,7 @@ def evaluate(
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                                   response_no_refs=response)
+                                   response_no_refs=response, sources_str='')
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
@@ -3339,7 +3390,7 @@ def evaluate(
                             messages0.append(
                                 {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
                 messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
-                responses = openai.ChatCompletion.create(
+                responses = openai_client.ChatCompletion.create(
                     model=base_model,
                     messages=messages0,
                     stream=stream_output,
@@ -3354,7 +3405,7 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
@@ -3364,7 +3415,7 @@ def evaluate(
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                                       response_no_refs=response)
+                                       response_no_refs=response, sources_str='')
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
@@ -3493,12 +3544,12 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
                 else:
                     from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
                     res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={},
-                                    response_no_refs=text)
+                                    response_no_refs=text, sources_str='')
                     text0 = ''
                     tgen0 = time.time()
                     while not job.done():
@@ -3528,7 +3579,7 @@ def evaluate(
                             # save old
                             text0 = response
                             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                                       response_no_refs=response)
+                                       response_no_refs=response, sources_str='')
                             if time.time() - tgen0 > max_time:
                                 if verbose:
                                     print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
@@ -3569,7 +3620,7 @@ def evaluate(
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
@@ -3605,7 +3656,7 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
                 else:
                     tgen0 = time.time()
                     text = ""
@@ -3618,7 +3669,7 @@ def evaluate(
                                                              sanitize_bot_response=sanitize_bot_response)
                             sources = []
                             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                                       response_no_refs=response)
+                                       response_no_refs=response, sources_str='')
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
@@ -3639,7 +3690,7 @@ def evaluate(
             save_dict = dict(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
                              where_from=where_from, extra_dict=extra_dict)
             yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
-                       response_no_refs=response)
+                       response_no_refs=response, sources_str='')
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -3655,7 +3706,7 @@ def evaluate(
         response = model(prompt, max_length=max_new_tokens)[0][key]
         yield dict(response=response, sources=sources, save_dict=dict(),
                    llm_answers={},
-                   response_no_refs=response)
+                   response_no_refs=response, sources_str='')
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -3778,7 +3829,7 @@ def evaluate(
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
                     ret = dict(response='', sources='', save_dict=dict(), llm_answers={},
-                               response_no_refs='')
+                               response_no_refs='', sources_str='')
                     outputs = ""
                     sources = []
                     tgen0 = time.time()
@@ -3791,7 +3842,7 @@ def evaluate(
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
                             ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                                       response_no_refs=response)
+                                       response_no_refs=response, sources_str='')
                             if stream_output:
                                 yield ret
                             if time.time() - tgen0 > max_time:
@@ -3831,7 +3882,7 @@ def evaluate(
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
                 if save_dir and decoded_output:
@@ -3845,7 +3896,7 @@ def evaluate(
                                      where_from="evaluate_%s" % str(stream_output),
                                      extra_dict=extra_dict)
                     yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
-                               response_no_refs=response)
+                               response_no_refs=response, sources_str='')
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
@@ -4029,6 +4080,7 @@ def get_generate_params(model_lower,
                         chatbot_role,
                         speaker,
                         tts_language,
+                        tts_speed,
                         verbose,
                         ):
     use_defaults = False
@@ -4230,6 +4282,7 @@ y = np.random.randint(0, 1, 100)
                     chatbot_role,
                     speaker,
                     tts_language,
+                    tts_speed,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -4342,7 +4395,9 @@ def get_model_max_length_from_tokenizer(tokenizer):
 
 def get_max_max_new_tokens(model_state, **kwargs):
     if not isinstance(model_state['tokenizer'], (str, type(None))) or not kwargs.get('truncation_generation', False):
-        if hasattr(model_state['tokenizer'], 'model_max_length'):
+        if hasattr(model_state['tokenizer'], 'max_output_len'):
+            max_max_new_tokens = model_state['tokenizer'].max_output_len
+        elif hasattr(model_state['tokenizer'], 'model_max_length'):
             max_max_new_tokens = model_state['tokenizer'].model_max_length
         else:
             # e.g. fast up, no model

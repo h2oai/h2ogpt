@@ -3,8 +3,8 @@ import os
 from typing import Dict, Any, Optional, List, Iterator
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema.output import GenerationChunk
-from pydantic import root_validator
 from langchain.llms import gpt4all
+from pydantic.v1 import root_validator
 
 from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 

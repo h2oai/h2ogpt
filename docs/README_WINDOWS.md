@@ -50,24 +50,20 @@ For newer builds of windows versions of 10/11.
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
     ```
+* Prepare to install dependencies:
+   ```bash
+   set PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+   ```
+  Choose cu118+ for A100/H100+.  Or for CPU set
+   ```bash
+   set PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
+   ```
 * Install primary dependencies.
   * Remove any bad dependencies that existed (required for new transformers it seems):
       ```bash
       pip uninstall flash-attn
+      pip install -r requirements.txt
        ```
-  * For CPU Only:
-      ```bash
-      pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
-       ```
-  * For GPU:
-      ```bash
-      pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu117
-       ```
-    In some cases this may lead to the message `No GPU` and in which case you can run next something like:
-      ```bash
-      pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu117
-       ```
-   Choose `cu118` for A100/H100+.
  * Optional: for bitsandbytes 4-bit and 8-bit:
    ```bash
    pip uninstall bitsandbytes -y
@@ -75,7 +71,7 @@ For newer builds of windows versions of 10/11.
    ```
 * Install document question-answer dependencies
 
-   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu117` for GPU install:
+   Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu118` for GPU install:
    ```bash
     # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt
@@ -104,41 +100,36 @@ For newer builds of windows versions of 10/11.
 * AutoAWQ support:
    ```bash
     pip uninstall -y autoawq
-    pip install autoawq==0.1.6
+    pip install autoawq==0.1.7
    ```
 * Exllama support (GPU only):
     ```bash
     pip uninstall -y exllama
-    pip install https://github.com/jllllll/exllama/releases/download/0.0.13/exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
+    pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
 * GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
   * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases), or choose link and run pip directly.  E.g.:
     * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
       ```bash
       pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.18+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu118
       ```
     * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
       ```bash
       pip uninstall -y llama-cpp-python
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.18+cpuavx2-cp310-cp310-win_amd64.whl
+      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.19+cpuavx2-cp310-cp310-win_amd64.whl
       ```
       For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
        ```bash
         CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
        ```
-    * GPU GGMLv3 ONLY (no longer recommended):
-      ```bash
-      pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.1.73+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu117
-      ```
   * If any issues, then must compile llama-cpp-python with CUDA support:
     ```bash
     pip uninstall -y llama-cpp-python
     set LLAMA_CUBLAS=1
     set CMAKE_ARGS=-DLLAMA_CUBLAS=on
     set FORCE_CMAKE=1
-    pip install llama-cpp-python==0.2.18 --no-cache-dir --verbose
+    pip install llama-cpp-python==0.2.19 --no-cache-dir --verbose
     ```
   * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
     That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
@@ -150,8 +141,8 @@ For newer builds of windows versions of 10/11.
   * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
   * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
-    ```bash
-    pip install attention_sinks --extra-index-url https://download.pytorch.org/whl/cu117
+  ```bash
+  pip install attention_sinks --no-deps
   ```
 * SERP for search:
   ```bash
@@ -161,9 +152,19 @@ For newer builds of windows versions of 10/11.
 * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
 * vLLM support:
-   ```bash
+  ```bash
   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
-   ```
+  ```
+* PDF Viewer support:
+  ```bash
+  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl
+  ```
+* TTS and STT support (no Coqui support):
+  ```bash
+  pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8
+  pip install playsound==1.3.0
+  pip install torchaudio soundfile==0.12.1
+  ```
 ---
 
 See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.

@@ -212,8 +212,8 @@ These are not part of normal installation instructions and are experimental.
 - To run h2oGPT tests:
     ```bash
     wget https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
-    pip install requirements-parser pytest-instafail
-    pip install playsound
+    pip install requirements-parser pytest-instafail pytest-random-order
+    pip install playsound==1.3.0
     pytest --instafail -s -v tests
     # for client tests
     make -C client setup

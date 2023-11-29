@@ -1,9 +1,7 @@
 import re
 from typing import Union
 
-from langchain.agents.agent import AgentOutputParser
 from langchain.agents.mrkl.output_parser import MRKLOutputParser
-#from langchain.agents.mrkl.prompt import FORMAT_INSTRUCTIONS
 from langchain.schema import AgentAction, AgentFinish, OutputParserException
 
 FORMAT_INSTRUCTIONS0 = """Use the following format and be sure to use new lines after each task.

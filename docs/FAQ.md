@@ -65,6 +65,12 @@ In the expert panel you can replay any h2oGPT generation or speak instruction ge
 
 If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
 
+### Faster ASR
+
+For fast performance, one can use `distil-whisper/distil-large-v2` as the model, which is about 10x faster for similar accuracy.
+
+In addition, faster_whisper package can be used if using large v2 or v3, which is about 4x faster and 2x less memory for similar accuracy.
+
 ### Voice Cloning
 
 Follow these steps:
@@ -440,6 +446,13 @@ python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=h
 ```
 
 [Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
+
+If you see:
+```text
+CUDA error 704 at /home/runner/work/llama-cpp-python-cuBLAS-wheels/llama-cpp-python-cuBLAS-wheels/vendor/llama.cpp/ggml-cuda.cu:6998: peer access is already enabled
+current device: 0
+```
+This is known bug in `llama.cpp` for some multi-GPU systems.  Only work-around is to restrict to single GPU by adding `export CUDA_VISIBLE_DEVICES=0` or similar value.
 
 #### GGML
 

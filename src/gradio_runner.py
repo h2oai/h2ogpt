@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa
+    get_ngpus_vis, have_librosa, have_gradio_pdf, have_pyrubberband
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -517,8 +517,8 @@ def go_gradio(**kwargs):
 
     def click_js():
         return """function audioRecord() {
-        var xPathRes = document.evaluate ('//*[@id="audio"]//button', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        xPathRes.singleNodeValue.click();}"""
+    var xPathRes = document.evaluate ('//*[contains(@class, "record")]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); 
+    xPathRes.singleNodeValue.click();}"""
 
     def click_submit():
         return """function check() {
@@ -530,7 +530,7 @@ def go_gradio(**kwargs):
   document.getElementById("stop").click();
 }"""
 
-    with (demo):
+    with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
         model_state = gr.State(
@@ -733,6 +733,13 @@ def go_gradio(**kwargs):
                         speaker = get_speakers_gr(value=kwargs['speaker'])
                     else:
                         speaker = gr.Radio(visible=False)
+                    min_tts_speed = 1.0 if not have_pyrubberband else 0.1
+                    tts_speed = gr.Number(minimum=min_tts_speed, maximum=10.0, step=0.1,
+                                          value=kwargs['tts_speed'],
+                                          label='Speech Speed',
+                                          visible=kwargs['enable_tts'] and not is_public,
+                                          interactive=not is_public)
+
                 upload_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload
                 url_visible = kwargs['langchain_mode'] != 'Disabled' and allow_upload and enable_url_upload
                 if have_arxiv and have_librosa:
@@ -895,8 +902,8 @@ def go_gradio(**kwargs):
                                         instruction = gr.Textbox(
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
-                                            placeholder=instruction_label,
-                                            info=None,
+                                            info=instruction_label,
+                                            # info=None,
                                             elem_id='prompt-form',
                                             container=True,
                                         )
@@ -909,7 +916,7 @@ def go_gradio(**kwargs):
                                             visible=kwargs['enable_stt'])
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
-                                            value="",
+                                            value=None,
                                             label="Upload",
                                             size="sm",
                                             min_width=mw0,
@@ -926,41 +933,48 @@ def go_gradio(**kwargs):
 
                                     # AUDIO
                                     if kwargs['enable_stt']:
-                                        def action(btn, text0, instruction1, audio_state1, stt_continue_mode=1):
-                                            if stt_continue_mode == 1:
-                                                text0 = instruction1
-                                                audio_state1 = None
-                                            else:
-                                                text0 = ''
+                                        def action(btn, instruction1, audio_state1, stt_continue_mode=1):
+                                            # print("B0: %s %s" % (audio_state1[0], instruction1), flush=True)
                                             """Changes button text on click"""
                                             if btn == '🔴':
-                                                if os.getenv('HARD_ASSERTS') and text0 != instruction1:
-                                                    assert text0 == instruction1
-                                                return '⭕', text0, instruction1, audio_state1
+                                                audio_state1[3] = 'on'
+                                                # print("A: %s %s" % (audio_state1[0], instruction1), flush=True)
+                                                if stt_continue_mode == 1:
+                                                    audio_state1[0] = instruction1
+                                                    audio_state1[1] = instruction1
+                                                    audio_state1[2] = None
+                                                return '⭕', instruction1, audio_state1
                                             else:
-                                                text0 = ''  # only pull from instruction1
-                                                return '🔴', text0, instruction1, audio_state1
+                                                audio_state1[3] = 'off'
+                                                if stt_continue_mode == 1:
+                                                    audio_state1[0] = None  # indicates done for race case
+                                                    instruction1 = audio_state1[1]
+                                                    audio_state1[2] = []
+                                                # print("B1: %s %s" % (audio_state1[0], instruction1), flush=True)
+                                                return '🔴', instruction1, audio_state1
 
-                                        audio_state = gr.State(value=None)
-                                        audio_pretext = gr.Textbox(value='', visible=False)
+                                        # while audio state used, entries are pre_text, instruction source, and audio chunks, condition
+                                        audio_state = gr.State(value=[None, None, None, 'off'])
                                         audio_output = gr.HTML(visible=False)
-                                        audio = gr.Audio(source='microphone', streaming=True, visible=False,
+                                        audio = gr.Audio(sources=['microphone'], streaming=True, visible=False,
                                                          # max_length=30 if is_public else None,
                                                          elem_id='audio',
+                                                         waveform_options=dict(show_controls=True),
                                                          )
                                         mic_button_kwargs = dict(fn=functools.partial(action,
                                                                                       stt_continue_mode=kwargs[
                                                                                           'stt_continue_mode']),
-                                                                 inputs=[mic_button, audio_pretext, instruction,
+                                                                 inputs=[mic_button, instruction,
                                                                          audio_state],
-                                                                 outputs=[mic_button, audio_pretext, instruction,
+                                                                 outputs=[mic_button, instruction,
                                                                           audio_state],
-                                                                 api_name='mic' if allow_api else None, )
+                                                                 api_name='mic' if allow_api else None,
+                                                                 show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
-                                        mic_button.click(fn=lambda: None, _js=click_js()) \
-                                            .then(**mic_button_kwargs, show_progress='hidden')
+                                        mic_button.click(fn=lambda: None, js=click_js(), concurrency_limit=None) \
+                                            .then(**mic_button_kwargs)
                                         audio.stream(fn=kwargs['transcriber_func'],
-                                                     inputs=[audio_pretext, audio_state, audio],
+                                                     inputs=[audio_state, audio],
                                                      outputs=[audio_state, instruction],
                                                      show_progress='hidden')
 
@@ -1019,9 +1033,9 @@ def go_gradio(**kwargs):
                                             return None
 
                                         action_text.change(fn=clear_audio_state, outputs=audio_state) \
-                                            .then(fn=lambda: None, _js=click_submit())
+                                            .then(fn=lambda: None, js=click_submit())
                                         stop_text.change(fn=clear_audio_state, outputs=audio_state) \
-                                            .then(fn=lambda: None, _js=click_stop())
+                                            .then(fn=lambda: None, js=click_stop())
 
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
@@ -1147,7 +1161,7 @@ def go_gradio(**kwargs):
                             file_source = gr.File(interactive=False,
                                                   label="Download File w/Sources")
                         with gr.Column(scale=2):
-                            sources_text = gr.HTML(label='Sources Added', interactive=False)
+                            sources_text = gr.HTML(label='Sources Added')
 
                     doc_exception_text = gr.Textbox(value="", label='Document Exceptions',
                                                     interactive=False,
@@ -1196,6 +1210,11 @@ def go_gradio(**kwargs):
                     doc_view3 = gr.JSON(visible=False)
                     doc_view4 = gr.Markdown(visible=False)
                     doc_view5 = gr.HTML(visible=False)
+                    if have_gradio_pdf:
+                        from gradio_pdf import PDF
+                        doc_view6 = PDF(visible=False)
+                    else:
+                        doc_view6 = gr.HTML(visible=False)
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
@@ -1499,7 +1518,7 @@ def go_gradio(**kwargs):
                         mic_voice_clone = gr.Audio(
                             label="Mic for Clone (x resets)",
                             type="filepath",
-                            source="microphone",
+                            sources=["microphone"],
                             # max_length=30 if is_public else None,
                             visible=clone_visible,
                         )
@@ -1528,6 +1547,7 @@ def go_gradio(**kwargs):
                                                                 choose_mic_voice_clone],
                                                         outputs=[chatbot_role, roles_state],
                                                         api_name='add_role' if allow_api else None,
+                                                        concurrency_limit=None,
                                                         )
                 models_tab = gr.TabItem("Models") \
                     if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
@@ -1857,12 +1877,16 @@ def go_gradio(**kwargs):
 
                             side_bar_btn = gr.Button("Toggle SideBar", variant="secondary", size="sm")
                             doc_count_btn = gr.Button("Toggle SideBar Document Count/Show Newest", variant="secondary",
-                                                      size="sm")
+                                                      size="sm",
+                                                      visible=langchain_mode != LangChainMode.DISABLED.value)
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
                             visible_model_btn = gr.Button("Toggle Visible Models", variant="secondary", size="sm")
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
                             text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
                                                             step=50, label='Chat Height')
+                            pdf_height = gr.Slider(minimum=100, maximum=3000, value=kwargs['pdf_height'] or 800,
+                                                   step=50, label='PDF Viewer Height',
+                                                   visible=have_gradio_pdf and langchain_mode != LangChainMode.DISABLED.value)
                             dark_mode_btn = gr.Button("Dark Mode", variant="secondary", size="sm")
                         with gr.Column(scale=4):
                             pass
@@ -1917,13 +1941,13 @@ def go_gradio(**kwargs):
                     if 'h2ogpt-research' in kwargs['base_model']:
                         description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
-                    gr.Markdown(value=description, show_label=False, interactive=False)
+                    gr.Markdown(value=description, show_label=False)
 
                 login_tab = gr.TabItem("Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
                     gr.Markdown(
-                        value="#### Login page to persist your state (database, documents, chat, chat history)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
+                        value="#### Login page to persist your state (database, documents, chat, chat history, model list)\nDaily maintenance at midnight PST will not allow reconnection to state otherwise.")
                     username_text = gr.Textbox(label="Username")
                     password_text = gr.Textbox(label="Password", type='password', visible=True)
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
@@ -1954,9 +1978,10 @@ def go_gradio(**kwargs):
 
         # Get flagged data
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text], queue=False,
+        zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text],
+                                  concurrency_limit=None,
                                   api_name='zip_data' if allow_api else None)
-        s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, queue=False,
+        s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, concurrency_limit=None,
                                     api_name='s3up_data' if allow_api else None)
 
         def clear_file_list():
@@ -2126,7 +2151,8 @@ def go_gradio(**kwargs):
         def copy_text(instruction1):
             return gr.Textbox(value=''), instruction1
 
-        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text])
+        eventdb2a_btn = add_button.click(copy_text, inputs=instruction, outputs=[instruction, url_text],
+                                         concurrency_limit=None)
         eventdb2a_btn2 = eventdb2a_btn.then(**user_text_submit_kwargs)
         eventdb2_btn = eventdb2a_btn2.then(**add_url_kwargs_btn, show_progress='full')
 
@@ -2188,7 +2214,7 @@ def go_gradio(**kwargs):
         def resize_col_tabs(x):
             return gr.Dropdown(scale=x)
 
-        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, queue=False)
+        col_tabs_scale.change(fn=resize_col_tabs, inputs=col_tabs_scale, outputs=col_tabs, concurrency_limit=None)
 
         def resize_chatbots(x, num_model_lock=0):
             if num_model_lock == 0:
@@ -2199,7 +2225,12 @@ def go_gradio(**kwargs):
 
         resize_chatbots_func = functools.partial(resize_chatbots, num_model_lock=len(text_outputs))
         text_outputs_height.change(fn=resize_chatbots_func, inputs=text_outputs_height,
-                                   outputs=[text_output, text_output2] + text_outputs, queue=False)
+                                   outputs=[text_output, text_output2] + text_outputs, concurrency_limit=None)
+
+        def resize_pdf_viewer_func(x):
+            return gr.update(height=x)
+
+        pdf_height.change(fn=resize_pdf_viewer_func, inputs=pdf_height, outputs=doc_view6, concurrency_limit=None)
 
         def update_dropdown(x):
             if DocumentChoice.ALL.value in x:
@@ -2301,14 +2332,14 @@ def go_gradio(**kwargs):
         eventdb_viewa.then(fn=show_doc_func,
                            inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                    view_document_choice, view_raw_text_checkbox,
-                                   text_context_list],
-                           outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5])
+                                   text_context_list, pdf_height],
+                           outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5, doc_view6])
 
         show_doc_func_api = functools.partial(show_doc_func, api=True)
         get_document_api_btn.click(fn=show_doc_func_api,
                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                            view_document_choice, view_raw_text_checkbox,
-                                           text_context_list],
+                                           text_context_list, pdf_height],
                                    outputs=get_document_api_text, api_name='get_document_api')
 
         # Get inputs to evaluate() and make_db()
@@ -2369,7 +2400,7 @@ def go_gradio(**kwargs):
                                               inputs=[my_db_state, requests_state,
                                                       delete_sources_btn, delete_sources_btn],
                                               outputs=[my_db_state, requests_state, delete_sources_btn],
-                                              show_progress='minimal')
+                                              show_progress='minimal', concurrency_limit=None)
         eventdb90 = eventdb90a.then(fn=delete_sources1,
                                     inputs=[my_db_state, selection_docs_state, requests_state, document_choice,
                                             langchain_mode],
@@ -2386,9 +2417,12 @@ def go_gradio(**kwargs):
         eventdb_logina = login_btn.click(user_state_setup,
                                          inputs=[my_db_state, requests_state, login_btn, login_btn],
                                          outputs=[my_db_state, requests_state, login_btn],
-                                         show_progress='minimal')
+                                         show_progress='minimal', concurrency_limit=None)
 
-        def login(db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, langchain_mode1,
+        def login(db1s, selection_docs_state1, requests_state1, roles_state1,
+                  model_options_state1, lora_options_state1, server_options_state1,
+                  chat_state1,
+                  langchain_mode1,
                   username1, password1,
                   text_output1, text_output21, *text_outputs1,
                   auth_filename=None, num_model_lock=0, pre_authorized=False):
@@ -2410,6 +2444,9 @@ def go_gradio(**kwargs):
                 success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1 = \
                     load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
                               roles_state1=roles_state1,
+                              model_options_state1=model_options_state1,
+                              lora_options_state1=lora_options_state1,
+                              server_options_state1=server_options_state1,
                               chat_state1=chat_state1, langchain_mode1=langchain_mode1,
                               text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
                               username_override=username1, password_to_check=password1)
@@ -2420,15 +2457,17 @@ def go_gradio(**kwargs):
             if success1:
                 requests_state1['username'] = username1
             label_instruction1 = 'Ask anything, %s' % requests_state1['username']
-            return db1s, selection_docs_state1, requests_state1, roles_state1, chat_state1, \
-                text_result, \
-                gr.update(label=label_instruction1), \
-                df_langchain_mode_paths1, \
-                gr.update(choices=list(roles_state1.keys())), \
-                gr.update(choices=list(chat_state1.keys()), value=None), \
-                gr.update(choices=get_langchain_choices(selection_docs_state1),
-                          value=langchain_mode1), \
-                text_output1, text_output21, *tuple(text_outputs1)
+            return db1s, selection_docs_state1, requests_state1, roles_state1, \
+                   model_options_state1, lora_options_state1, server_options_state1, \
+                   chat_state1, \
+                   text_result, \
+                   gr.update(label=label_instruction1), \
+                   df_langchain_mode_paths1, \
+                   gr.update(choices=list(roles_state1.keys())), \
+                   gr.update(choices=list(chat_state1.keys()), value=None), \
+                   gr.update(choices=get_langchain_choices(selection_docs_state1),
+                             value=langchain_mode1), \
+                   text_output1, text_output21, *tuple(text_outputs1)
 
         login_func = functools.partial(login,
                                        auth_filename=kwargs['auth_filename'],
@@ -2440,11 +2479,15 @@ def go_gradio(**kwargs):
                                             num_model_lock=len(text_outputs),
                                             pre_authorized=True,
                                             )
-        login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state, chat_state,
+        login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state,
+                        model_options_state, lora_options_state, server_options_state,
+                        chat_state,
                         langchain_mode,
                         username_text, password_text,
                         text_output, text_output2] + text_outputs
-        login_outputs = [my_db_state, selection_docs_state, requests_state, roles_state, chat_state,
+        login_outputs = [my_db_state, selection_docs_state, requests_state, roles_state,
+                         model_options_state, lora_options_state, server_options_state,
+                         chat_state,
                          login_result_text,
                          instruction,
                          langchain_mode_path_text,
@@ -2457,11 +2500,15 @@ def go_gradio(**kwargs):
                                              outputs=login_outputs,
                                              queue=not kwargs['large_file_count_mode'])
 
-        admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row, queue=False) \
-            .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, queue=False)
+        admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row,
+                                  concurrency_limit=None) \
+            .then(close_admin, inputs=admin_pass_textbox, outputs=admin_row, concurrency_limit=None)
 
         def load_auth(db1s, requests_state1, auth_filename=None, selection_docs_state1=None,
                       roles_state1=None,
+                      model_options_state1=None,
+                      lora_options_state1=None,
+                      server_options_state1=None,
                       chat_state1=None, langchain_mode1=None,
                       text_output1=None, text_output21=None, text_outputs1=None,
                       username_override=None, password_to_check=None):
@@ -2491,6 +2538,12 @@ def go_gradio(**kwargs):
                                 update_auth_selection(auth_user, selection_docs_state1)
                             if 'roles_state' in auth_user:
                                 roles_state1.update(auth_user['roles_state'])
+                            if 'model_options_state' in auth_user:
+                                model_options_state1.update(auth_user['model_options_state'])
+                            if 'lora_options_state' in auth_user:
+                                lora_options_state1.update(auth_user['lora_options_state'])
+                            if 'server_options_state' in auth_user:
+                                server_options_state1.update(auth_user['server_options_state'])
                             if 'chat_state' in auth_user:
                                 chat_state1.update(auth_user['chat_state'])
                             if 'text_output' in auth_user:
@@ -2525,6 +2578,7 @@ def go_gradio(**kwargs):
                     raise
 
         def save_auth(selection_docs_state1, requests_state1, roles_state1,
+                      model_options_state1, lora_options_state1, server_options_state1,
                       chat_state1, langchain_mode1,
                       text_output1, text_output21, text_outputs1,
                       auth_filename=None, auth_access=None, auth_freeze=None, guest_name=None,
@@ -2546,6 +2600,15 @@ def go_gradio(**kwargs):
                         if roles_state1:
                             # overwrite
                             auth_user['roles_state'] = roles_state1
+                        if model_options_state1:
+                            # overwrite
+                            auth_user['model_options_state'] = model_options_state1
+                        if lora_options_state1:
+                            # overwrite
+                            auth_user['lora_options_state'] = lora_options_state1
+                        if server_options_state1:
+                            # overwrite
+                            auth_user['server_options_state'] = server_options_state1
                         if chat_state1:
                             # overwrite
                             auth_user['chat_state'] = chat_state1
@@ -2560,11 +2623,10 @@ def go_gradio(**kwargs):
                         save_auth_dict(auth_dict, auth_filename)
 
         def save_auth_wrap(*args, **kwargs):
-            save_auth(args[0], args[1],
-                      args[2], args[3],
-                      args[4], args[5],
-                      args[6],
-                      args[7:], **kwargs
+            save_auth(args[0], args[1], args[2],
+                      args[3], args[4], args[5],
+                      args[6], args[7], args[8], args[9],
+                      args[10:], **kwargs
                       )
 
         save_auth_func = functools.partial(save_auth_wrap,
@@ -2576,6 +2638,7 @@ def go_gradio(**kwargs):
 
         save_auth_kwargs = dict(fn=save_auth_func,
                                 inputs=[selection_docs_state, requests_state, roles_state,
+                                        model_options_state, lora_options_state, server_options_state,
                                         chat_state, langchain_mode, text_output, text_output2] + text_outputs
                                 )
         lg_change_event_auth = lg_change_event.then(**save_auth_kwargs)
@@ -2662,8 +2725,12 @@ def go_gradio(**kwargs):
             if valid:
                 chat_state1 = None
                 roles_state1 = None
+                model_options_state1 = None
+                lora_options_state1 = None
+                server_options_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
                 save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                               model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -2755,8 +2822,12 @@ def go_gradio(**kwargs):
             if changed_state:
                 chat_state1 = None
                 roles_state1 = None
+                model_options_state1 = None
+                lora_options_state1 = None
+                server_options_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
                 save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                               model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -2972,10 +3043,14 @@ def go_gradio(**kwargs):
                 assert not plain_api
                 user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[len(input_args_list):])}
             # control kwargs1 for evaluate
-            kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
-            kwargs1['show_accordions'] = False
-            kwargs1['append_sources_to_answer'] = False
-            kwargs1['show_link_in_sources'] = False
+            if 'answer_with_sources' not in user_kwargs:
+                kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
+            if 'show_accordions' not in user_kwargs:
+                kwargs1['show_accordions'] = False
+            if 'append_sources_to_answer' not in user_kwargs:
+                kwargs1['append_sources_to_answer'] = False
+            if 'show_link_in_sources' not in user_kwargs:
+                kwargs1['show_link_in_sources'] = False
             kwargs1['top_k_docs_max_show'] = 30
 
             # only used for submit_nochat_api
@@ -3070,7 +3145,11 @@ def go_gradio(**kwargs):
                 args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
             # final full bot() like input for prep_bot etc.
-            instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')]
+            instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')] or \
+                                  args_list[eval_func_param_names.index('instruction')]
+            args_list[eval_func_param_names.index('instruction_nochat')] = \
+                args_list[eval_func_param_names.index('instruction')] = \
+                instruction_nochat1
             history = [[instruction_nochat1, None]]
             # NOTE: Set requests_state1 to None, so don't allow UI-like access, in case modify state via API
             requests_state1_bot = None
@@ -3081,7 +3160,7 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = \
+                chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1 = \
                 prep_bot(*args_list_bot, kwargs_eval=kwargs1)
 
             save_dict = dict()
@@ -3091,12 +3170,14 @@ def go_gradio(**kwargs):
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+                                        tts_speed1,
                                         langchain_action1):
-                    history, error, sources, save_dict, audio1 = res
+                    history, error, sources, sources_str, save_dict, audio1 = res
                     res_dict = {}
                     res_dict['response'] = history[-1][1]
                     res_dict['error'] = error
                     res_dict['sources'] = sources
+                    res_dict['sources_str'] = sources_str
                     res_dict['save_dict'] = save_dict
                     res_dict['audio'] = audio1
 
@@ -3195,9 +3276,9 @@ def go_gradio(**kwargs):
             None,
             None,
             None,
-            _js=wrap_js_to_lambda(0, get_dark_js()),
+            js=wrap_js_to_lambda(0, get_dark_js()),
             api_name="dark" if allow_api else None,
-            queue=False,
+            concurrency_limit=None,
         )
 
         # Handle uploads from API
@@ -3219,27 +3300,27 @@ def go_gradio(**kwargs):
 
         def visible_toggle(x):
             x = 'off' if x == 'on' else 'on'
-            return x, gr.Column.update(visible=True if x == 'on' else False)
+            return x, gr.update(visible=True if x == 'on' else False)
 
         side_bar_btn.click(fn=visible_toggle,
                            inputs=side_bar_text,
                            outputs=[side_bar_text, side_bar],
-                           queue=False)
+                           concurrency_limit=None)
 
         doc_count_btn.click(fn=visible_toggle,
                             inputs=doc_count_text,
                             outputs=[doc_count_text, row_doc_track],
-                            queue=False)
+                            concurrency_limit=None)
 
         submit_buttons_btn.click(fn=visible_toggle,
                                  inputs=submit_buttons_text,
                                  outputs=[submit_buttons_text, submit_buttons],
-                                 queue=False)
+                                 concurrency_limit=None)
 
         visible_model_btn.click(fn=visible_toggle,
                                 inputs=visible_models_text,
                                 outputs=[visible_models_text, visible_models],
-                                queue=False)
+                                concurrency_limit=None)
 
         # examples after submit or any other buttons for chat or no chat
         if kwargs['examples'] is not None and kwargs['show_examples']:
@@ -3480,10 +3561,11 @@ def go_gradio(**kwargs):
             chatbot_role1 = args_list[eval_func_param_names.index('chatbot_role')]
             speaker1 = args_list[eval_func_param_names.index('speaker')]
             tts_language1 = args_list[eval_func_param_names.index('tts_language')]
+            tts_speed1 = args_list[eval_func_param_names.index('tts_speed')]
 
             dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, \
+                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
                 langchain_action1
 
             if model_state1['model'] is None or model_state1['model'] == no_model_str:
@@ -3540,17 +3622,20 @@ def go_gradio(**kwargs):
 
             return history, fun1, langchain_mode1, my_db_state1, requests_state1, \
                 valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1
+                max_time1, stream_output1, \
+                chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
+                langchain_action1
 
         def gen1_fake(fun1, history):
             error = ''
             sources = []
+            sources_str = ''
             save_dict = dict()
             audio1 = None
-            yield history, error, sources, save_dict, audio1
+            yield history, error, sources, sources_str, save_dict, audio1
             return
 
-        def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1):
+        def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1):
             from src.tts_sentence_parsing import init_sentence_state
             sentence_state = init_sentence_state()
             if langchain_action1 in [LangChainAction.EXTRACT.value]:
@@ -3574,6 +3659,7 @@ def go_gradio(**kwargs):
                                                               sentence_state=sentence_state,
                                                               return_as_byte=kwargs['return_as_byte'],
                                                               sr=sr,
+                                                              tts_speed=tts_speed1,
                                                               verbose=verbose)
             elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
                 audio1 = None
@@ -3589,6 +3675,7 @@ def go_gradio(**kwargs):
                                                               sentence_state=sentence_state,
                                                               return_as_byte=kwargs['return_as_byte'],
                                                               sr=sr,
+                                                              tts_speed=tts_speed1,
                                                               verbose=verbose)
             else:
                 generate_speech_func_func = None
@@ -3597,7 +3684,8 @@ def go_gradio(**kwargs):
                 no_audio = None
             return audio0, audio1, no_audio, generate_speech_func_func
 
-        def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1):
+        def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
+                         langchain_action1):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
@@ -3607,18 +3695,20 @@ def go_gradio(**kwargs):
             sources = []
             save_dict = dict()
             output_no_refs = ''
+            sources_str = ''
 
             audio0, audio1, no_audio, generate_speech_func_func = \
-                prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1)
+                prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1)
 
             if not fun1:
-                yield history, error, sources, save_dict, audio1
+                yield history, error, sources, sources_str, save_dict, audio1
                 return
             try:
                 for output_fun in fun1():
                     output = output_fun['response']
                     output_no_refs = output_fun['response_no_refs']
                     sources = output_fun['sources']  # FIXME: can show sources in separate text box etc.
+                    sources_str = output_fun['sources_str']
                     save_dict = output_fun.get('save_dict', {})
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
@@ -3628,45 +3718,45 @@ def go_gradio(**kwargs):
                         while True:
                             audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=False)
                             if audio0 is not None:
-                                yield history, error, sources, save_dict, audio0
+                                yield history, error, sources, sources_str, save_dict, audio0
                                 audio0 = None
                             if sentence is not None:
                                 # print("in %s %s" % (sentence is None, audio1 is None), flush=True)
-                                yield history, error, sources, save_dict, audio1
+                                yield history, error, sources, sources_str, save_dict, audio1
                             else:
                                 # print("break %s %s" % (sentence is None, audio1 is None), flush=True)
                                 # while True to handle case when streaming is fast enough that see multiple sentences in single go
                                 break
                     else:
-                        yield history, error, sources, save_dict, audio0
+                        yield history, error, sources, sources_str, save_dict, audio0
                 if generate_speech_func_func:
                     # print("final %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
                     audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=True)
                     if audio0 is not None:
-                        yield history, error, sources, save_dict, audio0
+                        yield history, error, sources, sources_str, save_dict, audio0
                 else:
                     audio1 = None
                 # print("final2 %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
-                yield history, error, sources, save_dict, audio1
+                yield history, error, sources, sources_str, save_dict, audio1
             except StopIteration:
                 # print("STOP ITERATION", flush=True)
-                yield history, error, sources, save_dict, no_audio
+                yield history, error, sources, sources_str, save_dict, no_audio
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, error, sources, save_dict, no_audio
+                    yield history, error, sources, sources_str, save_dict, no_audio
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e), sources, save_dict, no_audio
+                    yield history, str(e), sources, sources_str, save_dict, no_audio
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex, sources, save_dict, no_audio
+                yield history, ex, sources, sources_str, save_dict, no_audio
                 raise
             finally:
                 # clear_torch_cache()
@@ -3690,7 +3780,8 @@ def go_gradio(**kwargs):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1, langchain_action1 = prep_bot(*args, retry=retry)
+                chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
+                langchain_action1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
             sources = []
@@ -3702,9 +3793,10 @@ def go_gradio(**kwargs):
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+                                        tts_speed1,
                                         langchain_action1):
                     do_yield = False
-                    history, error, sources, save_dict, audio1 = res
+                    history, error, sources, sources_str, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
@@ -3793,7 +3885,8 @@ def go_gradio(**kwargs):
                     # langchain_mode1 and my_db_state1 and requests_state1 should be same for every bot
                     history, fun1, langchain_mode1, db1s, requests_state1, \
                         valid_key, h2ogpt_key1, \
-                        max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, \
+                        max_time1, stream_output1, \
+                        chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
                         langchain_action1 = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
                     if num_visible_bots == 1:
@@ -3807,6 +3900,7 @@ def go_gradio(**kwargs):
                                             speaker1 if first_visible else 'None',
                                             tts_language1 if first_visible else 'autodetect',
                                             roles_state1 if first_visible else {},
+                                            tts_speed1 if first_visible else 1.0,
                                             langchain_action1,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
@@ -3835,6 +3929,7 @@ def go_gradio(**kwargs):
                  x not in [None, '', 'None']])
             exceptions_old_str = exceptions_str
             sources = sources_all_old = [[]] * len(bots_old)
+            sources_str = sources_str_all_old = [[]] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
             if kwargs['tts_model'].startswith('microsoft'):
                 from src.tts_utils import prepare_speech, get_no_audio
@@ -3864,10 +3959,14 @@ def go_gradio(**kwargs):
                     exceptions_old = exceptions.copy()
 
                     sources_all = [x[2] if x is not None and not isinstance(x, BaseException) else y
-                              for x, y in zip(res1, sources_all_old)]
+                                   for x, y in zip(res1, sources_all_old)]
                     sources_all_old = sources_all.copy()
 
-                    save_dicts = [x[3] if x is not None and not isinstance(x, BaseException) else y
+                    sources_str_all = [x[3] if x is not None and not isinstance(x, BaseException) else y
+                                   for x, y in zip(res1, sources_str_all_old)]
+                    sources_str_all_old = sources_str_all.copy()
+
+                    save_dicts = [x[4] if x is not None and not isinstance(x, BaseException) else y
                                   for x, y in zip(res1, save_dicts_old)]
                     save_dicts_old = save_dicts.copy()
 
@@ -3877,7 +3976,7 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
-                    audios_gen = [x[4] if x is not None and not isinstance(x, BaseException) else None for x in
+                    audios_gen = [x[5] if x is not None and not isinstance(x, BaseException) else None for x in
                                   res1]
                     audios_gen = [x for x in audios_gen if x is not None]
                     if os.getenv('HARD_ASSERTS'):
@@ -3919,7 +4018,8 @@ def go_gradio(**kwargs):
                 clear_embeddings(langchain_mode1, db1s)
 
             # save
-            for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts, all_possible_visible_models):
+            for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts,
+                                                             all_possible_visible_models):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 if requests_state1:
@@ -4273,10 +4373,14 @@ def go_gradio(**kwargs):
             selection_docs_state1 = None
             langchain_mode2 = None
             roles_state1 = None
+            model_options_state1 = None
+            lora_options_state1 = None
+            server_options_state1 = None
             text_output1 = chat_list[0]
             text_output21 = chat_list[1]
             text_outputs1 = chat_list[2:]
             save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                           model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
                            text_output1, text_output21, text_outputs1,
                            )
@@ -4313,7 +4417,7 @@ def go_gradio(**kwargs):
         remove_chat_event = remove_chat_btn.click(remove_chat,
                                                   inputs=[radio_chats, chat_state],
                                                   outputs=[radio_chats, chat_state],
-                                                  queue=False, api_name='remove_chat')
+                                                  concurrency_limit=None, api_name='remove_chat')
 
         def get_chats1(chat_state1):
             base = 'chats'
@@ -4323,7 +4427,8 @@ def go_gradio(**kwargs):
                 f.write(json.dumps(chat_state1, indent=2))
             return filename
 
-        export_chat_event = export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file, queue=False,
+        export_chat_event = export_chats_btn.click(get_chats1, inputs=chat_state, outputs=chats_file,
+                                                   concurrency_limit=None,
                                                    api_name='export_chats' if allow_api else None)
 
         def add_chats_from_file(db1s, requests_state1, file, chat_state1, radio_chats1, chat_exception_text1,
@@ -4358,8 +4463,12 @@ def go_gradio(**kwargs):
             selection_docs_state1 = None
             langchain_mode2 = None
             roles_state1 = None
+            model_options_state1 = None
+            lora_options_state1 = None
+            server_options_state1 = None
             text_output1, text_output21, text_outputs1 = None, None, None
             save_auth_func(selection_docs_state1, requests_state1, roles_state1,
+                           model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
                            text_output1, text_output21, text_outputs1,
                            )
@@ -4380,20 +4489,20 @@ def go_gradio(**kwargs):
                                                                 chat_exception_text],
                                                         outputs=[chatsup_output, chat_state, radio_chats,
                                                                  chat_exception_text],
-                                                        queue=False,
+                                                        concurrency_limit=None,
                                                         api_name='add_to_chats' if allow_api else None)
 
         clear_chat_event = clear_chat_btn.click(fn=clear_texts,
                                                 inputs=[text_output, text_output2] + text_outputs,
                                                 outputs=[text_output, text_output2] + text_outputs,
-                                                queue=False, api_name='clear' if allow_api else None) \
-            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=False) \
+                                                concurrency_limit=None, api_name='clear' if allow_api else None) \
+            .then(deselect_radio_chats, inputs=None, outputs=radio_chats, concurrency_limit=None) \
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         clear_eventa = save_chat_btn.click(user_state_setup,
                                            inputs=[my_db_state, requests_state, langchain_mode],
                                            outputs=[my_db_state, requests_state, langchain_mode],
-                                           show_progress='minimal')
+                                           show_progress='minimal', concurrency_limit=None)
         save_chat_func = functools.partial(save_chat,
                                            auth_filename=kwargs['auth_filename'],
                                            auth_freeze=kwargs['auth_freeze'],
@@ -4441,7 +4550,7 @@ def go_gradio(**kwargs):
         submit_event_nochat_api_plain = submit_nochat_api_plain.click(fun_with_dict_str_plain,
                                                                       inputs=inputs_dict_str,
                                                                       outputs=text_output_nochat_api,
-                                                                      queue=False,
+                                                                      concurrency_limit=None,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name,
@@ -4456,6 +4565,7 @@ def go_gradio(**kwargs):
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
                        system_prompt1,
                        exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                       model_options_state1, lora_options_state1, server_options_state1,
                        unload=False):
             if unload:
                 model_name = no_model_str
@@ -4480,9 +4590,9 @@ def go_gradio(**kwargs):
                                       n_batch=n_batch1,
                                       n_gqa=n_gqa1,
                                       ))
-            del model_path_llama1
-            del model_name_gptj1
-            del model_name_gpt4all_llama1
+            # del model_path_llama1
+            # del model_name_gptj1
+            # del model_name_gpt4all_llama1
 
             # ensure no API calls reach here
             if is_public:
@@ -4524,9 +4634,14 @@ def go_gradio(**kwargs):
                 lora_weights = no_lora_str
                 server_name = no_server_str
                 return kwargs['model_state_none'].copy(), \
-                    model_name, lora_weights, server_name, prompt_type_old, max_seq_len1, \
+                    model_name, lora_weights, server_name, \
+                    prompt_type_old, max_seq_len1, \
                     gr.Slider(maximum=256), \
-                    gr.Slider(maximum=256)
+                    gr.Slider(maximum=256), \
+                    model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1, \
+                    load_gptq, load_awq, n_gqa1, \
+                    n_batch1, n_gpu_layers1, llamacpp_dict_more1, \
+                    model_options_state1, lora_options_state1, server_options_state1
 
             # don't deepcopy, can contain model itself
             all_kwargs1 = all_kwargs.copy()
@@ -4598,12 +4713,24 @@ def go_gradio(**kwargs):
 
             max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
 
+            # FIXME: Ensure stored in login state
+            if model_options_state1 and model_name0 not in model_options_state1[0]:
+                model_options_state1[0].extend([model_name0])
+            if lora_options_state1 and lora_weights not in lora_options_state1[0]:
+                lora_options_state1[0].extend([lora_weights])
+            if server_options_state1 and server_name not in server_options_state1[0]:
+                server_options_state1[0].extend([server_name])
+
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
             return model_state_new, model_name, lora_weights, server_name, \
                 prompt_type1, max_seq_len1new, \
                 gr.Slider(maximum=max_max_new_tokens1), \
-                gr.Slider(maximum=max_max_new_tokens1)
+                gr.Slider(maximum=max_max_new_tokens1), \
+                model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1, \
+                load_gptq, load_awq, n_gqa1, \
+                n_batch1, n_gpu_layers1, llamacpp_dict_more1, \
+                model_options_state1, lora_options_state1, server_options_state1
 
         def get_prompt_str(prompt_type1, prompt_dict1, system_prompt1, which=0):
             if prompt_type1 in ['', None]:
@@ -4621,10 +4748,10 @@ def go_gradio(**kwargs):
         get_prompt_str_func1 = functools.partial(get_prompt_str, which=1)
         get_prompt_str_func2 = functools.partial(get_prompt_str, which=2)
         prompt_type.change(fn=get_prompt_str_func1, inputs=[prompt_type, prompt_dict, system_prompt],
-                           outputs=prompt_dict, queue=False)
+                           outputs=prompt_dict, concurrency_limit=None)
         prompt_type2.change(fn=get_prompt_str_func2, inputs=[prompt_type2, prompt_dict2, system_prompt],
                             outputs=prompt_dict2,
-                            queue=False)
+                            concurrency_limit=None)
 
         def dropdown_prompt_type_list(x):
             return gr.Dropdown(value=x)
@@ -4647,11 +4774,16 @@ def go_gradio(**kwargs):
                              model_attention_sinks, model_sink_dict,
                              model_truncation_generation,
                              model_hf_model_dict,
+                             model_options_state, lora_options_state, server_options_state,
                              ]
         load_model_outputs = [model_state, model_used, lora_used, server_used,
                               # if prompt_type changes, prompt_dict will change via change rule
                               prompt_type, max_seq_len_used,
                               max_new_tokens, min_new_tokens,
+                              model_path_llama, model_name_gptj, model_name_gpt4all_llama,
+                              model_load_gptq, model_load_awq, n_gqa,
+                              n_batch, n_gpu_layers, llamacpp_dict_more,
+                              model_options_state, lora_options_state, server_options_state,
                               ]
         load_model_args = dict(fn=load_model,
                                inputs=load_model_inputs, outputs=load_model_outputs)
@@ -4667,7 +4799,8 @@ def go_gradio(**kwargs):
             .then(**prompt_update_args) \
             .then(**chatbot_update_args) \
             .then(**nochat_update_args) \
-            .then(clear_torch_cache)
+            .then(clear_torch_cache) \
+            .then(**save_auth_kwargs)
 
         unload_model_event = unload_model_button.click(**unload_model_args,
                                                        api_name='unload_model' if allow_api and not is_public else None) \
@@ -4690,11 +4823,16 @@ def go_gradio(**kwargs):
                               model_attention_sinks2, model_sink_dict2,
                               model_truncation_generation2,
                               model_hf_model_dict2,
+                              model_options_state, lora_options_state, server_options_state,
                               ]
         load_model_outputs2 = [model_state2, model_used2, lora_used2, server_used2,
                                # if prompt_type2 changes, prompt_dict2 will change via change rule
                                prompt_type2, max_seq_len_used2,
-                               max_new_tokens2, min_new_tokens2
+                               max_new_tokens2, min_new_tokens2,
+                               model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
+                               model_load_gptq2, model_load_awq2, n_gqa2,
+                               n_batch2, n_gpu_layers2, llamacpp_dict_more2,
+                               model_options_state, lora_options_state, server_options_state,
                                ]
         load_model_args2 = dict(fn=load_model,
                                 inputs=load_model_inputs2, outputs=load_model_outputs2)
@@ -4707,7 +4845,8 @@ def go_gradio(**kwargs):
                                                      api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
             .then(**chatbot_update_args2) \
-            .then(clear_torch_cache)
+            .then(clear_torch_cache) \
+            .then(**save_auth_kwargs)
 
         unload_model_event2 = unload_model_button2.click(**unload_model_args2,
                                                          api_name='unload_model2' if allow_api and not is_public else None) \
@@ -4770,18 +4909,18 @@ def go_gradio(**kwargs):
                                                        [lora_choice, lora_choice2, new_lora, lora_options_state] +
                                                        [server_choice, server_choice2, new_server,
                                                         server_options_state],
-                                               queue=False)
+                                               concurrency_limit=None)
 
         go_event = go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None,
-                                queue=False) \
-            .then(lambda: gr.update(visible=True), None, normal_block, queue=False) \
-            .then(**load_model_args, queue=False).then(**prompt_update_args, queue=False)
+                                concurrency_limit=None) \
+            .then(lambda: gr.update(visible=True), None, normal_block, concurrency_limit=None) \
+            .then(**load_model_args, concurrency_limit=None).then(**prompt_update_args, concurrency_limit=None)
 
         def compare_textbox_fun(x):
             return gr.Textbox(visible=x)
 
         def compare_column_fun(x):
-            return gr.Column.update(visible=x)
+            return gr.Column(visible=x)
 
         def compare_prompt_fun(x):
             return gr.Dropdown(visible=x)
@@ -4803,18 +4942,18 @@ def go_gradio(**kwargs):
         flag_btn.click(lambda *args: callback.flag(args), inputs_list + [text_output, text_output2] + text_outputs,
                        None,
                        preprocess=False,
-                       api_name='flag' if allow_api else None, queue=False)
+                       api_name='flag' if allow_api else None, concurrency_limit=None)
         flag_btn_nochat.click(lambda *args: callback.flag(args), inputs_list + [text_output_nochat], None,
                               preprocess=False,
-                              api_name='flag_nochat' if allow_api else None, queue=False)
+                              api_name='flag_nochat' if allow_api else None, concurrency_limit=None)
 
         def get_system_info():
             if is_public:
-                time.sleep(10)  # delay to avoid spam since queue=False
+                time.sleep(10)  # delay to avoid spam since concurrency_limit=None
             return gr.Textbox(value=system_info_print())
 
         system_event = system_btn.click(get_system_info, outputs=system_text,
-                                        api_name='system_info' if allow_api else None, queue=False)
+                                        api_name='system_info' if allow_api else None, concurrency_limit=None)
 
         def get_system_info_dict(system_input1, **kwargs1):
             if system_input1 != os.getenv("ADMIN_PASS", ""):
@@ -4837,7 +4976,7 @@ def go_gradio(**kwargs):
                                               inputs=system_input,
                                               outputs=system_text2,
                                               api_name='system_info_dict' if allow_api else None,
-                                              queue=False,  # queue to avoid spam
+                                              concurrency_limit=None,  # queue to avoid spam
                                               )
 
         def get_hash():
@@ -4846,7 +4985,7 @@ def go_gradio(**kwargs):
         system_event = system_btn3.click(get_hash,
                                          outputs=system_text3,
                                          api_name='system_hash' if allow_api else None,
-                                         queue=False,
+                                         concurrency_limit=None,
                                          )
 
         def get_model_names():
@@ -4864,7 +5003,7 @@ def go_gradio(**kwargs):
         models_list_event = system_btn4.click(get_model_names,
                                               outputs=system_text4,
                                               api_name='model_names' if allow_api else None,
-                                              queue=False,
+                                              concurrency_limit=None,
                                               )
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
@@ -4920,20 +5059,20 @@ def go_gradio(**kwargs):
             if kwargs['tts_model'].startswith('tts_models/'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
                                                              inputs=[instruction, chatbot_role, tts_language,
-                                                                     roles_state],
+                                                                     roles_state, tts_speed],
                                                              outputs=speech_human,
                                                              api_name='speak_human' if allow_api else None,
                                                              )
                 speak_events.extend([speak_human_event])
             elif kwargs['tts_model'].startswith('microsoft'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
-                                                             inputs=[instruction, speaker],
+                                                             inputs=[instruction, speaker, tts_speed],
                                                              outputs=speech_human,
                                                              api_name='speak_human' if allow_api else None,
                                                              )
                 speak_events.extend([speak_human_event])
 
-        def wrap_pred_func(chatbot_role1, speaker1, tts_language1, roles_state1,
+        def wrap_pred_func(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                            visible_models1, text_output1, text_output21, *args,
                            all_models=[]):
             # FIXME: Choose first visible
@@ -4948,12 +5087,13 @@ def go_gradio(**kwargs):
 
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
                 if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
-                    yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_state1)
+                    yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_state1,
+                                                                tts_speed1)
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
-                    yield from kwargs['predict_from_text_func'](response, speaker1)
+                    yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1)
 
         speak_bot_event = speak_bot_button.click(wrap_pred_func,
-                                                 inputs=[chatbot_role, speaker, tts_language, roles_state,
+                                                 inputs=[chatbot_role, speaker, tts_language, roles_state, tts_speed,
                                                          visible_models, text_output,
                                                          text_output2] + text_outputs,
                                                  outputs=speech_bot,
@@ -4967,7 +5107,7 @@ def go_gradio(**kwargs):
         if kwargs['enable_tts']:
             stop_speak_button.click(stop_audio_func,
                                     outputs=[speech_human, speech_bot],
-                                    cancels=speak_events)
+                                    cancels=speak_events, concurrency_limit=None)
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
@@ -4985,8 +5125,8 @@ def go_gradio(**kwargs):
                                             [count_tokens_event] +
                                             speak_events
                                     ,
-                                    queue=False, api_name='stop' if allow_api else None) \
-            .then(clear_torch_cache, queue=False) \
+                                    concurrency_limit=None, api_name='stop' if allow_api else None) \
+            .then(clear_torch_cache, concurrency_limit=None) \
             .then(stop_audio_func, outputs=[speech_human, speech_bot])
 
         if kwargs['auth'] is not None:
@@ -5003,7 +5143,7 @@ def go_gradio(**kwargs):
             get_dark_js() if kwargs['dark'] else None,
             get_heap_js(heap_app_id) if is_heap_analytics_enabled else None)
 
-        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs, _js=app_js)
+        load_event = demo.load(fn=load_func, inputs=load_inputs, outputs=load_outputs, js=app_js)
 
         if load_func:
             load_event2 = load_event.then(load_login_func,
@@ -5016,7 +5156,7 @@ def go_gradio(**kwargs):
                 load_event6 = load_event5.then(**get_viewable_sources_args)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
-    demo.queue(concurrency_count=kwargs['concurrency_count'], api_open=kwargs['api_open'])
+    demo.queue(default_concurrency_limit=kwargs['concurrency_count'], api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
     favicon_path = favicon_file
     if not os.path.isfile(favicon_file):
@@ -5074,6 +5214,8 @@ def go_gradio(**kwargs):
                 ssl_verify=kwargs['ssl_verify'],
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
+                max_threads=max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
+                                                                                   int) else 128,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
@@ -5099,6 +5241,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
              single_document_choice1,
              view_raw_text_checkbox1,
              text_context_list1,
+             pdf_height,
              dbs1=None,
              load_db_if_exists1=None,
              db_type1=None,
@@ -5211,11 +5354,11 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     dummy1 = gr.update(visible=False, value=None)
     # backup is text dump of db version
     if content:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content)
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
         if view_raw_text_checkbox1:
             return dummy_ret
     else:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
 
     if not isinstance(file, str):
         return dummy_ret
@@ -5225,7 +5368,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
+            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5233,7 +5376,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5242,7 +5385,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```python\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5252,7 +5395,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```text\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5273,7 +5416,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             df = func(file).head(100)
         except:
             return dummy_ret
-        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1
+        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1
     port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     import pathlib
     absolute_path_string = os.path.abspath(file)
@@ -5281,7 +5424,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     url = get_url(absolute_path_string, from_str=True)
     img_url = url.replace("""<a href=""", """<img src=""")
     if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
-        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1
+        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1
     elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
 
         # account for when use `wget -b -m -k -o wget.log -e robots=off`
@@ -5294,20 +5437,15 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             # if file is online, then might as well use google(?)
             document1 = file
             return gr.update(visible=True,
-                             value=f"""<iframe width="1000" height="800" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
+                             value=f"""<iframe width="1000" height="{pdf_height}" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
 </iframe>
-"""), dummy1, dummy1, dummy1, dummy1
+"""), dummy1, dummy1, dummy1, dummy1, dummy1
+        elif have_gradio_pdf and os.path.isfile(file):
+            from gradio_pdf import PDF
+            return dummy1, dummy1, dummy1, dummy1, dummy1, PDF(file, visible=True, label=file, show_label=True,
+                                                               height=pdf_height)
         else:
-            # FIXME: This doesn't work yet, just return dummy result for now
-            if False:
-                ip = get_local_ip()
-                document1 = url_path.replace('file://', f'http://{ip}:{port}/')
-                # document1 = url
-                return gr.update(visible=True, value=f"""<object data="{document1}" type="application/pdf">
-<iframe src="https://docs.google.com/viewer?url={document1}&embedded=true"></iframe>
-</object>"""), dummy1, dummy1, dummy1, dummy1
-            else:
-                return dummy_ret
+            return dummy_ret
     else:
         return dummy_ret
 

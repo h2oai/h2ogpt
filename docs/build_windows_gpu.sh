@@ -28,7 +28,7 @@ cd wheels
 ren auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl auto_gptq-0.4.2-cp310-cp310-win_amd64.whl
 ren exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl exllama-0.0.13-cp310-cp310-win_amd64.whl
 ren llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.10-cp310-cp310-win_amd64.whl
-ren torch-2.0.1+cu117-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
+ren torch-2.0.1+cu118-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
 del hnswlib-0.7.0-cp310-cp310-win_amd64.whl
 cd ..
 

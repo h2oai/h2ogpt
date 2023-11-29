@@ -3,12 +3,13 @@ from functools import partial
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from typing import Any, Dict, List, Optional
-from pydantic import Field, root_validator
 from exllama.model import ExLlama, ExLlamaCache, ExLlamaConfig
 from exllama.tokenizer import ExLlamaTokenizer
 from exllama.generator import ExLlamaGenerator
 from exllama.lora import ExLlamaLora
 import os, glob
+
+from pydantic.v1 import root_validator
 
 BROKEN_UNICODE = b'\\ufffd'.decode('unicode_escape')
 
@@ -39,52 +40,43 @@ class Exllama(LLM):
 
     ##Langchain parameters
     logfunc = print
-    stop_sequences: Optional[List[str]] = Field("", description="Sequences that immediately will stop the generator.")
-    streaming: Optional[bool] = Field(True, description="Whether to stream the results, token by token.")
+    stop_sequences: Optional[List[str]] = "" #, description="Sequences that immediately will stop the generator.")
+    streaming: Optional[bool] = True #, description="Whether to stream the results, token by token.")
 
     ##Generator parameters
-    disallowed_tokens: Optional[List[int]] = Field(None, description="List of tokens to disallow during generation.")
-    temperature: Optional[float] = Field(None, description="Temperature for sampling diversity.")
-    top_k: Optional[int] = Field(None,
-                                 description="Consider the most probable top_k samples, 0 to disable top_k sampling.")
-    top_p: Optional[float] = Field(None,
-                                   description="Consider tokens up to a cumulative probabiltiy of top_p, 0.0 to disable top_p sampling.")
-    min_p: Optional[float] = Field(None, description="Do not consider tokens with probability less than this.")
-    typical: Optional[float] = Field(None,
-                                     description="Locally typical sampling threshold, 0.0 to disable typical sampling.")
-    token_repetition_penalty_max: Optional[float] = Field(None,
-                                                          description="Repetition penalty for most recent tokens.")
-    token_repetition_penalty_sustain: Optional[int] = Field(None,
-                                                            description="No. most recent tokens to repeat penalty for, -1 to apply to whole context.")
-    token_repetition_penalty_decay: Optional[int] = Field(None,
-                                                          description="Gradually decrease penalty over this many tokens.")
-    beams: Optional[int] = Field(None, description="Number of beams for beam search.")
-    beam_length: Optional[int] = Field(None, description="Length of beams for beam search.")
+    disallowed_tokens: Optional[List[int]] = None # description="List of tokens to disallow during generation.")
+    temperature: Optional[float] = None # description="Temperature for sampling diversity.")
+    top_k: Optional[int] = None # description="Consider the most probable top_k samples, 0 to disable top_k sampling.")
+    top_p: Optional[float] = None # description="Consider tokens up to a cumulative probabiltiy of top_p, 0.0 to disable top_p sampling.")
+    min_p: Optional[float] = None # description="Do not consider tokens with probability less than this.")
+    typical: Optional[float] = None # description="Locally typical sampling threshold, 0.0 to disable typical sampling.")
+    token_repetition_penalty_max: Optional[float] = None # description="Repetition penalty for most recent tokens.")
+    token_repetition_penalty_sustain: Optional[int] = None # description="No. most recent tokens to repeat penalty for, -1 to apply to whole context.")
+    token_repetition_penalty_decay: Optional[int] = None # description="Gradually decrease penalty over this many tokens.")
+    beams: Optional[int] = None # description="Number of beams for beam search.")
+    beam_length: Optional[int] = None # description="Length of beams for beam search.")
 
     ##Config overrides
-    max_seq_len: Optional[int] = Field(2048,
-                                       decription="Reduce to save memory. Can also be increased, ideally while also using compress_pos_emn and a compatible model/LoRA")
-    compress_pos_emb: Optional[float] = Field(1.0,
-                                              description="Amount of compression to apply to the positional embedding.")
-    set_auto_map: Optional[str] = Field(None,
-                                        description="Comma-separated list of VRAM (in GB) to use per GPU device for model layers, e.g. 20,7,7")
-    gpu_peer_fix: Optional[bool] = Field(None, description="Prevent direct copies of data between GPUs")
-    alpha_value: Optional[float] = Field(1.0, description="Rope context extension alpha")
+    max_seq_len: Optional[int] = 2048 # decription="Reduce to save memory. Can also be increased, ideally while also using compress_pos_emn and a compatible model/LoRA")
+    compress_pos_emb: Optional[float] = 1.0 # description="Amount of compression to apply to the positional embedding.")
+    set_auto_map: Optional[str] = None # description="Comma-separated list of VRAM (in GB) to use per GPU device for model layers, e.g. 20,7,7")
+    gpu_peer_fix: Optional[bool] = None # description="Prevent direct copies of data between GPUs")
+    alpha_value: Optional[float] = 1.0 #, description="Rope context extension alpha")
 
     ##Tuning
-    matmul_recons_thd: Optional[int] = Field(None)
-    fused_mlp_thd: Optional[int] = Field(None)
-    sdp_thd: Optional[int] = Field(None)
-    fused_attn: Optional[bool] = Field(None)
-    matmul_fused_remap: Optional[bool] = Field(None)
-    rmsnorm_no_half2: Optional[bool] = Field(None)
-    rope_no_half2: Optional[bool] = Field(None)
-    matmul_no_half2: Optional[bool] = Field(None)
-    silu_no_half2: Optional[bool] = Field(None)
-    concurrent_streams: Optional[bool] = Field(None)
+    matmul_recons_thd: Optional[int] = None
+    fused_mlp_thd: Optional[int] = None
+    sdp_thd: Optional[int] = None
+    fused_attn: Optional[bool] = None
+    matmul_fused_remap: Optional[bool] = None
+    rmsnorm_no_half2: Optional[bool] = None
+    rope_no_half2: Optional[bool] = None
+    matmul_no_half2: Optional[bool] = None
+    silu_no_half2: Optional[bool] = None
+    concurrent_streams: Optional[bool] = None
 
     ##Lora Parameters
-    lora_path: Optional[str] = Field(None, description="Path to your lora.")
+    lora_path: Optional[str] = None # description="Path to your lora.")
 
     @staticmethod
     def get_model_path_at(path):
