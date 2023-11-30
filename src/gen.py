@@ -973,7 +973,7 @@ def main(
         model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
     elif base_model == 'gptj' and not model_name_gptj:
         model_name_gptj = 'ggml-gpt4all-j-v1.3-groovy.bin'
-    elif base_model == 'gptj' and not model_name_gpt4all_llama:
+    elif base_model == 'gpt4all_llama' and not model_name_gpt4all_llama:
         model_name_gpt4all_llama = 'ggml-wizardLM-7B.q4_2.bin'
     if load_exllama and not model_name_exllama_if_no_config:
         model_name_exllama_if_no_config = 'TheBloke/Nous-Hermes-Llama2-GPTQ'
