@@ -1469,7 +1469,7 @@ def get_llm(use_openai_model=False,
             chat_model = None
 
         # FIXME: Will later import be ignored?  I think so, so should be fine
-        openai_client, inf_type, deployment_name, openai_api_base, openai_api_version, openai_api_key = set_openai(inference_server)
+        openai_client, inf_type, _, _, _, _ = set_openai(inference_server)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
@@ -1510,7 +1510,7 @@ def get_llm(use_openai_model=False,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
-                                         openai_api_base=openai_api_base,
+                                         openai_api_base=openai_client.api_base,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=None,
                                          async_sem=async_sem,
@@ -1521,16 +1521,6 @@ def get_llm(use_openai_model=False,
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
-        if deployment_name:
-            kwargs_extra.update(dict(deployment_name=deployment_name))
-        elif openai_api_version:
-            kwargs_extra.update(dict(openai_api_version=openai_api_version))
-        elif inf_type in ['openai_azure', 'openai_azure_chat']:
-            # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-12-01-preview
-            kwargs_extra.update(dict(openai_api_version="2023-12-01-preview"))
-        if openai_api_base:
-            kwargs_extra.update(dict(openai_api_base=openai_api_base))
-
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0,
@@ -1538,7 +1528,6 @@ def get_llm(use_openai_model=False,
                   max_tokens=max_new_tokens,
                   model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
-                  openai_api_key=openai_api_key,
                   max_retries=6,
                   streaming=stream_output,
                   verbose=verbose,
