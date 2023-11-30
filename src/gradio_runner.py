@@ -4680,7 +4680,10 @@ def go_gradio(**kwargs):
                 all_kwargs1['n_gpus'] = get_ngpus_vis()
             model_lower0 = model_name0.strip().lower()
             model_lower = model_name.strip().lower()
-            if model_lower0 in inv_prompt_type_to_model_lower:
+            llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+            if llama_lower in inv_prompt_type_to_model_lower:
+                prompt_type1 = inv_prompt_type_to_model_lower[llama_lower]
+            elif model_lower0 in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower0]
             elif model_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[model_lower]

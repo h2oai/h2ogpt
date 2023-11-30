@@ -143,10 +143,10 @@ def main(
 
         # llama and gpt4all settings
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
-        model_path_llama: str = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
-        model_name_gptj: str = 'ggml-gpt4all-j-v1.3-groovy.bin',
-        model_name_gpt4all_llama: str = 'ggml-wizardLM-7B.q4_2.bin',
-        model_name_exllama_if_no_config: str = 'TheBloke/Nous-Hermes-Llama2-GPTQ',
+        model_path_llama: str = '',
+        model_name_gptj: str = '',
+        model_name_gpt4all_llama: str = '',
+        model_name_exllama_if_no_config: str = '',
         exllama_dict: typing.Dict = dict(),
         gptq_dict: typing.Dict = dict(),
         attention_sinks: bool = False,
@@ -967,6 +967,17 @@ def main(
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
 
+    # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
+    # NOTE: avoid defaults for model_lock, require to be specified
+    if base_model == 'llama' and not model_path_llama:
+        model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+    elif base_model == 'gptj' and not model_name_gptj:
+        model_name_gptj = 'ggml-gpt4all-j-v1.3-groovy.bin'
+    elif base_model == 'gptj' and not model_name_gpt4all_llama:
+        model_name_gpt4all_llama = 'ggml-wizardLM-7B.q4_2.bin'
+    if load_exllama and not model_name_exllama_if_no_config:
+        model_name_exllama_if_no_config = 'TheBloke/Nous-Hermes-Llama2-GPTQ'
+
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
     base_model0 = base_model  # for prompt infer
     base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
@@ -1354,6 +1365,7 @@ def main(
         task_info = \
         get_generate_params(model_lower,
                             model_lower0,
+                            llamacpp_dict,
                             chat,
                             stream_output, show_examples,
                             prompt_type, prompt_dict,
@@ -1680,11 +1692,16 @@ def main(
             if prompt_type_infer:
                 model_lower1 = model_dict['base_model'].lower()
                 model_lower10 = model_dict['base_model0'].lower()
+                llama_lower = model_dict['llamacpp_dict']['model_path_llama'].lower()
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
                                          return_dict=True,
                                          system_prompt=system_prompt)
-                if model_lower10 in inv_prompt_type_to_model_lower:
+                if llama_lower in inv_prompt_type_to_model_lower:
+                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[llama_lower]
+                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
+                                                                   **get_prompt_kwargs)
+                elif model_lower10 in inv_prompt_type_to_model_lower:
                     model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    **get_prompt_kwargs)
@@ -2990,9 +3007,17 @@ def evaluate(
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
     # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
     model_lower = base_model.lower()
-    if not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
-        prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        if verbose:
+    llamacpp_dict = str_to_dict(llamacpp_dict)
+    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+    if not prompt_type and prompt_type != 'custom':
+        auto_selected = False
+        if llama_lower in inv_prompt_type_to_model_lower:
+            auto_selected = True
+            prompt_type = inv_prompt_type_to_model_lower[llama_lower]
+        elif model_lower in inv_prompt_type_to_model_lower:
+            auto_selected = True
+            prompt_type = inv_prompt_type_to_model_lower[model_lower]
+        if auto_selected and verbose:
             print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
     assert prompt_type is not None, "prompt_type was None"
 
@@ -4056,6 +4081,7 @@ def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **
 
 def get_generate_params(model_lower,
                         model_lower0,
+                        llamacpp_dict,
                         chat,
                         stream_output, show_examples,
                         prompt_type, prompt_dict,
@@ -4101,15 +4127,20 @@ def get_generate_params(model_lower,
     max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
+    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
     if not prompt_type and prompt_type != 'custom':
-        if model_lower0 in inv_prompt_type_to_model_lower:
+        auto_selected = False
+        if llama_lower in inv_prompt_type_to_model_lower:
+            prompt_type = inv_prompt_type_to_model_lower[llama_lower]
+            auto_selected = True
+        elif model_lower0 in inv_prompt_type_to_model_lower:
             prompt_type = inv_prompt_type_to_model_lower[model_lower0]
-            if verbose:
-                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower0), flush=True)
+            auto_selected = True
         elif model_lower in inv_prompt_type_to_model_lower:
             prompt_type = inv_prompt_type_to_model_lower[model_lower]
-            if verbose:
-                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+            auto_selected = True
+        if auto_selected and verbose:
+            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
@@ -4159,15 +4190,16 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if not prompt_type and model_lower0 in inv_prompt_type_to_model_lower and prompt_type != 'custom':
-            prompt_type = inv_prompt_type_to_model_lower[model_lower0]
-        elif not prompt_type and model_lower in inv_prompt_type_to_model_lower and prompt_type != 'custom':
-            prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        elif model_lower:
+        llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+        if not prompt_type and prompt_type != 'custom':
+            if llama_lower in inv_prompt_type_to_model_lower:
+                prompt_type = inv_prompt_type_to_model_lower[llama_lower]
+            elif model_lower0 in inv_prompt_type_to_model_lower:
+                prompt_type = inv_prompt_type_to_model_lower[model_lower0]
+            elif model_lower in inv_prompt_type_to_model_lower:
+                prompt_type = inv_prompt_type_to_model_lower[model_lower]
             # default is plain, because might rely upon trust_remote_code to handle prompting
             prompt_type = prompt_type or 'plain'
-        else:
-            prompt_type = ''
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
