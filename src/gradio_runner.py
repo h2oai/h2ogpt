@@ -232,13 +232,13 @@ def go_gradio(**kwargs):
     else:
         model_options0 = model_names_curated + kwargs['extra_model_options']
 
-    if kwargs['base_model'].strip() not in model_options0:
+    if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
     lora_options = kwargs['extra_lora_options']
-    if kwargs['lora_weights'].strip() not in lora_options:
+    if kwargs['lora_weights'].strip() and kwargs['lora_weights'].strip() not in lora_options:
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
     server_options = kwargs['extra_server_options']
-    if kwargs['inference_server'].strip() not in server_options:
+    if kwargs['inference_server'].strip() and kwargs['inference_server'].strip() not in server_options:
         server_options = [kwargs['inference_server'].strip()] + server_options
     if os.getenv('OPENAI_API_KEY'):
         if 'openai_chat' not in server_options:
@@ -1266,14 +1266,17 @@ def go_gradio(**kwargs):
                             prompt_types_strings_used = prompt_types_strings.copy()
                             if kwargs['model_lock']:
                                 prompt_types_strings_used += [no_model_str]
+                                default_prompt_type = kwargs['prompt_type'] or no_model_str
+                            else:
+                                default_prompt_type = kwargs['prompt_type'] or 'plain'
                             prompt_type = gr.Dropdown(prompt_types_strings_used,
-                                                      value=kwargs['prompt_type'] or no_model_str,
+                                                      value=default_prompt_type,
                                                       label="Prompt Type",
                                                       visible=not kwargs['model_lock'],
                                                       interactive=not is_public,
                                                       )
                             prompt_type2 = gr.Dropdown(prompt_types_strings_used,
-                                                       value=kwargs['prompt_type'] or no_model_str,
+                                                       value=default_prompt_type,
                                                        label="Prompt Type Model 2",
                                                        visible=False and not kwargs['model_lock'],
                                                        interactive=not is_public)
@@ -1583,16 +1586,16 @@ def go_gradio(**kwargs):
                                         with gr.Column():
                                             model_choice = gr.Dropdown(model_options_state.value[0],
                                                                        label="Choose/Enter Base Model (HF name, TheBloke, file, URL)",
-                                                                       value=kwargs['base_model'],
+                                                                       value=kwargs['base_model'] or model_options_state.value[0],
                                                                        allow_custom_value=not is_public)
                                             lora_choice = gr.Dropdown(lora_options_state.value[0],
                                                                       label="Choose/Enter LORA",
-                                                                      value=kwargs['lora_weights'],
+                                                                      value=kwargs['lora_weights'] or lora_options_state.value[0],
                                                                       visible=kwargs['show_lora'],
                                                                       allow_custom_value=not is_public)
                                             server_choice = gr.Dropdown(server_options_state.value[0],
                                                                         label="Choose/Enter Server",
-                                                                        value=kwargs['inference_server'],
+                                                                        value=kwargs['inference_server'] or server_options_state.value[0],
                                                                         visible=not is_public,
                                                                         allow_custom_value=not is_public)
                                         with gr.Column():
@@ -1672,7 +1675,8 @@ def go_gradio(**kwargs):
                                                                     interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
                                         prompt_dict = gr.Textbox(label="Current Prompt (or Custom)",
-                                                                 value=pprint.pformat(kwargs['prompt_dict'] or {}, indent=4),
+                                                                 value=pprint.pformat(kwargs['prompt_dict'] or {},
+                                                                                      indent=4),
                                                                  interactive=not is_public, lines=6)
                                     with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len = gr.Number(value=kwargs['max_seq_len'] or -1,
@@ -1813,7 +1817,8 @@ def go_gradio(**kwargs):
                                                                      interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
                                         prompt_dict2 = gr.Textbox(label="Current Prompt (or Custom) (Model 2)",
-                                                                  value=pprint.pformat(kwargs['prompt_dict'] or {}, indent=4),
+                                                                  value=pprint.pformat(kwargs['prompt_dict'] or {},
+                                                                                       indent=4),
                                                                   interactive=not is_public, lines=4)
                                     with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len2 = gr.Number(value=kwargs['max_seq_len'] or -1,
@@ -1916,7 +1921,8 @@ def go_gradio(**kwargs):
                         with gr.Accordion("Admin", open=False, visible=True):
                             with gr.Column():
                                 close_btn = gr.Button(value="Shutdown h2oGPT", size='sm',
-                                                      visible=kwargs['close_button'] and kwargs['h2ogpt_pid'] is not None)
+                                                      visible=kwargs['close_button'] and kwargs[
+                                                          'h2ogpt_pid'] is not None)
                                 with gr.Row():
                                     system_btn = gr.Button(value='Get System Info', size='sm')
                                     system_text = gr.Textbox(label='System Info', interactive=False,
@@ -2473,16 +2479,16 @@ def go_gradio(**kwargs):
                 requests_state1['username'] = username1
             label_instruction1 = 'Ask anything, %s' % requests_state1['username']
             return db1s, selection_docs_state1, requests_state1, roles_state1, \
-                   model_options_state1, lora_options_state1, server_options_state1, \
-                   chat_state1, \
-                   text_result, \
-                   gr.update(label=label_instruction1), \
-                   df_langchain_mode_paths1, \
-                   gr.update(choices=list(roles_state1.keys())), \
-                   gr.update(choices=list(chat_state1.keys()), value=None), \
-                   gr.update(choices=get_langchain_choices(selection_docs_state1),
-                             value=langchain_mode1), \
-                   text_output1, text_output21, *tuple(text_outputs1)
+                model_options_state1, lora_options_state1, server_options_state1, \
+                chat_state1, \
+                text_result, \
+                gr.update(label=label_instruction1), \
+                df_langchain_mode_paths1, \
+                gr.update(choices=list(roles_state1.keys())), \
+                gr.update(choices=list(chat_state1.keys()), value=None), \
+                gr.update(choices=get_langchain_choices(selection_docs_state1),
+                          value=langchain_mode1), \
+                text_output1, text_output21, *tuple(text_outputs1)
 
         login_func = functools.partial(login,
                                        auth_filename=kwargs['auth_filename'],
@@ -2553,12 +2559,24 @@ def go_gradio(**kwargs):
                                 update_auth_selection(auth_user, selection_docs_state1)
                             if 'roles_state' in auth_user:
                                 roles_state1.update(auth_user['roles_state'])
-                            if 'model_options_state' in auth_user:
-                                model_options_state1.update(auth_user['model_options_state'])
-                            if 'lora_options_state' in auth_user:
-                                lora_options_state1.update(auth_user['lora_options_state'])
-                            if 'server_options_state' in auth_user:
-                                server_options_state1.update(auth_user['server_options_state'])
+                            if 'model_options_state' in auth_user and \
+                                    model_options_state1 and \
+                                    auth_user['model_options_state']:
+                                model_options_state1[0].extend(auth_user['model_options_state'][0])
+                                model_options_state1[0] = [x for x in model_options_state1[0] if x != no_model_str and x]
+                                model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
+                            if 'lora_options_state' in auth_user and \
+                                    lora_options_state1 and \
+                                    auth_user['lora_options_state']:
+                                lora_options_state1[0].extend(auth_user['lora_options_state'][0])
+                                lora_options_state1[0] = [x for x in lora_options_state1[0] if x != no_lora_str and x]
+                                lora_options_state1[0] = [no_lora_str] + sorted(set(lora_options_state1[0]))
+                            if 'server_options_state' in auth_user and \
+                                    server_options_state1 and \
+                                    auth_user['server_options_state']:
+                                server_options_state1[0].extend(auth_user['server_options_state'][0])
+                                server_options_state1[0] = [x for x in server_options_state1[0] if x != no_server_str and x]
+                                server_options_state1[0] = [no_server_str] + sorted(set(server_options_state1[0]))
                             if 'chat_state' in auth_user:
                                 chat_state1.update(auth_user['chat_state'])
                             if 'text_output' in auth_user:
@@ -3007,12 +3025,31 @@ def go_gradio(**kwargs):
             sync5 = sync4.then(**get_viewable_sources_args)
             sync6 = sync5.then(**viewable_kwargs)
 
+            def update_model_dropdown(model_options_state1, lora_options_state1, server_options_state1,
+                                      model_choice1, lora_choice1, server_choice1,
+                                      model_choice12, lora_choice12, server_choice12):
+                return gr.Dropdown(choices=model_options_state1[0], value=model_choice1), \
+                    gr.Dropdown(choices=lora_options_state1[0], value=lora_choice1), \
+                    gr.Dropdown(choices=server_options_state1[0], value=server_choice1), \
+                    gr.Dropdown(choices=model_options_state1[0], value=model_choice12), \
+                    gr.Dropdown(choices=lora_options_state1[0], value=lora_choice12), \
+                    gr.Dropdown(choices=server_options_state1[0], value=server_choice12)
+
             eventdb_loginbb = eventdb_loginb.then(**get_sources_kwargs)
             eventdb_loginc = eventdb_loginbb.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             # FIXME: Fix redundancy
             eventdb_logind = eventdb_loginc.then(**show_sources_kwargs)
             eventdb_logine = eventdb_logind.then(**get_viewable_sources_args)
             eventdb_loginf = eventdb_logine.then(**viewable_kwargs)
+            eventdb_loginh = eventdb_loginf.then(fn=update_model_dropdown,
+                                                 inputs=[model_options_state, lora_options_state, server_options_state,
+                                                         model_choice, lora_choice, server_choice,
+                                                         model_choice2, lora_choice2, server_choice2,
+                                                         ],
+                                                 outputs=[model_choice, lora_choice, server_choice,
+                                                          model_choice2, lora_choice2, server_choice2,
+                                                          ]
+                                                 )
 
             db_events.extend([lg_change_event_auth,
                               lg_change_event, lg_change_event2, lg_change_event3, lg_change_event4, lg_change_event5,
@@ -3981,7 +4018,7 @@ def go_gradio(**kwargs):
                     sources_all_old = sources_all.copy()
 
                     sources_str_all = [x[3] if x is not None and not isinstance(x, BaseException) else y
-                                   for x, y in zip(res1, sources_str_all_old)]
+                                       for x, y in zip(res1, sources_str_all_old)]
                     sources_str_all_old = sources_str_all.copy()
 
                     save_dicts = [x[4] if x is not None and not isinstance(x, BaseException) else y
@@ -4984,7 +5021,8 @@ def go_gradio(**kwargs):
             parent.kill()
 
         shutdown_event = close_btn.click(functools.partial(shutdown_func, h2ogpt_pid=kwargs['h2ogpt_pid']),
-                                         api_name='shutdown' if allow_api and not is_public and kwargs['h2ogpt_pid'] is not None else None,
+                                         api_name='shutdown' if allow_api and not is_public and kwargs[
+                                             'h2ogpt_pid'] is not None else None,
                                          concurrency_limit=None)
 
         def get_system_info_dict(system_input1, **kwargs1):
@@ -5247,7 +5285,7 @@ def go_gradio(**kwargs):
                 ssl_certfile=kwargs['ssl_certfile'],
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                 max_threads=max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
-                                                                                   int) else 128,
+                                                                                    int) else 128,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
