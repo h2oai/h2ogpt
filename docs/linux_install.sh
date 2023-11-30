@@ -192,8 +192,8 @@ fi
   sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
   cd $sp
   sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
-  sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
-  sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
+  #sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
+  #sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
   cd $pwd0
 #    ```
 #* vLLM support
@@ -203,7 +203,8 @@ fi
 
 #* PDF View support
 #   ```bash
-   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl
+   # only if using gradio4
+   #pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl
 #   ```
 
 

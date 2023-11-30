@@ -1280,8 +1280,16 @@ except (PackageNotFoundError, AssertionError):
     have_flash_attention_2 = False
 
 try:
+    assert distribution('gradio') is not None
+    have_gradio = True
+    is_gradio_version4 = distribution('gradio').version.startswith('4.')
+except (PackageNotFoundError, AssertionError):
+    have_gradio = False
+    is_gradio_version4 = False
+
+try:
     assert distribution('gradio_pdf') is not None
-    have_gradio_pdf = True
+    have_gradio_pdf = is_gradio_version4
 except (PackageNotFoundError, AssertionError):
     have_gradio_pdf = False
 

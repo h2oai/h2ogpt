@@ -48,6 +48,8 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
+from src.utils import is_gradio_version4
+
 try:
     from enums import DocumentSubset, LangChainAction
 except:
@@ -60,7 +62,7 @@ debug = False
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 
 
-def get_client(serialize=False):
+def get_client(serialize=not is_gradio_version4):
     from gradio_client import Client
 
     client = Client(get_inf_server(), serialize=serialize)
@@ -236,7 +238,7 @@ def run_client_nochat(prompt, prompt_type, max_new_tokens, version=None, h2ogpt_
                             visible_models=visible_models, h2ogpt_key=h2ogpt_key)
 
     api_name = '/submit_nochat'
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     res = client.predict(
         *tuple(args),
         api_name=api_name,
@@ -259,7 +261,7 @@ def run_client_nochat_api(prompt, prompt_type, max_new_tokens, version=None, h2o
                             h2ogpt_key=h2ogpt_key)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
@@ -287,7 +289,7 @@ def run_client_nochat_api_lean(prompt, prompt_type, max_new_tokens, version=None
                   system_prompt=system_prompt)
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
@@ -342,7 +344,7 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
     )
 
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     res = client.predict(
         str(dict(kwargs)),
         api_name=api_name,
@@ -414,14 +416,15 @@ def run_client_chat(prompt='',
 
 
 def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
-    kwargs['answer_with_sources'] = True
-    kwargs['show_accordions'] = True
-    kwargs['append_sources_to_answer'] = True
-    kwargs['show_link_in_sources'] = True
-    res_dict, client = run_client_gen(client, kwargs, do_md_to_text=do_md_to_text)
-    res_dict['response'] += str(res_dict['sources_str'])
-    return res_dict, client
-    # FIXME: https://github.com/gradio-app/gradio/issues/6592
+    if is_gradio_version4:
+        kwargs['answer_with_sources'] = True
+        kwargs['show_accordions'] = True
+        kwargs['append_sources_to_answer'] = True
+        kwargs['show_link_in_sources'] = True
+        res_dict, client = run_client_gen(client, kwargs, do_md_to_text=do_md_to_text)
+        res_dict['response'] += str(res_dict['sources_str'])
+        return res_dict, client
+        # FIXME: https://github.com/gradio-app/gradio/issues/6592
 
     assert kwargs['chat'], "Chat mode only"
     res = client.predict(*tuple(args), api_name='/instruction')

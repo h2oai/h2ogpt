@@ -23,7 +23,19 @@ from huggingface_hub.utils import (
 )
 
 from gradio_client import utils
-from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint, EndpointV3Compatibility
+
+from importlib.metadata import distribution, PackageNotFoundError
+
+try:
+    assert distribution('gradio_client') is not None
+    have_gradio_client = True
+    is_gradio_client_version7 = distribution('gradio_client').version.startswith('0.7.')
+except (PackageNotFoundError, AssertionError):
+    have_gradio_client = False
+    is_gradio_client_version7 = False
+
+
+from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint
 from gradio_client import Client
 
 
@@ -110,9 +122,12 @@ class GradioClient(Client):
         self.serialize = serialize
         self.space_id = None
         self.cookies: dict[str, str] = {}
-        self.output_dir = (
-            str(output_dir) if isinstance(output_dir, Path) else output_dir
-        )
+        if is_gradio_client_version7:
+            self.output_dir = (
+                str(output_dir) if isinstance(output_dir, Path) else output_dir
+            )
+        else:
+            self.output_dir = output_dir
         self.max_workers = max_workers
         self.src = src
         self.auth = auth
@@ -164,22 +179,28 @@ class GradioClient(Client):
             print(f"Loaded as API: {self.src} ✔")
 
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
-        self.sse_url = urllib.parse.urljoin(self.src, utils.SSE_URL)
-        self.sse_data_url = urllib.parse.urljoin(self.src, utils.SSE_DATA_URL)
+        if is_gradio_client_version7:
+            self.sse_url = urllib.parse.urljoin(self.src, utils.SSE_URL)
+            self.sse_data_url = urllib.parse.urljoin(self.src, utils.SSE_DATA_URL)
         self.ws_url = urllib.parse.urljoin(
             self.src.replace("http", "ws", 1), utils.WS_URL
         )
         self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
         self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
-        if self.auth is not None:
-            self._login(self.auth)
+        if is_gradio_client_version7:
+            if self.auth is not None:
+                self._login(self.auth)
         self.config = self._get_config()
-        self.app_version = version.parse(self.config.get("version", "2.0"))
-        self._info = self._get_api_info()
+        if is_gradio_client_version7:
+            self.app_version = version.parse(self.config.get("version", "2.0"))
+            self._info = self._get_api_info()
         self.session_hash = str(uuid.uuid4())
 
-        protocol = self.config.get("protocol")
-        endpoint_class = Endpoint if protocol == "sse" else EndpointV3Compatibility
+        if is_gradio_client_version7:
+            protocol = self.config.get("protocol")
+            endpoint_class = Endpoint if protocol == "sse" else EndpointV3Compatibility
+        else:
+            endpoint_class = Endpoint
         self.endpoints = [
             endpoint_class(self, fn_index, dependency)
             for fn_index, dependency in enumerate(self.config["dependencies"])

@@ -13,7 +13,8 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
     db_types_full
-from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer
+from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
+    is_gradio_version4
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
 
 
@@ -203,7 +204,7 @@ def test_client1api_lean_lock_choose_model():
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     for prompt_type in ['human_bot', None, '', 'plain']:
         for visible_models in [None, 0, base1, 1, base2]:
             base_model = base1 if visible_models in [None, 0, base1] else base2
@@ -294,7 +295,7 @@ def test_client1api_lean_chat_server():
     prompt = 'Who are you?'
 
     kwargs = dict(instruction_nochat=prompt)
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
     res = client.predict(str(dict(kwargs)), api_name=api_name)
 
@@ -2030,7 +2031,7 @@ def test_client_stress(repeat):
     prompt = "Tell a very long kid's story about birds."
     # prompt = "Say exactly only one word."
 
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     kwargs = dict(
         instruction='',
         max_new_tokens=200,
@@ -2062,7 +2063,7 @@ def test_client_stress_stream(repeat):
     stream_output = True
     chat = False
 
-    client = get_client(serialize=False)
+    client = get_client(serialize=not is_gradio_version4)
     kwargs, args = get_args(prompt, prompt_type, chat=chat, stream_output=stream_output,
                             max_new_tokens=max_new_tokens, langchain_mode=langchain_mode)
     res_dict, client = run_client_gen(client, kwargs, do_md_to_text=False)
@@ -2234,6 +2235,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     # is not actual data!
     assert isinstance(res[1], str)
     res = res[0]
+    if not is_gradio_version4:
+        res = res['name']
     with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
@@ -2243,6 +2246,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     res = client.predict(langchain_mode2, api_name='/get_sources')
     assert isinstance(res[1], str)
     res = res[0]
+    if not is_gradio_version4:
+        res = res['name']
     with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
@@ -2254,6 +2259,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert isinstance(res[1], str)
     res = res[0]
     # is not actual data!
+    if not is_gradio_version4:
+        res = res['name']
     with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
@@ -2263,6 +2270,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     res = client.predict(langchain_mode2, api_name='/get_viewable_sources')
     assert isinstance(res[1], str)
     res = res[0]
+    if not is_gradio_version4:
+        res = res['name']
     with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
@@ -2283,6 +2292,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert isinstance(res[1], str)
     res = res[0]
     # is not actual data!
+    if not is_gradio_version4:
+        res = res['name']
     with open(res, 'rb') as f:
         sources = f.read().decode()
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'

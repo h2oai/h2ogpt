@@ -155,9 +155,9 @@ For newer builds of windows versions of 10/11.
   ```bash
   pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
   ```
-* PDF Viewer support:
+* PDF Viewer support (only if using gradio4):
   ```bash
-  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl
+  #pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl
   ```
 * TTS and STT support (no Coqui support):
   ```bash
