@@ -1283,10 +1283,10 @@ def main(
         model_lower = base_model.lower()
         model_lower0 = base_model0.lower()
     elif model_lock:
-        # have 0th model be thought of as normal model
         assert len(model_lock) > 0 and model_lock[0]['base_model'], "model_lock: %s" % model_lock
-        model_lower = model_lock[0]['base_model'].lower()
-        model_lower0 = model_lock[0]['base_model'].lower()
+        # set to '' so don't contaminate other models in lock with first one
+        model_lower = ''
+        model_lower0 = ''
     else:
         model_lower = ''
         model_lower0 = ''
@@ -1659,6 +1659,12 @@ def main(
             for k in model_list0[0]:
                 if k not in model_dict:
                     model_dict[k] = model_list0[0][k]
+            # make so don't have to pass dict in dict so more like CLI for these options
+            inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
+                               'model_name_exllama_if_no_config']
+            for key in inner_dict_keys:
+                if key in model_dict:
+                    model_dict['llamacpp_dict'][key] = model_dict.pop(key)
 
             model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
             model_dict['base_model0'] = model_dict['base_model']
@@ -2737,7 +2743,8 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='', sources_str='', audio=None)
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='',
+               sources_str='', audio=None)
     return
 
 
@@ -4199,7 +4206,8 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             elif model_lower in inv_prompt_type_to_model_lower:
                 prompt_type = inv_prompt_type_to_model_lower[model_lower]
             # default is plain, because might rely upon trust_remote_code to handle prompting
-            prompt_type = prompt_type or 'plain'
+            if model_lower:
+                prompt_type = prompt_type or 'plain'
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
@@ -4212,7 +4220,10 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
                 task_info = "Ask question/imperative (input concatenated with instruction)"
 
     # revert to plain if still nothing
-    prompt_type = prompt_type or 'plain'
+    if model_lower:
+        prompt_type = prompt_type or 'plain'
+    else:
+        prompt_type = prompt_type or ''
     if use_defaults:
         temperature = 1.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
@@ -4334,11 +4345,12 @@ y = np.random.randint(0, 1, 100)
         raise ValueError("Unexpected to get non-empty prompt_dict=%s for prompt_type=%s" % (prompt_dict, prompt_type))
 
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
-    prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
-                                     chat=False, context='', reduced=False, making_context=False, return_dict=True,
-                                     system_prompt=system_prompt)
-    if error0:
-        raise RuntimeError("Prompt wrong: %s" % error0)
+    if prompt_type:
+        prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
+                                         chat=False, context='', reduced=False, making_context=False, return_dict=True,
+                                         system_prompt=system_prompt)
+        if error0:
+            raise RuntimeError("Prompt wrong: %s" % error0)
 
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \

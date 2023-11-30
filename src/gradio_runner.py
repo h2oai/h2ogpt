@@ -272,21 +272,26 @@ def go_gradio(**kwargs):
     output_label0 = chat_name0 if kwargs.get('base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
-    def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0):
+    def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0, global_scope=False):
         if not prompt_type1 or which_model != 0:
             # keep prompt_type and prompt_dict in sync if possible
             prompt_type1 = kwargs.get('prompt_type', prompt_type1)
             prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
             # prefer model specific prompt type instead of global one
-            if not prompt_type1 or which_model != 0:
-                prompt_type1 = model_state1.get('prompt_type', prompt_type1)
-                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+            if not global_scope:
+                if not prompt_type1 or which_model != 0:
+                    prompt_type1 = model_state1.get('prompt_type', prompt_type1)
+                    prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
 
         if not prompt_dict1 or which_model != 0:
             # if still not defined, try to get
             prompt_dict1 = kwargs.get('prompt_dict', prompt_dict1)
-            if not prompt_dict1 or which_model != 0:
-                prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+            if not global_scope:
+                if not prompt_dict1 or which_model != 0:
+                    prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
+        if not global_scope and not prompt_type1:
+            # if still not defined, use plain
+            prompt_type1 = 'plain'
         return prompt_type1, prompt_dict1
 
     def visible_models_to_model_choice(visible_models1, api=False):
@@ -324,7 +329,9 @@ def go_gradio(**kwargs):
     default_kwargs['prompt_type'], default_kwargs['prompt_dict'] = \
         update_prompt(default_kwargs['prompt_type'], default_kwargs['prompt_dict'],
                       model_state1=model_state0,
-                      which_model=visible_models_to_model_choice(kwargs['visible_models']))
+                      which_model=visible_models_to_model_choice(kwargs['visible_models']),
+                      global_scope=True,  # don't assume state0 is the prompt for all models
+                      )
     for k in no_default_param_names:
         default_kwargs[k] = ''
 
@@ -1256,13 +1263,18 @@ def go_gradio(**kwargs):
                     gr.Markdown("Prompt Control")
                     with gr.Row():
                         with gr.Column():
-                            prompt_type = gr.Dropdown(prompt_types_strings,
-                                                      value=kwargs['prompt_type'], label="Prompt Type",
+                            prompt_types_strings_used = prompt_types_strings.copy()
+                            if kwargs['model_lock']:
+                                prompt_types_strings_used += [no_model_str]
+                            prompt_type = gr.Dropdown(prompt_types_strings_used,
+                                                      value=kwargs['prompt_type'] or no_model_str,
+                                                      label="Prompt Type",
                                                       visible=not kwargs['model_lock'],
                                                       interactive=not is_public,
                                                       )
-                            prompt_type2 = gr.Dropdown(prompt_types_strings,
-                                                       value=kwargs['prompt_type'], label="Prompt Type Model 2",
+                            prompt_type2 = gr.Dropdown(prompt_types_strings_used,
+                                                       value=kwargs['prompt_type'] or no_model_str,
+                                                       label="Prompt Type Model 2",
                                                        visible=False and not kwargs['model_lock'],
                                                        interactive=not is_public)
                             system_prompt = gr.Textbox(label="System Prompt",
@@ -1660,7 +1672,7 @@ def go_gradio(**kwargs):
                                                                     interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
                                         prompt_dict = gr.Textbox(label="Current Prompt (or Custom)",
-                                                                 value=pprint.pformat(kwargs['prompt_dict'], indent=4),
+                                                                 value=pprint.pformat(kwargs['prompt_dict'] or {}, indent=4),
                                                                  interactive=not is_public, lines=6)
                                     with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len = gr.Number(value=kwargs['max_seq_len'] or -1,
@@ -1801,7 +1813,7 @@ def go_gradio(**kwargs):
                                                                      interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
                                         prompt_dict2 = gr.Textbox(label="Current Prompt (or Custom) (Model 2)",
-                                                                  value=pprint.pformat(kwargs['prompt_dict'], indent=4),
+                                                                  value=pprint.pformat(kwargs['prompt_dict'] or {}, indent=4),
                                                                   interactive=not is_public, lines=4)
                                     with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len2 = gr.Number(value=kwargs['max_seq_len'] or -1,
@@ -3549,6 +3561,9 @@ def go_gradio(**kwargs):
                 history = []
             # NOTE: For these, could check if None, then automatically use CLI values, but too complex behavior
             prompt_type1 = args_list[eval_func_param_names.index('prompt_type')]
+            if prompt_type1 == no_model_str:
+                # deal with gradio dropdown
+                prompt_type1 = args_list[eval_func_param_names.index('prompt_type')] = None
             prompt_dict1 = args_list[eval_func_param_names.index('prompt_dict')]
             max_time1 = args_list[eval_func_param_names.index('max_time')]
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
@@ -4399,7 +4414,7 @@ def go_gradio(**kwargs):
             return tuple(ret_chat)
 
         def clear_texts(*args):
-            return tuple([gr.Textbox(value='')] * len(args))
+            return tuple([[]] * len(args))
 
         def clear_scores():
             return gr.Textbox(value=res_value), \
