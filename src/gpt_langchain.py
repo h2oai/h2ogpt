@@ -1462,14 +1462,15 @@ def get_llm(use_openai_model=False,
         # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
+        # FIXME: Will later import be ignored?  I think so, so should be fine
+        openai_client, inf_type, deployment_type, base_url, api_version, api_key = set_openai(inference_server)
+
         if use_openai_model or inference_server.startswith('openai'):
             # cannot use non-chat model, uses old openai. stuff if go through to H2OOpenAI with chat model
-            chat_model = (model_name.startswith("gpt-3.5-turbo") or model_name.startswith("gpt-4")) and "-instruct" not in model_name
-        else:
-            chat_model = None
-
-        # FIXME: Will later import be ignored?  I think so, so should be fine
-        openai_client, inf_type, _, _, _, _ = set_openai(inference_server)
+            chat_model = (model_name.startswith("gpt-3.5-turbo") or model_name.startswith(
+                "gpt-4")) and "-instruct" not in model_name
+            if chat_model and (inf_type == 'openai_azure' or inf_type == 'openai'):
+                raise ValueError("Use openai_azure_chat or openai_chat for chat models")
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
@@ -1478,8 +1479,15 @@ def get_llm(use_openai_model=False,
                             logit_bias=None if inf_type == 'vllm' else {},
                             )
 
+        azure_kwargs = dict(openai_api_type='azure',
+                            openai_api_key=api_key,
+                            api_version=api_version,
+                            deployment_name=deployment_type,
+                            azure_endpoint=base_url,
+                            )
+
         kwargs_extra = {}
-        if inf_type == 'openai_chat' or inf_type == 'vllm_chat' or chat_model:
+        if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
@@ -1492,11 +1500,16 @@ def get_llm(use_openai_model=False,
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             kwargs_extra.update(
-                dict(openai_api_type='azure', system_prompt=system_prompt, chat_conversation=chat_conversation))
+                dict(system_prompt=system_prompt,
+                     chat_conversation=chat_conversation,
+                     **azure_kwargs,
+                     ))
             # FIXME: Support context, iinput
         elif inf_type == 'openai_azure':
             cls = H2OAzureOpenAI
-            kwargs_extra.update(dict(openai_api_type='azure'))
+            kwargs_extra.update(
+                dict(**azure_kwargs,
+                     ))
             kwargs_extra.update(model_kwargs)
             model_kwargs = {}
             # FIXME: Support context, iinput
@@ -3180,6 +3193,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
     def no_tqdm(x):
         return x
+
     my_tqdm = no_tqdm if not verbose else tqdm
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
