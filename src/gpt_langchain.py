@@ -2571,9 +2571,18 @@ def file_to_doc(file,
             jq_schema=jq_schema,
             text_content=False,
             metadata_func=json_metadata_func)
-        doc1 = loader.load()
-        add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
-        fix_json_meta(doc1)
+        try:
+            doc1 = loader.load()
+            add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
+            fix_json_meta(doc1)
+        except Exception as e:
+            if os.getenv("TRYJSONASTEXT", '1') == '0':
+                raise
+            # revert to treating as text
+            metadata = dict(source=file, date=str(datetime.now()), input_type='JSONAsText')
+            with open(file, "r") as f:
+                doc1 = Document(page_content=str(f.read()), metadata=metadata)
+            add_meta(doc1, file, parser='JSONAsTextLoader: json failed with: %s' % str(e))
     elif file.lower().endswith('.jsonl'):
         loader = JSONLoader(
             file_path=file,
@@ -2582,9 +2591,18 @@ def file_to_doc(file,
             json_lines=True,
             text_content=False,
             metadata_func=json_metadata_func)
-        doc1 = loader.load()
-        add_meta(doc1, file, parser='JSONLoader: %s' % jq_schema)
-        fix_json_meta(doc1)
+        try:
+            doc1 = loader.load()
+            add_meta(doc1, file, parser='JSONLLoader: %s' % jq_schema)
+            fix_json_meta(doc1)
+        except Exception as e:
+            if os.getenv("TRYJSONASTEXT", '1') == '0':
+                raise
+            # revert to treating as text
+            metadata = dict(source=file, date=str(datetime.now()), input_type='JSONLAsText')
+            with open(file, "r") as f:
+                doc1 = Document(page_content=str(f.read()), metadata=metadata)
+            add_meta(doc1, file, parser='JSONLAsTextLoader: jsonl failed with: %s' % str(e))
     elif file.lower().endswith('.pdf'):
         # migration
         if isinstance(use_pymupdf, bool):
@@ -6165,12 +6183,13 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
         num_sources_str = str(0)
     elif db is not None:
         metadatas = get_metadatas(db, full_required=False)
-        source_list = sorted(set([x['source'] for x in metadatas]))
+        metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
+        source_list = sorted(set(metadatas_sources))
         source_files_added = '\n'.join(source_list)
-        num_chunks = len(metadatas)
+        num_chunks = len(metadatas_sources)
         num_sources_str = ">=%d" % len(source_list)
         if is_chroma_db(db):
-            num_chunks_real = db._collection.count()
+            num_chunks_real = min(len(source_list), db._collection.count())
             if num_chunks_real == num_chunks:
                 num_sources_str = "=%d" % len(source_list)
             else:
@@ -6560,16 +6579,24 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
         adding_new = True
 
     # below automatically de-dups
+    # non-exception cases only
     small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas if x.get('page', 0) in [0, 1]}
+                  metadatas if x.get('page', 0) in [0, 1] and not x.get('exception', '')}
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1
     df.index.name = 'index'
     source_files_added = tabulate.tabulate(df, headers='keys', tablefmt='unsafehtml')
 
-    if exceptions:
+    no_exception_metadatas = [x for x in metadatas if not x.get('exception')]
+
+    if not exceptions:
+        # auto-get exceptions
+        exception_metadatas = [x for x in metadatas if x.get('exception')]
+    else:
         exception_metadatas = [x.metadata for x in exceptions]
+
+    if exception_metadatas:
         small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('exception')) for x in
                       exception_metadatas}
         # if small_dict is empty dict, that's ok
@@ -6580,7 +6607,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     else:
         exceptions_html = ''
 
-    if metadatas and exceptions:
+    if no_exception_metadatas and exception_metadatas:
         source_files_added = """\
         <html>
           <body>
@@ -6594,7 +6621,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
           </body>
         </html>
         """.format(source_label, source_files_added, exceptions_html)
-    elif metadatas:
+    elif no_exception_metadatas:
         source_files_added = """\
         <html>
           <body>
