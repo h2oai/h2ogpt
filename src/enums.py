@@ -53,6 +53,7 @@ class PromptType(Enum):
     anthropic = 47
     orca2 = 48
     jais = 49
+    yi = 50
 
 
 class DocumentSubset(Enum):

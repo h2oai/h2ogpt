@@ -174,11 +174,17 @@ messages_with_context = [
 
 prompt_jaiss = """### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between [|Human|] and [|AI|]:\n### Input: [|Human|] Hello!\n### Response: [|AI|] Hi!\n### Input: [|Human|] How are you?\n### Response: [|AI|] I'm good\n### Input: [|Human|] Go to the market?\n### Response: [|AI|]"""
 
+system_prompt_yi = 'A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.'
 
-def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1"):
+
+def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1", system_prompt=None):
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(model)
-    prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+    if system_prompt:
+        messages = [{"role": "system", "content": system_prompt}] + messages
+
+    # add_generation_prompt=True somehow only required for Yi
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return prompt
 
 
@@ -237,6 +243,9 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              ('deepseek_coder', 'auto', None, get_prompt_from_messages(messages_with_context,
                                                                                        model='deepseek-ai/deepseek-coder-33b-instruct')),
                              ('jais', 'auto', None, prompt_jaiss),
+                             ('yi', 'auto', None,
+                              get_prompt_from_messages(messages_with_context, model='01-ai/Yi-34B-Chat',
+                                                       system_prompt=system_prompt_yi)),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -393,6 +402,8 @@ prompt_jaiss1 = """### Instruction: Your name is Jais, and you are named after J
                              ('aquila_v1', 'auto',
                               get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-7B')),
                              ('jais', 'auto', prompt_jaiss1),
+                             ('yi', 'auto', get_prompt_from_messages(messages_no_context, model='01-ai/Yi-34B-Chat',
+                                                                     system_prompt=system_prompt_yi)),
                          ]
                          )
 @wrap_test_forked

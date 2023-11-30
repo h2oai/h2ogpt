@@ -146,6 +146,7 @@ prompt_type_to_model_name = {
     "open_chat_correct": ['berkeley-nest/Starling-LM-7B-alpha'],  # can be any from open_chat list, by using this prompt
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     "jais": ['core42/jais-30b-chat-v1'],
+    "yi": ['01-ai/Yi-34B-Chat'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
@@ -1054,6 +1055,23 @@ Remember to tailor the activities to the birthday child's interests and preferen
             PreResponse += " "
         terminate_response = [PreResponse]
         chat_turn_sep = chat_sep = ''
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.yi.value, str(PromptType.yi.value),
+                         PromptType.yi.name]:
+        # https://huggingface.co/01-ai/Yi-34B-Chat#31-use-the-chat-model
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s<|im_end|>""" % system_prompt if not (chat and reduced) else ''
+
+        PreInstruct = """\n<|im_start|>user\n"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|>\n<|im_start|>assistant\n"""
+        terminate_response = ['<|im_end|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>'
         humanstr = PreInstruct
         botstr = PreResponse
     else:
