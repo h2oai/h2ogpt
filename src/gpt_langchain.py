@@ -60,7 +60,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
-from prompter import non_hf_types, PromptType, Prompter
+from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
@@ -1530,6 +1530,8 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
+                stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=prompter.stop_sequences)
+                kwargs_extra.update(stop_token_ids_dict)
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -1539,7 +1541,7 @@ def get_llm(use_openai_model=False,
                                          tokenizer=tokenizer,
                                          openai_api_base=openai_client.api_base,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
-                                         client=None,
+                                         client=openai_client.Completion,
                                          async_sem=async_sem,
                                          max_new_tokens0=max_new_tokens0,
                                          ))

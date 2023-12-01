@@ -94,7 +94,9 @@ prompt_type_to_model_name = {
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
     "orca2": ['TheBloke/Orca-2-13B-GGUF', 'microsoft/Orca-2-13b'],
-    "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5', 'lmsys/vicuna-13b-v1.5-16k'],
+    "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5', 'lmsys/vicuna-13b-v1.5-16k',
+                 'NousResearch/Nous-Capybara-34B',
+                 ],
     "one_shot": ['lmsys/fastchat-t5-3b-v1.0'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-7b-instruct'],
     "llama2": [
@@ -1069,7 +1071,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInput = None
 
         PreResponse = """<|im_end|>\n<|im_start|>assistant\n"""
-        terminate_response = ['<|im_end|>']
+        terminate_response = ['<|im_end|>', '<|endotftext|>']
         chat_sep = ''
         chat_turn_sep = '<|im_end|>'
         humanstr = PreInstruct
@@ -1418,3 +1420,11 @@ def step_back_prompts(which):
 
     else:
         raise ValueError("No such case for back prompts which=%d" % which)
+
+
+def get_stop_token_ids(tokenizer, stop_sequences=[]):
+    stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
+    if hasattr(tokenizer, 'eos_token_id'):
+        stop_token_ids.extend([tokenizer.eos_token_id])
+    stop_token_ids_dict = dict(stop_token_ids=stop_token_ids)
+    return stop_token_ids_dict

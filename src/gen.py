@@ -66,7 +66,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts
+    openai_gpts, get_stop_token_ids
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -3399,11 +3399,16 @@ def evaluate(
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
             if inf_type == 'vllm' or inference_server == 'openai_client':
+                if inf_type == 'vllm':
+                    stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=stop_sequences)
+                else:
+                    stop_token_ids_dict = {}
                 responses = openai_client.Completion.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
                     stop=stop_sequences,
+                    **stop_token_ids_dict,
                     stream=stream_output,
                     request_timeout=max_time,
                 )
