@@ -1120,8 +1120,8 @@ def go_gradio(**kwargs):
                                                   interactive=True,
                                                   multiselect=True,
                                                   visible=can_db_filter,
-                                                  # elem_id="multi-selection",
-                                                  allow_custom_value=True,
+                                                  elem_id="multi-selection",
+                                                  allow_custom_value=False,
                                                   )
                     with gr.Row():
                         with gr.Column():
