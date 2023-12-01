@@ -2141,24 +2141,30 @@ def file_to_doc(file,
     case2_arxiv = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
     case3_arxiv = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
     case4_arxiv = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
+    
+    url_prefixes_youtube = [
+        'https://www.youtube.com/watch?v=',
+        'http://www.youtube.com/watch?v=',
+        'www.youtube.com/watch?v=',
+        'youtube.com/watch?v=',
+        'https://www.youtube.com/shorts/',
+        'http://www.youtube.com/shorts/',
+        'www.youtube.com/shorts/',
+        'youtube.com/shorts/'
+    ]
 
-    case1_youtube = file_lower.startswith('https://www.youtube.com/watch?v=') and len(
-        file_lower.split('https://www.youtube.com/watch?v=')) == 2
-    case2_youtube = file_lower.startswith('http://www.youtube.com/watch?v=') and len(
-        file_lower.split('http://www.youtube.com/watch?v=')) == 2
-    case3_youtube = file_lower.startswith('www.youtube.com/watch?v=') and len(
-        file_lower.split('www.youtube.com/watch?v=')) == 2
-    case4_youtube = file_lower.startswith('youtube.com/watch?v=') and len(
-        file_lower.split('youtube.com/watch?v=')) == 2
+    is_arxiv = False
+    if case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv:
+        is_arxiv = True
+    is_youtube = any(file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
 
     if is_url and is_txt:
         # decide which
         if ' ' in file_stripped:
             # can't have literal space in URL
             is_url = False
-        elif case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv or \
-                case1_youtube or case2_youtube or case3_youtube or case4_youtube:
-            # force
+        elif is_arxiv or is_youtube:
+            # force it
             is_txt = False
         else:
             file_test = return_good_url(file_stripped)
@@ -2252,7 +2258,7 @@ def file_to_doc(file,
             file = source_file
 
     if is_url:
-        if case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv:
+        if is_arxiv:
             if case1_arxiv:
                 query = file.lower().split('arxiv:')[1].strip()
             elif case2_arxiv:
@@ -2283,7 +2289,7 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
-        elif (case1_youtube or case2_youtube or case3_youtube or case4_youtube) and enable_transcriptions:
+        elif (is_youtube) and enable_transcriptions:
             docs1 = []
             if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
