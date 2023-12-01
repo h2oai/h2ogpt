@@ -1476,6 +1476,7 @@ def get_llm(use_openai_model=False,
         # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
+            inference_server = 'openai_chat'
         # FIXME: Will later import be ignored?  I think so, so should be fine
         openai_client, inf_type, deployment_type, base_url, api_version, api_key = set_openai(inference_server)
 
