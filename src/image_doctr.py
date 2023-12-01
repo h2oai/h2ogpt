@@ -62,13 +62,13 @@ class H2OOCRLoader(ImageCaptionLoader):
         return self
 
     def unload_model(self):
-        if hasattr(self._ocr_model.det_predictor.model, 'cpu'):
+        if self._ocr_model and hasattr(self._ocr_model.det_predictor.model, 'cpu'):
             self._ocr_model.det_predictor.model.cpu()
             clear_torch_cache()
-        if hasattr(self._ocr_model.reco_predictor.model, 'cpu'):
+        if self._ocr_model and hasattr(self._ocr_model.reco_predictor.model, 'cpu'):
             self._ocr_model.reco_predictor.model.cpu()
             clear_torch_cache()
-        if hasattr(self._ocr_model, 'cpu'):
+        if self._ocr_model and hasattr(self._ocr_model, 'cpu'):
             self._ocr_model.cpu()
             clear_torch_cache()
 
