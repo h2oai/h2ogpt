@@ -1500,6 +1500,12 @@ def lg_to_gr(
         pdf_loaders_options0.append('OCR')
     if have_doctr and kwargs['enable_pdf_doctr'] in [True, 'on']:
         pdf_loaders_options0.append('DocTR')
+    if kwargs['use_pypdf'] in [True, 'on']:
+        pdf_loaders_options0.append('PyPDF')
+    if kwargs['use_unstructured_pdf'] in [True, 'on']:
+       pdf_loaders_options0.append('Unstructured')
+    if kwargs['try_pdf_as_html'] in [True, 'on']:
+       pdf_loaders_options0.append('TryHTML')
 
     url_loaders_options = []
     if only_unstructured_urls:
