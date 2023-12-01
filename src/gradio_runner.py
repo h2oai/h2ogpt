@@ -799,8 +799,6 @@ def go_gradio(**kwargs):
                                                 # placeholder="Enter Submits",
                                                 interactive=True,
                                                 visible=text_visible and kwargs['actions_in_sidebar'])
-                    github_textbox = gr.Textbox(label="Github URL",
-                                                visible=False and kwargs['actions_in_sidebar'])  # FIXME WIP
 
                 database_visible = kwargs['langchain_mode'] != 'Disabled'
                 langchain_choices0 = get_langchain_choices(selection_docs_state0)
