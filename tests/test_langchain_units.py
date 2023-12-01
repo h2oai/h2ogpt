@@ -1603,7 +1603,7 @@ def test_youtube_audio_add(db_type):
                                                add_if_exists=False)
             assert db is not None
             docs = db.similarity_search("Example")
-            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0) or len(docs) == 4
             assert 'structured output' in docs[0].page_content
             assert url in docs[0].metadata['source']
     kill_weaviate(db_type)

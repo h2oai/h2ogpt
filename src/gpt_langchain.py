@@ -2153,9 +2153,7 @@ def file_to_doc(file,
         'youtube.com/shorts/'
     ]
 
-    is_arxiv = False
-    if case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv:
-        is_arxiv = True
+    is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
     is_youtube = any(file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
 
     if is_url and is_txt:
