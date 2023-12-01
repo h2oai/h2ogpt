@@ -1560,13 +1560,16 @@ def test_url_more_subunit():
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
 
+    # Playwright and Selenium fails on cnn url
+    url_easy = 'https://github.com/h2oai/h2ogpt'
+
     from langchain.document_loaders import PlaywrightURLLoader
-    docs1 = PlaywrightURLLoader(urls=[url]).load()
+    docs1 = PlaywrightURLLoader(urls=[url_easy]).load()
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
 
     from langchain.document_loaders import SeleniumURLLoader
-    docs1 = SeleniumURLLoader(urls=[url]).load()
+    docs1 = SeleniumURLLoader(urls=[url_easy]).load()
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
 
