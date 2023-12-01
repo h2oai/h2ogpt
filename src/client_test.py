@@ -348,7 +348,9 @@ def run_client_nochat_api_lean_morestuff(prompt, prompt_type='human_bot', max_ne
         document_subset=DocumentSubset.Relevant.name,
         document_choice=[],
         document_source_substrings=[],
+        document_source_substrings_op='and',
         document_content_substrings=[],
+        document_content_substrings_op='and',
         h2ogpt_key=h2ogpt_key,
         add_search_to_context=False,
     )
