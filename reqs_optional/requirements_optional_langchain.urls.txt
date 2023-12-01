@@ -2,3 +2,5 @@
 playwright==1.37.0
 # requires Chrome binary to be in path
 selenium==4.11.2
+html2text==2020.1.16
+bs4==0.0.1

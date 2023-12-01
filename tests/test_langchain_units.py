@@ -1898,5 +1898,13 @@ def test_merge_docs(data_kind):
         assert all([x < max_input_tokens for x in tokens])
 
 
+@wrap_test_forked
+def test_crawl():
+    from src.gpt_langchain import Crawler
+    final_urls = Crawler(urls=['https://github.com/h2oai/h2ogpt'], verbose=True).run()
+    assert 'https://github.com/h2oai/h2ogpt/blob/main/docs/README_GPU.md' in final_urls
+    print(final_urls)
+
+
 if __name__ == '__main__':
     pass

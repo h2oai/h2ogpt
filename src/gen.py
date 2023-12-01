@@ -358,6 +358,8 @@ def main(
         use_unstructured=True,
         use_playwright=False,
         use_selenium=False,
+        use_scrapeplaywright=False,
+        use_scrapehttp=False,
 
         # pdfs
         use_pymupdf='auto',
@@ -851,6 +853,8 @@ def main(
     :param use_unstructured: Enable unstructured URL loader
     :param use_playwright: Enable PlayWright URL loader
     :param use_selenium: Enable Selenium URL loader
+    :param use_scrapeplaywright: Enable Scrape PlayWright URL loader
+    :param use_scrapehttp: Enable Scrape HTTP URL loader using aiohttp
 
     :param use_pymupdf: enable PyMUPDF 'auto' means use first, use others if they are 'auto' if no result
     :param use_unstructured_pdf: enable Unstructured PDF loader, 'auto' means use if pymupdf fails to get doc result
