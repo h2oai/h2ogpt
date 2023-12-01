@@ -123,6 +123,10 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'top_k_docs': 10,
                  'document_subset': DocumentSubset.Relevant.name,  # matches return
                  'document_choice': np.array([]),  # matches return
+                 'document_content_substrings': np.array([]),  # matches return
+                 'document_source_substrings_op': 'and',
+                 'document_source_substrings': np.array([]),  # matches return
+                 'document_content_substrings_op': 'and',
                  'langchain_agents': np.array([]),  # matches return
                  'pre_prompt_query': None,
                  'prompt_query': None,
@@ -157,7 +161,9 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
 
     expected1.update({k: v for k, v in kwargs.items() if
                       k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'load_awq', 'load_exllama', 'use_safetensors']})
-    drop_keys = ['document_choice', 'langchain_agents', 'image_audio_loaders']  # some numpy things annoying to match
+    drop_keys = ['document_choice',
+                 'document_source_substrings', 'document_source_substrings_op', 'document_content_substrings', 'document_content_substrings_op',
+                 'langchain_agents', 'image_audio_loaders']  # some numpy things annoying to match
     expected1 = {k: v for k, v in expected1.items() if k not in drop_keys}
     actual1 = {k: v for k, v in actual1.items() if k not in drop_keys}
     assert sorted(actual1.items()) == sorted(expected1.items())

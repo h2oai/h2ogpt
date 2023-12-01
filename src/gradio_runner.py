@@ -985,7 +985,7 @@ def go_gradio(**kwargs):
                                         audio = gr.Audio(**mic_sources_kwargs, streaming=True, visible=False,
                                                          # max_length=30 if is_public else None,
                                                          elem_id='audio',
-                                                         #waveform_options=dict(show_controls=True),
+                                                         # waveform_options=dict(show_controls=True),
                                                          )
                                         mic_button_kwargs = dict(fn=functools.partial(action,
                                                                                       stt_continue_mode=kwargs[
@@ -1112,14 +1112,55 @@ def go_gradio(**kwargs):
                         dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
                         active_collection = gr.Markdown(
                             value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
+                    can_db_filter = kwargs['langchain_mode'] != 'Disabled' and kwargs['db_type'] in ['chroma',
+                                                                                                     'chroma_old']
                     document_choice = gr.Dropdown(docs_state0,
                                                   label=dlabel1,
                                                   value=[DocumentChoice.ALL.value],
                                                   interactive=True,
                                                   multiselect=True,
-                                                  visible=kwargs['langchain_mode'] != 'Disabled',
-                                                  elem_id="multi-selection",
+                                                  visible=can_db_filter,
+                                                  # elem_id="multi-selection",
+                                                  allow_custom_value=True,
                                                   )
+                    with gr.Row():
+                        with gr.Column():
+                            document_source_substrings = gr.Dropdown([], label='Source substrings (post-search filter)',
+                                                                     # info='Post-search filter',
+                                                                     interactive=True,
+                                                                     multiselect=True,
+                                                                     visible=can_db_filter,
+                                                                     allow_custom_value=True,
+                                                                     scale=0,
+                                                                     )
+                        with gr.Column():
+                            document_source_substrings_op = gr.Dropdown(['and', 'or'],
+                                                                        label='Source substrings operation',
+                                                                        interactive=True,
+                                                                        multiselect=False,
+                                                                        visible=can_db_filter,
+                                                                        allow_custom_value=False,
+                                                                        scale=0,
+                                                                        )
+                        with gr.Column():
+                            document_content_substrings = gr.Dropdown([],
+                                                                      label='Content substrings (search-time filter)',
+                                                                      # info="Search-time filter of list of words to pass to where_document={'$contains': word list}",
+                                                                      interactive=True,
+                                                                      multiselect=True,
+                                                                      visible=can_db_filter,
+                                                                      allow_custom_value=True,
+                                                                      scale=0,
+                                                                      )
+                        with gr.Column():
+                            document_content_substrings_op = gr.Dropdown(['and', 'or'],
+                                                                         label='Content substrings operation',
+                                                                         interactive=True,
+                                                                         multiselect=False,
+                                                                         visible=can_db_filter,
+                                                                         allow_custom_value=False,
+                                                                         scale=0,
+                                                                         )
                     sources_visible = kwargs['langchain_mode'] != 'Disabled' and enable_sources_list
                     with gr.Row():
                         with gr.Column(scale=1):
@@ -1134,7 +1175,8 @@ def go_gradio(**kwargs):
 
                             show_sources_btn = gr.Button(value="Show Sources from DB", scale=0, size='sm',
                                                          visible=sources_visible and kwargs['large_file_count_mode'])
-                            delete_sources_btn = gr.Button(value="Delete Selected Sources from DB", scale=0, size='sm',
+                            delete_sources_btn = gr.Button(value="Delete Selected (not by substrings) Sources from DB",
+                                                           scale=0, size='sm',
                                                            visible=sources_visible)
                             refresh_sources_btn = gr.Button(value="Update DB with new/changed files on disk", scale=0,
                                                             size='sm',
@@ -1605,16 +1647,19 @@ def go_gradio(**kwargs):
                                         with gr.Column():
                                             model_choice = gr.Dropdown(model_options_state.value[0],
                                                                        label="Choose/Enter Base Model (HF name, TheBloke, file, URL)",
-                                                                       value=kwargs['base_model'] or model_options_state.value[0],
+                                                                       value=kwargs['base_model'] or
+                                                                             model_options_state.value[0],
                                                                        allow_custom_value=not is_public)
                                             lora_choice = gr.Dropdown(lora_options_state.value[0],
                                                                       label="Choose/Enter LORA",
-                                                                      value=kwargs['lora_weights'] or lora_options_state.value[0],
+                                                                      value=kwargs['lora_weights'] or
+                                                                            lora_options_state.value[0],
                                                                       visible=kwargs['show_lora'],
                                                                       allow_custom_value=not is_public)
                                             server_choice = gr.Dropdown(server_options_state.value[0],
                                                                         label="Choose/Enter Server",
-                                                                        value=kwargs['inference_server'] or server_options_state.value[0],
+                                                                        value=kwargs['inference_server'] or
+                                                                              server_options_state.value[0],
                                                                         visible=not is_public,
                                                                         allow_custom_value=not is_public)
                                         with gr.Column():
@@ -2582,7 +2627,8 @@ def go_gradio(**kwargs):
                                     model_options_state1 and \
                                     auth_user['model_options_state']:
                                 model_options_state1[0].extend(auth_user['model_options_state'][0])
-                                model_options_state1[0] = [x for x in model_options_state1[0] if x != no_model_str and x]
+                                model_options_state1[0] = [x for x in model_options_state1[0] if
+                                                           x != no_model_str and x]
                                 model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
                             if 'lora_options_state' in auth_user and \
                                     lora_options_state1 and \
@@ -2594,7 +2640,8 @@ def go_gradio(**kwargs):
                                     server_options_state1 and \
                                     auth_user['server_options_state']:
                                 server_options_state1[0].extend(auth_user['server_options_state'][0])
-                                server_options_state1[0] = [x for x in server_options_state1[0] if x != no_server_str and x]
+                                server_options_state1[0] = [x for x in server_options_state1[0] if
+                                                            x != no_server_str and x]
                                 server_options_state1[0] = [no_server_str] + sorted(set(server_options_state1[0]))
                             if 'chat_state' in auth_user:
                                 chat_state1.update(auth_user['chat_state'])

@@ -608,6 +608,10 @@ class GradioInference(H2Oagenerate, LLM):
                              chunk_size=chunk_size,
                              document_subset=DocumentSubset.Relevant.name,
                              document_choice=[DocumentChoice.ALL.value],
+                             document_source_substrings=[],
+                             document_source_substrings_op='and',
+                             document_content_substrings=[],
+                             document_content_substrings_op='and',
                              pre_prompt_query=None,
                              prompt_query=None,
                              pre_prompt_summary=None,
@@ -3926,7 +3930,9 @@ def is_new_chroma_db(db):
     return False
 
 
-def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk_id_filter=None, verbose=False):
+def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk_id_filter=None,
+               where_document_dict={},
+               verbose=False):
     if is_chroma_db(db) and large_chroma_db(db) and chunk_id_filter is not None:
         # try to avoid filter if just doing chunk_id -1 or >= 0
         docs = _sim_search(db, query=query, k=k * 4, with_score=with_score, verbose=verbose)
@@ -3943,13 +3949,18 @@ def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk
         if len(docs) < max(1, k // 4):
             # full search if failed to find enough
             docs = _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs,
+                               where_document_dict=where_document_dict,
                                verbose=verbose)
         return docs
     else:
-        return _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs, verbose=verbose)
+        return _sim_search(db, query=query, k=k, with_score=with_score, filter_kwargs=filter_kwargs,
+                           where_document_dict=where_document_dict,
+                           verbose=verbose)
 
 
-def _sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, verbose=False):
+def _sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None,
+                where_document_dict={},
+                verbose=False):
     if k == -1:
         k = 1000
     if filter_kwargs is None:
@@ -3958,9 +3969,9 @@ def _sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, verb
     while True:
         try:
             if with_score:
-                docs = db.similarity_search_with_score(query, k=k, **filter_kwargs)
+                docs = db.similarity_search_with_score(query, k=k, **filter_kwargs, **where_document_dict)
             else:
-                docs = db.similarity_search(query, k=k, **filter_kwargs)
+                docs = db.similarity_search(query, k=k, **filter_kwargs, **where_document_dict)
             break
         except (RuntimeError, AttributeError) as e:
             # AttributeError is for people with wrong version of langchain
@@ -4231,6 +4242,10 @@ def _run_qa_db(query=None,
                langchain_agents=None,
                document_subset=DocumentSubset.Relevant.name,
                document_choice=[DocumentChoice.ALL.value],
+               document_source_substrings=[],
+               document_source_substrings_op='and',
+               document_content_substrings=[],
+               document_content_substrings_op='and',
                pre_prompt_query=None,
                prompt_query=None,
                pre_prompt_summary=None,
@@ -4436,9 +4451,13 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     # default is to embed query directly without processing
     query_embedding = query
 
+    # support string as well
     if isinstance(document_choice, str):
-        # support string as well
         document_choice = [document_choice]
+    if isinstance(document_source_substrings, str):
+        document_source_substrings = [document_source_substrings]
+    if isinstance(document_content_substrings, str):
+        document_content_substrings = [document_content_substrings]
 
     get_answer_kwargs = dict(show_accordions=show_accordions,
                              show_link_in_sources=show_link_in_sources,
@@ -4683,12 +4702,14 @@ def get_docs_with_score(query, k_db,
                         filter_kwargs_backup,
                         db, db_type, text_context_list=None,
                         chunk_id_filter=None,
+                        where_document_dict={},
                         verbose=False):
     docs_with_score = _get_docs_with_score(query, k_db,
                                            filter_kwargs,
                                            db, db_type,
                                            text_context_list=text_context_list,
                                            chunk_id_filter=chunk_id_filter,
+                                           where_document_dict=where_document_dict,
                                            verbose=verbose)
     if len(docs_with_score) == 0 and filter_kwargs != filter_kwargs_backup:
         docs_with_score = _get_docs_with_score(query, k_db,
@@ -4696,6 +4717,7 @@ def get_docs_with_score(query, k_db,
                                                db, db_type,
                                                text_context_list=text_context_list,
                                                chunk_id_filter=chunk_id_filter,
+                                               where_document_dict=where_document_dict,
                                                verbose=verbose)
     return docs_with_score
 
@@ -4704,6 +4726,7 @@ def _get_docs_with_score(query, k_db,
                          filter_kwargs,
                          db, db_type, text_context_list=None,
                          chunk_id_filter=None,
+                         where_document_dict={},
                          verbose=False):
     docs_with_score = []
 
@@ -4731,6 +4754,7 @@ def _get_docs_with_score(query, k_db,
         docs_with_score_chroma = sim_search(db, query=query, k=k_db, with_score=True,
                                             filter_kwargs=filter_kwargs,
                                             chunk_id_filter=chunk_id_filter,
+                                            where_document_dict=where_document_dict,
                                             verbose=verbose)
         docs_with_score += docs_with_score_chroma
         if verbose:
@@ -5047,6 +5071,11 @@ def get_chain(query=None,
               langchain_agents=None,
               document_subset=DocumentSubset.Relevant.name,
               document_choice=[DocumentChoice.ALL.value],
+              document_source_substrings=[],
+              document_source_substrings_op='and',
+              document_content_substrings=[],
+              document_content_substrings_op='and',
+
               pre_prompt_query=None,
               prompt_query=None,
               pre_prompt_summary=None,
@@ -5447,7 +5476,19 @@ def get_chain(query=None,
         chunk_id_filter = None
         filter_kwargs = {}
         filter_kwargs_backup = {}
+        where_document_dict = {}
     else:
+        where_document_dict = {}
+        if document_content_substrings:
+            if len(document_content_substrings) > 1:
+                inner_list = [{'$contains': x} for x in document_content_substrings]
+                if document_content_substrings_op == 'or':
+                    where_document={"$or": inner_list}
+                else:
+                    where_document={"$and": inner_list}
+            else:
+                where_document={'$contains':document_content_substrings[0]}
+            where_document_dict = dict(where_document=where_document)
         import logging
         logging.getLogger("chromadb").setLevel(logging.ERROR)
         assert document_choice is not None, "Document choice was None"
@@ -5583,7 +5624,14 @@ def get_chain(query=None,
                                                   db, db_type,
                                                   text_context_list=text_context_list,
                                                   chunk_id_filter=chunk_id_filter,
+                                                  where_document_dict=where_document_dict,
                                                   verbose=verbose)
+            if document_source_substrings:
+                set_document_source_substrings = set(document_source_substrings)
+                if document_source_substrings_op == 'or':
+                    docs_with_score = [x for x in docs_with_score if any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+                else:
+                    docs_with_score = [x for x in docs_with_score if all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
     # SELECT PROMPT + DOCS
 
