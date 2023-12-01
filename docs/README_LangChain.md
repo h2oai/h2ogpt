@@ -127,8 +127,14 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
 
 ### Supported Meta Datatypes
 
-   - `.zip` : Zip File containing any native datatype,
+   - `.zip` : Zip File containing any native datatype.
    - `.urls` : Text file containing new-line separated URLs (to be consumed via download).
+
+If upload files and one of the files is a zip that contains images to be read by BLIP/DocTR or PDFs to be read by DocTR, this will currently fail with:
+```text
+Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
+```
+Please upload the zip separately for now.
 
 ### Supported Datatypes in UI
 

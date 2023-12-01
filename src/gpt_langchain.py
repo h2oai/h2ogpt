@@ -6375,13 +6375,12 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     elif db is not None:
         metadatas = get_metadatas(db, full_required=False)
         metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
-        exception_metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
+        exception_metadatas_sources = [x['source'] for x in metadatas if x.get('exception', '')]
         source_list = sorted(set(metadatas_sources))
         source_files_added = '\n'.join(source_list)
         num_chunks = len(metadatas_sources)
         num_sources_str = ">=%d" % len(source_list)
         if is_chroma_db(db):
-            #num_chunks_real = min(len(source_list), db._collection.count())
             num_chunks_real = db._collection.count()  # includes exceptions
             num_chunks_real -= len(exception_metadatas_sources)  # exclude exceptions
             if num_chunks_real == num_chunks:
