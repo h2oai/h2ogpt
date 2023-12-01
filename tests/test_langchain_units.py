@@ -288,6 +288,7 @@ def get_test_model():
                       sink_dict={},
                       truncation_generation=False,
                       hf_model_dict={},
+                      use_flash_attention_2=False,
 
                       verbose=False)
     model, tokenizer, device = get_model_retry(reward_type=False,
