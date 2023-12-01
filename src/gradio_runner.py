@@ -1382,7 +1382,9 @@ def go_gradio(**kwargs):
                                                        label="Force PDF Reader",
                                                        value=pdf_loaders_options0)
                         url_loaders = gr.CheckboxGroup(url_loaders_options,
-                                                       label="Force URL Reader", value=url_loaders_options0)
+                                                       label="Force URL Reader",
+                                                       info="Set env CRAWL_DEPTH to control depth for Scrape, default is 1 (given page + links on that page)",
+                                                       value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
 
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)

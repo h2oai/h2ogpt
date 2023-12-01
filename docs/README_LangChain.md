@@ -137,6 +137,30 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `ArXiv` : Any ArXiv name (e.g. `arXiv:1706.03762`),
    - `Text` : Paste Text into UI.
 
+### Supported Meta Tasks
+
+   - `ScrapeWithPlayWRight` : Async Web Scraping using headless Chromium via PlayWright
+   - `ScrapeWithHttp` : Async Web Scraping using aiohttp (slower than PlayWright)
+
+* Timing
+  * Typical page like passing `https://github.com/h2oai/h2ogpt` takes about 300 seconds to process at default depth of 1 with about 140 pages.
+  * No good progress indicators from these packages, so just have to wait.
+* Depth:
+  * Set env `CRAWL_DEPTH=<depth>` to control depth for some integer `<depth>`, where 0 means only actual page, 1 means that page + all links on that page, etc.  `CRAWL_DEPTH=1` by default to avoid excessive crawling.
+  * Set env `ALL_CRAWL_DEPTH=<depth>` to force all url loaders to crawl at some depth (will be slower than async ones)
+* BS4:
+  * Set env `HTML_TRANS=BS4` to use `BS4` to transform instead of `Html2TextTransformer`.  Set `BS4_TAGS` env to some string of list to set [tags](https://python.langchain.com/docs/use_cases/web_scraping#quickstart).
+    * e.g. `export BS4_TAGS="['span']"`
+  * Scrape text content tags such as `<p>`, `<li>`, `<div>`, and `<a>` tags from the HTML content:
+    * `<p>`: The paragraph tag. It defines a paragraph in HTML and is used to group together related sentences and/or phrases.
+    * `<li>`: The list item tag. It is used within ordered (`<ol>`) and unordered (`<ul>`) lists to define individual items within the list.
+    * `<div>`: The division tag. It is a block-level element used to group other inline or block-level elements.
+    * `<a>`: The anchor tag. It is used to define hyperlinks.
+    * `<span>`: an inline container used to mark up a part of a text, or a part of a document.
+  For many news websites (e.g., WSJ, CNN), headlines and summaries are all in `<span>` tags.
+* ScrapeWithHttp:
+  * Can change code in src/gpt_langchain.py to change `requests_per_second=10` to some other value.
+
 ### Adding new file types
 
 The function `file_to_doc` controls the ingestion, with [allowed ones listed](https://github.com/h2oai/h2ogpt/blob/1184f057088743599e2d5241329551b8f7f5320d/src/gpt_langchain.py#L1021-L1035).   If one wants to add a new file type, add it to the list `file_types`, and then add an entry in `file_to_doc()` function.

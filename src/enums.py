@@ -254,6 +254,8 @@ def gr_to_lg(image_audio_loaders,
         use_unstructured='Unstructured' in url_loaders,
         use_playwright='PlayWright' in url_loaders,
         use_selenium='Selenium' in url_loaders,
+        use_scrapeplaywright='ScrapeWithPlayWright' in url_loaders,
+        use_scrapehttp='ScrapeWithHttp' in url_loaders,
 
         # pdfs
         use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'off',

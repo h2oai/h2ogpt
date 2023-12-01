@@ -1514,6 +1514,8 @@ def lg_to_gr(
             url_loaders_options.append('Selenium')
         if have_playwright:
             url_loaders_options.append('PlayWright')
+            url_loaders_options.append('ScrapeWithPlayWright')
+        url_loaders_options.append('ScrapeWithHttp')
     url_loaders_options0 = [url_loaders_options[0]]
 
     assert set(image_audio_loaders_options0).issubset(image_audio_loaders_options), "%s %s" % (

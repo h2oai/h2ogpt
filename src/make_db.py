@@ -18,6 +18,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                use_unstructured=True,
                use_playwright=False,
                use_selenium=False,
+               use_scrapeplaywright=False,
+               use_scrapehttp=False,
 
                # pdfs
                use_pymupdf='auto',
@@ -56,6 +58,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                             use_unstructured=use_unstructured,
                             use_playwright=use_playwright,
                             use_selenium=use_selenium,
+                            use_scrapeplaywright=use_scrapeplaywright,
+                            use_scrapehttp=use_scrapehttp,
 
                             # pdfs
                             use_pymupdf=use_pymupdf,
@@ -112,6 +116,8 @@ def make_db_main(use_openai_embedding: bool = False,
                  use_unstructured=True,
                  use_playwright=False,
                  use_selenium=False,
+                 use_scrapeplaywright=False,
+                 use_scrapehttp=False,
 
                  # pdfs
                  use_pymupdf='auto',
@@ -187,6 +193,8 @@ def make_db_main(use_openai_embedding: bool = False,
     :param use_unstructured: see gen.py
     :param use_playwright: see gen.py
     :param use_selenium: see gen.py
+    :param use_scrapeplaywright: see gen.py
+    :param use_scrapehttp: see gen.py
 
     :param use_pymupdf: see gen.py
     :param use_unstructured_pdf: see gen.py
@@ -305,6 +313,8 @@ def make_db_main(use_openai_embedding: bool = False,
                          use_unstructured=use_unstructured,
                          use_playwright=use_playwright,
                          use_selenium=use_selenium,
+                         use_scrapeplaywright=use_scrapeplaywright,
+                         use_scrapehttp=use_scrapehttp,
 
                          # pdfs
                          use_pymupdf=use_pymupdf,

@@ -32,6 +32,7 @@ import tabulate
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
+from langchain.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
@@ -79,7 +80,7 @@ from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, Pytho
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
-    UnstructuredExcelLoader, JSONLoader
+    UnstructuredExcelLoader, JSONLoader, AsyncHtmlLoader, AsyncChromiumLoader
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, TextSplitter
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
@@ -2090,6 +2091,74 @@ def get_each_page(file):
     return pages
 
 
+class Crawler:
+    # FIXME: Consider scrapy
+    # https://www.scrapingbee.com/blog/crawling-python/
+    # https://github.com/scrapy/scrapy
+    # https://www.scrapingbee.com/blog/web-scraping-with-scrapy/
+
+    def __init__(self, urls=[], deeper_only=True, depth=int(os.getenv('CRAWL_DEPTH', '1')), verbose=False):
+        self.visited_urls = []
+        self.urls_to_visit = urls.copy()
+        self.starting_urls = urls.copy()
+        self.deeper_only = deeper_only
+        self.depth = depth
+        self.verbose=verbose
+        self.final_urls = []
+
+    def download_url(self, url):
+        return requests.get(url).text
+
+    def get_linked_urls(self, url, html):
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin
+
+        soup = BeautifulSoup(html, 'html.parser')
+        for link in soup.find_all('a'):
+            path = link.get('href')
+            if path and path.startswith('/'):
+                path = urljoin(url, path)
+            yield path
+
+    def add_url_to_visit(self, url):
+        if url not in self.visited_urls and url not in self.urls_to_visit:
+            if url in self.starting_urls:
+                pass
+            elif self.deeper_only and not any(url.startswith(x) for x in self.starting_urls):
+                if self.verbose:
+                    print("Skipped %s" % url, flush=True)
+            else:
+                self.urls_to_visit.append(url)
+                if self.verbose:
+                    print("Added %s" % url, flush=True)
+
+    def crawl(self, url):
+        html = self.download_url(url)
+        for url in self.get_linked_urls(url, html):
+            self.add_url_to_visit(url)
+
+    def run(self):
+        depth = 0
+        while self.urls_to_visit:
+            url = self.urls_to_visit.pop(0)
+            if self.verbose:
+                print(f'Crawling: {url}', flush=True)
+            try:
+                self.crawl(url)
+            except Exception as e:
+                if self.verbose:
+                    print(f'Failed to crawl: {url}: {str(e)}', flush=True)
+            finally:
+                self.visited_urls.append(url)
+                if depth >= self.depth:
+                    if self.verbose:
+                        print("Done crawling", flush=True)
+                    break
+                depth += 1
+        self.final_urls = sorted(set(self.urls_to_visit + self.visited_urls))
+        return self.final_urls
+
+
 def file_to_doc(file,
                 filei=0,
                 base_path=None, verbose=False, fail_any_exception=False,
@@ -2100,6 +2169,8 @@ def file_to_doc(file,
                 use_unstructured=True,
                 use_playwright=False,
                 use_selenium=False,
+                use_scrapeplaywright=False,
+                use_scrapehttp=False,
 
                 # pdfs
                 use_pymupdf='auto',
@@ -2195,6 +2266,8 @@ def file_to_doc(file,
                                           use_unstructured=use_unstructured,
                                           use_playwright=use_playwright,
                                           use_selenium=use_selenium,
+                                          use_scrapeplaywright=use_scrapeplaywright,
+                                          use_scrapehttp=use_scrapehttp,
 
                                           # pdfs
                                           use_pymupdf=use_pymupdf,
@@ -2313,6 +2386,11 @@ def file_to_doc(file,
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
+            url_depth = int(os.getenv('ALL_CRAWL_DEPTH', '0'))
+            if url_depth > 0:
+                final_urls = Crawler(urls=[file], verbose=verbose).run()
+            else:
+                final_urls = [file]
             docs1 = []
             do_unstructured = only_unstructured_urls or use_unstructured
             if only_selenium or only_playwright:
@@ -2324,14 +2402,14 @@ def file_to_doc(file,
             if only_unstructured_urls or only_playwright:
                 do_selenium = False
             if do_unstructured or use_unstructured:
-                docs1a = UnstructuredURLLoader(urls=[file], headers=dict(ssl_verify="False")).load()
+                docs1a = UnstructuredURLLoader(urls=final_urls, headers=dict(ssl_verify="False")).load()
                 docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
                 add_parser(docs1a, 'UnstructuredURLLoader')
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
                 from langchain.document_loaders import PlaywrightURLLoader
-                docs1a = asyncio.run(PlaywrightURLLoader(urls=[file]).aload())
+                docs1a = asyncio.run(PlaywrightURLLoader(urls=final_urls).aload())
                 # docs1 = PlaywrightURLLoader(urls=[file]).load()
                 docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
                 add_parser(docs1a, 'PlaywrightURLLoader')
@@ -2343,12 +2421,35 @@ def file_to_doc(file,
                 from langchain.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
                 try:
-                    docs1a = SeleniumURLLoader(urls=[file]).load()
+                    docs1a = SeleniumURLLoader(urls=final_urls).load()
                     docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
                     add_parser(docs1a, 'SeleniumURLLoader')
                     docs1.extend(docs1a)
                 except WebDriverException as e:
                     print("No web driver: %s" % str(e), flush=True)
+            if use_scrapehttp or use_scrapeplaywright:
+                docs1a = []
+                if url_depth > 0:
+                    # then already did crawl over depth, just use
+                    pass
+                else:
+                    final_urls = Crawler(urls=[file], verbose=verbose).run()
+                if use_scrapehttp:
+                    loader = AsyncHtmlLoader(final_urls, verify_ssl=False, requests_per_second=10, ignore_load_errors=True)
+                    docs1a = loader.load()
+                if use_scrapeplaywright:
+                    loader = AsyncChromiumLoader(final_urls)
+                    docs1a = loader.load()
+                if os.getenv('HTML_TRANS', 'HTML2TEXT') == 'BS4':
+                    bs_transformer = BeautifulSoupTransformer()
+                    # Scrape text content tags such as <p>, <li>, <div>, and <a> tags from the HTML content:
+                    # https://python.langchain.com/docs/use_cases/web_scraping#quickstart
+                    tags_to_extract = ast.literal_eval(os.getenv('BS4_TAGS', '["span"]'))
+                    docs1a = bs_transformer.transform_documents(docs1a, tags_to_extract=tags_to_extract)
+                else:
+                    html2text = Html2TextTransformer()
+                    docs1a = html2text.transform_documents(docs1a)
+                docs1.extend(docs1a)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
         add_meta(docs1, file, parser="is_url")
         docs1 = clean_doc(docs1)
@@ -2862,6 +2963,8 @@ def file_to_doc(file,
                            use_unstructured=use_unstructured,
                            use_playwright=use_playwright,
                            use_selenium=use_selenium,
+                           use_scrapeplaywright=use_scrapeplaywright,
+                           use_scrapehttp=use_scrapehttp,
 
                            # pdfs
                            use_pymupdf=use_pymupdf,
@@ -2932,6 +3035,8 @@ def path_to_doc1(file,
                  use_unstructured=True,
                  use_playwright=False,
                  use_selenium=False,
+                 use_scrapeplaywright=False,
+                 use_scrapehttp=False,
 
                  # pdfs
                  use_pymupdf='auto',
@@ -2985,6 +3090,8 @@ def path_to_doc1(file,
                           use_unstructured=use_unstructured,
                           use_playwright=use_playwright,
                           use_selenium=use_selenium,
+                          use_scrapeplaywright=use_scrapeplaywright,
+                          use_scrapehttp=use_scrapehttp,
 
                           # pdfs
                           use_pymupdf=use_pymupdf,
@@ -3051,6 +3158,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  use_unstructured=True,
                  use_playwright=False,
                  use_selenium=False,
+                 use_scrapeplaywright=False,
+                 use_scrapehttp=False,
 
                  # pdfs
                  use_pymupdf='auto',
@@ -3192,6 +3301,8 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   use_unstructured=use_unstructured,
                   use_playwright=use_playwright,
                   use_selenium=use_selenium,
+                  use_scrapeplaywright=use_scrapeplaywright,
+                  use_scrapehttp=use_scrapehttp,
 
                   # pdfs
                   use_pymupdf=use_pymupdf,
@@ -3749,6 +3860,8 @@ def _make_db(use_openai_embedding=False,
              use_unstructured=True,
              use_playwright=False,
              use_selenium=False,
+             use_scrapeplaywright=False,
+             use_scrapehttp=False,
 
              # pdfs
              use_pymupdf='auto',
@@ -3845,6 +3958,8 @@ def _make_db(use_openai_embedding=False,
                                 use_unstructured=use_unstructured,
                                 use_playwright=use_playwright,
                                 use_selenium=use_selenium,
+                                use_scrapeplaywright=use_scrapeplaywright,
+                                use_scrapehttp=use_scrapehttp,
 
                                 # pdfs
                                 use_pymupdf=use_pymupdf,
@@ -4183,6 +4298,8 @@ def _run_qa_db(query=None,
                use_unstructured=True,
                use_playwright=False,
                use_selenium=False,
+               use_scrapeplaywright=False,
+               use_scrapehttp=False,
 
                # pdfs
                use_pymupdf='auto',
@@ -5039,6 +5156,8 @@ def get_chain(query=None,
               use_unstructured=True,
               use_playwright=False,
               use_selenium=False,
+              use_scrapeplaywright=False,
+              use_scrapehttp=False,
 
               # pdfs
               use_pymupdf='auto',
@@ -5424,6 +5543,8 @@ def get_chain(query=None,
                                                         use_unstructured=use_unstructured,
                                                         use_playwright=use_playwright,
                                                         use_selenium=use_selenium,
+                                                        use_scrapeplaywright=use_scrapeplaywright,
+                                                        use_scrapehttp=use_scrapehttp,
 
                                                         # pdfs
                                                         use_pymupdf=use_pymupdf,
@@ -6254,12 +6375,15 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     elif db is not None:
         metadatas = get_metadatas(db, full_required=False)
         metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
+        exception_metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
         source_list = sorted(set(metadatas_sources))
         source_files_added = '\n'.join(source_list)
         num_chunks = len(metadatas_sources)
         num_sources_str = ">=%d" % len(source_list)
         if is_chroma_db(db):
-            num_chunks_real = min(len(source_list), db._collection.count())
+            #num_chunks_real = min(len(source_list), db._collection.count())
+            num_chunks_real = db._collection.count()  # includes exceptions
+            num_chunks_real -= len(exception_metadatas_sources)  # exclude exceptions
             if num_chunks_real == num_chunks:
                 num_sources_str = "=%d" % len(source_list)
             else:
@@ -6339,6 +6463,8 @@ def _update_user_db(file,
                     use_unstructured=True,
                     use_playwright=False,
                     use_selenium=False,
+                    use_scrapeplaywright=False,
+                    use_scrapehttp=False,
 
                     # pdfs
                     use_pymupdf='auto',
@@ -6479,6 +6605,8 @@ def _update_user_db(file,
                            use_unstructured=use_unstructured,
                            use_playwright=use_playwright,
                            use_selenium=use_selenium,
+                           use_scrapeplaywright=use_scrapeplaywright,
+                           use_scrapehttp=use_scrapehttp,
 
                            # pdfs
                            use_pymupdf=use_pymupdf,
@@ -6735,6 +6863,8 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      use_unstructured=True,
                                                      use_playwright=False,
                                                      use_selenium=False,
+                                                     use_scrapeplaywright=False,
+                                                     use_scrapehttp=False,
 
                                                      # pdfs
                                                      use_pymupdf='auto',
@@ -6809,6 +6939,8 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         use_unstructured=use_unstructured,
                                                         use_playwright=use_playwright,
                                                         use_selenium=use_selenium,
+                                                        use_scrapeplaywright=use_scrapeplaywright,
+                                                        use_scrapehttp=use_scrapehttp,
 
                                                         # pdfs
                                                         use_pymupdf=use_pymupdf,
