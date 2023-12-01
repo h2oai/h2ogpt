@@ -423,6 +423,10 @@ class GradioClient(Client):
                                       top_k_docs: int = 10,
                                       document_choice: Union[str, List[str]] = "All",
                                       document_subset: str = "Relevant",
+                                      document_source_substrings: Union[str, List[str]] = [],
+                                      document_source_substrings_op: str = 'and',
+                                      document_content_substrings: Union[str, List[str]] = [],
+                                      document_content_substrings_op: str = 'and',
 
                                       system_prompt: str | None = '',
                                       pre_prompt_query: str | None = pre_prompt_query0,
@@ -487,6 +491,10 @@ class GradioClient(Client):
             chunk_size: Size in characters of chunks
             document_choice: Which documents ("All" means all) -- need to use upload_api API call to get server's name if want to select
             document_subset: Type of query, see src/gen.py
+            document_source_substrings: See gen.py
+            document_source_substrings_op: See gen.py
+            document_content_substrings: See gen.py
+            document_content_substrings_op: See gen.py
 
             system_prompt: pass system prompt to models that support it.
               If 'auto' or None, then use automatic version
@@ -639,6 +647,10 @@ class GradioClient(Client):
             top_k_docs=top_k_docs,
             document_choice=document_choice,
             document_subset=document_subset,
+            document_source_substrings=document_source_substrings,
+            document_source_substrings_op=document_source_substrings_op,
+            document_content_substrings=document_content_substrings,
+            document_content_substrings_op=document_content_substrings_op,
 
             system_prompt=system_prompt,
             pre_prompt_query=pre_prompt_query,

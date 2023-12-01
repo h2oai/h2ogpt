@@ -301,6 +301,10 @@ def main(
 
         document_subset: str = DocumentSubset.Relevant.name,
         document_choice: list = [DocumentChoice.ALL.value],
+        document_source_substrings: list = [],
+        document_source_substrings_op: str = 'and',
+        document_content_substrings: list = [],
+        document_content_substrings_op: str = 'and',
 
         use_llm_if_no_docs: bool = True,
         load_db_if_exists: bool = True,
@@ -769,6 +773,10 @@ def main(
 
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name, 'All' means use all docs
+    :param document_source_substrings: substrings in list to search in source names in metadata for chroma dbs
+    :param document_source_substrings_op: 'and or 'or' for source search words
+    :param document_content_substrings: substrings in list to search in content for chroma dbs
+    :param document_content_substrings_op: 'and or 'or' for content search words
 
     :param use_llm_if_no_docs: Whether to use LLM even if no documents, when langchain_mode=UserData or MyData or custom
     :param load_db_if_exists: Whether to load chroma db if exists or re-generate db
@@ -2785,6 +2793,10 @@ def evaluate(
         chunk_size,
         document_subset,
         document_choice,
+        document_source_substrings,
+        document_source_substrings_op,
+        document_content_substrings,
+        document_content_substrings_op,
 
         pre_prompt_query,
         prompt_query,
@@ -3228,6 +3240,10 @@ def evaluate(
                 langchain_agents=langchain_agents,
                 document_subset=document_subset,
                 document_choice=document_choice,
+                document_source_substrings=document_source_substrings,
+                document_source_substrings_op=document_source_substrings_op,
+                document_content_substrings=document_content_substrings,
+                document_content_substrings_op=document_content_substrings_op,
                 top_k_docs=top_k_docs,
                 prompt_type=prompt_type,
                 prompt_dict=prompt_dict,
@@ -3290,6 +3306,10 @@ def evaluate(
                               langchain_agents=langchain_agents,
                               document_subset=document_subset,
                               document_choice=document_choice,
+                              document_source_substrings=document_source_substrings,
+                              document_source_substrings_op=document_source_substrings_op,
+                              document_content_substrings=document_content_substrings,
+                              document_content_substrings_op=document_content_substrings_op,
                               chat_conversation=chat_conversation,
                               add_search_to_context=add_search_to_context,
                               num_prompt_tokens=num_prompt_tokens,
@@ -3543,6 +3563,10 @@ def evaluate(
                                      chunk_size=chunk_size,
                                      document_subset=DocumentSubset.Relevant.name,
                                      document_choice=[DocumentChoice.ALL.value],
+                                     document_source_substrings=[],
+                                     document_source_substrings_op='and',
+                                     document_content_substrings=[],
+                                     document_content_substrings_op='and',
                                      pre_prompt_query=pre_prompt_query,
                                      prompt_query=prompt_query,
                                      pre_prompt_summary=pre_prompt_summary,
@@ -4301,7 +4325,9 @@ y = np.random.randint(0, 1, 100)
     for example in examples:
         example += [chat, '', '', LangChainMode.DISABLED.value, True,
                     LangChainAction.QUERY.value, [],
-                    top_k_docs, chunk, chunk_size, DocumentSubset.Relevant.name, [],
+                    top_k_docs, chunk, chunk_size,
+                    DocumentSubset.Relevant.name, [],
+                    [], 'and', [], 'and',
                     pre_prompt_query, prompt_query,
                     pre_prompt_summary, prompt_summary,
                     system_prompt,
