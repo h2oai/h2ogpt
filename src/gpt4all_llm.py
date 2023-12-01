@@ -319,6 +319,7 @@ class H2OLlamaCpp(LlamaCpp):
     context: Any
     iinput: Any
     count_input_tokens: Any = 0
+    prompts: Any = []
     count_output_tokens: Any = 0
     n_gpus: Any = -1
 
@@ -395,6 +396,7 @@ class H2OLlamaCpp(LlamaCpp):
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
         self.count_input_tokens += self.get_num_tokens(prompt)
+        self.prompts.append(prompt)
         stop = self.prompter.stop_sequences
 
         if verbose:

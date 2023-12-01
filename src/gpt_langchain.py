@@ -467,6 +467,7 @@ class H2Oagenerate:
         generations = []
         new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
         self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        self.prompts.extend(prompts)
         tasks = [
             asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
                                                       new_arg_supported=new_arg_supported, **kwargs))
@@ -531,6 +532,7 @@ class GradioInference(H2Oagenerate, LLM):
 
     async_sem: Any = None
     count_input_tokens: Any = 0
+    prompts: Any = []
     count_output_tokens: Any = 0
 
     min_max_new_tokens: Any = 256
@@ -638,6 +640,7 @@ class GradioInference(H2Oagenerate, LLM):
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
+        self.prompts.append(prompt)
 
         return client_kwargs, api_name
 
@@ -838,6 +841,7 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     tokenizer: Any = None
     async_sem: Any = None
     count_input_tokens: Any = 0
+    prompts: Any = []
     count_output_tokens: Any = 0
 
     def _call(
@@ -864,6 +868,7 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
         prompt = self.prompter.generate_prompt(data_point)
         self.count_input_tokens += self.get_num_tokens(prompt)
+        self.prompts.append(prompt)
 
         gen_server_kwargs = dict(do_sample=self.do_sample,
                                  stop_sequences=stop,
@@ -990,6 +995,7 @@ class H2OOpenAI(OpenAI):
     tokenizer: Any = None
     async_sem: Any = None
     count_input_tokens: Any = 0
+    prompts: Any = []
     count_output_tokens: Any = 0
     max_new_tokens0: Any = None
 
@@ -1040,6 +1046,7 @@ class H2OOpenAI(OpenAI):
             print("Hit _generate", flush=True)
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        self.prompts.extend(prompts)
         rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
         try:
             self.count_output_tokens += sum(
@@ -1097,6 +1104,7 @@ class H2OOpenAI(OpenAI):
             return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
         else:
             self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+            self.prompts.extend(prompts)
             tasks = [
                 asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager, **kwargs))
                 for prompt in prompts]
@@ -1302,6 +1310,7 @@ class H2OAzureOpenAI(AzureOpenAI):
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
     count_input_tokens: Any = 0
+    prompts: Any = []
     count_output_tokens: Any = 0
 
     def _call(
@@ -1312,6 +1321,7 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
             **kwargs: Any,
     ) -> str:
         self.count_input_tokens += self.get_num_tokens(prompt)
+        self.prompts.append(prompt)
         response = self.pipeline(prompt, stop=stop)
         if self.pipeline.task == "text-generation":
             # Text generation return includes the starter text.
@@ -4492,7 +4502,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         formatted_doc_chunks = '\n\n'.join([get_url(x) + '\n\n' + x.page_content for x in docs])
         if not formatted_doc_chunks and not use_llm_if_no_docs:
             yield dict(prompt=prompt_basic, response="No sources", sources='', num_prompt_tokens=0,
-                       llm_answers=llm_answers, response_no_refs='', sources_str='')
+                       llm_answers=llm_answers, response_no_refs='', sources_str='', prompt_raw=prompt_basic)
             return
         # if no sources, outside gpt_langchain, LLM will be used with '' input
         scores = [1] * len(docs)
@@ -4505,13 +4515,13 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                       ))
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=sources, num_prompt_tokens=0,
-                   llm_answers=llm_answers, response_no_refs='', sources_str=sources_str)
+                   llm_answers=llm_answers, response_no_refs='', sources_str=sources_str, prompt_raw=prompt_basic)
         return
     if langchain_agents and not chain:
         ret = '%s not supported by this model' % langchain_agents[0]
         sources = []
         yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
-                   response_no_refs=ret, sources_str='')
+                   response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
         return
     if langchain_mode not in langchain_modes_non_db and not docs:
         if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
@@ -4528,7 +4538,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         if ret is not None:
             sources = []
             yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
-                       response_no_refs=ret, sources_str='')
+                       response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
             return
 
     # NOTE: If chain=None, could return if HF type (i.e. not langchain_only_model), but makes code too complex
@@ -4557,7 +4567,11 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                   ))
 
     # for final yield, get real prompt used
-    if hasattr(llm, 'prompter') and llm.prompter.prompt is not None:
+    if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'prompts') and llm.pipeline.prompts:
+        prompt = str(llm.pipeline.prompts)
+    elif hasattr(llm, 'prompts') and llm.prompts:
+        prompt = str(llm.prompts)
+    elif hasattr(llm, 'prompter') and llm.prompter.prompt:
         prompt = llm.prompter.prompt
     else:
         prompt = prompt_basic
@@ -4570,14 +4584,14 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         llm_answers['llm_answer_final'] = ret
         if verbose:
             print('response: %s' % ret)
-        yield dict(prompt=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
+        yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
                    llm_answers=llm_answers, response_no_refs=ret, sources_str='')
     elif answer is not None:
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         llm_answers['llm_answer_final'] = ret
         if verbose:
             print('response: %s' % ret)
-        yield dict(prompt=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
+        yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
                    llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
     return
 
@@ -4618,7 +4632,7 @@ def run_target(query='',
                 outputs = ""
                 output1_old = ''
                 res_dict = dict(prompt=query, response='', sources='', num_prompt_tokens=0, llm_answers=llm_answers,
-                                response_no_refs='', sources_str='')
+                                response_no_refs='', sources_str='', prompt_raw=query)
                 try:
                     tgen0 = time.time()
                     for new_text in streamer:
@@ -4648,7 +4662,8 @@ def run_target(query='',
                         # in-place change to this key so exposed outside this generator
                         llm_answers[llm_answers_key] = output1
                         res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0,
-                                        llm_answers=llm_answers, response_no_refs=output1, sources_str='')
+                                        llm_answers=llm_answers, response_no_refs=output1, sources_str='',
+                                        prompt_raw=query)
                         if output1 != output1_old:
                             yield res_dict
                             output1_old = output1
@@ -4968,7 +4983,7 @@ def run_hyde(*args, **kwargs):
                                    async_output=async_output,
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
-            yield dict(prompt=ret['prompt'], response=response, sources=ret['sources'],
+            yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
                        num_prompt_tokens=ret['num_prompt_tokens'],
                        llm_answers=ret['llm_answers'],
                        # only give back no_refs if final
@@ -4990,7 +5005,7 @@ def run_hyde(*args, **kwargs):
             # yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers)
             # try yield after
             # print("answer: %s" % answer)
-            yield dict(prompt=prompt_basic, response=answer, sources=sources, num_prompt_tokens=0,
+            yield dict(prompt_raw=prompt_basic, response=answer, sources=sources, num_prompt_tokens=0,
                        llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
 
             # update embedding query

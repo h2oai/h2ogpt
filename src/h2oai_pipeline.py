@@ -37,6 +37,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         super().__init__(*args, **kwargs)
         self.prompt_text = None
         self.use_prompter = use_prompter
+        self.prompts = []
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.prompter = prompter
@@ -144,6 +145,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         if self.prompter is not None:
             prompt_text = self.prompter.generate_prompt(data_point)
         self.prompt_text = prompt_text
+        self.prompts.append(prompt_text)
         if handle_long_generation is None:
             # forces truncation of inputs to avoid critical failure
             handle_long_generation = None  # disable with new approaches

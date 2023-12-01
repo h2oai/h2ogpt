@@ -3290,12 +3290,13 @@ def go_gradio(**kwargs):
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         tts_speed1,
                                         langchain_action1):
-                    history, error, sources, sources_str, save_dict, audio1 = res
+                    history, error, sources, sources_str, prompt_raw, save_dict, audio1 = res
                     res_dict = {}
                     res_dict['response'] = history[-1][1]
                     res_dict['error'] = error
                     res_dict['sources'] = sources
                     res_dict['sources_str'] = sources_str
+                    res_dict['prompt_raw'] = prompt_raw
                     res_dict['save_dict'] = save_dict
                     res_dict['audio'] = audio1
 
@@ -3751,9 +3752,10 @@ def go_gradio(**kwargs):
             error = ''
             sources = []
             sources_str = ''
+            prompt_raw = ''
             save_dict = dict()
             audio1 = None
-            yield history, error, sources, sources_str, save_dict, audio1
+            yield history, error, sources, sources_str, prompt_raw, save_dict, audio1
             return
 
         def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1):
@@ -3817,12 +3819,13 @@ def go_gradio(**kwargs):
             save_dict = dict()
             output_no_refs = ''
             sources_str = ''
+            prompt_raw = ''
 
             audio0, audio1, no_audio, generate_speech_func_func = \
                 prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1)
 
             if not fun1:
-                yield history, error, sources, sources_str, save_dict, audio1
+                yield history, error, sources, sources_str, prompt_raw, save_dict, audio1
                 return
             try:
                 for output_fun in fun1():
@@ -3830,6 +3833,7 @@ def go_gradio(**kwargs):
                     output_no_refs = output_fun['response_no_refs']
                     sources = output_fun['sources']  # FIXME: can show sources in separate text box etc.
                     sources_str = output_fun['sources_str']
+                    prompt_raw = output_fun['prompt_raw']
                     save_dict = output_fun.get('save_dict', {})
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output)
@@ -3839,45 +3843,45 @@ def go_gradio(**kwargs):
                         while True:
                             audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=False)
                             if audio0 is not None:
-                                yield history, error, sources, sources_str, save_dict, audio0
+                                yield history, error, sources, sources_str, prompt_raw, save_dict, audio0
                                 audio0 = None
                             if sentence is not None:
                                 # print("in %s %s" % (sentence is None, audio1 is None), flush=True)
-                                yield history, error, sources, sources_str, save_dict, audio1
+                                yield history, error, sources, sources_str, prompt_raw, save_dict, audio1
                             else:
                                 # print("break %s %s" % (sentence is None, audio1 is None), flush=True)
                                 # while True to handle case when streaming is fast enough that see multiple sentences in single go
                                 break
                     else:
-                        yield history, error, sources, sources_str, save_dict, audio0
+                        yield history, error, sources, sources_str, prompt_raw, save_dict, audio0
                 if generate_speech_func_func:
                     # print("final %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
                     audio1, sentence, sentence_state = generate_speech_func_func(output_no_refs, is_final=True)
                     if audio0 is not None:
-                        yield history, error, sources, sources_str, save_dict, audio0
+                        yield history, error, sources, sources_str, prompt_raw, save_dict, audio0
                 else:
                     audio1 = None
                 # print("final2 %s %s" % (history[-1][1] is None, audio1 is None), flush=True)
-                yield history, error, sources, sources_str, save_dict, audio1
+                yield history, error, sources, sources_str, prompt_raw, save_dict, audio1
             except StopIteration:
                 # print("STOP ITERATION", flush=True)
-                yield history, error, sources, sources_str, save_dict, no_audio
+                yield history, error, sources, sources_str, prompt_raw, save_dict, no_audio
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
                     history.pop()
-                    yield history, error, sources, sources_str, save_dict, no_audio
+                    yield history, error, sources, sources_str, prompt_raw, save_dict, no_audio
                 else:
                     if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                         history[-1][1] = ''
-                    yield history, str(e), sources, sources_str, save_dict, no_audio
+                    yield history, str(e), sources, sources_str, prompt_raw, save_dict, no_audio
                     raise
             except Exception as e:
                 # put error into user input
                 ex = "Exception: %s" % str(e)
                 if history and len(history) > 0 and len(history[0]) > 1 and history[-1][1] is None:
                     history[-1][1] = ''
-                yield history, ex, sources, sources_str, save_dict, no_audio
+                yield history, ex, sources, sources_str, prompt_raw, save_dict, no_audio
                 raise
             finally:
                 # clear_torch_cache()
@@ -3917,7 +3921,7 @@ def go_gradio(**kwargs):
                                         tts_speed1,
                                         langchain_action1):
                     do_yield = False
-                    history, error, sources, sources_str, save_dict, audio1 = res
+                    history, error, sources, sources_str, prompt_raw, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     do_yield |= (history_str != history_str_old or error != error_old)
@@ -4051,6 +4055,7 @@ def go_gradio(**kwargs):
             exceptions_old_str = exceptions_str
             sources = sources_all_old = [[]] * len(bots_old)
             sources_str = sources_str_all_old = [[]] * len(bots_old)
+            prompt_raw = prompt_raw_all_old = [[]] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
             if kwargs['tts_model'].startswith('microsoft'):
                 from src.tts_utils import prepare_speech, get_no_audio
@@ -4087,7 +4092,11 @@ def go_gradio(**kwargs):
                                        for x, y in zip(res1, sources_str_all_old)]
                     sources_str_all_old = sources_str_all.copy()
 
-                    save_dicts = [x[4] if x is not None and not isinstance(x, BaseException) else y
+                    prompt_raw_all = [x[4] if x is not None and not isinstance(x, BaseException) else y
+                                       for x, y in zip(res1, prompt_raw_all_old)]
+                    prompt_raw_all_old = prompt_raw_all.copy()
+
+                    save_dicts = [x[5] if x is not None and not isinstance(x, BaseException) else y
                                   for x, y in zip(res1, save_dicts_old)]
                     save_dicts_old = save_dicts.copy()
 
@@ -4097,7 +4106,7 @@ def go_gradio(**kwargs):
                     do_yield |= exceptions_str != exceptions_old_str
                     exceptions_old_str = exceptions_str
 
-                    audios_gen = [x[5] if x is not None and not isinstance(x, BaseException) else None for x in
+                    audios_gen = [x[6] if x is not None and not isinstance(x, BaseException) else None for x in
                                   res1]
                     audios_gen = [x for x in audios_gen if x is not None]
                     if os.getenv('HARD_ASSERTS'):
