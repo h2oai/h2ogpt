@@ -5569,7 +5569,10 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             df = func(file).head(100)
         except:
-            return dummy_ret
+            # actual JSON required
+            with open(file, 'rt') as f:
+                json_blob = f.read()
+            return dummy1, dummy1, gr.update(visible=True, value=json_blob), dummy1, dummy1, dummy1
         return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1
     port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     import pathlib
