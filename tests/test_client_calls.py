@@ -2766,7 +2766,7 @@ def test_client_clone(stream_output):
         response = res_dict['response']
         assert len(response) > 0
         sources = res_dict['sources']
-        assert sources == ''
+        assert sources == []
 
 
 @pytest.mark.parametrize("max_time", [1, 5])
@@ -2790,7 +2790,7 @@ def test_client_timeout(stream_output, max_time):
     assert len(response) > 0
     assert time.time() - t0 < max_time * 2
     sources = res_dict['sources']
-    assert sources == ''
+    assert sources == []
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
@@ -3620,14 +3620,14 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
                        'text standardization' in summary or \
                        'speech processing systems' in summary
             if summary == 'No relevant documents to extract from.':
-                assert sources == ''
+                assert sources == []
             else:
                 assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
                 assert 'whisper1.pdf' in [x['source'] for x in sources][0]
     else:
         # weaviate as usual gets confused and has too many sources
         if summary == 'No relevant documents to extract from.':
-            assert sources == ''
+            assert sources == []
         else:
             assert '1paul_graham.txt' in [x['source'] for x in sources][0]
 
@@ -3788,7 +3788,7 @@ def test_fastsys(stream_output, bits, prompt_type):
            "As  an  AI  language  model,  I  don't  have  a  personal  identity  or  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response or \
            "As  an  AI  language  model,  I  don't  have  a  physical  identity  or  a  physical  presence.  I  exist  solely  to  provide  information  and  answer  questions  to  the  best  of  my  ability.  How  can  I  assist  you  today?" in response
     sources = res_dict['sources']
-    assert sources == ''
+    assert sources == []
 
     # get file for client to upload
     url = 'https://cdn.openai.com/papers/whisper.pdf'
