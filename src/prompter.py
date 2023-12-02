@@ -133,6 +133,7 @@ prompt_type_to_model_name = {
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
     "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
+    "xwincoder": ['Xwin-LM/XwinCoder-7B', 'Xwin-LM/XwinCoder-13B', 'Xwin-LM/XwinCoder-34B'],
     "mistrallite": ['amazon/MistralLite'],
     "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k',
                'BAAI/AquilaChat2-7B-16K'],
@@ -876,6 +877,25 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInput = None
         PreResponse = """ASSISTANT:"""
         terminate_response = [PreResponse, 'ASSISTANT:', '</s>']
+        chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work, so use huggingface/vllm example
+        chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work,  so use huggingface/vllm example
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.xwincoder.value, str(PromptType.xwincoder.value),
+                         PromptType.xwincoder.name]:
+        # https://huggingface.co/Xwin-LM/Xwin-LM-13B-V0.1#huggingface-example
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "You are an AI coding assistant that helps people with programming. Write a response that appropriately completes the user's request.\n"
+        # space below intended
+        preprompt = """<system>: %s\n""" % system_prompt if not (chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """<user>: """
+        PreInput = None
+        PreResponse = """<AI>:"""
+        terminate_response = [PreResponse, '<AI>:', '</s>']
         chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work, so use huggingface/vllm example
         chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work,  so use huggingface/vllm example
         humanstr = PreInstruct
