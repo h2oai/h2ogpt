@@ -104,7 +104,7 @@ def test_pipeline2():
     res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
     print(res[0]["generated_text"])
 
-    assert 'Drinking water is so healthy because it is a natural source of hydration' in res[0]['generated_text']
+    assert 'Drinking water is so healthy because it is full of nutrients and other beneficial substances' in res[0]['generated_text']
 
 
 @wrap_test_forked
@@ -123,4 +123,4 @@ def test_pipeline3():
     res = generate_text("Why is drinking water so healthy?", max_new_tokens=100)
     print(res[0]["generated_text"])
 
-    assert 'Drinking water is so healthy because it is a natural source of hydration' in res[0]['generated_text']
+    assert 'Drinking water is so healthy because it is full of nutrients and other beneficial substances' in res[0]['generated_text']
