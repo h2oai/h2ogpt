@@ -2707,6 +2707,7 @@ def file_to_doc(file,
             with open(file, "r") as f:
                 doc1 = Document(page_content=str(f.read()), metadata=metadata)
             add_meta(doc1, file, parser='JSONAsTextLoader: json failed with: %s' % str(e))
+        doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.jsonl'):
         loader = JSONLoader(
             file_path=file,
@@ -2727,6 +2728,7 @@ def file_to_doc(file,
             with open(file, "r") as f:
                 doc1 = Document(page_content=str(f.read()), metadata=metadata)
             add_meta(doc1, file, parser='JSONLAsTextLoader: jsonl failed with: %s' % str(e))
+        doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.pdf'):
         # migration
         if isinstance(use_pymupdf, bool):
@@ -3004,11 +3006,16 @@ def file_to_doc(file,
     if not isinstance(doc1, list):
         # If not list, did not chunk yet, so chunk now
         docs = chunk_sources([doc1])
-    elif isinstance(doc1, list) and len(doc1) == 1:
-        # if list of length one, don't trust and chunk it, chunk_id's will still be correct if repeat
-        docs = chunk_sources(doc1)
     else:
-        docs = doc1
+        if len(doc1) == 1:
+            # if list of length one, don't trust and chunk it, chunk_id's will still be correct if repeat
+            docs = chunk_sources(doc1)
+        elif doc1 and doc1[0].metadata.get('chunk_id') is None:
+            if os.getenv('HARD_ASSERTS'):
+                raise ValueError("Did not set chunk_id: %s" % str(doc1))
+            docs = chunk_sources(doc1)
+        else:
+            docs = doc1
 
     assert isinstance(docs, list)
 
