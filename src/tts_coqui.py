@@ -3,6 +3,8 @@ from __future__ import annotations
 import functools
 import io
 import os
+import tempfile
+
 import numpy as np
 import uuid
 import subprocess
@@ -230,7 +232,8 @@ def sentence_to_wave(sentence, supported_languages, tts_speed,
             if audio_stream is not None:
                 if not return_as_byte:
                     if return_nonbyte_as_file:
-                        audio_unique_filename = "/tmp/" + str(uuid.uuid4()) + ".wav"
+                        tmpdir = os.getenv('TMPDDIR', tempfile.mkdtemp())
+                        audio_unique_filename = os.path.join(tmpdir, str(uuid.uuid4()) + ".wav")
                         with wave.open(audio_unique_filename, "w") as f:
                             f.setnchannels(1)
                             # 2 bytes per sample.
