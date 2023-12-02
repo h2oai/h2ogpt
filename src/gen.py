@@ -3387,7 +3387,7 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai_client, inf_type, _, _, _, _ = set_openai(inference_server)
+            openai_client, inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []
@@ -3402,19 +3402,21 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
-            if inf_type == 'vllm' or inference_server == 'openai_client':
+            if inf_type == 'vllm' or inf_type == 'openai':
                 if inf_type == 'vllm':
                     stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=stop_sequences)
+                    other_dict = dict(request_timeout=max_time)
                 else:
                     stop_token_ids_dict = {}
-                responses = openai_client.Completion.create(
+                    other_dict = dict(timeout=max_time)
+                responses = openai_client.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
                     stop=stop_sequences,
                     **stop_token_ids_dict,
                     stream=stream_output,
-                    request_timeout=max_time,
+                    **other_dict,
                 )
                 text = ''
                 sources = []
@@ -3440,7 +3442,11 @@ def evaluate(
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                             break
-            elif inf_type == 'vllm_chat' or inference_server == 'openai_chat':
+            elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
+                if inf_type == 'vllm_chat':
+                    other_dict = dict(request_timeout=max_time)
+                else:
+                    other_dict = dict(timeout=max_time)
                 if system_prompt in [None, 'None', 'auto']:
                     openai_system_prompt = "You are a helpful assistant."
                 else:
@@ -3458,12 +3464,12 @@ def evaluate(
                             messages0.append(
                                 {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
                 messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
-                responses = openai_client.ChatCompletion.create(
+                responses = openai_client.create(
                     model=base_model,
                     messages=messages0,
                     stream=stream_output,
                     **gen_server_kwargs,
-                    request_timeout=max_time,
+                    **other_dict,
                 )
                 text = ""
                 sources = []
@@ -3477,9 +3483,13 @@ def evaluate(
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
-                        delta = chunk["choices"][0]["delta"]
-                        if 'content' in delta:
-                            text += delta['content']
+                        if inference_server.startswith('openai'):
+                            delta = chunk.choices[0].delta.content
+                        else:
+                            delta = chunk["choices"][0]["delta"]
+                            delta = delta['content'] if 'content' in delta else None
+                        if delta:
+                            text += delta
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},

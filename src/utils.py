@@ -1304,7 +1304,7 @@ only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
 
 
-def set_openai(inference_server):
+def set_openai(inference_server, model_name=None):
     if inference_server.startswith('vllm'):
         import openvllm
         openvllm.api_key = "EMPTY"
@@ -1316,7 +1316,11 @@ def set_openai(inference_server):
             ip_vllm = inference_server.split(':')[1].strip()
             port_vllm = inference_server.split(':')[2].strip()
             openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
-        return openvllm, inf_type, None, None, None, openvllm.api_key
+        if inference_server.startswith('vllm_chat'):
+            openvllm = openvllm.ChatCompletion
+        else:
+            openvllm = openvllm.Completion
+        return openvllm, inf_type, None, openvllm.api_base, None, openvllm.api_key
     else:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = None
@@ -1351,12 +1355,25 @@ def set_openai(inference_server):
         if base_url == 'None':
             base_url = None
 
+        # cannot use non-chat model, uses old openai. stuff if go through to H2OOpenAI with chat model
+        if model_name:
+            chat_model = (model_name.startswith("gpt-3.5-turbo") or model_name.startswith(
+                "gpt-4")) and "-instruct" not in model_name
+            if chat_model and inf_type == 'openai_azure':
+                inf_type = 'openai_azure_chat'
+            if chat_model and inf_type == 'openai':
+                inf_type = 'openai_chat'
+
         from openai import OpenAI, AzureOpenAI
-        if 'azure' in inference_server:
+        if inf_type in ['openai_azure', 'openai_azure_chat']:
             client = AzureOpenAI(azure_deployment=deployment_type, azure_endpoint=base_url, api_version=api_version,
                                  api_key=api_key)
         else:
             client = OpenAI(base_url=base_url, api_key=api_key)
+        if inf_type in ['openai_chat', 'openai_azure_chat']:
+            client = client.chat.completions
+        else:
+            client = client.completions
 
         return client, inf_type, deployment_type, base_url, api_version, api_key
 

@@ -1478,15 +1478,8 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        # FIXME: Will later import be ignored?  I think so, so should be fine
-        openai_client, inf_type, deployment_type, base_url, api_version, api_key = set_openai(inference_server)
-
-        if use_openai_model or inference_server.startswith('openai'):
-            # cannot use non-chat model, uses old openai. stuff if go through to H2OOpenAI with chat model
-            chat_model = (model_name.startswith("gpt-3.5-turbo") or model_name.startswith(
-                "gpt-4")) and "-instruct" not in model_name
-            if chat_model and (inf_type == 'openai_azure' or inf_type == 'openai'):
-                raise ValueError("Use openai_azure_chat or openai_chat for chat models")
+        openai_client, inf_type, deployment_type, base_url, api_version, api_key = \
+            set_openai(inference_server, model_name=model_name)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
@@ -1541,9 +1534,9 @@ def get_llm(use_openai_model=False,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
-                                         openai_api_base=openai_client.api_base,
+                                         openai_api_base=base_url,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
-                                         client=openai_client.Completion,
+                                         client=openai_client,
                                          async_sem=async_sem,
                                          max_new_tokens0=max_new_tokens0,
                                          ))

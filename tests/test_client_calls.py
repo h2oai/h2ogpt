@@ -2918,7 +2918,7 @@ def go_upload_gradio():
 
 
 # NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
-@pytest.mark.parametrize("inference_server", [None, 'openai_chat', 'openai_azure_chat', 'replicate'])
+@pytest.mark.parametrize("inference_server", [None, 'openai', 'openai_chat', 'openai_azure_chat', 'replicate'])
 # local_server=True
 @pytest.mark.parametrize("base_model",
                          ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat', 'gpt-3.5-turbo'])
