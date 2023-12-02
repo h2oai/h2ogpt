@@ -2606,11 +2606,11 @@ def test_client_load_unload_models(model_choice):
         max_seq_len_ex = 2048.0
     elif model_choice in ['llama', 'TheBloke/Llama-2-7B-Chat-GGUF']:
         prompt_type_ex = 'llama2'
-        model_choice_ex = 'llama'
+        model_choice_ex = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
         max_seq_len_ex = 4096.0
     elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
         prompt_type_ex = 'zephyr'
-        model_choice_ex = 'llama'
+        model_choice_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7B-beta.Q6_K.gguf'
         max_seq_len_ex = 4096.0
     elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
                           'TheBloke/zephyr-7B-beta-AWQ']:

@@ -102,15 +102,10 @@ fi
 #    ```
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
 #    ```bash
-    pip uninstall -y auto-gptq ; pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-linux_x86_64.whl
+    pip uninstall -y auto-gptq ; pip install auto-gptq==0.5.1 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
     pip install optimum==1.14.1
 #    ```
-#    This avoids issues with missing cuda extensions etc.  if this does not apply to your system, run:
-#    ```bash
-    pip uninstall -y auto-gptq ; GITHUB_ACTIONS=true pip install auto-gptq --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/ --no-cache-dir
-#    ```
-#    If one sees `CUDA extension not installed` in output after loading model, one needs to compile AutoGPTQ, else will use double memory and be slower on GPU.
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 #* GPU Optional: For AutoAWQ support on x86_64 linux
 #    ```bash

@@ -91,9 +91,9 @@ For newer builds of windows versions of 10/11.
    ```bash
     pip uninstall -y auto-gptq
     # GPU
-    pip install https://github.com/PanQiWei/AutoGPTQ/releases/download/v0.4.2/auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl
-    # CPU
-    pip install auto_gptq==0.4.2
+    pip install auto-gptq==0.5.1 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
+    # or CPU
+    pip install auto_gptq==0.5.1
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
     pip install optimum==1.14.1
    ```
