@@ -28,6 +28,7 @@ from urllib.parse import urlparse
 
 import filelock
 import tabulate
+import torch
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
@@ -88,6 +89,11 @@ from langchain.prompts import PromptTemplate
 from langchain.llms import HuggingFaceTextGenInference, HuggingFacePipeline
 from langchain.vectorstores import Chroma
 from chromamig import ChromaMig
+
+
+def get_context_cast():
+    # chroma not autocasting right internally
+    return torch.autocast('cuda') if torch.cuda.is_available() else NullContext
 
 
 def split_list(input_list, split_size):
@@ -420,8 +426,10 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
                                                       model_kwargs=model_kwargs,
                                                       encode_kwargs=encode_kwargs)
+            embedding.client.eval()
         else:
             embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+            embedding.client.eval()
         if gpu_id == 'auto':
             gpu_id = 0
         if preload and \
@@ -3599,10 +3607,19 @@ def get_existing_db(db, persist_directory,
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
             got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
-            if got_embedding:
-                use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
-            embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
-                                      gpu_id=embedding_gpu_id)
+            if got_embedding and hf_embedding_model and 'name' in hf_embedding_model and hf_embedding_model0 == hf_embedding_model['name']:
+                # already have
+                embedding = hf_embedding_model['model']
+            else:
+                if got_embedding:
+                    # doesn't match, must load new
+                    use_openai_embedding, hf_embedding_model = use_openai_embedding0, hf_embedding_model0
+                else:
+                    if hf_embedding_model and 'name' in hf_embedding_model:
+                        # if no embedding, use same as preloaded
+                        hf_embedding_model = hf_embedding_model['name']
+                embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
+                                          gpu_id=embedding_gpu_id)
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             if use_chromamigdb:
@@ -3626,7 +3643,8 @@ def get_existing_db(db, persist_directory,
                               collection_name=langchain_mode.replace(' ', '_'),
                               **api_kwargs)
             try:
-                db.similarity_search('')
+                with get_context_cast():
+                    db.similarity_search('')
             except BaseException as e:
                 # migration when no embed_info
                 if 'Dimensionality of (768) does not match index dimensionality (384)' in str(e) or \
@@ -3637,7 +3655,8 @@ def get_existing_db(db, persist_directory,
                                       collection_name=langchain_mode.replace(' ', '_'),
                                       **api_kwargs)
                     # should work now, let fail if not
-                    db.similarity_search('')
+                    with get_context_cast():
+                        db.similarity_search('')
                     save_embed(db, use_openai_embedding, hf_embedding_model)
                 else:
                     raise
@@ -4095,9 +4114,11 @@ def _sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None,
     while True:
         try:
             if with_score:
-                docs = db.similarity_search_with_score(query, k=k, **filter_kwargs, **where_document_dict)
+                with get_context_cast():
+                    docs = db.similarity_search_with_score(query, k=k, **filter_kwargs, **where_document_dict)
             else:
-                docs = db.similarity_search(query, k=k, **filter_kwargs, **where_document_dict)
+                with get_context_cast():
+                    docs = db.similarity_search(query, k=k, **filter_kwargs, **where_document_dict)
             break
         except (RuntimeError, AttributeError) as e:
             # AttributeError is for people with wrong version of langchain
@@ -4144,7 +4165,8 @@ def get_metadatas(db, full_required=True, k_max=10000):
     elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
-        metadatas = [x.metadata for x in db.similarity_search("", k=k_max)]
+        with get_context_cast():
+            metadatas = [x.metadata for x in db.similarity_search("", k=k_max)]
     else:
         metadatas = []
     return metadatas
@@ -4186,7 +4208,8 @@ def _get_documents(db):
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
-        docs_from_search = [x for x in db.similarity_search("", k=10000)]
+        with get_context_cast():
+            docs_from_search = [x for x in db.similarity_search("", k=10000)]
         # Don't filter out by content etc. here, might use get_metadatas too separately
         documents = [x.page_content for x in docs_from_search]
         metadatas = [x.metadata for x in docs_from_search]
@@ -4893,7 +4916,8 @@ def _get_docs_with_score(query, k_db,
         if verbose:
             print("sim_search in %s" % (time.time() - t0), flush=True)
     elif db is not None:
-        docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
+        with get_context_cast():
+            docs_with_score_other = db.similarity_search_with_score(query, k=k_db, **filter_kwargs)
         docs_with_score += docs_with_score_other
 
     # set in metadata original order of docs
