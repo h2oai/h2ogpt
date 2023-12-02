@@ -33,7 +33,7 @@ def run_cli(  # for local function:
         document_content_substrings_op=None,
         top_k_docs=None, chunk=None, chunk_size=None,
         pre_prompt_query=None, prompt_query=None,
-        pre_prompt_summary=None, prompt_summary=None,
+        pre_prompt_summary=None, prompt_summary=None, hyde_llm_prompt=None,
         image_audio_loaders=None,
         pdf_loaders=None,
         url_loaders=None,

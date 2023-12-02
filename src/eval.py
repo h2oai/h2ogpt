@@ -52,7 +52,7 @@ def run_eval(  # for local function:
         document_content_substrings=None,
         document_content_substrings_op=None,
         pre_prompt_query=None, prompt_query=None,
-        pre_prompt_summary=None, prompt_summary=None,
+        pre_prompt_summary=None, prompt_summary=None, hyde_llm_prompt=None,
         image_audio_loaders=None,
         pdf_loaders=None,
         url_loaders=None,

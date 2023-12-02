@@ -132,6 +132,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'prompt_query': None,
                  'pre_prompt_summary': None,
                  'prompt_summary': None,
+                 'hyde_llm_prompt': None,
                  'system_prompt': '',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),
                  'url_loaders': np.array(['Unstructured'], dtype=object),

@@ -1373,6 +1373,9 @@ def go_gradio(**kwargs):
                             prompt_summary = gr.Textbox(label="Summary Prompt",
                                                         info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
+                            hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
+                                                        info="When doing HYDE, this is first prompt followed by the user query.",
+                                                        value=kwargs['hyde_llm_prompt'] or '')
                     gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,

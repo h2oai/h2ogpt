@@ -51,6 +51,7 @@ eval_func_param_names = ['instruction',
                          'prompt_query',
                          'pre_prompt_summary',
                          'prompt_summary',
+                         'hyde_llm_prompt',
                          'system_prompt',
                          ] + \
                         reader_names + \

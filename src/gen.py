@@ -325,6 +325,7 @@ def main(
         prompt_query: str = None,
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
+        hyde_llm_prompt: str = None,
         add_chat_history_to_context: bool = True,
         add_search_to_context: bool = False,
         context: str = '',
@@ -823,6 +824,7 @@ def main(
            For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+    :param hyde_llm_prompt: hyde prompt for first step when using LLM
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported when using CLI mode
@@ -1391,7 +1393,7 @@ def main(
                             prompt_type, prompt_dict,
                             system_prompt,
                             pre_prompt_query, prompt_query,
-                            pre_prompt_summary, prompt_summary,
+                            pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                             temperature, top_p, top_k, penalty_alpha, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -1627,9 +1629,9 @@ def main(
     if cli or not gradio:
         # initial state for query prompt
         model_name = base_model
-        pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+        pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
             get_langchain_prompts(pre_prompt_query, prompt_query,
-                                  pre_prompt_summary, prompt_summary,
+                                  pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                                   model_name, inference_server,
                                   llamacpp_dict['model_path_llama'],
                                   doc_json_mode)
@@ -1700,9 +1702,9 @@ def main(
 
             # begin prompt adjustments
             # get query prompt for (say) last base model if using model lock
-            pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1 = (
+            pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1, hyde_llm_prompt1 = (
                 get_langchain_prompts(pre_prompt_query, prompt_query,
-                                      pre_prompt_summary, prompt_summary,
+                                      pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                                       model_dict['base_model'],
                                       model_dict['inference_server'],
                                       model_dict['llamacpp_dict']['model_path_llama'],
@@ -1713,6 +1715,7 @@ def main(
             prompt_query = prompt_query or prompt_query1
             pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
             prompt_summary = prompt_summary or prompt_summary1
+            hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
 
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if prompt_type_infer:
@@ -2814,6 +2817,7 @@ def evaluate(
         prompt_query,
         pre_prompt_summary,
         prompt_summary,
+        hyde_llm_prompt,
         system_prompt,
 
         image_audio_loaders,
@@ -3265,6 +3269,7 @@ def evaluate(
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
+                hyde_llm_prompt=hyde_llm_prompt,
                 text_context_list=text_context_list,
                 chat_conversation=chat_conversation,
                 visible_models=visible_models,
@@ -3603,6 +3608,7 @@ def evaluate(
                                      prompt_query=prompt_query,
                                      pre_prompt_summary=pre_prompt_summary,
                                      prompt_summary=prompt_summary,
+                                     hyde_llm_prompt=hyde_llm_prompt,
                                      system_prompt=system_prompt,
                                      image_audio_loaders=image_audio_loaders,
                                      pdf_loaders=pdf_loaders,
@@ -4149,7 +4155,7 @@ def get_generate_params(model_lower,
                         prompt_type, prompt_dict,
                         system_prompt,
                         pre_prompt_query, prompt_query,
-                        pre_prompt_summary, prompt_summary,
+                        pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                         temperature, top_p, top_k, penalty_alpha, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -4361,7 +4367,7 @@ y = np.random.randint(0, 1, 100)
                     DocumentSubset.Relevant.name, [],
                     [], 'and', [], 'and',
                     pre_prompt_query, prompt_query,
-                    pre_prompt_summary, prompt_summary,
+                    pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                     system_prompt,
                     image_audio_loaders,
                     pdf_loaders,

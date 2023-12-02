@@ -211,7 +211,7 @@ def t5_type(model_name):
         'fastchat-t5' in model_name.lower()
 
 
-def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary,
+def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                           model_name, inference_server, model_path_llama,
                           doc_json_mode):
     if inference_server and inference_server.startswith('openai'):
@@ -226,6 +226,8 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
     prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
 
+    hyde_llm_prompt1 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question:"
+
     if pre_prompt_query is None:
         pre_prompt_query = pre_prompt_query1
     if prompt_query is None:
@@ -234,8 +236,10 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         pre_prompt_summary = pre_prompt_summary1
     if prompt_summary is None:
         prompt_summary = prompt_summary1
+    if hyde_llm_prompt is None:
+        hyde_llm_prompt = hyde_llm_prompt1
 
-    return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary
+    return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt
 
 
 def gr_to_lg(image_audio_loaders,

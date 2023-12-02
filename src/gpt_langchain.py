@@ -627,6 +627,7 @@ class GradioInference(H2Oagenerate, LLM):
                              prompt_query=None,
                              pre_prompt_summary=None,
                              prompt_summary=None,
+                             hyde_llm_prompt=None,
                              system_prompt=self.system_prompt,
                              image_audio_loaders=None,  # don't need to further do doc specific things
                              pdf_loaders=None,  # don't need to further do doc specific things
@@ -4408,6 +4409,7 @@ def _run_qa_db(query=None,
                prompt_query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
+               hyde_llm_prompt=None,
                text_context_list=None,
                chat_conversation=None,
                visible_models=None,
@@ -4474,9 +4476,9 @@ def _run_qa_db(query=None,
     max_new_tokens0 = max_new_tokens
 
     # in case None, e.g. lazy client, then set based upon actual model
-    pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary = \
+    pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
         get_langchain_prompts(pre_prompt_query, prompt_query,
-                              pre_prompt_summary, prompt_summary,
+                              pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                               model_name, inference_server,
                               llamacpp_dict.get('model_path_llama'),
                               doc_json_mode)
@@ -5075,6 +5077,7 @@ def run_hyde(*args, **kwargs):
     run_target_func = kwargs['run_target_func']
     prompter = kwargs['prompter']
     hyde_level = kwargs['hyde_level']
+    hyde_llm_prompt = kwargs['hyde_llm_prompt']
     hyde_template = kwargs['hyde_template']
     verbose = kwargs['verbose']
     show_rank = kwargs['show_rank']
@@ -5085,7 +5088,7 @@ def run_hyde(*args, **kwargs):
     docs_joiner = kwargs['docs_joiner']
 
     # get llm answer
-    auto_hyde = """Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: {query}"""
+    auto_hyde = """%s {query}""" % hyde_llm_prompt
     if hyde_template in auto_choices:
         hyde_template = auto_hyde
     elif isinstance(hyde_template, str):
@@ -5246,6 +5249,7 @@ def get_chain(query=None,
               prompt_query=None,
               pre_prompt_summary=None,
               prompt_summary=None,
+              hyde_llm_prompt=None,
               text_context_list=None,
               chat_conversation=None,
 

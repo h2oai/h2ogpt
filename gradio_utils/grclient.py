@@ -77,6 +77,8 @@ pre_prompt_extraction0 = """In order to extract information, pay attention to th
 prompt_extraction0 = "Using only the information in the document sources above, extract: \n"
 
 
+hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question:"
+
 class GradioClient(Client):
     """
     Parent class of gradio client
@@ -435,6 +437,7 @@ class GradioClient(Client):
                                       prompt_summary: str | None = prompt_summary0,
                                       pre_prompt_extraction: str | None = pre_prompt_extraction0,
                                       prompt_extraction: str | None = prompt_extraction0,
+                                      hyde_llm_prompt: str | None = hyde_llm_prompt0,
 
                                       model: str | int | None = None,
                                       stream_output: bool = False,
@@ -512,6 +515,7 @@ class GradioClient(Client):
                 \"\"\"
                 %s
                 \"\"\"\n%s" % (pre_prompt_summary, fstring, prompt_summary)
+            hyde_llm_prompt: hyde prompt for first step when using LLM
             h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
             model: base_model name or integer index of model_lock on h2oGPT server
                             None results in use of first (0th index) model in server
@@ -657,6 +661,7 @@ class GradioClient(Client):
             prompt_query=prompt_query,
             pre_prompt_summary=pre_prompt_summary,
             prompt_summary=prompt_summary,
+            hyde_llm_prompt=hyde_llm_prompt,
 
             visible_models=model,
             stream_output=stream_output,
