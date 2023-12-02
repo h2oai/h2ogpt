@@ -2075,7 +2075,8 @@ def get_each_page(file):
         tar = fitz.open()  # output PDF for 1 page
         # copy over current page
         tar.insert_pdf(src, from_page=page.number, to_page=page.number)
-        tmpdir = os.getenv('TMPDDIR', '/tmp/')
+        tmpdir = os.getenv('TMPDDIR', tempfile.mkdtemp())
+        makedirs(tmpdir, exist_ok=True)
         page_file = os.path.join(tmpdir, f"{file}-page-{page.number}-{str(uuid.uuid4())}.pdf")
         makedirs(os.path.dirname(page_file), exist_ok=True)
         tar.save(page_file)
