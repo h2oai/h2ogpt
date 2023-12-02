@@ -1243,8 +1243,9 @@ class Prompter(object):
             for word in meaningless_words:
                 response = response.replace(word, "")
             if sanitize_bot_response:
-                from better_profanity import profanity
-                response = profanity.censor(response)
+                #from better_profanity import profanity
+                #response = profanity.censor(response)
+                pass
             if self.generates_leading_space and isinstance(response, str) and len(response) > 0 and response[0] == ' ':
                 response = response[1:]
             return response
