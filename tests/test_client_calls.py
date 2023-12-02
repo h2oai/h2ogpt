@@ -2570,7 +2570,7 @@ def test_client_load_unload_models(model_choice):
     max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
-    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf' if model_choice == 'llama' else ''
     model_name_gptj = ''
     model_name_gpt4all_llama = ''
     n_gpu_layers = 100
@@ -2600,17 +2600,29 @@ def test_client_load_unload_models(model_choice):
                  exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
                  ]
     res = client.predict(*tuple(args_list), api_name='/load_model')
+
     model_choice_ex = model_choice
+    model_load_gptq_ex = 'model' if 'GPTQ' in model_choice else ''
+    model_load_awq_ex = 'model' if 'AWQ' in model_choice else ''
+    model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf' if model_choice == 'llama' else ''
+
     if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type_ex = 'human_bot'
         max_seq_len_ex = 2048.0
-    elif model_choice in ['llama', 'TheBloke/Llama-2-7B-Chat-GGUF']:
+    elif model_choice in ['llama']:
         prompt_type_ex = 'llama2'
-        model_choice_ex = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+        model_choice_ex = 'llama'
+        model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+        max_seq_len_ex = 4096.0
+    elif model_choice in ['TheBloke/Llama-2-7B-Chat-GGUF']:
+        prompt_type_ex = 'llama2'
+        model_choice_ex = 'llama'
+        model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf'
         max_seq_len_ex = 4096.0
     elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
         prompt_type_ex = 'zephyr'
-        model_choice_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7B-beta.Q6_K.gguf'
+        model_choice_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf'
+        model_path_llama_ex = model_choice_ex
         max_seq_len_ex = 4096.0
     elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
                           'TheBloke/zephyr-7B-beta-AWQ']:
@@ -2626,9 +2638,12 @@ def test_client_load_unload_models(model_choice):
         raise ValueError("No such model_choice=%s" % model_choice)
     res_expected = (
         model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex, {'__type__': 'update', 'maximum': 1024},
-        {'__type__': 'update', 'maximum': 1024})
+        {'__type__': 'update', 'maximum': 1024},
+        model_path_llama_ex,
+        '', '',
+        model_load_gptq_ex, model_load_awq_ex,
+        0.0, 128.0, 100.0, '{}')
     assert res == res_expected
-    model_used, lora_used, server_used, prompt_type, max_seq_len1new, max_new_tokens, min_new_tokens = res_expected
 
     prompt = "Who are you?"
     kwargs = dict(stream_output=stream_output, instruction=prompt)
@@ -2640,7 +2655,11 @@ def test_client_load_unload_models(model_choice):
     args_list[0] = no_model_str
     res = client.predict(*tuple(args_list), api_name='/load_model')
     res_expected = (no_model_str, no_lora_str, no_server_str, '', -1.0, {'__type__': 'update', 'maximum': 256},
-                    {'__type__': 'update', 'maximum': 256})
+                    {'__type__': 'update', 'maximum': 256},
+                    '',
+                    '', '',
+                    '', '',
+                    0.0, 128.0, 100.0, '{}')
     assert res == res_expected
 
 

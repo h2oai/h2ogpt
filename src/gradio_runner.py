@@ -4720,9 +4720,12 @@ def go_gradio(**kwargs):
                                       n_batch=n_batch1,
                                       n_gqa=n_gqa1,
                                       ))
-            # del model_path_llama1
-            # del model_name_gptj1
-            # del model_name_gpt4all_llama1
+            if model_name == 'llama' and not model_path_llama1:
+                raise ValueError("Must set model_path_llama if model_name==llama")
+            if model_name == 'gptj' and not model_name_gptj:
+                raise ValueError("Must set model_name_gptj if model_name==llama")
+            if model_name == 'gpt4all_llama' and not model_name_gpt4all_llama:
+                raise ValueError("Must set model_name_gpt4all_llama if model_name==llama")
 
             # ensure no API calls reach here
             if is_public:
@@ -4763,6 +4766,11 @@ def go_gradio(**kwargs):
                 # no detranscribe needed for model, never go into evaluate
                 lora_weights = no_lora_str
                 server_name = no_server_str
+                model_path_llama1 = ''
+                model_name_gptj1 = ''
+                model_name_gpt4all_llama1 = ''
+                load_gptq = ''
+                load_awq = ''
                 return kwargs['model_state_none'].copy(), \
                     model_name, lora_weights, server_name, \
                     prompt_type_old, max_seq_len1, \
