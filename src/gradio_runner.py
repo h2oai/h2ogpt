@@ -2394,11 +2394,12 @@ def go_gradio(**kwargs):
                                     api_name='get_viewable_sources' if allow_api else None) \
             .then(**viewable_kwargs)
 
-        eventdb_viewa = view_document_choice.select(user_state_setup,
-                                                    inputs=[my_db_state, requests_state,
-                                                            view_document_choice],
-                                                    outputs=[my_db_state, requests_state],
-                                                    show_progress='minimal')
+        view_doc_select_kwargs = dict(fn=user_state_setup,
+                                      inputs=[my_db_state, requests_state,
+                                              view_document_choice],
+                                      outputs=[my_db_state, requests_state],
+                                      show_progress='minimal')
+        eventdb_viewa = view_document_choice.select(**view_doc_select_kwargs)
         show_doc_func = functools.partial(show_doc,
                                           dbs1=dbs,
                                           load_db_if_exists1=load_db_if_exists,
@@ -2414,11 +2415,15 @@ def go_gradio(**kwargs):
                                           n_jobs=n_jobs,
                                           )
         # Note: Not really useful for API, so no api_name
-        eventdb_viewa.then(fn=show_doc_func,
-                           inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                   view_document_choice, view_raw_text_checkbox,
-                                   text_context_list, pdf_height],
-                           outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5, doc_view6])
+        show_doc_kwargs = dict(fn=show_doc_func,
+                               inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                       view_document_choice, view_raw_text_checkbox,
+                                       text_context_list, pdf_height],
+                               outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5, doc_view6])
+        eventdb_viewa.then(**show_doc_kwargs)
+
+        view_raw_text_checkbox.change(**view_doc_select_kwargs) \
+            .then(**show_doc_kwargs)
 
         show_doc_func_api = functools.partial(show_doc_func, api=True)
         get_document_api_btn.click(fn=show_doc_func_api,
@@ -4093,7 +4098,7 @@ def go_gradio(**kwargs):
                     sources_str_all_old = sources_str_all.copy()
 
                     prompt_raw_all = [x[4] if x is not None and not isinstance(x, BaseException) else y
-                                       for x, y in zip(res1, prompt_raw_all_old)]
+                                      for x, y in zip(res1, prompt_raw_all_old)]
                     prompt_raw_all_old = prompt_raw_all.copy()
 
                     save_dicts = [x[5] if x is not None and not isinstance(x, BaseException) else y
