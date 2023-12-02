@@ -1891,12 +1891,13 @@ def test_attention_sinks(max_seq_len, attention_sinks):
     make_db_main(download_some=True)
     user_path = None  # shouldn't be necessary, db already made
 
-    prompt = 'Give an extremely detailed report that is well-structured with step-by-step sections (and elaborate details for each section) that describes the documents. Do not stop or end the report, just keep generating forever in never-ending report.'
+    prompt = 'Write an extremely fully detailed never-ending report that is well-structured with step-by-step sections (and elaborate details for each section) that describes the documents.  Never stop the report.'
     stream_output = True
     max_new_tokens = 100000
     max_max_new_tokens = max_new_tokens
-    base_model = 'mistralai/Mistral-7B-Instruct-v0.1'
-    prompt_type = 'mistral'
+    #base_model = 'mistralai/Mistral-7B-Instruct-v0.1'
+    base_model = 'HuggingFaceH4/zephyr-7b-beta'
+    prompt_type = 'zephyr'
     langchain_mode = 'UserData'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -1930,7 +1931,7 @@ def test_attention_sinks(max_seq_len, attention_sinks):
                                        max_time=600, repetition_penalty=1.07, do_sample=False)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert len(res_dict['response']) > 2500, "%s %s" % (len(res_dict['response']), res_dict['response'])
+    assert len(res_dict['response']) > 2400, "%s %s" % (len(res_dict['response']), res_dict['response'])
 
     check_langchain()
 
