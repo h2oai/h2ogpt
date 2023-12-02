@@ -55,6 +55,7 @@ class PromptType(Enum):
     jais = 49
     yi = 50
     xwincoder = 51
+    xwinmath = 52
 
 
 class DocumentSubset(Enum):

@@ -134,6 +134,7 @@ prompt_type_to_model_name = {
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
     "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
     "xwincoder": ['Xwin-LM/XwinCoder-7B', 'Xwin-LM/XwinCoder-13B', 'Xwin-LM/XwinCoder-34B'],
+    "xwinmath": ["Xwin-LM/Xwin-Math-7B-V1.0", "Xwin-LM/Xwin-Math-70B-V1.0", "Xwin-LM/Xwin-Math-13B-V1.0"],
     "mistrallite": ['amazon/MistralLite'],
     "aquila": ['h2oai/h2ogpt-16k-aquilachat2-34b', 'BAAI/AquilaChat2-34B-16K', 'BAAI/AquilaChat2-34B-16k',
                'BAAI/AquilaChat2-7B-16K'],
@@ -885,7 +886,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
             PreResponse = botstr + ' '
     elif prompt_type in [PromptType.xwincoder.value, str(PromptType.xwincoder.value),
                          PromptType.xwincoder.name]:
-        # https://huggingface.co/Xwin-LM/Xwin-LM-13B-V0.1#huggingface-example
+        # https://github.com/Xwin-LM/Xwin-LM/blob/main/Xwin-Coder/online_chat.py#L38-L48
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "You are an AI coding assistant that helps people with programming. Write a response that appropriately completes the user's request.\n"
         # space below intended
@@ -896,6 +897,25 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInput = None
         PreResponse = """<AI>:"""
         terminate_response = [PreResponse, '<AI>:', '</s>']
+        chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work, so use huggingface/vllm example
+        chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work,  so use huggingface/vllm example
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ' '
+    elif prompt_type in [PromptType.xwinmath.value, str(PromptType.xwinmath.value),
+                         PromptType.xwinmath.name]:
+        # https://huggingface.co/Xwin-LM/Xwin-Math-70B-V1.0#generate
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
+        # space below intended
+        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
+        start = ''
+        promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = """USER: """
+        PreInput = None
+        PreResponse = """Give your solution in detail. In the end, write your final answer in the format of 'The answer is: <ANSWER>.'. ASSISTANT:"""
+        terminate_response = [PreResponse, 'ASSISTANT:', '</s>']
         chat_turn_sep = '\n'  # docs say multi-turn uses </s> but doesn't work, so use huggingface/vllm example
         chat_sep = '\n'  # docs say multi-turn uses ' ' but doesn't work,  so use huggingface/vllm example
         humanstr = PreInstruct
