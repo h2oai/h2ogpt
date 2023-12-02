@@ -1655,7 +1655,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_mi
             res_dict['response'] or
             'A new open-source language model that is fully permissive' in res_dict['response'] or
             'h2oGPT is an open-source' in res_dict['response'] or
-            'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response']
+            'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response'] or
+            'Based on the information provided in the context, h2oGPT appears to be an open-source' in res_dict['response']
             ) and \
            'README.md' in res_dict['response']
 
