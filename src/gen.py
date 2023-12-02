@@ -766,6 +766,14 @@ def main(
             Summarize_all: Summarize document(s) using entire document at once
             Summarize_refine: Summarize document(s) using entire document, and try to refine before returning summary
             Extract: Extract information from document(s) via map (no reduce)
+
+            Currently enabled is Query, Summarize, and Extract.
+
+            Summarize is a "map reduce" and extraction is "map". That is, map returns a text output (roughly) per input item, while reduce reduces all maps down to single text output.
+            The "roughly" refers to fact that if one has docs_token_handling='split_or_merge' then we split or merge chunks, so you will get a map for some optimal-sized chunks given the model size.  If you choose docs_token_handling='chunk', then you get back a map for each chunk you give, but you should ensure the model token limit is not exceeded yourself.
+
+            Summarize is useful when wanting to reduce down to single text, while Extract is useful when want to operate the prompt on blocks of data and get back a result per block.
+
     :param langchain_agents: Which agents to use
             'search': Use Web Search as context for LLM response, e.g. SERP if have SERPAPI_API_KEY in env
     :param force_langchain_evaluate: Whether to force langchain LLM use even if not doing langchain, mostly for testing.
