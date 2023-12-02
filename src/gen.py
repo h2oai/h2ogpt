@@ -122,7 +122,7 @@ def main(
         load_4bit: bool = False,
         low_bit_mode: int = 1,
         load_half: bool = None,
-        use_flash_attention_2=True,
+        use_flash_attention_2=False,
         load_gptq: str = '',
         use_autogptq: bool = False,
         load_awq: str = '',
@@ -430,7 +430,9 @@ def main(
            If using older bitsandbytes or transformers, 0 is required
     :param load_half: load model in float16 (None means auto, which means True unless t5 based model)
                       otherwise specify bool
-    :param use_flash_attention_2: Whether to try to use flash attention 2 if avaialble when loading HF models
+    :param use_flash_attention_2: Whether to try to use flash attention 2 if available when loading HF models
+           Warning: We have seen nans and type mismatches with flash-attn==2.3.4 installed and this enabled,
+                    even for other models like embedding model that is unrelated to primary models.
     :param load_gptq: to load model with GPTQ, put model_basename here, e.g. 'model' for TheBloke models
     :param use_autogptq: whether to use AutoGPTQ (True) or HF Transformers (False)
            Some models are only supported by one or the other
