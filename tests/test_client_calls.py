@@ -243,45 +243,24 @@ def test_client1api_lean_lock_choose_model():
     res = client.predict(api_name=api_name)
     res = ast.literal_eval(res)
     assert [x['base_model'] for x in res] == [base1, base2]
-    assert res == [{'base_model': 'h2oai/h2ogpt-oig-oasst1-512-6_9b', 'prompt_type': 'human_bot',
-                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ', 'PreInput': None,
-                                    'PreResponse': '<bot>:',
-                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:', '<bot>:', '<bot>:'],
-                                    'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
-                                    'generates_leading_space': True, 'system_prompt': ''}, 'load_8bit': False,
-                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
-                    'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
-                    'compile_model': True, 'use_cache': None,
+    assert res == [{'base_model': 'h2oai/h2ogpt-oig-oasst1-512-6_9b', 'prompt_type': 'human_bot', 'prompt_dict': None,
+                    'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
+                    'use_flash_attention_2': True, 'load_gptq': '', 'load_awq': '', 'load_exllama': False,
+                    'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None,
+                    'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
-                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
-                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
-                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
-                    'max_seq_len': 2048, 'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
+                                      'model_path_llama': '', 'model_name_gptj': '', 'model_name_gpt4all_llama': '',
+                                      'model_name_exllama_if_no_config': ''}, 'rope_scaling': {}, 'max_seq_len': 2048,
+                    'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
                     'truncation_generation': False, 'hf_model_dict': {}},
-                   {'base_model': 'distilgpt2', 'prompt_type': 'plain',
-                    'prompt_dict': {'promptA': '', 'promptB': '', 'PreInstruct': '<human>: ', 'PreInput': None,
-                                    'PreResponse': '<bot>:',
-                                    'terminate_response': ['\n<human>:', '\n<bot>:', '<human>:', '<bot>:', '<bot>:'],
-                                    'chat_sep': '\n', 'chat_turn_sep': '\n', 'humanstr': '<human>:', 'botstr': '<bot>:',
-                                    'generates_leading_space': True, 'system_prompt': ''}, 'load_8bit': False,
-                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'load_gptq': '', 'load_awq': '',
-                    'load_exllama': False, 'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0,
-                    'compile_model': True, 'use_cache': None,
+                   {'base_model': 'distilgpt2', 'prompt_type': 'plain', 'prompt_dict': None, 'load_8bit': False,
+                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'use_flash_attention_2': True,
+                    'load_gptq': '', 'load_awq': '', 'load_exllama': False, 'use_safetensors': False, 'revision': None,
+                    'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None, 'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
-                                      'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
-                                      'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                                      'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                                      'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ'},
-                    'model_path_llama': 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
-                    'model_name_gptj': 'ggml-gpt4all-j-v1.3-groovy.bin',
-                    'model_name_gpt4all_llama': 'ggml-wizardLM-7B.q4_2.bin',
-                    'model_name_exllama_if_no_config': 'TheBloke/Nous-Hermes-Llama2-GPTQ', 'rope_scaling': {},
-                    'max_seq_len': 1024, 'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
+                                      'model_path_llama': '', 'model_name_gptj': '', 'model_name_gpt4all_llama': '',
+                                      'model_name_exllama_if_no_config': ''}, 'rope_scaling': {}, 'max_seq_len': 1024,
+                    'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
                     'truncation_generation': False, 'hf_model_dict': {}}]
 
 
@@ -1656,7 +1635,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_mi
             'A new open-source language model that is fully permissive' in res_dict['response'] or
             'h2oGPT is an open-source' in res_dict['response'] or
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response'] or
-            'Based on the information provided in the context, h2oGPT appears to be an open-source' in res_dict['response']
+            'Based on the information provided in the context, h2oGPT appears to be an open-source' in res_dict[
+                'response']
             ) and \
            'README.md' in res_dict['response']
 
@@ -1895,7 +1875,7 @@ def test_attention_sinks(max_seq_len, attention_sinks):
     stream_output = True
     max_new_tokens = 100000
     max_max_new_tokens = max_new_tokens
-    #base_model = 'mistralai/Mistral-7B-Instruct-v0.1'
+    # base_model = 'mistralai/Mistral-7B-Instruct-v0.1'
     base_model = 'HuggingFaceH4/zephyr-7b-beta'
     prompt_type = 'zephyr'
     langchain_mode = 'UserData'
@@ -2319,7 +2299,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     text_context_list = None
     pdf_height = 1000
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, pdf_height, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, pdf_height,
+                       api_name='/get_document_api'))
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
@@ -2329,7 +2310,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
 
     view_raw_text = True  # dict of metadatas stays dict instead of string
     source_dict = ast.literal_eval(
-        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, pdf_height, api_name='/get_document_api'))
+        client.predict(langchain_mode, file_to_get, view_raw_text, text_context_list, pdf_height,
+                       api_name='/get_document_api'))
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)
