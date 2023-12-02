@@ -380,7 +380,9 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
 
         # https://librosa.org/doc/main/generated/librosa.load.html
         if from_youtube:
-            current_path = os.getcwd().replace(os.sep, '/') # change backslashes to forward slashes on Windows
+            current_path = ""
+            if(os.name == "nt"):
+                current_path = os.getcwd().replace(os.sep, '/') # change backslashes to forward slashes on Windows
             save_dir = current_path+"/tmp/" + "_" + str(uuid.uuid4())[:10]
             loader = GenericLoader(YoutubeAudioLoader(self.audio_paths, save_dir), self.model)
             return loader.load()
