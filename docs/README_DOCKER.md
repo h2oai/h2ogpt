@@ -80,6 +80,9 @@ docker run \
           --prompt_type=llama2 \
           --save_dir='/workspace/save/' \
           --use_gpu_id=False \
+          --user_path=/workspace/user_path \
+          --langchain_mode="UserData" \
+          --langchain_modes="['UserData', 'LLM']" \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024
