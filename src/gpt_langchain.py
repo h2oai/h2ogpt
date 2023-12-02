@@ -93,7 +93,7 @@ from chromamig import ChromaMig
 
 def get_context_cast():
     # chroma not autocasting right internally
-    return torch.autocast('cuda') if torch.cuda.is_available() else NullContext
+    return torch.autocast('cuda') if torch.cuda.is_available() else NullContext()
 
 
 def split_list(input_list, split_size):
