@@ -539,6 +539,14 @@ However, in some cases, you need to add a new prompt structure because the model
     ```
     Note that it is often the case that `humanstr` equals `PreInstruct` and `botstr` equals `PreResponse`. If this is the case, then you only have to set two keys.
 
+For example, suppose one did not have the `open_chat` prompt yet in h2oGPT, then one would run:
+```bash
+python generate.py --base_model=TheBloke/openchat_3.5-GGUF --prompt_type=custom --prompt_dict="{'promptA': '', 'promptB': '', 'PreInstruct': 'GPT4 User: ', 'PreInput': None, 'PreResponse': 'GPT4 Assistant:', 'terminate_response': ['GPT4 Assistant:', '<|end_of_turn|>'], 'chat_sep': '<|end_of_turn|>', 'chat_turn_sep': '<|end_of_turn|>', 'humanstr': 'GPT4 User: ', 'botstr': 'GPT4 Assistant:', 'generates_leading_space': False, 'system_prompt': ''}"
+```
+This generates the correct responses, etc.  The string added in the above is in double quotes as required when passing a dict or list with spaces.  And all internal quotes are single quotes.
+
+If there is a similar prompt or one wants to see how a model prompt template looks like, you can run the model and then go to the UI in models and select right sidebar, then select `Current or Custom Model Prompt` then copy the text within `Current Prompt (or Custom)`.  This can be pasted directly into the double quotes like in the above run example, or edited as required for a new model.
+
 * **Option 2**: Tweak or Edit code
 
    The following steps describe how you can edit the code itself if you don't want to use the CLI or UI:
