@@ -1,5 +1,6 @@
 import logging
 import os
+import tempfile
 import time
 import uuid
 from typing import Dict, Iterator, Optional, Tuple
@@ -284,7 +285,7 @@ import requests
 from langchain.docstore.document import Document
 from langchain.document_loaders import ImageCaptionLoader, YoutubeAudioLoader
 
-from utils import get_device, NullContext, clear_torch_cache, have_use_faster
+from utils import get_device, NullContext, clear_torch_cache, have_use_faster, makedirs
 
 from importlib.metadata import distribution, PackageNotFoundError
 
@@ -380,7 +381,8 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
 
         # https://librosa.org/doc/main/generated/librosa.load.html
         if from_youtube:
-            save_dir = "/tmp/" + "_" + str(uuid.uuid4())[:10]
+            save_dir = tempfile.mkdtemp()
+            makedirs(save_dir, exist_ok=True)
             loader = GenericLoader(YoutubeAudioLoader(self.audio_paths, save_dir), self.model)
             return loader.load()
         else:
