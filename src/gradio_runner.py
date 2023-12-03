@@ -3939,8 +3939,8 @@ def go_gradio(**kwargs):
                     could_yield = (
                                 history_str != history_str_old or
                                 error != error_old and
-                                error not in noneset and
-                                error_old not in noneset)
+                                (error not in noneset or
+                                error_old not in noneset))
                     if kwargs['gradio_ui_stream_chunk_size'] <= 0:
                         do_yield |= could_yield
                     else:
@@ -4115,7 +4115,7 @@ def go_gradio(**kwargs):
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
                     do_yield |= any(
-                        x != y for x, y in zip(exceptions, exceptions_old) if x not in noneset and y not in noneset)
+                        x != y for x, y in zip(exceptions, exceptions_old) if (x not in noneset or y not in noneset))
                     exceptions_old = exceptions.copy()
 
                     sources_all = [x[2] if x is not None and not isinstance(x, BaseException) else y
