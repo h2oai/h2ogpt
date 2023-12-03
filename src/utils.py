@@ -1316,11 +1316,15 @@ def set_openai(inference_server, model_name=None):
             ip_vllm = inference_server.split(':')[1].strip()
             port_vllm = inference_server.split(':')[2].strip()
             api_base = openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
-        if inference_server.startswith('vllm_chat'):
-            openvllm = openvllm.ChatCompletion
+
+        from openvllm import vLLM
+        client = vLLM(base_url=api_base, api_key=api_key)
+        if inf_type in ['vllm_chat']:
+            client = client.chat.completions
         else:
-            openvllm = openvllm.Completion
-        return openvllm, inf_type, None, api_base, None, api_key
+            client = client.completions
+
+        return client, inf_type, None, api_base, None, api_key
     else:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = None

@@ -3432,7 +3432,7 @@ def evaluate(
             if inf_type == 'vllm' or inf_type == 'openai':
                 if inf_type == 'vllm':
                     stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=stop_sequences)
-                    other_dict = dict(request_timeout=max_time)
+                    other_dict = dict(timeout=max_time)
                 else:
                     stop_token_ids_dict = {}
                     other_dict = dict(timeout=max_time)
@@ -3449,7 +3449,7 @@ def evaluate(
                 sources = []
                 response = ''
                 if not stream_output:
-                    text = responses['choices'][0]['text']
+                    text = responses.choices[0].text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
@@ -3459,9 +3459,9 @@ def evaluate(
                     tgen0 = time.time()
                     for event in responses:
                         collected_events.append(event)  # save the event response
-                        event_text = event['choices'][0]['text']  # extract the text
-                        text += event_text  # append the text
-                        if event_text:
+                        delta = event.choices[0].text  # extract the text
+                        text += delta  # append the text
+                        if delta:
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
@@ -3503,7 +3503,7 @@ def evaluate(
                 sources = []
                 response = ""
                 if not stream_output:
-                    text = responses["choices"][0]["message"]["content"]
+                    text = responses.choices[0].text  # FIXME: Untested
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                     yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
@@ -3511,11 +3511,7 @@ def evaluate(
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
-                        if inference_server.startswith('openai'):
-                            delta = chunk.choices[0].delta.content
-                        else:
-                            delta = chunk["choices"][0]["delta"]
-                            delta = delta['content'] if 'content' in delta else None
+                        delta = chunk.choices[0].delta.content
                         if delta:
                             text += delta
                             response = prompter.get_response(prompt + text, prompt=prompt,

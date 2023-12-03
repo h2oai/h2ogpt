@@ -73,7 +73,7 @@ Supports CPU and MPS (Metal M1/M2).
     ```
 * vLLM support
   ```bash
-  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
+  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-1.3.7-py3-none-any.whl
   ```
 
 ---
