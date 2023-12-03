@@ -3932,7 +3932,11 @@ def go_gradio(**kwargs):
                     history, error, sources, sources_str, prompt_raw, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
-                    do_yield |= (history_str != history_str_old or error != error_old)
+                    if kwargs['gradio_ui_stream_chunk_size'] <= 0:
+                        do_yield |= (history_str != history_str_old or error != error_old)
+                    else:
+                        delta_history = abs(len(history_str) - len(history_str_old))
+                        do_yield |= delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'])
@@ -4055,7 +4059,7 @@ def go_gradio(**kwargs):
                     return x
 
             bots = bots_old = chatbots.copy()
-            bots_str = bots_old_str = str(chatbots)
+            bot_strs = bot_strs_old = str(chatbots)
             exceptions = exceptions_old = [''] * len(bots_old)
             exceptions_str = '\n'.join(
                 ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
@@ -4080,9 +4084,15 @@ def go_gradio(**kwargs):
                     do_yield = False
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
                             for x, y in zip(res1, bots_old)]
-                    bots_str = str(bots)
-                    do_yield |= bots_str != bots_old_str
-                    bots_old_str = bots_str
+                    bot_strs = [str(x) for x in bots]
+                    if kwargs['gradio_ui_stream_chunk_size'] <= 0:
+                        do_yield |= any(x != y for x, y in zip(bot_strs, bot_strs_old))
+                        bot_strs_old = bot_strs.copy()
+                    else:
+                        do_yield = any(abs(len(x) - len(y)) > kwargs['gradio_ui_stream_chunk_size']
+                                       for x, y in zip(bot_strs, bot_strs_old))
+                        if do_yield:
+                            bot_strs_old = bot_strs.copy()
 
                     def larger_str(x, y):
                         return x if len(x) > len(y) else y
