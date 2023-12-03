@@ -4056,7 +4056,7 @@ def go_gradio(**kwargs):
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
                         # always use stream or not, so do not block any iterator/generator
-                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=True,
+                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=False,
                                                whichi=chatboti)
                         # else timeout will truncate output for non-streaming case
                     else:
