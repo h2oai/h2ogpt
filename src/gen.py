@@ -226,6 +226,7 @@ def main(
         show_copy_button: bool = True,
         large_file_count_mode: bool = False,
         gradio_ui_stream_chunk_size: int = 20,
+        gradio_ui_stream_chunk_seconds: float = 2.0,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -653,6 +654,8 @@ def main(
            Work around for these bugs that lead to UI being overwhelmed under various cases
            https://github.com/gradio-app/gradio/issues/5914
            https://github.com/gradio-app/gradio/issues/6609
+    :param gradio_ui_stream_chunk_seconds: Number of seconds to yield regardless of reaching gradio_ui_stream_chunk_size as long as something to yield
+           Helps case when streaming is slow and want to see progress at least every couple seconds
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
     :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.
