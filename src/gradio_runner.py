@@ -3946,7 +3946,9 @@ def go_gradio(**kwargs):
                     else:
                         delta_history = abs(len(history_str) - len(history_str_old))
                         do_yield |= delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
-                        do_yield |= last_yield is not None and (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and could_yield
+                        do_yield |= last_yield is not None and \
+                                    (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and \
+                                    could_yield
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'])
@@ -4105,7 +4107,9 @@ def go_gradio(**kwargs):
                     else:
                         do_yield |= any(abs(len(x) - len(y)) > kwargs['gradio_ui_stream_chunk_size']
                                        for x, y in zip(bot_strs, bot_strs_old))
-                        do_yield |= last_yield is not None and (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and could_yield
+                        do_yield |= last_yield is not None and \
+                                    (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and \
+                                    could_yield
                         if do_yield:
                             bot_strs_old = bot_strs.copy()
 
