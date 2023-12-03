@@ -20,12 +20,15 @@ class TimeoutIterator:
     """
     ZERO_TIMEOUT = 0.0
 
-    def __init__(self, iterator, timeout=0.0, sentinel=object(), reset_on_next=False, raise_on_exception=True):
+    def __init__(self, iterator, timeout=0.0, sentinel=object(),
+                 reset_on_next=False, raise_on_exception=True,
+                 whichi=None):
         self._iterator = iterator
         self._timeout = timeout
         self._sentinel = sentinel
         self._reset_on_next = reset_on_next
         self._raise_on_exception = raise_on_exception
+        self._whichi = whichi
 
         self._interrupt = False
         self._done = False
@@ -85,7 +88,7 @@ class TimeoutIterator:
             if isinstance(data, StopIteration):
                 raise data
             ex = ''.join(traceback.format_tb(data.__traceback__))
-            print("Generation Failed: %s %s" % (str(data), str(ex)), flush=True)
+            print("Generation Failed: %s %s %s" % (str(data), str(ex), self._whichi), flush=True)
             if self._raise_on_exception:
                 raise data
             else:
@@ -100,6 +103,8 @@ class TimeoutIterator:
                 if self._interrupt:
                     raise StopIteration()
         except BaseException as e:
+            if not isinstance(e, StopIteration):
+                print("Generation Failed lookahead: %s %s %s" % (str(e), type(e), self._whichi), flush=True)
             self._buffer.put(e)
 
 

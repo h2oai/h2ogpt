@@ -1374,8 +1374,8 @@ def go_gradio(**kwargs):
                                                         info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
                             hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
-                                                        info="When doing HYDE, this is first prompt followed by the user query.",
-                                                        value=kwargs['hyde_llm_prompt'] or '')
+                                                         info="When doing HYDE, this is first prompt followed by the user query.",
+                                                         value=kwargs['hyde_llm_prompt'] or '')
                     gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
@@ -3909,6 +3909,9 @@ def go_gradio(**kwargs):
                     if len(db1) == length_db1():
                         clear_embedding(db1[0])
 
+        nonelist = [None, '', 'None']
+        noneset = set(nonelist)
+
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
@@ -3923,6 +3926,7 @@ def go_gradio(**kwargs):
             from src.tts_utils import get_no_audio
             no_audio = get_no_audio()
             audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
+            last_yield = None
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
@@ -3932,7 +3936,19 @@ def go_gradio(**kwargs):
                     history, error, sources, sources_str, prompt_raw, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
-                    do_yield |= (history_str != history_str_old or error != error_old)
+                    could_yield = (
+                                history_str != history_str_old or
+                                error != error_old and
+                                (error not in noneset or
+                                error_old not in noneset))
+                    if kwargs['gradio_ui_stream_chunk_size'] <= 0:
+                        do_yield |= could_yield
+                    else:
+                        delta_history = abs(len(history_str) - len(history_str_old))
+                        do_yield |= delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
+                        do_yield |= last_yield is not None and \
+                                    (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and \
+                                    could_yield
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'])
@@ -3941,6 +3957,7 @@ def go_gradio(**kwargs):
                         yield history, error, audio1
                         history_str_old = history_str
                         error_old = error
+                        last_yield = time.time()
                     else:
                         audios.append(audio1)
 
@@ -4039,7 +4056,8 @@ def go_gradio(**kwargs):
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
                         # always use stream or not, so do not block any iterator/generator
-                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=False)
+                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=True,
+                                               whichi=chatboti)
                         # else timeout will truncate output for non-streaming case
                     else:
                         gen1 = gen1_fake(fun1, history)
@@ -4055,7 +4073,7 @@ def go_gradio(**kwargs):
                     return x
 
             bots = bots_old = chatbots.copy()
-            bots_str = bots_old_str = str(chatbots)
+            bot_strs = bot_strs_old = str(chatbots)
             exceptions = exceptions_old = [''] * len(bots_old)
             exceptions_str = '\n'.join(
                 ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
@@ -4075,21 +4093,33 @@ def go_gradio(**kwargs):
                 no_audio = None
 
             tgen0 = time.time()
+            last_yield = None
             try:
                 for res1 in itertools.zip_longest(*gen_list):
                     do_yield = False
                     bots = [x[0] if x is not None and not isinstance(x, BaseException) else y
                             for x, y in zip(res1, bots_old)]
-                    bots_str = str(bots)
-                    do_yield |= bots_str != bots_old_str
-                    bots_old_str = bots_str
+                    bot_strs = [str(x) for x in bots]
+                    could_yield = any(x != y for x, y in zip(bot_strs, bot_strs_old))
+                    if kwargs['gradio_ui_stream_chunk_size'] <= 0:
+                        do_yield |= could_yield
+                        bot_strs_old = bot_strs.copy()
+                    else:
+                        do_yield |= any(abs(len(x) - len(y)) > kwargs['gradio_ui_stream_chunk_size']
+                                       for x, y in zip(bot_strs, bot_strs_old))
+                        do_yield |= last_yield is not None and \
+                                    (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and \
+                                    could_yield
+                        if do_yield:
+                            bot_strs_old = bot_strs.copy()
 
                     def larger_str(x, y):
                         return x if len(x) > len(y) else y
 
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
-                    do_yield |= exceptions != exceptions_old
+                    do_yield |= any(
+                        x != y for x, y in zip(exceptions, exceptions_old) if (x not in noneset or y not in noneset))
                     exceptions_old = exceptions.copy()
 
                     sources_all = [x[2] if x is not None and not isinstance(x, BaseException) else y
@@ -4110,9 +4140,7 @@ def go_gradio(**kwargs):
 
                     exceptions_str = '\n'.join(
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
-                         x not in [None, '', 'None']])
-                    do_yield |= exceptions_str != exceptions_old_str
-                    exceptions_old_str = exceptions_str
+                         x not in noneset])
 
                     audios_gen = [x[6] if x is not None and not isinstance(x, BaseException) else None for x in
                                   res1]
@@ -4128,11 +4156,11 @@ def go_gradio(**kwargs):
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'])
                         audios = []  # reset accumulation
-
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
                         else:
                             yield bots[0], exceptions_str, audio1
+                        last_yield = time.time()
                     else:
                         audios.append(audio1)
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
