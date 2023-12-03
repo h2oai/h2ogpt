@@ -3458,10 +3458,11 @@ def evaluate(
                         collected_events.append(event)  # save the event response
                         event_text = event['choices'][0]['text']  # extract the text
                         text += event_text  # append the text
-                        response = prompter.get_response(prompt + text, prompt=prompt,
-                                                         sanitize_bot_response=sanitize_bot_response)
-                        yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
-                                   response_no_refs=response, sources_str='', prompt_raw=prompt)
+                        if event_text:
+                            response = prompter.get_response(prompt + text, prompt=prompt,
+                                                             sanitize_bot_response=sanitize_bot_response)
+                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                                       response_no_refs=response, sources_str='', prompt_raw=prompt)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)

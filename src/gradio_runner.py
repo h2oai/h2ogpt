@@ -1374,8 +1374,8 @@ def go_gradio(**kwargs):
                                                         info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
                             hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
-                                                        info="When doing HYDE, this is first prompt followed by the user query.",
-                                                        value=kwargs['hyde_llm_prompt'] or '')
+                                                         info="When doing HYDE, this is first prompt followed by the user query.",
+                                                         value=kwargs['hyde_llm_prompt'] or '')
                     gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
@@ -3909,6 +3909,9 @@ def go_gradio(**kwargs):
                     if len(db1) == length_db1():
                         clear_embedding(db1[0])
 
+        nonelist = [None, '', 'None']
+        noneset = set(nonelist)
+
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
@@ -3933,7 +3936,11 @@ def go_gradio(**kwargs):
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     if kwargs['gradio_ui_stream_chunk_size'] <= 0:
-                        do_yield |= (history_str != history_str_old or error != error_old)
+                        do_yield |= (
+                                history_str != history_str_old or
+                                error != error_old and
+                                error not in noneset and
+                                error_old not in noneset)
                     else:
                         delta_history = abs(len(history_str) - len(history_str_old))
                         do_yield |= delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
@@ -4043,7 +4050,8 @@ def go_gradio(**kwargs):
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
                         # always use stream or not, so do not block any iterator/generator
-                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=False)
+                        gen1 = TimeoutIterator(gen1, timeout=lag, sentinel=None, raise_on_exception=True,
+                                               whichi=chatboti)
                         # else timeout will truncate output for non-streaming case
                     else:
                         gen1 = gen1_fake(fun1, history)
@@ -4099,7 +4107,8 @@ def go_gradio(**kwargs):
 
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
-                    do_yield |= exceptions != exceptions_old
+                    do_yield |= any(
+                        x != y for x, y in zip(exceptions, exceptions_old) if x not in noneset and y not in noneset)
                     exceptions_old = exceptions.copy()
 
                     sources_all = [x[2] if x is not None and not isinstance(x, BaseException) else y
@@ -4120,9 +4129,7 @@ def go_gradio(**kwargs):
 
                     exceptions_str = '\n'.join(
                         ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
-                         x not in [None, '', 'None']])
-                    do_yield |= exceptions_str != exceptions_old_str
-                    exceptions_old_str = exceptions_str
+                         x not in noneset])
 
                     audios_gen = [x[6] if x is not None and not isinstance(x, BaseException) else None for x in
                                   res1]
@@ -4138,7 +4145,6 @@ def go_gradio(**kwargs):
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'])
                         audios = []  # reset accumulation
-
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
                         else:
