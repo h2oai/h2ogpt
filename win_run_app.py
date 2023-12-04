@@ -40,6 +40,7 @@ def main():
     from generate import entrypoint_main as main_h2ogpt
     os.environ['h2ogpt_block_gradio_exit'] = 'False'
     os.environ['h2ogpt_score_model'] = ''
+    os.environ['llamacpp_path'] = ''
     main_h2ogpt()
 
     server_name = os.getenv('h2ogpt_server_name', os.getenv('H2OGPT_SERVER_NAME', 'localhost'))
