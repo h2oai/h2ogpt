@@ -71,6 +71,8 @@ fi
     pip install git+https://github.com/SYSTRAN/faster-whisper.git
     # needed for librosa/soundfile to work, but violates TTS, but that's probably just too strict as we have seen before)
     pip install numpy==1.23.0 --no-deps --upgrade
+    # TTS or other deps load old librosa, fix:
+    pip install librosa==0.10.1 --no-deps --upgrade
 #    ```
 #* STT and TTS Notes:
 #  * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
