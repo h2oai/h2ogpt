@@ -3373,7 +3373,7 @@ def evaluate(
                              where_from='run_qa_db',
                              extra_dict=extra_dict)
             yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
-                       response_no_refs=response, sources_str=sources_str, prompt_raw=prompt_raw)
+                       response_no_refs=response_no_refs, sources_str=sources_str, prompt_raw=prompt_raw)
             if verbose:
                 print(
                     'Post-Generate Langchain: %s decoded_output: %s' %
