@@ -22,7 +22,9 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
     if inference_server is None:
         inference_server = ''
     human_avatar = "models/human.jpg"
-    if 'openchat' in base_model.lower():
+    if 'wizard' in base_model.lower():
+        bot_avatar = "models/wizard.jpg"
+    elif 'openchat' in base_model.lower():
         bot_avatar = "models/openchat.png"
     elif 'vicuna' in base_model.lower():
         bot_avatar = "models/vicuna.jpeg"
