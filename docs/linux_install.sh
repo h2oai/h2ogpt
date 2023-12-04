@@ -86,10 +86,14 @@ fi
 #    ```bash
     sudo apt install -y unzip xvfb libxi6 libgconf-2-4
     sudo apt install -y default-jdk
-    sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
-    sudo bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
-    sudo apt -y update
-    sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+    if [ 1 -eq 0 ]; then
+        sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
+        sudo bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+        sudo apt -y update
+        sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+    fi
+    wget http://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.198-1_amd64.deb
+    sudo dpkg -i google-chrome-stable_114.0.5735.198-1_amd64.deb
     sudo google-chrome --version  # e.g. Google Chrome 114.0.5735.198
     # visit https://chromedriver.chromium.org/downloads and download matching version
     # E.g.
