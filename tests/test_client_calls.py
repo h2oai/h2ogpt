@@ -3580,8 +3580,9 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     summary = res['response']
     sources = res['sources']
     if langchain_action == 'Extract':
-        assert isinstance(summary, list) or 'No relevant documents to extract from.' == summary
-        summary = str(summary)  # for easy checking
+        extraction = ast.literal_eval(summary)
+        assert isinstance(extraction, list) or 'No relevant documents to extract from.' in str(extraction)
+        summary = str(extraction)  # for easy checking
 
     if which_doc == 'whisper':
         if instruction == 'Technical key points':
