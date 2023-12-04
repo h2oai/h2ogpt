@@ -1,7 +1,8 @@
 import os
 import ast
 import time
-from enums import PromptType, gpt_token_mapping  # also supports imports from this file from other files
+from enums import PromptType, gpt_token_mapping, \
+    anthropic_mapping  # also supports imports from this file from other files
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -107,7 +108,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-oasst1-4096-llama2-7b',
         'h2oai/h2ogpt-oasst1-4096-llama2-13b',
         'h2oai/h2ogpt-oasst1-4096-llama2-70b',
-        #'llama',  # No longer go to llama2 prompt for any llama model, too many not llama2 and auto-detection is confusing then
+        # 'llama',  # No longer go to llama2 prompt for any llama model, too many not llama2 and auto-detection is confusing then
         'TheBloke/Llama-2-7b-Chat-GPTQ',
         'TheBloke/Llama-2-7b-chat-fp16',
         'TheBloke/Llama-2-13b-chat-fp16',
@@ -154,6 +155,10 @@ prompt_type_to_model_name = {
     "yi": ['01-ai/Yi-34B-Chat'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
+
+if os.getenv('ANTHROPIC_API_KEY'):
+    prompt_type_to_model_name['anthropic'] = list(anthropic_mapping.keys())
+
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
                            'h2oai/h2ogpt-32k-codellama-34b-instruct']
@@ -1284,8 +1289,8 @@ class Prompter(object):
             for word in meaningless_words:
                 response = response.replace(word, "")
             if sanitize_bot_response:
-                #from better_profanity import profanity
-                #response = profanity.censor(response)
+                # from better_profanity import profanity
+                # response = profanity.censor(response)
                 pass
             if self.generates_leading_space and isinstance(response, str) and len(response) > 0 and response[0] == ' ':
                 response = response[1:]
@@ -1465,7 +1470,8 @@ def step_back_prompts(which):
 
 
 def get_stop_token_ids(tokenizer, stop_sequences=[]):
-    stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
+    stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
+                      hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
     if hasattr(tokenizer, 'eos_token_id'):
         stop_token_ids.extend([tokenizer.eos_token_id])
     stop_token_ids_dict = dict(stop_token_ids=stop_token_ids)

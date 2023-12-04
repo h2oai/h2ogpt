@@ -1747,7 +1747,7 @@ def main(
                                                                model_name0=model_dict['base_model0'],
                                                                llamacpp_dict=model_dict['llamacpp_dict'])
                 if prompt_type1_trial:
-                    prompt_type1 = prompt_type1_trial
+                    model_dict['prompt_type'] = prompt_type1_trial
                     get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                              making_context=False,
                                              return_dict=True,
