@@ -185,10 +185,12 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                 import chromadb
                 api = chromadb.PersistentClient(path=persist_directory)
                 from_kwargs.update(dict(client=api))
-                if hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
+                if hasattr(api, 'max_batch_size'):
+                    max_batch_size = api.max_batch_size
+                elif hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
                     max_batch_size = api._producer.max_batch_size
                 else:
-                    max_batch_size = 1000
+                    max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
                 sources_batches = split_list(sources, max_batch_size)
                 for sources_batch in sources_batches:
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
@@ -225,21 +227,39 @@ def _get_unique_sources_in_weaviate(db):
 
 
 def del_from_db(db, sources, db_type=None):
+    if hasattr(db, '_persist_directory'):
+        print("Existing db, adding to %s" % db._persist_directory, flush=True)
+        # chroma only
+        lock_file = get_db_lock_file(db)
+        context = filelock.FileLock
+    else:
+        lock_file = None
+        context = NullContext
     if db_type in ['chroma', 'chroma_old'] and db is not None:
-        # sources should be list of x.metadata['source'] from document metadatas
-        if isinstance(sources, str):
-            sources = [sources]
-        else:
-            assert isinstance(sources, (list, tuple, types.GeneratorType))
-        metadatas = set(sources)
-        client_collection = db._client.get_collection(name=db._collection.name,
-                                                      embedding_function=db._collection._embedding_function)
-        for source in metadatas:
-            meta = dict(source=source)
-            try:
-                client_collection.delete(where=meta)
-            except KeyError:
-                pass
+        with context(lock_file):
+            # sources should be list of x.metadata['source'] from document metadatas
+            if isinstance(sources, str):
+                sources = [sources]
+            else:
+                assert isinstance(sources, (list, tuple, types.GeneratorType))
+            api = db._client
+            client_collection = api.get_collection(name=db._collection.name,
+                                                          embedding_function=db._collection._embedding_function)
+            if hasattr(api, 'max_batch_size'):
+                max_batch_size = api.max_batch_size
+            elif hasattr(client_collection, '_producer') and hasattr(client_collection._producer, 'max_batch_size'):
+                max_batch_size = client_collection._producer.max_batch_size
+            else:
+                max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+            metadatas = list(set(sources))
+            sources_batches = split_list(metadatas, max_batch_size)
+            for sources_batch in sources_batches:
+                for source in sources_batch:
+                    meta = dict(source=source)
+                    try:
+                        client_collection.delete(where=meta)
+                    except KeyError:
+                        pass
 
 
 def add_to_db(db, sources, db_type='faiss',
@@ -308,10 +328,12 @@ def add_to_db(db, sources, db_type='faiss',
             # else see RuntimeError: Index seems to be corrupted or unsupported
             import chromadb
             api = chromadb.PersistentClient(path=db._persist_directory)
-            if hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
+            if hasattr(api, 'max_batch_size'):
+                max_batch_size = api.max_batch_size
+            elif hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
                 max_batch_size = api._producer.max_batch_size
             else:
-                max_batch_size = 1000
+                max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
             sources_batches = split_list(sources, max_batch_size)
             for sources_batch in sources_batches:
                 db.add_documents(documents=sources_batch)
