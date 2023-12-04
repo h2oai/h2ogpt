@@ -226,6 +226,7 @@ def main(
         show_copy_button: bool = True,
         large_file_count_mode: bool = False,
         gradio_ui_stream_chunk_size: int = 20,
+        gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
 
         pre_load_embedding_model: bool = True,
@@ -654,6 +655,7 @@ def main(
            Work around for these bugs that lead to UI being overwhelmed under various cases
            https://github.com/gradio-app/gradio/issues/5914
            https://github.com/gradio-app/gradio/issues/6609
+    :param gradio_ui_stream_chunk_min_seconds: Number of seconds before allow yield to avoid spamming yields at rate user would not care about, regardless of chunk_size
     :param gradio_ui_stream_chunk_seconds: Number of seconds to yield regardless of reaching gradio_ui_stream_chunk_size as long as something to yield
            Helps case when streaming is slow and want to see progress at least every couple seconds
 
