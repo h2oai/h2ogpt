@@ -137,7 +137,7 @@ def get_prompt_type1(is_public, **kwargs):
     prompt_type = gr.Dropdown(prompt_types_strings_used,
                               value=default_prompt_type,
                               label="Choose/Select Prompt Type",
-                              info="Auto-Detected if known",
+                              info="Auto-Detected if known (plain means failed to detect)",
                               visible=not kwargs['model_lock'],
                               interactive=not is_public,
                               )
@@ -154,7 +154,7 @@ def get_prompt_type2(is_public, **kwargs):
     prompt_type2 = gr.Dropdown(prompt_types_strings_used,
                                value=default_prompt_type,
                                label="Choose/Select Prompt Type Model 2",
-                               info="Auto-Detected if known",
+                               info="Auto-Detected if known (plain means failed to detect)",
                                visible=False and not kwargs['model_lock'],
                                interactive=not is_public)
     return prompt_type2
