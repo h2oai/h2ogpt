@@ -157,6 +157,7 @@ def main(
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
+        model_lock_layout_based_upon_initial_visible: bool = False,
         fail_if_cannot_connect: bool = False,
 
         # input to generation
@@ -560,6 +561,10 @@ def main(
            If None, then defaults to up to 3
            if -1, then all goes into 1 row
            Maximum value is 4 due to non-dynamic gradio rendering elements
+    :param model_lock_layout_based_upon_initial_visible: Whether to base any layout upon visible models (True)
+           or upon all possible models.  gradio does not allow dynamic objects, so all layouts are preset,
+           and these are two reasonable options.
+           False is best when there are many models and user excludes middle ones as being visible.
     :param fail_if_cannot_connect: if doing model locking (e.g. with many models), fail if True.  Otherwise ignore.
            Useful when many endpoints and want to just see what works, but still have to wait for timeout.
 
