@@ -228,6 +228,7 @@ def main(
         gradio_ui_stream_chunk_size: int = 20,
         gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
+        gradio_api_use_same_stream_limits: bool = True,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -658,6 +659,7 @@ def main(
     :param gradio_ui_stream_chunk_min_seconds: Number of seconds before allow yield to avoid spamming yields at rate user would not care about, regardless of chunk_size
     :param gradio_ui_stream_chunk_seconds: Number of seconds to yield regardless of reaching gradio_ui_stream_chunk_size as long as something to yield
            Helps case when streaming is slow and want to see progress at least every couple seconds
+    :param gradio_api_use_same_stream_limits: Whether to use same streaming limits as UI for API
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
     :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.
