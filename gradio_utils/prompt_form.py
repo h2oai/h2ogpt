@@ -22,7 +22,11 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
     if inference_server is None:
         inference_server = ''
     human_avatar = "models/human.jpg"
-    if 'llama2' in base_model.lower():
+    if 'vicuna' in base_model.lower():
+        bot_avatar = "models/vicuna.jpeg"
+    elif 'longalpaca' in base_model.lower():
+        bot_avatar = "models/longalpaca.png"
+    elif 'llama2' in base_model.lower():
         bot_avatar = "models/lama2.jpeg"
     elif 'llama-2' in base_model.lower():
         bot_avatar = "models/lama2.jpeg"
