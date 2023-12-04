@@ -107,7 +107,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-oasst1-4096-llama2-7b',
         'h2oai/h2ogpt-oasst1-4096-llama2-13b',
         'h2oai/h2ogpt-oasst1-4096-llama2-70b',
-        'llama',
+        #'llama',  # No longer go to llama2 prompt for any llama model, too many not llama2 and auto-detection is confusing then
         'TheBloke/Llama-2-7b-Chat-GPTQ',
         'TheBloke/Llama-2-7b-chat-fp16',
         'TheBloke/Llama-2-13b-chat-fp16',
@@ -132,7 +132,7 @@ prompt_type_to_model_name = {
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
-    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ'],
+    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ'],
     "xwincoder": ['Xwin-LM/XwinCoder-7B', 'Xwin-LM/XwinCoder-13B', 'Xwin-LM/XwinCoder-34B'],
     "xwinmath": ["Xwin-LM/Xwin-Math-7B-V1.0", "Xwin-LM/Xwin-Math-70B-V1.0", "Xwin-LM/Xwin-Math-13B-V1.0"],
     "mistrallite": ['amazon/MistralLite'],
@@ -146,7 +146,8 @@ prompt_type_to_model_name = {
                        'deepseek-ai/deepseek-coder-33b-instruct',
                        ],
     "open_chat": ['openchat/openchat_3.5', 'TheBloke/openchat_3.5-GPTQ', 'TheBloke/openchat_3.5-GGUF',
-                  'TheBloke/openchat_3.5-AWQ', 'TheBloke/openchat_3.5-16k-AWQ'],
+                  'TheBloke/openchat_3.5-AWQ', 'TheBloke/openchat_3.5-16k-AWQ',
+                  'openchat_3.5.Q5_K_M.gguf'],
     "open_chat_correct": ['berkeley-nest/Starling-LM-7B-alpha'],  # can be any from open_chat list, by using this prompt
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     "jais": ['core42/jais-30b-chat-v1'],

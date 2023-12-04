@@ -9,7 +9,9 @@ from pydantic.v1 import root_validator
 from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
 
 
-def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=None, max_seq_len=None, llamacpp_dict=None):
+def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=None, max_seq_len=None,
+                                llamacpp_dict=None,
+                                llamacpp_path=None):
     cvd = os.getenv('CUDA_VISIBLE_DEVICES')
     if gpu_id is not None and gpu_id != -1:
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
@@ -23,7 +25,8 @@ def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=Non
                         main_gpu=gpu_id if gpu_id not in [None, -1, '-1'] else 0,
                         inner_class=True,
                         max_seq_len=max_seq_len,
-                        llamacpp_dict=llamacpp_dict)
+                        llamacpp_dict=llamacpp_dict,
+                        llamacpp_path=llamacpp_path)
     model, tokenizer, redo, max_seq_len = get_llm_gpt4all(**llama_kwargs)
     if redo:
         del model
@@ -127,6 +130,7 @@ def get_llm_gpt4all(model_name=None,
                     verbose=False,
                     inner_class=False,
                     max_seq_len=None,
+                    llamacpp_path=None,
                     llamacpp_dict=None,
                     ):
     redo = False
@@ -157,7 +161,7 @@ def get_llm_gpt4all(model_name=None,
                 model_path = os.path.basename(model_path)
             elif url_alive(model_path):
                 # online
-                llamacpp_path = os.getenv('LLAMACPP_PATH')
+                llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
                 dest = os.path.join(llamacpp_path, os.path.basename(model_path)) if llamacpp_path else None
                 model_path = download_simple(model_path, dest=dest)
         else:
@@ -196,7 +200,7 @@ def get_llm_gpt4all(model_name=None,
             model_path = llamacpp_dict.pop('model_name_gpt4all_llama')
             if url_alive(model_path):
                 # online
-                llamacpp_path = os.getenv('LLAMACPP_PATH')
+                llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
                 dest = os.path.join(llamacpp_path, os.path.basename(model_path)) if llamacpp_path else None
                 model_path = download_simple(model_path, dest=dest)
         else:
@@ -218,7 +222,7 @@ def get_llm_gpt4all(model_name=None,
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_name_gptj') if model is None else model
             if url_alive(model_path):
-                llamacpp_path = os.getenv('LLAMACPP_PATH')
+                llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
                 dest = os.path.join(llamacpp_path, os.path.basename(model_path)) if llamacpp_path else None
                 model_path = download_simple(model_path, dest=dest)
         else:

@@ -66,7 +66,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry, remove_refs
+    get_model_retry, remove_refs, get_on_disk_models
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -125,6 +125,39 @@ def is_valid_key(enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, h2ogpt_api_keys,
                 if h2ogpt_key1 in h2ogpt_api_keys:
                     valid_key = True
         return valid_key
+
+
+def get_prompt_type1(is_public, **kwargs):
+    prompt_types_strings_used = prompt_types_strings.copy()
+    if kwargs['model_lock']:
+        prompt_types_strings_used += [no_model_str]
+        default_prompt_type = kwargs['prompt_type'] or no_model_str
+    else:
+        default_prompt_type = kwargs['prompt_type'] or 'plain'
+    prompt_type = gr.Dropdown(prompt_types_strings_used,
+                              value=default_prompt_type,
+                              label="Choose/Select Prompt Type",
+                              info="Auto-Detected if known",
+                              visible=not kwargs['model_lock'],
+                              interactive=not is_public,
+                              )
+    return prompt_type
+
+
+def get_prompt_type2(is_public, **kwargs):
+    prompt_types_strings_used = prompt_types_strings.copy()
+    if kwargs['model_lock']:
+        prompt_types_strings_used += [no_model_str]
+        default_prompt_type = kwargs['prompt_type'] or no_model_str
+    else:
+        default_prompt_type = kwargs['prompt_type'] or 'plain'
+    prompt_type2 = gr.Dropdown(prompt_types_strings_used,
+                               value=default_prompt_type,
+                               label="Choose/Select Prompt Type Model 2",
+                               info="Auto-Detected if known",
+                               visible=False and not kwargs['model_lock'],
+                               interactive=not is_public)
+    return prompt_type2
 
 
 def go_gradio(**kwargs):
@@ -227,16 +260,24 @@ def go_gradio(**kwargs):
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
 
+    # Initial model options
     if kwargs['visible_all_prompter_models']:
         model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     else:
         model_options0 = model_names_curated + kwargs['extra_model_options']
-
     if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
+    if kwargs['add_disk_models_to_ui']:
+        model_options0.extend(get_on_disk_models(llamacpp_path=kwargs['llamacpp_path'],
+                                                 use_auth_token=kwargs['use_auth_token'],
+                                                 trust_remote_code=kwargs['trust_remote_code']))
+
+    # Initial LORA options
     lora_options = kwargs['extra_lora_options']
     if kwargs['lora_weights'].strip() and kwargs['lora_weights'].strip() not in lora_options:
         lora_options = [kwargs['lora_weights'].strip()] + lora_options
+
+    # Initial server options
     server_options = kwargs['extra_server_options']
     if kwargs['inference_server'].strip() and kwargs['inference_server'].strip() not in server_options:
         server_options = [kwargs['inference_server'].strip()] + server_options
@@ -555,6 +596,9 @@ def go_gradio(**kwargs):
         dark_kwargs = dict(_js=wrap_js_to_lambda(0, get_dark_js()))
         queue_kwargs = dict(concurrency_count=kwargs['concurrency_count'])
         mic_sources_kwargs = dict(source='microphone')
+
+    # modify, if model lock then don't show models, then need prompts in expert
+    kwargs['visible_models_tab'] = kwargs['visible_models_tab'] and not bool(kwargs['model_lock'])
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -1322,23 +1366,11 @@ def go_gradio(**kwargs):
                     gr.Markdown("Prompt Control")
                     with gr.Row():
                         with gr.Column():
-                            prompt_types_strings_used = prompt_types_strings.copy()
-                            if kwargs['model_lock']:
-                                prompt_types_strings_used += [no_model_str]
-                                default_prompt_type = kwargs['prompt_type'] or no_model_str
-                            else:
-                                default_prompt_type = kwargs['prompt_type'] or 'plain'
-                            prompt_type = gr.Dropdown(prompt_types_strings_used,
-                                                      value=default_prompt_type,
-                                                      label="Prompt Type",
-                                                      visible=not kwargs['model_lock'],
-                                                      interactive=not is_public,
-                                                      )
-                            prompt_type2 = gr.Dropdown(prompt_types_strings_used,
-                                                       value=default_prompt_type,
-                                                       label="Prompt Type Model 2",
-                                                       visible=False and not kwargs['model_lock'],
-                                                       interactive=not is_public)
+                            if not kwargs['visible_models_tab']:
+                                # only show here if no models tab
+                                prompt_type = get_prompt_type1(**kwargs)
+                                prompt_type2 = get_prompt_type2(**kwargs)
+
                             system_prompt = gr.Textbox(label="System Prompt",
                                                        info="If 'auto', then uses model's system prompt,"
                                                             " else use this message."
@@ -1628,8 +1660,7 @@ def go_gradio(**kwargs):
                                                         api_name='add_role' if allow_api else None,
                                                         **noqueue_kwargs2,
                                                         )
-                models_tab = gr.TabItem("Models") \
-                    if kwargs['visible_models_tab'] and not bool(kwargs['model_lock']) else gr.Row(visible=False)
+                models_tab = gr.TabItem("Models") if kwargs['visible_models_tab'] else gr.Row(visible=False)
                 with models_tab:
                     load_msg = "Load (Download) Model" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
@@ -1665,6 +1696,8 @@ def go_gradio(**kwargs):
                                                                               server_options_state.value[0],
                                                                         visible=not is_public,
                                                                         allow_custom_value=not is_public)
+                                            if kwargs['visible_models_tab']:
+                                                prompt_type = get_prompt_type1(**kwargs)
                                         with gr.Column():
                                             model_used = gr.Textbox(label="Current Model", value=kwargs['base_model'],
                                                                     interactive=False)
@@ -1813,6 +1846,8 @@ def go_gradio(**kwargs):
                                                                          value=no_server_str,
                                                                          visible=not is_public,
                                                                          allow_custom_value=not is_public)
+                                            if kwargs['visible_models_tab']:
+                                                prompt_type2 = get_prompt_type2(**kwargs)
                                         with gr.Column():
                                             # no model/lora loaded ever in model2 by default
                                             model_used2 = gr.Textbox(label="Current Model 2", value=no_model_str,
@@ -4894,6 +4929,7 @@ def go_gradio(**kwargs):
             model_lower0 = model_name0.strip().lower()
             model_lower = model_name.strip().lower()
             llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+            llama_lower = os.path.basename(llama_lower)
             if llama_lower in inv_prompt_type_to_model_lower:
                 prompt_type1 = inv_prompt_type_to_model_lower[llama_lower]
             elif model_lower0 in inv_prompt_type_to_model_lower:

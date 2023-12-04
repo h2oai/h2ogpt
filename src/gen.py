@@ -142,6 +142,7 @@ def main(
         system_prompt: str = '',
 
         # llama and gpt4all settings
+        llamacpp_path: str = 'llamacpp_path',
         llamacpp_dict: typing.Dict = dict(n_gpu_layers=100, use_mlock=True, n_batch=1024, n_gqa=0),
         model_path_llama: str = '',
         model_name_gptj: str = '',
@@ -273,6 +274,7 @@ def main(
         max_raw_chunks: int = None,
         pdf_height: int = 800,
         avatars: bool = True,
+        add_disk_models_to_ui = True,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -499,6 +501,9 @@ def main(
            If some string not in ['None', 'auto'], then use that as system prompt
            Default is '', no system_prompt, because often it hurts performance/accuracy
 
+    :param llamacpp_path: Location to store downloaded gguf or load list of models from
+           Note HF models go into hf cache folder, and gpt4all models go into their own cache folder
+           Can override with ENV LLAMACPP_PATH
     :param llamacpp_dict:
            n_gpu_layers: for llama.cpp based models, number of GPU layers to offload (default is all by using large value)
            use_mlock: when using `llama.cpp` based CPU models, for computers with low system RAM or slow CPUs, recommended False
@@ -740,6 +745,7 @@ def main(
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
     :param pdf_height: Height of PDF viewer in UI
     :param avatars: Whether to show avatars in chatbot
+    :param add_disk_models_to_ui: Whether to add HF cache models and llama.cpp models to UI
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
@@ -1740,6 +1746,7 @@ def main(
                 model_lower1 = model_dict['base_model'].lower()
                 model_lower10 = model_dict['base_model0'].lower()
                 llama_lower = model_dict['llamacpp_dict']['model_path_llama'].lower()
+                llama_lower = os.path.basename(llama_lower)
                 get_prompt_kwargs = dict(chat=False, context='', reduced=False,
                                          making_context=False,
                                          return_dict=True,
@@ -2139,6 +2146,7 @@ def get_model(
         rope_scaling: dict = None,
         max_seq_len: int = None,
         compile_model: bool = False,
+        llamacpp_path=None,
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
@@ -2181,6 +2189,7 @@ def get_model(
     :param max_seq_len: override for maximum sequence length for model
     :param max_seq_len: if set, use as max_seq_len for model
     :param compile_model: whether to compile torch model
+    :param llamacpp_path: Path to download llama.cpp and GPT4All models to
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param exllama_dict: dict of exllama options
     :param gptq_dict: dict of AutoGPTQ options
@@ -2352,7 +2361,8 @@ def get_model(
                                                                gpu_id=gpu_id,
                                                                n_gpus=n_gpus,
                                                                max_seq_len=max_seq_len,
-                                                               llamacpp_dict=llamacpp_dict)
+                                                               llamacpp_dict=llamacpp_dict,
+                                                               llamacpp_path=llamacpp_path)
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda' if n_gpus != 0 else 'cpu'
@@ -2739,6 +2749,7 @@ def get_score_model(score_model: str = None,
                     offload_folder: str = None,
                     rope_scaling: dict = None,
                     compile_model: bool = True,
+                    llamacpp_path: str = None,
                     llamacpp_dict: typing.Dict = None,
                     exllama_dict: typing.Dict = None,
                     gptq_dict: typing.Dict = None,
@@ -2769,6 +2780,7 @@ def get_score_model(score_model: str = None,
         max_seq_len = None
         rope_scaling = {}
         compile_model = False
+        llamacpp_path = None
         llamacpp_dict = {}
         exllama_dict = {}
         gptq_dict = {}
@@ -2914,6 +2926,7 @@ def evaluate(
         model_lock=None,
         force_langchain_evaluate=None,
         model_state_none=None,
+        llamacpp_path=None,
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
@@ -3062,6 +3075,7 @@ def evaluate(
     model_lower = base_model.lower()
     llamacpp_dict = str_to_dict(llamacpp_dict)
     llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+    llama_lower = os.path.basename(llama_lower)
     if not prompt_type and prompt_type != 'custom':
         auto_selected = False
         if llama_lower in inv_prompt_type_to_model_lower:
@@ -3311,6 +3325,7 @@ def evaluate(
                 sanitize_bot_response=sanitize_bot_response,
 
                 lora_weights=lora_weights,
+                llamacpp_path=llamacpp_path,
                 llamacpp_dict=llamacpp_dict,
                 exllama_dict=exllama_dict,
                 gptq_dict=gptq_dict,
@@ -3430,6 +3445,7 @@ def evaluate(
                                      max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
                                      frequency_penalty=0,
+                                     seed=SEED,
                                      n=num_return_sequences,
                                      presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
                                      )
@@ -4211,6 +4227,7 @@ def get_generate_params(model_lower,
     max_time = max_time if max_time is not None else max_time_defaults
 
     llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+    llama_lower = os.path.basename(llama_lower)
     if not prompt_type and prompt_type != 'custom':
         auto_selected = False
         if llama_lower in inv_prompt_type_to_model_lower:
@@ -4274,6 +4291,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
         llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+        llama_lower = os.path.basename(llama_lower)
         if not prompt_type and prompt_type != 'custom':
             if llama_lower in inv_prompt_type_to_model_lower:
                 prompt_type = inv_prompt_type_to_model_lower[llama_lower]
@@ -4941,6 +4959,35 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
         print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
             tokens[0], new_tokens0), flush=True)
     return top_k_docs, one_doc_size, num_doc_tokens
+
+
+def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
+    print("Begin auto-detect HF cache text generation models", flush=True)
+    from huggingface_hub import scan_cache_dir
+    hf_cache_info = scan_cache_dir()
+    hf_models = [x.repo_id for x in hf_cache_info.repos if x.repo_type == 'model' and x.size_on_disk > 100000 and x.nb_files > 0]
+
+    # filter all models down to plausible text models
+    # FIXME: Maybe better/faster way to doing this
+    from transformers import AutoConfig
+    text_hf_models = []
+    for x in hf_models:
+        try:
+            config = AutoConfig.from_pretrained(x,
+                                                token=use_auth_token,
+                                                trust_remote_code=trust_remote_code)
+            if hasattr(config, 'vocab_size'):
+                text_hf_models.append(x)
+        except Exception as e:
+            print("No loading model %s because %s" % (x, str(e)))
+    print("End auto-detect HF cache text generation models", flush=True)
+
+    print("Begin auto-detect llama.cpp models", flush=True)
+    llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
+    llamacpp_files = [os.path.join(llamacpp_path, f) for f in os.listdir(llamacpp_path) if os.path.isfile(os.path.join(llamacpp_path, f))]
+    print("End auto-detect llama.cpp models", flush=True)
+
+    return text_hf_models + llamacpp_files
 
 
 def entrypoint_main():
