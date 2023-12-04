@@ -652,7 +652,7 @@ def main(
     :param large_file_count_mode: Whether to force manual update to UI of drop-downs, good idea if millions of chunks or documents
     :param gradio_ui_stream_chunk_size: Number of characters to wait before pushing text to ui.
            20 is reasonable value for fast models and fast systems
-           Choose 0 to disable
+           Choose 0 to disable (this disables use of gradio_ui_stream_chunk_min_seconds and gradio_ui_stream_chunk_seconds too)
            Work around for these bugs that lead to UI being overwhelmed under various cases
            https://github.com/gradio-app/gradio/issues/5914
            https://github.com/gradio-app/gradio/issues/6609
