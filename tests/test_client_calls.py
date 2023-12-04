@@ -2611,8 +2611,8 @@ def test_client_load_unload_models(model_choice):
         max_seq_len_ex = 4096.0
     elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
         prompt_type_ex = 'zephyr'
-        model_choice_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf'
-        model_path_llama_ex = model_choice_ex
+        model_choice_ex = 'llama'
+        model_path_llama_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf'
         max_seq_len_ex = 4096.0
     elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
                           'TheBloke/zephyr-7B-beta-AWQ']:
