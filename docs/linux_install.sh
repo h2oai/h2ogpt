@@ -84,7 +84,7 @@ fi
 #   ```
 #* Selenium needs to have chrome installed, e.g. on Ubuntu:
 #    ```bash
-    sudo apt install -y unzip xvfb libxi6 libgconf-2-4
+    sudo apt install -y unzip xvfb libxi6 libgconf-2-4 libu2f-udev
     sudo apt install -y default-jdk
     if [ 1 -eq 0 ]; then
         sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
