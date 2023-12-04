@@ -1,25 +1,28 @@
 # Linux
 
-These instructions are for Ubuntu x86_64 (other linux would be similar with different command instead of apt-get).
+This page describes how to manually install and run h2oGPT on Linux. Note that the following instructions are for Ubuntu x86_64. (The steps in the following subsection can be adapted to other Linux distributions by substituting `apt-get` with the appropriate package management command.)
 
-## Install:
+- [Install](#install)
+- [Run](#run)
 
-* First one needs a Python 3.10 environment.  We recommend using Miniconda.
+## Install
 
-  Download [MiniConda for Linux](https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh).  After downloading, run:
+* Set up a Python 3.10 environment. We recommend using [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/).
+
+  Download [Miniconda for Linux](https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh).  After downloading, run:
   ```bash
   bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
   # follow license agreement and add to bash if required
   ```
-  Enter new shell and should also see `(base)` in prompt.  Then, create new env:
+  Open a new shell and look for `(base)` in the prompt to confirm that Miniconda is properly installed, then create a new env:
   ```bash
   conda create -n h2ogpt -y
   conda activate h2ogpt
   conda install python=3.10 -c conda-forge -y
   ```
-  You should see `(h2ogpt)` in shell prompt.
+  You should see `(h2ogpt)` in the shell prompt.
   
-  Alternatively, on newer Ubuntu systems you can get Python 3.10 environment setup by doing:
+  Alternatively, on newer Ubuntu systems, you can set up a Python 3.10 environment by doing the following:
   ```bash
   sudo apt-get update
   sudo apt-get install -y build-essential gcc python3.10-dev
@@ -27,11 +30,11 @@ These instructions are for Ubuntu x86_64 (other linux would be similar with diff
   source h2ogpt/bin/activate
   ```
   
-* Test your python:
+* Check your python version with the following command:
   ```bash
   python --version
   ```
-  should say 3.10.xx and:
+  The return should say 3.10.xx, and:
   ```bash
   python -c "import os, sys ; print('hello world')"
   ```
@@ -74,9 +77,9 @@ One can pick and choose different optional things to install instead by commenti
 
 ## Run
 
-See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
+See the [FAQ](FAQ.md#adding-models) for many ways to run models.  The following are some other examples.
 
-Note models are stored in `/home/$USER/.cache/` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
+Note that models are stored in `/home/$USER/.cache/` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
 
 * Check that can see CUDA from Torch:
    ```python
