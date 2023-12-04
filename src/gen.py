@@ -1146,6 +1146,8 @@ def main(
         user_path = makedirs(user_path, use_base=True)
         langchain_mode_paths['UserData'] = user_path
         langchain_mode_paths['UserData'] = LangChainTypes.SHARED.value
+    if llamacpp_path:
+        llamacpp_path = makedirs(llamacpp_path, use_base=True)
 
     if is_public:
         allow_upload_to_user_data = False
