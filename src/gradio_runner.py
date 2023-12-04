@@ -3291,8 +3291,11 @@ def go_gradio(**kwargs):
 
             save_dict = dict()
             ret = {}
-            ret_old = None
+            ret_old = ''
+            history_str_old = ''
+            error_old = ''
             audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
+            last_yield = None
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
@@ -3348,7 +3351,29 @@ def go_gradio(**kwargs):
                         ret = fix_text_for_gradio(res_dict['response'])
                     else:
                         ret = '<br>' + fix_text_for_gradio(res_dict['response'])
-                    if stream_output1 and ret != ret_old:
+
+                    do_yield = False
+                    could_yield = ret != ret_old
+                    if kwargs['gradio_api_use_same_stream_limits']:
+                        history_str = str(ret['response'] if isinstance(ret, dict) else str(ret))
+                        delta_history = abs(len(history_str) - len(str(history_str_old)))
+                        # even if enough data, don't yield if has been less than min_seconds
+                        enough_data = delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
+                        beyond_min_time = last_yield is None or \
+                                          last_yield is not None and \
+                                          (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_min_seconds']
+                        do_yield |= enough_data and beyond_min_time
+                        # yield even if new data not enough if been long enough and have at least something to yield
+                        enough_time = last_yield is None or \
+                                      last_yield is not None and \
+                                      (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds']
+                        do_yield |= enough_time and could_yield
+                        # DEBUG: print("do_yield: %s : %s %s %s" % (do_yield, enough_data, beyond_min_time, enough_time), flush=True)
+                    else:
+                        do_yield = could_yield
+
+                    if stream_output1 and do_yield:
+                        last_yield = time.time()
                         # yield as it goes, else need to wait since predict only returns first yield
                         if isinstance(ret, dict):
                             ret_old = ret.copy()  # copy normal one first
@@ -3359,6 +3384,10 @@ def go_gradio(**kwargs):
                         else:
                             ret_old = ret
                             yield ret
+                        # just last response, not actually full history like bot() and all_bot() but that's all that changes
+                        # we can ignore other dict entries as consequence of changes to main stream in 100% of current cases
+                        # even if sources added last after full response done, final yield still yields left over
+                        history_str_old = str(ret_old['response'] if isinstance(ret_old, dict) else str(ret_old))
                     else:
                         # collect unstreamed audios
                         audios.append(res_dict['audio'])
@@ -3367,7 +3396,7 @@ def go_gradio(**kwargs):
                             print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
                         break
 
-                # yield if anything left over as can happen (FIXME: Understand better)
+                # yield if anything left over as can happen
                 # return back last ret
                 if isinstance(ret, dict):
                     ret['audio'] = combine_audios(audios, audio=None,
@@ -3937,18 +3966,26 @@ def go_gradio(**kwargs):
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     could_yield = (
-                                history_str != history_str_old or
-                                error != error_old and
-                                (error not in noneset or
-                                error_old not in noneset))
+                            history_str != history_str_old or
+                            error != error_old and
+                            (error not in noneset or
+                             error_old not in noneset))
                     if kwargs['gradio_ui_stream_chunk_size'] <= 0:
                         do_yield |= could_yield
                     else:
                         delta_history = abs(len(history_str) - len(history_str_old))
-                        do_yield |= delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
-                        do_yield |= last_yield is not None and \
-                                    (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and \
-                                    could_yield
+                        # even if enough data, don't yield if has been less than min_seconds
+                        enough_data = delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
+                        beyond_min_time = last_yield is None or \
+                                          last_yield is not None and \
+                                          (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_min_seconds']
+                        do_yield |= enough_data and beyond_min_time
+                        # yield even if new data not enough if been long enough and have at least something to yield
+                        enough_time = last_yield is None or \
+                                      last_yield is not None and \
+                                      (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds']
+                        do_yield |= enough_time and could_yield
+                        # DEBUG: print("do_yield: %s : %s %s %s %s" % (do_yield, delta_history, enough_data, beyond_min_time, enough_time), flush=True)
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'])
@@ -4103,15 +4140,20 @@ def go_gradio(**kwargs):
                     could_yield = any(x != y for x, y in zip(bot_strs, bot_strs_old))
                     if kwargs['gradio_ui_stream_chunk_size'] <= 0:
                         do_yield |= could_yield
-                        bot_strs_old = bot_strs.copy()
                     else:
-                        do_yield |= any(abs(len(x) - len(y)) > kwargs['gradio_ui_stream_chunk_size']
-                                       for x, y in zip(bot_strs, bot_strs_old))
-                        do_yield |= last_yield is not None and \
-                                    (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds'] and \
-                                    could_yield
-                        if do_yield:
-                            bot_strs_old = bot_strs.copy()
+                        enough_data = any(abs(len(x) - len(y)) > kwargs['gradio_ui_stream_chunk_size']
+                                          for x, y in zip(bot_strs, bot_strs_old))
+                        beyond_min_time = last_yield is None or \
+                                          last_yield is not None and \
+                                          (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_min_seconds']
+                        do_yield |= enough_data and beyond_min_time
+                        enough_time = last_yield is None or \
+                                      last_yield is not None and \
+                                      (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds']
+                        do_yield |= enough_time and could_yield
+                        # DEBUG: print("do_yield: %s : %s %s %s" % (do_yield, enough_data, beyond_min_time, enough_time), flush=True)
+                    if do_yield:
+                        bot_strs_old = bot_strs.copy()
 
                     def larger_str(x, y):
                         return x if len(x) > len(y) else y

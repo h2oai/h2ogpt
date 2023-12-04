@@ -226,7 +226,9 @@ def main(
         show_copy_button: bool = True,
         large_file_count_mode: bool = False,
         gradio_ui_stream_chunk_size: int = 20,
+        gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
+        gradio_api_use_same_stream_limits: bool = True,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -650,12 +652,14 @@ def main(
     :param large_file_count_mode: Whether to force manual update to UI of drop-downs, good idea if millions of chunks or documents
     :param gradio_ui_stream_chunk_size: Number of characters to wait before pushing text to ui.
            20 is reasonable value for fast models and fast systems
-           Choose 0 to disable
+           Choose 0 to disable (this disables use of gradio_ui_stream_chunk_min_seconds and gradio_ui_stream_chunk_seconds too)
            Work around for these bugs that lead to UI being overwhelmed under various cases
            https://github.com/gradio-app/gradio/issues/5914
            https://github.com/gradio-app/gradio/issues/6609
+    :param gradio_ui_stream_chunk_min_seconds: Number of seconds before allow yield to avoid spamming yields at rate user would not care about, regardless of chunk_size
     :param gradio_ui_stream_chunk_seconds: Number of seconds to yield regardless of reaching gradio_ui_stream_chunk_size as long as something to yield
            Helps case when streaming is slow and want to see progress at least every couple seconds
+    :param gradio_api_use_same_stream_limits: Whether to use same streaming limits as UI for API
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
     :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.

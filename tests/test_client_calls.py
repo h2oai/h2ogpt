@@ -1317,7 +1317,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                   langchain_agents=[],
                                   user_path=None,
                                   langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
-                                  docs_ordering_type='reverse_ucurve_sort'):
+                                  docs_ordering_type='reverse_ucurve_sort', other_server_kwargs={}):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -1330,7 +1330,8 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
          langchain_mode=langchain_mode, langchain_action=langchain_action, langchain_agents=langchain_agents,
          user_path=user_path,
          langchain_modes=langchain_modes,
-         docs_ordering_type=docs_ordering_type)
+         docs_ordering_type=docs_ordering_type,
+         **other_server_kwargs)
 
     from src.client_test import run_client_nochat_gen
     res_dict, client = run_client_nochat_gen(prompt=prompt, prompt_type=prompt_type,
@@ -1342,10 +1343,16 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
            'Once upon a time' in res_dict['response']
     return res_dict, client
 
-
+@pytest.mark.parametrize("gradio_ui_stream_chunk_size", [0, 20])
+@pytest.mark.parametrize("gradio_ui_stream_chunk_min_seconds", [0, .2, 2])
+@pytest.mark.parametrize("gradio_ui_stream_chunk_seconds", [.2, 2])
 @wrap_test_forked
-def test_client_nochat_stream():
-    run_client_nochat_with_server(stream_output=True, prompt="Tell a very long kid's story about birds.")
+def test_client_nochat_stream(gradio_ui_stream_chunk_size, gradio_ui_stream_chunk_min_seconds, gradio_ui_stream_chunk_seconds):
+    other_server_kwargs=dict(gradio_ui_stream_chunk_size=gradio_ui_stream_chunk_size,
+                             gradio_ui_stream_chunk_min_seconds=gradio_ui_stream_chunk_min_seconds,
+                             gradio_ui_stream_chunk_seconds=gradio_ui_stream_chunk_seconds)
+    run_client_nochat_with_server(stream_output=True, prompt="Tell a very long kid's story about birds.",
+                                  other_server_kwargs=other_server_kwargs)
 
 
 @wrap_test_forked
