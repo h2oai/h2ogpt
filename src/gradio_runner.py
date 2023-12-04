@@ -66,7 +66,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry, remove_refs, get_on_disk_models
+    get_model_retry, remove_refs, get_on_disk_models, get_llama_lower_hf, model_name_to_prompt_type
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -260,6 +260,9 @@ def go_gradio(**kwargs):
     demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
     callback = gr.CSVLogger()
 
+    # modify, if model lock then don't show models, then need prompts in expert
+    kwargs['visible_models_tab'] = kwargs['visible_models_tab'] and not bool(kwargs['model_lock'])
+
     # Initial model options
     if kwargs['visible_all_prompter_models']:
         model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
@@ -267,7 +270,7 @@ def go_gradio(**kwargs):
         model_options0 = model_names_curated + kwargs['extra_model_options']
     if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
-    if kwargs['add_disk_models_to_ui']:
+    if kwargs['add_disk_models_to_ui'] and kwargs['visible_models_tab']:
         model_options0.extend(get_on_disk_models(llamacpp_path=kwargs['llamacpp_path'],
                                                  use_auth_token=kwargs['use_auth_token'],
                                                  trust_remote_code=kwargs['trust_remote_code']))
@@ -596,9 +599,6 @@ def go_gradio(**kwargs):
         dark_kwargs = dict(_js=wrap_js_to_lambda(0, get_dark_js()))
         queue_kwargs = dict(concurrency_count=kwargs['concurrency_count'])
         mic_sources_kwargs = dict(source='microphone')
-
-    # modify, if model lock then don't show models, then need prompts in expert
-    kwargs['visible_models_tab'] = kwargs['visible_models_tab'] and not bool(kwargs['model_lock'])
 
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -4879,6 +4879,7 @@ def go_gradio(**kwargs):
                 # no detranscribe needed for model, never go into evaluate
                 lora_weights = no_lora_str
                 server_name = no_server_str
+                prompt_type_old = ''
                 model_path_llama1 = ''
                 model_name_gptj1 = ''
                 model_name_gpt4all_llama1 = ''
@@ -4926,18 +4927,10 @@ def go_gradio(**kwargs):
                 all_kwargs1['n_gpus'] = 1
             else:
                 all_kwargs1['n_gpus'] = get_ngpus_vis()
-            model_lower0 = model_name0.strip().lower()
-            model_lower = model_name.strip().lower()
-            llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
-            llama_lower = os.path.basename(llama_lower)
-            if llama_lower in inv_prompt_type_to_model_lower:
-                prompt_type1 = inv_prompt_type_to_model_lower[llama_lower]
-            elif model_lower0 in inv_prompt_type_to_model_lower:
-                prompt_type1 = inv_prompt_type_to_model_lower[model_lower0]
-            elif model_lower in inv_prompt_type_to_model_lower:
-                prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
-            else:
-                prompt_type1 = prompt_type_old
+            prompt_type1 = model_name_to_prompt_type(model_name,
+                                                     model_name0=model_name0,
+                                                     llamacpp_dict=llamacpp_dict,
+                                                     prompt_type_old=prompt_type_old)
 
             # detranscribe
             if lora_weights == no_lora_str:

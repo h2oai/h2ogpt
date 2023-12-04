@@ -2546,7 +2546,7 @@ def test_client_load_unload_models(model_choice):
     lora_choice = ''
     server_choice = '' if model_choice not in openai_gpts else 'openai_chat'
     # model_state
-    prompt_type = ''
+    prompt_type = '' if model_choice != 'llama' else 'llama2' # built-in, but prompt_type needs to be selected
     model_load8bit_checkbox = False
     model_load4bit_checkbox = 'AWQ' not in model_choice and 'GGUF' not in model_choice and 'GPTQ' not in model_choice
     model_low_bit_mode = 1

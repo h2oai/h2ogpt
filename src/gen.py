@@ -274,7 +274,7 @@ def main(
         max_raw_chunks: int = None,
         pdf_height: int = 800,
         avatars: bool = True,
-        add_disk_models_to_ui = True,
+        add_disk_models_to_ui=True,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -1743,24 +1743,15 @@ def main(
 
             # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
             if prompt_type_infer:
-                model_lower1 = model_dict['base_model'].lower()
-                model_lower10 = model_dict['base_model0'].lower()
-                llama_lower = model_dict['llamacpp_dict']['model_path_llama'].lower()
-                llama_lower = os.path.basename(llama_lower)
-                get_prompt_kwargs = dict(chat=False, context='', reduced=False,
-                                         making_context=False,
-                                         return_dict=True,
-                                         system_prompt=system_prompt)
-                if llama_lower in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[llama_lower]
-                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
-                                                                   **get_prompt_kwargs)
-                elif model_lower10 in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower10]
-                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
-                                                                   **get_prompt_kwargs)
-                elif model_lower1 in inv_prompt_type_to_model_lower:
-                    model_dict['prompt_type'] = inv_prompt_type_to_model_lower[model_lower1]
+                prompt_type1_trial = model_name_to_prompt_type(model_dict['base_model'],
+                                                               model_name0=model_dict['base_model0'],
+                                                               llamacpp_dict=model_dict['llamacpp_dict'])
+                if prompt_type1_trial:
+                    prompt_type1 = prompt_type1_trial
+                    get_prompt_kwargs = dict(chat=False, context='', reduced=False,
+                                             making_context=False,
+                                             return_dict=True,
+                                             system_prompt=system_prompt)
                     model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
                                                                    **get_prompt_kwargs)
                 else:
@@ -3074,18 +3065,13 @@ def evaluate(
     # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
     model_lower = base_model.lower()
     llamacpp_dict = str_to_dict(llamacpp_dict)
-    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
-    llama_lower = os.path.basename(llama_lower)
     if not prompt_type and prompt_type != 'custom':
-        auto_selected = False
-        if llama_lower in inv_prompt_type_to_model_lower:
-            auto_selected = True
-            prompt_type = inv_prompt_type_to_model_lower[llama_lower]
-        elif model_lower in inv_prompt_type_to_model_lower:
-            auto_selected = True
-            prompt_type = inv_prompt_type_to_model_lower[model_lower]
-        if auto_selected and verbose:
-            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+        prompt_type_trial = model_name_to_prompt_type(base_model,
+                                                      llamacpp_dict=llamacpp_dict)
+        if prompt_type_trial:
+            prompt_type = prompt_type_trial
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, base_model), flush=True)
     assert prompt_type is not None, "prompt_type was None"
 
     # Control generation hyperparameters
@@ -4226,21 +4212,14 @@ def get_generate_params(model_lower,
     max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
-    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
-    llama_lower = os.path.basename(llama_lower)
     if not prompt_type and prompt_type != 'custom':
-        auto_selected = False
-        if llama_lower in inv_prompt_type_to_model_lower:
-            prompt_type = inv_prompt_type_to_model_lower[llama_lower]
-            auto_selected = True
-        elif model_lower0 in inv_prompt_type_to_model_lower:
-            prompt_type = inv_prompt_type_to_model_lower[model_lower0]
-            auto_selected = True
-        elif model_lower in inv_prompt_type_to_model_lower:
-            prompt_type = inv_prompt_type_to_model_lower[model_lower]
-            auto_selected = True
-        if auto_selected and verbose:
-            print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
+        prompt_type_trial = model_name_to_prompt_type(model_lower,
+                                                      model_name0=model_lower0,
+                                                      llamacpp_dict=llamacpp_dict)
+        if prompt_type_trial:
+            prompt_type = prompt_type_trial
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, model_lower), flush=True)
 
     # examples at first don't include chat, instruction_nochat, iinput_nochat, added at end
     if show_examples is None:
@@ -4290,15 +4269,12 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
-        llama_lower = os.path.basename(llama_lower)
         if not prompt_type and prompt_type != 'custom':
-            if llama_lower in inv_prompt_type_to_model_lower:
-                prompt_type = inv_prompt_type_to_model_lower[llama_lower]
-            elif model_lower0 in inv_prompt_type_to_model_lower:
-                prompt_type = inv_prompt_type_to_model_lower[model_lower0]
-            elif model_lower in inv_prompt_type_to_model_lower:
-                prompt_type = inv_prompt_type_to_model_lower[model_lower]
+            prompt_type_trial = model_name_to_prompt_type(model_lower,
+                                                          model_name0=model_lower0,
+                                                          llamacpp_dict=llamacpp_dict)
+            if prompt_type_trial:
+                prompt_type = prompt_type_trial
             # default is plain, because might rely upon trust_remote_code to handle prompting
             if model_lower:
                 prompt_type = prompt_type or 'plain'
@@ -4965,7 +4941,8 @@ def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
     print("Begin auto-detect HF cache text generation models", flush=True)
     from huggingface_hub import scan_cache_dir
     hf_cache_info = scan_cache_dir()
-    hf_models = [x.repo_id for x in hf_cache_info.repos if x.repo_type == 'model' and x.size_on_disk > 100000 and x.nb_files > 0]
+    hf_models = [x.repo_id for x in hf_cache_info.repos if
+                 x.repo_type == 'model' and x.size_on_disk > 100000 and x.nb_files > 0]
 
     # filter all models down to plausible text models
     # FIXME: Maybe better/faster way to doing this
@@ -4984,10 +4961,38 @@ def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
 
     print("Begin auto-detect llama.cpp models", flush=True)
     llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
-    llamacpp_files = [os.path.join(llamacpp_path, f) for f in os.listdir(llamacpp_path) if os.path.isfile(os.path.join(llamacpp_path, f))]
+    llamacpp_files = [os.path.join(llamacpp_path, f) for f in os.listdir(llamacpp_path) if
+                      os.path.isfile(os.path.join(llamacpp_path, f))]
     print("End auto-detect llama.cpp models", flush=True)
 
     return text_hf_models + llamacpp_files
+
+
+def get_llama_lower_hf(llama_lower):
+    if 'huggingface.co' in llama_lower and '/resolve/' in llama_lower and len(llama_lower.split('huggingface.co')) == 2:
+        llama_lower_hf = llama_lower.split('huggingface.co')[1].split('resolve/')[0]
+    else:
+        llama_lower_hf = None
+    return llama_lower_hf
+
+
+def model_name_to_prompt_type(model_name, model_name0=None, llamacpp_dict={}, prompt_type_old=None):
+    model_lower0 = model_name0.strip().lower() if model_name0 is not None else ''
+    model_lower = model_name.strip().lower()
+    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+    llama_lower_hf = get_llama_lower_hf(llama_lower)
+    llama_lower_base = os.path.basename(llama_lower)
+    if llama_lower_hf and llama_lower_hf in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[llama_lower_hf]
+    elif llama_lower_base and llama_lower_base in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[llama_lower_base]
+    elif model_lower0 and model_lower0 in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[model_lower0]
+    elif model_lower and model_lower in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
+    else:
+        prompt_type1 = prompt_type_old or ''
+    return prompt_type1
 
 
 def entrypoint_main():
