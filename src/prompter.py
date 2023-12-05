@@ -95,9 +95,14 @@ prompt_type_to_model_name = {
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
     "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
     "orca2": ['TheBloke/Orca-2-13B-GGUF', 'microsoft/Orca-2-13b'],
-    "vicuna11": ['lmsys/vicuna-33b-v1.3', 'lmsys/vicuna-7b-v1.5', 'lmsys/vicuna-13b-v1.5', 'lmsys/vicuna-13b-v1.5-16k',
+    "vicuna11": ['lmsys/vicuna-33b-v1.3',
+                 'lmsys/vicuna-7b-v1.5',
+                 'lmsys/vicuna-13b-v1.5',  # https://huggingface.co/lmsys/vicuna-13b-v1.5/discussions/6/files
                  'NousResearch/Nous-Capybara-34B',
                  ],
+    "vicuna11nosys": ['lmsys/vicuna-13b-v1.5-16k',
+                      # system prompt doesn't work, no evidence was trained with it from model card.
+                      ],
     "one_shot": ['lmsys/fastchat-t5-3b-v1.0'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-7b-instruct'],
     "llama2": [
@@ -603,8 +608,12 @@ ASSISTANT:
         humanstr = None
         botstr = None
     elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
-                         PromptType.vicuna11.name]:
-        can_handle_system_prompt = True
+                         PromptType.vicuna11.name] or \
+            prompt_type in [PromptType.vicuna11nosys.value, str(PromptType.vicuna11nosys.value),
+                            PromptType.vicuna11nosys.name]:
+        can_handle_system_prompt = prompt_type in [PromptType.vicuna11.value,
+                                                   str(PromptType.vicuna11.value),
+                                                   PromptType.vicuna11.name]
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
         preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
@@ -860,8 +869,8 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = '[/INST]'
         if making_context:
             PreResponse += ""
-    elif prompt_type in [PromptType.zephyr.value, str(PromptType.zephyr.value),
-                         PromptType.zephyr.name]:
+    elif prompt_type in [PromptType.zephyr0.value, str(PromptType.zephyr0.value),
+                         PromptType.zephyr0.name]:
         can_handle_system_prompt = True
         # https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha#intended-uses--limitations
         # prompt_template = "<|system|>\n</s>\n<|user|>\n{query}</s>\n<|assistant|>\n"
@@ -882,6 +891,32 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreResponse = "</s>\n<|assistant|>\n"
         terminate_response = ['<|assistant|>', "</s>"]
         chat_sep = '\n'
+        chat_turn_sep = '</s>\n'
+        humanstr = '<|user|>'
+        botstr = '<|assistant|>'
+    elif prompt_type in [PromptType.zephyr.value, str(PromptType.zephyr.value),
+                         PromptType.zephyr.name]:
+        can_handle_system_prompt = True
+        # fixed version of zephyr0, and passes tests, but doesn't take system prompt as well
+        # https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha#intended-uses--limitations
+        # prompt_template = "<|system|>\n</s>\n<|user|>\n{query}</s>\n<|assistant|>\n"
+        if system_prompt in [None, 'None', 'auto']:
+            # automatic
+            system_prompt = "You are an AI that follows instructions extremely well and as helpful as possible."
+        if system_prompt:
+            sys_msg = """<|system|>\n%s</s>\n""" % system_prompt
+        else:
+            sys_msg = ''
+        if sys_msg and not (chat and reduced):
+            # too much safety, hurts accuracy
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "<|user|>\n"
+        PreResponse = "</s>\n<|assistant|>\n"
+        terminate_response = ['<|assistant|>', "</s>"]
+        chat_sep = ''
         chat_turn_sep = '</s>\n'
         humanstr = '<|user|>'
         botstr = '<|assistant|>'

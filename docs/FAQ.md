@@ -601,6 +601,16 @@ This section describes how to add a new embedding model.
   python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
   ```
 
+### System Prompting
+
+Some models explicitly take a system prompt (in the raw prompt or via some chat API).  However, some models have no system prompt, in which case by default with `--allow_chat_system_prompt=True`, we fill conversation history with a [prompt-response pair](../src/enums.py) for `user_prompt_for_fake_system_prompt` to replace the system_prompt, which often works well.
+
+For most models, one can speak for model, i.e. `I am a chatbot who can't help but talk about cars every time I speak.`, instead of `You ...`, even if often model card's (like for `zephyr`) give example as `You ...`.
+
+However, models vary quite a bit in whether or how they respond to system prompts even if supposedly accept.  E.g. `zephyr` with `--prompt_type=zephyr` is valid prompt, but `zephyr0` allows the system prompt to be listened to more.  So one can explore variations in the strictly correct prompt to expose more from model in some cases.
+
+In some cases, longer system prompts help, but it may also hurt for some models.  A system prompt that works well is something reasonable that connects the model (being a chatbot it knows) to what it is, e.g. `I am a friendly chatbot who always responds in the style of a cute pixie who talks like a pixie.`.   However, some models (like Claude) will always respond a certain way for some questions, like `Who are you?` regardless of any system prompting (for Claude done via chat history, since raw no-prefix prompting used by LangChain is strongly ignored).
+
 ### In-Context learning via Prompt Engineering
 
 For arbitrary tasks, using uncensored models like [Falcon 40 GM](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) is recommended. If censored is ok, then [LLama-2 Chat](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) are ok. Choose model size according to your system specs.
