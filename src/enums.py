@@ -56,6 +56,8 @@ class PromptType(Enum):
     yi = 50
     xwincoder = 51
     xwinmath = 52
+    vicuna11nosys = 53
+    zephyr0 = 54
 
 
 class DocumentSubset(Enum):
@@ -395,3 +397,5 @@ max_docs_public_api = 2 * max_docs_public
 
 max_chunks_per_doc_public = 5000
 max_chunks_per_doc_public_api = 2 * max_chunks_per_doc_public
+
+user_prompt_for_fake_system_prompt = "Who are you and what do you do?"

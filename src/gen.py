@@ -47,7 +47,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
-    max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs
+    max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
+    user_prompt_for_fake_system_prompt
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -140,6 +141,7 @@ def main(
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
         system_prompt: str = '',
+        allow_chat_system_prompt: bool = True,
 
         # llama and gpt4all settings
         llamacpp_path: str = 'llamacpp_path',
@@ -501,6 +503,8 @@ def main(
            If '', then no system prompt (no empty template given to model either, just no system part added at all)
            If some string not in ['None', 'auto'], then use that as system prompt
            Default is '', no system_prompt, because often it hurts performance/accuracy
+    :param allow_chat_system_prompt:
+           Whether to use conversation_history to pre-append system prompt
 
     :param llamacpp_path: Location to store downloaded gguf or load list of models from
            Note HF models go into hf cache folder, and gpt4all models go into their own cache folder
@@ -2941,6 +2945,7 @@ def evaluate(
         url_loaders_options0=None,
         jq_schema0=None,
         keep_sources_in_context=None,
+        allow_chat_system_prompt=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -3256,6 +3261,7 @@ def evaluate(
                 keep_sources_in_context=keep_sources_in_context,
                 memory_restriction_level=memory_restriction_level,
                 system_prompt=system_prompt,
+                allow_chat_system_prompt=allow_chat_system_prompt,
                 use_openai_embedding=use_openai_embedding,
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
@@ -3394,18 +3400,19 @@ def evaluate(
     prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
-        chat_index, external_handle_chat_conversation, \
+        history_to_use_final, external_handle_chat_conversation, \
         top_k_docs_trial, one_doc_size, truncation_generation = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
                            prompter=prompter,
                            inference_server=inference_server,
-                           # prompt_type=prompt_type,
-                           # prompt_dict=prompt_dict,
-                           # chat=chat,
+                           # prompt_type=prompt_type,  # use prompter
+                           # prompt_dict=prompt_dict,  # use prompter
+                           # chat=chat,  # use prompter
                            max_new_tokens=max_new_tokens,
-                           # system_prompt=system_prompt,
+                           # system_prompt=system_prompt,  # use prompter
+                           allow_chat_system_prompt=allow_chat_system_prompt,
                            context=context,
                            chat_conversation=chat_conversation,
                            keep_sources_in_context=keep_sources_in_context,
@@ -3497,8 +3504,8 @@ def evaluate(
                     messages0.append({"role": "system", "content": openai_system_prompt})
                 if chat_conversation and add_chat_history_to_context:
                     assert external_handle_chat_conversation, "Should be handling only externally"
-                    # chat_index handles token counting issues
-                    for message1 in chat_conversation[chat_index:]:
+                    # history_to_use_final handles token counting issues
+                    for message1 in history_to_use_final:
                         if len(message1) == 2:
                             messages0.append(
                                 {'role': 'user', 'content': message1[0] if message1[0] is not None else ''})
@@ -4684,6 +4691,7 @@ def get_limited_prompt(instruction,
                        inference_server=None,
                        prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
                        system_prompt='',
+                       allow_chat_system_prompt=None,
                        context='', chat_conversation=None, text_context_list=None,
                        keep_sources_in_context=False,
                        model_max_length=None, memory_restriction_level=0,
@@ -4719,21 +4727,35 @@ def get_limited_prompt(instruction,
         chat = prompter.chat
         stream_output = prompter.stream_output
         system_prompt = prompter.system_prompt
+        can_handle_system_prompt = prompter.can_handle_system_prompt
+    else:
+        can_handle_system_prompt = True  # assume can so no extra conversation added if don't know
 
     generate_prompt_type = prompt_type
     external_handle_chat_conversation = False
     if inference_server and any(
-            inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat']):
+            inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat', 'anthropic']):
         # Chat APIs do not take prompting
         # Replicate does not need prompting if no chat history, but in general can take prompting
         # if using prompter, prompter.system_prompt will already be filled with automatic (e.g. from llama-2),
         # so if replicate final prompt with system prompt still correct because only access prompter.system_prompt that was already set
         # below already true for openai,
         # but not vllm by default as that can be any model and handled by FastChat API inside vLLM itself
+        # claude is unique also, by not allowing system prompt, but as conversation
+        #   Also in list above, because get_limited_prompt called too late for it in gpt_langchain.py
+        #   So needs to be added directly in the get_llm for anthropic there, so used in ExtraChat
         generate_prompt_type = 'plain'
         # Chat APIs don't handle chat history via single prompt, but in messages, assumed to be handled outside this function
         chat_conversation = []
         external_handle_chat_conversation = True
+    chat_system_prompt = not external_handle_chat_conversation and \
+            not can_handle_system_prompt and \
+                allow_chat_system_prompt
+    if chat_system_prompt:
+        chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
+    else:
+        chat_conversation_system_prompt = []
+    chat_conversation = chat_conversation_system_prompt + chat_conversation
 
     # merge handles if chat_conversation is None
     history = []
@@ -4792,7 +4814,7 @@ def get_limited_prompt(instruction,
     # use max_new_tokens before use num_prompt_tokens0 else would be negative or ~0
     min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
     # by default assume can handle all chat and docs
-    chat_index = 0
+    history_to_use_final = history.copy()
 
     # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
     num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
@@ -4821,20 +4843,25 @@ def get_limited_prompt(instruction,
             # then may be able to do #1 + #2
             iinput = ''
             num_iinput_tokens = 0
-            chat_index_final = len(history)
+            history_to_use_final = []
             for chat_index in range(len(history)):
                 # NOTE: history and chat_conversation are older for first entries
                 # FIXME: This is a slow for many short conversations
-                context2 = history_to_context_func(history[chat_index:])
+                if chat_system_prompt and history:  # should always have history[0] but just protection in case
+                    # Don't ever lose system prompt if putting into chat
+                    history_to_use = [history[0]] + history[1 + chat_index:]
+                else:
+                    history_to_use = history[0 + chat_index:]
+                context2 = history_to_context_func(history_to_use)
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
                         num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
-                    chat_index_final = chat_index
+                    history_to_use_final = history_to_use.copy()
                     if verbose:
                         print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
                     break
-            chat_index = chat_index_final  # i.e. if chat_index == len(history), then nothing can be consumed
+                # i.e. if chat_index == len(history), then nothing can be consumed
         elif diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
@@ -4906,7 +4933,7 @@ def get_limited_prompt(instruction,
     return prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
-        chat_index, external_handle_chat_conversation, \
+        history_to_use_final, external_handle_chat_conversation, \
         top_k_docs, one_doc_size, truncation_generation
 
 
