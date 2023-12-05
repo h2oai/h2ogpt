@@ -1571,48 +1571,48 @@ def go_gradio(**kwargs):
                         markdown_label = "Speech Control and Voice Cloning"
                     else:
                         markdown_label = "Speech Control"
-                    gr.Markdown(markdown_label)
-                    with gr.Row():
-                        speech_human = gr.Audio(value=None,
-                                                label="Generated Human Speech",
-                                                type="numpy",
-                                                streaming=True,
-                                                interactive=False,
-                                                show_label=True,
-                                                autoplay=True,
-                                                elem_id='human_audio',
-                                                visible=kwargs['enable_tts'])
-                        speech_bot = gr.Audio(value=None,
-                                              label="Generated Bot Speech",
-                                              type="numpy",
-                                              streaming=True,
-                                              interactive=False,
-                                              show_label=True,
-                                              autoplay=True,
-                                              elem_id='bot_audio',
-                                              visible=kwargs['enable_tts'])
-                        speech_bot2 = gr.Audio(value=None,
-                                               label="Generated Bot 2 Speech",
-                                               type="numpy",
-                                               streaming=True,
-                                               interactive=False,
-                                               show_label=True,
-                                               autoplay=False,
-                                               visible=False,
-                                               elem_id='bot2_audio')
+                    audio_visible = kwargs['enable_tts'] and kwargs['tts_model']
+                    gr.Markdown(markdown_label, visible=audio_visible)
+                    with gr.Row(visible=audio_visible):
+                        if audio_visible:
+                            speech_human = gr.Audio(value=None,
+                                                    label="Generated Human Speech",
+                                                    type="numpy",
+                                                    streaming=True,
+                                                    interactive=False,
+                                                    show_label=True,
+                                                    autoplay=True,
+                                                    elem_id='human_audio',
+                                                    visible=audio_visible)
+                            speech_bot = gr.Audio(value=None,
+                                                  label="Generated Bot Speech",
+                                                  type="numpy",
+                                                  streaming=True,
+                                                  interactive=False,
+                                                  show_label=True,
+                                                  autoplay=True,
+                                                  elem_id='bot_audio',
+                                                  visible=audio_visible)
+                            speech_bot2 = gr.Audio(value=None,
+                                                   label="Generated Bot 2 Speech",
+                                                   type="numpy",
+                                                   streaming=True,
+                                                   interactive=False,
+                                                   show_label=True,
+                                                   autoplay=False,
+                                                   visible=False,
+                                                   elem_id='bot2_audio')
+                        else:
+                            # Ensure not streaming media, just webconnect, if not doing TTS
+                            speech_human = gr.Textbox(visible=False)
+                            speech_bot = gr.Textbox(visible=False)
+                            speech_bot2 = gr.Textbox(visible=False)
+
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                             from src.tts_coqui import get_languages_gr
                             tts_language = get_languages_gr(visible=True, value=kwargs['tts_language'])
                         else:
                             tts_language = gr.Dropdown(visible=False)
-
-                        ref_voice_clone = gr.Audio(
-                            label="File for Clone (x resets)",
-                            type="filepath",
-                            value="models/female.wav",
-                            # max_length=30 if is_public else None,
-                            visible=clone_visible,
-                        )
 
                         def process_audio(file1, t1=0, t2=30):
                             # use no more than 30 seconds
@@ -1625,15 +1625,29 @@ def go_gradio(**kwargs):
                             newAudio.export(new_file, format="wav")
                             return new_file
 
-                        ref_voice_clone.upload(process_audio, inputs=ref_voice_clone, outputs=ref_voice_clone)
-                        mic_voice_clone = gr.Audio(
-                            label="Mic for Clone (x resets)",
-                            type="filepath",
-                            **mic_sources_kwargs,
-                            # max_length=30 if is_public else None,
-                            visible=clone_visible,
-                        )
-                        mic_voice_clone.upload(process_audio, inputs=mic_voice_clone, outputs=mic_voice_clone)
+                        if audio_visible:
+                            ref_voice_clone = gr.Audio(
+                                label="File for Clone (x resets)",
+                                type="filepath",
+                                value="models/female.wav",
+                                # max_length=30 if is_public else None,
+                                visible=clone_visible,
+                            )
+                            ref_voice_clone.upload(process_audio, inputs=ref_voice_clone, outputs=ref_voice_clone)
+                        else:
+                            ref_voice_clone = gr.Textbox(visible=False)
+
+                        if audio_visible:
+                            mic_voice_clone = gr.Audio(
+                                label="Mic for Clone (x resets)",
+                                type="filepath",
+                                **mic_sources_kwargs,
+                                # max_length=30 if is_public else None,
+                                visible=clone_visible,
+                            )
+                            mic_voice_clone.upload(process_audio, inputs=mic_voice_clone, outputs=mic_voice_clone)
+                        else:
+                            mic_voice_clone = gr.Textbox(visible=False)
                         choose_mic_voice_clone = gr.Checkbox(
                             label="Use Mic for Cloning",
                             value=False,
