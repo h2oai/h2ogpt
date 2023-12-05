@@ -4717,6 +4717,8 @@ def get_limited_prompt(instruction,
     # for templates, use estimated for counting, but adjust instruction as output
     if estimated_instruction is None:
         estimated_instruction = instruction
+    if chat_conversation is None:
+        chat_conversation = []
 
     if max_input_tokens >= 0:
         # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
@@ -4749,7 +4751,7 @@ def get_limited_prompt(instruction,
         #   So needs to be added directly in the get_llm for anthropic there, so used in ExtraChat
         generate_prompt_type = 'plain'
         # Chat APIs don't handle chat history via single prompt, but in messages, assumed to be handled outside this function
-        chat_conversation = []
+        # but we will need to compute good history for external use
         external_handle_chat_conversation = True
     chat_system_prompt = not external_handle_chat_conversation and \
             not can_handle_system_prompt and \
@@ -4897,7 +4899,9 @@ def get_limited_prompt(instruction,
             num_instruction_tokens = get_token_count(prompt_just_instruction, tokenizer) + delta_instruction
 
     # update full context
-    context = context1 + context2
+    # avoid including chat_conversation if handled externally, only used above for computations of prompt
+    context = context1 + context2 if not external_handle_chat_conversation else context1
+
     # update token counts (docs + non-docs, all tokens)
     num_prompt_tokens = (num_instruction_tokens or 0) + \
                         (num_context1_tokens or 0) + \

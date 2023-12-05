@@ -289,6 +289,7 @@ def get_test_model():
                       truncation_generation=False,
                       hf_model_dict={},
                       use_flash_attention_2=False,
+                      llamacpp_path='llamacpp_path',
 
                       verbose=False)
     model, tokenizer, device = get_model_retry(reward_type=False,
