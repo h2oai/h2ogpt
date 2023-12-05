@@ -167,8 +167,7 @@ if os.getenv('ANTHROPIC_API_KEY'):
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
                            'h2oai/h2ogpt-32k-codellama-34b-instruct']
-model_names_curated = ['llama',
-                       'TheBloke/Xwin-LM-13B-V0.1-GPTQ',
+model_names_curated = ['TheBloke/Xwin-LM-13B-V0.1-GPTQ',
                        'TheBloke/Llama-2-7B-Chat-GGUF',
                        'HuggingFaceH4/zephyr-7b-beta',
                        'TheBloke/zephyr-7B-beta-GGUF',

@@ -1024,8 +1024,11 @@ def main(
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
-    if base_model == 'llama' and not model_path_llama:
-        model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+    if base_model == 'llama':
+        if not model_path_llama:
+            model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+        if not prompt_type:
+            prompt_type = 'llama2'
     elif base_model == 'gptj' and not model_name_gptj:
         model_name_gptj = 'ggml-gpt4all-j-v1.3-groovy.bin'
     elif base_model == 'gpt4all_llama' and not model_name_gpt4all_llama:
