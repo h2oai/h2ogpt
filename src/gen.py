@@ -4847,7 +4847,7 @@ def get_limited_prompt(instruction,
             for chat_index in range(len(history)):
                 # NOTE: history and chat_conversation are older for first entries
                 # FIXME: This is a slow for many short conversations
-                if chat_system_prompt:
+                if chat_system_prompt and history:  # should always have history[0] but just protection in case
                     # Don't ever lose system prompt if putting into chat
                     history_to_use = [history[0]] + history[1 + chat_index:]
                 else:
