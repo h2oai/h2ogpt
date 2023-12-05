@@ -59,7 +59,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
-    auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api
+    auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
+    user_prompt_for_fake_system_prompt
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
 from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids
@@ -1220,7 +1221,10 @@ class ExtraChat:
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         if self.system_prompt:
-            messages.append(SystemMessage(content=self.system_prompt))
+            if isinstance(self, H2OChatAnthropic):
+                self.chat_conversation = [[user_prompt_for_fake_system_prompt, self.system_prompt]] + self.chat_conversation
+            else:
+                messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
                 messages.append(HumanMessage(content=messages1[0] if messages1[0] is not None else ''))
@@ -1413,6 +1417,7 @@ def get_llm(use_openai_model=False,
             chat_conversation=None,
             sanitize_bot_response=False,
             system_prompt='',
+            allow_chat_system_prompt=True,
             visible_models=0,
             h2ogpt_key=None,
             min_max_new_tokens=None,
@@ -4399,6 +4404,7 @@ def _run_qa_db(query=None,
                keep_sources_in_context=False,
                memory_restriction_level=0,
                system_prompt='',
+               allow_chat_system_prompt=False,
                sanitize_bot_response=False,
                show_rank=False,
                show_accordions=True,
@@ -4590,6 +4596,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       iinput=iinput,
                       sanitize_bot_response=sanitize_bot_response,
                       system_prompt=system_prompt,
+                      chat_conversation=chat_conversation if not query_action else [],  # FIXME: sum/extra handle long chat_conversation
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
@@ -5253,6 +5260,7 @@ def get_chain(query=None,
               prompt_type=None,
               prompt_dict=None,
               system_prompt=None,
+              allow_chat_system_prompt=None,
               cut_distance=1.1,
               add_chat_history_to_context=True,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               add_search_to_context=False,
@@ -5864,7 +5872,7 @@ def get_chain(query=None,
             query, iinput, context, \
             num_prompt_tokens, max_new_tokens, \
             num_prompt_tokens0, num_prompt_tokens_actual, \
-            chat_index, external_handle_chat_conversation, \
+            history_to_use_final, external_handle_chat_conversation, \
             top_k_docs_trial, one_doc_size, \
             truncation_generation = \
             get_limited_prompt(query,
@@ -5878,6 +5886,7 @@ def get_chain(query=None,
                                chat=chat,
                                max_new_tokens=max_new_tokens,
                                system_prompt=system_prompt,
+                               allow_chat_system_prompt=allow_chat_system_prompt,
                                context=context,
                                chat_conversation=chat_conversation,
                                text_context_list=[x[0].page_content for x in docs_with_score],
@@ -5896,7 +5905,7 @@ def get_chain(query=None,
         if external_handle_chat_conversation:
             # should already have attribute, checking sanity
             assert hasattr(llm, 'chat_conversation')
-            llm_kwargs.update(chat_conversation=chat_conversation[chat_index:])
+            llm_kwargs.update(chat_conversation=history_to_use_final)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
             get_llm(**llm_kwargs)
 

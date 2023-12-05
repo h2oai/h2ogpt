@@ -122,7 +122,7 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, \
         num_prompt_tokens0, num_prompt_tokens_actual, \
-        chat_index, external_handle_chat_conversation, \
+        history_to_use_final, external_handle_chat_conversation, \
         top_k_docs_trial, one_doc_size, truncation_generation = \
         get_limited_prompt(instruction, iinput, tokenizer,
                            prompter=prompter,
@@ -134,10 +134,10 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
                            min_max_new_tokens=min_max_new_tokens,
                            max_input_tokens=max_input_tokens,
                            verbose=True)
-    print('%s -> %s or %s: chat_index: %s top_k_docs_trial=%s one_doc_size: %s' % (num_prompt_tokens0,
+    print('%s -> %s or %s: len(history_to_use_final): %s top_k_docs_trial=%s one_doc_size: %s' % (num_prompt_tokens0,
                                                                                    num_prompt_tokens,
                                                                                    num_prompt_tokens_actual,
-                                                                                   chat_index,
+                                                                                   len(history_to_use_final),
                                                                                    top_k_docs_trial,
                                                                                    one_doc_size),
           flush=True, file=sys.stderr)
