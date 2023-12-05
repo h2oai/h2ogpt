@@ -3684,6 +3684,7 @@ def test_client_summarization_from_text():
     assert len(res['prompt_raw']) > 40000
     assert '<s>[INST]' in res['prompt_raw']
     assert len(ast.literal_eval(res['prompt_raw'])) == 5
+    assert 'llm_answers' in res
 
 
 @pytest.mark.parametrize("url", ['https://cdn.openai.com/papers/whisper.pdf', 'https://github.com/h2oai/h2ogpt'])
