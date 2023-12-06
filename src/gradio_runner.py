@@ -1421,6 +1421,10 @@ def go_gradio(**kwargs):
                                                        info="Set env CRAWL_DEPTH to control depth for Scrape, default is 1 (given page + links on that page)",
                                                        value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
+                        extract_frames = gr.components.Checkbox(value=not is_public,
+                                                       label="Extract unique frames from videos",
+                                                       info="Else, just audio extracted",
+                                                       visible=True)
 
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
@@ -2212,6 +2216,7 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       extract_frames,
                                        h2ogpt_key,
                                        ],
                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
@@ -2243,6 +2248,7 @@ def go_gradio(**kwargs):
                                         pdf_loaders,
                                         url_loaders,
                                         jq_schema,
+                                        extract_frames,
                                         h2ogpt_key,
                                         ],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
@@ -2266,6 +2272,7 @@ def go_gradio(**kwargs):
                                       pdf_loaders,
                                       url_loaders,
                                       jq_schema,
+                                      extract_frames,
                                       h2ogpt_key,
                                       ],
                               outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last],
@@ -2302,6 +2309,7 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       extract_frames,
                                        h2ogpt_key,
                                        ],
                                outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last],
@@ -2523,6 +2531,7 @@ def go_gradio(**kwargs):
                                           pdf_loaders,
                                           url_loaders,
                                           jq_schema,
+                                          extract_frames,
                                           ],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
@@ -5781,6 +5790,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       pdf_loaders,
                       url_loaders,
                       jq_schema,
+                      extract_frames,
                       h2ogpt_key,
 
                       captions_model=None,
@@ -5814,6 +5824,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                              asr_model=asr_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
+                             extract_frames=extract_frames,
                              ))
     kwargs.pop('image_audio_loaders_options0', None)
     kwargs.pop('pdf_loaders_options0', None)
@@ -5932,6 +5943,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         pdf_loaders,
                                                         url_loaders,
                                                         jq_schema,
+                                                        extract_frames,
 
                                                         captions_model=None,
                                                         caption_loader=None,
@@ -5969,6 +5981,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                              doctr_loader=doctr_loader,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
+                             extract_frames=extract_frames,
                              ))
 
     return update_and_get_source_files_given_langchain_mode(db1s,

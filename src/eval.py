@@ -58,6 +58,7 @@ def run_eval(  # for local function:
         pdf_loaders=None,
         url_loaders=None,
         jq_schema=None,
+        extract_frames=None,
         visible_models=None,
         h2ogpt_key=None,
         add_search_to_context=None,

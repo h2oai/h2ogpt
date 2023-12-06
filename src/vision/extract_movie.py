@@ -4,16 +4,18 @@ import uuid
 from src.utils import makedirs
 
 
-def extract_unique_frames(urls=None, download_dir=None, export_dir=None):
-    import fiftyone as fo
-    import fiftyone.utils.youtube as fouy
-
+def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=None):
     download_dir = download_dir or os.getenv('VID_DOWNLOADS', "viddownloads")
     if urls:
+        import fiftyone.utils.youtube as fouy
         fouy.download_youtube_videos(urls, download_dir=download_dir)
 
     # Create a FiftyOne Dataset
-    dataset = fo.Dataset.from_videos_dir(download_dir)
+    import fiftyone as fo
+    if file:
+        dataset = fo.Dataset.from_videos([file])
+    else:
+        dataset = fo.Dataset.from_videos_dir(download_dir)
 
     # Convert videos to images, sample 1 frame per second
     frame_view = dataset.to_frames(sample_frames=True, fps=1)

@@ -94,7 +94,7 @@ from chromamig import ChromaMig
 
 def get_context_cast():
     # chroma not autocasting right internally
-    #return torch.autocast('cuda') if torch.cuda.is_available() else NullContext()
+    # return torch.autocast('cuda') if torch.cuda.is_available() else NullContext()
     return NullContext()
 
 
@@ -245,7 +245,7 @@ def del_from_db(db, sources, db_type=None):
                 assert isinstance(sources, (list, tuple, types.GeneratorType))
             api = db._client
             client_collection = api.get_collection(name=db._collection.name,
-                                                          embedding_function=db._collection._embedding_function)
+                                                   embedding_function=db._collection._embedding_function)
             if hasattr(api, 'max_batch_size'):
                 max_batch_size = api.max_batch_size
             elif hasattr(client_collection, '_producer') and hasattr(client_collection._producer, 'max_batch_size'):
@@ -657,6 +657,7 @@ class GradioInference(H2Oagenerate, LLM):
                              pdf_loaders=None,  # don't need to further do doc specific things
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
+                             extract_frames=True,
                              visible_models=self.visible_models,
                              h2ogpt_key=self.h2ogpt_key,
                              add_search_to_context=client_add_search_to_context,
@@ -1222,7 +1223,8 @@ class ExtraChat:
         messages = []
         if self.system_prompt:
             if isinstance(self, H2OChatAnthropic):
-                self.chat_conversation = [[user_prompt_for_fake_system_prompt, self.system_prompt]] + self.chat_conversation
+                self.chat_conversation = [[user_prompt_for_fake_system_prompt,
+                                           self.system_prompt]] + self.chat_conversation
             else:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
@@ -2136,7 +2138,7 @@ class Crawler:
         self.starting_urls = urls.copy()
         self.deeper_only = deeper_only
         self.depth = depth
-        self.verbose=verbose
+        self.verbose = verbose
         self.final_urls = []
 
     def download_url(self, url):
@@ -2227,6 +2229,7 @@ def file_to_doc(file,
 
                 # json
                 jq_schema='.[]',
+                extract_frames=True,
 
                 headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
@@ -2245,7 +2248,7 @@ def file_to_doc(file,
     case2_arxiv = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
     case3_arxiv = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
     case4_arxiv = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
-    
+
     url_prefixes_youtube = [
         'https://www.youtube.com/watch?v=',
         'http://www.youtube.com/watch?v=',
@@ -2258,7 +2261,8 @@ def file_to_doc(file,
     ]
 
     is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
-    is_youtube = any(file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
+    is_youtube = any(
+        file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
 
     if is_url and is_txt:
         # decide which
@@ -2326,6 +2330,7 @@ def file_to_doc(file,
 
                                           # json
                                           jq_schema=jq_schema,
+                                          extract_frames=extract_frames,
 
                                           db_type=db_type,
 
@@ -2393,7 +2398,7 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
-        elif (is_youtube) and enable_transcriptions:
+        elif is_youtube and enable_transcriptions:
             docs1 = []
             if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
                 # assumes didn't fork into this process with joblib, else can deadlock
@@ -2468,7 +2473,8 @@ def file_to_doc(file,
                 else:
                     final_urls = Crawler(urls=[file], verbose=verbose).run()
                 if use_scrapehttp:
-                    loader = AsyncHtmlLoader(final_urls, verify_ssl=False, requests_per_second=10, ignore_load_errors=True)
+                    loader = AsyncHtmlLoader(final_urls, verify_ssl=False, requests_per_second=10,
+                                             ignore_load_errors=True)
                     docs1a = loader.load()
                 if use_scrapeplaywright:
                     loader = AsyncChromiumLoader(final_urls)
@@ -2565,6 +2571,17 @@ def file_to_doc(file,
         docs1c = [x for x in docs1c if x.page_content]
         add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
         # caption didn't set source, so fix-up meta
+
+        video_type = any([file.endswith(x) for x in video_types])
+        if video_type and extract_frames:
+            from src.vision.extract_movie import extract_unique_frames
+            export_dir = extract_unique_frames(file=file)
+            #image_files = [f for f in os.listdir(export_dir) if os.path.isfile(os.path.join(export_dir, f))]
+
+            docs1c_files = path_to_docs_func(export_dir)
+            add_meta(docs1c_files, file, parser='extract_frames')
+            docs1c.extend(docs1c_files)
+
         hash_of_file = hash_file(file)
         [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
         docs1.extend(docs1c)
@@ -2988,48 +3005,11 @@ def file_to_doc(file,
             with open(de_file, 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
         # recurse
-        doc1 = file_to_doc(de_file,
-                           filei=filei,  # single file, same file index as outside caller
-                           base_path=base_path, verbose=verbose, fail_any_exception=fail_any_exception,
-                           chunk=chunk, chunk_size=chunk_size, n_jobs=n_jobs,
-                           is_url=is_url, is_txt=is_txt,
+        doc1 = path_to_docs_func(de_file,
+                                 filei=filei,  # single file, same file index as outside caller
+                                 base_path=base_path,
+                                 )
 
-                           # urls
-                           use_unstructured=use_unstructured,
-                           use_playwright=use_playwright,
-                           use_selenium=use_selenium,
-                           use_scrapeplaywright=use_scrapeplaywright,
-                           use_scrapehttp=use_scrapehttp,
-
-                           # pdfs
-                           use_pymupdf=use_pymupdf,
-                           use_unstructured_pdf=use_unstructured_pdf,
-                           use_pypdf=use_pypdf,
-                           enable_pdf_ocr=enable_pdf_ocr,
-                           enable_pdf_doctr=enable_pdf_doctr,
-                           try_pdf_as_html=try_pdf_as_html,
-
-                           # images
-                           enable_ocr=enable_ocr,
-                           enable_doctr=enable_doctr,
-                           enable_pix2struct=enable_pix2struct,
-                           enable_captions=enable_captions,
-                           enable_transcriptions=enable_transcriptions,
-                           captions_model=captions_model,
-                           asr_model=asr_model,
-
-                           model_loaders=model_loaders,
-
-                           # json
-                           jq_schema=jq_schema,
-
-                           headsize=headsize,
-                           db_type=db_type,
-                           selected_file_types=selected_file_types,
-
-                           is_public=is_public,
-                           from_ui=from_ui,
-                           )
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -3099,7 +3079,9 @@ def path_to_doc1(file,
 
                  # json
                  jq_schema='.[]',
+                 extract_frames=True,
 
+                 headsize=50,
                  db_type=None,
                  selected_file_types=None,
 
@@ -3121,7 +3103,8 @@ def path_to_doc1(file,
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file,
                           filei=filei,
-                          base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
+                          base_path=None,
+                          verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
                           n_jobs=n_jobs,
                           is_url=is_url, is_txt=is_txt,
@@ -3154,7 +3137,9 @@ def path_to_doc1(file,
 
                           # json
                           jq_schema=jq_schema,
+                          extract_frames=extract_frames,
 
+                          headsize=headsize,
                           db_type=db_type,
                           selected_file_types=selected_file_types,
                           is_public=is_public,
@@ -3225,6 +3210,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                  # json
                  jq_schema='.[]',
+                 extract_frames=True,
 
                  existing_files=[],
                  existing_hash_ids={},
@@ -3365,6 +3351,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                   # json
                   jq_schema=jq_schema,
+                  extract_frames=extract_frames,
 
                   db_type=db_type,
                   selected_file_types=selected_file_types,
@@ -3645,7 +3632,8 @@ def get_existing_db(db, persist_directory,
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
             got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
-            if got_embedding and hf_embedding_model and 'name' in hf_embedding_model and hf_embedding_model0 == hf_embedding_model['name']:
+            if got_embedding and hf_embedding_model and 'name' in hf_embedding_model and hf_embedding_model0 == \
+                    hf_embedding_model['name']:
                 # already have
                 embedding = hf_embedding_model['model']
             else:
@@ -3937,6 +3925,7 @@ def _make_db(use_openai_embedding=False,
 
              # json
              jq_schema='.[]',
+             extract_frames=True,
 
              langchain_mode=None,
              langchain_mode_paths=None,
@@ -4035,6 +4024,7 @@ def _make_db(use_openai_embedding=False,
 
                                 # json
                                 jq_schema=jq_schema,
+                                extract_frames=extract_frames,
 
                                 existing_files=existing_files, existing_hash_ids=existing_hash_ids,
                                 db_type=db_type,
@@ -4379,6 +4369,7 @@ def _run_qa_db(query=None,
 
                # json
                jq_schema='.[]',
+               extract_frames=True,
 
                langchain_mode_paths={},
                langchain_mode_types={},
@@ -4596,7 +4587,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       iinput=iinput,
                       sanitize_bot_response=sanitize_bot_response,
                       system_prompt=system_prompt,
-                      chat_conversation=chat_conversation if not query_action else [],  # FIXME: sum/extra handle long chat_conversation
+                      chat_conversation=chat_conversation if not query_action else [],
+                      # FIXME: sum/extra handle long chat_conversation
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
@@ -4713,7 +4705,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                 LangChainAction.SUMMARIZE_REFINE.value]:
             ret = 'No relevant documents to summarize.' if query or num_docs_before_cut > 0 else 'No documents to summarize.'
         elif langchain_action in [LangChainAction.EXTRACT.value]:
-            ret = ['No relevant documents to extract from.'] if query or num_docs_before_cut > 0 else ['No documents to extract from.']
+            ret = ['No relevant documents to extract from.'] if query or num_docs_before_cut > 0 else [
+                'No documents to extract from.']
         elif not use_llm_if_no_docs:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
         else:
@@ -5244,6 +5237,7 @@ def get_chain(query=None,
 
               # json
               jq_schema='.[]',
+              extract_frames=True,
 
               langchain_mode_paths=None,
               langchain_mode_types=None,
@@ -5633,6 +5627,7 @@ def get_chain(query=None,
 
                                                         # json
                                                         jq_schema=jq_schema,
+                                                        extract_frames=extract_frames,
 
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,
@@ -5690,11 +5685,11 @@ def get_chain(query=None,
             if len(document_content_substrings) > 1:
                 inner_list = [{'$contains': x} for x in document_content_substrings]
                 if document_content_substrings_op == 'or':
-                    where_document={"$or": inner_list}
+                    where_document = {"$or": inner_list}
                 else:
-                    where_document={"$and": inner_list}
+                    where_document = {"$and": inner_list}
             else:
-                where_document={'$contains':document_content_substrings[0]}
+                where_document = {'$contains': document_content_substrings[0]}
             where_document_dict = dict(where_document=where_document)
         import logging
         logging.getLogger("chromadb").setLevel(logging.ERROR)
@@ -5848,9 +5843,11 @@ def get_chain(query=None,
             if document_source_substrings:
                 set_document_source_substrings = set(document_source_substrings)
                 if document_source_substrings_op == 'or':
-                    docs_with_score = [x for x in docs_with_score if any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+                    docs_with_score = [x for x in docs_with_score if
+                                       any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
                 else:
-                    docs_with_score = [x for x in docs_with_score if all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+                    docs_with_score = [x for x in docs_with_score if
+                                       all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
     # SELECT PROMPT + DOCS
 
@@ -6565,6 +6562,7 @@ def _update_user_db(file,
 
                     # json
                     jq_schema='.[]',
+                    extract_frames=True,
 
                     dbs=None, db_type=None,
                     langchain_modes=None,
@@ -6707,6 +6705,7 @@ def _update_user_db(file,
 
                            # json
                            jq_schema=jq_schema,
+                           extract_frames=extract_frames,
 
                            db_type=db_type,
 
@@ -6965,6 +6964,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                      # json
                                                      jq_schema='.[]',
+                                                     extract_frames=True,
 
                                                      dbs=None, first_para=None,
                                                      hf_embedding_model=None,
@@ -7041,6 +7041,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                         # json
                                                         jq_schema=jq_schema,
+                                                        extract_frames=extract_frames,
 
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,

@@ -426,6 +426,8 @@ def main(
         # json
         jq_schema='.[]',
 
+        extract_frames=True,
+
         max_quality: bool = False,
 
         enable_heap_analytics: bool = True,
@@ -991,6 +993,7 @@ def main(
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
            See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
+    :param extract_frames: Choose whether extract unique frames from video (True) or just do audio (False)
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
            Pro: Catches document when some default parsers would fail
@@ -1443,6 +1446,7 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
+                            extract_frames,
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
@@ -2859,6 +2863,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
+        extract_frames,
         visible_models,
         h2ogpt_key,
         add_search_to_context,
@@ -3236,6 +3241,7 @@ def evaluate(
                                  asr_model=asr_model,
                                  asr_loader=asr_loader,
                                  jq_schema=jq_schema,
+                                 extract_frames=extract_frames,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
         # no longer stuff chat history directly into context this early
@@ -3648,6 +3654,7 @@ def evaluate(
                                      pdf_loaders=pdf_loaders,
                                      url_loaders=url_loaders,
                                      jq_schema=jq_schema,
+                                     extract_frames=extract_frames,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
@@ -4199,6 +4206,7 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
+                        extract_frames,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
@@ -4399,6 +4407,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    extract_frames,
                     None,
                     None,
                     False,
