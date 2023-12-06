@@ -1,9 +1,11 @@
+import os
 import time
+from tests.utils import wrap_test_forked
 
-from src.vision.utils_vision import png_to_base64
 
-
+@wrap_test_forked
 def test_llava_client():
+    from src.vision.utils_vision import png_to_base64
     img_str = png_to_base64("models/wizard.jpg")
 
     from gradio_client import Client
@@ -29,7 +31,9 @@ def test_llava_client():
     print(res)
 
 
+@wrap_test_forked
 def test_llava_client_stream():
+    from src.vision.utils_vision import png_to_base64
     img_str = png_to_base64("models/wizard.jpg")
 
     from gradio_client import Client
@@ -64,3 +68,29 @@ def test_llava_client_stream():
         print('Final Stream %d: %s\n' % (num, res[-1][-1]), flush=True)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+
+
+@wrap_test_forked
+def test_make_image():
+    from src.vision.sdxl import make_image
+    prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
+    make_image(prompt, filename="output_p2i.png")
+
+
+@wrap_test_forked
+def test_change_image():
+    from src.vision.sdxl import change_image
+    init_file = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cat.png"
+    change_image(init_file=init_file, prompt="cat wizard, gandalf, lord of the rings, detailed, fantasy, cute, adorable, Pixar, Disney, 8k", filename="output_i2i.png")
+
+
+@wrap_test_forked
+def test_video_extraction():
+    #urls = ["https://www.youtube.com/watch?v=cwjs1WAG9CM"]
+    from src.vision.extract_movie import extract_unique_frames
+    export_dir = extract_unique_frames(urls=None, download_dir=None)
+    image_files = [f for f in os.listdir(export_dir) if os.path.isfile(os.path.join(export_dir, f))]
+    assert len(image_files) > 10
+    assert image_files[0].endswith('.jpg')
+    print(export_dir)
+    # feh -rF -D 1000 export_dir
