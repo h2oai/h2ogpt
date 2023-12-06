@@ -67,17 +67,17 @@ class LangChainAction(Enum):
     EXTRACT = "Extract"
 
 
-pre_prompt_query0 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
-prompt_query0 = "According to only the information in the document sources provided within the context above, "
+pre_prompt_query0 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
+prompt_query0 = "According to only the information in the document sources provided within the context above: "
 
-pre_prompt_summary0 = """\n"""
-prompt_summary0 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+pre_prompt_summary0 = """"""
+prompt_summary0 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
 
-pre_prompt_extraction0 = """In order to extract information, pay attention to the following text\n"""
-prompt_extraction0 = "Using only the information in the document sources above, extract: \n"
+pre_prompt_extraction0 = """In order to extract information, pay attention to the following text."""
+prompt_extraction0 = "Using only the information in the document sources above, extract "
 
 
-hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question:"
+hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
 class GradioClient(Client):
     """
@@ -471,13 +471,17 @@ class GradioClient(Client):
             instruction: Query for LLM chat.  Used for similarity search
 
             For query, prompt template is:
-              "{pre_prompt_query}\"\"\"
+              "{pre_prompt_query}
+                \"\"\"
                 {content}
-                \"\"\"\n{prompt_query}{instruction}"
+                \"\"\"
+                {prompt_query}{instruction}"
              If added to summarization, prompt template is
-              "{pre_prompt_summary}:\"\"\"
+              "{pre_prompt_summary}
+                \"\"\"
                 {content}
-                \"\"\"\n, Focusing on {instruction}, {prompt_summary}"
+                \"\"\"
+                Focusing on {instruction}, {prompt_summary}"
             text: textual content or list of such contents
             file: a local file to upload or files to upload
             url: a url to give or urls to use
@@ -511,10 +515,11 @@ class GradioClient(Client):
               None makes h2oGPT internally use its defaults
               E.g. "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
             i.e. for some internal document part fstring, the template looks like:
-                template = "%s:
+                template = "%s
                 \"\"\"
                 %s
-                \"\"\"\n%s" % (pre_prompt_summary, fstring, prompt_summary)
+                \"\"\"
+                %s" % (pre_prompt_summary, fstring, prompt_summary)
             hyde_llm_prompt: hyde prompt for first step when using LLM
             h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
             model: base_model name or integer index of model_lock on h2oGPT server

@@ -6249,7 +6249,8 @@ def get_template(query, iinput,
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
-        template = """%s:%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
+        # triple_quotes includes \n before """ and after """
+        template = """%s%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
