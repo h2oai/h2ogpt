@@ -137,6 +137,12 @@ In the expert panel you can replay any h2oGPT generation or speak instruction ge
 
 If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
 
+### Automatic Speech Recognition (ASR)
+
+ASR is handled with whisper type models for ingesting YouTube videos or other videos.
+
+For Twitter, one can right-click on Twitter video, copy video address, then paste into [TwitterVideoDownloader.com](https://twitter.com/i/status/1732448989336006826) and download the video, right-click on that video and click save as, then upload to h2oGPT.
+
 ### Faster ASR
 
 For fast performance, one can use `distil-whisper/distil-large-v2` as the model, which is about 10x faster for similar accuracy.
