@@ -20,12 +20,12 @@ def test_llava_client():
 
     model_selector, temperature, top_p, max_output_tokens = 'llava-v1.5-13b', 0.2, 0.7, 512
     res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image, api_name='/textbox_api_submit')
-    res = res[-1][1]
+    res = res[-1][-1]
     print(res)
 
     model_selector, temperature, top_p, max_output_tokens = 'Nous-Hermes-2-Vision', 0.2, 0.7, 512
     res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image, api_name='/textbox_api_submit')
-    res = res[-1][1]
+    res = res[-1][-1]
     print(res)
 
 
@@ -53,7 +53,7 @@ def test_llava_client_stream():
         job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
         for num in range(job_outputs_num_new):
             res = outputs_list[job_outputs_num + num]
-            print('Stream %d: %s\n' % (num, res[-1][1]), flush=True)
+            print('Stream %d: %s\n' % (num, res[-1][-1]), flush=True)
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
@@ -61,6 +61,6 @@ def test_llava_client_stream():
     job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
     for num in range(job_outputs_num_new):
         res = outputs_list[job_outputs_num + num]
-        print('Final Stream %d: %s\n' % (num, res[-1][1]), flush=True)
+        print('Final Stream %d: %s\n' % (num, res[-1][-1]), flush=True)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
