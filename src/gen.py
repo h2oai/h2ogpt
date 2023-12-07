@@ -4676,6 +4676,25 @@ def remove_refs(text, keep_sources_in_context, langchain_mode):
     return text
 
 
+def gradio_to_llm(x, bot=False):
+    # handle if gradio tuples in messages
+    if x is None:
+        x = ''
+    if isinstance(x, (tuple, list)) and len(x) > 0:
+        x = list(x)
+        for insti, inst in enumerate(x):
+            if isinstance(inst, str) and inst.startswith('/tmp/gradio'):
+                # below so if put into context gets rendered not as broken file
+                if bot:
+                    x[insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
+                else:
+                    x[insti] = 'file=' + inst
+        if len(x) == 1:
+            x = x[0]
+        x = str(x) if all(isinstance(x, str) for x in x) else ''
+    return x
+
+
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
@@ -4715,7 +4734,10 @@ def history_to_context(history, langchain_mode=None,
         context1 = ''
         # - 1 below because current instruction already in history from user()
         for histi in range(0, len_history):
-            data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+            instruction = gradio_to_llm(history[histi][0], bot=False)
+            output = gradio_to_llm(history[histi][1], bot=True)
+
+            data_point = dict(instruction=instruction, input='', output=output)
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,
                                 prompt_type,

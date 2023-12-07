@@ -62,7 +62,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
+from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
 from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -1229,8 +1229,11 @@ class ExtraChat:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
-                messages.append(HumanMessage(content=messages1[0] if messages1[0] is not None else ''))
-                messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
+                instruction = gradio_to_llm(messages1[0], bot=False)
+                output = gradio_to_llm(messages1[1], bot=True)
+
+                messages.append(HumanMessage(content=instruction))
+                messages.append(AIMessage(content=output))
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
