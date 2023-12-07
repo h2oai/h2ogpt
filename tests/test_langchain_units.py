@@ -1602,12 +1602,34 @@ def test_youtube_audio_add(db_type):
             url = 'https://www.youtube.com/watch?v=cwjs1WAG9CM'
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url,
                                                fail_any_exception=True, db_type=db_type,
-                                               add_if_exists=False)
+                                               add_if_exists=False,
+                                               extract_frames=0)
             assert db is not None
             docs = db.similarity_search("Example")
             assert len(docs) == 3 + (1 if db_type == 'chroma' else 0) or len(docs) == 4
             assert 'structured output' in docs[0].page_content
             assert url in docs[0].metadata['source']
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_youtube_full_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.youtube.com/shorts/JjdqlglRxrU'
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("cat")
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0) or len(docs) == 4
+            assert 'couch' in str([x.page_content for x in docs])
+            assert url in docs[0].metadata['source'] or url in docs[0].metadata['original_source']
+            docs = db.similarity_search("cat", 100)
+            assert 'So I heard if you give a cat an egg' in str([x.page_content for x in docs])
     kill_weaviate(db_type)
 
 
