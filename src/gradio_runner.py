@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4
+    get_ngpus_vis, have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -1427,7 +1427,7 @@ def go_gradio(**kwargs):
                                                    maximum=5 if is_public else max(kwargs['extract_frames'], 200),
                                                    label="Number of unique images to extract from videos",
                                                    info="If 0, just audio extracted if enabled",
-                                                   visible=True)
+                                                   visible=have_fiftyone)
 
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,

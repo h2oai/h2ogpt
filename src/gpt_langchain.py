@@ -54,7 +54,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, get_ngpus_vis, have_librosa, return_good_url
+    get_test_name_core, download_simple, get_ngpus_vis, have_librosa, return_good_url, have_fiftyone
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -2576,7 +2576,7 @@ def file_to_doc(file,
         # caption didn't set source, so fix-up meta
 
         video_type = any([file.endswith(x) for x in video_types])
-        if video_type and extract_frames > 0:
+        if video_type and extract_frames > 0 and have_fiftyone:
             from src.vision.extract_movie import extract_unique_frames
             export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
             docs1c_files = path_to_docs_func(export_dir)
