@@ -82,6 +82,8 @@ def run_eval(  # for local function:
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        llava_model=None,
+
         asr_model=None,
         asr_loader=None,
 

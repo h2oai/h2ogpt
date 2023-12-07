@@ -185,6 +185,7 @@ def go_gradio(**kwargs):
     captions_model = kwargs['captions_model']
     caption_loader = kwargs['caption_loader']
     doctr_loader = kwargs['doctr_loader']
+    llava_model = kwargs['llava_model']
     asr_model = kwargs['asr_model']
     asr_loader = kwargs['asr_loader']
 
@@ -2197,6 +2198,7 @@ def go_gradio(**kwargs):
                                            captions_model=captions_model,
                                            caption_loader=caption_loader,
                                            doctr_loader=doctr_loader,
+                                           llava_model=llava_model,
                                            asr_model=asr_model,
                                            asr_loader=asr_loader,
                                            verbose=kwargs['verbose'],
@@ -2504,6 +2506,7 @@ def go_gradio(**kwargs):
                                              captions_model=captions_model,
                                              caption_loader=caption_loader,
                                              doctr_loader=doctr_loader,
+                                             llava_model=llava_model,
                                              asr_model=asr_model,
                                              asr_loader=asr_loader,
                                              dbs=dbs,
@@ -5799,6 +5802,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       captions_model=None,
                       caption_loader=None,
                       doctr_loader=None,
+                      llava_model=None,
                       asr_model=None,
                       asr_loader=None,
 
@@ -5824,6 +5828,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
+                             llava_model=llava_model,
                              asr_model=asr_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
@@ -5951,6 +5956,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         captions_model=None,
                                                         caption_loader=None,
                                                         doctr_loader=None,
+                                                        llava_model=None,
                                                         asr_model=None,
                                                         asr_loader=None,
 
@@ -5982,6 +5988,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
+                             llava_model=llava_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
                              extract_frames=extract_frames,

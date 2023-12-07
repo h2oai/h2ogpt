@@ -58,11 +58,14 @@ def run_cli(  # for local function:
         speaker=None,
         tts_language=None,
         tts_speed=None,
+
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        llava_model=None,
+
         asr_model=None,
         asr_loader=None,
         image_audio_loaders_options0=None,

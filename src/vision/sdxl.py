@@ -15,13 +15,17 @@ def get_device(gpu_id):
     return device
 
 
-def make_image(prompt, filename=None, gpu_id='auto'):
-    #https://huggingface.co/stabilityai/sdxl-turbo
-
+def get_pipe_make_image(gpu_id='auto'):
+    # https://huggingface.co/stabilityai/sdxl-turbo
     device = get_device(gpu_id)
 
     pipe = AutoPipelineForText2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16").to(device)
-    pipe.to("cuda")
+    return pipe
+
+
+def make_image(prompt, filename=None, gpu_id='auto', pipe=None):
+    if pipe is None:
+        pipe = get_pipe_make_image(gpu_id=gpu_id)
 
     image = pipe(prompt=prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
     if filename:
@@ -30,10 +34,16 @@ def make_image(prompt, filename=None, gpu_id='auto'):
     return image
 
 
-def change_image(prompt, init_image=None, init_file=None, filename=None, gpu_id='auto'):
+def get_pipe_change_image(gpu_id='auto'):
     device = get_device(gpu_id)
 
     pipe = AutoPipelineForImage2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16").to(device)
+    return pipe
+
+
+def change_image(prompt, init_image=None, init_file=None, filename=None, gpu_id='auto', pipe=None):
+    if pipe is None:
+        pipe = get_pipe_change_image(gpu_id)
 
     if init_file:
         init_image = load_image(init_file).resize((512, 512))

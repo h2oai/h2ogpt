@@ -1305,6 +1305,12 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_fiftyone = False
 
+try:
+    assert distribution('diffusers') is not None
+    have_diffusers = True
+except (PackageNotFoundError, AssertionError):
+    have_diffusers = False
+
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
@@ -1514,6 +1520,8 @@ def lg_to_gr(
             image_audio_loaders_options0.append('ASRLarge')
         else:
             image_audio_loaders_options0.append('ASR')
+    if kwargs['enable_llava']:
+        image_audio_loaders_options0.append('LLaVa')
 
     pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
     if have_tesseract:

@@ -48,12 +48,13 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
-    user_prompt_for_fake_system_prompt
+    user_prompt_for_fake_system_prompt, base_langchain_actions
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2
+    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
+    have_diffusers
 
 start_faulthandler()
 import_matplotlib()
@@ -305,8 +306,7 @@ def main(
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
 
-        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
-                                           LangChainAction.EXTRACT.value],
+        visible_langchain_actions: list = base_langchain_actions.copy(),
         visible_langchain_agents: list = langchain_agents_list.copy(),
 
         document_subset: str = DocumentSubset.Relevant.name,
@@ -366,26 +366,27 @@ def main(
         n_gpus: int = None,
 
         # urls
-        use_unstructured=True,
-        use_playwright=False,
-        use_selenium=False,
-        use_scrapeplaywright=False,
-        use_scrapehttp=False,
+        use_unstructured: bool = True,
+        use_playwright: bool = False,
+        use_selenium: bool = False,
+        use_scrapeplaywright: bool = False,
+        use_scrapehttp: bool = False,
 
         # pdfs
-        use_pymupdf='auto',
-        use_unstructured_pdf='auto',
-        use_pypdf='auto',
-        enable_pdf_ocr='auto',
-        enable_pdf_doctr='auto',
-        try_pdf_as_html='auto',
+        use_pymupdf: Union[bool, str] = 'auto',
+        use_unstructured_pdf: Union[bool, str] = 'auto',
+        use_pypdf: Union[bool, str] = 'auto',
+        enable_pdf_ocr: Union[bool, str] = 'auto',
+        enable_pdf_doctr: Union[bool, str] = 'auto',
+        try_pdf_as_html: Union[bool, str] = 'auto',
 
         # images
-        enable_ocr=False,
-        enable_doctr=True,
-        enable_pix2struct=False,
-        enable_captions=True,
-        enable_transcriptions=True,
+        enable_ocr: bool = False,
+        enable_doctr: bool = True,
+        enable_pix2struct: bool = False,
+        enable_captions: bool = True,
+        enable_llava: bool = True,
+        enable_transcriptions: bool = True,
 
         pre_load_image_audio_models: bool = False,
 
@@ -394,6 +395,8 @@ def main(
         captions_model: str = "Salesforce/blip-image-captioning-base",
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
+        llava_model: str = None,
+
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
@@ -423,10 +426,13 @@ def main(
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
         sst_floor: float = 100,
 
+        enable_imagegen: bool = False,  # experimental
+        imagegen_gpu_id: Union[str, int] = 'auto',
+
         # json
         jq_schema='.[]',
 
-        extract_frames=20,
+        extract_frames: int = 20,
 
         max_quality: bool = False,
 
@@ -916,6 +922,7 @@ def main(
     :param enable_pix2struct: Whether to support pix2struct on images for captions
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
            then preloads that model if pre_load_image_audio_models=True
+    :param enable_llava: If LLaVa IP port is set, whether to use response for image ingestion
     :param enable_transcriptions: Whether to enable audio transcriptions (youtube of from files)
            Preloaded if pre_load_image_audio_models=True
 
@@ -935,6 +942,10 @@ def main(
 
     :param doctr_gpu: If support doctr, then use GPU if exists
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
+
+    :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
+           E.g. http://192.168.1.46:7861
+           None means no such LLaVa support
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
@@ -993,7 +1004,11 @@ def main(
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
            See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
-    :param extract_frames: Choose whether extract unique frames from video (True) or just do audio (False)
+
+    :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
+
+    :param enable_imagegen: Whether to enable image generation-change model
+    :param imagegen_gpu_id: GPU id to use for imagegen model
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
            Pro: Catches document when some default parsers would fail
@@ -1069,6 +1084,10 @@ def main(
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
+    if not have_diffusers:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
+    if not llava_gradio_ip_port:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
@@ -1586,6 +1605,13 @@ def main(
                                                      supported_languages=supported_languages_xtt,
                                                      return_as_byte=return_as_byte,
                                                      verbose=verbose)
+
+    if enable_imagegen:
+        # always preloaded
+        from src.vision.sdxl import get_pipe_make_image, get_pipe_change_image
+        image_gen_loader = get_pipe_make_image(gpu_id=imagegen_gpu_id)
+        image_change_loader = get_pipe_change_image(gpu_id=imagegen_gpu_id)
+        # use same model, just different pipelines, but unclear how to use same GPU memory
 
     # DB SETUP
 
@@ -2890,6 +2916,8 @@ def evaluate(
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        llava_model=None,
+
         asr_model=None,
         asr_loader=None,
 
@@ -3238,6 +3266,7 @@ def evaluate(
                                  caption_loader=caption_loader,
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
+                                 llava_model=llava_model,
                                  asr_model=asr_model,
                                  asr_loader=asr_loader,
                                  jq_schema=jq_schema,

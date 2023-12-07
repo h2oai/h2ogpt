@@ -2220,8 +2220,11 @@ def file_to_doc(file,
                 enable_doctr=False,
                 enable_pix2struct=False,
                 enable_captions=True,
+                enable_llava=True,
                 enable_transcriptions=True,
                 captions_model=None,
+                llava_model=None,
+
                 asr_model=None,
                 asr_gpu_id=0,
 
@@ -2320,6 +2323,10 @@ def file_to_doc(file,
                                           enable_pix2struct=enable_pix2struct,
                                           enable_captions=enable_captions,
                                           captions_model=captions_model,
+                                          enable_llava=enable_llava,
+                                          llava_model=llava_model,
+
+                                          # audio
                                           enable_transcriptions=enable_transcriptions,
                                           asr_model=asr_model,
 
@@ -2765,6 +2772,28 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
             if verbose:
                 print("END: Pix2Struct", flush=True)
+        if llava_model and enable_llava and (file.endswith('.jpg') or file.endswith('.jpeg')):  # FIXME for png etc.
+            # LLaVa
+            if verbose:
+                print("BEGIN: LLaVa", flush=True)
+            try:
+                from src.vision.utils_vision import get_llava_response
+                res = get_llava_response(file, llava_model)
+                metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
+                docs1c = [Document(page_content=res, metadata=metadata)]
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='LLaVa: %s' % llava_model)
+                # caption didn't set source, so fix-up meta
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                docs1.extend(docs1c)
+            except BaseException as e0:
+                print("LLaVa: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1) > 0
+            if verbose:
+                print("END: LLaVa", flush=True)
+
         doc1 = chunk_sources(docs1)
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
@@ -3143,15 +3172,17 @@ def path_to_doc1(file,
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_llava=True,
                  enable_transcriptions=True,
                  captions_model=None,
+                 llava_model=None,
                  asr_model=None,
-
-                 model_loaders=None,
 
                  # json
                  jq_schema='.[]',
                  extract_frames=10,
+
+                 model_loaders=None,
 
                  headsize=50,
                  db_type=None,
@@ -3201,8 +3232,10 @@ def path_to_doc1(file,
                           enable_doctr=enable_doctr,
                           enable_pix2struct=enable_pix2struct,
                           enable_captions=enable_captions,
+                          enable_llava=enable_llava,
                           enable_transcriptions=enable_transcriptions,
                           captions_model=captions_model,
+                          llava_model=llava_model,
                           asr_model=asr_model,
 
                           model_loaders=model_loaders,
@@ -3247,9 +3280,11 @@ def path_to_doc1(file,
     return res
 
 
-def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=-1,
-                 chunk=True, chunk_size=512,
+def path_to_docs(path_or_paths,
                  url=None, text=None,
+
+                 verbose=False, fail_any_exception=False, n_jobs=-1,
+                 chunk=True, chunk_size=512,
 
                  # urls
                  use_unstructured=True,
@@ -3271,8 +3306,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_llava=True,
                  enable_transcriptions=True,
                  captions_model=None,
+                 llava_model=None,
                  asr_model=None,
 
                  caption_loader=None,
@@ -3283,13 +3320,13 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  # json
                  jq_schema='.[]',
                  extract_frames=10,
+                 db_type=None,
+                 is_public=False,
 
                  existing_files=[],
                  existing_hash_ids={},
-                 db_type=None,
                  selected_file_types=None,
 
-                 is_public=False,
                  from_ui=True,
                  ):
     if verbose:
@@ -3415,8 +3452,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_doctr=enable_doctr,
                   enable_pix2struct=enable_pix2struct,
                   enable_captions=enable_captions,
+                  enable_llava=enable_llava,
                   enable_transcriptions=enable_transcriptions,
                   captions_model=captions_model,
+                  llava_model=llava_model,
                   asr_model=asr_model,
 
                   model_loaders=model_loaders,
@@ -3987,9 +4026,11 @@ def _make_db(use_openai_embedding=False,
              enable_doctr=False,
              enable_pix2struct=False,
              enable_captions=True,
+             enable_llava=True,
              enable_transcriptions=True,
              captions_model=None,
              caption_loader=None,
+             llava_model=None,
              doctr_loader=None,
              pix2struct_loader=None,
              asr_model=None,
@@ -4086,9 +4127,11 @@ def _make_db(use_openai_embedding=False,
                                 enable_doctr=enable_doctr,
                                 enable_pix2struct=enable_pix2struct,
                                 enable_captions=enable_captions,
+                                enable_llava=enable_llava,
                                 enable_transcriptions=enable_transcriptions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
+                                llava_model=llava_model,
                                 doctr_loader=doctr_loader,
                                 pix2struct_loader=pix2struct_loader,
                                 asr_model=asr_model,
@@ -4431,9 +4474,11 @@ def _run_qa_db(query=None,
                enable_doctr=False,
                enable_pix2struct=False,
                enable_captions=True,
+               enable_llava=True,
                enable_transcriptions=True,
                captions_model=None,
                caption_loader=None,
+               llava_model=None,
                doctr_loader=None,
                pix2struct_loader=None,
                asr_model=None,
@@ -5299,11 +5344,13 @@ def get_chain(query=None,
               enable_doctr=False,
               enable_pix2struct=False,
               enable_captions=True,
+              enable_llava=True,
               enable_transcriptions=True,
               captions_model=None,
               caption_loader=None,
               doctr_loader=None,
               pix2struct_loader=None,
+              llava_model=None,
               asr_model=None,
               asr_loader=None,
 
@@ -5689,11 +5736,13 @@ def get_chain(query=None,
                                                         enable_doctr=enable_doctr,
                                                         enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
+                                                        enable_llava=enable_llava,
                                                         enable_transcriptions=enable_transcriptions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
+                                                        llava_model=llava_model,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 
@@ -6624,11 +6673,13 @@ def _update_user_db(file,
                     enable_doctr=False,
                     enable_pix2struct=False,
                     enable_captions=True,
+                    enable_llava=True,
                     enable_transcriptions=True,
                     captions_model=None,
                     caption_loader=None,
                     doctr_loader=None,
                     pix2struct_loader=None,
+                    llava_model=None,
                     asr_model=None,
                     asr_loader=None,
 
@@ -6669,6 +6720,7 @@ def _update_user_db(file,
     assert enable_pdf_ocr is not None
     assert enable_pdf_doctr is not None
     assert enable_pix2struct is not None
+    assert enable_llava is not None
     assert verbose is not None
 
     if dbs is None:
@@ -6767,11 +6819,13 @@ def _update_user_db(file,
                            enable_doctr=enable_doctr,
                            enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
+                           enable_llava=enable_llava,
                            enable_transcriptions=enable_transcriptions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
                            doctr_loader=doctr_loader,
                            pix2struct_loader=pix2struct_loader,
+                           llava_model=llava_model,
                            asr_model=asr_model,
                            asr_loader=asr_loader,
 
@@ -7026,11 +7080,13 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      enable_doctr=False,
                                                      enable_pix2struct=False,
                                                      enable_captions=True,
+                                                     enable_llava=True,
                                                      enable_transcriptions=True,
                                                      captions_model=None,
                                                      caption_loader=None,
                                                      doctr_loader=None,
                                                      pix2struct_loader=None,
+                                                     llava_model=None,
                                                      asr_model=None,
                                                      asr_loader=None,
 
@@ -7103,11 +7159,13 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         enable_doctr=enable_doctr,
                                                         enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
+                                                        enable_llava=enable_llava,
                                                         enable_transcriptions=enable_transcriptions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
+                                                        llava_model=llava_model,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 

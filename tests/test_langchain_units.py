@@ -519,8 +519,10 @@ def test_make_add_db(repeat, db_type):
                                   enable_captions=False,
                                   enable_doctr=False,
                                   enable_pix2struct=False,
+                                  enable_llava=False,
                                   enable_transcriptions=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
+                                  llava_model=None,
                                   asr_model='openai/whisper-medium',
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
@@ -1379,9 +1381,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 raise NotImplementedError()
 
 
-def check_content_captions(docs, caption_model, enable_pix2struct):
+def check_content_captions(docs, captions_model, enable_pix2struct):
     assert any(['license' in docs[ix].page_content.lower() for ix in range(len(docs))])
-    if caption_model is not None and 'blip2' in caption_model:
+    if captions_model is not None and 'blip2' in captions_model:
         str_expected = """california driver license with a woman's face on it california driver license"""
     elif enable_pix2struct:
         str_expected = """california license"""
@@ -1411,6 +1413,39 @@ def check_source(docs, test_file1):
         assert os.path.basename(os.path.normpath(test_file1)) in os.path.normpath(docs[0].metadata['source'])
     else:
         assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_llava_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            file = 'cat.jpg'
+            test_file1 = os.path.join(tmp_user_path, file)
+            shutil.copy('data/pexels-evg-kowalievska-1170986_small.jpg', test_file1)
+
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False,
+                                               enable_llava=True,
+                                               llava_model='http://192.168.1.46:7861',
+                                               enable_doctr=False,
+                                               enable_captions=False,
+                                               enable_ocr=False,
+                                               enable_transcriptions=False,
+                                               enable_pdf_ocr=False,
+                                               enable_pdf_doctr=False,
+                                               enable_pix2struct=False,
+                                               )
+            assert db is not None
+            docs = db.similarity_search("cat")
+            assert len(docs) == 2 if db_type == 'chroma' else 1
+            assert 'cat' in docs[0].page_content
+            assert 'birds' in docs[0].page_content or 'outdoors' in docs[0].page_content or 'outside' in docs[
+                0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
 
 
 @pytest.mark.parametrize("db_type", db_types)

@@ -34,10 +34,12 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                enable_doctr=False,
                enable_pix2struct=False,
                enable_captions=True,
+               enable_llava=True,
                enable_transcriptions=True,
                captions_model=None,
                caption_loader=None,
                doctr_loader=None,
+               llava_model=None,
                asr_model=None,
                asr_loader=None,
 
@@ -50,46 +52,57 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
                is_public=False):
     assert db_type is not None
-    sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
-                            n_jobs=n_jobs,
-                            chunk=chunk,
-                            chunk_size=chunk_size, url=url,
 
-                            # urls
-                            use_unstructured=use_unstructured,
-                            use_playwright=use_playwright,
-                            use_selenium=use_selenium,
-                            use_scrapeplaywright=use_scrapeplaywright,
-                            use_scrapehttp=use_scrapehttp,
+    loaders_and_settings = dict(
+        # diag/error handling
+        verbose=verbose, fail_any_exception=fail_any_exception,
+        # speed
+        n_jobs=n_jobs,
 
-                            # pdfs
-                            use_pymupdf=use_pymupdf,
-                            use_unstructured_pdf=use_unstructured_pdf,
-                            use_pypdf=use_pypdf,
-                            enable_pdf_ocr=enable_pdf_ocr,
-                            try_pdf_as_html=try_pdf_as_html,
-                            enable_pdf_doctr=enable_pdf_doctr,
+        # chunking
+        chunk=chunk,
+        chunk_size=chunk_size,
 
-                            # images
-                            enable_ocr=enable_ocr,
-                            enable_doctr=enable_doctr,
-                            enable_pix2struct=enable_pix2struct,
-                            enable_captions=enable_captions,
-                            enable_transcriptions=enable_transcriptions,
-                            captions_model=captions_model,
-                            caption_loader=caption_loader,
-                            doctr_loader=doctr_loader,
-                            asr_model=asr_model,
-                            asr_loader=asr_loader,
+        # urls
+        use_unstructured=use_unstructured,
+        use_playwright=use_playwright,
+        use_selenium=use_selenium,
+        use_scrapeplaywright=use_scrapeplaywright,
+        use_scrapehttp=use_scrapehttp,
 
-                            # json
-                            jq_schema=jq_schema,
-                            extract_frames=extract_frames,
+        # pdfs
+        use_pymupdf=use_pymupdf,
+        use_unstructured_pdf=use_unstructured_pdf,
+        use_pypdf=use_pypdf,
+        enable_pdf_ocr=enable_pdf_ocr,
+        try_pdf_as_html=try_pdf_as_html,
+        enable_pdf_doctr=enable_pdf_doctr,
 
-                            db_type=db_type,
+        # images
+        enable_ocr=enable_ocr,
+        enable_doctr=enable_doctr,
+        enable_pix2struct=enable_pix2struct,
+        enable_captions=enable_captions,
+        enable_llava=enable_llava,
+        enable_transcriptions=enable_transcriptions,
+        captions_model=captions_model,
+        caption_loader=caption_loader,
+        doctr_loader=doctr_loader,
+        llava_model=llava_model,
+        asr_model=asr_model,
+        asr_loader=asr_loader,
+
+        # json
+        jq_schema=jq_schema,
+        extract_frames=extract_frames,
+
+        db_type=db_type,
+        is_public=is_public,
+    )
+    sources1 = path_to_docs(user_path,
+                            url=url,
+                            **loaders_and_settings,
                             selected_file_types=selected_file_types,
-
-                            is_public=is_public,
                             )
     return sources1
 
@@ -134,7 +147,9 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_llava=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
+                 llava_model: str = None,
                  pre_load_image_audio_models: bool = False,
                  caption_gpu: bool = True,
                  # caption_loader=None,  # set internally
@@ -210,7 +225,9 @@ def make_db_main(use_openai_embedding: bool = False,
     :param enable_doctr: see gen.py
     :param enable_pix2struct: see gen.py
     :param enable_captions: Whether to enable captions on images
-    :param captions_model: See generate.py
+    :param enable_llava: See gen.py
+    :param captions_model: See gen.py
+    :param llava_model: See gen.py
     :param pre_load_image_audio_models: See generate.py
     :param caption_gpu: Caption images on GPU if present
 
@@ -332,10 +349,12 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_doctr=enable_doctr,
                          enable_pix2struct=enable_pix2struct,
                          enable_captions=enable_captions,
+                         enable_llava=enable_llava,
                          enable_transcriptions=enable_transcriptions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
                          doctr_loader=doctr_loader,
+                         llava_model=llava_model,
                          # Note: we don't reload doctr model
                          asr_loader=asr_loader,
                          asr_model=asr_model,

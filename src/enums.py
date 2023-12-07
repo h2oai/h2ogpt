@@ -114,6 +114,18 @@ class LangChainAction(Enum):
     SUMMARIZE_ALL = "Summarize_all"
     SUMMARIZE_REFINE = "Summarize_refine"
     EXTRACT = "Extract"
+    IMAGE_GENERATE = "ImageGen"
+    IMAGE_CHANGE = "ImageChange"
+    IMAGE_QUERY = "ImageQuery"
+
+
+# rest are not implemented fully
+base_langchain_actions = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
+                          LangChainAction.EXTRACT.value,
+                          LangChainAction.IMAGE_GENERATE.value,
+                          LangChainAction.IMAGE_CHANGE.value,
+                          LangChainAction.IMAGE_QUERY.value,
+                          ]
 
 
 class LangChainAgent(Enum):
@@ -279,6 +291,7 @@ def gr_to_lg(image_audio_loaders,
         enable_pix2struct='Pix2Struct' in image_audio_loaders,
         enable_captions='Caption' in image_audio_loaders or 'CaptionBlip2' in image_audio_loaders,
         enable_transcriptions="ASR" in image_audio_loaders or 'ASRLarge' in image_audio_loaders,
+        enable_llava='LLaVa' in image_audio_loaders,
     )
     if 'CaptionBlip2' in image_audio_loaders:
         # just override, don't actually do both even if user chose both
