@@ -1086,7 +1086,7 @@ def main(
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
     if not have_diffusers:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
-    if not llava_gradio_ip_port:
+    if not llava_model:
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
