@@ -6058,7 +6058,8 @@ def get_chain(query=None,
             )
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
         else:
-            # only if use_openai_model = True, unused normally except in testing
+            # unused normally except in testing
+            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (model_name, prompt_type)
             chain = load_qa_with_sources_chain(llm)
         chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)

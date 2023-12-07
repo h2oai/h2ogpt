@@ -3349,7 +3349,8 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         tts_speed1,
-                                        langchain_action1):
+                                        langchain_action1,
+                                        api=True):
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
                     res_dict = {}
                     res_dict['response'] = history[-1][1]
@@ -3398,9 +3399,9 @@ def go_gradio(**kwargs):
                         # full return of dict
                         ret = res_dict
                     elif kwargs['langchain_mode'] == 'Disabled':
-                        ret = fix_text_for_gradio(res_dict['response'])
+                        ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
                     else:
-                        ret = '<br>' + fix_text_for_gradio(res_dict['response'])
+                        ret = '<br>' + fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
 
                     do_yield = False
                     could_yield = ret != ret_old
@@ -3896,7 +3897,7 @@ def go_gradio(**kwargs):
             return audio0, audio1, no_audio, generate_speech_func_func
 
         def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
-                         langchain_action1):
+                         langchain_action1, api=False):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
@@ -3930,7 +3931,7 @@ def go_gradio(**kwargs):
                     save_dict = output_fun.get('save_dict', {})
                     save_dict_iter = {}
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = fix_text_for_gradio(output)
+                    bot_message = fix_text_for_gradio(output, fix_latex_dollars=not api, fix_new_lines=not api)
                     history[-1][1] = bot_message
 
                     if generate_speech_func_func is not None:
@@ -4017,7 +4018,8 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         tts_speed1,
-                                        langchain_action1):
+                                        langchain_action1,
+                                        api=False):
                     do_yield = False
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
@@ -4146,6 +4148,7 @@ def go_gradio(**kwargs):
                                             roles_state1 if first_visible else {},
                                             tts_speed1 if first_visible else 1.0,
                                             langchain_action1,
+                                            api=False,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
