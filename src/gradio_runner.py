@@ -1421,10 +1421,13 @@ def go_gradio(**kwargs):
                                                        info="Set env CRAWL_DEPTH to control depth for Scrape, default is 1 (given page + links on that page)",
                                                        value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
-                        extract_frames = gr.components.Checkbox(value=not is_public,
-                                                       label="Extract unique frames from videos",
-                                                       info="Else, just audio extracted",
-                                                       visible=True)
+                        extract_frames = gr.Number(value=kwargs['extract_frames'] if not is_public else 5,
+                                                   precision=0,
+                                                   minimum=0,
+                                                   maximum=5 if is_public else max(kwargs['extract_frames'], 200),
+                                                   label="Number of unique images to extract from videos",
+                                                   info="If 0, just audio extracted if enabled",
+                                                   visible=True)
 
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
@@ -4244,7 +4247,7 @@ def go_gradio(**kwargs):
                     prompt_raw_all_old = prompt_raw_all.copy()
 
                     llm_answers_all = [x[5] if x is not None and not isinstance(x, BaseException) else y
-                                      for x, y in zip(res1, llm_answers_all_old)]
+                                       for x, y in zip(res1, llm_answers_all_old)]
                     llm_answers_all_old = llm_answers_all.copy()
 
                     save_dicts = [x[6] if x is not None and not isinstance(x, BaseException) else y

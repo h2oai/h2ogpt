@@ -43,7 +43,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
                # json
                jq_schema='.[]',
-               extract_frames=True,
+               extract_frames=10,
 
                db_type=None,
                selected_file_types=None,
@@ -146,7 +146,7 @@ def make_db_main(use_openai_embedding: bool = False,
 
                  # json
                  jq_schema='.[]',
-                 extract_frames=True,
+                 extract_frames=10,
 
                  db_type: str = 'chroma',
                  selected_file_types: Union[List[str], str] = None,

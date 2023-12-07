@@ -8,6 +8,8 @@ pip install fiftyone
 pip install pytube
 ```
 
+By default, image frames are extracted as a separate documemnt, so when viewed in document viewer the images are shown.  If you prefer them under the same document, set env `FRAMES_AS_SAME_DOC=1`.
+
 ### Image Generation (experimental)
 
 Install this inside h2oGPT env

@@ -426,7 +426,7 @@ def main(
         # json
         jq_schema='.[]',
 
-        extract_frames=True,
+        extract_frames=20,
 
         max_quality: bool = False,
 

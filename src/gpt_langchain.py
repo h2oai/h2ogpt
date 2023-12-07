@@ -657,7 +657,7 @@ class GradioInference(H2Oagenerate, LLM):
                              pdf_loaders=None,  # don't need to further do doc specific things
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
-                             extract_frames=True,
+                             extract_frames=10,
                              visible_models=self.visible_models,
                              h2ogpt_key=self.h2ogpt_key,
                              add_search_to_context=client_add_search_to_context,
@@ -2229,7 +2229,7 @@ def file_to_doc(file,
 
                 # json
                 jq_schema='.[]',
-                extract_frames=True,
+                extract_frames=10,
 
                 headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
@@ -2570,22 +2570,26 @@ def file_to_doc(file,
         docs1c = model_loaders['asr'].load(from_youtube=False)
         docs1c = [x for x in docs1c if x.page_content]
         add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+        hash_of_file = hash_file(file)
+        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+        docs1c = chunk_sources(docs1c)
         # caption didn't set source, so fix-up meta
 
         video_type = any([file.endswith(x) for x in video_types])
-        if video_type and extract_frames:
+        if video_type and extract_frames > 0:
             from src.vision.extract_movie import extract_unique_frames
-            export_dir = extract_unique_frames(file=file)
-            #image_files = [f for f in os.listdir(export_dir) if os.path.isfile(os.path.join(export_dir, f))]
-
+            export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
             docs1c_files = path_to_docs_func(export_dir)
-            add_meta(docs1c_files, file, parser='extract_frames')
+            if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
+                add_meta(docs1c_files, file, parser='extract_frames from %s' % file)
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+            else:
+                [x.metadata.update(dict(original_source=file)) for order_id, x in enumerate(docs1c_files)]
+            docs1c_files = chunk_sources(docs1c_files)
             docs1c.extend(docs1c_files)
 
-        hash_of_file = hash_file(file)
-        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-        docs1.extend(docs1c)
-        doc1 = chunk_sources(docs1)
+        doc1.extend(docs1c)
     elif any(file.lower().endswith(x) for x in set_image_audio_types1):
         handled = False
         e = None
@@ -3079,7 +3083,7 @@ def path_to_doc1(file,
 
                  # json
                  jq_schema='.[]',
-                 extract_frames=True,
+                 extract_frames=10,
 
                  headsize=50,
                  db_type=None,
@@ -3210,7 +3214,7 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                  # json
                  jq_schema='.[]',
-                 extract_frames=True,
+                 extract_frames=10,
 
                  existing_files=[],
                  existing_hash_ids={},
@@ -3925,7 +3929,7 @@ def _make_db(use_openai_embedding=False,
 
              # json
              jq_schema='.[]',
-             extract_frames=True,
+             extract_frames=10,
 
              langchain_mode=None,
              langchain_mode_paths=None,
@@ -4369,7 +4373,7 @@ def _run_qa_db(query=None,
 
                # json
                jq_schema='.[]',
-               extract_frames=True,
+               extract_frames=10,
 
                langchain_mode_paths={},
                langchain_mode_types={},
@@ -5237,7 +5241,7 @@ def get_chain(query=None,
 
               # json
               jq_schema='.[]',
-              extract_frames=True,
+              extract_frames=10,
 
               langchain_mode_paths=None,
               langchain_mode_types=None,
@@ -6562,7 +6566,7 @@ def _update_user_db(file,
 
                     # json
                     jq_schema='.[]',
-                    extract_frames=True,
+                    extract_frames=10,
 
                     dbs=None, db_type=None,
                     langchain_modes=None,
@@ -6964,7 +6968,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
 
                                                      # json
                                                      jq_schema='.[]',
-                                                     extract_frames=True,
+                                                     extract_frames=10,
 
                                                      dbs=None, first_para=None,
                                                      hf_embedding_model=None,
