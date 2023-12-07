@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from src.utils import makedirs
+from src.utils import makedirs, sanitize_filename
 
 
 def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=None, extract_frames=10):
@@ -34,7 +34,14 @@ def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=No
     # session = fo.launch_app(frame_view)
     # session = fo.launch_app(unique_view)
 
-    export_dir = export_dir or "/tmp/extraction_%s" % str(uuid.uuid4())
+    san_file = sanitize_filename(os.path.basename(file)) if file else None
+
+    if san_file:
+        export_dir = export_dir or "/tmp/gradio/extraction_%s" % san_file
+        if os.path.isdir(export_dir):
+            export_dir += "_%s" % str(uuid.uuid4())
+    else:
+        export_dir = export_dir or "/tmp/gradio/extraction_%s" % str(uuid.uuid4())
     makedirs(export_dir, exist_ok=True)
     unique_view.export(export_dir, dataset_type=fo.types.VideoDirectory)
     return export_dir
