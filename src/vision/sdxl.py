@@ -1,8 +1,11 @@
+import os
+
+import filelock
 import torch
 from diffusers import AutoPipelineForImage2Image, AutoPipelineForText2Image
 from diffusers.utils import load_image
 
-from src.utils import cuda_vis_check
+from src.utils import cuda_vis_check, makedirs
 
 n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
 n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
@@ -27,7 +30,13 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None):
     if pipe is None:
         pipe = get_pipe_make_image(gpu_id=gpu_id)
 
-    image = pipe(prompt=prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
+    lock_type = 'image'
+    base_path = os.path.join('locks', 'image_locks')
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+    lock_file = os.path.join(base_path, "%s.lock" % lock_type)
+    makedirs(os.path.dirname(lock_file))  # ensure made
+    with filelock.FileLock(lock_file):
+        image = pipe(prompt=prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
     if filename:
         image.save(filename)
         return filename
