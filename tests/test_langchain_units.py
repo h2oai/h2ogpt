@@ -1235,11 +1235,11 @@ def test_png_add(captions_model, caption_gpu, pre_load_image_audio_models, enabl
                            db_type=db_type,
                            file=file)
     except Exception as e:
-        if not enable_captions and 'data/pexels-evg-kowalievska-1170986_small.jpg' in file and 'had no valid text and no meta data was parsed' in str(e):
+        if not enable_captions and 'data/pexels-evg-kowalievska-1170986_small.jpg' in file and 'had no valid text and no meta data was parsed' in str(
+                e):
             pass
         else:
             raise
-
 
 
 def run_png_add(captions_model=None, caption_gpu=False,
@@ -1649,6 +1649,32 @@ def test_mp3_add(db_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Porsche Macan' in docs[0].page_content
             assert 'porsche.mp3' in os.path.normpath(docs[0].metadata['source'])
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_mp4_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://h2o-release.s3.amazonaws.com/h2ogpt/iG_jeMeUPBnUO6sx.mp4'
+            test_file1 = os.path.join(tmp_user_path, 'demo.mp4')
+            download_simple(url, dest=test_file1)
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type)
+            assert db is not None
+            docs = db.similarity_search("Gemini")
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+            assert 'Gemini' in str([x.page_content for x in docs])
+            assert 'demo.mp4' in os.path.normpath(docs[0].metadata['source'])
+            docs = db.similarity_search("AI", 100)
+            assert 'fun birthday party' in str([x.page_content for x in docs])
+            assert 'Gemini tries to design' in str([x.page_content for x in docs])
+            assert 'H2OAudioCaptionLoader' in str([x.metadata for x in docs])
+            assert 'H2OImageCaptionLoader' in str([x.metadata for x in docs])
+            assert '.jpg' in str([x.metadata for x in docs])
     kill_weaviate(db_type)
 
 
