@@ -8,6 +8,7 @@ import os
 import time
 import traceback
 import typing
+import uuid
 import warnings
 from datetime import datetime
 import requests
@@ -54,7 +55,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers
+    have_diffusers, sanitize_filename
 
 start_faulthandler()
 import_matplotlib()
@@ -427,7 +428,10 @@ def main(
         sst_floor: float = 100,
 
         enable_imagegen: bool = False,  # experimental
+        enable_imagechange: bool = False,  # experimental
         imagegen_gpu_id: Union[str, int] = 'auto',
+        imagechange_gpu_id: Union[str, int] = 'auto',
+        enable_llava_chat: bool = False,
 
         # json
         jq_schema='.[]',
@@ -1007,8 +1011,11 @@ def main(
 
     :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
 
-    :param enable_imagegen: Whether to enable image generation-change model
+    :param enable_imagegen: Whether to enable image generation model
+    :param enable_imagechange: Whether to enable image change model
     :param imagegen_gpu_id: GPU id to use for imagegen model
+    :param imagechange_gpu_id: GPU id to use for imagechange model
+    :param enable_llava_chat: Whether to use LLaVa model to chat directly against instead of just for ingestion
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
            Pro: Catches document when some default parsers would fail
@@ -1086,8 +1093,9 @@ def main(
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
     if not have_diffusers or not enable_imagegen:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
+    if not have_diffusers or not enable_imagechange:
         visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
-    if not llava_model or not enable_llava:
+    if not llava_model or not enable_llava or not enable_llava_chat:
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
@@ -1609,10 +1617,15 @@ def main(
 
     if enable_imagegen:
         # always preloaded
-        from src.vision.sdxl import get_pipe_make_image, get_pipe_change_image
+        from src.vision.sdxl import get_pipe_make_image
         image_gen_loader = get_pipe_make_image(gpu_id=imagegen_gpu_id)
+    else:
+        image_gen_loader = None
+    if enable_imagechange:
+        from src.vision.sdxl import get_pipe_change_image
         image_change_loader = get_pipe_change_image(gpu_id=imagegen_gpu_id)
-        # use same model, just different pipelines, but unclear how to use same GPU memory
+    else:
+        image_change_loader = None
 
     # DB SETUP
 
@@ -2918,6 +2931,8 @@ def evaluate(
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
+        image_gen_loader=None,
+        image_change_loader=None,
 
         asr_model=None,
         asr_loader=None,
@@ -3032,6 +3047,20 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
+    if langchain_action == LangChainAction.IMAGE_GENERATE.value:
+        assert image_gen_loader, "Generating image, but image_gen_loader is None"
+        from src.vision.sdxl import make_image
+        san_inst = sanitize_filename(instruction)
+        image_file = make_image(instruction,
+                                filename="/tmp/gradio/image_%s_%s.png" % (san_inst, str(uuid.uuid4())),
+                                pipe=image_gen_loader,
+                                )
+        response = (image_file,)
+        yield dict(response=response, sources=[], save_dict=dict(), llm_answers={},
+                   response_no_refs="Generated image for %s" % instruction,
+                   sources_str="", prompt_raw=instruction)
+        return
+
     no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\n" \
                    "Then start New Conversation"
 
@@ -3051,6 +3080,11 @@ def evaluate(
     #    assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
+    no_llm_ok = langchain_action in [LangChainAction.IMAGE_GENERATE.value,
+                                     LangChainAction.IMAGE_CHANGE.value,
+                                     ]
+
+    chosen_model_state = model_state0
     if have_fresh_model:
         # USE FRESH MODEL
         if not have_model_lock:
@@ -3067,9 +3101,9 @@ def evaluate(
     elif have_cli_model:
         # USE MODEL SETUP AT CLI
         assert isinstance(model_state['model'], (type(None), str))  # expect no fresh model
-        chosen_model_state = model_state0
-    else:
+    elif not no_llm_ok:
         raise AssertionError(no_model_msg)
+
     # get variables
     model = chosen_model_state['model']
     tokenizer = chosen_model_state['tokenizer']
@@ -3086,7 +3120,7 @@ def evaluate(
     prompt_type = prompt_type or chosen_model_state['prompt_type']
     prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
 
-    if base_model is None:
+    if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
 
     assert base_model.strip(), no_model_msg

@@ -74,6 +74,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
+    if isinstance(text, tuple):
+        # images, audio, etc.
+        return text
+
     if not isinstance(text, str):
         # e.g. list for extraction
         text = str(text)
@@ -556,8 +560,11 @@ def go_gradio(**kwargs):
 
     def allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
         allow = False
-        allow |= langchain_action1 not in LangChainAction.QUERY.value
-        allow |= document_subset1 in DocumentSubset.TopKSources.name
+        allow |= langchain_action1 not in [LangChainAction.QUERY.value,
+                                           LangChainAction.IMAGE_QUERY.value,
+                                           LangChainAction.IMAGE_CHANGE.value,
+                                           LangChainAction.IMAGE_GENERATE.value]
+        allow |= document_subset1 in [DocumentSubset.TopKSources.name]
         if langchain_mode1 in [LangChainMode.LLM.value]:
             allow = False
         return allow
