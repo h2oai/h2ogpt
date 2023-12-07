@@ -1084,9 +1084,10 @@ def main(
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
-    if not have_diffusers:
+    if not have_diffusers or not enable_imagegen:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
-    if not llava_model:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
+    if not llava_model or not enable_llava:
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:

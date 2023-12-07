@@ -1503,7 +1503,7 @@ def lg_to_gr(
         image_audio_loaders_options.append('ASR')
         if n_gpus != 0:
             image_audio_loaders_options.append('ASRLarge')
-    if kwargs['enable_llava']:
+    if kwargs['enable_llava'] and kwargs['llava_model']:
         image_audio_loaders_options.append('LLaVa')
 
     image_audio_loaders_options0 = []
