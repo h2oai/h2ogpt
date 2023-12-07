@@ -36,7 +36,9 @@ def png_to_base64(image_file):
     return img_str
 
 
-def get_llava_response(file, llava_model, prompt="Describe the image", image_model='llava-v1.5-13b', temperature=0.2,
+def get_llava_response(file, llava_model,
+                       prompt="Describe the image and what does the image say?",
+                       image_model='llava-v1.5-13b', temperature=0.2,
                        top_p=0.7, max_new_tokens=512):
     # prompt = "According to the image, describe the image in full details with a well-structured response."
 
