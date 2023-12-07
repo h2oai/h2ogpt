@@ -1313,6 +1313,7 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
 class H2OChatAnthropic(ChatAnthropic, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
+    prompts: Any = []
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1323,6 +1324,7 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
+        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
@@ -1334,6 +1336,7 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
+        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return await self.agenerate(
