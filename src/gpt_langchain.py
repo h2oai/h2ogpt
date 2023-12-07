@@ -4752,9 +4752,15 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     # for final yield, get real prompt used
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'prompts') and llm.pipeline.prompts:
-        prompt = str(llm.pipeline.prompts)
+        if isinstance(llm.pipeline.prompts, list) and len(llm.pipeline.prompts) == 1:
+            prompt = str(llm.pipeline.prompts[0])
+        else:
+            prompt = str(llm.pipeline.prompts)
     elif hasattr(llm, 'prompts') and llm.prompts:
-        prompt = str(llm.prompts)
+        if isinstance(llm.prompts, list) and len(llm.prompts) == 1:
+            prompt = str(llm.prompts[0])
+        else:
+            prompt = str(llm.prompts)
     elif hasattr(llm, 'prompter') and llm.prompter.prompt:
         prompt = llm.prompter.prompt
     else:
