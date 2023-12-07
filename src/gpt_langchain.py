@@ -2366,6 +2366,11 @@ def file_to_doc(file,
             is_url = False
             file = source_file
 
+    can_do_audio_transcription = isinstance(file, str) and \
+                                 any(file.lower().endswith(x) for x in set_audio_types1) and enable_transcriptions
+    can_do_video_extraction = isinstance(file, str) and \
+                              any([file.endswith(x) for x in video_types]) and extract_frames > 0 and have_fiftyone
+
     if is_url:
         if is_arxiv:
             if case1_arxiv:
@@ -2398,29 +2403,75 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
-        elif is_youtube and enable_transcriptions:
+            add_meta(docs1, file, parser="is_url")
+            docs1 = clean_doc(docs1)
+            doc1.extend(chunk_sources(docs1))
+        elif is_youtube and (enable_transcriptions or extract_frames > 0 and have_fiftyone):
+            e = None
+            handled = False
             docs1 = []
-            if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
-                # assumes didn't fork into this process with joblib, else can deadlock
-                if verbose:
-                    print("Reuse ASR", flush=True)
-                model_loaders['asr'].load_model()
-            else:
-                if verbose:
-                    print("Fresh ASR", flush=True)
-                from audio_langchain import H2OAudioCaptionLoader
-                model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
-                                                             asr_gpu=model_loaders['asr'] == 'gpu',
-                                                             gpu_id=asr_gpu_id,
-                                                             )
-            model_loaders['asr'].set_audio_paths([file])
-            docs1c = model_loaders['asr'].load(from_youtube=True)
-            docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
-            # caption didn't set source, so fix-up meta
-            hash_of_file = hash_file(file)
-            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-            docs1.extend(docs1c)
+            files_out = []
+            if enable_transcriptions:
+                try:
+                    if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
+                        # assumes didn't fork into this process with joblib, else can deadlock
+                        if verbose:
+                            print("Reuse ASR", flush=True)
+                        model_loaders['asr'].load_model()
+                    else:
+                        if verbose:
+                            print("Fresh ASR", flush=True)
+                        from audio_langchain import H2OAudioCaptionLoader
+                        model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
+                                                                     asr_gpu=model_loaders['asr'] == 'gpu',
+                                                                     gpu_id=asr_gpu_id,
+                                                                     )
+                    model_loaders['asr'].set_audio_paths([file])
+                    docs1c = model_loaders['asr'].load(from_youtube=True)
+                    files_out = model_loaders['asr'].files_out
+                    docs1c = [x for x in docs1c if x.page_content]
+                    add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+                    # caption didn't set source, so fix-up meta
+                    hash_of_file = hash_file(file)
+                    [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                    docs1.extend(docs1c)
+                    doc1.extend(chunk_sources(docs1))
+                    handled = True
+                except BaseException as e0:
+                    print("ASR: %s" % str(e0), flush=True)
+                    e = e0
+                handled |= len(docs1) > 0
+            if extract_frames > 0 and have_fiftyone:
+                try:
+                    from src.vision.extract_movie import extract_unique_frames
+                    if not files_out or True:  # always do, seems makes audio m4a not with video when downloads
+                        # have to directly download
+                        export_dir = extract_unique_frames(urls=[file], extract_frames=extract_frames)
+                        docs1c_files = path_to_docs_func(export_dir)
+                    else:
+                        # just use already-downloaded files
+                        docs1c_files = []
+                        for file_out in files_out:
+                            export_dir = extract_unique_frames(file=file_out, extract_frames=extract_frames)
+                            docs1c_files.extend(path_to_docs_func(export_dir))
+                    if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
+                        add_meta(docs1c_files, file, parser='extract_frames from %s' % file)
+                        hash_of_file = hash_file(file)
+                        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c_files]
+                    else:
+                        [x.metadata.update(dict(original_source=file)) for order_id, x in enumerate(docs1c_files)]
+                    docs1c_files = chunk_sources(docs1c_files)
+                    doc1.extend(docs1c_files)
+                except BaseException as e0:
+                    print("Extract YouTube Frames: %s" % str(e0), flush=True)
+                    e = e0
+                handled |= len(docs1) > 0
+            if len(doc1) == 0:
+                # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
+                if handled:
+                    raise ValueError("%s had no valid text, but meta data was parsed" % file)
+                else:
+                    raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
@@ -2490,9 +2541,9 @@ def file_to_doc(file,
                     docs1a = html2text.transform_documents(docs1a)
                 docs1.extend(docs1a)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
-        add_meta(docs1, file, parser="is_url")
-        docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1)
+            add_meta(docs1, file, parser="is_url")
+            docs1 = clean_doc(docs1)
+            doc1.extend(chunk_sources(docs1))
     elif is_txt:
         base_path = "user_paste"
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
@@ -2551,45 +2602,62 @@ def file_to_doc(file,
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
-    elif any(file.lower().endswith(x) for x in set_audio_types1) and enable_transcriptions:
-        docs1 = []
-        if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
-            # assumes didn't fork into this process with joblib, else can deadlock
-            if verbose:
-                print("Reuse ASR", flush=True)
-            model_loaders['asr'].load_model()
-        else:
-            if verbose:
-                print("Fresh ASR", flush=True)
-            from audio_langchain import H2OAudioCaptionLoader
-            model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
-                                                         asr_gpu=model_loaders['asr'] == 'gpu',
-                                                         gpu_id=asr_gpu_id,
-                                                         )
-        model_loaders['asr'].set_audio_paths([file])
-        docs1c = model_loaders['asr'].load(from_youtube=False)
-        docs1c = [x for x in docs1c if x.page_content]
-        add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
-        hash_of_file = hash_file(file)
-        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-        docs1c = chunk_sources(docs1c)
-        # caption didn't set source, so fix-up meta
-
-        video_type = any([file.endswith(x) for x in video_types])
-        if video_type and extract_frames > 0 and have_fiftyone:
-            from src.vision.extract_movie import extract_unique_frames
-            export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
-            docs1c_files = path_to_docs_func(export_dir)
-            if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
-                add_meta(docs1c_files, file, parser='extract_frames from %s' % file)
+    elif can_do_audio_transcription or can_do_video_extraction:
+        handled = False
+        e = None
+        if can_do_audio_transcription:
+            docs1c = []
+            try:
+                if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
+                    # assumes didn't fork into this process with joblib, else can deadlock
+                    if verbose:
+                        print("Reuse ASR", flush=True)
+                    model_loaders['asr'].load_model()
+                else:
+                    if verbose:
+                        print("Fresh ASR", flush=True)
+                    from audio_langchain import H2OAudioCaptionLoader
+                    model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
+                                                                 asr_gpu=model_loaders['asr'] == 'gpu',
+                                                                 gpu_id=asr_gpu_id,
+                                                                 )
+                model_loaders['asr'].set_audio_paths([file])
+                docs1c = model_loaders['asr'].load(from_youtube=False)
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
                 hash_of_file = hash_file(file)
                 [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-            else:
-                [x.metadata.update(dict(original_source=file)) for order_id, x in enumerate(docs1c_files)]
-            docs1c_files = chunk_sources(docs1c_files)
-            docs1c.extend(docs1c_files)
+                docs1c = chunk_sources(docs1c)
+                # caption didn't set source, so fix-up meta
+                doc1.extend(docs1c)
+            except BaseException as e0:
+                print("ASR2: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1c) > 0
 
-        doc1.extend(docs1c)
+        if can_do_video_extraction:
+            docs1c_files = []
+            try:
+                from src.vision.extract_movie import extract_unique_frames
+                export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
+                docs1c_files = path_to_docs_func(export_dir)
+                if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
+                    add_meta(docs1c_files, file, parser='extract_frames from %s' % file)
+                    hash_of_file = hash_file(file)
+                    [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c_files]
+                else:
+                    [x.metadata.update(dict(original_source=file)) for order_id, x in enumerate(docs1c_files)]
+                doc1.extend(docs1c_files)
+            except BaseException as e0:
+                print("Extract YouTube Frames: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1c_files) > 0
+        if len(doc1) == 0:
+            # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
+            if handled:
+                raise ValueError("%s had no valid text, but meta data was parsed" % file)
+            else:
+                raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
     elif any(file.lower().endswith(x) for x in set_image_audio_types1):
         handled = False
         e = None
