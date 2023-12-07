@@ -2772,7 +2772,7 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
             if verbose:
                 print("END: Pix2Struct", flush=True)
-        if llava_model and enable_llava and (file.endswith('.jpg') or file.endswith('.jpeg')):  # FIXME for png etc.
+        if llava_model and enable_llava:
             # LLaVa
             if verbose:
                 print("BEGIN: LLaVa", flush=True)
