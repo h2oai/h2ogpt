@@ -10,6 +10,7 @@ from src.utils import cuda_vis_check, makedirs
 n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
 n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
 
+
 def get_device(gpu_id):
     if gpu_id == 'auto':
         device = 'cpu' if n_gpus1 == 0 else 'cuda:0'

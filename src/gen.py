@@ -430,6 +430,7 @@ def main(
         sst_floor: float = 100,
 
         enable_imagegen: bool = False,  # experimental
+        enable_imagegen_high: bool = False,  # experimental
         enable_imagechange: bool = False,  # experimental
         imagegen_gpu_id: Union[str, int] = 'auto',
         imagechange_gpu_id: Union[str, int] = 'auto',
@@ -1014,6 +1015,7 @@ def main(
     :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
 
     :param enable_imagegen: Whether to enable image generation model
+    :param enable_imagegen_high: Whether to enable image generation model with high resolution
     :param enable_imagechange: Whether to enable image change model
     :param imagegen_gpu_id: GPU id to use for imagegen model
     :param imagechange_gpu_id: GPU id to use for imagechange model
@@ -1095,6 +1097,8 @@ def main(
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
     if not have_diffusers or not enable_imagegen:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
+    if not have_diffusers or not enable_imagegen_high:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE_HIGH.value)
     if not have_diffusers or not enable_imagechange:
         visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
     if not llava_model or not enable_llava or not enable_llava_chat:
@@ -1623,6 +1627,12 @@ def main(
         image_gen_loader = get_pipe_make_image(gpu_id=imagegen_gpu_id)
     else:
         image_gen_loader = None
+    if enable_imagegen_high:
+        # always preloaded
+        from src.vision.playv2 import get_pipe_make_image
+        image_gen_loader_high = get_pipe_make_image(gpu_id=imagegen_gpu_id)
+    else:
+        image_gen_loader_high = None
     if enable_imagechange:
         from src.vision.sdxl import get_pipe_change_image
         image_change_loader = get_pipe_change_image(gpu_id=imagegen_gpu_id)
@@ -2954,6 +2964,7 @@ def evaluate(
         pix2struct_loader=None,
         llava_model=None,
         image_gen_loader=None,
+        image_gen_loader_high=None,
         image_change_loader=None,
 
         asr_model=None,
@@ -3077,16 +3088,29 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
-    if langchain_action == LangChainAction.IMAGE_GENERATE.value:
-        assert image_gen_loader, "Generating image, but image_gen_loader is None"
-        from src.vision.sdxl import make_image
+    if langchain_action in [LangChainAction.IMAGE_GENERATE.value, LangChainAction.IMAGE_GENERATE_HIGH.value]:
+        t_generate = time.time()
+
+        if langchain_action in [LangChainAction.IMAGE_GENERATE.value]:
+            assert image_gen_loader, "Generating image, but image_gen_loader is None"
+            from src.vision.sdxl import make_image
+            pipe = image_gen_loader
+        elif langchain_action in [LangChainAction.IMAGE_GENERATE_HIGH.value]:
+            assert image_gen_loader_high, "Generating image, but image_gen_loader_high is None"
+            from src.vision.playv2 import make_image
+            pipe = image_gen_loader_high
+        else:
+            raise ValueError("No such langchain_action=%s" % langchain_action)
         san_inst = sanitize_filename(instruction)
         image_file = make_image(instruction,
                                 filename="/tmp/gradio/image_%s_%s.png" % (san_inst, str(uuid.uuid4())),
-                                pipe=image_gen_loader,
+                                pipe=pipe,
                                 )
         response = (image_file,)
-        yield dict(response=response, sources=[], save_dict=dict(), llm_answers={},
+        extra_dict = dict(t_generate=time.time() - t_generate,
+                          instruction=instruction,
+                          prompt_raw=instruction)
+        yield dict(response=response, sources=[], save_dict=dict(extra_dict=extra_dict), llm_answers={},
                    response_no_refs="Generated image for %s" % instruction,
                    sources_str="", prompt_raw=instruction)
         return
@@ -3111,6 +3135,7 @@ def evaluate(
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
     no_llm_ok = langchain_action in [LangChainAction.IMAGE_GENERATE.value,
+                                     LangChainAction.IMAGE_GENERATE_HIGH.value,
                                      LangChainAction.IMAGE_CHANGE.value,
                                      ]
 

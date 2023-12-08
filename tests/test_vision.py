@@ -114,3 +114,10 @@ def test_video_extraction():
     assert image_files[0].endswith('.jpg')
     print(export_dir)
     # feh -rF -D 1000 export_dir
+
+
+@wrap_test_forked
+def test_make_image_playv2():
+    from src.vision.playv2 import make_image
+    prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
+    make_image(prompt, filename="output_p2i_v2.png")

@@ -563,7 +563,9 @@ def go_gradio(**kwargs):
         allow |= langchain_action1 not in [LangChainAction.QUERY.value,
                                            LangChainAction.IMAGE_QUERY.value,
                                            LangChainAction.IMAGE_CHANGE.value,
-                                           LangChainAction.IMAGE_GENERATE.value]
+                                           LangChainAction.IMAGE_GENERATE.value,
+                                           LangChainAction.IMAGE_GENERATE_HIGH.value,
+                                           ]
         allow |= document_subset1 in [DocumentSubset.TopKSources.name]
         if langchain_mode1 in [LangChainMode.LLM.value]:
             allow = False
