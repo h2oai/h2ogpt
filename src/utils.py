@@ -304,6 +304,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
     if extra_dict.get('ntokens') is None:
         extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(output)
         # only do below if didn't already compute ntokens, else assume also computed rate
+    if extra_dict.get('ntokens') is not None and extra_dict.get('t_generate') is not None:
         extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
 
     dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(),
