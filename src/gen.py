@@ -2971,6 +2971,14 @@ def evaluate(
         jq_schema0=None,
         keep_sources_in_context=None,
         allow_chat_system_prompt=None,
+
+        # carry defaults to know what forced-off means
+        use_pymupdf=None,
+        use_unstructured_pdf=None,
+        use_pypdf=None,
+        enable_pdf_ocr=None,
+        enable_pdf_doctr=None,
+        try_pdf_as_html=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -3248,6 +3256,12 @@ def evaluate(
         loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
                                                            pdf_loaders,
                                                            url_loaders,
+                                                           use_pymupdf=use_pymupdf,
+                                                           use_unstructured_pdf=use_unstructured_pdf,
+                                                           use_pypdf=use_pypdf,
+                                                           enable_pdf_ocr=enable_pdf_ocr,
+                                                           enable_pdf_doctr=enable_pdf_doctr,
+                                                           try_pdf_as_html=try_pdf_as_html,
                                                            captions_model=captions_model,
                                                            asr_model=asr_model,
                                                            )

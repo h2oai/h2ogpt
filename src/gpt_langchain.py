@@ -2822,6 +2822,23 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
+        # PyPDF is first if PyMuPDF not installed
+        if len(doc1) == 0 and use_pypdf == 'auto' or use_pypdf == 'on':
+            tried_others = True
+            # open-source fallback
+            # load() still chunks by pages, but every page has title at start to help
+            try:
+                doc1a = PyPDFLoader(file).load()
+            except BaseException as e0:
+                doc1a = []
+                print("PyPDFLoader: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(doc1a) > 0
+            # remove empty documents
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyPDFLoader')
+            doc1.extend(doc1a)
         # do OCR/tesseract if only 2 page and auto, since doctr superior and faster
         if (len(doc1) == 0 or num_pages is not None and num_pages < 2) and use_unstructured_pdf == 'auto' \
                 or use_unstructured_pdf == 'on':
@@ -2838,22 +2855,6 @@ def file_to_doc(file,
             doc1a = [x for x in doc1a if x.page_content]
             add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
-            doc1.extend(doc1a)
-        if len(doc1) == 0 and use_pypdf == 'auto' or use_pypdf == 'on':
-            tried_others = True
-            # open-source fallback
-            # load() still chunks by pages, but every page has title at start to help
-            try:
-                doc1a = PyPDFLoader(file).load()
-            except BaseException as e0:
-                doc1a = []
-                print("PyPDFLoader: %s" % str(e0), flush=True)
-                e = e0
-            handled |= len(doc1a) > 0
-            # remove empty documents
-            doc1a = [x for x in doc1a if x.page_content]
-            doc1a = clean_doc(doc1a)
-            add_parser(doc1a, 'PyPDFLoader')
             doc1.extend(doc1a)
         if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and tried_others):
             # try again in case only others used, but only if didn't already try (2nd part of and)

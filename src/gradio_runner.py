@@ -2203,6 +2203,12 @@ def go_gradio(**kwargs):
                                            enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                            h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                            is_public=is_public,
+                                           use_pymupdf=kwargs['use_pymupdf'],
+                                           use_unstructured_pdf=kwargs['use_unstructured_pdf'],
+                                           use_pypdf=kwargs['use_pypdf'],
+                                           enable_pdf_ocr=kwargs['enable_pdf_ocr'],
+                                           enable_pdf_doctr=kwargs['enable_pdf_doctr'],
+                                           try_pdf_as_html=kwargs['try_pdf_as_html'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -2510,6 +2516,12 @@ def go_gradio(**kwargs):
                                              pdf_loaders_options0=pdf_loaders_options0,
                                              url_loaders_options0=url_loaders_options0,
                                              jq_schema0=jq_schema0,
+                                             use_pymupdf=kwargs['use_pymupdf'],
+                                             use_unstructured_pdf=kwargs['use_unstructured_pdf'],
+                                             use_pypdf=kwargs['use_pypdf'],
+                                             enable_pdf_ocr=kwargs['enable_pdf_ocr'],
+                                             enable_pdf_doctr=kwargs['enable_pdf_doctr'],
+                                             try_pdf_as_html=kwargs['try_pdf_as_html'],
                                              )
         eventdb9a = refresh_sources_btn.click(user_state_setup,
                                               inputs=[my_db_state, requests_state,
@@ -5830,6 +5842,11 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
         kwargs['hf_embedding_model'] = 'fake'
         kwargs['migrate_embedding_model'] = False
 
+    # avoid dups after loaders_dict updated with new results
+    for k, v in loaders_dict.items():
+        if k in kwargs:
+            kwargs.pop(k, None)
+
     from src.gpt_langchain import update_user_db
     return update_user_db(file, db1s, selection_docs_state1, requests_state1,
                           langchain_mode=langchain_mode, chunk=chunk, chunk_size=chunk_size,
@@ -5956,12 +5973,25 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         image_audio_loaders_options0=None,
                                                         pdf_loaders_options0=None,
                                                         url_loaders_options0=None,
-                                                        jq_schema0=None):
+                                                        jq_schema0=None,
+                                                        use_pymupdf=None,
+                                                        use_unstructured_pdf=None,
+                                                        use_pypdf=None,
+                                                        enable_pdf_ocr=None,
+                                                        enable_pdf_doctr=None,
+                                                        try_pdf_as_html=None,
+                                                        ):
     from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
 
     loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
                                                        pdf_loaders,
                                                        url_loaders,
+                                                       use_pymupdf=use_pymupdf,
+                                                       use_unstructured_pdf=use_unstructured_pdf,
+                                                       use_pypdf=use_pypdf,
+                                                       enable_pdf_ocr=enable_pdf_ocr,
+                                                       enable_pdf_doctr=enable_pdf_doctr,
+                                                       try_pdf_as_html=try_pdf_as_html,
                                                        image_audio_loaders_options0=image_audio_loaders_options0,
                                                        pdf_loaders_options0=pdf_loaders_options0,
                                                        url_loaders_options0=url_loaders_options0,

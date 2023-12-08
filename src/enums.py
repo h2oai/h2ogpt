@@ -247,8 +247,21 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
 def gr_to_lg(image_audio_loaders,
              pdf_loaders,
              url_loaders,
+             use_pymupdf=None,
+             use_unstructured_pdf=None,
+             use_pypdf=None,
+             enable_pdf_ocr=None,
+             enable_pdf_doctr=None,
+             try_pdf_as_html=None,
              **kwargs,
              ):
+    assert use_pymupdf is not None
+    assert use_unstructured_pdf is not None
+    assert use_pypdf is not None
+    assert enable_pdf_ocr is not None
+    assert enable_pdf_doctr is not None
+    assert try_pdf_as_html is not None
+
     if image_audio_loaders is None:
         image_audio_loaders = kwargs['image_audio_loaders_options0']
     if pdf_loaders is None:
@@ -266,12 +279,14 @@ def gr_to_lg(image_audio_loaders,
         use_scrapehttp='ScrapeWithHttp' in url_loaders,
 
         # pdfs
-        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'off',
-        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'off',
-        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'off',
-        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'off',
-        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'off',
-        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'off',
+        # ... else condition uses default from command line, by default auto, so others can be used as backup
+        # make sure pass 'off' for those if really want fully disabled.
+        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else use_pymupdf,
+        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else use_unstructured_pdf,
+        use_pypdf='on' if 'PyPDF' in pdf_loaders else use_pypdf,
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else enable_pdf_ocr,
+        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else enable_pdf_doctr,
+        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else try_pdf_as_html,
 
         # images and audio
         enable_ocr='OCR' in image_audio_loaders,

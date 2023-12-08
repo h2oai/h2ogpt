@@ -20,6 +20,12 @@ def run_cli(  # for local function:
         llamacpp_dict=None, llamacpp_path=None,
         exllama_dict=None, gptq_dict=None, attention_sinks=None, sink_dict=None, hf_model_dict=None,
         truncation_generation=None,
+        use_pymupdf=None,
+        use_unstructured_pdf=None,
+        use_pypdf=None,
+        enable_pdf_ocr=None,
+        enable_pdf_doctr=None,
+        try_pdf_as_html=None,
         # for some evaluate args
         stream_output=None, async_output=None, num_async=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,

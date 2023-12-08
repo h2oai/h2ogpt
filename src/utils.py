@@ -1540,20 +1540,23 @@ def lg_to_gr(
         else:
             image_audio_loaders_options0.append('ASR')
 
-    pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
+    pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
+    if have_pymupdf:
+        pdf_loaders_options = ['PyMuPDF'] + pdf_loaders_options
     if have_tesseract:
         pdf_loaders_options.append('OCR')
     if have_doctr:
         pdf_loaders_options.append('DocTR')
 
     pdf_loaders_options0 = []
-    if kwargs['use_pymupdf'] in [True, 'auto', 'on']:
+    if have_pymupdf and kwargs['use_pymupdf'] in [True, 'auto', 'on']:
         pdf_loaders_options0.append('PyMuPDF')
     if kwargs['enable_pdf_ocr'] in [True, 'on']:
         pdf_loaders_options0.append('OCR')
     if have_doctr and kwargs['enable_pdf_doctr'] in [True, 'on']:
         pdf_loaders_options0.append('DocTR')
-    if kwargs['use_pypdf'] in [True, 'on']:
+    # in case my pymupdf, use pypdf as backup default
+    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto', 'on'] and not have_pymupdf:
         pdf_loaders_options0.append('PyPDF')
     if kwargs['use_unstructured_pdf'] in [True, 'on']:
         pdf_loaders_options0.append('Unstructured')
