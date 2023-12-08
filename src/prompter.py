@@ -161,7 +161,8 @@ prompt_type_to_model_name = {
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 
-prompt_type_to_model_name['anthropic'] = list(anthropic_mapping.keys())
+anthropic_gpts = sorted(anthropic_mapping.keys())
+prompt_type_to_model_name['anthropic'] = anthropic_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',

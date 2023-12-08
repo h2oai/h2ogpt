@@ -1106,26 +1106,39 @@ class FakeTokenizer:
     2) For when model doesn't directly expose tokenizer but need to count tokens
     """
 
-    def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False,
+    def __init__(self, model_max_length=2048,
+                 encoding_name="cl100k_base",
+                 is_openai=False,
+                 is_anthropic=False,
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
+            assert not (is_openai or is_anthropic), "Should have set model_max_length for OpenAI or Anthropic"
             model_max_length = 2048
         self.is_openai = is_openai
+        self.is_anthropic = is_anthropic
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
-        if not self.is_openai and not self.is_llama_cpp:
+        if not self.is_openai and not self.is_anthropic and not self.is_llama_cpp:
             # don't push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
             self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        import tiktoken
-        self.encoding = tiktoken.get_encoding(self.encoding_name)
+        if not self.is_anthropic:
+            import tiktoken
+            self.encoding = tiktoken.get_encoding(self.encoding_name)
+        else:
+            self.encoding = None
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
         if self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
             input_ids = self.tokenizer.tokenize(b" " + x.encode("utf-8"))
+        elif self.is_anthropic:
+            from anthropic import Anthropic
+            client = Anthropic()
+            tokenizer = client.get_tokenizer()
+            input_ids = tokenizer.encode(x).ids
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
@@ -1136,11 +1149,20 @@ class FakeTokenizer:
     def decode(self, x, *args, **kwargs):
         if self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
             return self.tokenizer.detokenize(x)
+        elif self.is_anthropic:
+            from anthropic import Anthropic
+            client = Anthropic()
+            tokenizer = client.get_tokenizer()
+            return tokenizer.decode(x)
         # input is input_ids[0] form
         return self.encoding.decode(x)
 
     def num_tokens_from_string(self, prompt: str) -> int:
         """Returns the number of tokens in a text string."""
+        if self.is_anthropic:
+            from anthropic import Anthropic
+            client = Anthropic()
+            return client.count_tokens(prompt)
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
 

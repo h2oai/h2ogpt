@@ -215,12 +215,12 @@ def t5_type(model_name):
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                           model_name, inference_server, model_path_llama,
-                          doc_json_mode):
-    if inference_server and inference_server.startswith('openai'):
+                          doc_json_mode,
+                          prompt_query_type='simple'):
+    if prompt_query_type == 'advanced':
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
         prompt_query1 = "According to (primarily) the information in the document sources provided within context above: "
     else:
-        # use when no model, like no --base_model as well.
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
         prompt_query1 = "According to only the information in the document sources provided within the context above: "
