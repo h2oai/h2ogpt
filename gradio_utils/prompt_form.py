@@ -11,6 +11,8 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=Fa
         inference_server = ' : ' + inference_server
     if base_model == 'llama':
         model_path_llama = os.path.basename(model_path_llama)
+        if model_path_llama.endswith('?download=true'):
+            model_path_llama = model_path_llama.replace('?download=true', '')
         return f'h2oGPT [Model: {model_path_llama}{inference_server}]'
     else:
         return f'h2oGPT [Model: {base_model}{inference_server}]'
