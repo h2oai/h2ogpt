@@ -153,7 +153,7 @@ prompt_type_to_model_name = {
                        ],
     "open_chat": ['openchat/openchat_3.5', 'TheBloke/openchat_3.5-GPTQ', 'TheBloke/openchat_3.5-GGUF',
                   'TheBloke/openchat_3.5-AWQ', 'TheBloke/openchat_3.5-16k-AWQ',
-                  'openchat_3.5.Q5_K_M.gguf'],
+                  'openchat_3.5.Q5_K_M.gguf', 'NurtureAI/openchat_3.5-16k'],
     "open_chat_correct": ['berkeley-nest/Starling-LM-7B-alpha'],  # can be any from open_chat list, by using this prompt
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     "jais": ['core42/jais-30b-chat-v1'],
