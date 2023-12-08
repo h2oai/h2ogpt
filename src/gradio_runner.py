@@ -3457,6 +3457,7 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
+            save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
@@ -4082,6 +4083,7 @@ def go_gradio(**kwargs):
             save_dict['error'] = error
             save_dict['sources'] = sources
             save_dict['which_api'] = 'bot'
+            save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None, all_possible_visible_models=None):
@@ -4304,6 +4306,7 @@ def go_gradio(**kwargs):
                 save_dict['which_api'] = 'all_bot_%s' % model_name
                 save_dict['valid_key'] = valid_key
                 save_dict['h2ogpt_key'] = h2ogpt_key1
+                save_dict['save_dir'] = kwargs['save_dir']
                 save_generate_output(**save_dict)
 
         # NORMAL MODEL
