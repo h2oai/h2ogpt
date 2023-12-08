@@ -1339,14 +1339,18 @@ def set_openai(inference_server, model_name=None):
             port_vllm = inference_server.split(':')[2].strip()
             api_base = openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
 
-        from openvllm import vLLM
-        client = vLLM(base_url=api_base, api_key=api_key)
+        from openvllm import vLLM, AsyncvLLM
+        client_args = dict(base_url=api_base, api_key=api_key)
+        client = vLLM(**client_args)
+        async_client = AsyncvLLM(**client_args)
         if inf_type in ['vllm_chat']:
             client = client.chat.completions
+            async_client = async_client.chat.completions
         else:
             client = client.completions
+            async_client = async_client.completions
 
-        return client, inf_type, None, api_base, None, api_key
+        return client, async_client, inf_type, None, api_base, None, api_key
     else:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = None
@@ -1390,18 +1394,24 @@ def set_openai(inference_server, model_name=None):
             if chat_model and inf_type == 'openai':
                 inf_type = 'openai_chat'
 
-        from openai import OpenAI, AzureOpenAI
+        from openai import OpenAI, AzureOpenAI, AsyncOpenAI, AsyncAzureOpenAI
         if inf_type in ['openai_azure', 'openai_azure_chat']:
-            client = AzureOpenAI(azure_deployment=deployment_type, azure_endpoint=base_url, api_version=api_version,
-                                 api_key=api_key)
+            client_args = dict(azure_deployment=deployment_type, azure_endpoint=base_url, api_version=api_version,
+                               api_key=api_key)
+            client = AzureOpenAI(**client_args)
+            async_client = AsyncAzureOpenAI(**client_args)
         else:
-            client = OpenAI(base_url=base_url, api_key=api_key)
+            client_args = dict(base_url=base_url, api_key=api_key)
+            client = OpenAI(**client_args)
+            async_client = AsyncOpenAI(**client_args)
         if inf_type in ['openai_chat', 'openai_azure_chat']:
             client = client.chat.completions
+            async_client = async_client.chat.completions
         else:
             client = client.completions
+            async_client = async_client.completions
 
-        return client, inf_type, deployment_type, base_url, api_version, api_key
+        return client, async_client, inf_type, deployment_type, base_url, api_version, api_key
 
 
 def get_list_or_str(x):
@@ -1546,9 +1556,9 @@ def lg_to_gr(
     if kwargs['use_pypdf'] in [True, 'on']:
         pdf_loaders_options0.append('PyPDF')
     if kwargs['use_unstructured_pdf'] in [True, 'on']:
-       pdf_loaders_options0.append('Unstructured')
+        pdf_loaders_options0.append('Unstructured')
     if kwargs['try_pdf_as_html'] in [True, 'on']:
-       pdf_loaders_options0.append('TryHTML')
+        pdf_loaders_options0.append('TryHTML')
 
     url_loaders_options = []
     if only_unstructured_urls:

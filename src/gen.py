@@ -3458,7 +3458,8 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai_client, inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
+            openai_client, openai_async_client, \
+                inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []

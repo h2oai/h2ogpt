@@ -1519,7 +1519,8 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        openai_client, inf_type, deployment_type, base_url, api_version, api_key = \
+        openai_client, openai_async_client, \
+            inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=model_name)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
@@ -1580,6 +1581,7 @@ def get_llm(use_openai_model=False,
                                          openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=openai_client,
+                                         async_client=openai_async_client,
                                          async_sem=async_sem,
                                          max_new_tokens0=max_new_tokens0,
                                          ))
