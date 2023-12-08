@@ -95,7 +95,8 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
                 base_model = base_model0
         model_path_llama = base_model
         base_model = 'llama'
-    elif base_model.endswith('.gguf') or base_model.endswith('.ggml'):
+    elif base_model.endswith('.gguf') or base_model.endswith('.ggml') or base_model.endswith(
+            '.gguf?download=true') or base_model.endswith('.ggml?download=true'):
         # from resolved url
         if base_model.lower().startswith(
                 'https://huggingface.co/') and 'resolve/main/' in base_model.lower() and url_alive(base_model):
