@@ -1318,6 +1318,7 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
 class H2OChatAnthropic(ChatAnthropic, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
+    prompts: Any = []
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1328,6 +1329,7 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
+        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
@@ -1339,6 +1341,7 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
+        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return await self.agenerate(
@@ -1521,7 +1524,8 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        openai_client, inf_type, deployment_type, base_url, api_version, api_key = \
+        openai_client, openai_async_client, \
+            inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=model_name)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
@@ -1546,7 +1550,10 @@ def get_llm(use_openai_model=False,
             if inf_type == 'vllm_chat':
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
+                                         openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         client=openai_client,
+                                         async_client=openai_async_client,
                                          async_sem=async_sem,
                                          ))
         elif inf_type == 'openai_azure_chat':
@@ -1578,8 +1585,10 @@ def get_llm(use_openai_model=False,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
                                          openai_api_base=base_url,
+                                         openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=openai_client,
+                                         async_client=openai_async_client,
                                          async_sem=async_sem,
                                          max_new_tokens0=max_new_tokens0,
                                          ))
@@ -2934,6 +2943,23 @@ def file_to_doc(file,
             doc1a = clean_doc(doc1a)
             add_parser(doc1a, 'PyMuPDFLoader')
             doc1.extend(doc1a)
+        # PyPDF is first if PyMuPDF not installed
+        if len(doc1) == 0 and use_pypdf == 'auto' or use_pypdf == 'on':
+            tried_others = True
+            # open-source fallback
+            # load() still chunks by pages, but every page has title at start to help
+            try:
+                doc1a = PyPDFLoader(file).load()
+            except BaseException as e0:
+                doc1a = []
+                print("PyPDFLoader: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(doc1a) > 0
+            # remove empty documents
+            doc1a = [x for x in doc1a if x.page_content]
+            doc1a = clean_doc(doc1a)
+            add_parser(doc1a, 'PyPDFLoader')
+            doc1.extend(doc1a)
         # do OCR/tesseract if only 2 page and auto, since doctr superior and faster
         if (len(doc1) == 0 or num_pages is not None and num_pages < 2) and use_unstructured_pdf == 'auto' \
                 or use_unstructured_pdf == 'on':
@@ -2950,22 +2976,6 @@ def file_to_doc(file,
             doc1a = [x for x in doc1a if x.page_content]
             add_parser(doc1a, 'UnstructuredPDFLoader')
             # seems to not need cleaning in most cases
-            doc1.extend(doc1a)
-        if len(doc1) == 0 and use_pypdf == 'auto' or use_pypdf == 'on':
-            tried_others = True
-            # open-source fallback
-            # load() still chunks by pages, but every page has title at start to help
-            try:
-                doc1a = PyPDFLoader(file).load()
-            except BaseException as e0:
-                doc1a = []
-                print("PyPDFLoader: %s" % str(e0), flush=True)
-                e = e0
-            handled |= len(doc1a) > 0
-            # remove empty documents
-            doc1a = [x for x in doc1a if x.page_content]
-            doc1a = clean_doc(doc1a)
-            add_parser(doc1a, 'PyPDFLoader')
             doc1.extend(doc1a)
         if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and tried_others):
             # try again in case only others used, but only if didn't already try (2nd part of and)
@@ -4865,9 +4875,15 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     # for final yield, get real prompt used
     if hasattr(llm, 'pipeline') and hasattr(llm.pipeline, 'prompts') and llm.pipeline.prompts:
-        prompt = str(llm.pipeline.prompts)
+        if isinstance(llm.pipeline.prompts, list) and len(llm.pipeline.prompts) == 1:
+            prompt = str(llm.pipeline.prompts[0])
+        else:
+            prompt = str(llm.pipeline.prompts)
     elif hasattr(llm, 'prompts') and llm.prompts:
-        prompt = str(llm.prompts)
+        if isinstance(llm.prompts, list) and len(llm.prompts) == 1:
+            prompt = str(llm.prompts[0])
+        else:
+            prompt = str(llm.prompts)
     elif hasattr(llm, 'prompter') and llm.prompter.prompt:
         prompt = llm.prompter.prompt
     else:
@@ -6170,7 +6186,8 @@ def get_chain(query=None,
             )
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
         else:
-            # only if use_openai_model = True, unused normally except in testing
+            # unused normally except in testing
+            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (model_name, prompt_type)
             chain = load_qa_with_sources_chain(llm)
         chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
@@ -6370,7 +6387,8 @@ def get_template(query, iinput,
             fstring = '{text}'
         else:
             fstring = '{input_documents}'
-        template = """%s:%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
+        # triple_quotes includes \n before """ and after """
+        template = """%s%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused

@@ -69,7 +69,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_stop_token_ids
+    openai_gpts, get_stop_token_ids, anthropic_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -92,12 +92,14 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
                 len(just_model_split) == 2:
             just_model = just_model_split[0]
             lower_model = just_model.lower()
-            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s' % (base_model, lower_model, file_postfix)
+            download_postfix = '?download=true'
+            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (base_model, lower_model, file_postfix, download_postfix)
             if url_alive(base_model0):
                 base_model = base_model0
         model_path_llama = base_model
         base_model = 'llama'
-    elif base_model.endswith('.gguf') or base_model.endswith('.ggml'):
+    elif base_model.endswith('.gguf') or base_model.endswith('.ggml') or base_model.endswith(
+            '.gguf?download=true') or base_model.endswith('.ggml?download=true'):
         # from resolved url
         if base_model.lower().startswith(
                 'https://huggingface.co/') and 'resolve/main/' in base_model.lower() and url_alive(base_model):
@@ -1051,7 +1053,7 @@ def main(
     # NOTE: avoid defaults for model_lock, require to be specified
     if base_model == 'llama':
         if not model_path_llama:
-            model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+            model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
         if not prompt_type:
             prompt_type = 'llama2'
     elif base_model == 'gptj' and not model_name_gptj:
@@ -2250,6 +2252,7 @@ def get_model(
     :return:
     """
     print("Starting get_model: %s %s" % (base_model, inference_server), flush=True)
+    model = None
 
     triton_attn = False
     long_sequence = True
@@ -2331,30 +2334,33 @@ def get_model(
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                   base_model=base_model)
-        client = gr_client or hf_client
-        # Don't return None, None for model, tokenizer so triggers
-        if tokenizer is None:
-            # FIXME: Could use only tokenizer from llama etc. but hard to detatch from model, just use fake for now
-            if os.getenv("HARD_ASSERTS") and base_model not in non_hf_types:
-                raise RuntimeError("Unexpected tokenizer=None")
-            tokenizer = FakeTokenizer()
-        return client, tokenizer, 'http'
+        model = gr_client or hf_client
+        if tokenizer is not None:
+            return model, tokenizer, inference_server
+        # tokenizer may still be None if not HF model
 
     if base_model in openai_gpts and not inference_server:
         raise ValueError("Must select inference server when choosing OpenAI models")
+    if base_model in anthropic_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing Anthropic models")
 
-    if isinstance(inference_server, str) and (
+    # see if we can set max_seq_len and tokenizer for non-HF models or check at least if set when required
+    inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
             inference_server.startswith('replicate') or
             inference_server.startswith('sagemaker') or
             inference_server.startswith('anthropic')
-    ):
+    )
+
+    if inf_server_for_max_seq_len_handling or \
+            base_model in openai_gpts or \
+            base_model in anthropic_gpts:
         max_output_len = None
-        if inference_server.startswith('openai'):
-            assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+        if inference_server.startswith('openai') or base_model in openai_gpts:
+            if inference_server.startswith('openai'):
+                assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
-            # include small token cushion
             if base_model in model_token_mapping:
                 max_seq_len = model_token_mapping[base_model]
             else:
@@ -2363,8 +2369,9 @@ def get_model(
                 max_output_len = model_token_mapping_outputs[base_model]
             else:
                 max_output_len = None
-        if inference_server.startswith('anthropic'):
-            assert os.getenv('ANTHROPIC_API_KEY'), "Set environment for ANTHROPIC_API_KEY"
+        if inference_server.startswith('anthropic') or base_model in anthropic_gpts:
+            if inference_server.startswith('anthropic'):
+                assert os.getenv('ANTHROPIC_API_KEY'), "Set environment for ANTHROPIC_API_KEY"
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in anthropic_mapping:
@@ -2394,15 +2401,30 @@ def get_model(
             assert os.getenv('AWS_SECRET_ACCESS_KEY'), "Set environment for AWS_SECRET_ACCESS_KEY"
         # Don't return None, None for model, tokenizer so triggers
         # include small token cushion
-        if inference_server.startswith('openai') or tokenizer is None or inference_server.startswith('anthropic'):
+
+        if inference_server.startswith('openai') or \
+                base_model in openai_gpts or \
+                inference_server.startswith('anthropic') or \
+                base_model in anthropic_gpts:
+            # must be set by now
+            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic models by now."
+
+        if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
             assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
-            if max_output_len is not None:
-                tokenizer.max_output_len = max_output_len
+        if max_output_len is not None:
+            tokenizer.max_output_len = max_output_len
 
-        return inference_server, tokenizer, inference_server
+        if model is None:
+            # if model None, means native inference server
+            model = inference_server
+
+        return model, tokenizer, inference_server
+
+    # shouldn't reach here if had inference server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
+
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer, device = get_model_tokenizer_gpt4all(base_model,
@@ -2998,6 +3020,14 @@ def evaluate(
         jq_schema0=None,
         keep_sources_in_context=None,
         allow_chat_system_prompt=None,
+
+        # carry defaults to know what forced-off means
+        use_pymupdf=None,
+        use_unstructured_pdf=None,
+        use_pypdf=None,
+        enable_pdf_ocr=None,
+        enable_pdf_doctr=None,
+        try_pdf_as_html=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -3294,6 +3324,12 @@ def evaluate(
         loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
                                                            pdf_loaders,
                                                            url_loaders,
+                                                           use_pymupdf=use_pymupdf,
+                                                           use_unstructured_pdf=use_unstructured_pdf,
+                                                           use_pypdf=use_pypdf,
+                                                           enable_pdf_ocr=enable_pdf_ocr,
+                                                           enable_pdf_doctr=enable_pdf_doctr,
+                                                           try_pdf_as_html=try_pdf_as_html,
                                                            captions_model=captions_model,
                                                            asr_model=asr_model,
                                                            )
@@ -3506,7 +3542,8 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai_client, inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
+            openai_client, openai_async_client, \
+                inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []
@@ -4849,8 +4886,8 @@ def get_limited_prompt(instruction,
         # but we will need to compute good history for external use
         external_handle_chat_conversation = True
     chat_system_prompt = not external_handle_chat_conversation and \
-            not can_handle_system_prompt and \
-                allow_chat_system_prompt
+                         not can_handle_system_prompt and \
+                         allow_chat_system_prompt
     if chat_system_prompt:
         chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
     else:

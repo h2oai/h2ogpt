@@ -227,20 +227,20 @@ def t5_type(model_name):
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                           model_name, inference_server, model_path_llama,
-                          doc_json_mode):
-    if inference_server and inference_server.startswith('openai'):
-        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
-        prompt_query1 = "According to (primarily) the information in the document sources provided within context above, "
+                          doc_json_mode,
+                          prompt_query_type='simple'):
+    if prompt_query_type == 'advanced':
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
+        prompt_query1 = "According to (primarily) the information in the document sources provided within context above: "
     else:
-        # use when no model, like no --base_model as well.
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
-        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
-        prompt_query1 = "According to only the information in the document sources provided within the context above, "
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
+        prompt_query1 = "According to only the information in the document sources provided within the context above: "
 
-    pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
-    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+    pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text."""
+    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
 
-    hyde_llm_prompt1 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question:"
+    hyde_llm_prompt1 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
     if pre_prompt_query is None:
         pre_prompt_query = pre_prompt_query1
@@ -259,8 +259,21 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
 def gr_to_lg(image_audio_loaders,
              pdf_loaders,
              url_loaders,
+             use_pymupdf=None,
+             use_unstructured_pdf=None,
+             use_pypdf=None,
+             enable_pdf_ocr=None,
+             enable_pdf_doctr=None,
+             try_pdf_as_html=None,
              **kwargs,
              ):
+    assert use_pymupdf is not None
+    assert use_unstructured_pdf is not None
+    assert use_pypdf is not None
+    assert enable_pdf_ocr is not None
+    assert enable_pdf_doctr is not None
+    assert try_pdf_as_html is not None
+
     if image_audio_loaders is None:
         image_audio_loaders = kwargs['image_audio_loaders_options0']
     if pdf_loaders is None:
@@ -278,12 +291,14 @@ def gr_to_lg(image_audio_loaders,
         use_scrapehttp='ScrapeWithHttp' in url_loaders,
 
         # pdfs
-        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'off',
-        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'off',
-        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'off',
-        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'off',
-        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'off',
-        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'off',
+        # ... else condition uses default from command line, by default auto, so others can be used as backup
+        # make sure pass 'off' for those if really want fully disabled.
+        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else use_pymupdf,
+        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else use_unstructured_pdf,
+        use_pypdf='on' if 'PyPDF' in pdf_loaders else use_pypdf,
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else enable_pdf_ocr,
+        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else enable_pdf_doctr,
+        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else try_pdf_as_html,
 
         # images and audio
         enable_ocr='OCR' in image_audio_loaders,

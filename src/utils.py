@@ -1106,26 +1106,39 @@ class FakeTokenizer:
     2) For when model doesn't directly expose tokenizer but need to count tokens
     """
 
-    def __init__(self, model_max_length=2048, encoding_name="cl100k_base", is_openai=False,
+    def __init__(self, model_max_length=2048,
+                 encoding_name="cl100k_base",
+                 is_openai=False,
+                 is_anthropic=False,
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
+            assert not (is_openai or is_anthropic), "Should have set model_max_length for OpenAI or Anthropic"
             model_max_length = 2048
         self.is_openai = is_openai
+        self.is_anthropic = is_anthropic
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
-        if not self.is_openai and not self.is_llama_cpp:
+        if not self.is_openai and not self.is_anthropic and not self.is_llama_cpp:
             # don't push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
             self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        import tiktoken
-        self.encoding = tiktoken.get_encoding(self.encoding_name)
+        if not self.is_anthropic:
+            import tiktoken
+            self.encoding = tiktoken.get_encoding(self.encoding_name)
+        else:
+            self.encoding = None
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
         if self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
             input_ids = self.tokenizer.tokenize(b" " + x.encode("utf-8"))
+        elif self.is_anthropic:
+            from anthropic import Anthropic
+            client = Anthropic()
+            tokenizer = client.get_tokenizer()
+            input_ids = tokenizer.encode(x).ids
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
@@ -1136,11 +1149,20 @@ class FakeTokenizer:
     def decode(self, x, *args, **kwargs):
         if self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
             return self.tokenizer.detokenize(x)
+        elif self.is_anthropic:
+            from anthropic import Anthropic
+            client = Anthropic()
+            tokenizer = client.get_tokenizer()
+            return tokenizer.decode(x)
         # input is input_ids[0] form
         return self.encoding.decode(x)
 
     def num_tokens_from_string(self, prompt: str) -> int:
         """Returns the number of tokens in a text string."""
+        if self.is_anthropic:
+            from anthropic import Anthropic
+            client = Anthropic()
+            return client.count_tokens(prompt)
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
 
@@ -1330,14 +1352,18 @@ def set_openai(inference_server, model_name=None):
             port_vllm = inference_server.split(':')[2].strip()
             api_base = openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
 
-        from openvllm import vLLM
-        client = vLLM(base_url=api_base, api_key=api_key)
+        from openvllm import vLLM, AsyncvLLM
+        client_args = dict(base_url=api_base, api_key=api_key)
+        client = vLLM(**client_args)
+        async_client = AsyncvLLM(**client_args)
         if inf_type in ['vllm_chat']:
             client = client.chat.completions
+            async_client = async_client.chat.completions
         else:
             client = client.completions
+            async_client = async_client.completions
 
-        return client, inf_type, None, api_base, None, api_key
+        return client, async_client, inf_type, None, api_base, None, api_key
     else:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = None
@@ -1381,18 +1407,24 @@ def set_openai(inference_server, model_name=None):
             if chat_model and inf_type == 'openai':
                 inf_type = 'openai_chat'
 
-        from openai import OpenAI, AzureOpenAI
+        from openai import OpenAI, AzureOpenAI, AsyncOpenAI, AsyncAzureOpenAI
         if inf_type in ['openai_azure', 'openai_azure_chat']:
-            client = AzureOpenAI(azure_deployment=deployment_type, azure_endpoint=base_url, api_version=api_version,
-                                 api_key=api_key)
+            client_args = dict(azure_deployment=deployment_type, azure_endpoint=base_url, api_version=api_version,
+                               api_key=api_key)
+            client = AzureOpenAI(**client_args)
+            async_client = AsyncAzureOpenAI(**client_args)
         else:
-            client = OpenAI(base_url=base_url, api_key=api_key)
+            client_args = dict(base_url=base_url, api_key=api_key)
+            client = OpenAI(**client_args)
+            async_client = AsyncOpenAI(**client_args)
         if inf_type in ['openai_chat', 'openai_azure_chat']:
             client = client.chat.completions
+            async_client = async_client.chat.completions
         else:
             client = client.completions
+            async_client = async_client.completions
 
-        return client, inf_type, deployment_type, base_url, api_version, api_key
+        return client, async_client, inf_type, deployment_type, base_url, api_version, api_key
 
 
 def get_list_or_str(x):
@@ -1525,25 +1557,28 @@ def lg_to_gr(
     if kwargs['enable_llava'] and kwargs['max_quality'] and n_gpus > 0:
         image_audio_loaders_options0.append('LLaVa')
 
-    pdf_loaders_options = ['PyMuPDF', 'Unstructured', 'PyPDF', 'TryHTML']
+    pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
+    if have_pymupdf:
+        pdf_loaders_options = ['PyMuPDF'] + pdf_loaders_options
     if have_tesseract:
         pdf_loaders_options.append('OCR')
     if have_doctr:
         pdf_loaders_options.append('DocTR')
 
     pdf_loaders_options0 = []
-    if kwargs['use_pymupdf'] in [True, 'auto', 'on']:
+    if have_pymupdf and kwargs['use_pymupdf'] in [True, 'auto', 'on']:
         pdf_loaders_options0.append('PyMuPDF')
     if kwargs['enable_pdf_ocr'] in [True, 'on']:
         pdf_loaders_options0.append('OCR')
     if have_doctr and kwargs['enable_pdf_doctr'] in [True, 'on']:
         pdf_loaders_options0.append('DocTR')
-    if kwargs['use_pypdf'] in [True, 'on']:
+    # in case my pymupdf, use pypdf as backup default
+    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto', 'on'] and not have_pymupdf:
         pdf_loaders_options0.append('PyPDF')
     if kwargs['use_unstructured_pdf'] in [True, 'on']:
-       pdf_loaders_options0.append('Unstructured')
+        pdf_loaders_options0.append('Unstructured')
     if kwargs['try_pdf_as_html'] in [True, 'on']:
-       pdf_loaders_options0.append('TryHTML')
+        pdf_loaders_options0.append('TryHTML')
 
     url_loaders_options = []
     if only_unstructured_urls:

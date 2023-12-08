@@ -161,8 +161,8 @@ prompt_type_to_model_name = {
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 
-if os.getenv('ANTHROPIC_API_KEY'):
-    prompt_type_to_model_name['anthropic'] = list(anthropic_mapping.keys())
+anthropic_gpts = sorted(anthropic_mapping.keys())
+prompt_type_to_model_name['anthropic'] = anthropic_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
@@ -173,12 +173,11 @@ model_names_curated = ['TheBloke/Xwin-LM-13B-V0.1-GPTQ',
                        'TheBloke/zephyr-7B-beta-GGUF',
                        'TheBloke/zephyr-7B-beta-AWQ'] + model_names_curated_big
 openai_gpts = list(gpt_token_mapping.keys())
-if os.getenv('OPENAI_API_KEY'):
-    prompt_type_to_model_name.update({
-        "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],
-        "openai_chat": openai_gpts,
-    })
-    model_names_curated += ['gpt-3.5-turbo']
+prompt_type_to_model_name.update({
+    "openai": ["text-davinci-003", "text-curie-001", "text-babbage-001", "text-ada-001"],
+    "openai_chat": openai_gpts,
+})
+model_names_curated += ['gpt-3.5-turbo']
 
 inv_prompt_type_to_model_name = {v.strip(): k for k, l in prompt_type_to_model_name.items() for v in l}
 inv_prompt_type_to_model_lower = {v.strip().lower(): k for k, l in prompt_type_to_model_name.items() for v in l}

@@ -58,6 +58,7 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
+mkdir -p ~/llamacpp_path
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -74,6 +75,7 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+       -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --use_safetensors=True \
@@ -97,6 +99,7 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
+mkdir -p ~/llamacpp_path
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -113,6 +116,7 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+       -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=TheBloke/Llama-2-7b-Chat-GPTQ \
           --load_gptq=model \
@@ -134,6 +138,7 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
+mkdir -p ~/llamacpp_path
 docker run \
        --gpus all \
        --runtime=nvidia \
@@ -150,6 +155,7 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+       -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --prompt_type=llama2 \
@@ -285,6 +291,7 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
+mkdir -p ~/llamacpp_path
 docker run \
     --gpus '"device=2,3"' \
     --runtime=nvidia \
@@ -301,6 +308,7 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+       -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
     gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
         --inference_server="vllm:0.0.0.0:5000" \
         --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
@@ -357,6 +365,7 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
+mkdir -p ~/llamacpp_path
 docker run -d \
        --gpus '"device=0"' \
        --runtime=nvidia \
@@ -373,6 +382,7 @@ docker run -d \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+       -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=$MODEL \
           --inference_server=http://localhost:6112 \
@@ -427,6 +437,7 @@ mkdir -p ~/user_path
 mkdir -p ~/db_dir_UserData
 mkdir -p ~/users
 mkdir -p ~/db_nonusers
+mkdir -p ~/llamacpp_path
 docker run \
        --gpus '"device=0"' \
        --runtime=nvidia \
@@ -443,6 +454,7 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+       -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --use_safetensors=True \

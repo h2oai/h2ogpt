@@ -1260,8 +1260,8 @@ Summarize"""
         base_model = 'llama'
     else:
         base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
-    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
-    # model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q8_0.gguf'
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
+    # model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q8_0.gguf?download=true'
     res_dict, client = run_client_chat_with_server(prompt=prompt,
                                                    max_seq_len=max_seq_len,
                                                    model_path_llama=model_path_llama,
@@ -1278,7 +1278,7 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_agents=[],
                                 user_path=None,
                                 langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
-                                model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                                model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true',
                                 docs_ordering_type='reverse_ucurve_sort',
                                 max_seq_len=None):
     if langchain_mode == 'Disabled':
@@ -2213,7 +2213,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "the provided PDF file is quite boring" in res_dict['response'] or
             "finds more text to be boring" in res_dict['response'] or
             "text to be boring" in res_dict['response'] or
-            "author finds more text to be boring" in res_dict['response']) \
+            "author finds more text to be boring" in res_dict['response'] or
+            "more text is boring" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"
@@ -2342,7 +2343,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     res = client.predict(api_name='/export_chats')
     assert res is not None
 
-    url = 'https://research.google/pubs/pub334.pdf'
+    url = 'https://services.google.com/fh/files/misc/e_conomy_sea_2021_report.pdf'
     res = client.predict(url, langchain_mode, True, 512, True,
                          *loaders,
                          h2ogpt_key,
@@ -2560,7 +2561,7 @@ def test_client_load_unload_models(model_choice):
     max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
-    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf' if model_choice == 'llama' else ''
+    model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true' if model_choice == 'llama' else ''
     model_name_gptj = ''
     model_name_gpt4all_llama = ''
     n_gpu_layers = 100
@@ -2594,7 +2595,7 @@ def test_client_load_unload_models(model_choice):
     model_choice_ex = model_choice
     model_load_gptq_ex = 'model' if 'GPTQ' in model_choice else ''
     model_load_awq_ex = 'model' if 'AWQ' in model_choice else ''
-    model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf' if model_choice == 'llama' else ''
+    model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf?download=true' if model_choice == 'llama' else ''
 
     if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type_ex = 'human_bot'
@@ -2602,17 +2603,17 @@ def test_client_load_unload_models(model_choice):
     elif model_choice in ['llama']:
         prompt_type_ex = 'llama2'
         model_choice_ex = 'llama'
-        model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+        model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
         max_seq_len_ex = 4096.0
     elif model_choice in ['TheBloke/Llama-2-7B-Chat-GGUF']:
         prompt_type_ex = 'llama2'
         model_choice_ex = 'llama'
-        model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf'
+        model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf?download=true'
         max_seq_len_ex = 4096.0
     elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
         prompt_type_ex = 'zephyr'
         model_choice_ex = 'llama'
-        model_path_llama_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf'
+        model_path_llama_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true'
         max_seq_len_ex = 4096.0
     elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
                           'TheBloke/zephyr-7B-beta-AWQ']:
@@ -2659,13 +2660,13 @@ def test_client_load_unload_models(model_choice):
                          model_names_curated +
                          ['zephyr-7b-beta.Q5_K_M.gguf'] +
                          [
-                             'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'])
+                             'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'])
 @wrap_test_forked
 def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:
         return
     if base_model == 'zephyr-7b-beta.Q5_K_M.gguf' and not os.path.isfile('zephyr-7b-beta.Q5_K_M.gguf'):
-        download_simple('https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf')
+        download_simple('https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true')
 
     stream_output = True
     from src.gen import main

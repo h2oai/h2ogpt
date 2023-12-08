@@ -2219,6 +2219,12 @@ def go_gradio(**kwargs):
                                            enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                            h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                            is_public=is_public,
+                                           use_pymupdf=kwargs['use_pymupdf'],
+                                           use_unstructured_pdf=kwargs['use_unstructured_pdf'],
+                                           use_pypdf=kwargs['use_pypdf'],
+                                           enable_pdf_ocr=kwargs['enable_pdf_ocr'],
+                                           enable_pdf_doctr=kwargs['enable_pdf_doctr'],
+                                           try_pdf_as_html=kwargs['try_pdf_as_html'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -2531,6 +2537,12 @@ def go_gradio(**kwargs):
                                              pdf_loaders_options0=pdf_loaders_options0,
                                              url_loaders_options0=url_loaders_options0,
                                              jq_schema0=jq_schema0,
+                                             use_pymupdf=kwargs['use_pymupdf'],
+                                             use_unstructured_pdf=kwargs['use_unstructured_pdf'],
+                                             use_pypdf=kwargs['use_pypdf'],
+                                             enable_pdf_ocr=kwargs['enable_pdf_ocr'],
+                                             enable_pdf_doctr=kwargs['enable_pdf_doctr'],
+                                             try_pdf_as_html=kwargs['try_pdf_as_html'],
                                              )
         eventdb9a = refresh_sources_btn.click(user_state_setup,
                                               inputs=[my_db_state, requests_state,
@@ -3371,7 +3383,8 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         tts_speed1,
-                                        langchain_action1):
+                                        langchain_action1,
+                                        api=True):
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
                     res_dict = {}
                     res_dict['response'] = history[-1][1]
@@ -3420,9 +3433,9 @@ def go_gradio(**kwargs):
                         # full return of dict
                         ret = res_dict
                     elif kwargs['langchain_mode'] == 'Disabled':
-                        ret = fix_text_for_gradio(res_dict['response'])
+                        ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
                     else:
-                        ret = '<br>' + fix_text_for_gradio(res_dict['response'])
+                        ret = '<br>' + fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
 
                     do_yield = False
                     could_yield = ret != ret_old
@@ -3478,6 +3491,7 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache()
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
+            save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
@@ -3918,7 +3932,7 @@ def go_gradio(**kwargs):
             return audio0, audio1, no_audio, generate_speech_func_func
 
         def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
-                         langchain_action1):
+                         langchain_action1, api=False):
             """
             bot that consumes history for user input
             instruction (from input_list) itself is not consumed by bot
@@ -3952,7 +3966,7 @@ def go_gradio(**kwargs):
                     save_dict = output_fun.get('save_dict', {})
                     save_dict_iter = {}
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = fix_text_for_gradio(output)
+                    bot_message = fix_text_for_gradio(output, fix_latex_dollars=not api, fix_new_lines=not api)
                     history[-1][1] = bot_message
 
                     if generate_speech_func_func is not None:
@@ -4039,7 +4053,8 @@ def go_gradio(**kwargs):
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         tts_speed1,
-                                        langchain_action1):
+                                        langchain_action1,
+                                        api=False):
                     do_yield = False
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
                     # pass back to gradio only these, rest are consumed in this function
@@ -4102,6 +4117,7 @@ def go_gradio(**kwargs):
             save_dict['error'] = error
             save_dict['sources'] = sources
             save_dict['which_api'] = 'bot'
+            save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
         def all_bot(*args, retry=False, model_states1=None, all_possible_visible_models=None):
@@ -4168,6 +4184,7 @@ def go_gradio(**kwargs):
                                             roles_state1 if first_visible else {},
                                             tts_speed1 if first_visible else 1.0,
                                             langchain_action1,
+                                            api=False,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False
@@ -4323,6 +4340,7 @@ def go_gradio(**kwargs):
                 save_dict['which_api'] = 'all_bot_%s' % model_name
                 save_dict['valid_key'] = valid_key
                 save_dict['h2ogpt_key'] = h2ogpt_key1
+                save_dict['save_dir'] = kwargs['save_dir']
                 save_generate_output(**save_dict)
 
         # NORMAL MODEL
@@ -5850,6 +5868,11 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
         kwargs['hf_embedding_model'] = 'fake'
         kwargs['migrate_embedding_model'] = False
 
+    # avoid dups after loaders_dict updated with new results
+    for k, v in loaders_dict.items():
+        if k in kwargs:
+            kwargs.pop(k, None)
+
     from src.gpt_langchain import update_user_db
     return update_user_db(file, db1s, selection_docs_state1, requests_state1,
                           langchain_mode=langchain_mode, chunk=chunk, chunk_size=chunk_size,
@@ -5978,12 +6001,25 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         image_audio_loaders_options0=None,
                                                         pdf_loaders_options0=None,
                                                         url_loaders_options0=None,
-                                                        jq_schema0=None):
+                                                        jq_schema0=None,
+                                                        use_pymupdf=None,
+                                                        use_unstructured_pdf=None,
+                                                        use_pypdf=None,
+                                                        enable_pdf_ocr=None,
+                                                        enable_pdf_doctr=None,
+                                                        try_pdf_as_html=None,
+                                                        ):
     from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
 
     loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
                                                        pdf_loaders,
                                                        url_loaders,
+                                                       use_pymupdf=use_pymupdf,
+                                                       use_unstructured_pdf=use_unstructured_pdf,
+                                                       use_pypdf=use_pypdf,
+                                                       enable_pdf_ocr=enable_pdf_ocr,
+                                                       enable_pdf_doctr=enable_pdf_doctr,
+                                                       try_pdf_as_html=try_pdf_as_html,
                                                        image_audio_loaders_options0=image_audio_loaders_options0,
                                                        pdf_loaders_options0=pdf_loaders_options0,
                                                        url_loaders_options0=url_loaders_options0,

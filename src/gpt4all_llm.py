@@ -166,6 +166,8 @@ def get_llm_gpt4all(model_name=None,
             elif url_alive(model_path):
                 # online
                 dest = os.path.join(llamacpp_path, os.path.basename(model_path)) if llamacpp_path else None
+                if dest.endswith('?download=true'):
+                    dest = dest.replace('?download=true', '')
                 model_path = download_simple(model_path, dest=dest)
         else:
             model_path = model

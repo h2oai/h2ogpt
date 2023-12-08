@@ -361,7 +361,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                                                            n_jobs=8,
                                                            max_seq_len=512,
                                                            llamacpp_dict=dict(
-                                                               model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                                                               model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true',
                                                                n_gpu_layers=100,
                                                                use_mlock=True,
                                                                n_batch=1024))
