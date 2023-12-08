@@ -1103,7 +1103,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = "### Instruction:\n"
         PreResponse = "### Response:\n"
         eos = '<｜end▁of▁sentence｜>'
-        terminate_response = [PreResponse, eos]
+        terminate_response = [PreResponse, eos, '<|EOT|>']
         chat_sep = '\n'
         chat_turn_sep = '\n<|EOT|>\n'
         humanstr = PreInstruct
