@@ -16,6 +16,11 @@ Install this inside h2oGPT env
 ```bash
 pip install diffusers==0.24.0 huggingface-hub==0.19.4
 ```
+And if want this with XTT speech, etc. run:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_imagegen=True
+```
+or for high-resolution run use `--enable_imagegen_high=True` (can add both).
 
 ### LLaVa Vision Models (experimental)
 
@@ -73,6 +78,11 @@ pip install gradio==3.50.2
 python -m llava.serve.gradio_web_server --controller http://localhost:$server_port --model-list-mode reload
 ```
 
+Run h2oGPT with LLaVa and image (normal and high-quality) generation:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --llava_model=<IP:port:model_name> --enable_imagegen=True --enable_imagegen_high=True
+```
+e.g. `--llava_model=http://192.168.1.46:7861:llava-v1.5-13b`.
 
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 

@@ -42,6 +42,18 @@ def get_llava_response(file, llava_model,
                        top_p=0.7, max_new_tokens=512):
     # prompt = "According to the image, describe the image in full details with a well-structured response."
 
+    llava_model_split = llava_model.split(':')
+    assert len(llava_model_split) >= 2
+    # FIXME: Allow choose model in UI
+    if len(llava_model_split) >= 2:
+        pass
+        # assume default model is ok
+        # llava_ip = llava_model_split[0]
+        # llava_port = llava_model_split[1]
+    if len(llava_model_split) >= 3:
+        image_model = llava_model_split[2]
+        llava_model = ':'.join(llava_model_split[:2])
+
     img_str = png_to_base64(file)
 
     from gradio_client import Client
