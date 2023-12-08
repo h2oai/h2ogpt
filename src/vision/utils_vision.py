@@ -42,6 +42,13 @@ def get_llava_response(file, llava_model,
                        top_p=0.7, max_new_tokens=512):
     # prompt = "According to the image, describe the image in full details with a well-structured response."
 
+    prefix = ''
+    if llava_model.startswith('http://'):
+        prefix = 'http://'
+    if llava_model.startswith('https://'):
+        prefix = 'https://'
+    llava_model = llava_model[len(prefix):]
+
     llava_model_split = llava_model.split(':')
     assert len(llava_model_split) >= 2
     # FIXME: Allow choose model in UI
@@ -53,12 +60,20 @@ def get_llava_response(file, llava_model,
     if len(llava_model_split) >= 3:
         image_model = llava_model_split[2]
         llava_model = ':'.join(llava_model_split[:2])
+    # add back prefix
+    llava_model = prefix + llava_model
 
     img_str = png_to_base64(file)
 
     from gradio_client import Client
     client = Client(llava_model, serialize=False)
-    client.predict(api_name='/demo_load')
+    load_res = client.predict(api_name='/demo_load')
+    model_options = [x[1] for x in load_res['choices']]
+    assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
+
+    # if no default choice or default choice not there, choose first
+    if not image_model or image_model not in model_options:
+        image_model = model_options[0]
 
     # test_file_local, test_file_server = client.predict(file_to_upload, api_name='/upload_api')
 
