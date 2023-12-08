@@ -3110,7 +3110,7 @@ def evaluate(
         extra_dict = dict(t_generate=time.time() - t_generate,
                           instruction=instruction,
                           prompt_raw=instruction)
-        save_dict = dict(prompt=instruction, response=response, extra_dict=extra_dict)
+        save_dict = dict(prompt=instruction, output=response, extra_dict=extra_dict)
         yield dict(response=response, sources=[], save_dict=save_dict, llm_answers={},
                    response_no_refs="Generated image for %s" % instruction,
                    sources_str="", prompt_raw=instruction)

@@ -302,7 +302,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
 
     # tokenize at end if need to, so doesn't block generation in multi-generator case
     if extra_dict.get('ntokens') is None:
-        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(output)
+        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(str(output))
         # only do below if didn't already compute ntokens, else assume also computed rate
     if extra_dict.get('ntokens') is not None and extra_dict.get('t_generate') is not None:
         extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
