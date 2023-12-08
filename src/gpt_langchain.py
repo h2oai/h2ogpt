@@ -1544,6 +1544,7 @@ def get_llm(use_openai_model=False,
             if inf_type == 'vllm_chat':
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
+                                         openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          async_sem=async_sem,
                                          ))
@@ -1576,6 +1577,7 @@ def get_llm(use_openai_model=False,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
                                          openai_api_base=base_url,
+                                         openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
                                          client=openai_client,
                                          async_sem=async_sem,
