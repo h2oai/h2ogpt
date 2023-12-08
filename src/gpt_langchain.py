@@ -1547,6 +1547,8 @@ def get_llm(use_openai_model=False,
                 kwargs_extra.update(dict(tokenizer=tokenizer,
                                          openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         client=openai_client,
+                                         async_client=openai_async_client,
                                          async_sem=async_sem,
                                          ))
         elif inf_type == 'openai_azure_chat':
