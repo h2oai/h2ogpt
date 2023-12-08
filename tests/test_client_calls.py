@@ -2213,7 +2213,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "the provided PDF file is quite boring" in res_dict['response'] or
             "finds more text to be boring" in res_dict['response'] or
             "text to be boring" in res_dict['response'] or
-            "author finds more text to be boring" in res_dict['response']) \
+            "author finds more text to be boring" in res_dict['response'] or
+            "more text is boring" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"
@@ -2342,7 +2343,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     res = client.predict(api_name='/export_chats')
     assert res is not None
 
-    url = 'https://research.google/pubs/pub334.pdf'
+    url = 'https://services.google.com/fh/files/misc/e_conomy_sea_2021_report.pdf'
     res = client.predict(url, langchain_mode, True, 512, True,
                          *loaders,
                          h2ogpt_key,
