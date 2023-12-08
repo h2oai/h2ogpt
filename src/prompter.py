@@ -1103,7 +1103,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = "### Instruction:\n"
         PreResponse = "### Response:\n"
         eos = '<｜end▁of▁sentence｜>'
-        terminate_response = [PreResponse, eos]
+        terminate_response = [PreResponse, eos, '<|EOT|>']
         chat_sep = '\n'
         chat_turn_sep = '\n<|EOT|>\n'
         humanstr = PreInstruct
@@ -1336,7 +1336,7 @@ class Prompter(object):
         self.prompt = prompt
         return prompt
 
-    def get_response(self, outputs, prompt=None, sanitize_bot_response=False, only_new_text=False):
+    def get_response(self, outputs, prompt=None, sanitize_bot_response=False, only_new_text=False, plain_prompt_special=False):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:
@@ -1369,7 +1369,8 @@ class Prompter(object):
         multi_output = len(outputs) > 1
 
         for oi, output in enumerate(outputs):
-            if self.prompt_type in [PromptType.plain.value, str(PromptType.plain.value), PromptType.plain.name]:
+            if plain_prompt_special and \
+                    self.prompt_type in [PromptType.plain.value, str(PromptType.plain.value), PromptType.plain.name]:
                 output = clean_response(output)
                 allow_terminate = True
             elif only_new_text:
