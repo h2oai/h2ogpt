@@ -100,7 +100,7 @@ Note that models are stored in `/home/$USER/.cache/` for chroma, huggingface, se
   ```
   UI using LLaMa.cpp LLaMa2 model:
   ```bash
-  python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
+  python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true --max_seq_len=4096
   ```
   which works on CPU or GPU (assuming llama cpp python package compiled against CUDA or Metal).
 

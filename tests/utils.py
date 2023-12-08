@@ -139,7 +139,7 @@ def get_llama(llama_type=3):
         dest = './'
         prompt_type = 'wizard2'
     elif llama_type == 3:
-        file = download_simple('https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf')
+        file = download_simple('https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true')
         dest = './'
         prompt_type = 'llama2'
     else:

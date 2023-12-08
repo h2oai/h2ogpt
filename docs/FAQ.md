@@ -399,7 +399,7 @@ python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta
 python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF
 python generate.py --base_model=TheBloke/zephyr-7B-beta-AWQ
 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf
-python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
+python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true
 ```
 Some are these are non-quantized models with links HF links, some specific files on local disk ending in `.gguf`.  Given `TheBloke` HF names, if a quantized model, h2oGPT pulls the recommended model from his repository.  You can also provide a resolved web link directly, or a file.
 

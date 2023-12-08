@@ -90,7 +90,8 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
                 len(just_model_split) == 2:
             just_model = just_model_split[0]
             lower_model = just_model.lower()
-            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s' % (base_model, lower_model, file_postfix)
+            download_postfix = '?download=true'
+            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (base_model, lower_model, file_postfix, download_postfix)
             if url_alive(base_model0):
                 base_model = base_model0
         model_path_llama = base_model
@@ -1027,7 +1028,7 @@ def main(
     # NOTE: avoid defaults for model_lock, require to be specified
     if base_model == 'llama':
         if not model_path_llama:
-            model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf'
+            model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
         if not prompt_type:
             prompt_type = 'llama2'
     elif base_model == 'gptj' and not model_name_gptj:
