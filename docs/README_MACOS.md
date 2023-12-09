@@ -1,6 +1,9 @@
-# MACOS
+# macOS
 
 Supports CPU and MPS (Metal M1/M2).
+
+- [Install](#install)
+- [Run](#run)
 
 ## Install
 * Download and Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers) for Python 3.10.

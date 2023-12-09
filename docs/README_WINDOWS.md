@@ -4,7 +4,10 @@ If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers
 
 For newer builds of windows versions of 10/11.
 
-## Installation
+- [Install](#install)
+- [Run](#run)
+
+## Install
 * Download Visual Studio 2022: [Download Link](https://visualstudio.microsoft.com/vs/community/)
   * Run Installer, click ok to run, click Continue
   * Click on `Individual Components`
