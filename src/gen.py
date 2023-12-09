@@ -237,6 +237,8 @@ def main(
         gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
         gradio_api_use_same_stream_limits: bool = True,
+        gradio_upload_to_chatbot: bool = True,
+        gradio_upload_to_chatbot_num_max: bool = 2,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -689,6 +691,8 @@ def main(
     :param gradio_ui_stream_chunk_seconds: Number of seconds to yield regardless of reaching gradio_ui_stream_chunk_size as long as something to yield
            Helps case when streaming is slow and want to see progress at least every couple seconds
     :param gradio_api_use_same_stream_limits: Whether to use same streaming limits as UI for API
+    :param gradio_upload_to_chatbot: Whether to show upload in chatbots
+    :param gradio_upload_to_chatbot_num_max: Max number of things to add to chatbot
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
     :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.
@@ -1140,6 +1144,8 @@ def main(
         n_jobs = max(1, os.cpu_count() // 2)
     if is_public and os.getenv('n_jobs') is None:
         n_jobs = min(n_jobs, max(1, min(os.cpu_count() // 2, 8)))
+    if is_public:
+        gradio_upload_to_chatbot_num_max = 1
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now

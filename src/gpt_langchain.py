@@ -6187,7 +6187,8 @@ def get_chain(query=None,
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
         else:
             # unused normally except in testing
-            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (model_name, prompt_type)
+            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
+                model_name, prompt_type)
             chain = load_qa_with_sources_chain(llm)
         chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
@@ -6650,7 +6651,7 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
         </html>
         """.format(ex_str)
         doc_exception_text = str(e)
-        return None, langchain_mode, source_files_added, doc_exception_text, None
+        return None, langchain_mode, source_files_added, doc_exception_text, None, None
     finally:
         clear_torch_cache()
 
@@ -6721,6 +6722,8 @@ def _update_user_db(file,
                     is_url=None, is_txt=None,
                     is_public=False,
                     from_ui=False,
+
+                    gradio_upload_to_chatbot_num_max=None,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -6743,6 +6746,7 @@ def _update_user_db(file,
     assert enable_pix2struct is not None
     assert enable_llava is not None
     assert verbose is not None
+    assert gradio_upload_to_chatbot_num_max is not None
 
     if dbs is None:
         dbs = {}
@@ -6768,7 +6772,7 @@ def _update_user_db(file,
                              " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
     if langchain_mode == LangChainMode.DISABLED.value:
-        return None, langchain_mode, get_source_files(), "", None
+        return None, langchain_mode, get_source_files(), "", None, {}
 
     if langchain_mode in [LangChainMode.LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
@@ -6778,7 +6782,7 @@ def _update_user_db(file,
         elif len(langchain_modes) >= 1:
             langchain_mode = langchain_modes[0]
         else:
-            return None, langchain_mode, get_source_files(), "", None
+            return None, langchain_mode, get_source_files(), "", None, {}
 
     if langchain_mode_paths is None:
         langchain_mode_paths = {}
@@ -6904,9 +6908,12 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             if len(sources) > 0:
                 sources_last = os.path.basename(sources[-1].metadata.get('source', 'Unknown Source'))
+                all_sources_last_dict = get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max)
             else:
                 sources_last = None
-            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs), sources_last
+                all_sources_last_dict = {}
+            return None, langchain_mode, source_files_added, '\n'.join(
+                exceptions_strs), sources_last, all_sources_last_dict
         else:
             langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
             persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
@@ -6936,9 +6943,25 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
             if len(sources) > 0:
                 sources_last = os.path.basename(sources[-1].metadata.get('source', 'Unknown Source'))
+                all_sources_last_dict = get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max)
             else:
                 sources_last = None
-            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs), sources_last
+                all_sources_last_dict = {}
+            return None, langchain_mode, source_files_added, '\n'.join(
+                exceptions_strs), sources_last, all_sources_last_dict
+
+
+def get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max):
+    valid_sources = [x for x in sources if x.metadata.get('source', '') and x.page_content and x.metadata.get('chunk_id', -1) == -1]
+    # FIXME: Choose longest output if multiple?
+
+    # only what can be shown in gradio
+    allowed_types = image_types + audio_types
+    valid_sources = [x for x in valid_sources if any(x.metadata['source'].endswith(y) for y in allowed_types)]
+
+    all_sources_last_dict = {x.metadata['source']: x.page_content
+                             for x in valid_sources[:gradio_upload_to_chatbot_num_max]}
+    return all_sources_last_dict
 
 
 def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,

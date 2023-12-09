@@ -1555,8 +1555,15 @@ def lg_to_gr(
             image_audio_loaders_options0.append('ASRLarge')
         else:
             image_audio_loaders_options0.append('ASR')
-    if kwargs['enable_llava'] and kwargs['max_quality'] and n_gpus > 0:
+    if kwargs['enable_llava'] and kwargs['llava_model']:
+        #  and n_gpus > 0  # don't require local GPUs
+        # LLaVa better and faster if present
+        #  and kwargs['max_quality']
         image_audio_loaders_options0.append('LLaVa')
+        if 'Caption' in  image_audio_loaders_options0:
+            image_audio_loaders_options0.remove('Caption')
+        if 'CaptionBlip2' in  image_audio_loaders_options0:
+            image_audio_loaders_options0.remove('CaptionBlip2')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
     if have_pymupdf:
