@@ -671,6 +671,7 @@ class GradioInference(H2Oagenerate, LLM):
                              docs_joiner=None,
                              hyde_level=None,
                              hyde_template=None,
+                             hyde_show_only_final=None,
                              doc_json_mode=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -4574,6 +4575,7 @@ def _run_qa_db(query=None,
                docs_joiner=docs_joiner_default,
                hyde_level=0,
                hyde_template=None,
+               hyde_show_only_final=None,
                doc_json_mode=False,
 
                n_jobs=-1,
@@ -5244,6 +5246,7 @@ def run_hyde(*args, **kwargs):
     hyde_level = kwargs['hyde_level']
     hyde_llm_prompt = kwargs['hyde_llm_prompt']
     hyde_template = kwargs['hyde_template']
+    hyde_show_only_final = kwargs['hyde_show_only_final']
     verbose = kwargs['verbose']
     show_rank = kwargs['show_rank']
     answer_with_sources = kwargs['answer_with_sources']
@@ -5300,12 +5303,13 @@ def run_hyde(*args, **kwargs):
                                    async_output=async_output,
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
-            yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
-                       num_prompt_tokens=ret['num_prompt_tokens'],
-                       llm_answers=ret['llm_answers'],
-                       # only give back no_refs if final
-                       response_no_refs='' if hyde_level1 < hyde_level else response,
-                       sources_str=ret['sources_str'])
+            if not hyde_show_only_final:
+                yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
+                           num_prompt_tokens=ret['num_prompt_tokens'],
+                           llm_answers=ret['llm_answers'],
+                           # only give back no_refs if final
+                           response_no_refs='' if hyde_level1 < hyde_level else response,
+                           sources_str=ret['sources_str'])
             answer = ret['response']
 
         if answer:
@@ -5322,8 +5326,9 @@ def run_hyde(*args, **kwargs):
             # yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers)
             # try yield after
             # print("answer: %s" % answer)
-            yield dict(prompt_raw=prompt_basic, response=answer, sources=sources, num_prompt_tokens=0,
-                       llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
+            if not hyde_show_only_final:
+                yield dict(prompt_raw=prompt_basic, response=answer, sources=sources, num_prompt_tokens=0,
+                           llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
 
             # update embedding query
             # use all answers, but use newer answers first, often shorter due to LLM RLHF not used to long docs inputted,
@@ -6993,7 +6998,8 @@ def _update_user_db(file,
 
 
 def get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max):
-    valid_sources = [x for x in sources if x.metadata.get('source', '') and x.page_content and x.metadata.get('chunk_id', -1) == -1]
+    valid_sources = [x for x in sources if
+                     x.metadata.get('source', '') and x.page_content and x.metadata.get('chunk_id', -1) == -1]
     # FIXME: Choose longest output if multiple?
 
     # only what can be shown in gradio

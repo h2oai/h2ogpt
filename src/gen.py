@@ -93,7 +93,8 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
             just_model = just_model_split[0]
             lower_model = just_model.lower()
             download_postfix = '?download=true'
-            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (base_model, lower_model, file_postfix, download_postfix)
+            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (
+            base_model, lower_model, file_postfix, download_postfix)
             if url_alive(base_model0):
                 base_model = base_model0
         model_path_llama = base_model
@@ -363,6 +364,7 @@ def main(
         docs_joiner: str = docs_joiner_default,
         hyde_level: int = 0,
         hyde_template: str = None,
+        hyde_show_only_final: bool = False,
         doc_json_mode: bool = False,
 
         auto_reduce_chunks: bool = True,
@@ -725,11 +727,13 @@ def main(
                              -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                              >=0 means use that to limit context filling to that many tokens
     :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
+
     :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                      or top_k_docs original document chunks summarization
                                 None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
 
     :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+
     :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
                  0: No HYDE
                  1: Use non-document-based LLM response and original query for embedding query
@@ -738,6 +742,8 @@ def main(
     :param hyde_template:
                  None, 'None', 'auto' uses internal value and enable
                  '{query}' is minimal template one can pass
+    :param hyde_show_only_final:  Whether to show only last result of HYDEE, not intermediate steps
+
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
            Ignored if model_lock not used
@@ -1497,6 +1503,7 @@ def main(
                             docs_joiner,
                             hyde_level,
                             hyde_template,
+                            hyde_show_only_final,
                             doc_json_mode,
                             chatbot_role,
                             speaker,
@@ -2958,6 +2965,7 @@ def evaluate(
         docs_joiner,
         hyde_level,
         hyde_template,
+        hyde_show_only_final,
         doc_json_mode,
 
         chatbot_role,
@@ -3456,6 +3464,7 @@ def evaluate(
                 docs_joiner=docs_joiner,
                 hyde_level=hyde_level,
                 hyde_template=hyde_template,
+                hyde_show_only_final=hyde_show_only_final,
                 doc_json_mode=doc_json_mode,
 
                 **gen_hyper_langchain,
@@ -3801,6 +3810,7 @@ def evaluate(
                                      docs_joiner=docs_joiner,
                                      hyde_level=hyde_level,
                                      hyde_template=hyde_template,
+                                     hyde_show_only_final=hyde_show_only_final,
                                      doc_json_mode=doc_json_mode,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -4350,6 +4360,7 @@ def get_generate_params(model_lower,
                         docs_joiner,
                         hyde_level,
                         hyde_template,
+                        hyde_show_only_final,
                         doc_json_mode,
                         chatbot_role,
                         speaker,
@@ -4556,6 +4567,7 @@ y = np.random.randint(0, 1, 100)
                     docs_joiner,
                     hyde_level,
                     hyde_template,
+                    hyde_show_only_final,
                     doc_json_mode,
 
                     chatbot_role,
@@ -4757,7 +4769,8 @@ def gradio_to_llm(x, bot=False):
             if isinstance(inst, str) and inst.startswith('/tmp/gradio'):
                 # below so if put into context gets rendered not as broken file
                 if bot:
-                    x[insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
+                    x[
+                        insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
                 else:
                     x[insti] = 'file=' + inst
         if len(x) == 1:

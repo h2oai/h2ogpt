@@ -2124,6 +2124,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                      use_pypdf=True,
                      use_unstructured_pdf=True,
                      try_pdf_as_html=True,
+                     enable_llava=True,
+                     llava_model=None,
                      max_quality=True)
         # use all loaders except crawling ones
         url_loaders_options = [x for x in url_loaders_options if 'scrape' not in x.lower()]

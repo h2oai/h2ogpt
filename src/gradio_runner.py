@@ -927,14 +927,14 @@ def go_gradio(**kwargs):
                 can_db_filter = kwargs['langchain_mode'] != 'Disabled' and kwargs['db_type'] in ['chroma',
                                                                                                  'chroma_old']
                 document_choice_kwargs = dict(choices=docs_state0,
-                                                  label="Document",
-                                                  value=[DocumentChoice.ALL.value],
-                                                  interactive=True,
-                                                  multiselect=True,
-                                                  visible=can_db_filter,
-                                                  elem_id="multi-selection",
-                                                  allow_custom_value=False,
-                                                  )
+                                              label="Document",
+                                              value=[DocumentChoice.ALL.value],
+                                              interactive=True,
+                                              multiselect=True,
+                                              visible=can_db_filter,
+                                              elem_id="multi-selection",
+                                              allow_custom_value=False,
+                                              )
                 if kwargs['document_choice_in_sidebar']:
                     document_choice = gr.Dropdown(**document_choice_kwargs)
 
@@ -1497,6 +1497,10 @@ def go_gradio(**kwargs):
                                                               label="HYDE Embedding Template",
                                                               info="HYDE approach for LLM getting answer to embed ('auto' means automatic, else enter template like '{query}'",
                                                               visible=True)
+                        hyde_show_only_final = gr.components.Checkbox(value=kwargs['hyde_show_only_final'],
+                                                                      label="Only final HYDE shown",
+                                                                      info="Whether to only show final HYDE result",
+                                                                      visible=True)
                         doc_json_mode = gr.components.Checkbox(value=kwargs['doc_json_mode'],
                                                                label="JSON docs mode",
                                                                info="Whether to pass JSON to and get JSON back from LLM",
@@ -2384,10 +2388,12 @@ def go_gradio(**kwargs):
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice(langchain_mode1):
             if langchain_mode1 in langchain_modes_non_db:
-                label1 = 'Choose Resources->Collections and Pick Collection' if not kwargs['document_choice_in_sidebar'] else "Document"
+                label1 = 'Choose Resources->Collections and Pick Collection' if not kwargs[
+                    'document_choice_in_sidebar'] else "Document"
                 active_collection1 = "#### Not Chatting with Any Collection\n%s" % label1
             else:
-                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1 if not kwargs['document_choice_in_sidebar'] else "Document"
+                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1 if not kwargs[
+                    'document_choice_in_sidebar'] else "Document"
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
             return gr.Dropdown(choices=docs_state0, value=[DocumentChoice.ALL.value],
                                label=label1), gr.Markdown(value=active_collection1)

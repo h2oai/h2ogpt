@@ -150,6 +150,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'docs_joiner': docs_joiner_default,
                  'hyde_level': 0,
                  'hyde_template': None,
+                 'hyde_show_only_final': False,
                  'doc_json_mode': False,
                  'chatbot_role': 'None',
                  'speaker': 'None',

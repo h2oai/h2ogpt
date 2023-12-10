@@ -461,6 +461,7 @@ class GradioClient(Client):
                                       docs_joiner: str = "\n\n",
                                       hyde_level: int = 0,
                                       hyde_template: str = None,
+                                      hyde_show_only_final: bool = True,
                                       doc_json_mode: bool = False,
 
                                       asserts: bool = False,
@@ -564,6 +565,7 @@ class GradioClient(Client):
                         2: uses query + LLM response using docs to find similarity with docs
                         3+: etc.
             hyde_template: see src/gen.py
+            hyde_show_only_final: see src/gen.py
             doc_json_mode: see src/gen.py
 
             asserts: whether to do asserts to ensure handling is correct
@@ -690,6 +692,7 @@ class GradioClient(Client):
             docs_joiner=docs_joiner,
             hyde_level=hyde_level,
             hyde_template=hyde_template,
+            hyde_show_only_final=hyde_show_only_final,
             doc_json_mode=doc_json_mode,
         )
 
