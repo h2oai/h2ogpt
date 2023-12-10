@@ -154,7 +154,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             chunk_size = 512
             langchain_mode = 'MyData'
             embed = True
-            loaders = tuple([None, None, None, None])
+            loaders = tuple([None, None, None, None, None])
             h2ogpt_key = ''
             res = client.predict(test_file_server,
                                  chunk, chunk_size, langchain_mode, embed,

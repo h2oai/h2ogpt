@@ -2110,7 +2110,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     user_path = make_user_path_test()
 
     if loaders is None:
-        loaders = tuple([None, None, None, None])
+        loaders = tuple([None, None, None, None, None])
     else:
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
@@ -2129,7 +2129,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                      max_quality=True)
         # use all loaders except crawling ones
         url_loaders_options = [x for x in url_loaders_options if 'scrape' not in x.lower()]
-        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options, None]
+        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options, None, 0]
 
     stream_output = True
     max_new_tokens = 256
