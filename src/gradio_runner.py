@@ -923,6 +923,21 @@ def go_gradio(**kwargs):
                         visible=not is_public,
                         elem_id="langchain_agents",
                         filterable=False)
+
+                can_db_filter = kwargs['langchain_mode'] != 'Disabled' and kwargs['db_type'] in ['chroma',
+                                                                                                 'chroma_old']
+                document_choice_kwargs = dict(choices=docs_state0,
+                                                  label="Document",
+                                                  value=[DocumentChoice.ALL.value],
+                                                  interactive=True,
+                                                  multiselect=True,
+                                                  visible=can_db_filter,
+                                                  elem_id="multi-selection",
+                                                  allow_custom_value=False,
+                                                  )
+                if kwargs['document_choice_in_sidebar']:
+                    document_choice = gr.Dropdown(**document_choice_kwargs)
+
                 visible_doc_track = upload_visible and kwargs['visible_doc_track'] and not kwargs[
                     'large_file_count_mode']
                 row_doc_track = gr.Row(visible=visible_doc_track)
@@ -1172,17 +1187,9 @@ def go_gradio(**kwargs):
                         dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
                         active_collection = gr.Markdown(
                             value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
-                    can_db_filter = kwargs['langchain_mode'] != 'Disabled' and kwargs['db_type'] in ['chroma',
-                                                                                                     'chroma_old']
-                    document_choice = gr.Dropdown(docs_state0,
-                                                  label=dlabel1,
-                                                  value=[DocumentChoice.ALL.value],
-                                                  interactive=True,
-                                                  multiselect=True,
-                                                  visible=can_db_filter,
-                                                  elem_id="multi-selection",
-                                                  allow_custom_value=False,
-                                                  )
+                    if not kwargs['document_choice_in_sidebar']:
+                        document_choice_kwargs.update(dict(label=dlabel1))
+                        document_choice = gr.Dropdown(**document_choice_kwargs)
                     with gr.Row():
                         with gr.Column():
                             document_source_substrings = gr.Dropdown([], label='Source substrings (post-search filter)',
@@ -2377,10 +2384,10 @@ def go_gradio(**kwargs):
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice(langchain_mode1):
             if langchain_mode1 in langchain_modes_non_db:
-                label1 = 'Choose Resources->Collections and Pick Collection'
+                label1 = 'Choose Resources->Collections and Pick Collection' if not kwargs['document_choice_in_sidebar'] else "Document"
                 active_collection1 = "#### Not Chatting with Any Collection\n%s" % label1
             else:
-                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
+                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1 if not kwargs['document_choice_in_sidebar'] else "Document"
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
             return gr.Dropdown(choices=docs_state0, value=[DocumentChoice.ALL.value],
                                label=label1), gr.Markdown(value=active_collection1)

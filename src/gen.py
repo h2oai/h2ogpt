@@ -279,6 +279,7 @@ def main(
         visible_chatbot_label: bool = True,
         visible_all_prompter_models: bool = False,
         actions_in_sidebar: bool = False,
+        document_choice_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
         pdf_height: int = 800,
@@ -768,6 +769,7 @@ def main(
     :param visible_chatbot_label: Whether to show label in chatbot (e.g. if only one model for own purpose, then can set to False)
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
+    :param document_choice_in_sidebar: Whether to show document choices in sidebar
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
