@@ -4617,6 +4617,8 @@ def _run_qa_db(query=None,
     elif langchain_action in [LangChainAction.QUERY.value]:
         # only summarization supported
         async_output = False
+    elif LangChainAgent.AUTOGPT.value in langchain_agents:
+        async_output = False
     else:
         if stream_output0:
             # threads and asyncio don't mix
@@ -5500,6 +5502,45 @@ def get_chain(query=None,
         text_context_list = docs_search + text_context_list
         add_search_to_context &= len(docs_search) > 0
         top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
+
+    if LangChainAgent.AUTOGPT.value in langchain_agents:
+        from langchain_experimental.autonomous_agents.autogpt.agent import AutoGPT
+        from langchain.agents import load_tools
+
+        tools = load_tools(["ddg-search"], llm=llm)
+
+        from langchain.docstore import InMemoryDocstore
+        from langchain.embeddings import OpenAIEmbeddings
+        from langchain.vectorstores import FAISS
+
+        # Define your embedding model
+        embeddings_model = OpenAIEmbeddings()
+        # Initialize the vectorstore as empty
+        import faiss
+
+        embedding_size = 1536
+        index = faiss.IndexFlatL2(embedding_size)
+        vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {})
+
+        agent = AutoGPT.from_llm_and_tools(
+            ai_name="Anthox",
+            ai_role="Cooking Assistant",
+            tools=tools,
+            llm=llm,
+            memory=vectorstore.as_retriever(),
+        )
+        # Set verbose to be true
+        agent.chain.verbose = True
+        chain_kwargs = [query]
+        chain_func = agent.run
+        target = wrapped_partial(chain_func, chain_kwargs)
+
+        docs = []
+        scores = []
+        num_docs_before_cut = 0
+        use_llm_if_no_docs = True
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.SMART.value in langchain_agents:
         # doesn't really work for non-OpenAI models unless larger

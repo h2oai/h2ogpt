@@ -140,6 +140,7 @@ class LangChainAgent(Enum):
     PANDAS = "Pandas"
     JSON = 'JSON'
     SMART = 'SMART'
+    AUTOGPT = 'AUTOGPT'
 
 
 no_server_str = no_lora_str = no_model_str = '[None/Remove]'
