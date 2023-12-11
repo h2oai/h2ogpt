@@ -230,6 +230,16 @@ export CUDA_VISIBLE_DEVICESs=0,1,2,3
 python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-4096-llama2-70b-chat --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=4 --seed 1234 --max-num-batched-tokens=8192
 ```
 
+For Mixtral 8*7B run:
+```bash
+pip install git+https://github.com/vllm-project/vllm.git
+pip install mosaicml-turbo
+pip install git+https://github.com/stanford-futuredata/megablocks.git
+export CUDA_VISIBLE_DEVICES=0,1
+python -m vllm.entrypoints.openai.api_server --port=5002 --host=0.0.0.0 --model mistralai/Mixtral-8x7B-Instruct-v0.1 --tensor-parallel-size=2 --seed 1234
+```
+Once vLLM etc. have Mixtral support built-in, these special package installs may not be required.
+
 The startup may take few minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
 ```text
 INFO 07-15 02:56:41 llm_engine.py:131] # GPU blocks: 496, # CPU blocks: 204
