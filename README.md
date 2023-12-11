@@ -32,7 +32,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Evaluate** performance using reward models
 - **Quality** maintained with over 1000 unit and integration tests taking over 4 GPU-hours
 
-### Getting Started
+### Get Started
 
 [![GitHub license](https://img.shields.io/github/license/NVIDIA/nvidia-docker?style=flat-square)](https://raw.githubusercontent.com/h2oai/h2ogpt/main/LICENSE)
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/h2oai/h2ogpt/blob/main/docs/README_LINUX.md)
@@ -154,7 +154,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
 
 ### Docs Guide
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
-* [Getting Started](#getting-started)
+* [Get Started](#get-started)
    * [Linux (CPU or CUDA)](docs/README_LINUX.md)
    * [macOS (CPU or M1/M2)](docs/README_MACOS.md)
    * [Windows 10/11 (CPU or CUDA)](docs/README_WINDOWS.md)

@@ -2,9 +2,9 @@
 
 Our goal is to make it easy to have private offline document question-answer using LLMs.
 
-## Getting Started
+## Get Started
 
-Follow the main [README](../README.md#getting-started) getting started steps.  In this readme, we focus on other optional aspects.
+Follow the [get started steps](../README.md#get-started) in the main README.  In this readme, we focus on other optional aspects.
 
 To support GPU FAISS database, run:
 ```bash
@@ -19,16 +19,16 @@ or for Weaviate, run:
 ```bash
 pip install -r reqs_optional/requirements_optional_langchain.txt
 ```
-## Supported Datatypes
+## Supported Data types
 
 Open-source data types are supported, .msg is not supported due to GPL-3 requirement.  Other meta types support other types inside them.  Special support for some behaviors is provided by the UI itself.
 
-### Supported Native Datatypes
+### Supported Native Data types
 
    - `.pdf`: Portable Document Format (PDF),
    - `.txt`: Text file (UTF-8),
    - `.csv`: CSV,
-   - `.toml`: Toml,
+   - `.toml`: TOML,
    - `.py`: Python,
    - `.rst`: reStructuredText,
    - `.rtf`: Rich Text Format,
@@ -125,20 +125,20 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.au` : AU Audio (optional).
 
 
-### Supported Meta Datatypes
+### Supported Meta Data types
 
    - `.zip` : Zip File containing any native datatype.
    - `.urls` : Text file containing new-line separated URLs (to be consumed via download).
 
-If upload files and one of the files is a zip that contains images to be read by BLIP/DocTR or PDFs to be read by DocTR, this will currently fail with:
+Note: If you upload files and one of the files is a zip that contains images to be read by BLIP/DocTR or PDFs to be read by DocTR, this will currently fail with:
 ```text
 Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
 ```
 Please upload the zip separately for now.
 
-### Supported Datatypes in UI
+### Supported Data Types in UI
 
-   - `Files` : All Native and Meta DataTypes as file(s),
+   - `Files` : All Native and Meta Data Types as file(s),
    - `URL` : Any URL (i.e. `http://` or `https://`),
    - `ArXiv` : Any ArXiv name (e.g. `arXiv:1706.03762`),
    - `Text` : Paste Text into UI.
