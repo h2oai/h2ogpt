@@ -42,7 +42,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 
 To quickly try out h2oGPT with limited document Q/A capability, create a fresh Python 3.10 environment and run:
-* CPU:
+* CPU or MAC (M1/M2):
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
@@ -50,10 +50,15 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
     export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
     pip install -r requirements.txt
     pip install -r reqs_optional/requirements_optional_langchain.txt
+
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip uninstall -y llama-cpp-python
+    # Only Mac M1/M2:
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.19-cp310-cp310-macosx_11_0_arm64.whl
+
     python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
     ```
-* GPU:
+* CUDA:
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
@@ -62,12 +67,13 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
     pip install -r requirements.txt
     pip install -r reqs_optional/requirements_optional_langchain.txt
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
-    # Only Linux CUDA:
+
+    # Only Linux:
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
-    # Only Windows CUDA:
+
+    # Only Windows:
     pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-win_amd64.whl
-    # Only Mac M1/M2:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.19-cp310-cp310-macosx_11_0_arm64.whl
+
     python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
     ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
