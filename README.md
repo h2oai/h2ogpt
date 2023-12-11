@@ -46,6 +46,7 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
+    # for windows/mac use "set" or relevant environment setting mechanism
     export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
     pip install -r requirements.txt
     pip install -r reqs_optional/requirements_optional_langchain.txt
@@ -56,6 +57,7 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
     ```bash
     git clone https://github.com/h2oai/h2ogpt.git
     cd h2ogpt
+    # for windows/mac use "set" or relevant environment setting mechanism
     export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
     pip install -r requirements.txt
     pip install -r reqs_optional/requirements_optional_langchain.txt
