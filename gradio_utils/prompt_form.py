@@ -24,7 +24,9 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
     if inference_server is None:
         inference_server = ''
     human_avatar = "models/human.jpg"
-    if '01-ai/Yi-'.lower() in base_model.lower():
+    if 'mistralai'.lower() in base_model.lower():
+        bot_avatar = "models/mistralai.png"
+    elif '01-ai/Yi-'.lower() in base_model.lower():
         bot_avatar = "models/yi.svg"
     elif 'wizard' in base_model.lower():
         bot_avatar = "models/wizard.jpg"
@@ -34,6 +36,12 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
         bot_avatar = "models/vicuna.jpeg"
     elif 'longalpaca' in base_model.lower():
         bot_avatar = "models/longalpaca.png"
+    elif 'llama2-70b-chat' in base_model.lower():
+        bot_avatar = "models/meta.png"
+    elif 'llama2-13b-chat' in base_model.lower():
+        bot_avatar = "models/meta.png"
+    elif 'llama2-7b-chat' in base_model.lower():
+        bot_avatar = "models/meta.png"
     elif 'llama2' in base_model.lower():
         bot_avatar = "models/lama2.jpeg"
     elif 'llama-2' in base_model.lower():

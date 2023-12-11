@@ -40,15 +40,42 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 [![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/h2oai/h2ogpt/blob/main/docs/README_WINDOWS.md)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/h2oai/h2ogpt/blob/main/docs/README_DOCKER.md)
 
-To quickly try out h2oGPT on CPU with limited document Q/A capability using LLaMa2 7B Chat, create a fresh Python 3.10 environment and run:
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-pip install -r requirements.txt
-pip install -r reqs_optional/requirements_optional_langchain.txt
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
-python generate.py --base_model=llama --prompt_type=llama2 --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true --max_seq_len=4096
-```
+
+To quickly try out h2oGPT with limited document Q/A capability, create a fresh Python 3.10 environment and run:
+* CPU or MAC (M1/M2):
+    ```bash
+    git clone https://github.com/h2oai/h2ogpt.git
+    cd h2ogpt
+    # for windows/mac use "set" or relevant environment setting mechanism
+    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
+    pip install -r requirements.txt
+    pip install -r reqs_optional/requirements_optional_langchain.txt
+
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip uninstall -y llama-cpp-python
+    # Only Mac M1/M2:
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.19-cp310-cp310-macosx_11_0_arm64.whl
+
+    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+    ```
+* CUDA:
+    ```bash
+    git clone https://github.com/h2oai/h2ogpt.git
+    cd h2ogpt
+    # for windows/mac use "set" or relevant environment setting mechanism
+    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+    pip install -r requirements.txt
+    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+
+    # Only Linux:
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+
+    # Only Windows:
+    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-win_amd64.whl
+
+    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+    ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.
 

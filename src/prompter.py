@@ -41,6 +41,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-16k-codellama-34b-python',
         'h2oai/h2ogpt-32k-codellama-34b-python',
         'mistralai/Mistral-7B-v0.1',
+        'mistralai/Mixtral-8x7B-v0.1',
     ],
     'gptj': ['gptj', 'gpt4all_llama'],
     'prompt_answer': [
@@ -132,7 +133,7 @@ prompt_type_to_model_name = {
         'Yukang/LongAlpaca-70B',  # or can be instruct
         'TheBloke/Llama-2-7B-Chat-GGUF',
     ],
-    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF'],
+    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF', 'mistralai/Mixtral-8x7B-Instruct-v0.1'],
     "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
                'TheBloke/zephyr-7B-beta-AWQ', 'zephyr-7b-beta.Q5_K_M.gguf'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
