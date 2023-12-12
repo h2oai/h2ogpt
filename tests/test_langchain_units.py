@@ -268,6 +268,7 @@ def get_test_model():
                       base_model=base_model,
                       tokenizer_base_model=base_model,
                       inference_server='',
+                      regenerate_clients=False,
                       lora_weights='',
                       gpu_id=0,
                       n_jobs=1,

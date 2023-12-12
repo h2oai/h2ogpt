@@ -1401,6 +1401,7 @@ def get_llm(use_openai_model=False,
             model=None,
             tokenizer=None,
             inference_server=None,
+            regenerate_clients=None,
             langchain_only_model=None,
             stream_output=False,
             async_output=True,
@@ -1525,7 +1526,7 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        if isinstance(model, dict):
+        if not regenerate_clients and isinstance(model, dict):
             openai_client, openai_async_client, \
                 inf_type, deployment_type, base_url, api_version, api_key = \
                 model['client'], model['async_client'], model['inf_type'], \
@@ -1630,6 +1631,8 @@ def get_llm(use_openai_model=False,
         model_kwargs = dict()
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
@@ -4552,6 +4555,7 @@ def _run_qa_db(query=None,
                attention_sinks=False,
                truncation_generation=False,
                early_stopping=False,
+               regenerate_clients=None,
                max_time=180,
                repetition_penalty=1.0,
                num_return_sequences=1,
@@ -4718,6 +4722,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       min_new_tokens=min_new_tokens,
                       early_stopping=early_stopping,
                       max_time=max_time,
+                      regenerate_clients=regenerate_clients,
                       repetition_penalty=repetition_penalty,
                       num_return_sequences=num_return_sequences,
                       prompt_type=prompt_type,

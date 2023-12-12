@@ -8,7 +8,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_cli(  # for local function:
-        base_model=None, lora_weights=None, inference_server=None,
+        base_model=None, lora_weights=None, inference_server=None, regenerate_clients=None,
         debug=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
