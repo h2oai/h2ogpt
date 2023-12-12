@@ -2385,12 +2385,16 @@ def get_model(
     )
 
     if not regenerate_clients and (inference_server.startswith('vllm') or inference_server.startswith('openai')):
+        t0 = time.time()
         client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=base_model)
         model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
                      base_url=base_url, api_version=api_version, api_key=api_key)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
     if not regenerate_clients and inference_server.startswith('anthropic'):
+        t0 = time.time()
         import anthropic
         base_url = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com")
         api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -2400,6 +2404,8 @@ def get_model(
         async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
         model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
                      timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
