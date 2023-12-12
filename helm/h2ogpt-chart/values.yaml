@@ -3,6 +3,9 @@ fullnameOverride: ""
 
 h2ogpt:
   enabled: true
+  stack:
+    # -- Run h2oGPT and vLLM on same pod.
+    enabled: false 
   replicaCount: 1
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
