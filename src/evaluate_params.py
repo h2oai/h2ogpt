@@ -21,7 +21,7 @@ gen_hyper = ['temperature',
              'top_p',
              'top_k',
              'penalty_alpha'] + gen_hyper0
-reader_names = ['image_audio_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema']
+reader_names = ['image_audio_loaders', 'pdf_loaders', 'url_loaders', 'jq_schema', 'extract_frames']
 
 eval_func_param_names = ['instruction',
                          'iinput',
@@ -69,6 +69,7 @@ eval_func_param_names = ['instruction',
                          'docs_joiner',
                          'hyde_level',
                          'hyde_template',
+                         'hyde_show_only_final',
                          'doc_json_mode',
 
                          'chatbot_role',

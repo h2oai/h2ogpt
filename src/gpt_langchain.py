@@ -54,7 +54,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, get_ngpus_vis, have_librosa, return_good_url, n_gpus_global
+    get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -62,7 +62,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry
+from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
 from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -94,7 +94,7 @@ from chromamig import ChromaMig
 
 def get_context_cast():
     # chroma not autocasting right internally
-    #return torch.autocast('cuda') if torch.cuda.is_available() else NullContext()
+    # return torch.autocast('cuda') if torch.cuda.is_available() else NullContext()
     return NullContext()
 
 
@@ -245,7 +245,7 @@ def del_from_db(db, sources, db_type=None):
                 assert isinstance(sources, (list, tuple, types.GeneratorType))
             api = db._client
             client_collection = api.get_collection(name=db._collection.name,
-                                                          embedding_function=db._collection._embedding_function)
+                                                   embedding_function=db._collection._embedding_function)
             if hasattr(api, 'max_batch_size'):
                 max_batch_size = api.max_batch_size
             elif hasattr(client_collection, '_producer') and hasattr(client_collection._producer, 'max_batch_size'):
@@ -657,6 +657,7 @@ class GradioInference(H2Oagenerate, LLM):
                              pdf_loaders=None,  # don't need to further do doc specific things
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
+                             extract_frames=10,
                              visible_models=self.visible_models,
                              h2ogpt_key=self.h2ogpt_key,
                              add_search_to_context=client_add_search_to_context,
@@ -670,6 +671,7 @@ class GradioInference(H2Oagenerate, LLM):
                              docs_joiner=None,
                              hyde_level=None,
                              hyde_template=None,
+                             hyde_show_only_final=None,
                              doc_json_mode=None,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -1222,13 +1224,17 @@ class ExtraChat:
         messages = []
         if self.system_prompt:
             if isinstance(self, H2OChatAnthropic):
-                self.chat_conversation = [[user_prompt_for_fake_system_prompt, self.system_prompt]] + self.chat_conversation
+                self.chat_conversation = [[user_prompt_for_fake_system_prompt,
+                                           self.system_prompt]] + self.chat_conversation
             else:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
-                messages.append(HumanMessage(content=messages1[0] if messages1[0] is not None else ''))
-                messages.append(AIMessage(content=messages1[1] if messages1[1] is not None else ''))
+                instruction = gradio_to_llm(messages1[0], bot=False)
+                output = gradio_to_llm(messages1[1], bot=True)
+
+                messages.append(HumanMessage(content=instruction))
+                messages.append(AIMessage(content=output))
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
@@ -1395,6 +1401,7 @@ def get_llm(use_openai_model=False,
             model=None,
             tokenizer=None,
             inference_server=None,
+            regenerate_clients=None,
             langchain_only_model=None,
             stream_output=False,
             async_output=True,
@@ -1519,9 +1526,15 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        openai_client, openai_async_client, \
-            inf_type, deployment_type, base_url, api_version, api_key = \
-            set_openai(inference_server, model_name=model_name)
+        if not regenerate_clients and isinstance(model, dict):
+            openai_client, openai_async_client, \
+                inf_type, deployment_type, base_url, api_version, api_key = \
+                model['client'], model['async_client'], model['inf_type'], \
+                    model['deployment_type'], model['base_url'], model['api_version'], model['api_key']
+        else:
+            openai_client, openai_async_client, \
+                inf_type, deployment_type, base_url, api_version, api_key = \
+                set_openai(inference_server, model_name=model_name)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
@@ -1618,6 +1631,9 @@ def get_llm(use_openai_model=False,
         model_kwargs = dict()
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            # FIXME: _AnthropicCommon ignores these and makes no client anyways
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
@@ -2145,7 +2161,7 @@ class Crawler:
         self.starting_urls = urls.copy()
         self.deeper_only = deeper_only
         self.depth = depth
-        self.verbose=verbose
+        self.verbose = verbose
         self.final_urls = []
 
     def download_url(self, url):
@@ -2227,8 +2243,11 @@ def file_to_doc(file,
                 enable_doctr=False,
                 enable_pix2struct=False,
                 enable_captions=True,
+                enable_llava=True,
                 enable_transcriptions=True,
                 captions_model=None,
+                llava_model=None,
+
                 asr_model=None,
                 asr_gpu_id=0,
 
@@ -2236,6 +2255,7 @@ def file_to_doc(file,
 
                 # json
                 jq_schema='.[]',
+                extract_frames=10,
 
                 headsize=50,  # see also H2OSerpAPIWrapper
                 db_type=None,
@@ -2254,7 +2274,7 @@ def file_to_doc(file,
     case2_arxiv = file_lower.startswith('https://arxiv.org/abs') and len(file_lower.split('https://arxiv.org/abs')) == 2
     case3_arxiv = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
     case4_arxiv = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
-    
+
     url_prefixes_youtube = [
         'https://www.youtube.com/watch?v=',
         'http://www.youtube.com/watch?v=',
@@ -2267,7 +2287,8 @@ def file_to_doc(file,
     ]
 
     is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
-    is_youtube = any(file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
+    is_youtube = any(
+        file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
 
     if is_url and is_txt:
         # decide which
@@ -2325,6 +2346,10 @@ def file_to_doc(file,
                                           enable_pix2struct=enable_pix2struct,
                                           enable_captions=enable_captions,
                                           captions_model=captions_model,
+                                          enable_llava=enable_llava,
+                                          llava_model=llava_model,
+
+                                          # audio
                                           enable_transcriptions=enable_transcriptions,
                                           asr_model=asr_model,
 
@@ -2335,6 +2360,7 @@ def file_to_doc(file,
 
                                           # json
                                           jq_schema=jq_schema,
+                                          extract_frames=extract_frames,
 
                                           db_type=db_type,
 
@@ -2370,6 +2396,11 @@ def file_to_doc(file,
             is_url = False
             file = source_file
 
+    can_do_audio_transcription = isinstance(file, str) and \
+                                 any(file.lower().endswith(x) for x in set_audio_types1) and enable_transcriptions
+    can_do_video_extraction = isinstance(file, str) and \
+                              any([file.endswith(x) for x in video_types]) and extract_frames > 0 and have_fiftyone
+
     if is_url:
         if is_arxiv:
             if case1_arxiv:
@@ -2402,29 +2433,75 @@ def file_to_doc(file,
                     docs1]
             else:
                 docs1 = []
-        elif (is_youtube) and enable_transcriptions:
+            add_meta(docs1, file, parser="is_url")
+            docs1 = clean_doc(docs1)
+            doc1.extend(chunk_sources(docs1))
+        elif is_youtube and (enable_transcriptions or extract_frames > 0 and have_fiftyone):
+            e = None
+            handled = False
             docs1 = []
-            if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
-                # assumes didn't fork into this process with joblib, else can deadlock
-                if verbose:
-                    print("Reuse ASR", flush=True)
-                model_loaders['asr'].load_model()
-            else:
-                if verbose:
-                    print("Fresh ASR", flush=True)
-                from audio_langchain import H2OAudioCaptionLoader
-                model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
-                                                             asr_gpu=model_loaders['asr'] == 'gpu',
-                                                             gpu_id=asr_gpu_id,
-                                                             )
-            model_loaders['asr'].set_audio_paths([file])
-            docs1c = model_loaders['asr'].load(from_youtube=True)
-            docs1c = [x for x in docs1c if x.page_content]
-            add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
-            # caption didn't set source, so fix-up meta
-            hash_of_file = hash_file(file)
-            [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-            docs1.extend(docs1c)
+            files_out = []
+            if enable_transcriptions:
+                try:
+                    if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
+                        # assumes didn't fork into this process with joblib, else can deadlock
+                        if verbose:
+                            print("Reuse ASR", flush=True)
+                        model_loaders['asr'].load_model()
+                    else:
+                        if verbose:
+                            print("Fresh ASR", flush=True)
+                        from audio_langchain import H2OAudioCaptionLoader
+                        model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
+                                                                     asr_gpu=model_loaders['asr'] == 'gpu',
+                                                                     gpu_id=asr_gpu_id,
+                                                                     )
+                    model_loaders['asr'].set_audio_paths([file])
+                    docs1c = model_loaders['asr'].load(from_youtube=True)
+                    files_out = model_loaders['asr'].files_out
+                    docs1c = [x for x in docs1c if x.page_content]
+                    add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+                    # caption didn't set source, so fix-up meta
+                    hash_of_file = hash_file(file)
+                    [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                    docs1.extend(docs1c)
+                    doc1.extend(chunk_sources(docs1))
+                    handled = True
+                except BaseException as e0:
+                    print("ASR: %s" % str(e0), flush=True)
+                    e = e0
+                handled |= len(docs1) > 0
+            if extract_frames > 0 and have_fiftyone:
+                try:
+                    from src.vision.extract_movie import extract_unique_frames
+                    if not files_out or True:  # always do, seems makes audio m4a not with video when downloads
+                        # have to directly download
+                        export_dir = extract_unique_frames(urls=[file], extract_frames=extract_frames)
+                        docs1c_files = path_to_docs_func(export_dir)
+                    else:
+                        # just use already-downloaded files
+                        docs1c_files = []
+                        for file_out in files_out:
+                            export_dir = extract_unique_frames(file=file_out, extract_frames=extract_frames)
+                            docs1c_files.extend(path_to_docs_func(export_dir))
+                    if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
+                        add_meta(docs1c_files, file, parser='extract_frames from %s' % file)
+                        hash_of_file = hash_file(file)
+                        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c_files]
+                    else:
+                        [x.metadata.update(dict(original_source=file)) for order_id, x in enumerate(docs1c_files)]
+                    docs1c_files = chunk_sources(docs1c_files)
+                    doc1.extend(docs1c_files)
+                except BaseException as e0:
+                    print("Extract YouTube Frames: %s" % str(e0), flush=True)
+                    e = e0
+                handled |= len(docs1) > 0
+            if len(doc1) == 0:
+                # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
+                if handled:
+                    raise ValueError("%s had no valid text, but meta data was parsed" % file)
+                else:
+                    raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
         else:
             if not (file.startswith("http://") or file.startswith("file://") or file.startswith("https://")):
                 file = 'http://' + file
@@ -2477,7 +2554,8 @@ def file_to_doc(file,
                 else:
                     final_urls = Crawler(urls=[file], verbose=verbose).run()
                 if use_scrapehttp:
-                    loader = AsyncHtmlLoader(final_urls, verify_ssl=False, requests_per_second=10, ignore_load_errors=True)
+                    loader = AsyncHtmlLoader(final_urls, verify_ssl=False, requests_per_second=10,
+                                             ignore_load_errors=True)
                     docs1a = loader.load()
                 if use_scrapeplaywright:
                     loader = AsyncChromiumLoader(final_urls)
@@ -2493,9 +2571,9 @@ def file_to_doc(file,
                     docs1a = html2text.transform_documents(docs1a)
                 docs1.extend(docs1a)
             [x.metadata.update(dict(input_type='url', date=str(datetime.now))) for x in docs1]
-        add_meta(docs1, file, parser="is_url")
-        docs1 = clean_doc(docs1)
-        doc1 = chunk_sources(docs1)
+            add_meta(docs1, file, parser="is_url")
+            docs1 = clean_doc(docs1)
+            doc1.extend(chunk_sources(docs1))
     elif is_txt:
         base_path = "user_paste"
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
@@ -2554,30 +2632,62 @@ def file_to_doc(file,
         docs1 = UnstructuredEPubLoader(file).load()
         add_meta(docs1, file, parser='UnstructuredEPubLoader')
         doc1 = chunk_sources(docs1)
-    elif any(file.lower().endswith(x) for x in set_audio_types1) and enable_transcriptions:
-        docs1 = []
-        if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
-            # assumes didn't fork into this process with joblib, else can deadlock
-            if verbose:
-                print("Reuse ASR", flush=True)
-            model_loaders['asr'].load_model()
-        else:
-            if verbose:
-                print("Fresh ASR", flush=True)
-            from audio_langchain import H2OAudioCaptionLoader
-            model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
-                                                         asr_gpu=model_loaders['asr'] == 'gpu',
-                                                         gpu_id=asr_gpu_id,
-                                                         )
-        model_loaders['asr'].set_audio_paths([file])
-        docs1c = model_loaders['asr'].load(from_youtube=False)
-        docs1c = [x for x in docs1c if x.page_content]
-        add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
-        # caption didn't set source, so fix-up meta
-        hash_of_file = hash_file(file)
-        [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
-        docs1.extend(docs1c)
-        doc1 = chunk_sources(docs1)
+    elif can_do_audio_transcription or can_do_video_extraction:
+        handled = False
+        e = None
+        if can_do_audio_transcription:
+            docs1c = []
+            try:
+                if model_loaders['asr'] is not None and not isinstance(model_loaders['asr'], (str, bool)):
+                    # assumes didn't fork into this process with joblib, else can deadlock
+                    if verbose:
+                        print("Reuse ASR", flush=True)
+                    model_loaders['asr'].load_model()
+                else:
+                    if verbose:
+                        print("Fresh ASR", flush=True)
+                    from audio_langchain import H2OAudioCaptionLoader
+                    model_loaders['asr'] = H2OAudioCaptionLoader(asr_model=asr_model,
+                                                                 asr_gpu=model_loaders['asr'] == 'gpu',
+                                                                 gpu_id=asr_gpu_id,
+                                                                 )
+                model_loaders['asr'].set_audio_paths([file])
+                docs1c = model_loaders['asr'].load(from_youtube=False)
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                docs1c = chunk_sources(docs1c)
+                # caption didn't set source, so fix-up meta
+                doc1.extend(docs1c)
+            except BaseException as e0:
+                print("ASR2: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1c) > 0
+
+        if can_do_video_extraction:
+            docs1c_files = []
+            try:
+                from src.vision.extract_movie import extract_unique_frames
+                export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
+                docs1c_files = path_to_docs_func(export_dir)
+                if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
+                    add_meta(docs1c_files, file, parser='extract_frames from %s' % file)
+                    hash_of_file = hash_file(file)
+                    [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c_files]
+                else:
+                    [x.metadata.update(dict(original_source=file)) for order_id, x in enumerate(docs1c_files)]
+                doc1.extend(docs1c_files)
+            except BaseException as e0:
+                print("Extract YouTube Frames: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1c_files) > 0
+        if len(doc1) == 0:
+            # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
+            if handled:
+                raise ValueError("%s had no valid text, but meta data was parsed" % file)
+            else:
+                raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
     elif any(file.lower().endswith(x) for x in set_image_audio_types1):
         handled = False
         e = None
@@ -2685,6 +2795,28 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
             if verbose:
                 print("END: Pix2Struct", flush=True)
+        if llava_model and enable_llava:
+            # LLaVa
+            if verbose:
+                print("BEGIN: LLaVa", flush=True)
+            try:
+                from src.vision.utils_vision import get_llava_response
+                res = get_llava_response(file, llava_model)
+                metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
+                docs1c = [Document(page_content=res, metadata=metadata)]
+                docs1c = [x for x in docs1c if x.page_content]
+                add_meta(docs1c, file, parser='LLaVa: %s' % llava_model)
+                # caption didn't set source, so fix-up meta
+                hash_of_file = hash_file(file)
+                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                docs1.extend(docs1c)
+            except BaseException as e0:
+                print("LLaVa: %s" % str(e0), flush=True)
+                e = e0
+            handled |= len(docs1) > 0
+            if verbose:
+                print("END: LLaVa", flush=True)
+
         doc1 = chunk_sources(docs1)
         if len(doc1) == 0:
             # if literally nothing, show failed to parse so user knows, since unlikely nothing in PDF at all.
@@ -2998,48 +3130,11 @@ def file_to_doc(file,
             with open(de_file, 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
         # recurse
-        doc1 = file_to_doc(de_file,
-                           filei=filei,  # single file, same file index as outside caller
-                           base_path=base_path, verbose=verbose, fail_any_exception=fail_any_exception,
-                           chunk=chunk, chunk_size=chunk_size, n_jobs=n_jobs,
-                           is_url=is_url, is_txt=is_txt,
+        doc1 = path_to_docs_func(de_file,
+                                 filei=filei,  # single file, same file index as outside caller
+                                 base_path=base_path,
+                                 )
 
-                           # urls
-                           use_unstructured=use_unstructured,
-                           use_playwright=use_playwright,
-                           use_selenium=use_selenium,
-                           use_scrapeplaywright=use_scrapeplaywright,
-                           use_scrapehttp=use_scrapehttp,
-
-                           # pdfs
-                           use_pymupdf=use_pymupdf,
-                           use_unstructured_pdf=use_unstructured_pdf,
-                           use_pypdf=use_pypdf,
-                           enable_pdf_ocr=enable_pdf_ocr,
-                           enable_pdf_doctr=enable_pdf_doctr,
-                           try_pdf_as_html=try_pdf_as_html,
-
-                           # images
-                           enable_ocr=enable_ocr,
-                           enable_doctr=enable_doctr,
-                           enable_pix2struct=enable_pix2struct,
-                           enable_captions=enable_captions,
-                           enable_transcriptions=enable_transcriptions,
-                           captions_model=captions_model,
-                           asr_model=asr_model,
-
-                           model_loaders=model_loaders,
-
-                           # json
-                           jq_schema=jq_schema,
-
-                           headsize=headsize,
-                           db_type=db_type,
-                           selected_file_types=selected_file_types,
-
-                           is_public=is_public,
-                           from_ui=from_ui,
-                           )
     else:
         raise RuntimeError("No file handler for %s" % os.path.basename(file))
 
@@ -3101,15 +3196,19 @@ def path_to_doc1(file,
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_llava=True,
                  enable_transcriptions=True,
                  captions_model=None,
+                 llava_model=None,
                  asr_model=None,
-
-                 model_loaders=None,
 
                  # json
                  jq_schema='.[]',
+                 extract_frames=10,
 
+                 model_loaders=None,
+
+                 headsize=50,
                  db_type=None,
                  selected_file_types=None,
 
@@ -3131,7 +3230,8 @@ def path_to_doc1(file,
         # don't pass base_path=path, would infinitely recurse
         res = file_to_doc(file,
                           filei=filei,
-                          base_path=None, verbose=verbose, fail_any_exception=fail_any_exception,
+                          base_path=None,
+                          verbose=verbose, fail_any_exception=fail_any_exception,
                           chunk=chunk, chunk_size=chunk_size,
                           n_jobs=n_jobs,
                           is_url=is_url, is_txt=is_txt,
@@ -3156,15 +3256,19 @@ def path_to_doc1(file,
                           enable_doctr=enable_doctr,
                           enable_pix2struct=enable_pix2struct,
                           enable_captions=enable_captions,
+                          enable_llava=enable_llava,
                           enable_transcriptions=enable_transcriptions,
                           captions_model=captions_model,
+                          llava_model=llava_model,
                           asr_model=asr_model,
 
                           model_loaders=model_loaders,
 
                           # json
                           jq_schema=jq_schema,
+                          extract_frames=extract_frames,
 
+                          headsize=headsize,
                           db_type=db_type,
                           selected_file_types=selected_file_types,
                           is_public=is_public,
@@ -3200,9 +3304,11 @@ def path_to_doc1(file,
     return res
 
 
-def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=-1,
-                 chunk=True, chunk_size=512,
+def path_to_docs(path_or_paths,
                  url=None, text=None,
+
+                 verbose=False, fail_any_exception=False, n_jobs=-1,
+                 chunk=True, chunk_size=512,
 
                  # urls
                  use_unstructured=True,
@@ -3224,8 +3330,10 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_llava=True,
                  enable_transcriptions=True,
                  captions_model=None,
+                 llava_model=None,
                  asr_model=None,
 
                  caption_loader=None,
@@ -3235,13 +3343,14 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
 
                  # json
                  jq_schema='.[]',
+                 extract_frames=10,
+                 db_type=None,
+                 is_public=False,
 
                  existing_files=[],
                  existing_hash_ids={},
-                 db_type=None,
                  selected_file_types=None,
 
-                 is_public=False,
                  from_ui=True,
                  ):
     if verbose:
@@ -3367,14 +3476,17 @@ def path_to_docs(path_or_paths, verbose=False, fail_any_exception=False, n_jobs=
                   enable_doctr=enable_doctr,
                   enable_pix2struct=enable_pix2struct,
                   enable_captions=enable_captions,
+                  enable_llava=enable_llava,
                   enable_transcriptions=enable_transcriptions,
                   captions_model=captions_model,
+                  llava_model=llava_model,
                   asr_model=asr_model,
 
                   model_loaders=model_loaders,
 
                   # json
                   jq_schema=jq_schema,
+                  extract_frames=extract_frames,
 
                   db_type=db_type,
                   selected_file_types=selected_file_types,
@@ -3655,7 +3767,8 @@ def get_existing_db(db, persist_directory,
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
             got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
-            if got_embedding and hf_embedding_model and 'name' in hf_embedding_model and hf_embedding_model0 == hf_embedding_model['name']:
+            if got_embedding and hf_embedding_model and 'name' in hf_embedding_model and hf_embedding_model0 == \
+                    hf_embedding_model['name']:
                 # already have
                 embedding = hf_embedding_model['model']
             else:
@@ -3937,9 +4050,11 @@ def _make_db(use_openai_embedding=False,
              enable_doctr=False,
              enable_pix2struct=False,
              enable_captions=True,
+             enable_llava=True,
              enable_transcriptions=True,
              captions_model=None,
              caption_loader=None,
+             llava_model=None,
              doctr_loader=None,
              pix2struct_loader=None,
              asr_model=None,
@@ -3947,6 +4062,7 @@ def _make_db(use_openai_embedding=False,
 
              # json
              jq_schema='.[]',
+             extract_frames=10,
 
              langchain_mode=None,
              langchain_mode_paths=None,
@@ -4035,9 +4151,11 @@ def _make_db(use_openai_embedding=False,
                                 enable_doctr=enable_doctr,
                                 enable_pix2struct=enable_pix2struct,
                                 enable_captions=enable_captions,
+                                enable_llava=enable_llava,
                                 enable_transcriptions=enable_transcriptions,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
+                                llava_model=llava_model,
                                 doctr_loader=doctr_loader,
                                 pix2struct_loader=pix2struct_loader,
                                 asr_model=asr_model,
@@ -4045,6 +4163,7 @@ def _make_db(use_openai_embedding=False,
 
                                 # json
                                 jq_schema=jq_schema,
+                                extract_frames=extract_frames,
 
                                 existing_files=existing_files, existing_hash_ids=existing_hash_ids,
                                 db_type=db_type,
@@ -4379,9 +4498,11 @@ def _run_qa_db(query=None,
                enable_doctr=False,
                enable_pix2struct=False,
                enable_captions=True,
+               enable_llava=True,
                enable_transcriptions=True,
                captions_model=None,
                caption_loader=None,
+               llava_model=None,
                doctr_loader=None,
                pix2struct_loader=None,
                asr_model=None,
@@ -4389,6 +4510,7 @@ def _run_qa_db(query=None,
 
                # json
                jq_schema='.[]',
+               extract_frames=10,
 
                langchain_mode_paths={},
                langchain_mode_types={},
@@ -4434,6 +4556,7 @@ def _run_qa_db(query=None,
                attention_sinks=False,
                truncation_generation=False,
                early_stopping=False,
+               regenerate_clients=None,
                max_time=180,
                repetition_penalty=1.0,
                num_return_sequences=1,
@@ -4463,6 +4586,7 @@ def _run_qa_db(query=None,
                docs_joiner=docs_joiner_default,
                hyde_level=0,
                hyde_template=None,
+               hyde_show_only_final=None,
                doc_json_mode=False,
 
                n_jobs=-1,
@@ -4505,6 +4629,8 @@ def _run_qa_db(query=None,
         async_output = False
     elif langchain_action in [LangChainAction.QUERY.value]:
         # only summarization supported
+        async_output = False
+    elif LangChainAgent.AUTOGPT.value in langchain_agents:
         async_output = False
     else:
         if stream_output0:
@@ -4597,6 +4723,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       min_new_tokens=min_new_tokens,
                       early_stopping=early_stopping,
                       max_time=max_time,
+                      regenerate_clients=regenerate_clients,
                       repetition_penalty=repetition_penalty,
                       num_return_sequences=num_return_sequences,
                       prompt_type=prompt_type,
@@ -4606,7 +4733,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       iinput=iinput,
                       sanitize_bot_response=sanitize_bot_response,
                       system_prompt=system_prompt,
-                      chat_conversation=chat_conversation if not query_action else [],  # FIXME: sum/extra handle long chat_conversation
+                      chat_conversation=chat_conversation if not query_action else [],
+                      # FIXME: sum/extra handle long chat_conversation
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
@@ -4723,7 +4851,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                 LangChainAction.SUMMARIZE_REFINE.value]:
             ret = 'No relevant documents to summarize.' if query or num_docs_before_cut > 0 else 'No documents to summarize.'
         elif langchain_action in [LangChainAction.EXTRACT.value]:
-            ret = ['No relevant documents to extract from.'] if query or num_docs_before_cut > 0 else ['No documents to extract from.']
+            ret = ['No relevant documents to extract from.'] if query or num_docs_before_cut > 0 else [
+                'No documents to extract from.']
         elif not use_llm_if_no_docs:
             ret = 'No relevant documents to query (for chatting with LLM, pick Resources->Collections->LLM).' if num_docs_before_cut else 'No documents to query (for chatting with LLM, pick Resources->Collections->LLM).'
         else:
@@ -5129,6 +5258,7 @@ def run_hyde(*args, **kwargs):
     hyde_level = kwargs['hyde_level']
     hyde_llm_prompt = kwargs['hyde_llm_prompt']
     hyde_template = kwargs['hyde_template']
+    hyde_show_only_final = kwargs['hyde_show_only_final']
     verbose = kwargs['verbose']
     show_rank = kwargs['show_rank']
     answer_with_sources = kwargs['answer_with_sources']
@@ -5185,12 +5315,13 @@ def run_hyde(*args, **kwargs):
                                    async_output=async_output,
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
-            yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
-                       num_prompt_tokens=ret['num_prompt_tokens'],
-                       llm_answers=ret['llm_answers'],
-                       # only give back no_refs if final
-                       response_no_refs='' if hyde_level1 < hyde_level else response,
-                       sources_str=ret['sources_str'])
+            if not hyde_show_only_final:
+                yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
+                           num_prompt_tokens=ret['num_prompt_tokens'],
+                           llm_answers=ret['llm_answers'],
+                           # only give back no_refs if final
+                           response_no_refs='' if hyde_level1 < hyde_level else response,
+                           sources_str=ret['sources_str'])
             answer = ret['response']
 
         if answer:
@@ -5207,8 +5338,9 @@ def run_hyde(*args, **kwargs):
             # yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers)
             # try yield after
             # print("answer: %s" % answer)
-            yield dict(prompt_raw=prompt_basic, response=answer, sources=sources, num_prompt_tokens=0,
-                       llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
+            if not hyde_show_only_final:
+                yield dict(prompt_raw=prompt_basic, response=answer, sources=sources, num_prompt_tokens=0,
+                           llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
 
             # update embedding query
             # use all answers, but use newer answers first, often shorter due to LLM RLHF not used to long docs inputted,
@@ -5250,16 +5382,19 @@ def get_chain(query=None,
               enable_doctr=False,
               enable_pix2struct=False,
               enable_captions=True,
+              enable_llava=True,
               enable_transcriptions=True,
               captions_model=None,
               caption_loader=None,
               doctr_loader=None,
               pix2struct_loader=None,
+              llava_model=None,
               asr_model=None,
               asr_loader=None,
 
               # json
               jq_schema='.[]',
+              extract_frames=10,
 
               langchain_mode_paths=None,
               langchain_mode_types=None,
@@ -5384,6 +5519,45 @@ def get_chain(query=None,
         text_context_list = docs_search + text_context_list
         add_search_to_context &= len(docs_search) > 0
         top_k_docs_max_show = max(top_k_docs_max_show, len(docs_search))
+
+    if LangChainAgent.AUTOGPT.value in langchain_agents:
+        from langchain_experimental.autonomous_agents.autogpt.agent import AutoGPT
+        from langchain.agents import load_tools
+
+        tools = load_tools(["ddg-search"], llm=llm)
+
+        from langchain.docstore import InMemoryDocstore
+        from langchain.embeddings import OpenAIEmbeddings
+        from langchain.vectorstores import FAISS
+
+        # Define your embedding model
+        embeddings_model = OpenAIEmbeddings()
+        # Initialize the vectorstore as empty
+        import faiss
+
+        embedding_size = 1536
+        index = faiss.IndexFlatL2(embedding_size)
+        vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {})
+
+        agent = AutoGPT.from_llm_and_tools(
+            ai_name="Anthox",
+            ai_role="Cooking Assistant",
+            tools=tools,
+            llm=llm,
+            memory=vectorstore.as_retriever(),
+        )
+        # Set verbose to be true
+        agent.chain.verbose = True
+        chain_kwargs = [query]
+        chain_func = agent.run
+        target = wrapped_partial(chain_func, chain_kwargs)
+
+        docs = []
+        scores = []
+        num_docs_before_cut = 0
+        use_llm_if_no_docs = True
+        return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
+            llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
     if LangChainAgent.SMART.value in langchain_agents:
         # doesn't really work for non-OpenAI models unless larger
@@ -5639,16 +5813,19 @@ def get_chain(query=None,
                                                         enable_doctr=enable_doctr,
                                                         enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
+                                                        enable_llava=enable_llava,
                                                         enable_transcriptions=enable_transcriptions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
+                                                        llava_model=llava_model,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
+                                                        extract_frames=extract_frames,
 
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,
@@ -5706,11 +5883,11 @@ def get_chain(query=None,
             if len(document_content_substrings) > 1:
                 inner_list = [{'$contains': x} for x in document_content_substrings]
                 if document_content_substrings_op == 'or':
-                    where_document={"$or": inner_list}
+                    where_document = {"$or": inner_list}
                 else:
-                    where_document={"$and": inner_list}
+                    where_document = {"$and": inner_list}
             else:
-                where_document={'$contains':document_content_substrings[0]}
+                where_document = {'$contains': document_content_substrings[0]}
             where_document_dict = dict(where_document=where_document)
         import logging
         logging.getLogger("chromadb").setLevel(logging.ERROR)
@@ -5866,9 +6043,11 @@ def get_chain(query=None,
             if document_source_substrings:
                 set_document_source_substrings = set(document_source_substrings)
                 if document_source_substrings_op == 'or':
-                    docs_with_score = [x for x in docs_with_score if any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+                    docs_with_score = [x for x in docs_with_score if
+                                       any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
                 else:
-                    docs_with_score = [x for x in docs_with_score if all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+                    docs_with_score = [x for x in docs_with_score if
+                                       all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
     # SELECT PROMPT + DOCS
 
@@ -6068,7 +6247,8 @@ def get_chain(query=None,
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
         else:
             # unused normally except in testing
-            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (model_name, prompt_type)
+            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
+                model_name, prompt_type)
             chain = load_qa_with_sources_chain(llm)
         chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
@@ -6531,7 +6711,7 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
         </html>
         """.format(ex_str)
         doc_exception_text = str(e)
-        return None, langchain_mode, source_files_added, doc_exception_text, None
+        return None, langchain_mode, source_files_added, doc_exception_text, None, None
     finally:
         clear_torch_cache()
 
@@ -6575,16 +6755,19 @@ def _update_user_db(file,
                     enable_doctr=False,
                     enable_pix2struct=False,
                     enable_captions=True,
+                    enable_llava=True,
                     enable_transcriptions=True,
                     captions_model=None,
                     caption_loader=None,
                     doctr_loader=None,
                     pix2struct_loader=None,
+                    llava_model=None,
                     asr_model=None,
                     asr_loader=None,
 
                     # json
                     jq_schema='.[]',
+                    extract_frames=10,
 
                     dbs=None, db_type=None,
                     langchain_modes=None,
@@ -6599,6 +6782,8 @@ def _update_user_db(file,
                     is_url=None, is_txt=None,
                     is_public=False,
                     from_ui=False,
+
+                    gradio_upload_to_chatbot_num_max=None,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -6619,7 +6804,9 @@ def _update_user_db(file,
     assert enable_pdf_ocr is not None
     assert enable_pdf_doctr is not None
     assert enable_pix2struct is not None
+    assert enable_llava is not None
     assert verbose is not None
+    assert gradio_upload_to_chatbot_num_max is not None
 
     if dbs is None:
         dbs = {}
@@ -6645,7 +6832,7 @@ def _update_user_db(file,
                              " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
     if langchain_mode == LangChainMode.DISABLED.value:
-        return None, langchain_mode, get_source_files(), "", None
+        return None, langchain_mode, get_source_files(), "", None, {}
 
     if langchain_mode in [LangChainMode.LLM.value]:
         # then switch to MyData, so langchain_mode also becomes way to select where upload goes
@@ -6655,7 +6842,7 @@ def _update_user_db(file,
         elif len(langchain_modes) >= 1:
             langchain_mode = langchain_modes[0]
         else:
-            return None, langchain_mode, get_source_files(), "", None
+            return None, langchain_mode, get_source_files(), "", None, {}
 
     if langchain_mode_paths is None:
         langchain_mode_paths = {}
@@ -6717,16 +6904,19 @@ def _update_user_db(file,
                            enable_doctr=enable_doctr,
                            enable_pix2struct=enable_pix2struct,
                            enable_captions=enable_captions,
+                           enable_llava=enable_llava,
                            enable_transcriptions=enable_transcriptions,
                            captions_model=captions_model,
                            caption_loader=caption_loader,
                            doctr_loader=doctr_loader,
                            pix2struct_loader=pix2struct_loader,
+                           llava_model=llava_model,
                            asr_model=asr_model,
                            asr_loader=asr_loader,
 
                            # json
                            jq_schema=jq_schema,
+                           extract_frames=extract_frames,
 
                            db_type=db_type,
 
@@ -6779,9 +6969,12 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
             if len(sources) > 0:
                 sources_last = os.path.basename(sources[-1].metadata.get('source', 'Unknown Source'))
+                all_sources_last_dict = get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max)
             else:
                 sources_last = None
-            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs), sources_last
+                all_sources_last_dict = {}
+            return None, langchain_mode, source_files_added, '\n'.join(
+                exceptions_strs), sources_last, all_sources_last_dict
         else:
             langchain_type = langchain_mode_types.get(langchain_mode, LangChainTypes.EITHER.value)
             persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
@@ -6811,9 +7004,26 @@ def _update_user_db(file,
             source_files_added = get_source_files(db=dbs[langchain_mode], exceptions=exceptions)
             if len(sources) > 0:
                 sources_last = os.path.basename(sources[-1].metadata.get('source', 'Unknown Source'))
+                all_sources_last_dict = get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max)
             else:
                 sources_last = None
-            return None, langchain_mode, source_files_added, '\n'.join(exceptions_strs), sources_last
+                all_sources_last_dict = {}
+            return None, langchain_mode, source_files_added, '\n'.join(
+                exceptions_strs), sources_last, all_sources_last_dict
+
+
+def get_all_sources_last_dict(sources, gradio_upload_to_chatbot_num_max):
+    valid_sources = [x for x in sources if
+                     x.metadata.get('source', '') and x.page_content and x.metadata.get('chunk_id', -1) == -1]
+    # FIXME: Choose longest output if multiple?
+
+    # only what can be shown in gradio
+    allowed_types = image_types + audio_types
+    valid_sources = [x for x in valid_sources if any(x.metadata['source'].endswith(y) for y in allowed_types)]
+
+    all_sources_last_dict = {x.metadata['source']: x.page_content
+                             for x in valid_sources[:gradio_upload_to_chatbot_num_max]}
+    return all_sources_last_dict
 
 
 def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
@@ -6976,16 +7186,19 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      enable_doctr=False,
                                                      enable_pix2struct=False,
                                                      enable_captions=True,
+                                                     enable_llava=True,
                                                      enable_transcriptions=True,
                                                      captions_model=None,
                                                      caption_loader=None,
                                                      doctr_loader=None,
                                                      pix2struct_loader=None,
+                                                     llava_model=None,
                                                      asr_model=None,
                                                      asr_loader=None,
 
                                                      # json
                                                      jq_schema='.[]',
+                                                     extract_frames=10,
 
                                                      dbs=None, first_para=None,
                                                      hf_embedding_model=None,
@@ -7052,16 +7265,19 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         enable_doctr=enable_doctr,
                                                         enable_pix2struct=enable_pix2struct,
                                                         enable_captions=enable_captions,
+                                                        enable_llava=enable_llava,
                                                         enable_transcriptions=enable_transcriptions,
                                                         captions_model=captions_model,
                                                         caption_loader=caption_loader,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
+                                                        llava_model=llava_model,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 
                                                         # json
                                                         jq_schema=jq_schema,
+                                                        extract_frames=extract_frames,
 
                                                         langchain_mode=langchain_mode,
                                                         langchain_mode_paths=langchain_mode_paths,

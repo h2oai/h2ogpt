@@ -156,12 +156,15 @@ def get_llm_gpt4all(model_name=None,
         if model is None:
             llamacpp_dict = llamacpp_dict.copy()
             model_path = llamacpp_dict.pop('model_path_llama')
+            llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
             if os.path.isfile(os.path.basename(model_path)):
                 # e.g. if offline but previously downloaded
                 model_path = os.path.basename(model_path)
+            elif os.path.isfile(os.path.join(llamacpp_path, os.path.basename(model_path))):
+                # e.g. so don't have to point to full previously-downloaded path
+                model_path = os.path.join(llamacpp_path, os.path.basename(model_path))
             elif url_alive(model_path):
                 # online
-                llamacpp_path = os.getenv('LLAMACPP_PATH', llamacpp_path) or './'
                 dest = os.path.join(llamacpp_path, os.path.basename(model_path)) if llamacpp_path else None
                 if dest.endswith('?download=true'):
                     dest = dest.replace('?download=true', '')

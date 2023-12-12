@@ -29,6 +29,7 @@ def go_prepare_offline(*args, **kwargs):
                kwargs['pdf_loaders_options'],
                kwargs['url_loaders_options'],
                kwargs['jq_schema0'],
+               kwargs['extract_frames'],
                h2ogpt_key,
                ]
 

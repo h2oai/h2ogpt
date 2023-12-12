@@ -8,6 +8,7 @@ import os
 import time
 import traceback
 import typing
+import uuid
 import warnings
 from datetime import datetime
 import requests
@@ -48,12 +49,13 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
-    user_prompt_for_fake_system_prompt
+    user_prompt_for_fake_system_prompt, base_langchain_actions
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
-    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2
+    url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
+    have_diffusers, sanitize_filename
 
 start_faulthandler()
 import_matplotlib()
@@ -91,7 +93,8 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
             just_model = just_model_split[0]
             lower_model = just_model.lower()
             download_postfix = '?download=true'
-            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (base_model, lower_model, file_postfix, download_postfix)
+            base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (
+                base_model, lower_model, file_postfix, download_postfix)
             if url_alive(base_model0):
                 base_model = base_model0
         model_path_llama = base_model
@@ -140,6 +143,8 @@ def main(
         compile_model: bool = None,
         use_cache: bool = None,
         inference_server: str = "",
+        regenerate_clients: bool = False,
+
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
         system_prompt: str = '',
@@ -235,6 +240,8 @@ def main(
         gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
         gradio_api_use_same_stream_limits: bool = True,
+        gradio_upload_to_chatbot: bool = True,
+        gradio_upload_to_chatbot_num_max: bool = 2,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -275,6 +282,7 @@ def main(
         visible_chatbot_label: bool = True,
         visible_all_prompter_models: bool = False,
         actions_in_sidebar: bool = False,
+        document_choice_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
         pdf_height: int = 800,
@@ -307,8 +315,7 @@ def main(
         langchain_agents: list = [],
         force_langchain_evaluate: bool = False,
 
-        visible_langchain_actions: list = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
-                                           LangChainAction.EXTRACT.value],
+        visible_langchain_actions: list = base_langchain_actions.copy(),
         visible_langchain_agents: list = langchain_agents_list.copy(),
 
         document_subset: str = DocumentSubset.Relevant.name,
@@ -359,6 +366,7 @@ def main(
         docs_joiner: str = docs_joiner_default,
         hyde_level: int = 0,
         hyde_template: str = None,
+        hyde_show_only_final: bool = False,
         doc_json_mode: bool = False,
 
         auto_reduce_chunks: bool = True,
@@ -368,26 +376,27 @@ def main(
         n_gpus: int = None,
 
         # urls
-        use_unstructured=True,
-        use_playwright=False,
-        use_selenium=False,
-        use_scrapeplaywright=False,
-        use_scrapehttp=False,
+        use_unstructured: bool = True,
+        use_playwright: bool = False,
+        use_selenium: bool = False,
+        use_scrapeplaywright: bool = False,
+        use_scrapehttp: bool = False,
 
         # pdfs
-        use_pymupdf='auto',
-        use_unstructured_pdf='auto',
-        use_pypdf='auto',
-        enable_pdf_ocr='auto',
-        enable_pdf_doctr='auto',
-        try_pdf_as_html='auto',
+        use_pymupdf: Union[bool, str] = 'auto',
+        use_unstructured_pdf: Union[bool, str] = 'auto',
+        use_pypdf: Union[bool, str] = 'auto',
+        enable_pdf_ocr: Union[bool, str] = 'auto',
+        enable_pdf_doctr: Union[bool, str] = 'auto',
+        try_pdf_as_html: Union[bool, str] = 'auto',
 
         # images
-        enable_ocr=False,
-        enable_doctr=True,
-        enable_pix2struct=False,
-        enable_captions=True,
-        enable_transcriptions=True,
+        enable_ocr: bool = False,
+        enable_doctr: bool = True,
+        enable_pix2struct: bool = False,
+        enable_captions: bool = True,
+        enable_llava: bool = True,
+        enable_transcriptions: bool = True,
 
         pre_load_image_audio_models: bool = False,
 
@@ -396,6 +405,8 @@ def main(
         captions_model: str = "Salesforce/blip-image-captioning-base",
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
+        llava_model: str = None,
+
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
@@ -425,8 +436,17 @@ def main(
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
         sst_floor: float = 100,
 
+        enable_imagegen: bool = False,  # experimental
+        enable_imagegen_high: bool = False,  # experimental
+        enable_imagechange: bool = False,  # experimental
+        imagegen_gpu_id: Union[str, int] = 'auto',
+        imagechange_gpu_id: Union[str, int] = 'auto',
+        enable_llava_chat: bool = False,
+
         # json
         jq_schema='.[]',
+
+        extract_frames: int = 20,
 
         max_quality: bool = False,
 
@@ -496,6 +516,8 @@ def main(
                             Or Address can be for Anthropic Claude.  Ensure key is set in env ANTHROPIC_API_KEY
                               Use: "anthropic:<model name>"
                               E.g. "anthropic:claude-2"
+    :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
+           Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -624,6 +646,7 @@ def main(
                         For windows/MAC 0.0.0.0 or 127.0.0.1 will work, but may need to specify actual LAN IP address for other LAN clients to see.
     :param share: whether to share the gradio app with sharable URL
     :param open_browser: whether to automatically open browser tab with gradio UI
+    :param close_button: Whether to show close button in system tab (if not public)
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
@@ -676,6 +699,8 @@ def main(
     :param gradio_ui_stream_chunk_seconds: Number of seconds to yield regardless of reaching gradio_ui_stream_chunk_size as long as something to yield
            Helps case when streaming is slow and want to see progress at least every couple seconds
     :param gradio_api_use_same_stream_limits: Whether to use same streaming limits as UI for API
+    :param gradio_upload_to_chatbot: Whether to show upload in chatbots
+    :param gradio_upload_to_chatbot_num_max: Max number of things to add to chatbot
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
     :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.
@@ -707,11 +732,13 @@ def main(
                              -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                              >=0 means use that to limit context filling to that many tokens
     :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
+
     :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                      or top_k_docs original document chunks summarization
                                 None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
 
     :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+
     :param hyde_level: HYDE level for HYDE approach (https://arxiv.org/abs/2212.10496)
                  0: No HYDE
                  1: Use non-document-based LLM response and original query for embedding query
@@ -720,6 +747,8 @@ def main(
     :param hyde_template:
                  None, 'None', 'auto' uses internal value and enable
                  '{query}' is minimal template one can pass
+    :param hyde_show_only_final:  Whether to show only last result of HYDEE, not intermediate steps
+
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
            Ignored if model_lock not used
@@ -751,6 +780,7 @@ def main(
     :param visible_chatbot_label: Whether to show label in chatbot (e.g. if only one model for own purpose, then can set to False)
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
+    :param document_choice_in_sidebar: Whether to show document choices in sidebar
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
@@ -916,6 +946,7 @@ def main(
     :param enable_pix2struct: Whether to support pix2struct on images for captions
     :param enable_captions: Whether to support captions using BLIP for image files as documents,
            then preloads that model if pre_load_image_audio_models=True
+    :param enable_llava: If LLaVa IP port is set, whether to use response for image ingestion
     :param enable_transcriptions: Whether to enable audio transcriptions (youtube of from files)
            Preloaded if pre_load_image_audio_models=True
 
@@ -935,6 +966,10 @@ def main(
 
     :param doctr_gpu: If support doctr, then use GPU if exists
     :param doctr_gpu_id: Which GPU id to use, if 'auto' then select 0
+
+    :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
+           E.g. http://192.168.1.46:7861
+           None means no such LLaVa support
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
@@ -993,6 +1028,15 @@ def main(
     :param jq_schema: control json loader
            By default '.[]' ingests everything in brute-force way, but better to match your schema
            See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
+
+    :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
+
+    :param enable_imagegen: Whether to enable image generation model
+    :param enable_imagegen_high: Whether to enable image generation model with high resolution
+    :param enable_imagechange: Whether to enable image change model
+    :param imagegen_gpu_id: GPU id to use for imagegen model
+    :param imagechange_gpu_id: GPU id to use for imagechange model
+    :param enable_llava_chat: Whether to use LLaVa model to chat directly against instead of just for ingestion
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
            Pro: Catches document when some default parsers would fail
@@ -1068,6 +1112,14 @@ def main(
 
     if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
+    if not have_diffusers or not enable_imagegen:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
+    if not have_diffusers or not enable_imagegen_high:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE_HIGH.value)
+    if not have_diffusers or not enable_imagechange:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
+    if not llava_model or not enable_llava or not enable_llava_chat:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
         assert gradio, "model_lock only supported for gradio=True"
@@ -1105,6 +1157,8 @@ def main(
         n_jobs = max(1, os.cpu_count() // 2)
     if is_public and os.getenv('n_jobs') is None:
         n_jobs = min(n_jobs, max(1, min(os.cpu_count() // 2, 8)))
+    if is_public:
+        gradio_upload_to_chatbot_num_max = 1
     admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
@@ -1445,6 +1499,7 @@ def main(
                             pdf_loaders,
                             url_loaders,
                             jq_schema,
+                            extract_frames,
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
@@ -1453,6 +1508,7 @@ def main(
                             docs_joiner,
                             hyde_level,
                             hyde_template,
+                            hyde_show_only_final,
                             doc_json_mode,
                             chatbot_role,
                             speaker,
@@ -1584,6 +1640,24 @@ def main(
                                                      supported_languages=supported_languages_xtt,
                                                      return_as_byte=return_as_byte,
                                                      verbose=verbose)
+
+    if enable_imagegen:
+        # always preloaded
+        from src.vision.sdxl import get_pipe_make_image
+        image_gen_loader = get_pipe_make_image(gpu_id=imagegen_gpu_id)
+    else:
+        image_gen_loader = None
+    if enable_imagegen_high:
+        # always preloaded
+        from src.vision.playv2 import get_pipe_make_image
+        image_gen_loader_high = get_pipe_make_image(gpu_id=imagegen_gpu_id)
+    else:
+        image_gen_loader_high = None
+    if enable_imagechange:
+        from src.vision.sdxl import get_pipe_change_image
+        image_change_loader = get_pipe_change_image(gpu_id=imagegen_gpu_id)
+    else:
+        image_change_loader = None
 
     # DB SETUP
 
@@ -2138,6 +2212,7 @@ def get_model(
         use_gpu_id: bool = True,
         base_model: str = '',
         inference_server: str = "",
+        regenerate_clients: bool = False,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -2309,6 +2384,29 @@ def get_model(
             inference_server.startswith('anthropic')
     )
 
+    if not regenerate_clients and (inference_server.startswith('vllm') or inference_server.startswith('openai')):
+        t0 = time.time()
+        client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+            set_openai(inference_server, model_name=base_model)
+        model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
+                     base_url=base_url, api_version=api_version, api_key=api_key)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
+    if not regenerate_clients and inference_server.startswith('anthropic'):
+        t0 = time.time()
+        import anthropic
+        base_url = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com")
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        timeout = 600
+        anthropic_kwargs = dict(base_url=base_url, api_key=api_key, timeout=timeout)
+        client = anthropic.Anthropic(**anthropic_kwargs)
+        async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
+        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
+                     timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
             base_model in anthropic_gpts:
@@ -2373,7 +2471,7 @@ def get_model(
             tokenizer.max_output_len = max_output_len
 
         if model is None:
-            # if model None, means native inference server
+            # if model None, means native inference server (and no concern about slowness of regenerating client)
             model = inference_server
 
         return model, tokenizer, inference_server
@@ -2803,6 +2901,7 @@ def get_score_model(score_model: str = None,
         tokenizer_base_model = ''
         lora_weights = ''
         inference_server = ''
+        regenerate_clients = False
         llama_type = False
         max_seq_len = None
         rope_scaling = {}
@@ -2881,6 +2980,7 @@ def evaluate(
         pdf_loaders,
         url_loaders,
         jq_schema,
+        extract_frames,
         visible_models,
         h2ogpt_key,
         add_search_to_context,
@@ -2895,6 +2995,7 @@ def evaluate(
         docs_joiner,
         hyde_level,
         hyde_template,
+        hyde_show_only_final,
         doc_json_mode,
 
         chatbot_role,
@@ -2907,6 +3008,11 @@ def evaluate(
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        llava_model=None,
+        image_gen_loader=None,
+        image_gen_loader_high=None,
+        image_change_loader=None,
+
         asr_model=None,
         asr_loader=None,
 
@@ -2923,6 +3029,7 @@ def evaluate(
         max_max_new_tokens=None,
         is_public=None,
         from_ui=True,
+        regenerate_clients=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
         lora_weights=None,
@@ -3028,6 +3135,34 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
+    if langchain_action in [LangChainAction.IMAGE_GENERATE.value, LangChainAction.IMAGE_GENERATE_HIGH.value]:
+        t_generate = time.time()
+
+        if langchain_action in [LangChainAction.IMAGE_GENERATE.value]:
+            assert image_gen_loader, "Generating image, but image_gen_loader is None"
+            from src.vision.sdxl import make_image
+            pipe = image_gen_loader
+        elif langchain_action in [LangChainAction.IMAGE_GENERATE_HIGH.value]:
+            assert image_gen_loader_high, "Generating image, but image_gen_loader_high is None"
+            from src.vision.playv2 import make_image
+            pipe = image_gen_loader_high
+        else:
+            raise ValueError("No such langchain_action=%s" % langchain_action)
+        san_inst = sanitize_filename(instruction)
+        image_file = make_image(instruction,
+                                filename="/tmp/gradio/image_%s_%s.png" % (san_inst, str(uuid.uuid4())),
+                                pipe=pipe,
+                                )
+        response = (image_file,)
+        extra_dict = dict(t_generate=time.time() - t_generate,
+                          instruction=instruction,
+                          prompt_raw=instruction)
+        save_dict = dict(prompt=instruction, output=response, extra_dict=extra_dict)
+        yield dict(response=response, sources=[], save_dict=save_dict, llm_answers={},
+                   response_no_refs="Generated image for %s" % instruction,
+                   sources_str="", prompt_raw=instruction)
+        return
+
     no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\n" \
                    "Then start New Conversation"
 
@@ -3047,6 +3182,12 @@ def evaluate(
     #    assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
+    no_llm_ok = langchain_action in [LangChainAction.IMAGE_GENERATE.value,
+                                     LangChainAction.IMAGE_GENERATE_HIGH.value,
+                                     LangChainAction.IMAGE_CHANGE.value,
+                                     ]
+
+    chosen_model_state = model_state0
     if have_fresh_model:
         # USE FRESH MODEL
         if not have_model_lock:
@@ -3063,9 +3204,9 @@ def evaluate(
     elif have_cli_model:
         # USE MODEL SETUP AT CLI
         assert isinstance(model_state['model'], (type(None), str))  # expect no fresh model
-        chosen_model_state = model_state0
-    else:
+    elif not no_llm_ok:
         raise AssertionError(no_model_msg)
+
     # get variables
     model = chosen_model_state['model']
     tokenizer = chosen_model_state['tokenizer']
@@ -3082,7 +3223,7 @@ def evaluate(
     prompt_type = prompt_type or chosen_model_state['prompt_type']
     prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
 
-    if base_model is None:
+    if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
 
     assert base_model.strip(), no_model_msg
@@ -3269,9 +3410,11 @@ def evaluate(
                                  caption_loader=caption_loader,
                                  doctr_loader=doctr_loader,
                                  pix2struct_loader=pix2struct_loader,
+                                 llava_model=llava_model,
                                  asr_model=asr_model,
                                  asr_loader=asr_loader,
                                  jq_schema=jq_schema,
+                                 extract_frames=extract_frames,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
         # no longer stuff chat history directly into context this early
@@ -3281,6 +3424,7 @@ def evaluate(
         llm_answers = {}
         for r in run_qa_db(
                 inference_server=inference_server,
+                regenerate_clients=regenerate_clients,
                 model_name=base_model, model=model, tokenizer=tokenizer,
                 langchain_only_model=langchain_only_model,
                 async_output=async_output,
@@ -3352,6 +3496,7 @@ def evaluate(
                 docs_joiner=docs_joiner,
                 hyde_level=hyde_level,
                 hyde_template=hyde_template,
+                hyde_show_only_final=hyde_show_only_final,
                 doc_json_mode=doc_json_mode,
 
                 **gen_hyper_langchain,
@@ -3472,8 +3617,11 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai_client, openai_async_client, \
-                inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
+            if isinstance(model, dict):
+                openai_client, openai_async_client, inf_type = model['client'], model['async_client'], model['inf_type']
+            else:
+                openai_client, openai_async_client, \
+                    inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []
@@ -3685,6 +3833,7 @@ def evaluate(
                                      pdf_loaders=pdf_loaders,
                                      url_loaders=url_loaders,
                                      jq_schema=jq_schema,
+                                     extract_frames=extract_frames,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
@@ -3696,6 +3845,7 @@ def evaluate(
                                      docs_joiner=docs_joiner,
                                      hyde_level=hyde_level,
                                      hyde_template=hyde_template,
+                                     hyde_show_only_final=hyde_show_only_final,
                                      doc_json_mode=doc_json_mode,
                                      )
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -4236,6 +4386,7 @@ def get_generate_params(model_lower,
                         pdf_loaders,
                         url_loaders,
                         jq_schema,
+                        extract_frames,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
@@ -4244,6 +4395,7 @@ def get_generate_params(model_lower,
                         docs_joiner,
                         hyde_level,
                         hyde_template,
+                        hyde_show_only_final,
                         doc_json_mode,
                         chatbot_role,
                         speaker,
@@ -4436,6 +4588,7 @@ y = np.random.randint(0, 1, 100)
                     pdf_loaders,
                     url_loaders,
                     jq_schema,
+                    extract_frames,
                     None,
                     None,
                     False,
@@ -4449,6 +4602,7 @@ y = np.random.randint(0, 1, 100)
                     docs_joiner,
                     hyde_level,
                     hyde_template,
+                    hyde_show_only_final,
                     doc_json_mode,
 
                     chatbot_role,
@@ -4640,6 +4794,26 @@ def remove_refs(text, keep_sources_in_context, langchain_mode):
     return text
 
 
+def gradio_to_llm(x, bot=False):
+    # handle if gradio tuples in messages
+    if x is None:
+        x = ''
+    if isinstance(x, (tuple, list)) and len(x) > 0:
+        x = list(x)
+        for insti, inst in enumerate(x):
+            if isinstance(inst, str) and inst.startswith('/tmp/gradio'):
+                # below so if put into context gets rendered not as broken file
+                if bot:
+                    x[
+                        insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
+                else:
+                    x[insti] = 'file=' + inst
+        if len(x) == 1:
+            x = x[0]
+        x = str(x) if all(isinstance(x, str) for x in x) else ''
+    return x
+
+
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
@@ -4679,7 +4853,10 @@ def history_to_context(history, langchain_mode=None,
         context1 = ''
         # - 1 below because current instruction already in history from user()
         for histi in range(0, len_history):
-            data_point = dict(instruction=history[histi][0], input='', output=history[histi][1])
+            instruction = gradio_to_llm(history[histi][0], bot=False)
+            output = gradio_to_llm(history[histi][1], bot=True)
+
+            data_point = dict(instruction=instruction, input='', output=output)
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,
                                 prompt_type,

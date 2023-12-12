@@ -12,7 +12,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
 
 def run_eval(  # for local function:
-        base_model=None, lora_weights=None, inference_server=None,
+        base_model=None, lora_weights=None, inference_server=None, regenerate_clients=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
         debug=None, chat=False,
         stream_output=None, async_output=None, num_async=None,
@@ -64,6 +64,7 @@ def run_eval(  # for local function:
         pdf_loaders=None,
         url_loaders=None,
         jq_schema=None,
+        extract_frames=None,
         visible_models=None,
         h2ogpt_key=None,
         add_search_to_context=None,
@@ -77,6 +78,7 @@ def run_eval(  # for local function:
         docs_joiner=None,
         hyde_level=None,
         hyde_template=None,
+        hyde_show_only_final=None,
         doc_json_mode=None,
         chatbot_role=None,
         speaker=None,
@@ -87,6 +89,11 @@ def run_eval(  # for local function:
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        llava_model=None,
+        image_gen_loader=None,
+        image_gen_loader_high=None,
+        image_change_loader=None,
+
         asr_model=None,
         asr_loader=None,
 

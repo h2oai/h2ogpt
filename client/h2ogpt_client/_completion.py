@@ -79,6 +79,7 @@ _H2OGPT_PARAMETERS_TO_CLIENT = collections.OrderedDict(
     docs_joiner="docs_joiner",
     hyde_level="hyde_level",
     hyde_template="hyde_template",
+    hyde_show_only_final="hyde_show_only_final",
     doc_json_mode="doc_json_mode",
     chatbot_role="chatbot_role",
     speaker="speaker",
@@ -155,6 +156,7 @@ _DEFAULT_PARAMETERS: Dict[str, Any] = dict(
     docs_joiner="\n\n",
     hyde_level=0,
     hyde_template=None,
+    hyde_show_only_final=None,
     doc_json_mode=False,
     chatbot_role="None",
     speaker="None",
@@ -253,6 +255,7 @@ class TextCompletionCreator:
         docs_joiner: str = "\n\n",
         hyde_level: int = 0,
         hyde_template: Optional[str] = None,
+        hyde_show_only_final: bool = False,
         doc_json_mode: bool = False,
         chatbot_role="None",
         speaker="None",
@@ -307,6 +310,7 @@ class TextCompletionCreator:
         :param hyde_template:
                      None, 'None', 'auto' uses internal value and enable
                      '{query}' is minimal template one can pass
+        :param hyde_show_only_final: See h2oGPT server docs
         :param doc_json_mode: whether to give JSON to LLM and get JSON response back
         :param chatbot_role: See h2oGPT server docs
         :param speaker: See h2oGPT server docs
@@ -396,6 +400,7 @@ class ChatCompletionCreator:
         docs_joiner: str = "\n\n",
         hyde_level: int = 0,
         hyde_template: Optional[str] = None,
+        hyde_show_only_final: bool = False,
         doc_json_mode: bool = False,
         chatbot_role="None",
         speaker="None",
@@ -449,6 +454,7 @@ class ChatCompletionCreator:
         :param hyde_template:
                      None, 'None', 'auto' uses internal value and enable
                      '{query}' is minimal template one can pass
+        :param hyde_show_only_final: See h2oGPT server docs
         :param doc_json_mode: whether to give JSON to LLM and get JSON response back
         :param chatbot_role: See h2oGPT server docs
         :param speaker: See h2oGPT server docs

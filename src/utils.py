@@ -304,7 +304,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
 
     # tokenize at end if need to, so doesn't block generation in multi-generator case
     if extra_dict.get('ntokens') is None:
-        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(output)
+        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(str(output))
         # only do below if didn't already compute ntokens, else assume also computed rate
     if extra_dict.get('ntokens') is not None and extra_dict.get('t_generate') is not None:
         extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
@@ -1327,6 +1327,19 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_pyrubberband = False
 
+try:
+    assert distribution('fiftyone') is not None
+    have_fiftyone = True
+except (PackageNotFoundError, AssertionError):
+    have_fiftyone = False
+
+try:
+    assert distribution('diffusers') is not None
+    have_diffusers = True
+except (PackageNotFoundError, AssertionError):
+    have_diffusers = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
@@ -1528,6 +1541,8 @@ def lg_to_gr(
         image_audio_loaders_options.append('ASR')
         if n_gpus != 0:
             image_audio_loaders_options.append('ASRLarge')
+    if kwargs['enable_llava'] and kwargs['llava_model']:
+        image_audio_loaders_options.append('LLaVa')
 
     image_audio_loaders_options0 = []
     if have_tesseract and kwargs['enable_ocr']:
@@ -1545,6 +1560,15 @@ def lg_to_gr(
             image_audio_loaders_options0.append('ASRLarge')
         else:
             image_audio_loaders_options0.append('ASR')
+    if kwargs['enable_llava'] and kwargs['llava_model']:
+        #  and n_gpus > 0  # don't require local GPUs
+        # LLaVa better and faster if present
+        #  and kwargs['max_quality']
+        image_audio_loaders_options0.append('LLaVa')
+        if 'Caption' in  image_audio_loaders_options0:
+            image_audio_loaders_options0.remove('Caption')
+        if 'CaptionBlip2' in  image_audio_loaders_options0:
+            image_audio_loaders_options0.remove('CaptionBlip2')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
     if have_pymupdf:

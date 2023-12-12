@@ -2,7 +2,6 @@ import logging
 import os
 import tempfile
 import time
-import uuid
 from typing import Dict, Iterator, Optional, Tuple
 
 from langchain.document_loaders.base import BaseBlobParser
@@ -283,7 +282,7 @@ from typing import List, Union, Any, Tuple
 
 import requests
 from langchain.docstore.document import Document
-from langchain.document_loaders import ImageCaptionLoader, YoutubeAudioLoader
+from langchain.document_loaders import ImageCaptionLoader
 
 from utils import get_device, NullContext, clear_torch_cache, have_use_faster, makedirs
 
@@ -318,6 +317,7 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         self.set_context()
         self.use_better = use_better
         self.use_faster = use_faster
+        self.files_out = []
 
     def set_context(self):
         if get_device() == 'cuda' and self.asr_gpu:
@@ -383,8 +383,11 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         if from_youtube:
             save_dir = tempfile.mkdtemp()
             makedirs(save_dir, exist_ok=True)
-            loader = GenericLoader(YoutubeAudioLoader(self.audio_paths, save_dir), self.model)
-            return loader.load()
+            youtube_loader = YoutubeAudioLoader(self.audio_paths, save_dir)
+            loader = GenericLoader(youtube_loader, self.model)
+            docs = loader.load()
+            self.files_out = youtube_loader.files_out
+            return docs
         else:
             docs = []
             for fil in self.audio_paths:
@@ -399,3 +402,57 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
         if hasattr(self, 'model') and hasattr(self.model, 'pipe') and hasattr(self.model.pipe.model, 'cpu'):
             self.model.pipe.model.cpu()
             clear_torch_cache()
+
+
+from typing import Iterable, List
+
+from langchain.document_loaders.blob_loaders import FileSystemBlobLoader
+from langchain.document_loaders.blob_loaders.schema import Blob, BlobLoader
+
+
+class YoutubeAudioLoader(BlobLoader):
+
+    """Load YouTube urls as audio file(s)."""
+
+    def __init__(self, urls: List[str], save_dir: str):
+        if not isinstance(urls, list):
+            raise TypeError("urls must be a list")
+
+        self.urls = urls
+        self.save_dir = save_dir
+        self.files_out = []
+
+    def yield_blobs(self) -> Iterable[Blob]:
+        """Yield audio blobs for each url."""
+
+        try:
+            import yt_dlp
+        except ImportError:
+            raise ImportError(
+                "yt_dlp package not found, please install it with "
+                "`pip install yt_dlp`"
+            )
+
+        # Use yt_dlp to download audio given a YouTube url
+        ydl_opts = {
+            "format": "m4a/bestaudio/best",
+            "noplaylist": True,
+            "outtmpl": self.save_dir + "/%(title)s.%(ext)s",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "m4a",
+                }
+            ],
+        }
+
+        for url in self.urls:
+            # Download file
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download(url)
+
+        # Yield the written blobs
+        loader = FileSystemBlobLoader(self.save_dir, glob="*.m4a")
+        self.files_out = [os.path.join(self.save_dir, f) for f in os.listdir(self.save_dir)]
+        for blob in loader.yield_blobs():
+            yield blob

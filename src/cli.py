@@ -8,7 +8,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_cli(  # for local function:
-        base_model=None, lora_weights=None, inference_server=None,
+        base_model=None, lora_weights=None, inference_server=None, regenerate_clients=None,
         debug=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
@@ -45,6 +45,7 @@ def run_cli(  # for local function:
         pdf_loaders=None,
         url_loaders=None,
         jq_schema=None,
+        extract_frames=None,
         visible_models=None,
         h2ogpt_key=None,
         add_search_to_context=None,
@@ -58,16 +59,23 @@ def run_cli(  # for local function:
         docs_joiner=None,
         hyde_level=None,
         hyde_template=None,
+        hyde_show_only_final=None,
         doc_json_mode=None,
         chatbot_role=None,
         speaker=None,
         tts_language=None,
         tts_speed=None,
+
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
         doctr_loader=None,
         pix2struct_loader=None,
+        llava_model=None,
+        image_gen_loader=None,
+        image_gen_loader_high=None,
+        image_change_loader=None,
+
         asr_model=None,
         asr_loader=None,
         image_audio_loaders_options0=None,

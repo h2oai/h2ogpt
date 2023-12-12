@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, n_gpus_global
+    have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -74,6 +74,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
+    if isinstance(text, tuple):
+        # images, audio, etc.
+        return text
+
     if not isinstance(text, str):
         # e.g. list for extraction
         text = str(text)
@@ -185,6 +189,7 @@ def go_gradio(**kwargs):
     captions_model = kwargs['captions_model']
     caption_loader = kwargs['caption_loader']
     doctr_loader = kwargs['doctr_loader']
+    llava_model = kwargs['llava_model']
     asr_model = kwargs['asr_model']
     asr_loader = kwargs['asr_loader']
 
@@ -555,8 +560,13 @@ def go_gradio(**kwargs):
 
     def allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
         allow = False
-        allow |= langchain_action1 not in LangChainAction.QUERY.value
-        allow |= document_subset1 in DocumentSubset.TopKSources.name
+        allow |= langchain_action1 not in [LangChainAction.QUERY.value,
+                                           LangChainAction.IMAGE_QUERY.value,
+                                           LangChainAction.IMAGE_CHANGE.value,
+                                           LangChainAction.IMAGE_GENERATE.value,
+                                           LangChainAction.IMAGE_GENERATE_HIGH.value,
+                                           ]
+        allow |= document_subset1 in [DocumentSubset.TopKSources.name]
         if langchain_mode1 in [LangChainMode.LLM.value]:
             allow = False
         return allow
@@ -834,6 +844,8 @@ def go_gradio(**kwargs):
                     if kwargs['actions_in_sidebar']:
                         max_quality = gr.Checkbox(label="Max Ingest Quality", value=kwargs['max_quality'],
                                                   visible=not is_public)
+                        gradio_upload_to_chatbot = gr.Checkbox(label="Add Doc to Chat",
+                                                               value=kwargs['gradio_upload_to_chatbot'])
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
                                           max_lines=1,
@@ -854,6 +866,9 @@ def go_gradio(**kwargs):
                     max_quality = gr.Checkbox(label="Max Ingest Quality",
                                               value=kwargs['max_quality'],
                                               visible=not is_public)
+                    gradio_upload_to_chatbot = gr.Checkbox(label="Add Doc to Chat",
+                                                           value=kwargs['gradio_upload_to_chatbot'])
+
                 if not kwargs['actions_in_sidebar']:
                     add_chat_history_to_context = gr.Checkbox(label="Include Chat History",
                                                               value=kwargs[
@@ -908,6 +923,21 @@ def go_gradio(**kwargs):
                         visible=not is_public,
                         elem_id="langchain_agents",
                         filterable=False)
+
+                can_db_filter = kwargs['langchain_mode'] != 'Disabled' and kwargs['db_type'] in ['chroma',
+                                                                                                 'chroma_old']
+                document_choice_kwargs = dict(choices=docs_state0,
+                                              label="Document",
+                                              value=[DocumentChoice.ALL.value],
+                                              interactive=True,
+                                              multiselect=True,
+                                              visible=can_db_filter,
+                                              elem_id="multi-selection",
+                                              allow_custom_value=False,
+                                              )
+                if kwargs['document_choice_in_sidebar']:
+                    document_choice = gr.Dropdown(**document_choice_kwargs)
+
                 visible_doc_track = upload_visible and kwargs['visible_doc_track'] and not kwargs[
                     'large_file_count_mode']
                 row_doc_track = gr.Row(visible=visible_doc_track)
@@ -919,6 +949,9 @@ def go_gradio(**kwargs):
                     text_doc_count = gr.Textbox(lines=3, label="Doc Counts", value=doc_counts_str,
                                                 visible=visible_doc_track)
                     text_file_last = gr.Textbox(lines=1, label="Newest Doc", value=None, visible=visible_doc_track)
+                    new_files_last = gr.Textbox(label="New Docs full paths as dict of full file names and content",
+                                                value='{}',
+                                                visible=False)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
             col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
@@ -1154,17 +1187,9 @@ def go_gradio(**kwargs):
                         dlabel1 = 'Select Subset of Document(s) for Chat with Collection: %s' % kwargs['langchain_mode']
                         active_collection = gr.Markdown(
                             value="#### Chatting with Collection: %s" % kwargs['langchain_mode'])
-                    can_db_filter = kwargs['langchain_mode'] != 'Disabled' and kwargs['db_type'] in ['chroma',
-                                                                                                     'chroma_old']
-                    document_choice = gr.Dropdown(docs_state0,
-                                                  label=dlabel1,
-                                                  value=[DocumentChoice.ALL.value],
-                                                  interactive=True,
-                                                  multiselect=True,
-                                                  visible=can_db_filter,
-                                                  elem_id="multi-selection",
-                                                  allow_custom_value=False,
-                                                  )
+                    if not kwargs['document_choice_in_sidebar']:
+                        document_choice_kwargs.update(dict(label=dlabel1))
+                        document_choice = gr.Dropdown(**document_choice_kwargs)
                     with gr.Row():
                         with gr.Column():
                             document_source_substrings = gr.Dropdown([], label='Source substrings (post-search filter)',
@@ -1421,6 +1446,13 @@ def go_gradio(**kwargs):
                                                        info="Set env CRAWL_DEPTH to control depth for Scrape, default is 1 (given page + links on that page)",
                                                        value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
+                        extract_frames = gr.Number(value=kwargs['extract_frames'] if not is_public else 5,
+                                                   precision=0,
+                                                   minimum=0,
+                                                   maximum=5 if is_public else max(kwargs['extract_frames'], 200),
+                                                   label="Number of unique images to extract from videos",
+                                                   info="If 0, just audio extracted if enabled",
+                                                   visible=have_fiftyone)
 
                         min_top_k_docs, max_top_k_docs, label_top_k_docs = get_minmax_top_k_docs(is_public, True)
                         top_k_docs = gr.Slider(minimum=min_top_k_docs, maximum=max_top_k_docs, step=1,
@@ -1465,6 +1497,10 @@ def go_gradio(**kwargs):
                                                               label="HYDE Embedding Template",
                                                               info="HYDE approach for LLM getting answer to embed ('auto' means automatic, else enter template like '{query}'",
                                                               visible=True)
+                        hyde_show_only_final = gr.components.Checkbox(value=kwargs['hyde_show_only_final'],
+                                                                      label="Only final HYDE shown",
+                                                                      info="Whether to only show final HYDE result",
+                                                                      visible=True)
                         doc_json_mode = gr.components.Checkbox(value=kwargs['doc_json_mode'],
                                                                label="JSON docs mode",
                                                                info="Whether to pass JSON to and get JSON back from LLM",
@@ -2190,6 +2226,7 @@ def go_gradio(**kwargs):
                                            captions_model=captions_model,
                                            caption_loader=caption_loader,
                                            doctr_loader=doctr_loader,
+                                           llava_model=llava_model,
                                            asr_model=asr_model,
                                            asr_loader=asr_loader,
                                            verbose=kwargs['verbose'],
@@ -2209,6 +2246,7 @@ def go_gradio(**kwargs):
                                            enable_pdf_ocr=kwargs['enable_pdf_ocr'],
                                            enable_pdf_doctr=kwargs['enable_pdf_doctr'],
                                            try_pdf_as_html=kwargs['try_pdf_as_html'],
+                                           gradio_upload_to_chatbot_num_max=kwargs['gradio_upload_to_chatbot_num_max'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -2218,9 +2256,11 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       extract_frames,
                                        h2ogpt_key,
                                        ],
-                               outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
+                               outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last,
+                                                           new_files_last],
                                queue=queue,
                                api_name='add_file' if allow_upload_api else None)
 
@@ -2249,9 +2289,11 @@ def go_gradio(**kwargs):
                                         pdf_loaders,
                                         url_loaders,
                                         jq_schema,
+                                        extract_frames,
                                         h2ogpt_key,
                                         ],
-                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last],
+                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last,
+                                                            new_files_last],
                                 queue=queue,
                                 api_name='add_file_api' if allow_upload_api else None)
         eventdb1_api = fileup_output_text.submit(**add_file_kwargs2, show_progress='full')
@@ -2272,9 +2314,11 @@ def go_gradio(**kwargs):
                                       pdf_loaders,
                                       url_loaders,
                                       jq_schema,
+                                      extract_frames,
                                       h2ogpt_key,
                                       ],
-                              outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last],
+                              outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last,
+                                                         new_files_last],
                               queue=queue,
                               api_name='add_url' if allow_upload_api else None)
 
@@ -2308,9 +2352,11 @@ def go_gradio(**kwargs):
                                        pdf_loaders,
                                        url_loaders,
                                        jq_schema,
+                                       extract_frames,
                                        h2ogpt_key,
                                        ],
-                               outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last],
+                               outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last,
+                                                           new_files_last],
                                queue=queue,
                                api_name='add_text' if allow_upload_api else None
                                )
@@ -2342,10 +2388,12 @@ def go_gradio(**kwargs):
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice(langchain_mode1):
             if langchain_mode1 in langchain_modes_non_db:
-                label1 = 'Choose Resources->Collections and Pick Collection'
+                label1 = 'Choose Resources->Collections and Pick Collection' if not kwargs[
+                    'document_choice_in_sidebar'] else "Document"
                 active_collection1 = "#### Not Chatting with Any Collection\n%s" % label1
             else:
-                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1
+                label1 = 'Select Subset of Document(s) for Chat with Collection: %s' % langchain_mode1 if not kwargs[
+                    'document_choice_in_sidebar'] else "Document"
                 active_collection1 = "#### Chatting with Collection: %s" % langchain_mode1
             return gr.Dropdown(choices=docs_state0, value=[DocumentChoice.ALL.value],
                                label=label1), gr.Markdown(value=active_collection1)
@@ -2499,6 +2547,7 @@ def go_gradio(**kwargs):
                                              captions_model=captions_model,
                                              caption_loader=caption_loader,
                                              doctr_loader=doctr_loader,
+                                             llava_model=llava_model,
                                              asr_model=asr_model,
                                              asr_loader=asr_loader,
                                              dbs=dbs,
@@ -2535,6 +2584,7 @@ def go_gradio(**kwargs):
                                           pdf_loaders,
                                           url_loaders,
                                           jq_schema,
+                                          extract_frames,
                                           ],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
@@ -3100,59 +3150,143 @@ def go_gradio(**kwargs):
             lg_change_event5 = lg_change_event4.then(**get_viewable_sources_args)
             lg_change_event6 = lg_change_event5.then(**viewable_kwargs)
 
+            # add url text
             eventdb2c = eventdb2.then(**get_sources_kwargs)
             eventdb2d = eventdb2c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb2e = eventdb2d.then(**show_sources_kwargs)
             eventdb2f = eventdb2e.then(**get_viewable_sources_args)
             eventdb2g = eventdb2f.then(**viewable_kwargs)
 
+            def docs_to_message(new_files_last1):
+                from src.gpt_langchain import image_types, audio_types
+                # already filtered by what can show in gradio
+                # https://github.com/gradio-app/gradio/issues/3728
+                added_history = []
+                for k, v in new_files_last1.items():
+                    if any(k.endswith(x) for x in image_types):
+                        user_message1 = (k,)
+                        if v.startswith("The image"):
+                            bot_message1 = "Thank you for uploading the Image.  %s" % v
+                        else:
+                            bot_message1 = "Thank you for uploading the Image.  Looks like: %s" % v
+                    elif any(k.endswith(x) for x in audio_types):
+                        user_message1 = (k,)
+                        bot_message1 = "Thank you for uploading the Audio.  Sounds like it says: %s" % v
+                    else:
+                        user_message1 = "Upload %s" % k
+                        bot_message1 = "Thank you for uploading the File.  Description:\n\n%s" % v
+                    added_history.extend([[user_message1, bot_message1]])
+                return added_history
+
+            def update_chatbots(*args,
+                                num_model_lock=0,
+                                all_possible_visible_models=None):
+                args_list = list(args)
+
+                gradio_upload_to_chatbot1 = args_list[0]
+
+                new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
+                assert isinstance(new_files_last1, dict)
+                added_history = docs_to_message(new_files_last1)
+
+                compare_checkbox1 = args_list[2]
+
+                if num_model_lock > 0:
+                    visible_models1 = args_list[3]
+                    assert isinstance(visible_models1, list)
+                    assert isinstance(all_possible_visible_models, list)
+                    visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+                    visible_list = [False, False] + visible_list
+
+                    history_list = args_list[-num_model_lock - 2:]
+                    assert len(all_possible_visible_models) + 2 == len(history_list)
+                else:
+                    visible_list = [True, compare_checkbox1]
+                    history_list = args_list[-num_model_lock - 2:]
+
+                assert len(history_list) > 0, "Bad history list: %s" % history_list
+                if gradio_upload_to_chatbot1:
+                    for hi, history in enumerate(history_list):
+                        if not visible_list[hi]:
+                            continue
+                        # gradio_upload_to_chatbot_num_max
+                        history_list[hi].extend(added_history)
+                if len(history_list) > 1:
+                    return tuple(history_list)
+                else:
+                    return history_list[0]
+
+            update_chatbots_func = functools.partial(update_chatbots,
+                                                     num_model_lock=len(text_outputs),
+                                                     all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                     )
+            update_chatbots_kwargs = dict(fn=update_chatbots_func,
+                                          inputs=[gradio_upload_to_chatbot,
+                                                  new_files_last,
+                                                  compare_checkbox,
+                                                  visible_models,
+                                                  text_output, text_output2] + text_outputs,
+                                          outputs=[text_output, text_output2] + text_outputs
+                                          )
+            # Ingest, add button
             eventdb2c_btn = eventdb2_btn.then(**get_sources_kwargs)
             eventdb2d_btn = eventdb2c_btn.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb2e_btn = eventdb2d_btn.then(**show_sources_kwargs)
             eventdb2f_btn = eventdb2e_btn.then(**get_viewable_sources_args)
             eventdb2g_btn = eventdb2f_btn.then(**viewable_kwargs)
+            if kwargs['gradio_upload_to_chatbot']:
+                eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
 
+            # file upload
             eventdb1c = eventdb1.then(**get_sources_kwargs)
             eventdb1d = eventdb1c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb1e = eventdb1d.then(**show_sources_kwargs)
             eventdb1f = eventdb1e.then(**get_viewable_sources_args)
             eventdb1g = eventdb1f.then(**viewable_kwargs)
 
+            # add text by hitting enter
             eventdb3c = eventdb3.then(**get_sources_kwargs)
             eventdb3d = eventdb3c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb3e = eventdb3d.then(**show_sources_kwargs)
             eventdb3f = eventdb3e.then(**get_viewable_sources_args)
             eventdb3g = eventdb3f.then(**viewable_kwargs)
 
+            # delete
             eventdb90ua = eventdb90.then(**get_sources_kwargs)
             eventdb90ub = eventdb90ua.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb90uc = eventdb90ub.then(**show_sources_kwargs)
             eventdb90ud = eventdb90uc.then(**get_viewable_sources_args)
             eventdb90ue = eventdb90ud.then(**viewable_kwargs)
 
+            # add langchain mode
             eventdb20c = eventdb20b.then(**get_sources_kwargs)
             eventdb20d = eventdb20c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb20e = eventdb20d.then(**show_sources_kwargs)
             eventdb20f = eventdb20e.then(**get_viewable_sources_args)
             eventdb20g = eventdb20f.then(**viewable_kwargs)
 
+            # remove langchain mode
             eventdb21c = eventdb21b.then(**get_sources_kwargs)
             eventdb21d = eventdb21c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb21e = eventdb21d.then(**show_sources_kwargs)
             eventdb21f = eventdb21e.then(**get_viewable_sources_args)
             eventdb21g = eventdb21f.then(**viewable_kwargs)
 
+            # purge collection
             eventdb22c = eventdb22b_auth.then(**get_sources_kwargs)
             eventdb22d = eventdb22c.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb22e = eventdb22d.then(**show_sources_kwargs)
             eventdb22f = eventdb22e.then(**get_viewable_sources_args)
             eventdb22g = eventdb22f.then(**viewable_kwargs)
 
+            # attach
             event_attach3 = event_attach2.then(**get_sources_kwargs)
             event_attach4 = event_attach3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             event_attach5 = event_attach4.then(**show_sources_kwargs)
             event_attach6 = event_attach5.then(**get_viewable_sources_args)
             event_attach7 = event_attach6.then(**viewable_kwargs)
+            if kwargs['gradio_upload_to_chatbot']:
+                event_attach8 = event_attach7.then(**update_chatbots_kwargs)
 
             sync2 = sync1.then(**get_sources_kwargs)
             sync3 = sync2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
@@ -4252,7 +4386,7 @@ def go_gradio(**kwargs):
                     prompt_raw_all_old = prompt_raw_all.copy()
 
                     llm_answers_all = [x[5] if x is not None and not isinstance(x, BaseException) else y
-                                      for x, y in zip(res1, llm_answers_all_old)]
+                                       for x, y in zip(res1, llm_answers_all_old)]
                     llm_answers_all_old = llm_answers_all.copy()
 
                     save_dicts = [x[6] if x is not None and not isinstance(x, BaseException) else y
@@ -5799,11 +5933,13 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       pdf_loaders,
                       url_loaders,
                       jq_schema,
+                      extract_frames,
                       h2ogpt_key,
 
                       captions_model=None,
                       caption_loader=None,
                       doctr_loader=None,
+                      llava_model=None,
                       asr_model=None,
                       asr_loader=None,
 
@@ -5829,9 +5965,11 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
+                             llava_model=llava_model,
                              asr_model=asr_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
+                             extract_frames=extract_frames,
                              ))
     kwargs.pop('image_audio_loaders_options0', None)
     kwargs.pop('pdf_loaders_options0', None)
@@ -5955,10 +6093,12 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         pdf_loaders,
                                                         url_loaders,
                                                         jq_schema,
+                                                        extract_frames,
 
                                                         captions_model=None,
                                                         caption_loader=None,
                                                         doctr_loader=None,
+                                                        llava_model=None,
                                                         asr_model=None,
                                                         asr_loader=None,
 
@@ -6003,8 +6143,10 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
     loaders_dict.update(dict(captions_model=captions_model,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
+                             llava_model=llava_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
+                             extract_frames=extract_frames,
                              ))
 
     return update_and_get_source_files_given_langchain_mode(db1s,

@@ -1,5 +1,89 @@
 ## Frequently asked questions
 
+### Video Extraction (experimental)
+
+Install this inside h2oGPT env
+```bash
+pip install fiftyone
+pip install pytube
+```
+
+By default, image frames are extracted as a separate document, so when viewed in document viewer, the images are shown.  If you prefer them under the same document, set env `FRAMES_AS_SAME_DOC=1`.
+
+### Image Generation (experimental)
+
+Install this inside h2oGPT env
+```bash
+pip install diffusers==0.24.0 huggingface-hub==0.19.4
+```
+And if want this with XTT speech, etc. run:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_imagegen=True
+```
+or for high-resolution run use `--enable_imagegen_high=True` (can add both).
+
+### LLaVa Vision Models (experimental)
+
+https://github.com/haotian-liu/LLaVA
+
+Use separate env for workers and server
+```bash
+export CUDA_HOME=/usr/local/cuda-11.8
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+
+conda create -n llava python=3.10 -y
+conda activate llava
+pip install --upgrade pip  # enable PEP 660 support
+
+# git clone https://github.com/haotian-liu/LLaVA.git
+git clone https://github.com/h2oai/LLaVA.git h2oai_llava
+cd h2oai_llava
+
+pip install -e .
+pip install -e ".[train]"
+pip install flash-attn --no-build-isolation
+```
+
+Run controller:
+```bash
+export server_port=10000
+python -m llava.serve.controller --host 0.0.0.0 --port $server_port
+```
+
+Run a worker
+```bash
+worker_port=40000
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path liuhaotian/llava-v1.5-13b
+```
+
+Can run multiple workers if put on different ports, e.g. for  more verbose output (but not necessarily technically better), run:
+```bash
+git clone https://github.com/qnguyen3/hermes-llava.git
+cd hermes-llava
+conda create -n llava_hermes python=3.10 -y
+conda activate llava_hermes
+pip install --upgrade pip  # enable PEP 660 support
+pip install -e .
+pip install -e ".[train]"
+pip install flash-attn --no-build-isolation
+pip install transformers==4.34.1
+
+worker_port=40001
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path NousResearch/Nous-Hermes-2-Vision
+````
+
+Run server:
+```bash
+pip install gradio==3.50.2
+python -m llava.serve.gradio_web_server --controller http://localhost:$server_port --model-list-mode reload
+```
+
+Run h2oGPT with LLaVa and image (normal and high-quality) generation:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --llava_model=<IP:port:model_name> --enable_imagegen=True --enable_imagegen_high=True
+```
+e.g. `--llava_model=http://192.168.1.46:7861:llava-v1.5-13b`.
+
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
 To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
@@ -64,6 +148,12 @@ There is currently no TTS for CLI.
 In the expert panel you can replay any h2oGPT generation or speak instruction generation.
 
 If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
+
+### Automatic Speech Recognition (ASR)
+
+ASR is handled with whisper type models for ingesting YouTube videos or other videos.
+
+For Twitter, one can right-click on Twitter video, copy video address, then paste into [TwitterVideoDownloader.com](https://twitter.com/i/status/1732448989336006826) and download the video, right-click on that video and click save as, then upload to h2oGPT.
 
 ### Faster ASR
 
