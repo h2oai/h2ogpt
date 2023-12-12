@@ -3437,7 +3437,7 @@ def go_gradio(**kwargs):
                          in eval_func_param_names]
             assert len(args_list) == len(eval_func_param_names)
             stream_output1 = args_list[eval_func_param_names.index('stream_output')]
-            if len(model_states) > 1:
+            if len(model_states) >= 1:
                 visible_models1 = args_list[eval_func_param_names.index('visible_models')]
                 model_active_choice1 = visible_models_to_model_choice(visible_models1, api=True)
                 model_state1 = model_states[model_active_choice1 % len(model_states)]
