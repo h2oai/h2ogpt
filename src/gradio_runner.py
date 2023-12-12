@@ -62,7 +62,7 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    get_ngpus_vis, have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone
+    have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -5105,7 +5105,7 @@ def go_gradio(**kwargs):
             elif use_gpu_id and all_kwargs1['gpu_id']:
                 all_kwargs1['n_gpus'] = 1
             else:
-                all_kwargs1['n_gpus'] = get_ngpus_vis()
+                all_kwargs1['n_gpus'] = n_gpus_global
             prompt_type1 = model_name_to_prompt_type(model_name,
                                                      model_name0=model_name0,
                                                      llamacpp_dict=llamacpp_dict,

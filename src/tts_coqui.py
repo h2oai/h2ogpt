@@ -14,6 +14,11 @@ from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_se
 from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change
 from src.utils import cuda_vis_check
 
+import torch
+
+n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
+n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
+
 
 def list_models():
     from TTS.utils.manage import ModelManager
@@ -21,9 +26,6 @@ def list_models():
 
 
 def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspeed=True, use_gpu=True, gpu_id='auto'):
-    import torch
-    n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
     if n_gpus1 == 0:
         use_gpu = False
 

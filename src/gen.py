@@ -94,7 +94,7 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
             lower_model = just_model.lower()
             download_postfix = '?download=true'
             base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (
-            base_model, lower_model, file_postfix, download_postfix)
+                base_model, lower_model, file_postfix, download_postfix)
             if url_alive(base_model0):
                 base_model = base_model0
         model_path_llama = base_model
@@ -143,6 +143,8 @@ def main(
         compile_model: bool = None,
         use_cache: bool = None,
         inference_server: str = "",
+        regenerate_clients: bool = False,
+
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
         system_prompt: str = '',
@@ -514,6 +516,8 @@ def main(
                             Or Address can be for Anthropic Claude.  Ensure key is set in env ANTHROPIC_API_KEY
                               Use: "anthropic:<model name>"
                               E.g. "anthropic:claude-2"
+    :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
+           Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -642,6 +646,7 @@ def main(
                         For windows/MAC 0.0.0.0 or 127.0.0.1 will work, but may need to specify actual LAN IP address for other LAN clients to see.
     :param share: whether to share the gradio app with sharable URL
     :param open_browser: whether to automatically open browser tab with gradio UI
+    :param close_button: Whether to show close button in system tab (if not public)
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
@@ -2207,6 +2212,7 @@ def get_model(
         use_gpu_id: bool = True,
         base_model: str = '',
         inference_server: str = "",
+        regenerate_clients: bool = False,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -2378,6 +2384,29 @@ def get_model(
             inference_server.startswith('anthropic')
     )
 
+    if not regenerate_clients and (inference_server.startswith('vllm') or inference_server.startswith('openai')):
+        t0 = time.time()
+        client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+            set_openai(inference_server, model_name=base_model)
+        model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
+                     base_url=base_url, api_version=api_version, api_key=api_key)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
+    if not regenerate_clients and inference_server.startswith('anthropic'):
+        t0 = time.time()
+        import anthropic
+        base_url = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com")
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        timeout = 600
+        anthropic_kwargs = dict(base_url=base_url, api_key=api_key, timeout=timeout)
+        client = anthropic.Anthropic(**anthropic_kwargs)
+        async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
+        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
+                     timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
             base_model in anthropic_gpts:
@@ -2442,7 +2471,7 @@ def get_model(
             tokenizer.max_output_len = max_output_len
 
         if model is None:
-            # if model None, means native inference server
+            # if model None, means native inference server (and no concern about slowness of regenerating client)
             model = inference_server
 
         return model, tokenizer, inference_server
@@ -2872,6 +2901,7 @@ def get_score_model(score_model: str = None,
         tokenizer_base_model = ''
         lora_weights = ''
         inference_server = ''
+        regenerate_clients = False
         llama_type = False
         max_seq_len = None
         rope_scaling = {}
@@ -2999,6 +3029,7 @@ def evaluate(
         max_max_new_tokens=None,
         is_public=None,
         from_ui=True,
+        regenerate_clients=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
         lora_weights=None,
@@ -3393,6 +3424,7 @@ def evaluate(
         llm_answers = {}
         for r in run_qa_db(
                 inference_server=inference_server,
+                regenerate_clients=regenerate_clients,
                 model_name=base_model, model=model, tokenizer=tokenizer,
                 langchain_only_model=langchain_only_model,
                 async_output=async_output,
@@ -3585,8 +3617,11 @@ def evaluate(
         if inference_server.startswith('vllm') or inference_server.startswith('openai'):
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
-            openai_client, openai_async_client, \
-                inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
+            if isinstance(model, dict):
+                openai_client, openai_async_client, inf_type = model['client'], model['async_client'], model['inf_type']
+            else:
+                openai_client, openai_async_client, \
+                    inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
             where_from = inf_type
 
             terminate_response = prompter.terminate_response or []

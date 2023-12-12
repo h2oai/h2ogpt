@@ -54,7 +54,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, get_ngpus_vis, have_librosa, return_good_url, have_fiftyone
+    get_test_name_core, download_simple, have_librosa, return_good_url, have_fiftyone, n_gpus_global
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1401,6 +1401,7 @@ def get_llm(use_openai_model=False,
             model=None,
             tokenizer=None,
             inference_server=None,
+            regenerate_clients=None,
             langchain_only_model=None,
             stream_output=False,
             async_output=True,
@@ -1464,7 +1465,7 @@ def get_llm(use_openai_model=False,
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
-    n_gpus = get_ngpus_vis()
+    n_gpus = n_gpus_global
     if inference_server is None:
         inference_server = ''
     if inference_server.startswith('replicate'):
@@ -1525,9 +1526,15 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        openai_client, openai_async_client, \
-            inf_type, deployment_type, base_url, api_version, api_key = \
-            set_openai(inference_server, model_name=model_name)
+        if not regenerate_clients and isinstance(model, dict):
+            openai_client, openai_async_client, \
+                inf_type, deployment_type, base_url, api_version, api_key = \
+                model['client'], model['async_client'], model['inf_type'], \
+                    model['deployment_type'], model['base_url'], model['api_version'], model['api_key']
+        else:
+            openai_client, openai_async_client, \
+                inf_type, deployment_type, base_url, api_version, api_key = \
+                set_openai(inference_server, model_name=model_name)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
@@ -1624,6 +1631,9 @@ def get_llm(use_openai_model=False,
         model_kwargs = dict()
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            # FIXME: _AnthropicCommon ignores these and makes no client anyways
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
@@ -4546,6 +4556,7 @@ def _run_qa_db(query=None,
                attention_sinks=False,
                truncation_generation=False,
                early_stopping=False,
+               regenerate_clients=None,
                max_time=180,
                repetition_penalty=1.0,
                num_return_sequences=1,
@@ -4712,6 +4723,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       min_new_tokens=min_new_tokens,
                       early_stopping=early_stopping,
                       max_time=max_time,
+                      regenerate_clients=regenerate_clients,
                       repetition_penalty=repetition_penalty,
                       num_return_sequences=num_return_sequences,
                       prompt_type=prompt_type,

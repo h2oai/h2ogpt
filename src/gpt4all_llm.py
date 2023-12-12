@@ -6,7 +6,7 @@ from langchain.schema.output import GenerationChunk
 from langchain.llms import gpt4all
 from pydantic.v1 import root_validator
 
-from utils import FakeTokenizer, get_ngpus_vis, url_alive, download_simple, clear_torch_cache
+from utils import FakeTokenizer, url_alive, download_simple, clear_torch_cache, n_gpus_global
 
 
 def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=None, max_seq_len=None,
@@ -90,7 +90,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     n_jobs = max(1, min(20, n_jobs))  # hurts beyond some point
-    n_gpus = get_ngpus_vis()
+    n_gpus = n_gpus_global
     max_seq_len_local = max_seq_len if max_seq_len is not None else 2048  # fake for auto mode
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,

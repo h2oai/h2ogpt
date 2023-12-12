@@ -12,7 +12,7 @@ from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
 
 def run_eval(  # for local function:
-        base_model=None, lora_weights=None, inference_server=None,
+        base_model=None, lora_weights=None, inference_server=None, regenerate_clients=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
         debug=None, chat=False,
         stream_output=None, async_output=None, num_async=None,
