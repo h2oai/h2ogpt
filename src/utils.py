@@ -94,6 +94,8 @@ def flatten_list(lis):
 
 
 def clear_torch_cache():
+    if os.getenv('SKIP_CLEAR_TORCH', '0') == '1':
+        return
     try:
         import torch
         if torch.cuda.is_available():

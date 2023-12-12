@@ -54,7 +54,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
-    get_test_name_core, download_simple, have_librosa, return_good_url, have_fiftyone, n_gpus_global
+    get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -6027,9 +6027,11 @@ def get_chain(query=None,
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
     else:
+        # avoid lock if fake embeddings or faiss etc., since no complex db
+        lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
         # have query
         # for db=None too
-        with filelock.FileLock(lock_file):
+        with lock_func(lock_file):
             docs_with_score = get_docs_with_score(query_embedding, k_db,
                                                   filter_kwargs,
                                                   filter_kwargs_backup,
@@ -6932,7 +6934,8 @@ def _update_user_db(file,
     db1 = get_db1(db1s, langchain_mode)
 
     lock_file = get_lock_file(db1s[LangChainMode.MY_DATA.value], langchain_mode)  # user-level lock, not db-level lock
-    with filelock.FileLock(lock_file):
+    lock_func = filelock.FileLock if db1[0] and hasattr(db1[0], '_persist_directory') else NullContext
+    with lock_func(lock_file):
         if langchain_mode in db1s:
             if db1[0] is not None:
                 # then add
