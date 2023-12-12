@@ -1525,9 +1525,15 @@ def get_llm(use_openai_model=False,
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
             inference_server = 'openai_chat'
-        openai_client, openai_async_client, \
-            inf_type, deployment_type, base_url, api_version, api_key = \
-            set_openai(inference_server, model_name=model_name)
+        if isinstance(model, dict):
+            openai_client, openai_async_client, \
+                inf_type, deployment_type, base_url, api_version, api_key = \
+                model['client'], model['async_client'], model['inf_type'], \
+                    model['deployment_type'], model['base_url'], model['api_version'], model['api_key']
+        else:
+            openai_client, openai_async_client, \
+                inf_type, deployment_type, base_url, api_version, api_key = \
+                set_openai(inference_server, model_name=model_name)
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
