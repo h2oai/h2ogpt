@@ -1632,6 +1632,7 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
         if not regenerate_clients and isinstance(model, dict):
+            # FIXME: _AnthropicCommon ignores these and makes no client anyways
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
