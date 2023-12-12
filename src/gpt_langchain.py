@@ -5850,9 +5850,11 @@ def get_chain(query=None,
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
     else:
+        # avoid lock if fake embeddings or faiss etc., since no complex db
+        lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
         # have query
         # for db=None too
-        with filelock.FileLock(lock_file):
+        with lock_func(lock_file):
             docs_with_score = get_docs_with_score(query_embedding, k_db,
                                                   filter_kwargs,
                                                   filter_kwargs_backup,
@@ -6742,7 +6744,8 @@ def _update_user_db(file,
     db1 = get_db1(db1s, langchain_mode)
 
     lock_file = get_lock_file(db1s[LangChainMode.MY_DATA.value], langchain_mode)  # user-level lock, not db-level lock
-    with filelock.FileLock(lock_file):
+    lock_func = filelock.FileLock if db1[0] and hasattr(db1[0], '_persist_directory') else NullContext
+    with lock_func(lock_file):
         if langchain_mode in db1s:
             if db1[0] is not None:
                 # then add
