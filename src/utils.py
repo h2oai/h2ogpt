@@ -809,6 +809,9 @@ def get_mem_gpus(raise_if_exception=True, ngpus=None):
     return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
 
 
+n_gpus_global = get_ngpus_vis()
+
+
 class ForkContext(threading.local):
     """
         Set context for forking

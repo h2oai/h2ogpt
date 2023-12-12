@@ -94,7 +94,7 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
             lower_model = just_model.lower()
             download_postfix = '?download=true'
             base_model0 = 'https://huggingface.co/%s/resolve/main/%s.Q5_K_M%s%s' % (
-            base_model, lower_model, file_postfix, download_postfix)
+                base_model, lower_model, file_postfix, download_postfix)
             if url_alive(base_model0):
                 base_model = base_model0
         model_path_llama = base_model
@@ -2378,6 +2378,12 @@ def get_model(
             inference_server.startswith('anthropic')
     )
 
+    if inference_server.startswith('vllm') or inference_server.startswith('openai'):
+        client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+            set_openai(inference_server, model_name=base_model)
+        model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
+                     base_url=base_url, api_version=api_version, api_key=api_key)
+
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
             base_model in anthropic_gpts:
@@ -2442,7 +2448,7 @@ def get_model(
             tokenizer.max_output_len = max_output_len
 
         if model is None:
-            # if model None, means native inference server
+            # if model None, means native inference server (and no concern about slowness of regenerating client)
             model = inference_server
 
         return model, tokenizer, inference_server
