@@ -229,7 +229,7 @@ def main(
         show_gpt4all: bool = False,
         login_mode_if_model0: bool = False,
         block_gradio_exit: bool = True,
-        concurrency_count: int = 1,
+        concurrency_count: int = None,
         api_open: bool = False,
         allow_api: bool = True,
         input_lines: int = 1,
@@ -682,7 +682,7 @@ def main(
     :param show_gpt4all: whether to show GPT4All models in UI (not often useful, llama.cpp models best)
     :param login_mode_if_model0: set to True to load --base_model after client logs in, to be able to free GPU memory when model is swapped
     :param block_gradio_exit: whether to block gradio exit (used for testing)
-    :param concurrency_count: gradio concurrency count (1 is optimal for LLMs)
+    :param concurrency_count: gradio concurrency count (1 is optimal for local LLMs to avoid sharing cache that messes up models, else 64 is used if hosting remote inference servers only)
     :param api_open: If False, don't let API calls skip gradio queue
     :param allow_api: whether to allow API calls at all to gradio server
     :param input_lines: how many input lines to show for chat box (>1 forces shift-enter for submit, else enter is submit)
@@ -1342,7 +1342,22 @@ def main(
     score_model = os.getenv('SCORE_MODEL', score_model)
     if str(score_model) == 'None':
         score_model = ''
-    concurrency_count = int(os.getenv('CONCURRENCY_COUNT', concurrency_count))
+    all_inference_server = inference_server or model_lock and all(x.get('inference_server') for x in model_lock)
+    if os.getenv('CONCURRENCY_COUNT'):
+        concurrency_count = int(os.getenv('CONCURRENCY_COUNT'))
+    elif concurrency_count:
+        pass
+    else:
+        if all_inference_server:
+            concurrency_count = 64
+        else:
+            # can't share LLM state across user requests due to k-v cache for LLMs
+            # FIXME: In gradio 4 could use 1 for only LLM tasks, higher for rest
+            concurrency_count = 1
+    if concurrency_count > 1 and not all_inference_server:
+        # FIXME: Could use semaphore to manage each LLM concurrency, in case mix of local and remote
+        raise ValueError("Concurrency count > 1 will lead mixup in cache use for local LLMs, disable this raise at own risk.")
+
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
