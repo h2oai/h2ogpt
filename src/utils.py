@@ -94,6 +94,8 @@ def flatten_list(lis):
 
 
 def clear_torch_cache():
+    if os.getenv('SKIP_CLEAR_TORCH', '0') == '1':
+        return
     try:
         import torch
         if torch.cuda.is_available():
@@ -807,6 +809,9 @@ def get_mem_gpus(raise_if_exception=True, ngpus=None):
             raise
 
     return totalmem_gpus1, usedmem_gpus1, freemem_gpus1
+
+
+n_gpus_global = get_ngpus_vis()
 
 
 class ForkContext(threading.local):

@@ -8,7 +8,7 @@ if os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))) not in sys.pat
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
     get_persist_directory, get_existing_db
-from utils import get_ngpus_vis, H2O_Fire, makedirs
+from utils import get_ngpus_vis, H2O_Fire, makedirs, n_gpus_global
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -231,7 +231,7 @@ def make_db_main(use_openai_embedding: bool = False,
         download_dest = makedirs('./', use_base=True)
 
     # match behavior of main() in generate.py for non-HF case
-    n_gpus = get_ngpus_vis()
+    n_gpus = n_gpus_global
     if n_gpus == 0:
         if hf_embedding_model is None:
             # if no GPUs, use simpler embedding model to avoid cost in time
