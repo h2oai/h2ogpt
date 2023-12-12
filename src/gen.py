@@ -1114,15 +1114,20 @@ def main(
     sink_dict = str_to_dict(sink_dict)
     hf_model_dict = str_to_dict(hf_model_dict)
 
-    if os.environ.get('SERPAPI_API_KEY') is None and LangChainAgent.SEARCH.value in visible_langchain_agents:
+    if os.environ.get('SERPAPI_API_KEY') is None and \
+            LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
-    if not have_diffusers or not enable_imagegen:
+    if (not have_diffusers or not enable_imagegen) and \
+            LangChainAction.IMAGE_GENERATE.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
-    if not have_diffusers or not enable_imagegen_high:
+    if (not have_diffusers or not enable_imagegen_high) and \
+            LangChainAction.IMAGE_GENERATE_HIGH.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE_HIGH.value)
-    if not have_diffusers or not enable_imagechange:
+    if (not have_diffusers or not enable_imagechange) and \
+            LangChainAction.IMAGE_CHANGE.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
-    if not llava_model or not enable_llava or not enable_llava_chat:
+    if (not llava_model or not enable_llava or not enable_llava_chat) and \
+            LangChainAction.IMAGE_QUERY.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
