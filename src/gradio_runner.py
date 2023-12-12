@@ -3601,7 +3601,7 @@ def go_gradio(**kwargs):
                 yield ret
 
             finally:
-                clear_torch_cache()
+                clear_torch_cache(allow_skip=True)
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
             save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
@@ -3701,7 +3701,7 @@ def go_gradio(**kwargs):
                 else:
                     return _score_last_response(*args, nochat=nochat, num_model_lock=num_model_lock)
             finally:
-                clear_torch_cache()
+                clear_torch_cache(allow_skip=True)
 
         def _score_last_response(*args, nochat=False, num_model_lock=0, prefix='Response Score: '):
             """ Similar to user() """
@@ -3748,7 +3748,7 @@ def go_gradio(**kwargs):
             try:
                 score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
             finally:
-                clear_torch_cache()
+                clear_torch_cache(allow_skip=True)
             if isinstance(score, str):
                 return '%sNA' % prefix
             return '{}{:.1%}'.format(prefix, score)
@@ -4214,7 +4214,7 @@ def go_gradio(**kwargs):
                                              expect_bytes=kwargs['return_as_byte'])
                 yield history, error, final_audio
             finally:
-                clear_torch_cache()
+                clear_torch_cache(allow_skip=True)
                 clear_embeddings(langchain_mode1, db1)
 
             # save
@@ -4435,7 +4435,7 @@ def go_gradio(**kwargs):
                 else:
                     yield bots[0], exceptions_str, final_audio
             finally:
-                clear_torch_cache()
+                clear_torch_cache(allow_skip=True)
                 clear_embeddings(langchain_mode1, db1s)
 
             # save
@@ -4948,18 +4948,14 @@ def go_gradio(**kwargs):
                             queue=queue,
                             )
         submit_event_nochat = submit_nochat.click(**no_chat_args, api_name='submit_nochat' if allow_api else None) \
-            .then(clear_torch_cache) \
             .then(**score_args_nochat, api_name='instruction_bot_score_nochat' if allow_api else None, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
-            .then(clear_instruct, None, iinput_nochat) \
-            .then(clear_torch_cache)
+            .then(clear_instruct, None, iinput_nochat)
         # copy of above with text box submission
         submit_event_nochat2 = instruction_nochat.submit(**no_chat_args) \
-            .then(clear_torch_cache) \
             .then(**score_args_nochat, queue=queue) \
             .then(clear_instruct, None, instruction_nochat) \
-            .then(clear_instruct, None, iinput_nochat) \
-            .then(clear_torch_cache)
+            .then(clear_instruct, None, iinput_nochat)
 
         submit_event_nochat_api = submit_nochat_api.click(fun_with_dict_str,
                                                           inputs=[model_state, my_db_state, selection_docs_state,
@@ -5048,7 +5044,7 @@ def go_gradio(**kwargs):
                 del model_state_old['tokenizer']
                 model_state_old['tokenizer'] = None
 
-            clear_torch_cache()
+            clear_torch_cache(allow_skip=True)
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % get_torch_allocated(), flush=True)
             if not model_name:
@@ -5550,6 +5546,7 @@ def go_gradio(**kwargs):
 
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
+        clear_torch_cache_func_soft = functools.partial(clear_torch_cache, allow_skip=True)
         stop_event = stop_btn.click(lambda: None, None, None,
                                     cancels=submits1 + submits2 + submits3 + submits4 +
                                             [submit_event_nochat, submit_event_nochat2] +
@@ -5565,7 +5562,7 @@ def go_gradio(**kwargs):
                                             speak_events
                                     ,
                                     **noqueue_kwargs, api_name='stop' if allow_api else None) \
-            .then(clear_torch_cache, **noqueue_kwargs) \
+            .then(clear_torch_cache_func_soft, **noqueue_kwargs) \
             .then(stop_audio_func, outputs=[speech_human, speech_bot])
 
         if kwargs['auth'] is not None:
@@ -5617,7 +5614,11 @@ def go_gradio(**kwargs):
         return
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=20)
+    if kwargs['clear_torch_cache_level'] in [0, 1]:
+        interval_time = 120
+    else:
+        interval_time = 20
+    scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=interval_time)
     if is_public and \
             kwargs['base_model'] not in non_hf_types:
         # FIXME: disable for gptj, langchain or gpt4all modify print itself

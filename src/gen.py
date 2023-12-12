@@ -374,6 +374,7 @@ def main(
         headsize: int = 50,
         n_jobs: int = -1,
         n_gpus: int = None,
+        clear_torch_cache_level: int = 1,
 
         # urls
         use_unstructured: bool = True,
@@ -924,6 +925,9 @@ def main(
     :param headsize: Maximum number of characters for head of document document for UI to show
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param n_gpus: Number of GPUs (None = autodetect)
+    :param clear_torch_cache_level: 0: never clear except where critically required
+                                    1: clear critical + periodically every 120s
+                                    2: clear aggressively and clear periodically every 20s to free-up GPU memory (may lead to lag in response)
 
     :param use_unstructured: Enable unstructured URL loader
     :param use_playwright: Enable PlayWright URL loader
@@ -1337,6 +1341,12 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
+    if not os.getenv('CLEAR_CLEAR_TORCH'):
+        if clear_torch_cache_level == 0:
+            os.environ['CLEAR_CLEAR_TORCH'] = '0'
+        elif clear_torch_cache_level == 1:
+            os.environ['CLEAR_CLEAR_TORCH'] = '1'
+
     n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
     n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
     if n_gpus is None:
@@ -1690,7 +1700,7 @@ def main(
                                     verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
-                clear_torch_cache()
+                clear_torch_cache(allow_skip=True)
             dbs[langchain_mode1] = db
         # remove None db's so can just rely upon k in dbs for if hav db
         dbs = {k: v for k, v in dbs.items() if v is not None}

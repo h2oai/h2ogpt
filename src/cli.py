@@ -155,7 +155,7 @@ def run_cli(  # for local function:
         if not context:
             context = ''
         while True:
-            clear_torch_cache()
+            clear_torch_cache(allow_skip=True)
             instruction = input("\nEnter an instruction: ")
             if instruction == "exit":
                 break

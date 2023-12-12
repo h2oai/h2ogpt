@@ -93,8 +93,8 @@ def flatten_list(lis):
     return new_lis
 
 
-def clear_torch_cache():
-    if os.getenv('SKIP_CLEAR_TORCH', '0') == '1':
+def clear_torch_cache(allow_skip=False):
+    if allow_skip and os.getenv('CLEAR_CLEAR_TORCH', '2') == '1' or os.getenv('CLEAR_CLEAR_TORCH', '2') == '0':
         return
     try:
         import torch

@@ -4469,7 +4469,8 @@ def run_qa_db(**kwargs):
     try:
         return _run_qa_db(**kwargs)
     finally:
-        clear_torch_cache()
+        if kwargs.get('cli', False):
+            clear_torch_cache(allow_skip=True)
 
 
 def _run_qa_db(query=None,
@@ -6713,7 +6714,7 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
         doc_exception_text = str(e)
         return None, langchain_mode, source_files_added, doc_exception_text, None, None
     finally:
-        clear_torch_cache()
+        clear_torch_cache(allow_skip=True)
 
 
 def get_lock_file(db1, langchain_mode):
