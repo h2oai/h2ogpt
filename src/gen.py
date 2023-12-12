@@ -240,7 +240,7 @@ def main(
         gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
         gradio_api_use_same_stream_limits: bool = True,
-        gradio_upload_to_chatbot: bool = True,
+        gradio_upload_to_chatbot: bool = False,
         gradio_upload_to_chatbot_num_max: bool = 2,
 
         pre_load_embedding_model: bool = True,
