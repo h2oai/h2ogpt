@@ -163,9 +163,10 @@ docker run \
           --use_gpu_id=False \
           --score_model=None \
           --max_max_new_tokens=2048 \
-          --max_new_tokens=1024
+          --max_new_tokens=1024 \
+          --use_auth_token="${HUGGING_FACE_HUB_TOKEN}"
 ```
-Use `docker run -d` to run in detached background.
+Use `docker run -d` to run in detached background.  You could also set the environment variable `HUGGING_FACE_HUB_TOKEN` that has read access to the model on HF, and pass that as env through docker.  Inside h2oGPT, `use_auth_token` takes precedence over the environment varible.
 
 For [GGUF/GGML/GPT4All models](FAQ.md#adding-models), one should either download the file and map that path outsider docker to a pain told to h2oGPT for inside docker, or pass a URL that would download the model internally to docker.
 
