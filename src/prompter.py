@@ -617,7 +617,6 @@ ASSISTANT:
             system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
         if not can_handle_system_prompt:
             # totally remove system prompt stuff, maybe not always done for every model like this
-            system_prompt = ""
             preprompt = ""
         else:
             preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
