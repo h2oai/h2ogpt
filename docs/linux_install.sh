@@ -56,6 +56,9 @@ fi
     # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
       sudo apt-get install -y rubberband-cli
       pip install pyrubberband==0.3.0
+      # https://stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
+      pip uninstall -y pysoundfile
+      pip install soundfile==0.12.1
     # Optional: Only for testing for now
     pip install playsound==1.3.0
     # STT from microphone (may not be required if ffmpeg installed above)
