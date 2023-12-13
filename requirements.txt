@@ -54,6 +54,7 @@ python-magic-bin==0.4.14; sys_platform == "win32"
 openpyxl==3.1.2
 lm_dataformat==0.0.20
 bioc==2.0
+python-doctr==0.7.0
 
 # falcon
 einops==0.6.1
