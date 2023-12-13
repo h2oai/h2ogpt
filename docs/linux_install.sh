@@ -80,6 +80,12 @@ fi
 #* STT and TTS Notes:
 #  * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
 #  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
+
+    # Vision/Image packages
+    pip install fiftyone
+    pip install pytube
+    pip install diffusers==0.24.0
+
 #* HNSW issue:
 #    In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
 #   ```bash

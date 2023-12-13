@@ -2,20 +2,16 @@
 
 ### Video Extraction (experimental)
 
-Install this inside h2oGPT env
-```bash
-pip install fiftyone
-pip install pytube
-```
+Ways to get Audio (ASR) and Video extraction:
+* Add Youtube link to Ask Anything and click Ingest
+* Upload video file clicking Upload and selecting your video
 
 By default, image frames are extracted as a separate document, so when viewed in document viewer, the images are shown.  If you prefer them under the same document, set env `FRAMES_AS_SAME_DOC=1`.
 
+If you prefer to disable video extraction, choose `--extract_frames=0` with CLI or pick 0 in Document Control in expert settings in UI.
+
 ### Image Generation (experimental)
 
-Install this inside h2oGPT env
-```bash
-pip install diffusers==0.24.0
-```
 For image generation, then run:
 ```bash
 python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_imagegen=True
