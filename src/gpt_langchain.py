@@ -559,6 +559,8 @@ class GradioInference(H2Oagenerate, LLM):
     client: Any = None
     tokenizer: Any = None
 
+    chat_conversation: Any = []
+
     system_prompt: Any = None
     visible_models: Any = None
     h2ogpt_key: Any = None
@@ -603,7 +605,7 @@ class GradioInference(H2Oagenerate, LLM):
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = True
         client_add_search_to_context = False
-        client_chat_conversation = []
+        client_chat_conversation = self.chat_conversation
         client_langchain_action = LangChainAction.QUERY.value
         client_langchain_agents = []
         top_k_docs = 1
@@ -611,6 +613,7 @@ class GradioInference(H2Oagenerate, LLM):
         chunk_size = 512
         client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
                              iinput=self.iinput if self.chat_client else '',  # only for chat=True
+                             # context shouldn't include conversation!
                              context=self.context,
                              # streaming output is supported, loops over and outputs each generation in streaming mode
                              # but leave stream_output=False for simple input/output mode
@@ -1718,6 +1721,7 @@ def get_llm(use_openai_model=False,
 
                 callbacks=callbacks if stream_output else None,
                 stream_output=stream_output,
+
                 prompter=prompter,
                 context=context,
                 iinput=iinput,
@@ -1725,6 +1729,7 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
+                chat_conversation=chat_conversation,
                 visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
@@ -6428,8 +6433,9 @@ def get_template(query, iinput,
         if not got_any_docs:
             template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
-            template = """%s%s{context}%s%s%s""" % (
-                triple_quotes, pre_prompt_query, triple_quotes, prompt_query, question_fstring)
+            fstring = "{context}"
+            template = """%s%s%s%s%s%s""" % (
+                pre_prompt_query, triple_quotes, fstring, triple_quotes, prompt_query, question_fstring)
             if doc_json_mode:
                 template_if_no_docs = """{context}{{"question": {question}}}"""
             else:
