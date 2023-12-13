@@ -14,9 +14,9 @@ By default, image frames are extracted as a separate document, so when viewed in
 
 Install this inside h2oGPT env
 ```bash
-pip install diffusers==0.24.0 huggingface-hub==0.19.4
+pip install diffusers==0.24.0
 ```
-And if want this with XTT speech, etc. run:
+For image generation, then run:
 ```bash
 python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_imagegen=True
 ```
