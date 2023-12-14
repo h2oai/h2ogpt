@@ -57,7 +57,7 @@ fi
       sudo apt-get install -y rubberband-cli
       pip install pyrubberband==0.3.0
       # https://stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
-      pip uninstall -y pysoundfile
+      pip uninstall -y pysoundfile soundfile
       pip install soundfile==0.12.1
     # Optional: Only for testing for now
     pip install playsound==1.3.0
