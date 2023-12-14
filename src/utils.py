@@ -505,6 +505,7 @@ def sanitize_filename(name, file_length_limit=250):
     length = len(name)
     sha_length = 32
     real_length_limit = file_length_limit - (sha_length + 2)
+    assert real_length_limit > 0, "Bad file limit length: %s %s" % (file_length_limit, real_length_limit)
     if length > file_length_limit:
         sha = get_sha(name)
         half_real_length_limit = max(1, int(real_length_limit / 2))

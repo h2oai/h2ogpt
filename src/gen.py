@@ -3179,7 +3179,7 @@ def evaluate(
         else:
             raise ValueError("No such langchain_action=%s" % langchain_action)
         filename_image = sanitize_filename("image_%s_%s.png" % (instruction, str(uuid.uuid4())),
-                                           file_length_limit=230)
+                                           file_length_limit=50)
         image_file = make_image(instruction,
                                 filename=os.path.join('/tmp/gradio/', filename_image),
                                 pipe=pipe,
