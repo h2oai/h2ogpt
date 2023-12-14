@@ -491,10 +491,11 @@ def get_sha(value):
     return hashlib.md5(str(value).encode('utf-8')).hexdigest()
 
 
-def sanitize_filename(name):
+def sanitize_filename(name, file_length_limit=250):
     """
     Sanitize file *base* names.
     :param name: name to sanitize
+    :param file_length_limit: bit smaller than 256 for safety
     :return:
     """
     bad_chars = ['[', ']', ',', '/', '\\', '\\w', '\\s', '-', '+', '\"', '\'', '>', '<', ' ', '=', ')', '(', ':', '^']
@@ -502,7 +503,6 @@ def sanitize_filename(name):
         name = name.replace(char, "_")
 
     length = len(name)
-    file_length_limit = 250  # bit smaller than 256 for safety
     sha_length = 32
     real_length_limit = file_length_limit - (sha_length + 2)
     if length > file_length_limit:
