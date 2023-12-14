@@ -3178,9 +3178,9 @@ def evaluate(
             pipe = image_gen_loader_high
         else:
             raise ValueError("No such langchain_action=%s" % langchain_action)
-        san_inst = sanitize_filename(instruction)
+        filename_image = sanitize_filename("/tmp/gradio/image_%s_%s.png" % (instruction, str(uuid.uuid4())))
         image_file = make_image(instruction,
-                                filename="/tmp/gradio/image_%s_%s.png" % (san_inst, str(uuid.uuid4())),
+                                filename=filename_image,
                                 pipe=pipe,
                                 )
         response = (image_file,)
