@@ -4832,7 +4832,7 @@ def gradio_to_llm(x, bot=False):
     if isinstance(x, (tuple, list)) and len(x) > 0:
         x = list(x)
         for insti, inst in enumerate(x):
-            if isinstance(inst, str) and inst.startswith('/tmp/gradio'):
+            if isinstance(inst, str) and inst.startswith('/tmp/gradio') and os.path.isfile(inst):
                 # below so if put into context gets rendered not as broken file
                 if bot:
                     x[
