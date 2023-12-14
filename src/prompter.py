@@ -133,7 +133,8 @@ prompt_type_to_model_name = {
         'Yukang/LongAlpaca-70B',  # or can be instruct
         'TheBloke/Llama-2-7B-Chat-GGUF',
     ],
-    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF', 'mistralai/Mixtral-8x7B-Instruct-v0.1'],
+    "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
+                'mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF'],
     "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
                'TheBloke/zephyr-7B-beta-AWQ', 'zephyr-7b-beta.Q5_K_M.gguf'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
@@ -1154,7 +1155,8 @@ Remember to tailor the activities to the birthday child's interests and preferen
         # https://huggingface.co/core42/jais-30b-chat-v1
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = """Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between."""
-        promptA = promptB = "### Instruction: %s [|Human|] and [|AI|]:" % system_prompt if not (chat and reduced) else "### Instruction: %s [|Human|] and [|AI|]:"
+        promptA = promptB = "### Instruction: %s [|Human|] and [|AI|]:" % system_prompt if not (
+                    chat and reduced) else "### Instruction: %s [|Human|] and [|AI|]:"
         PreInstruct = """\n### Input: [|Human|] """
 
         PreInput = None
@@ -1341,7 +1343,8 @@ class Prompter(object):
         self.prompt = prompt
         return prompt
 
-    def get_response(self, outputs, prompt=None, sanitize_bot_response=False, only_new_text=False, plain_prompt_special=False):
+    def get_response(self, outputs, prompt=None, sanitize_bot_response=False, only_new_text=False,
+                     plain_prompt_special=False):
         if isinstance(outputs, str):
             outputs = [outputs]
         if self.debug:

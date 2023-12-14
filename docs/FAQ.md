@@ -15,7 +15,7 @@ git submodule update --remote
 git submodule update
 CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install -e .
 cd ~/h2ogpt/
-python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=zephyr
+python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral
 ```
 
 Takes a while to download the large 31GB GGUF file.  Also, h2oGPT says auto-context set at 4096, maybe try increasing manually using up to `--max_seq_len=32768`.
