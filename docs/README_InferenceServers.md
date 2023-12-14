@@ -232,13 +232,15 @@ python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model 
 
 For Mixtral 8*7B run:
 ```bash
+export CUDA_HOME=/usr/local/cuda-12.3
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
 pip install git+https://github.com/vllm-project/vllm.git
 pip install mosaicml-turbo
 pip install git+https://github.com/stanford-futuredata/megablocks.git
 export CUDA_VISIBLE_DEVICES=0,1
-python -m vllm.entrypoints.openai.api_server --port=5002 --host=0.0.0.0 --model mistralai/Mixtral-8x7B-Instruct-v0.1 --tensor-parallel-size=2 --seed 1234
+python -m vllm.entrypoints.openai.api_server --port=5002 --host=0.0.0.0 --model mistralai/Mixtral-8x7B-Instruct-v0.1 --seed 1234 --max-num-batched-tokens=65536 --tensor-parallel-size=2
 ```
-Once vLLM etc. have Mixtral support built-in, these special package installs may not be required.
+Once vLLM etc. have Mixtral support built-in, these special package installs may not be required.  It appears Mixtral does not run on single 80GB board in FP16 with default max sequence length.  CUDA 11.8 is also allowed, 12.x just has minor improvements.
 
 The startup may take few minutes until Uvicorn starts entirely so endpoint is fully ready, when one sees:
 ```text
