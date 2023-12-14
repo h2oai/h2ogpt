@@ -21,6 +21,10 @@ Downloads 31GB GGUF file.  Good to pass `--max_seq_len` to avoid relaunch of mod
 
 Use appropriate `CMAKE_ARGS` [instructions](https://github.com/abetlen/llama-cpp-python#installation) for building on MAC/CPU/etc.
 
+Set `CUDA_VISIBLE_DEVICES=0` to run on single 48GB GPU for maximum speed, or set to more GPUs if required. Model without usage consumes about 36GB, but uses 40GB after simple usage.
+
+NOTE: For long-context input or large max_seq_len, Mixtral GGUF seems unstable at moment.  Even just starting model with 32k context using 2*48 GPUs.  So expect llama.cpp to have more bug fixes.  We have not seen Mixtral work on llama.cpp for more than `--max_seq_len=4096`.
+
 ### Video Extraction (experimental)
 
 Ways to get Audio (ASR) and Video extraction:
