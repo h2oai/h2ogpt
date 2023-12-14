@@ -1,5 +1,27 @@
 ## Frequently asked questions
 
+### Mixtral GGUF
+
+Here is how to get Mixtral GGUF going with h2oGPT with no update to llama cpp python package except in a PR.
+
+```bash
+pip uninstall llama_cpp_python
+pip uninstall llama_cpp_python_cuda
+git clone --recurse-submodules https://github.com/abetlen/llama-cpp-python.git
+cd llama-cpp-python/
+git fetch origin pull/1007/head:1007
+git switch 1007
+git submodule update --remote
+git submodule update
+CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install -e .
+cd ~/h2ogpt/
+python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=zephyr
+```
+
+Takes a while to download the large 31GB GGUF file.  Also, h2oGPT says auto-context set at 4096, maybe try increasing manually using up to `--max_seq_len=32768`.
+
+Use appropriate `CMAKE_ARGS` [instructions](https://github.com/abetlen/llama-cpp-python#installation) for building on MAC/CPU/etc.
+
 ### Video Extraction (experimental)
 
 Ways to get Audio (ASR) and Video extraction:
