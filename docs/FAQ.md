@@ -334,7 +334,22 @@ As listed in the `src/gen.py` file, there are many ways to control authorization
 *  :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
     * e.g. --auth=[('jon','password')] with no spaces
     * e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
-    * e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required)
+    * e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required),
+      the file format for `auth.json` is expected to be as follows:
+      
+      ```json
+        {
+          "user1": {
+            "userid": "any_unique_value",
+            "password": "login_password",
+          },
+          "user2": {
+            "userid": "any_unique_value",
+            "password": "login_password",
+          },
+        }
+
+      ```
     * e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename then not required)
     * e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
 *    :param auth_filename:
