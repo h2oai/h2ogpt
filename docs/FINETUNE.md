@@ -6,7 +6,7 @@ Make sure you have followed the [native installation instructions](INSTALL.md).
 ### Fine-tuning vs Pre-training
 
 - Pre-training (typically on TBs of data) gives the LLM the ability to master one or many languages. Pre-training usually takes weeks or months on dozens or hundreds of GPUs. The most common concern is underfitting and cost.
-- Fine-tuning (typically on MBs or GBs of data) makes a model more familiar with a specific style of prompting, which generally leads to improved outcomes for this one specific case. The most common concern is overfitting. Fine-tuning usually takes hours or days on a few GPUs.
+- Fine-tuning (typically on MBs or GBs of data) makes a model more familiar with a specific style of prompting, which generally leads to improved outcomes for that one specific case. The most common concern is overfitting. Fine-tuning usually takes hours or days on a few GPUs.
 
 
 ### Dataset format
@@ -52,7 +52,7 @@ More details about the exact dataset specs can be found in our [FAQ](FAQ.md).
 
 ### Create instruct dataset
 
-Below are some of our scripts to help with assembling and cleaning instruct-type datasets that are
+The following are some of our scripts to help with assembling and cleaning instruct-type datasets that are
 [publicly available with permissive licenses](https://huggingface.co/datasets/laion/OIG).
 
 #### High-quality OIG based instruct data
@@ -67,7 +67,7 @@ pytest -s create_data.py::test_finalize_to_json
 ```
 This will take several hours and produce a file called [h2ogpt-oig-oasst1-instruct-cleaned-v2.json](https://huggingface.co/datasets/h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v2) (575 MB) with 350k human <-> bot interactions.
 
-Note: This dataset is cleaned up, but might still contain undesired words and concepts.
+**Note:** This dataset is cleaned up, but might still contain undesired words and concepts.
 
 ### Install training specific dependencies
 
@@ -77,8 +77,8 @@ pip install -r reqs_optional/requirements_optional_training.txt
 
 ### Perform fine-tuning on high-quality instruct data
 
-Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100, needs 48GB of GPU memory per GPU for default settings (fast 16-bit training).
-For larger models or GPUs with less memory, need to set a combination of `--train_4bit=True` (or `--train_8bit=True`) and `--micro_batch_size=1`, `--batch_size=$NGPUS` and `--cutoff_len=256` below, or use smaller models like `h2oai/h2ogpt-oasst1-512-12b`.
+Fine-tune on a single node with NVIDIA GPUs A6000/A6000Ada/A100/H100. This requires 48GB of GPU memory per GPU for default settings (fast 16-bit training).
+For larger models or GPUs with less memory, you need to set a combination of `--train_4bit=True` (or `--train_8bit=True`) and `--micro_batch_size=1`, `--batch_size=$NGPUS` and `--cutoff_len=256` below, or use smaller models like `h2oai/h2ogpt-oasst1-512-12b`.
 ```
 export NGPUS=`nvidia-smi -L | wc -l`
 torchrun --nproc_per_node=$NGPUS finetune.py --base_model=h2oai/h2ogpt-oasst1-512-20b --data_path=h2oai/h2ogpt-oig-oasst1-instruct-cleaned-v2 --output_dir=h2ogpt_lora_weights
@@ -88,8 +88,8 @@ This will download the model, load the data, and generate an output directory `h
 
 ### Start your own fine-tuned chatbot
 
-Start a chatbot, also requires 48GB GPU. Use `--load_4bit=True` instead for 24GB GPUs.
+Start a chatbot. This also requires 48GB GPU. For 24GB GPUs, use `--load_4bit=True` instead of `--load_8bit=True`.
 ```
 torchrun generate.py --load_8bit=True --base_model=h2oai/h2ogpt-oasst1-512-20b --lora_weights=h2ogpt_lora_weights --prompt_type=human_bot
 ```
-This will download the foundation model, our fine-tuned lora_weights, and open up a GUI with text generation input/output.
+This downloads the foundation model and our fine-tuned lora_weights, and opens up a GUI with text generation input/output.
