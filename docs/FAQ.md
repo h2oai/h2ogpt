@@ -15,10 +15,9 @@ git submodule update --remote
 git submodule update
 CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install -e .
 cd ~/h2ogpt/
-python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral
+python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096
 ```
-
-Takes a while to download the large 31GB GGUF file.  Also, h2oGPT says auto-context set at 4096, maybe try increasing manually using up to `--max_seq_len=32768`.
+Downloads 31GB GGUF file.  Good to pass `--max_seq_len` to avoid relaunch of model to find automatically the size, since uses more memory.  Also, if use automatic setting, h2oGPT says auto-context set at 4096 instead of up to `--max_seq_len=32768`.
 
 Use appropriate `CMAKE_ARGS` [instructions](https://github.com/abetlen/llama-cpp-python#installation) for building on MAC/CPU/etc.
 
