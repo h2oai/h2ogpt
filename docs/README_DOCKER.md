@@ -89,7 +89,7 @@ docker run \
           --h2ogpt_api_keys='/workspace/h2ogpt_auth/h2ogpt_api_keys.json'
           --use_gpu_id=False \
           --user_path=/workspace/user_path \
-          --langchain_mode="UserData" \
+          --langchain_mode="LLM" \
           --langchain_modes="['UserData', 'LLM']" \
           --score_model=None \
           --max_max_new_tokens=2048 \
@@ -339,7 +339,7 @@ docker run \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024 \
-          --langchain_mode=UserData
+          --langchain_mode=LLM
 ```
 
 For a more detailed description of other parameters of the make_db script, checkout the definition in this file: https://github.com/h2oai/h2ogpt/blob/main/src/make_db.py
