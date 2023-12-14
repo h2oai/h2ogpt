@@ -1,6 +1,6 @@
 # optional for chat with PDF
-langchain==0.0.342
-langchain_experimental==0.0.42
+langchain==0.0.350
+langchain_experimental==0.0.47
 pypdf==3.17.1
 # avoid textract, requires old six
 #textract==1.6.5
@@ -13,6 +13,9 @@ sentence_transformers==2.2.2
 openai==1.3.7
 replicate==0.20.0
 anthropic==0.7.4
+
+langchain-google-genai==0.0.3
+google-generativeai==0.3.1
 
 # local vector db
 chromadb==0.4.18
