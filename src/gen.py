@@ -439,6 +439,7 @@ def main(
 
         enable_imagegen: bool = False,  # experimental
         enable_imagegen_high: bool = False,  # experimental
+        enable_imagegen_high_sd: bool = False,  # experimental
         enable_imagechange: bool = False,  # experimental
         imagegen_gpu_id: Union[str, int] = 'auto',
         imagechange_gpu_id: Union[str, int] = 'auto',
@@ -1037,6 +1038,7 @@ def main(
 
     :param enable_imagegen: Whether to enable image generation model
     :param enable_imagegen_high: Whether to enable image generation model with high resolution
+    :param enable_imagegen_high_sd: Whether to use Stable Diffusion for high res model
     :param enable_imagechange: Whether to enable image change model
     :param imagegen_gpu_id: GPU id to use for imagegen model
     :param imagechange_gpu_id: GPU id to use for imagechange model
@@ -1679,7 +1681,10 @@ def main(
         image_gen_loader = None
     if enable_imagegen_high:
         # always preloaded
-        from src.vision.playv2 import get_pipe_make_image
+        if enable_imagegen_high_sd:
+            from src.vision.stable_diffusion_xl import get_pipe_make_image
+        else:
+            from src.vision.playv2 import get_pipe_make_image
         image_gen_loader_high = get_pipe_make_image(gpu_id=imagegen_gpu_id)
     else:
         image_gen_loader_high = None
@@ -3042,6 +3047,7 @@ def evaluate(
         image_gen_loader=None,
         image_gen_loader_high=None,
         image_change_loader=None,
+        enable_imagegen_high_sd=None,
 
         asr_model=None,
         asr_loader=None,
@@ -3174,7 +3180,10 @@ def evaluate(
             pipe = image_gen_loader
         elif langchain_action in [LangChainAction.IMAGE_GENERATE_HIGH.value]:
             assert image_gen_loader_high, "Generating image, but image_gen_loader_high is None"
-            from src.vision.playv2 import make_image
+            if enable_imagegen_high_sd:
+                from src.vision.stable_diffusion_xl import make_image
+            else:
+                from src.vision.playv2 import make_image
             pipe = image_gen_loader_high
         else:
             raise ValueError("No such langchain_action=%s" % langchain_action)
