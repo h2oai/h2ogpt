@@ -234,6 +234,7 @@ For Mixtral 8*7B run:
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.3
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
+# so builds on cuda 12.3 given 12.1 is default build
 pip install git+https://github.com/vllm-project/vllm.git
 pip install mosaicml-turbo
 pip install git+https://github.com/stanford-futuredata/megablocks.git
