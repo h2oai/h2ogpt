@@ -1055,7 +1055,8 @@ def go_gradio(**kwargs):
                                                 return '🔴', instruction1, audio_state1
 
                                         # while audio state used, entries are pre_text, instruction source, and audio chunks, condition
-                                        audio_state = gr.State(value=[None, None, None, 'off'])
+                                        audio_state0 = [None, None, None, 'off']
+                                        audio_state = gr.State(value=audio_state0)
                                         audio_output = gr.HTML(visible=False)
                                         audio = gr.Audio(**mic_sources_kwargs, streaming=True, visible=False,
                                                          # max_length=30 if is_public else None,
@@ -1131,7 +1132,7 @@ def go_gradio(**kwargs):
                                                            outputs=[action_text, stop_text, instruction])
 
                                         def clear_audio_state():
-                                            return None
+                                            return audio_state0
 
                                         action_text.change(fn=clear_audio_state, outputs=audio_state) \
                                             .then(fn=lambda: None, **submit_kwargs)

@@ -22,9 +22,9 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
         audio_state1[0] = ''
     if audio_state1[2] is None:
         audio_state1[2] = []
-    if max_chunks is not None and len(audio_state1[2]) > max_chunks:
+    if max_chunks is not None and audio_state1[2] is not None and len(audio_state1[2]) > max_chunks:
         # refuse to update
-        return audio_state1[2], audio_state1[0]
+        return audio_state1, audio_state1[0]
     if audio_state1[3] == 'off':
         if debug:
             print("Already ended", flush=True)
