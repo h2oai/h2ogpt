@@ -49,7 +49,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
-    user_prompt_for_fake_system_prompt, base_langchain_actions
+    user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -69,7 +69,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_stop_token_ids, anthropic_gpts
+    openai_gpts, get_stop_token_ids, anthropic_gpts, google_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -515,9 +515,14 @@ def main(
                               Use: "sagemaker_chat:<endpoint name>" for chat models that AWS sets up as dialog
                               Use: "sagemaker:<endpoint name>" for foundation models that AWS only text as inputs
 
-                            Or Address can be for Anthropic Claude.  Ensure key is set in env ANTHROPIC_API_KEY
-                              Use: "anthropic:<model name>"
-                              E.g. "anthropic:claude-2"
+                             Or Address can be for Anthropic Claude.  Ensure key is set in env ANTHROPIC_API_KEY
+                              Use: "anthropic
+                              E.g. --base_model=claude-2.1 --inference_server=anthropic
+
+                             Or Address can be for Google Gemini.  Ensure key is set in env GOOGLE_API_KEY
+                              Use: "google"
+                              E.g. --base_model=gemini-pro --inference_server=google
+
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
 
@@ -2409,6 +2414,8 @@ def get_model(
         raise ValueError("Must select inference server when choosing OpenAI models")
     if base_model in anthropic_gpts and not inference_server:
         raise ValueError("Must select inference server when choosing Anthropic models")
+    if base_model in google_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing Google models")
 
     # see if we can set max_seq_len and tokenizer for non-HF models or check at least if set when required
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
@@ -2442,9 +2449,40 @@ def get_model(
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
+    if not regenerate_clients and inference_server.startswith('google'):
+        t0 = time.time()
+        import google.generativeai as genai
+        #model_split = inference_server.split(':')
+        #if len(model_split) == 2:
+        #    model = model_split[1]
+        #else:
+        #    model = 'gemini-pro'
+        see_model = False
+        models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                name_split = m.name.split('models/')
+                if len(name_split) >= 2:
+                    name = name_split[1]
+                    models.append(name)
+                    see_model |= base_model == name
+        assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+
+        api_key = os.getenv('GOOGLE_API_KEY')
+        assert api_key, "Missing Google Gemini API key"
+        genai.configure(api_key=api_key)
+        client = genai.GenerativeModel(base_model)
+        async_client = genai.GenerativeModel(base_model)
+        timeout = 600
+        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=None, api_key=api_key,
+                     timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
-            base_model in anthropic_gpts:
+            base_model in anthropic_gpts or \
+            base_model in google_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
             if inference_server.startswith('openai'):
@@ -2471,6 +2509,19 @@ def get_model(
                 max_output_len = anthropic_mapping_outputs[base_model]
             else:
                 max_output_len = None
+        if inference_server.startswith('google') or base_model in google_gpts:
+            if inference_server.startswith('google'):
+                assert os.getenv('GOOGLE_API_KEY'), "Set environment for GOOGLE_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in google_mapping:
+                max_seq_len = google_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in google_mapping_outputs:
+                max_output_len = google_mapping_outputs[base_model]
+            else:
+                max_output_len = None
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2494,12 +2545,15 @@ def get_model(
         if inference_server.startswith('openai') or \
                 base_model in openai_gpts or \
                 inference_server.startswith('anthropic') or \
-                base_model in anthropic_gpts:
+                base_model in anthropic_gpts or \
+                inference_server.startswith('google') or \
+                base_model in google_gpts:
             # must be set by now
-            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic models by now."
+            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google models by now."
 
         if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
+            # NOTE: Google reaches here because they only provide API to count tokens, no local code.
             assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
         if max_output_len is not None:
@@ -3400,7 +3454,8 @@ def evaluate(
                            inference_server.startswith('sagemaker') or \
                            inference_server.startswith('openai_azure_chat') or \
                            inference_server.startswith('openai_azure') or \
-                           inference_server.startswith('anthropic')
+                           inference_server.startswith('anthropic') or \
+                           inference_server.startswith('google')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
@@ -4994,7 +5049,7 @@ def get_limited_prompt(instruction,
     external_handle_chat_conversation = False
     if inference_server and (any(
             inference_server.startswith(x)
-            for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat', 'anthropic'])) or gradio_server:
+            for x in ['openai_chat', 'openai_azure_chat', 'vllm_chat', 'anthropic', 'google'])) or gradio_server:
         # Chat APIs do not take prompting
         # Replicate does not need prompting if no chat history, but in general can take prompting
         # if using prompter, prompter.system_prompt will already be filled with automatic (e.g. from llama-2),

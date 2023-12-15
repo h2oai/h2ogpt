@@ -56,6 +56,8 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
         bot_avatar = "models/hf-logo.png"
     elif 'claude' in base_model.lower():
         bot_avatar = "models/anthropic.jpeg"
+    elif 'gemini' in base_model.lower():
+        bot_avatar = "models/google.png"
     else:
         bot_avatar = "models/h2oai.png"
     human_avatar = human_avatar if os.path.isfile(human_avatar) else None

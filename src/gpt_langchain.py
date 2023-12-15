@@ -42,6 +42,7 @@ from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
@@ -1352,6 +1353,39 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
 
+class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
 
 class H2OAzureOpenAI(AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
@@ -1641,6 +1675,30 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                  top_p=top_p if do_sample else 1,
+                  top_k=top_k,
+                  temperature=temperature if do_sample else 0,
+                  callbacks=callbacks if stream_output else None,
+                  streaming=stream_output,
+                  default_request_timeout=max_time,
+                  model_kwargs=model_kwargs,
+                  **kwargs_extra
+                  )
+        streamer = callbacks[0] if stream_output else None
+        prompt_type = inference_server
+    elif inference_server.startswith('google'):
+        cls = H2OChatGoogle
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict(max_output_tokens=max_new_tokens)
+        kwargs_extra = {}
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
+
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        llm = cls(model=model_name,
+                  api_key=os.getenv('GOOGLE_API_KEY'),
                   top_p=top_p if do_sample else 1,
                   top_k=top_k,
                   temperature=temperature if do_sample else 0,

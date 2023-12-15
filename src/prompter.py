@@ -1,8 +1,8 @@
-import os
 import ast
 import time
+# also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping  # also supports imports from this file from other files
+    anthropic_mapping, google_mapping
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -165,6 +165,9 @@ prompt_type_to_model_name = {
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
 prompt_type_to_model_name['anthropic'] = anthropic_gpts
+
+google_gpts = sorted(google_mapping.keys())
+prompt_type_to_model_name['google'] = google_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
@@ -594,7 +597,9 @@ ASSISTANT:
     elif prompt_type in [PromptType.openai_chat.value, str(PromptType.openai_chat.value),
                          PromptType.openai_chat.name] or \
             prompt_type in [PromptType.anthropic.value, str(PromptType.anthropic.value),
-                            PromptType.anthropic.name]:
+                            PromptType.anthropic.name] or \
+            prompt_type in [PromptType.google.value, str(PromptType.google.value),
+                            PromptType.google.name]:
         can_handle_system_prompt = True  # handled via special messages/arguments not part of prompt
         # prompting and termination all handled by endpoint
         preprompt = """"""
