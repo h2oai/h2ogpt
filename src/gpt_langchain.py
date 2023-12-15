@@ -5921,7 +5921,8 @@ def get_chain(query=None,
                      auto_reduce_chunks,
                      add_search_to_context,
                      system_prompt,
-                     doc_json_mode)
+                     doc_json_mode,
+                     prompter=prompter)
 
     # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
     # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
@@ -6300,7 +6301,8 @@ def get_chain(query=None,
                      auto_reduce_chunks,
                      add_search_to_context,
                      system_prompt,
-                     doc_json_mode)
+                     doc_json_mode,
+                     prompter=prompter)
 
     if doc_json_mode:
         # make copy so don't change originals
@@ -6461,7 +6463,8 @@ def get_template(query, iinput,
                  auto_reduce_chunks,
                  add_search_to_context,
                  system_prompt,
-                 doc_json_mode):
+                 doc_json_mode,
+                 prompter=None):
     triple_quotes = """
 \"\"\"
 """
@@ -6501,12 +6504,20 @@ def get_template(query, iinput,
             template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
             fstring = "{context}"
-            template = """%s%s%s%s%s%s""" % (
-                pre_prompt_query, triple_quotes, fstring, triple_quotes, prompt_query, question_fstring)
-            if doc_json_mode:
-                template_if_no_docs = """{context}{{"question": {question}}}"""
+            if prompter and prompter.prompt_type == 'docsgpt':
+                sys_context = "\nSystem Instructions: %s" % system_prompt if system_prompt else "\n"
+                template = """%s%s%s%s%s%s""" % (
+                    question_fstring, "\n### Context\n", fstring, sys_context, '\n', '')
+                sys_context_no_docs = '\n### Context%s' % sys_context if system_prompt else ''
+                # {context} will be empty string, so ok that no new line surrounding it
+                template_if_no_docs = """%s%s%s%s%s""" % (question_fstring, sys_context_no_docs, '', fstring, '')
             else:
-                template_if_no_docs = """{context}{question}"""
+                template = """%s%s%s%s%s%s""" % (
+                    pre_prompt_query, triple_quotes, fstring, triple_quotes, prompt_query, question_fstring)
+                if doc_json_mode:
+                    template_if_no_docs = """{context}{{"question": {question}}}"""
+                else:
+                    template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]

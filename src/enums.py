@@ -59,6 +59,7 @@ class PromptType(Enum):
     vicuna11nosys = 53
     zephyr0 = 54
     google = 55
+    docsgpt = 56
 
 
 class DocumentSubset(Enum):
