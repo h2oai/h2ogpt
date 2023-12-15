@@ -1227,7 +1227,7 @@ class ExtraChat:
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         if self.system_prompt:
-            if isinstance(self, H2OChatAnthropic):
+            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)):
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -1352,6 +1352,7 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+
 
 class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
     system_prompt: Any = None
@@ -1690,7 +1691,7 @@ def get_llm(use_openai_model=False,
         cls = H2OChatGoogle
 
         # Langchain oddly passes some things directly and rest via model_kwargs
-        model_kwargs = dict(max_output_tokens=max_new_tokens)
+        model_kwargs = dict()
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
         if not regenerate_clients and isinstance(model, dict):
@@ -1698,13 +1699,15 @@ def get_llm(use_openai_model=False,
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
-                  api_key=os.getenv('GOOGLE_API_KEY'),
+                  google_api_key=os.getenv('GOOGLE_API_KEY'),
                   top_p=top_p if do_sample else 1,
                   top_k=top_k,
                   temperature=temperature if do_sample else 0,
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
                   default_request_timeout=max_time,
+                  max_output_tokens=max_new_tokens,
+                  n=1,  # candidates
                   model_kwargs=model_kwargs,
                   **kwargs_extra
                   )
