@@ -6,7 +6,7 @@ from tests.utils import wrap_test_forked
 @wrap_test_forked
 def test_llava_client():
     file = "models/wizard.jpg"
-    llava_model = 'http://192.168.1.46:7861'
+    llava_model = os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861')
     # prompt = "According to the image, describe the image in full details with a well-structured response."
     prompt = "Describe the image"
 
@@ -41,7 +41,7 @@ def test_llava_client():
 @wrap_test_forked
 def test_llava_client2():
     file = "models/wizard.jpg"
-    llava_model = 'http://192.168.1.46:7861'
+    llava_model = os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861')
     from src.vision.utils_vision import get_llava_response
     res = get_llava_response(file, llava_model)
     print(res)
@@ -54,7 +54,7 @@ def test_llava_client_stream():
     img_str = png_to_base64("models/wizard.jpg")
 
     from gradio_client import Client
-    client = Client('http://192.168.1.46:7861', serialize=False)
+    client = Client(os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'), serialize=False)
     client.predict(api_name='/demo_load')
     # prompt = "According to the image, describe the image in full details with a well-structured response."
     prompt = "Describe the image"
@@ -72,18 +72,18 @@ def test_llava_client_stream():
     job_outputs_num = 0
     while not job.done():
         outputs_list = job.communicator.job.outputs
-        job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+        job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
             res = outputs_list[job_outputs_num + num]
-            print('Stream %d: %s\n' % (num, res[-1][-1]), flush=True)
+            print('Stream %d: %s\n' % (job_outputs_num + num, res[-1][-1]), flush=True)
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
     outputs_list = job.outputs()
-    job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+    job_outputs_num_new = len(outputs_list[job_outputs_num:])
     for num in range(job_outputs_num_new):
         res = outputs_list[job_outputs_num + num]
-        print('Final Stream %d: %s\n' % (num, res[-1][-1]), flush=True)
+        print('Final Stream %d: %s\n' % (job_outputs_num + num, res[-1][-1]), flush=True)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
 

@@ -3943,6 +3943,8 @@ def test_client1_tts(tts_model):
 
     play_audio(res, sr=sr)
 
+    check_final_res(res)
+
 
 def play_audio(res, sr=16000):
     # convert audio to file
@@ -3973,12 +3975,16 @@ def play_audio(res, sr=16000):
     'microsoft/speecht5_tts',
     'tts_models/multilingual/multi-dataset/xtts_v2'
 ])
+@pytest.mark.parametrize("base_model", [
+    'llama',
+    'HuggingFaceH4/zephyr-7b-beta'
+])
 @wrap_test_forked
-def test_client1_tts_stream(tts_model):
+def test_client1_tts_stream(tts_model, base_model):
     sr = set_env(tts_model)
 
     from src.gen import main
-    main(base_model='llama', chat=False,
+    main(base_model=base_model, chat=False,
          tts_model=tts_model,
          save_dir='foodir',
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
@@ -4021,17 +4027,26 @@ def test_client1_tts_stream(tts_model):
         play_audio(res, sr=sr)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+    check_final_res(res, base_model=base_model)
 
+
+def check_final_res(res, base_model='llama'):
     assert res['save_dict']
     assert res['save_dict']['prompt']
-    assert res['save_dict']['base_model'] == 'llama'
+    if base_model == 'llama':
+        assert res['save_dict']['base_model'] == 'llama'
+    else:
+        assert res['save_dict']['base_model'] == 'HuggingFaceH4/zephyr-7b-beta'
     assert res['save_dict']['where_from']
     assert res['save_dict']['valid_key'] == 'not enforced'
     assert res['save_dict']['h2ogpt_key'] is None
 
     assert res['save_dict']['extra_dict']
-    assert res['save_dict']['extra_dict']['llamacpp_dict']
-    assert res['save_dict']['extra_dict']['prompt_type'] == 'llama2'
+    if base_model == 'llama':
+        assert res['save_dict']['extra_dict']['llamacpp_dict']
+        assert res['save_dict']['extra_dict']['prompt_type'] == 'llama2'
+    else:
+        assert res['save_dict']['extra_dict']['prompt_type'] == 'zephyr'
     assert res['save_dict']['extra_dict']['do_sample'] == False
     assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 10
     assert res['save_dict']['extra_dict']['ntokens'] > 60

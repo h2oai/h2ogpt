@@ -1456,7 +1456,7 @@ def test_llava_add(image_file, db_type):
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False,
                                                enable_llava=True,
-                                               llava_model='http://192.168.1.46:7861',
+                                               llava_model=os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'),
                                                enable_doctr=False,
                                                enable_captions=False,
                                                enable_ocr=False,

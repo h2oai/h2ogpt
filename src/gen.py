@@ -4089,9 +4089,11 @@ def evaluate(
         if save_dir and text:
             # save prompt + new text
             extra_dict = gen_server_kwargs.copy()
-            extra_dict.update(dict(inference_server=inference_server, num_prompt_tokens=num_prompt_tokens,
+            extra_dict.update(dict(inference_server=inference_server,
+                                   num_prompt_tokens=num_prompt_tokens,
                                    t_generate=time.time() - t_generate,
                                    ntokens=None,
+                                   prompt_type=prompt_type,
                                    tokens_persecond=None,
                                    ))
             save_dict = dict(prompt=prompt, output=text, base_model=base_model, save_dir=save_dir,
@@ -4298,6 +4300,7 @@ def evaluate(
                                            t_generate=time.time() - t_generate,
                                            ntokens=ntokens,
                                            tokens_persecond=ntokens / (time.time() - t_generate),
+                                           prompt_type=prompt_type,
                                            ))
                     save_dict = dict(prompt=prompt, output=decoded_output, base_model=base_model, save_dir=save_dir,
                                      where_from="evaluate_%s" % str(stream_output),
