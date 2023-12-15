@@ -1624,7 +1624,7 @@ def main(
         transcriber_func = functools.partial(transcribe,
                                              transcriber=transcriber,
                                              debug=debug,
-                                             max_chunks=20 if is_public else None,
+                                             max_chunks=30 if is_public else None,
                                              sst_floor=sst_floor,
                                              )
 
