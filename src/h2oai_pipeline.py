@@ -118,7 +118,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     num_prompt_tokens = H2OTextGenerationPipeline.get_token_count(prompt_text, tokenizer)
                 else:
                     num_prompt_tokens = 0
-                if num_prompt_tokens > model_max_length:
+                if num_prompt_tokens > model_max_length and num_prompt_tokens > 0:
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain

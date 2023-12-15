@@ -123,7 +123,7 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
         num_prompt_tokens, max_new_tokens, \
         num_prompt_tokens0, num_prompt_tokens_actual, \
         history_to_use_final, external_handle_chat_conversation, \
-        top_k_docs_trial, one_doc_size, truncation_generation = \
+        top_k_docs_trial, one_doc_size, truncation_generation, system_prompt = \
         get_limited_prompt(instruction, iinput, tokenizer,
                            prompter=prompter,
                            max_new_tokens=max_new_tokens,

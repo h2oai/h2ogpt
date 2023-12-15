@@ -1487,6 +1487,9 @@ def get_llm(use_openai_model=False,
 
     if chat_conversation is None:
         chat_conversation = []
+    # in case prompter updated
+    if prompter and prompter.system_prompt:
+        system_prompt = prompter.system_prompt
 
     fake_for_tests = ['test_qa', 'test_make_add_db', 'test_many_text', 'test_chroma_filtering']
     if os.getenv('HARD_ASSERTS') and tokenizer is None and any([x in get_test_name_core() for x in fake_for_tests]):
@@ -6138,7 +6141,7 @@ def get_chain(query=None,
             num_prompt_tokens0, num_prompt_tokens_actual, \
             history_to_use_final, external_handle_chat_conversation, \
             top_k_docs_trial, one_doc_size, \
-            truncation_generation = \
+            truncation_generation, system_prompt = \
             get_limited_prompt(query,
                                iinput,
                                tokenizer,
@@ -6165,7 +6168,7 @@ def get_chain(query=None,
                                gradio_server=gradio_server,
                                )
         # get updated llm
-        llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput)
+        llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput, system_prompt=system_prompt)
         if external_handle_chat_conversation:
             # should already have attribute, checking sanity
             assert hasattr(llm, 'chat_conversation')

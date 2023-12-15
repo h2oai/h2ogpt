@@ -3680,7 +3680,7 @@ def evaluate(
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         history_to_use_final, external_handle_chat_conversation, \
-        top_k_docs_trial, one_doc_size, truncation_generation = \
+        top_k_docs_trial, one_doc_size, truncation_generation, system_prompt = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -5115,11 +5115,24 @@ def get_limited_prompt(instruction,
                                                                            max_prompt_length=max_input_tokens)
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
+    # leave bit for instruction regardless of system prompt
+    system_prompt, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt, tokenizer,
+                                                                              max_prompt_length=int(max_input_tokens*0.9))
+    # limit system prompt
+    if prompter:
+        prompter.system_prompt = system_prompt
+    if external_handle_chat_conversation:
+        pass
+    else:
+        # already accounted for in instruction
+        num_system_tokens = 0
+
     if text_context_list is None:
         text_context_list = []
     num_doc_tokens = sum([get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list])
 
-    num_prompt_tokens0 = (num_instruction_tokens or 0) + \
+    num_prompt_tokens0 = (num_system_tokens or 0) + \
+                         (num_instruction_tokens or 0) + \
                          (num_context1_tokens or 0) + \
                          (num_context2_tokens or 0) + \
                          (num_iinput_tokens or 0) + \
@@ -5145,11 +5158,13 @@ def get_limited_prompt(instruction,
         # 2) reduce history
         # 3) reduce context1
         # 4) limit instruction so will fit
+        # 5) limit system prompt
         diff1 = non_doc_max_length - (
-                num_instruction_tokens + num_context1_tokens + num_context2_tokens)
-        diff2 = non_doc_max_length - (num_instruction_tokens + num_context1_tokens)
-        diff3 = non_doc_max_length - num_instruction_tokens
-        diff4 = non_doc_max_length
+                num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
+        diff2 = non_doc_max_length - (num_system_tokens + num_instruction_tokens + num_context1_tokens)
+        diff3 = non_doc_max_length - (num_system_tokens + num_instruction_tokens)
+        diff4 = non_doc_max_length - int(num_system_tokens + max_input_tokens * 0.1)
+        diff5 = non_doc_max_length
         if diff1 > 0:
             # then should be able to do #1
             iinput = ''
@@ -5170,7 +5185,7 @@ def get_limited_prompt(instruction,
                 context2 = history_to_context_func(history_to_use)
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
-                        num_instruction_tokens + num_context1_tokens + num_context2_tokens)
+                        num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
                     history_to_use_final = history_to_use.copy()
                     if verbose:
@@ -5213,7 +5228,8 @@ def get_limited_prompt(instruction,
     context = context1 + context2 if not external_handle_chat_conversation else context1
 
     # update token counts (docs + non-docs, all tokens)
-    num_prompt_tokens = (num_instruction_tokens or 0) + \
+    num_prompt_tokens = (num_system_tokens or 0) + \
+                        (num_instruction_tokens or 0) + \
                         (num_context1_tokens or 0) + \
                         (num_context2_tokens or 0) + \
                         (num_iinput_tokens or 0) + \
@@ -5251,7 +5267,7 @@ def get_limited_prompt(instruction,
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         history_to_use_final, external_handle_chat_conversation, \
-        top_k_docs, one_doc_size, truncation_generation
+        top_k_docs, one_doc_size, truncation_generation, system_prompt
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
