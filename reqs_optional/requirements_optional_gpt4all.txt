@@ -4,7 +4,7 @@ gpt4all==1.0.5
 llama-cpp-python==0.2.23; platform_system != "Linux" and platform_machine != "x86_64" and platform_system != "Windows" and platform_system != "Darwin"
 
 # Linux CUDA:
-https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.23+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
+https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.23+cu118-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CPU avx2 or AMD:
 https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.23+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CPU avx
