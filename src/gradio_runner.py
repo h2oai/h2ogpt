@@ -62,7 +62,8 @@ from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
-    have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global
+    have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
+    _save_generate_tokens
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -3492,6 +3493,7 @@ def go_gradio(**kwargs):
             error_old = ''
             audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
             last_yield = None
+            res_dict = {}
             try:
                 tgen0 = time.time()
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
@@ -3543,8 +3545,14 @@ def go_gradio(**kwargs):
 
                     # get response
                     if str_api:
-                        # full return of dict
-                        ret = res_dict
+                        # full return of dict, except constant items that can be read-off at end
+                        res_dict_yield = res_dict.copy()
+                        # do not stream: ['save_dict', 'prompt_raw', 'sources', 'sources_str', 'response_no_refs']
+                        only_stream = ['response', 'llm_answers', 'audio']
+                        for key in res_dict:
+                            if key not in only_stream:
+                                res_dict_yield.pop(key)
+                        ret = res_dict_yield
                     elif kwargs['langchain_mode'] == 'Disabled':
                         ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
                     else:
@@ -3596,6 +3604,11 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over as can happen
                 # return back last ret
+                if str_api:
+                    res_dict['save_dict']['extra_dict'] = _save_generate_tokens(res_dict.get('response', ''),
+                                                                                res_dict.get('save_dict', {}).get(
+                                                                                    'extra_dict', {}))
+                    ret = res_dict.copy()
                 if isinstance(ret, dict):
                     ret['audio'] = combine_audios(audios, audio=None,
                                                   expect_bytes=kwargs['return_as_byte'])

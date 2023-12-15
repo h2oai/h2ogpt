@@ -290,6 +290,16 @@ def save_generate_output(prompt=None, output=None, base_model=None, save_dir=Non
         print('Exception in saving: %s' % str(e))
 
 
+def _save_generate_tokens(response_no_refs, extra_dict):
+    # tokenize at end if need to, so doesn't block generation in multi-generator case
+    if extra_dict.get('ntokens') is None:
+        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(str(response_no_refs))
+        # only do below if didn't already compute ntokens, else assume also computed rate
+    if extra_dict.get('ntokens') is not None and extra_dict.get('t_generate') is not None:
+        extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
+    return extra_dict
+
+
 def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                           extra_dict={}, error='', sources=[], which_api='',
                           valid_key=None, h2ogpt_key='',
@@ -302,12 +312,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
     prompt = '<not set>' if prompt is None else prompt
     output = '<not set>' if output is None else output
 
-    # tokenize at end if need to, so doesn't block generation in multi-generator case
-    if extra_dict.get('ntokens') is None:
-        extra_dict['ntokens'] = FakeTokenizer().num_tokens_from_string(str(output))
-        # only do below if didn't already compute ntokens, else assume also computed rate
-    if extra_dict.get('ntokens') is not None and extra_dict.get('t_generate') is not None:
-        extra_dict['tokens_persecond'] = extra_dict['ntokens'] / extra_dict['t_generate']
+    extra_dict = _save_generate_tokens(output, extra_dict)
 
     dict_to_save = dict(prompt=prompt, text=output, time=time.ctime(),
                         base_model=base_model,

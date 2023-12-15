@@ -1343,14 +1343,16 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
            'Once upon a time' in res_dict['response']
     return res_dict, client
 
+
 @pytest.mark.parametrize("gradio_ui_stream_chunk_size", [0, 20])
 @pytest.mark.parametrize("gradio_ui_stream_chunk_min_seconds", [0, .2, 2])
 @pytest.mark.parametrize("gradio_ui_stream_chunk_seconds", [.2, 2])
 @wrap_test_forked
-def test_client_nochat_stream(gradio_ui_stream_chunk_size, gradio_ui_stream_chunk_min_seconds, gradio_ui_stream_chunk_seconds):
-    other_server_kwargs=dict(gradio_ui_stream_chunk_size=gradio_ui_stream_chunk_size,
-                             gradio_ui_stream_chunk_min_seconds=gradio_ui_stream_chunk_min_seconds,
-                             gradio_ui_stream_chunk_seconds=gradio_ui_stream_chunk_seconds)
+def test_client_nochat_stream(gradio_ui_stream_chunk_size, gradio_ui_stream_chunk_min_seconds,
+                              gradio_ui_stream_chunk_seconds):
+    other_server_kwargs = dict(gradio_ui_stream_chunk_size=gradio_ui_stream_chunk_size,
+                               gradio_ui_stream_chunk_min_seconds=gradio_ui_stream_chunk_min_seconds,
+                               gradio_ui_stream_chunk_seconds=gradio_ui_stream_chunk_seconds)
     run_client_nochat_with_server(stream_output=True, prompt="Tell a very long kid's story about birds.",
                                   other_server_kwargs=other_server_kwargs)
 
@@ -2549,7 +2551,7 @@ def test_client_load_unload_models(model_choice):
     lora_choice = ''
     server_choice = '' if model_choice not in openai_gpts else 'openai_chat'
     # model_state
-    prompt_type = '' if model_choice != 'llama' else 'llama2' # built-in, but prompt_type needs to be selected
+    prompt_type = '' if model_choice != 'llama' else 'llama2'  # built-in, but prompt_type needs to be selected
     model_load8bit_checkbox = False
     model_load4bit_checkbox = 'AWQ' not in model_choice and 'GGUF' not in model_choice and 'GPTQ' not in model_choice
     model_low_bit_mode = 1
@@ -2668,7 +2670,8 @@ def test_client_curated_base_models(base_model, stream_output):
     if base_model in model_names_curated_big:
         return
     if base_model == 'zephyr-7b-beta.Q5_K_M.gguf' and not os.path.isfile('zephyr-7b-beta.Q5_K_M.gguf'):
-        download_simple('https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true')
+        download_simple(
+            'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true')
 
     stream_output = True
     from src.gen import main
@@ -3977,6 +3980,7 @@ def test_client1_tts_stream(tts_model):
     from src.gen import main
     main(base_model='llama', chat=False,
          tts_model=tts_model,
+         save_dir='foodir',
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from gradio_client import Client
@@ -3987,25 +3991,48 @@ def test_client1_tts_stream(tts_model):
     kwargs = dict(instruction_nochat=prompt, chatbot_role="Female AI Assistant", speaker="SLT (female)",
                   stream_output=True)
 
+    verbose = False
     job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
     job_outputs_num = 0
     while not job.done():
         outputs_list = job.communicator.job.outputs
-        job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+        job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
             res = outputs_list[job_outputs_num + num]
             res = ast.literal_eval(res)
-            print('Stream %d: %s\n' % (num, res['response']), flush=True)
+            if verbose:
+                print('Stream %d: %s\n\n %s\n\n' % (num, res['response'], res), flush=True)
+            else:
+                print('Stream %d' % (job_outputs_num + num), flush=True)
             play_audio(res, sr=sr)
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
     outputs_list = job.outputs()
-    job_outputs_num_new = len(outputs_list[job_outputs_num + 1:])
+    job_outputs_num_new = len(outputs_list[job_outputs_num:])
+    res = {}
     for num in range(job_outputs_num_new):
         res = outputs_list[job_outputs_num + num]
         res = ast.literal_eval(res)
-        print('Final Stream %d: %s\n' % (num, res['response']), flush=True)
+        if verbose:
+            print('Final Stream %d: %s\n\n%s\n\n' % (num, res['response'], res), flush=True)
+        else:
+            print('Final Stream %d' % (job_outputs_num + num), flush=True)
         play_audio(res, sr=sr)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+
+    assert res['save_dict']
+    assert res['save_dict']['prompt']
+    assert res['save_dict']['base_model'] == 'llama'
+    assert res['save_dict']['where_from']
+    assert res['save_dict']['valid_key'] == 'not enforced'
+    assert res['save_dict']['h2ogpt_key'] is None
+
+    assert res['save_dict']['extra_dict']
+    assert res['save_dict']['extra_dict']['llamacpp_dict']
+    assert res['save_dict']['extra_dict']['prompt_type'] == 'llama2'
+    assert res['save_dict']['extra_dict']['do_sample'] == False
+    assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 10
+    assert res['save_dict']['extra_dict']['ntokens'] > 60
+    assert res['save_dict']['extra_dict']['tokens_persecond'] > 5

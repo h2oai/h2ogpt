@@ -1363,7 +1363,8 @@ def main(
             concurrency_count = 1
     if concurrency_count > 1 and not all_inference_server:
         # FIXME: Could use semaphore to manage each LLM concurrency, in case mix of local and remote
-        raise ValueError("Concurrency count > 1 will lead mixup in cache use for local LLMs, disable this raise at own risk.")
+        raise ValueError(
+            "Concurrency count > 1 will lead mixup in cache use for local LLMs, disable this raise at own risk.")
 
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
@@ -2452,11 +2453,6 @@ def get_model(
     if not regenerate_clients and inference_server.startswith('google'):
         t0 = time.time()
         import google.generativeai as genai
-        #model_split = inference_server.split(':')
-        #if len(model_split) == 2:
-        #    model = model_split[1]
-        #else:
-        #    model = 'gemini-pro'
         see_model = False
         models = []
         for m in genai.list_models():
@@ -3640,7 +3636,6 @@ def evaluate(
                               document_source_substrings_op=document_source_substrings_op,
                               document_content_substrings=document_content_substrings,
                               document_content_substrings_op=document_content_substrings_op,
-                              chat_conversation=chat_conversation,
                               add_search_to_context=add_search_to_context,
                               num_prompt_tokens=num_prompt_tokens,
                               instruction=instruction,
@@ -3649,9 +3644,9 @@ def evaluate(
                               t_generate=time.time() - t_generate,
                               ntokens=None,
                               tokens_persecond=None,
-                              prompt_raw=prompt,
                               sources_str=sources_str,
                               sources=sources,
+                              llamacpp_dict=llamacpp_dict,
                               )
             save_dict = dict(prompt=prompt,
                              output=response, base_model=base_model, save_dir=save_dir,
@@ -5117,7 +5112,8 @@ def get_limited_prompt(instruction,
                                                                        max_prompt_length=max_input_tokens)
     # leave bit for instruction regardless of system prompt
     system_prompt, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt, tokenizer,
-                                                                              max_prompt_length=int(max_input_tokens*0.9))
+                                                                              max_prompt_length=int(
+                                                                                  max_input_tokens * 0.9))
     # limit system prompt
     if prompter:
         prompter.system_prompt = system_prompt
