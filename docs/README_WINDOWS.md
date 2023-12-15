@@ -72,6 +72,11 @@ For newer builds of windows versions of 10/11.
    pip uninstall bitsandbytes -y
    pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
    ```
+   Bitsandbytes can be uninstalled (`pip uninstall bitsandbytes`) and still h2oGPT can be used if one does not pass `--load_8bit=True`.
+  When running windows on GPUs with bitsandbytes in 8-bit you should see something like the below in output:
+  ```bash
+  bin C:\Users\pseud\.conda\envs\h2ogpt\lib\site-packages\bitsandbytes\libbitsandbytes_cuda117.dll
+  ```
 * Install document question-answer dependencies
 
    Prefix each pip install with `--extra-index-url https://download.pytorch.org/whl/cu118` for GPU install:
@@ -110,39 +115,6 @@ For newer builds of windows versions of 10/11.
     pip uninstall -y exllama
     pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-win_amd64.whl --no-cache-dir
     ```
-* GPU Optional: Support LLaMa.cpp with CUDA via llama-cpp-python:
-  * Download/Install [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases), or choose link and run pip directly.  E.g.:
-    * GGUF ONLY for CUDA GPU (keeping CPU package in place to support CPU + GPU at same time):
-      ```bash
-      pip uninstall -y llama-cpp-python-cuda
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-win_amd64.whl --extra-index-url https://download.pytorch.org/whl/cu118
-      ```
-    * GGUF ONLY for CPU-AVX (can be used with -cuda one above)
-      ```bash
-      pip uninstall -y llama-cpp-python
-      pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.19+cpuavx2-cp310-cp310-win_amd64.whl
-      ```
-      For CPU, ensure to run with `CUDA_VISIBLE_DEVICES=` in case torch with CUDA installed.
-       ```bash
-        CUDA_VISIBLE_DEVICES= python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
-       ```
-  * If any issues, then must compile llama-cpp-python with CUDA support:
-    ```bash
-    pip uninstall -y llama-cpp-python
-    set LLAMA_CUBLAS=1
-    set CMAKE_ARGS=-DLLAMA_CUBLAS=on
-    set FORCE_CMAKE=1
-    pip install llama-cpp-python==0.2.19 --no-cache-dir --verbose
-    ```
-  * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
-    That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
-      ```text
-    llama_model_load_internal: offloaded 35/35 layers to GPU
-    ```
-  but this requires sufficient GPU memory.  Reduce if you have low memory GPU, say 15.
-  * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
-  * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
-  * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 * GPU Optional: Support attention sinks for infinite generation
   ```bash
   pip install attention_sinks --no-deps
@@ -170,64 +142,20 @@ For newer builds of windows versions of 10/11.
   ```
 ---
 
-See [FAQ](FAQ.md#adding-models) for many ways to run models.  The below are some other examples.
+Note models are stored in `C:\Users\<user>\.cache\` for chroma, huggingface, selenium, torch, weaviate, etc. directories.  For an absolute windows path, choose `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.  If the model is using the GPU, in `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.  Use `set CUDA_VISIBLE_DEVICES=0` to pick first model, since llama.cpp models cannot choose which GPU otherwise.
 
-Note models are stored in `C:\Users\<user>\.cache\` for chroma, huggingface, selenium, torch, weaviate, etc. directories.
-
-## Run
-* For document Q/A with UI using LLaMa.cpp-based model on CPU or GPU:
-
-  * Choose some GGUF model by [TheBloke](https://huggingface.co/TheBloke), then do:
-       ```bash
-       python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
-       ```
-    Choose some other `model_path_llama` from TheBloke if desired, e.g. 13B.  If no model passed, the 7B LLaMa-2 GGUF is used.
-    For an absolute windows path, change to `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.
-      If llama-cpp-python was compiled with CUDA support, you should see in the output:
-    ```text
-      Device 0: NVIDIA GeForce RTX 3090 Ti
-    ```
-  * Go to `http://127.0.0.1:7860` (ignore message above).  Add `--share=True` to get sharable secure link.
-  * To just chat with LLM, click `Resources` and click `LLM` in Collections, or start without `--langchain_mode=UserData`.
-  * In `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.
-  * If you have multiple GPUs, best to specify to use the fasted GPU by doing (e.g. if device 0 is fastest and largest memory GPU):
-    ```bash
-    set CUDA_VISIBLE_DEVICES=0
-    ```
-  * On an i9 with 3090Ti, one gets about 5 tokens/second.
-
-  * ![llamasmall.jpg](llamasmall.jpg)
-
-  * For LLaMa2 70B model, launch as
-    ```bash
-    python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf n_gqa=8
-    ```
-* To use Hugging Face type models (faster on GPU than LLaMa.cpp if one has a powerful GPU with enough memory):
-   ```bash
-   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None
-   ```
-  * On an i9 with 3090Ti, one gets about 9 tokens/second.
-* To use Hugging Face type models in 8-bit do:
-   ```bash
-   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None --load_8bit=True
-   ```
-  When running windows on GPUs with bitsandbytes in 8-bit you should see something like the below in output:
-  ```bash
-  bin C:\Users\pseud\.conda\envs\h2ogpt\lib\site-packages\bitsandbytes\libbitsandbytes_cuda117.dll
-  ```
-  * On an i9 with 3090Ti, one gets about 5 tokens/second, so about half 16-bit speed.
-  * You can confirm GPU use via `nvidia-smi` showing GPU memory consumed is less than 16-bit, at about 9.2GB when in use.  Also try 13B models in 8-bit for similar memory usage.
-  * Note 8-bit inference is about twice slower than 16-bit inference, and the only use of 8-bit is to keep memory profile low.
-  * Bitsandbytes can be uninstalled (`pip uninstall bitsandbytes`) and still h2oGPT can be used if one does not pass `--load_8bit=True`.
-* To use Hugging Face type models in 4-bit do:
-   ```bash
-   python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --langchain_mode=UserData --score_model=None --load_4bit=True
-   ```
-  * On an i9 with 3090Ti, one gets about 4 tokens/second, so still about half 16-bit speed.  Memory use is about 6.6GB.
-
-See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
+See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
 
 ## Issues
+* llama_cpp_python with GGUF support for llama.cpp models should be installed correctly for avx2 or CUDA systems.  Change `reqs_optional/requirements_optional_gpt4all.txt` by commenting out avx2 if you don't have it.  Or download one from [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases).
+  * If any issues, then must compile llama-cpp-python with CUDA support:
+    ```bash
+    pip uninstall -y llama-cpp-python
+    set LLAMA_CUBLAS=1
+    set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+    set FORCE_CMAKE=1
+    pip install llama-cpp-python==0.2.23 --no-cache-dir --verbose
+    ```
 * SSL Certification failure when connecting to Hugging Face.
   * Your org may be blocking HF
   * Try: https://stackoverflow.com/a/75111104

@@ -14,6 +14,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Attention Sinks** for [arbitrarily long](https://github.com/tomaarsen/attention_sinks) generation (LLaMa-2, Mistral, MPT, Pythia, Falcon, etc.)
 - **UI** or CLI with streaming of all models
   - **Upload** and **View** documents through the UI (control multiple collaborative or personal collections)
+  - **Vision LLaVa** Model and **Stable Diffusion** Image Generation
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
@@ -43,41 +44,27 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 
 To quickly try out h2oGPT with limited document Q/A capability, create a fresh Python 3.10 environment and run:
 * CPU or MAC (M1/M2):
-    ```bash
-    git clone https://github.com/h2oai/h2ogpt.git
-    cd h2ogpt
-    # for windows/mac use "set" or relevant environment setting mechanism
-    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
-    pip install -r requirements.txt
-    pip install -r reqs_optional/requirements_optional_langchain.txt
+   ```bash
+   # for windows/mac use "set" or relevant environment setting mechanism
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
+   ```
+* Linux/Windows CUDA:
+   ```bash
+   # for windows/mac use "set" or relevant environment setting mechanism
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+   ```
+Then do on any system:
+   ```bash
+   git clone https://github.com/h2oai/h2ogpt.git
+   cd h2ogpt
+   pip install -r requirements.txt
+   pip install -r reqs_optional/requirements_optional_langchain.txt
+   pip install -r reqs_optional/requirements_optional_gpt4all.txt
 
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt
-    pip uninstall -y llama-cpp-python
-    # Only Mac M1/M2:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.19-cp310-cp310-macosx_11_0_arm64.whl
-
-    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
-    ```
-* CUDA:
-    ```bash
-    git clone https://github.com/h2oai/h2ogpt.git
-    cd h2ogpt
-    # for windows/mac use "set" or relevant environment setting mechanism
-    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
-    pip install -r requirements.txt
-    pip install -r reqs_optional/requirements_optional_langchain.txt
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt
-
-    # Only Linux:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-manylinux_2_31_x86_64.whl
-
-    # Only Windows:
-    pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.19+cu118-cp310-cp310-win_amd64.whl
-
-    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
-    ```
+   python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+   ```
 then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
-If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.
+If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.  For AVX1 or AMD ROC systems, edit `reqs_optional/requirements_optional_gpt4all.txt` to choose valid packages.
 
 We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) for 9GB+ GPU memory or larger models like [LLaMa-2-13B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-13b-chat.Q6_K.gguf) if you have 16GB+ GPU memory.
 

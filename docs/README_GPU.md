@@ -145,61 +145,16 @@ python generate.py --base_model=TheBloke/Llama-2-70B-chat-GPTQ --load_exllama=Tr
 
 ##### For LLaMa.cpp on GPU run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --prompt_type=zephyr --score_model=None --user_path=user_path
 ```
-and ensure that the output shows that one or more GPUs is in use. For example, for 1 GPU:
-```text
-ggml_init_cublas: found 1 CUDA devices:
-  Device 0: NVIDIA GeForce RTX 3090 Ti, compute capability 8.6
-llama_model_loader: loaded meta data with 19 key-value pairs and 291 tensors from llama-2-7b-chat.Q6_K.gguf (version GGUF V2 (latest))
-...
-... <bunch of tensor prints>
-...
-llm_load_print_meta: format           = GGUF V2 (latest)
-llm_load_print_meta: arch             = llama
-llm_load_print_meta: vocab type       = SPM
-llm_load_print_meta: n_vocab          = 32000
-llm_load_print_meta: n_merges         = 0
-llm_load_print_meta: n_ctx_train      = 4096
-llm_load_print_meta: n_embd           = 4096
-llm_load_print_meta: n_head           = 32
-llm_load_print_meta: n_head_kv        = 32
-llm_load_print_meta: n_layer          = 32
-llm_load_print_meta: n_rot            = 128
-llm_load_print_meta: n_gqa            = 1
-llm_load_print_meta: f_norm_eps       = 0.0e+00
-llm_load_print_meta: f_norm_rms_eps   = 1.0e-06
-llm_load_print_meta: n_ff             = 11008
-llm_load_print_meta: freq_base_train  = 10000.0
-llm_load_print_meta: freq_scale_train = 1
-llm_load_print_meta: model type       = 7B
-llm_load_print_meta: model ftype      = mostly Q6_K
-llm_load_print_meta: model params     = 6.74 B
-llm_load_print_meta: model size       = 5.15 GiB (6.56 BPW) 
-llm_load_print_meta: general.name   = LLaMA v2
-llm_load_print_meta: BOS token = 1 '<s>'
-llm_load_print_meta: EOS token = 2 '</s>'
-llm_load_print_meta: UNK token = 0 '<unk>'
-llm_load_print_meta: LF token  = 13 '<0x0A>'
-llm_load_tensors: ggml ctx size =    0.09 MB
-llm_load_tensors: using CUDA for GPU acceleration
-llm_load_tensors: mem required  =  102.63 MB
-llm_load_tensors: offloading 32 repeating layers to GPU
-llm_load_tensors: offloading non-repeating layers to GPU
-llm_load_tensors: offloaded 35/35 layers to GPU
-llm_load_tensors: VRAM used: 5169.80 MB
-warning: failed to mlock 107520000-byte buffer (after previously locking 0 bytes): Cannot allocate memory
-Try increasing RLIMIT_MLOCK ('ulimit -l' as root).
-....................................................................................................
-llama_new_context_with_model: n_ctx      = 4096
-llama_new_context_with_model: freq_base  = 10000.0
-llama_new_context_with_model: freq_scale = 1
-llama_kv_cache_init: offloading v cache to GPU
-llama_kv_cache_init: offloading k cache to GPU
-llama_kv_cache_init: VRAM kv self = 2048.00 MB
-llama_new_context_with_model: kv self size  = 2048.00 MB
-llama_new_context_with_model: compute buffer total size = 581.88 MB
-llama_new_context_with_model: VRAM scratch buffer: 576.01 MB
-llama_new_context_with_model: total VRAM used: 7793.81 MB (model: 5169.80 MB, context: 2624.01 MB)
-AVX = 1 | AVX2 = 1 | AVX512 = 0 | AVX512_VBMI = 0 | AVX512_VNNI = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 1 | SSSE3 = 1 | VSX = 0 | 
-```
+and ensure that the output shows that one or more GPUs is in use by looking at the logs.
+
+* By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
+    That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
+    ```text
+    llama_model_load_internal: offloaded 35/35 layers to GPU
+    ```
+    but this requires sufficient GPU memory.  Reduce if you have low memory GPU, say 15.
+* Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
+* If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
+* Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
