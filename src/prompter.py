@@ -160,6 +160,7 @@ prompt_type_to_model_name = {
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     "jais": ['core42/jais-30b-chat-v1'],
     "yi": ['01-ai/Yi-34B-Chat', 'TheBloke/Yi-34B-Chat-AWQ'],
+    "docsgpt": ['Arc53/docsgpt-7b-mistral'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 
@@ -1189,6 +1190,20 @@ Remember to tailor the activities to the birthday child's interests and preferen
         terminate_response = ['<|im_end|>', '<|endotftext|>']
         chat_sep = ''
         chat_turn_sep = '<|im_end|>'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.docsgpt.value, str(PromptType.docsgpt.value),
+                         PromptType.docsgpt.name]:
+        # https://huggingface.co/Arc53/docsgpt-7b-mistral
+        can_handle_system_prompt = True
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
+        promptA = promptB = ''
+        PreInstruct = """### Instruction\n"""
+        PreInput = None
+        PreResponse = """### Answer\n"""
+        terminate_response = ['### Answer']
+        chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
     else:
