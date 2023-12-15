@@ -60,6 +60,9 @@ Then do on any system:
    pip install -r requirements.txt
    pip install -r reqs_optional/requirements_optional_langchain.txt
    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+   pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+   # GPL, only run next line if that is ok:
+   # pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 
    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
    ```
