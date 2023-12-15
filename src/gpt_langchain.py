@@ -2459,7 +2459,10 @@ def file_to_doc(file,
         base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
         source_file = os.path.join(base_path_url,
                                    "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
-        download_simple(file, source_file, overwrite=True, verbose=verbose)
+        try:
+            download_simple(file, source_file, overwrite=True, verbose=verbose)
+        except BaseException as e:
+            print("Download simple failed: %s, trying other means" % str(e), flush=True)
         if os.path.isfile(source_file):
             orig_url = file
             is_url = False
@@ -2591,7 +2594,7 @@ def file_to_doc(file,
                 do_selenium = False
             if do_unstructured or use_unstructured:
                 docs1a = UnstructuredURLLoader(urls=final_urls, headers=dict(ssl_verify="False")).load()
-                docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
+                docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden' and not x.page_content.startswith('Access Denied')]
                 add_parser(docs1a, 'UnstructuredURLLoader')
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
@@ -2599,7 +2602,7 @@ def file_to_doc(file,
                 from langchain.document_loaders import PlaywrightURLLoader
                 docs1a = asyncio.run(PlaywrightURLLoader(urls=final_urls).aload())
                 # docs1 = PlaywrightURLLoader(urls=[file]).load()
-                docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
+                docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden' and not x.page_content.startswith('Access Denied')]
                 add_parser(docs1a, 'PlaywrightURLLoader')
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_selenium or do_selenium:
@@ -2610,7 +2613,7 @@ def file_to_doc(file,
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1a = SeleniumURLLoader(urls=final_urls).load()
-                    docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden']
+                    docs1a = [x for x in docs1a if x.page_content and x.page_content != '403 Forbidden' and not x.page_content.startswith('Access Denied')]
                     add_parser(docs1a, 'SeleniumURLLoader')
                     docs1.extend(docs1a)
                 except WebDriverException as e:
