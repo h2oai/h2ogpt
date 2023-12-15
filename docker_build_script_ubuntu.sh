@@ -79,7 +79,7 @@ export VLLM_CACHE=/workspace/.vllm_cache
 cd /h2ogpt_conda
 python -m venv vllm_env --system-site-packages
 # gputil is for rayWorker in vllm to run as non-root
-sudo apt-get install libnccl2
+apt-get install libnccl2
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://github.com/vllm-project/vllm/releases/download/v0.2.5/vllm-0.2.5+cu118-cp310-cp310-manylinux1_x86_64.whl
 /h2ogpt_conda/vllm_env/bin/python -m pip install mosaicml-turbo
 /h2ogpt_conda/vllm_env/bin/python -m pip install megablocks==0.5.0
