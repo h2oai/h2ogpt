@@ -18,14 +18,14 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
-  - **AI Assistant Voice Control Mode** to hands-free control h2oGPT chat
-  - **Bake-off** UI mode against many models at same time
+  - **AI Assistant Voice Control Mode** for hands-free control of h2oGPT chat
+  - **Bake-off** UI mode against many models at the same time
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
   - **Authentication** in the UI by user/password
   - **State Preservation** in the UI by user/password
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
-  - [**Easy MAC Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
+  - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
 - **OpenAI-compliant Python client API** for client-server control
 - **Web-Search** integration with Chat and Document Q/A
@@ -108,10 +108,10 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
   - [h2ogpt-osx-m1-cpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2ogpt-osx-m1-cpu)
   - [h2ogpt-osx-m1-gpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2ogpt-osx-m1-gpu)
   
-  Download the runnable file and open it from finder, it will take few minutes to unpack and run the application.
-  These one-click installers are experimental, report any issues with steps to reproduce at https://github.com/h2oai/h2ogpt/issues.
+  Download the runnable file and open it from the Finder. It will take a few minutes to unpack and run the application.
+  These one-click installers are experimental. Report any issues with steps to reproduce at https://github.com/h2oai/h2ogpt/issues.
 
-  **Note:** The app bundle is unsigned, if there are any issues in running the app
+  **Note:** The app bundle is unsigned. If you experience any issues with running the app, run the following commands:
   ```bash
   $ xattr -dr com.apple.quarantine {file-path}/h2ogpt-osx-m1-gpu
   $ chmod +x {file-path}/h2ogpt-osx-m1-gpu
