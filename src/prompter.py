@@ -1202,7 +1202,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = """### Instruction\n"""
         PreInput = None
         PreResponse = """### Answer\n"""
-        terminate_response = ['### Answer']
+        terminate_response = ['### Answer', '### Instruction']
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
@@ -1471,6 +1471,11 @@ class Prompter(object):
         if prompt_type1 == 'human_bot':
             # hack bug in vLLM with stopping, stops right, but doesn't return last token
             hfix = '<human'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
+        if prompt_type1 == 'docsgpt':
+            # hack bug in vLLM with stopping, stops right, but doesn't return last token
+            hfix = '### Inst'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
         return text1
