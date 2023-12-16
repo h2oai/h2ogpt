@@ -3970,7 +3970,6 @@ def evaluate(
                             res = job.communicator.job.outputs[-1]
                             res_dict = ast.literal_eval(res)
                             text = res_dict['response']
-                            sources = res_dict['sources']
                             if gr_prompt_type == 'plain':
                                 # then gradio server passes back full prompt + text
                                 prompt_and_text = text
