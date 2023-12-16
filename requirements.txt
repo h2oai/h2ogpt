@@ -19,7 +19,7 @@ numpy==1.24.3
 pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
-bitsandbytes==0.41.1
+bitsandbytes==0.41.3
 accelerate==0.25.0
 peft==0.6.2
 transformers==4.36.0
