@@ -738,8 +738,6 @@ class GradioClient(Client):
                             res = job.communicator.job.outputs[-1]
                             res_dict = ast.literal_eval(res)
                             response = res_dict["response"]  # keeps growing
-                            sources = res_dict["sources"]
-                            texts_out = [x["content"] for x in sources]
                             text_chunk = response[len(text0):]  # only keep new stuff
                             if not text_chunk:
                                 time.sleep(0.001)
