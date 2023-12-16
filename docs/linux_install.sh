@@ -117,9 +117,9 @@ fi
 #    ```
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
 #    ```bash
-    pip uninstall -y auto-gptq ; pip install auto-gptq==0.5.1 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
+    pip uninstall -y auto-gptq ; pip install auto-gptq==0.6.0 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-    pip install optimum==1.14.1
+    pip install optimum==1.16.1
 #    ```
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 #* GPU Optional: For AutoAWQ support on x86_64 linux
