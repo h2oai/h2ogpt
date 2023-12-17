@@ -2227,6 +2227,7 @@ def get_model_retry(**kwargs):
                 kwargs['gptq_dict'].update(
                     {'inject_fused_attention': False, 'disable_exllama': True})
             if 'Could not find model' in stre or \
+                    'Could not a find model' in stre or \
                     'safetensors' in stre or \
                     'not appear to have a file named pytorch_model.bin' in stre:
                 kwargs['use_safetensors'] = True
