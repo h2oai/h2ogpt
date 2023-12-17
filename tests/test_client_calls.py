@@ -3997,6 +3997,9 @@ def test_client1_tts_stream(tts_model, base_model):
     kwargs = dict(instruction_nochat=prompt, chatbot_role="Female AI Assistant", speaker="SLT (female)",
                   stream_output=True)
 
+    # check curl before and after, because in some cases had curl lead to .cpu() and normal use would fail
+    check_curl_plain_api()
+
     verbose = False
     job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
     job_outputs_num = 0
@@ -4029,6 +4032,8 @@ def test_client1_tts_stream(tts_model, base_model):
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
     check_final_res(res, base_model=base_model)
 
+    check_curl_plain_api()
+
 
 def check_final_res(res, base_model='llama'):
     assert res['save_dict']
@@ -4051,3 +4056,28 @@ def check_final_res(res, base_model='llama'):
     assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 10
     assert res['save_dict']['extra_dict']['ntokens'] > 60
     assert res['save_dict']['extra_dict']['tokens_persecond'] > 5
+
+
+def check_curl_plain_api():
+    # curl http://127.0.0.1:7860/api/submit_nochat_plain_api -X POST -d '{"data": ["{\"instruction_nochat\": \"Who are you?\"}"]}' -H 'Content-Type: application/json'
+    # https://curlconverter.com/
+    import requests
+
+    headers = {
+        # Already added when you pass json=
+        # 'Content-Type': 'application/json',
+    }
+
+    json_data = {
+        'data': [
+            '{"instruction_nochat": "Who are you?"}',
+        ],
+    }
+
+    response = requests.post('http://127.0.0.1:7860/api/submit_nochat_plain_api', headers=headers, json=json_data)
+    res_dict = ast.literal_eval(json.loads(response.content.decode(encoding='utf-8', errors='strict'))['data'][0])
+
+    assert 'assistant' in res_dict['response']
+    assert 'Who are you?' in res_dict['prompt_raw']
+    assert 'llama' == res_dict['save_dict']['base_model']
+    assert 'str_plain_api' == res_dict['save_dict']['which_api']

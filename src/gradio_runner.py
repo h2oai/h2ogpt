@@ -3484,7 +3484,7 @@ def go_gradio(**kwargs):
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
                 chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1 = \
-                prep_bot(*args_list_bot, kwargs_eval=kwargs1)
+                prep_bot(*args_list_bot, kwargs_eval=kwargs1, plain_api=plain_api)
 
             save_dict = dict()
             ret = {}
@@ -3891,7 +3891,7 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None):
+        def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None, plain_api=False):
             """
 
             :param args:
@@ -3939,7 +3939,8 @@ def go_gradio(**kwargs):
                 max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
                 langchain_action1
 
-            if model_state1['model'] is None or model_state1['model'] == no_model_str:
+            if not plain_api and (model_state1['model'] is None or model_state1['model'] == no_model_str):
+                # plain_api has no state, let evaluate() handle switch
                 return dummy_return
 
             args_list = args_list[:-isize]  # only keep rest needed for evaluate()
