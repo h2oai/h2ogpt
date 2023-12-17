@@ -106,9 +106,9 @@ def test_change_image():
 
 @wrap_test_forked
 def test_video_extraction():
-    # urls = ["https://www.youtube.com/watch?v=cwjs1WAG9CM"]
+    urls = ["https://www.youtube.com/shorts/fRkZCriQQNU"]
     from src.vision.extract_movie import extract_unique_frames
-    export_dir = extract_unique_frames(urls=None, download_dir=None)
+    export_dir = extract_unique_frames(urls=urls, download_dir=None)
     image_files = [f for f in os.listdir(export_dir) if os.path.isfile(os.path.join(export_dir, f))]
     assert len(image_files) > 10
     assert image_files[0].endswith('.jpg')
