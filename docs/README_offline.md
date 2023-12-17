@@ -114,6 +114,19 @@ since the mapping from that name to get file etc. is not trivial and only possib
 
 It is good idea to also set `--prompt_type`, since the version of model name given may not be in the prompt dictionary lookup.
 
+### Run vLLM offline
+
+In order to use vLLM offline, use the absolute path to the model state, which can be locally obtained model or sitting in the `.cache` folder, e.g.:
+```bash
+python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model "/home/hemant/.cache/huggingface/hub/models--meta-llama--Llama-2-13b-chat-hf/snapshots/c2f3ec81aac798ae26dcc57799a994dfbf521496" --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=1 --seed 1234 --max-num-batched-tokens=4096
+```
+Otherwise, vLLM will try to contact Hugging Face servers.
+
+You can also do same for h2oGPT, but take note that if you pass absolute path for base model, you have to specify the `--prompt_type`.
+```bash
+python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model='$HOME/.cache/huggingface/hub/models--meta-llama--Llama-2-13b-chat-hf/snapshots/c2f3ec81aac798ae26dcc57799a994dfbf521496' --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --max_seq_len=4096 --max_max_new_tokens=2048 --concurrency_count=64 --batch_size=16 --prompt_type=llama2
+```
+
 ### Disable access or port
 
 To ensure nobody can access your gradio server, disable the port via firewall.  If that is a hassle, then one can enable authentication by adding to CLI when running `python generate.py`:
