@@ -153,14 +153,13 @@ def test_client1api_lean(save_dir, admin_pass):
         # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
         res = client.predict(str(dict(kwargs)), api_name=api_name)
         res = ast.literal_eval(res)
-        if save_dir:
-            assert 'base_model' in res['save_dict']
-            assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] in [None, '']
-            assert 'extra_dict' in res['save_dict']
-            assert res['save_dict']['extra_dict']['ntokens'] > 0
-            assert res['save_dict']['extra_dict']['t_generate'] > 0
-            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+        assert 'base_model' in res['save_dict']
+        assert res['save_dict']['base_model'] == base_model
+        assert res['save_dict']['error'] in [None, '']
+        assert 'extra_dict' in res['save_dict']
+        assert res['save_dict']['extra_dict']['ntokens'] > 0
+        assert res['save_dict']['extra_dict']['t_generate'] > 0
+        assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
 
         print("Raw client result: %s" % res, flush=True)
         response = res['response']
