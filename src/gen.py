@@ -3008,7 +3008,8 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources='', save_dict=dict(), llm_answers={}, response_no_refs='',
+    yield dict(response=invalid_key_msg, sources='', save_dict=dict(extra_dict=dict(base_model='')),
+               llm_answers={}, response_no_refs='',
                sources_str='', audio=None, prompt_raw='')
     return
 
@@ -3247,7 +3248,9 @@ def evaluate(
         response = (image_file,)
         extra_dict = dict(t_generate=time.time() - t_generate,
                           instruction=instruction,
-                          prompt_raw=instruction)
+                          prompt_raw=instruction,
+                          prompt_type=prompt_type,
+                          base_model=LangChainAction.IMAGE_GENERATE.value)
         save_dict = dict(prompt=instruction, output=response, extra_dict=extra_dict)
         yield dict(response=response, sources=[], save_dict=save_dict, llm_answers={},
                    response_no_refs="Generated image for %s" % instruction,
@@ -3464,6 +3467,42 @@ def evaluate(
         # easier to manage prompt etc. by doing full langchain path
         do_langchain_path = True
 
+    gen_hyper_dict = dict(do_sample=do_sample,
+                          temperature=temperature,
+                          repetition_penalty=repetition_penalty,
+                          top_p=top_p,
+                          top_k=top_k,
+                          penalty_alpha=penalty_alpha,
+                          num_beams=num_beams,
+                          min_new_tokens=min_new_tokens,
+                          max_new_tokens=max_new_tokens,
+                          early_stopping=early_stopping,
+                          max_time=max_time,
+                          num_return_sequences=num_return_sequences,
+                          )
+    extra_dict = gen_hyper_dict.copy()
+    extra_dict.update(dict(prompt_type=prompt_type,
+                           inference_server=inference_server,
+                           langchain_mode=langchain_mode,
+                           langchain_action=langchain_action,
+                           langchain_agents=langchain_agents,
+                           document_subset=document_subset,
+                           document_choice=document_choice,
+                           document_source_substrings=document_source_substrings,
+                           document_source_substrings_op=document_source_substrings_op,
+                           document_content_substrings=document_content_substrings,
+                           document_content_substrings_op=document_content_substrings_op,
+                           add_search_to_context=add_search_to_context,
+                           instruction=instruction,
+                           iinput=iinput,
+                           context=context,
+                           t_generate=time.time() - t_generate,
+                           ntokens=None,
+                           tokens_persecond=None,
+                           llamacpp_dict=llamacpp_dict,
+                           ))
+    save_dict = dict(base_model=base_model, save_dir=save_dir, extra_dict=extra_dict)
+
     if do_langchain_path:
         text = ''
         sources = []
@@ -3473,19 +3512,6 @@ def evaluate(
         prompt_raw = ''
         # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
         from gpt_langchain import run_qa_db
-        gen_hyper_langchain = dict(do_sample=do_sample,
-                                   temperature=temperature,
-                                   repetition_penalty=repetition_penalty,
-                                   top_p=top_p,
-                                   top_k=top_k,
-                                   penalty_alpha=penalty_alpha,
-                                   num_beams=num_beams,
-                                   min_new_tokens=min_new_tokens,
-                                   max_new_tokens=max_new_tokens,
-                                   early_stopping=early_stopping,
-                                   max_time=max_time,
-                                   num_return_sequences=num_return_sequences,
-                                   )
         loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
                                                            pdf_loaders,
                                                            url_loaders,
@@ -3591,7 +3617,7 @@ def evaluate(
                 hyde_show_only_final=hyde_show_only_final,
                 doc_json_mode=doc_json_mode,
 
-                **gen_hyper_langchain,
+                **gen_hyper_dict,
 
                 db_type=db_type,
                 n_jobs=n_jobs,
@@ -3621,38 +3647,15 @@ def evaluate(
             response_no_refs = r['response_no_refs']
             sources_str = r['sources_str']
             prompt_raw = str(r['prompt_raw'])
-            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers=llm_answers,
+            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
                        response_no_refs=response_no_refs, sources_str=sources_str, prompt_raw=prompt_raw)
         if save_dir:
             # estimate using tiktoken
-            extra_dict = gen_hyper_langchain.copy()
-            extra_dict.update(prompt_type=prompt_type,
-                              inference_server=inference_server,
-                              langchain_mode=langchain_mode,
-                              langchain_action=langchain_action,
-                              langchain_agents=langchain_agents,
-                              document_subset=document_subset,
-                              document_choice=document_choice,
-                              document_source_substrings=document_source_substrings,
-                              document_source_substrings_op=document_source_substrings_op,
-                              document_content_substrings=document_content_substrings,
-                              document_content_substrings_op=document_content_substrings_op,
-                              add_search_to_context=add_search_to_context,
-                              num_prompt_tokens=num_prompt_tokens,
-                              instruction=instruction,
-                              iinput=iinput,
-                              context=context,
-                              t_generate=time.time() - t_generate,
-                              ntokens=None,
-                              tokens_persecond=None,
-                              sources_str=sources_str,
-                              sources=sources,
-                              llamacpp_dict=llamacpp_dict,
-                              )
-            save_dict = dict(prompt=prompt,
-                             output=response, base_model=base_model, save_dir=save_dir,
-                             where_from='run_qa_db',
-                             extra_dict=extra_dict)
+            extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens,
+                                   sources_str=sources_str,
+                                   sources=sources,
+                                   ))
+            save_dict.update(dict(prompt=prompt, output=response, where_from="run_qa_db"))
             yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
                        response_no_refs=response_no_refs, sources_str=sources_str, prompt_raw=prompt_raw)
             if verbose:
@@ -3751,7 +3754,7 @@ def evaluate(
                     text = responses.choices[0].text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw=prompt)
                 else:
                     collected_events = []
@@ -3763,7 +3766,7 @@ def evaluate(
                         if delta:
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                         if time.time() - tgen0 > max_time:
                             if verbose:
@@ -3805,7 +3808,7 @@ def evaluate(
                     text = responses.choices[0].text  # FIXME: Untested
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw=prompt)
                 else:
                     tgen0 = time.time()
@@ -3815,7 +3818,7 @@ def evaluate(
                             text += delta
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                         if time.time() - tgen0 > max_time:
                             if verbose:
@@ -3951,12 +3954,12 @@ def evaluate(
                     sources = res_dict['sources']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw=prompt)
                 else:
                     from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = dict(response=text, sources=sources, save_dict=dict(), llm_answers={},
+                    res_dict = dict(response=text, sources=sources, save_dict=save_dict, llm_answers={},
                                     response_no_refs=text, sources_str='', prompt_raw=prompt)
                     text0 = ''
                     tgen0 = time.time()
@@ -3985,7 +3988,7 @@ def evaluate(
                                 continue
                             # save old
                             text0 = response
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                             if time.time() - tgen0 > max_time:
                                 if verbose:
@@ -4026,7 +4029,7 @@ def evaluate(
                         prompt_and_text = prompt + text
                     response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), error=strex, llm_answers={},
+                    yield dict(response=response, sources=sources, save_dict=save_dict, error=strex, llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw=prompt)
             elif hf_client:
                 # HF inference server needs control over input tokens
@@ -4062,7 +4065,7 @@ def evaluate(
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw=prompt)
                 else:
                     tgen0 = time.time()
@@ -4075,7 +4078,7 @@ def evaluate(
                             response = prompter.get_response(prompt + text, prompt=prompt,
                                                              sanitize_bot_response=sanitize_bot_response)
                             sources = []
-                            yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                         if time.time() - tgen0 > max_time:
                             if verbose:
@@ -4113,7 +4116,7 @@ def evaluate(
         # NOTE: uses max_length only
         sources = []
         response = model(prompt, max_length=max_new_tokens)[0][key]
-        yield dict(response=response, sources=sources, save_dict=dict(),
+        yield dict(response=response, sources=sources, save_dict=save_dict,
                    llm_answers={},
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
 
@@ -4250,7 +4253,7 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            ret = dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                            ret = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                             if stream_output:
                                 yield ret
@@ -4290,7 +4293,7 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=dict(), llm_answers={},
+                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw=prompt)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
