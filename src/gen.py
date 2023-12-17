@@ -143,7 +143,7 @@ def main(
         compile_model: bool = None,
         use_cache: bool = None,
         inference_server: str = "",
-        regenerate_clients: bool = True,
+        regenerate_clients: bool = False,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -525,7 +525,6 @@ def main(
 
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
-           But downside is if something bad happens to the client, it messes it up forever, e.g. even timeout.  So not really safe.
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
