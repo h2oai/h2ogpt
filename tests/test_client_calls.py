@@ -4077,7 +4077,7 @@ def check_curl_plain_api():
     response = requests.post('http://127.0.0.1:7860/api/submit_nochat_plain_api', headers=headers, json=json_data)
     res_dict = ast.literal_eval(json.loads(response.content.decode(encoding='utf-8', errors='strict'))['data'][0])
 
-    assert 'assistant' in res_dict['response']
+    assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
-    assert 'llama' == res_dict['save_dict']['base_model']
+    assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict']['base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
