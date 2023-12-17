@@ -1,7 +1,10 @@
 import pytest
 
+from tests.utils import wrap_test_forked
+
 
 @pytest.mark.parametrize("local_server", [True, False])
+@wrap_test_forked
 def test_readme_example(local_server):
     if local_server:
         from src.gen import main
