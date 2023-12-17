@@ -4228,6 +4228,9 @@ def go_gradio(**kwargs):
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
                 yield history, error, final_audio
+            except BaseException as e:
+                print("evaluate_nochat exception: %s: %s" % (str(e), str(args)), flush=True)
+                raise
             finally:
                 clear_torch_cache(allow_skip=True)
                 clear_embeddings(langchain_mode1, db1)
