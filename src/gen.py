@@ -3698,6 +3698,7 @@ def evaluate(
                            max_total_input_tokens=max_total_input_tokens,
                            truncation_generation=truncation_generation,
                            gradio_server=gradio_server,
+                           attention_sinks=attention_sinks,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -5022,6 +5023,7 @@ def get_limited_prompt(instruction,
                        max_total_input_tokens=-1,
                        truncation_generation=False,
                        gradio_server=False,
+                       attention_sinks=False,
                        ):
     if gradio_server or not inference_server:
         # can listen to truncation_generation
@@ -5036,11 +5038,15 @@ def get_limited_prompt(instruction,
     if chat_conversation is None:
         chat_conversation = []
 
-    if max_input_tokens >= 0:
-        # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
-        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+    if not attention_sinks:
+        if max_input_tokens >= 0:
+            # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
+            max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+        else:
+            max_input_tokens = model_max_length - min_max_new_tokens
     else:
-        max_input_tokens = model_max_length - min_max_new_tokens
+        if max_input_tokens < 0:
+            max_input_tokens = model_max_length
 
     if prompter:
         prompt_type = prompter.prompt_type

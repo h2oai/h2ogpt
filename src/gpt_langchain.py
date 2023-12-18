@@ -1397,6 +1397,24 @@ class H2OHuggingFacePipeline(HuggingFacePipeline):
     prompts: Any = []
     count_output_tokens: Any = 0
 
+    def _generate(
+        self,
+        prompts: List[str],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> LLMResult:
+        self.count_input_tokens += sum([self.get_num_tokens(x) for x in prompts])
+        rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+        try:
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+        return rets
+
     def _call(
             self,
             prompt: str,
@@ -1500,10 +1518,14 @@ def get_llm(use_openai_model=False,
         min_max_new_tokens = 256
 
     model_max_length = tokenizer.model_max_length
-    if max_input_tokens >= 0:
-        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+    if not attention_sinks:
+        if max_input_tokens >= 0:
+            max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+        else:
+            max_input_tokens = model_max_length - min_max_new_tokens
     else:
-        max_input_tokens = model_max_length - min_max_new_tokens
+        if max_input_tokens < 0:
+            max_input_tokens = model_max_length
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -5935,16 +5957,21 @@ def get_chain(query=None,
                      doc_json_mode,
                      prompter=prompter)
 
-    # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get largest input allowable
-    # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
-    max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                                    model_name=model_name, max_new_tokens=min_max_new_tokens)
-    if max_input_tokens >= 0:
-        max_input_tokens = min(max_input_tokens_default, max_input_tokens)
-    else:
-        max_input_tokens = max_input_tokens_default
     model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                                             model_name=model_name)
+
+    if not attention_sinks:
+        # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get the largest input allowable
+        # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
+        max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
+                                                        model_name=model_name, max_new_tokens=min_max_new_tokens)
+        if max_input_tokens >= 0:
+            max_input_tokens = min(max_input_tokens_default, max_input_tokens)
+        else:
+            max_input_tokens = max_input_tokens_default
+    else:
+        if max_input_tokens < 0:
+            max_input_tokens = model_max_length
 
     if hasattr(db, '_persist_directory'):
         lock_file = get_db_lock_file(db, lock_type='sim')
@@ -6181,6 +6208,7 @@ def get_chain(query=None,
                                max_input_tokens=max_input_tokens,
                                truncation_generation=truncation_generation,
                                gradio_server=gradio_server,
+                               attention_sinks=attention_sinks,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput, system_prompt=system_prompt)
