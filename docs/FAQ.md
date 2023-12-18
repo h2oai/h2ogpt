@@ -335,21 +335,6 @@ As listed in the `src/gen.py` file, there are many ways to control authorization
     * e.g. --auth=[('jon','password')] with no spaces
     * e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
     * e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required),
-      the file format for `auth.json` is expected to be as follows:
-      
-      ```json
-        {
-          "user1": {
-            "userid": "any_unique_value",
-            "password": "login_password",
-          },
-          "user2": {
-            "userid": "any_unique_value",
-            "password": "login_password",
-          },
-        }
-
-      ```
     * e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename then not required)
     * e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
 *    :param auth_filename:
@@ -361,6 +346,70 @@ As listed in the `src/gen.py` file, there are many ways to control authorization
 *   :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
 *   :param guest_name: guess name if using auth and have open access.
     * If '', then no guest allowed even if open access, then all databases for each user always persisted
+
+The file format for `auth.json` in basic form is:
+```json
+{
+  "user1": {
+    "userid": "any_unique_value",
+    "password": "login_password",
+  },
+  "user2": {
+    "userid": "any_unique_value",
+    "password": "login_password",
+  },
+}
+```
+while more generally it is updated by h2oGPT to contain other entries, for example for single user `username`:
+```json
+  "username": {
+    "password": "username",
+    "userid": "9078ac9c-8ccf-481a-8de3-d6ccd21fd1c3",
+    "selection_docs_state": {
+      "langchain_modes": [
+        "UserData",
+        "MyData",
+        "LLM",
+        "Disabled"
+      ],
+      "langchain_mode_paths": {
+        "UserData": null
+      },
+      "langchain_mode_types": {
+        "UserData": "shared",
+        "github h2oGPT": "shared",
+        "DriverlessAI docs": "shared",
+        "wiki": "shared",
+        "wiki_full": "",
+        "MyData": "personal",
+        "LLM": "either",
+        "Disabled": "either"
+      }
+    },
+    "chat_state": {
+      "Say a color": [
+        [],
+        [],
+        [
+          [
+            "Say a color",
+            "I do not have the ability to speak, but I can tell you that a color is a hue, tone, or shade that is perceived by the human eye and identified by a name. Some common colors include red, orange, yellow, green, blue, indigo, and violet."
+          ]
+        ]
+      ]
+    },
+    "text_outputs": [
+      [
+        [
+          [
+            "Say a color",
+            "I do not have the ability to speak, but I can tell you that a color is a hue, tone, or shade that is perceived by the human eye and identified by a name. Some common colors include red, orange, yellow, green, blue, indigo, and violet."
+          ]
+        ]
+      ]
+    ]
+  }
+```
 
 ### HTTPS access for server and client
 
