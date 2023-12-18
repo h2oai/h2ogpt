@@ -1871,18 +1871,18 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 7 and (
+                                assert len(rets1) == 8 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                             else:
-                                assert len(rets1) == 7 and (
+                                assert len(rets1) == 8 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                                 if document_subset == DocumentSubset.Relevant.name:
                                     assert 'h2oGPT' in rets1['sources']
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 7 and (
+                                assert len(rets1) == 8 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
@@ -1893,7 +1893,7 @@ def test_chroma_filtering():
                                         'gravitational' in rets1['response'].lower()
                                 )
                             else:
-                                assert len(rets1) == 7 and (
+                                assert len(rets1) == 8 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
