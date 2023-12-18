@@ -25,6 +25,7 @@ def run_cli(  # for local function:
         use_pypdf=None,
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
+        enable_imagegen_high_sd=None,
         try_pdf_as_html=None,
         # for some evaluate args
         stream_output=None, async_output=None, num_async=None,

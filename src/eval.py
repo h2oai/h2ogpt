@@ -32,6 +32,7 @@ def run_eval(  # for local function:
         use_pypdf=None,
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
+        enable_imagegen_high_sd=None,
         try_pdf_as_html=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
         temperature=None,
