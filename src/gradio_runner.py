@@ -907,7 +907,7 @@ def go_gradio(**kwargs):
                             allowed_actions,
                             value=default_action,
                             label="Action",
-                            visible=True)
+                            visible=len(allowed_actions) > 0)
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     if os.getenv('OPENAI_API_KEY') is None and LangChainAgent.JSON.value in allowed_agents:
                         allowed_agents.remove(LangChainAgent.JSON.value)
@@ -921,7 +921,7 @@ def go_gradio(**kwargs):
                         label="Agents",
                         multiselect=True,
                         interactive=True,
-                        visible=not is_public,
+                        visible=not is_public and len(allowed_agents) > 0,
                         elem_id="langchain_agents",
                         filterable=False)
 
