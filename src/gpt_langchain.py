@@ -1472,6 +1472,7 @@ def get_llm(use_openai_model=False,
             max_input_tokens=None,
             max_total_input_tokens=None,
             attention_sinks=None,
+            sink_dict={},
             truncation_generation=None,
 
             n_jobs=None,
@@ -1935,6 +1936,13 @@ def get_llm(use_openai_model=False,
         else:
             gen_kwargs.update(dict(penalty_alpha=penalty_alpha))
             assert len(set(gen_hyper0).difference(gen_kwargs.keys())) == 0
+
+        if attention_sinks:
+            from transformers import SinkCache
+            sink_dict['window_length'] = sink_dict.get('window_length', max_input_tokens)
+            sink_dict['num_sink_tokens'] = sink_dict.get('num_sink_tokens', 4)
+            cache = SinkCache(**sink_dict)
+            gen_kwargs.update(past_key_values=cache)
 
         if stream_output:
             skip_prompt = only_new_text
@@ -4628,6 +4636,7 @@ def _run_qa_db(query=None,
                max_new_tokens=512,
                min_new_tokens=1,
                attention_sinks=False,
+               sink_dict={},
                truncation_generation=False,
                early_stopping=False,
                regenerate_clients=None,
@@ -4821,6 +4830,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       cli=cli,
                       verbose=verbose,
                       attention_sinks=attention_sinks,
+                      sink_dict=sink_dict,
                       truncation_generation=truncation_generation,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \

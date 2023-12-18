@@ -578,6 +578,8 @@ def main(
     :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
          git clone https://github.com/tomaarsen/attention_sinks.git
     :param sink_dict: dict of options for attention sinks
+           E.g. {'window_length': 1024, 'num_sink_tokens': 4}
+           Default is window length same size as max_input_tokens (max_seq_len if max_input_tokens not set)
     :param hf_model_dict: dict of options for HF models using transformers
 
     :param truncation_generation: Whether (for torch) to terminate generation once reach context length of model.
@@ -2377,8 +2379,6 @@ def get_model(
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                    attention_sinks=attention_sinks, sink_dict=sink_dict,
-                    truncation_generation=truncation_generation,
                     hf_model_dict=hf_model_dict))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
@@ -2615,9 +2615,6 @@ def get_model(
                         config_kwargs=config_kwargs,
                         tokenizer_kwargs=tokenizer_kwargs,
                         gptq_dict=gptq_dict,
-                        attention_sinks=attention_sinks,
-                        sink_dict=sink_dict,
-                        truncation_generation=truncation_generation,
                         hf_model_dict=hf_model_dict,
 
                         verbose=verbose)
@@ -2653,9 +2650,6 @@ def get_hf_model(load_8bit: bool = False,
                  config_kwargs=None,
                  tokenizer_kwargs=None,
                  gptq_dict=None,
-                 attention_sinks=None,
-                 sink_dict=None,
-                 truncation_generation=None,
                  hf_model_dict=None,
 
                  verbose: bool = False,
@@ -2686,8 +2680,6 @@ def get_hf_model(load_8bit: bool = False,
                     use_autogptq=use_autogptq,
                     load_awq=load_awq, load_exllama=load_exllama,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                    attention_sinks=attention_sinks, sink_dict=sink_dict,
-                    truncation_generation=truncation_generation,
                     hf_model_dict=hf_model_dict))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
@@ -4197,6 +4189,12 @@ def evaluate(
                       max_time=max_time,
                       stopping_criteria=stopping_criteria,
                       )
+    if use_cache and attention_sinks:
+        from transformers import SinkCache
+        sink_dict['window_length'] = sink_dict.get('window_length', max_input_tokens)
+        sink_dict['num_sink_tokens'] = sink_dict.get('num_sink_tokens', 4)
+        cache = SinkCache(**sink_dict)
+        gen_kwargs.update(past_key_values=cache)
     if 'gpt2' in base_model.lower():
         gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
     elif 'mbart-' in base_model.lower():
