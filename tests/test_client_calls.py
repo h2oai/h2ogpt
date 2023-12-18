@@ -1915,7 +1915,7 @@ def test_attention_sinks(max_seq_len, attention_sinks):
          # mistral is 32k if don't say, easily run GPU OOM even on 48GB (even with --use_gpu_id=False)
          docs_ordering_type=docs_ordering_type,
          cut_distance=1.8,  # probably should allow control via API/UI
-         sink_dict={'attention_sink_size': 4, 'attention_sink_window_size': 4096} if attention_sinks else {},
+         sink_dict={'num_sink_tokens': 4, 'window_length': 4096} if attention_sinks else {},
          )
 
     from src.client_test import run_client_chat
