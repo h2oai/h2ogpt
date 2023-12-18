@@ -2282,9 +2282,6 @@ def get_model(
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
-        attention_sinks=None,
-        sink_dict=None,
-        truncation_generation=None,
         hf_model_dict={},
 
         verbose: bool = False,
@@ -4194,7 +4191,7 @@ def evaluate(
         sink_dict['window_length'] = sink_dict.get('window_length', max_input_tokens)
         sink_dict['num_sink_tokens'] = sink_dict.get('num_sink_tokens', 4)
         cache = SinkCache(**sink_dict)
-        gen_kwargs.update(past_key_values=cache)
+        gen_kwargs.update(dict(past_key_values=cache))
     if 'gpt2' in base_model.lower():
         gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
     elif 'mbart-' in base_model.lower():
@@ -4834,7 +4831,11 @@ def get_max_max_new_tokens(model_state, **kwargs):
         max_max_new_tokens = None
 
     if kwargs['max_max_new_tokens'] is not None and max_max_new_tokens is not None:
-        return min(max_max_new_tokens, kwargs['max_max_new_tokens'])
+        if kwargs.get('truncation_generation', False):
+            return min(max_max_new_tokens, kwargs['max_max_new_tokens'])
+        else:
+            # listen to max_max_new_tokens, ignore model limit
+            return max(max_max_new_tokens, kwargs['max_max_new_tokens'])
     elif kwargs['max_max_new_tokens'] is not None:
         return kwargs['max_max_new_tokens']
     elif kwargs['memory_restriction_level'] == 1:

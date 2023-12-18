@@ -1942,7 +1942,7 @@ def get_llm(use_openai_model=False,
             sink_dict['window_length'] = sink_dict.get('window_length', max_input_tokens)
             sink_dict['num_sink_tokens'] = sink_dict.get('num_sink_tokens', 4)
             cache = SinkCache(**sink_dict)
-            gen_kwargs.update(past_key_values=cache)
+            gen_kwargs.update(dict(past_key_values=cache))
 
         if stream_output:
             skip_prompt = only_new_text
