@@ -13,8 +13,6 @@ def get_loaders(model_name, reward_type, llama_type=None,
                 config=None,
                 rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config='',
                 exllama_dict=None, gptq_dict=None,
-                attention_sinks=None, sink_dict=None,
-                truncation_generation=None,
                 hf_model_dict={},
                 ):
     # NOTE: Some models need specific new prompt_type
@@ -107,17 +105,8 @@ def get_loaders(model_name, reward_type, llama_type=None,
     if llama_type is None:
         llama_type = "llama" in model_name.lower()
     if llama_type and not load_gptq:
-        if attention_sinks:
-            # below will fail if don't have, to get just do in h2ogpt repo directory:
-            # pip install git+https://github.com/tomaarsen/attention_sinks.git
-            from attention_sinks import LlamaForCausalLM
-            from transformers import LlamaTokenizer
-            model_loader = functools.partial(LlamaForCausalLM.from_pretrained,
-                                             **sink_dict)
-            return model_loader, LlamaTokenizer, False
-        else:
-            from transformers import LlamaForCausalLM, LlamaTokenizer
-            return functools.partial(LlamaForCausalLM.from_pretrained, **hf_model_dict), LlamaTokenizer, False
+        from transformers import LlamaForCausalLM, LlamaTokenizer
+        return functools.partial(LlamaForCausalLM.from_pretrained, **hf_model_dict), LlamaTokenizer, False
     elif 'distilgpt2' in model_name.lower():
         from transformers import AutoModelForCausalLM, AutoTokenizer
         return functools.partial(AutoModelForCausalLM.from_pretrained, **hf_model_dict), AutoTokenizer, False
@@ -143,16 +132,6 @@ def get_loaders(model_name, reward_type, llama_type=None,
         from transformers import AutoTokenizer, AutoModelForCausalLM
         model_loader = functools.partial(AutoModelForCausalLM.from_pretrained, **hf_model_dict)
         tokenizer_loader = AutoTokenizer
-
-        if attention_sinks:
-            # below will fail if don't have, to get just do in h2ogpt repo directory:
-            # pip install git+https://github.com/tomaarsen/attention_sinks.git
-            from attention_sinks import AutoModelForCausalLM
-            from transformers import LlamaTokenizer
-            model_loader = functools.partial(AutoModelForCausalLM.from_pretrained,
-                                             **sink_dict)
-            return model_loader, tokenizer_loader, False
-
         return model_loader, tokenizer_loader, False
 
 

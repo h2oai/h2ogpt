@@ -578,6 +578,8 @@ def main(
     :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
          git clone https://github.com/tomaarsen/attention_sinks.git
     :param sink_dict: dict of options for attention sinks
+           E.g. {'window_length': 1024, 'num_sink_tokens': 4}
+           Default is window length same size as max_input_tokens (max_seq_len if max_input_tokens not set)
     :param hf_model_dict: dict of options for HF models using transformers
 
     :param truncation_generation: Whether (for torch) to terminate generation once reach context length of model.
@@ -2280,9 +2282,6 @@ def get_model(
         llamacpp_dict=None,
         exllama_dict=None,
         gptq_dict=None,
-        attention_sinks=None,
-        sink_dict=None,
-        truncation_generation=None,
         hf_model_dict={},
 
         verbose: bool = False,
@@ -2377,8 +2376,6 @@ def get_model(
                     rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                     model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                    attention_sinks=attention_sinks, sink_dict=sink_dict,
-                    truncation_generation=truncation_generation,
                     hf_model_dict=hf_model_dict))
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
@@ -2615,9 +2612,6 @@ def get_model(
                         config_kwargs=config_kwargs,
                         tokenizer_kwargs=tokenizer_kwargs,
                         gptq_dict=gptq_dict,
-                        attention_sinks=attention_sinks,
-                        sink_dict=sink_dict,
-                        truncation_generation=truncation_generation,
                         hf_model_dict=hf_model_dict,
 
                         verbose=verbose)
@@ -2653,9 +2647,6 @@ def get_hf_model(load_8bit: bool = False,
                  config_kwargs=None,
                  tokenizer_kwargs=None,
                  gptq_dict=None,
-                 attention_sinks=None,
-                 sink_dict=None,
-                 truncation_generation=None,
                  hf_model_dict=None,
 
                  verbose: bool = False,
@@ -2686,8 +2677,6 @@ def get_hf_model(load_8bit: bool = False,
                     use_autogptq=use_autogptq,
                     load_awq=load_awq, load_exllama=load_exllama,
                     exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                    attention_sinks=attention_sinks, sink_dict=sink_dict,
-                    truncation_generation=truncation_generation,
                     hf_model_dict=hf_model_dict))
 
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
@@ -3709,6 +3698,7 @@ def evaluate(
                            max_total_input_tokens=max_total_input_tokens,
                            truncation_generation=truncation_generation,
                            gradio_server=gradio_server,
+                           attention_sinks=attention_sinks,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -4197,6 +4187,12 @@ def evaluate(
                       max_time=max_time,
                       stopping_criteria=stopping_criteria,
                       )
+    if use_cache and attention_sinks:
+        from transformers import SinkCache
+        sink_dict['window_length'] = sink_dict.get('window_length', max_input_tokens)
+        sink_dict['num_sink_tokens'] = sink_dict.get('num_sink_tokens', 4)
+        cache = SinkCache(**sink_dict)
+        gen_kwargs.update(dict(past_key_values=cache))
     if 'gpt2' in base_model.lower():
         gen_kwargs.update(dict(bos_token_id=tokenizer.bos_token_id, pad_token_id=tokenizer.eos_token_id))
     elif 'mbart-' in base_model.lower():
@@ -4836,7 +4832,11 @@ def get_max_max_new_tokens(model_state, **kwargs):
         max_max_new_tokens = None
 
     if kwargs['max_max_new_tokens'] is not None and max_max_new_tokens is not None:
-        return min(max_max_new_tokens, kwargs['max_max_new_tokens'])
+        if kwargs.get('truncation_generation', False):
+            return min(max_max_new_tokens, kwargs['max_max_new_tokens'])
+        else:
+            # listen to max_max_new_tokens, ignore model limit
+            return max(max_max_new_tokens, kwargs['max_max_new_tokens'])
     elif kwargs['max_max_new_tokens'] is not None:
         return kwargs['max_max_new_tokens']
     elif kwargs['memory_restriction_level'] == 1:
@@ -5023,6 +5023,7 @@ def get_limited_prompt(instruction,
                        max_total_input_tokens=-1,
                        truncation_generation=False,
                        gradio_server=False,
+                       attention_sinks=False,
                        ):
     if gradio_server or not inference_server:
         # can listen to truncation_generation
@@ -5037,11 +5038,15 @@ def get_limited_prompt(instruction,
     if chat_conversation is None:
         chat_conversation = []
 
-    if max_input_tokens >= 0:
-        # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
-        max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+    if not attention_sinks:
+        if max_input_tokens >= 0:
+            # max_input_tokens is used to runtime (via client/UI) to control actual filling of context
+            max_input_tokens = min(model_max_length - min_max_new_tokens, max_input_tokens)
+        else:
+            max_input_tokens = model_max_length - min_max_new_tokens
     else:
-        max_input_tokens = model_max_length - min_max_new_tokens
+        if max_input_tokens < 0:
+            max_input_tokens = model_max_length
 
     if prompter:
         prompt_type = prompter.prompt_type
