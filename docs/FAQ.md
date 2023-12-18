@@ -672,14 +672,13 @@ Exllama is supported using `load_exllama` bool, with additional control using `e
 
 Attention sinks is supported, like:
 ```bash
-pip install git+https://github.com/tomaarsen/attention_sinks.git
-python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096 --sink_dict="{'attention_sink_size': 4, 'attention_sink_window_size': 4096}"
+python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096 --sink_dict="{'num_sink_tokens': 4, 'window_length': 4096}"
 ```
-where the attention sink window has to be larger than any prompt input else failures will occur.  If one sets `max_input_tokens` then this will restrict the input tokens and that can be set to same value as `attention_sink_window_size`.
+where the attention sink window has to be larger than any prompt input else failures will occur.  If one sets `max_input_tokens` then this will restrict the input tokens and that can be set to same value as `window_length`.
 
 One can increase `--max_seq_len=4096` for Mistral up to maximum of `32768` if GPU has enough memory, or reduce to lower memory needs from input itself, but still get efficient generation of new tokens "without limit".  E.g.
 ```bash
---base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=8192 --sink_dict="{'attention_sink_size': 4, 'attention_sink_window_size': 8192}"
+--base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=8192 --sink_dict="{'num_sink_tokens': 4, 'window_length': 8192}"
 ```
 
 One can also set `--min_new_tokens` on CLI or in UI to some larger value, but this is risky as it ignores end of sentence token and may do poorly after.  Better to improve prompt, and this is most useful when already consumed context with input from documents (e.g. `top_k_docs=-1`) and still want long generation.  Attention sinks is not yet supported for llama.cpp type models or vLLM/TGI inference servers.
