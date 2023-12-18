@@ -5017,7 +5017,8 @@ def go_gradio(**kwargs):
             # switch-a-roo on base_model so can pass GGUF/GGML as base model
             model_name0 = model_name
             model_name, model_path_llama1, load_gptq, load_awq, n_gqa1 = \
-                switch_a_roo_llama(model_name, model_path_llama1, load_gptq, load_awq, n_gqa1)
+                switch_a_roo_llama(model_name, model_path_llama1, load_gptq, load_awq, n_gqa1,
+                                   kwargs['llamacpp_path'])
 
             # after getting results, we always keep all items related to llama.cpp, gptj, gpt4all inside llamacpp_dict
             llamacpp_dict = str_to_dict(llamacpp_dict_more1)

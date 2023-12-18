@@ -77,7 +77,7 @@ langchain_actions = [x.value for x in list(LangChainAction)]
 langchain_agents_list = [x.value for x in list(LangChainAgent)]
 
 
-def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa):
+def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa, llamacpp_path):
     # from TheBloke HF link
     is_gguf = 'GGUF'.lower() in base_model.lower()
     is_ggml = 'GGML'.lower() in base_model.lower()
@@ -110,6 +110,10 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa)
         elif os.path.isfile(base_model):
             # then file but still either gguf or ggml
             model_path_llama = base_model
+            base_model = 'llama'
+        elif os.path.isfile(os.path.join(llamacpp_path, base_model)):
+            # then file but still either gguf or ggml
+            model_path_llama = os.path.join(llamacpp_path, base_model)
             base_model = 'llama'
 
     # some auto things for TheBloke models:
@@ -1096,7 +1100,8 @@ def main(
     # switch-a-roo on base_model so can pass GGUF/GGML as base model
     base_model0 = base_model  # for prompt infer
     base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict['n_gqa'] = \
-        switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, llamacpp_dict.get('n_gqa', 0))
+        switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq,
+                           llamacpp_dict.get('n_gqa', 0), llamacpp_path)
 
     # add others to single dict
     llamacpp_dict['model_path_llama'] = model_path_llama
@@ -1853,7 +1858,8 @@ def main(
                                    model_dict['llamacpp_dict']['model_path_llama'],
                                    model_dict['load_gptq'],
                                    model_dict['load_awq'],
-                                   model_dict['llamacpp_dict'].get('n_gqa', 0))
+                                   model_dict['llamacpp_dict'].get('n_gqa', 0),
+                                   llamacpp_path)
 
             # begin prompt adjustments
             # get query prompt for (say) last base model if using model lock
