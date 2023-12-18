@@ -1266,7 +1266,9 @@ Summarize"""
                                                    model_path_llama=model_path_llama,
                                                    stream_output=False,
                                                    prompt_type='llama2',
-                                                   base_model=base_model)
+                                                   base_model=base_model,
+                                                   max_time=250,  # for 4096 llama-2 GGUF, takes 75s
+                                                   )
     assert "solar eclipse" in res_dict['response']
 
 
@@ -1279,7 +1281,8 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
                                 langchain_modes=['UserData', 'MyData', 'Disabled', 'LLM'],
                                 model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true',
                                 docs_ordering_type='reverse_ucurve_sort',
-                                max_seq_len=None):
+                                max_seq_len=None,
+                                max_time=20):
     if langchain_mode == 'Disabled':
         os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
         sys.modules.pop('gpt_langchain', None)
@@ -1294,12 +1297,14 @@ def run_client_chat_with_server(prompt='Who are you?', stream_output=False, max_
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
          docs_ordering_type=docs_ordering_type,
-         max_seq_len=max_seq_len)
+         max_seq_len=max_seq_len,
+         verbose=True)
 
     from src.client_test import run_client_chat
     res_dict, client = run_client_chat(prompt=prompt, prompt_type=prompt_type, stream_output=stream_output,
                                        max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
-                                       langchain_action=langchain_action, langchain_agents=langchain_agents)
+                                       langchain_action=langchain_action, langchain_agents=langchain_agents,
+                                       max_time=max_time)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
     return res_dict, client

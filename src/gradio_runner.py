@@ -3598,6 +3598,8 @@ def go_gradio(**kwargs):
                         # collect unstreamed audios
                         audios.append(res_dict['audio'])
                     if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                        if str_api:
+                            res_dict['save_dict']['extra_dict']['timeout'] = time.time() - tgen0
                         if verbose:
                             print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
                         break
