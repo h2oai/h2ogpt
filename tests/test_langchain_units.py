@@ -530,6 +530,7 @@ def test_make_add_db(repeat, db_type):
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
                                   enable_pdf_doctr=False,
+                                  gradio_upload_to_chatbot_num_max=1,
                                   verbose=False,
                                   is_url=False, is_txt=False)
                     langchain_mode2 = 'MyData'
@@ -537,14 +538,15 @@ def test_make_add_db(repeat, db_type):
                                                  langchain_mode_paths={},
                                                  langchain_mode_types={})
                     requests_state2 = dict()
-                    z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2_my, db1,
-                                                                                       selection_docs_state2,
-                                                                                       requests_state2,
-                                                                                       langchain_mode2,
-                                                                                       chunk=chunk,
-                                                                                       chunk_size=chunk_size,
-                                                                                       dbs={}, db_type=db_type,
-                                                                                       **kwargs)
+                    z1, z2, source_files_added, exceptions, last_file, last_dict = update_user_db(test_file2_my, db1,
+                                                                                                  selection_docs_state2,
+                                                                                                  requests_state2,
+                                                                                                  langchain_mode2,
+                                                                                                  chunk=chunk,
+                                                                                                  chunk_size=chunk_size,
+                                                                                                  dbs={},
+                                                                                                  db_type=db_type,
+                                                                                                  **kwargs)
                     assert z1 is None
                     assert 'MyData' == z2
                     assert 'test2my' in str(source_files_added)
@@ -554,15 +556,16 @@ def test_make_add_db(repeat, db_type):
                     selection_docs_state1 = dict(langchain_modes=[langchain_mode],
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
                                                  langchain_mode_types={langchain_mode: LangChainTypes.SHARED.value})
-                    z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2, db1,
-                                                                                       selection_docs_state1,
-                                                                                       requests_state1,
-                                                                                       langchain_mode,
-                                                                                       chunk=chunk,
-                                                                                       chunk_size=chunk_size,
-                                                                                       dbs={langchain_mode: db},
-                                                                                       db_type=db_type,
-                                                                                       **kwargs)
+                    z1, z2, source_files_added, exceptions, last_file, last_dict = update_user_db(test_file2, db1,
+                                                                                                  selection_docs_state1,
+                                                                                                  requests_state1,
+                                                                                                  langchain_mode,
+                                                                                                  chunk=chunk,
+                                                                                                  chunk_size=chunk_size,
+                                                                                                  dbs={
+                                                                                                      langchain_mode: db},
+                                                                                                  db_type=db_type,
+                                                                                                  **kwargs)
                     assert 'test2' in str(source_files_added)
                     assert langchain_mode == z2
                     assert z1 is None

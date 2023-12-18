@@ -3204,7 +3204,6 @@ def file_to_doc(file,
         # recurse
         doc1 = path_to_docs_func(de_file,
                                  filei=filei,  # single file, same file index as outside caller
-                                 base_path=base_path,
                                  )
 
     else:
@@ -3377,6 +3376,7 @@ def path_to_doc1(file,
 
 
 def path_to_docs(path_or_paths,
+                 filei=None,
                  url=None, text=None,
 
                  verbose=False, fail_any_exception=False, n_jobs=-1,
@@ -3579,15 +3579,16 @@ def path_to_docs(path_or_paths,
         return x
 
     my_tqdm = no_tqdm if not verbose else tqdm
+    filei0 = filei
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, filei=filei, **kwargs) for filei, file in enumerate(globs_non_image_types)
+            delayed(path_to_doc1)(file, filei=filei0 or filei, **kwargs) for filei, file in enumerate(globs_non_image_types)
         )
     else:
-        documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
+        documents = [path_to_doc1(file, filei=filei0 or filei, **kwargs) for filei, file in
                      enumerate(my_tqdm(globs_non_image_types))]
 
     # do images separately since can't fork after cuda in parent, so can't be parallel
@@ -3595,10 +3596,10 @@ def path_to_docs(path_or_paths,
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         image_documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
-            delayed(path_to_doc1)(file, filei=filei, **kwargs) for filei, file in enumerate(globs_image_audio_types)
+            delayed(path_to_doc1)(file, filei=filei0 or filei, **kwargs) for filei, file in enumerate(globs_image_audio_types)
         )
     else:
-        image_documents = [path_to_doc1(file, filei=filei, **kwargs) for filei, file in
+        image_documents = [path_to_doc1(file, filei=filei0 or filei, **kwargs) for filei, file in
                            enumerate(my_tqdm(globs_image_audio_types))]
 
     # unload loaders (image loaders, includes enable_pdf_doctr that uses same loader)
