@@ -585,6 +585,7 @@ class GradioClient(Client):
         # MyData specifies scratch space, only persisted for this individual client call
         langchain_mode = langchain_mode or "MyData"
         loaders = tuple([None, None, None, None])
+        extract_frames = 1
         doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
         asserts |= bool(os.getenv("HARD_ASSERTS", False))
         if (
@@ -617,7 +618,7 @@ class GradioClient(Client):
             _, file = client.predict(file, api_name="/upload_api")
 
             res = client.predict(
-                file, *doc_options, *loaders, h2ogpt_key, api_name="/add_file_api"
+                file, *doc_options, *loaders, extract_frames, h2ogpt_key, api_name="/add_file_api"
             )
             if asserts:
                 assert res[0] is None
