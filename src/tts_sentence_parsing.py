@@ -153,6 +153,11 @@ def clean_sentence(sentence, verbose=False):
     sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
     sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
 
+    sentence = sentence.replace('h2oGPT', "aych two oh ae eye.")
+    sentence = sentence.replace('h2ogpt', "aych two oh gee pee teaae.")
+    sentence = sentence.replace('H2O-GPT', "aych two oh gee pee teaae.")
+    sentence = sentence.replace('H2OGPT', "aych two oh gee pee teaae.")
+
     # filter out emojis
     if have_emoji:
         import emoji
