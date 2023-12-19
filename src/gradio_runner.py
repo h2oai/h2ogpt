@@ -1086,10 +1086,10 @@ def go_gradio(**kwargs):
                                 with submit_buttons:
                                     mw1 = 50
                                     mw2 = 50
-                                    submit = gr.Button(value='Submit', variant='primary',# size='sm',
+                                    submit = gr.Button(value='PUSH ME', variant='primary',# size='sm',
                                                        min_width=mw1,
-                                                       visible=False)
-                                                       #elem_id="submit",)
+                                                       #visible=False)
+                                                       elem_id="submit")
                                     with gr.Column(min_width=mw1):
                                         stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
                                                              min_width=mw1, elem_id='stop', visible=False)
