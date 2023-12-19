@@ -60,6 +60,7 @@ class PromptType(Enum):
     zephyr0 = 54
     google = 55
     docsgpt = 56
+    open_chat_math = 57
 
 
 class DocumentSubset(Enum):
