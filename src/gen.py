@@ -459,6 +459,7 @@ def main(
         enable_heap_analytics: bool = True,
         heap_app_id: str = "1680123994",
 ):
+    enable_tts = False
     """
 
     :param load_8bit: load model in 8-bit using bitsandbytes

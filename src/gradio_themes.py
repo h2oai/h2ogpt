@@ -192,7 +192,7 @@ class SoftTheme(Soft):
 
 def get_h2o_title(title, description, visible_h2ogpt_qrcode):
     # NOTE: Check full width desktop, smallest width browser desktop, iPhone browsers to ensure no overlap etc.
-    ret = """<img src="https://h2o-release.s3.amazonaws.com/h2ogpt/banner-happyHolidaysFromH2Oscaled.jpg" class="center">"""
+    ret = """<img src="https://h2o-release.s3.amazonaws.com/h2ogpt/happyHolidays-2023-banner.png" class="center">"""
     #ret = """<img src="https://h2o-release.s3.amazonaws.com/h2ogpt/banner-happyHolidaysFromH2O.jpg" class="center">"""
     if visible_h2ogpt_qrcode:
         ret += """
