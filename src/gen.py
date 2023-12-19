@@ -293,6 +293,7 @@ def main(
         avatars: bool = True,
         add_disk_models_to_ui=True,
         page_title: str = "h2oGPT",
+        favicon_path: str = None,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -802,6 +803,7 @@ def main(
     :param avatars: Whether to show avatars in chatbot
     :param add_disk_models_to_ui: Whether to add HF cache models and llama.cpp models to UI
     :param page_title: Title of the web page, default is h2oGPT
+    :param favicon_path: Path to favicon, default is h2oGPT favicon
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:

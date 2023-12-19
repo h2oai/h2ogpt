@@ -5617,7 +5617,7 @@ def go_gradio(**kwargs):
 
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
-    favicon_path = favicon_file
+    favicon_path = kwargs['favicon_path'] or favicon_file
     if not os.path.isfile(favicon_file):
         print("favicon_path1=%s not found" % favicon_file, flush=True)
         alt_path = os.path.dirname(os.path.abspath(__file__))
