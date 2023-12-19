@@ -55,6 +55,7 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
     model = Xtts.init_from_config(config)
     model.load_checkpoint(
         config,
+        checkpoint_dir=os.path.dirname(os.path.join(model_path, "model.pth")),
         checkpoint_path=os.path.join(model_path, "model.pth"),
         vocab_path=os.path.join(model_path, "vocab.json"),
         eval=True,
