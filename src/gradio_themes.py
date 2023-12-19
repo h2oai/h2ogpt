@@ -192,12 +192,8 @@ class SoftTheme(Soft):
 
 def get_h2o_title(title, description, visible_h2ogpt_qrcode):
     # NOTE: Check full width desktop, smallest width browser desktop, iPhone browsers to ensure no overlap etc.
-    ret = """
-            <div style="float:right; height: 80px; width: 80px; margin-top:-100px">
-                <img src="file:///home/jon/h2ogpt/banner-happyHolidaysFromH2O.jpg">
-            </div>
-            """
-    if visible_h2ogpt_qrcode:
+    ret = """<img src="https://private-user-images.githubusercontent.com/2249614/291519592-eef8eb5e-c1bb-4fa5-962a-78d6cc7461ad.jpg?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MDI5NzM3NzIsIm5iZiI6MTcwMjk3MzQ3MiwicGF0aCI6Ii8yMjQ5NjE0LzI5MTUxOTU5Mi1lZWY4ZWI1ZS1jMWJiLTRmYTUtOTYyYS03OGQ2Y2M3NDYxYWQuanBnP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQUlXTkpZQVg0Q1NWRUg1M0ElMkYyMDIzMTIxOSUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyMzEyMTlUMDgxMTEyWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9NDQ4YTI3NWEzNzMwZmFmODBmMmQxYzdmNzU5ZWNlZjQ4NDAzYTNmMmVhNWM1N2ViMjQ4MzUxOTVlNDQ5Yjk3ZSZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.O_SjTFrDwVgQKIMf4kvaoU_nsIHlEdNOOy3FLM0r2uI">"""
+    if False and visible_h2ogpt_qrcode:
         ret += """
                 <div style="float:right; height: 80px; width: 80px; margin-top:-100px">
                     <img src="https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/h2o-qr.png">
