@@ -464,6 +464,7 @@ def main(
     enable_imagegen_high=False
     enable_imagegen=True
     visible_models=['h2oai/h2ogpt-4096-llama2-70b-chat','mistralai/Mixtral-8x7B-Instruct-v0.1']
+    height = 600
     """
 
     :param load_8bit: load model in 8-bit using bitsandbytes
