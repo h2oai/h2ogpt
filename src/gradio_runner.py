@@ -4099,6 +4099,8 @@ def go_gradio(**kwargs):
                     save_dict_iter = {}
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output, fix_latex_dollars=not api, fix_new_lines=not api)
+                    bot_message =bot_message.replace('[Your Name]', '')
+
                     history[-1][1] = bot_message
 
                     if generate_speech_func_func is not None:
@@ -4455,7 +4457,6 @@ def go_gradio(**kwargs):
                                              expect_bytes=kwargs['return_as_byte'])
                 if len(bots) > 1:
                     for bot in bots:
-                        bot[-1][1] = bot[-1][1].replace('[Your Name]', '')
                         bot.extend([[None, ('giphy.gif',)]])
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
