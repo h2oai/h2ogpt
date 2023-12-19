@@ -418,7 +418,7 @@ def main(
         asr_use_better: bool = True,
         asr_use_faster: bool = False,
 
-        enable_stt: Union[str, bool] = 'auto',
+        enable_stt: Union[str, bool] = False,
         stt_model: str = "openai/whisper-base.en",
         stt_gpu: bool = True,
         stt_gpu_id: Union[int, str] = 'auto',

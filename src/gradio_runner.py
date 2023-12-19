@@ -1090,12 +1090,12 @@ def go_gradio(**kwargs):
                                         submit = gr.Button(value='Submit', variant='primary', size='sm',
                                                            min_width=mw1, elem_id="submit")
                                         stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
-                                                             min_width=mw1, elem_id='stop')
-                                        save_chat_btn = gr.Button("Save", size='sm', min_width=mw1)
+                                                             min_width=mw1, elem_id='stop', visible=False)
+                                        save_chat_btn = gr.Button("Save", size='sm', min_width=mw1, visible=False)
                                     with gr.Column(min_width=mw2):
-                                        retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
-                                        undo = gr.Button("Undo", size='sm', min_width=mw2)
-                                        clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
+                                        retry_btn = gr.Button("Redo", size='sm', min_width=mw2, visible=False)
+                                        undo = gr.Button("Undo", size='sm', min_width=mw2, visible=False)
+                                        clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2, visible=False)
 
                                     if kwargs['enable_stt'] and (
                                             kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']):
