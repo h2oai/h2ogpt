@@ -199,6 +199,10 @@ fi
   cd $pwd0
 #    ```
 
+# fix pytube to avoid errors for restricted content
+sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
+sed -i "s/client='ANDROID_MUSIC'/client='ANDROID'/g" $sp/pytube/innertube.py
+
 #* PDF View support
 #   ```bash
    # only if using gradio4

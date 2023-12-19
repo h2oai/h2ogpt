@@ -28,7 +28,7 @@ NOTE: For long-context input or large max_seq_len, Mixtral GGUF seems unstable a
 ### Video Extraction (experimental)
 
 Ways to get Audio (ASR) and Video extraction:
-* Add Youtube link to Ask Anything and click Ingest
+* Add YouTube link to Ask Anything and click Ingest
 * Upload video file clicking Upload and selecting your video
 
 By default, image frames are extracted as a separate document, so when viewed in document viewer, the images are shown.  If you prefer them under the same document, set env `FRAMES_AS_SAME_DOC=1`.
