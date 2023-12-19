@@ -1012,13 +1012,13 @@ def go_gradio(**kwargs):
                                         )
                                         mw0 = 20
                                         mic_button = gr.Button(
-                                            elem_id="microphone-button" if kwargs['enable_stt'] else None,
+                                            #elem_id="microphone-button" if kwargs['enable_stt'] else None,
                                             value="🔴",
                                             size="sm",
                                             min_width=mw0,
                                             visible=False)
                                         attach_button = gr.UploadButton(
-                                            elem_id="attach-button" if visible_upload else None,
+                                            #elem_id="attach-button" if visible_upload else None,
                                             value=None,
                                             label="Upload",
                                             size="sm",
@@ -1027,8 +1027,8 @@ def go_gradio(**kwargs):
                                             file_count="multiple",
                                             visible=False)
                                         add_button = gr.Button(
-                                            elem_id="add-button" if visible_upload and not kwargs[
-                                                'actions_in_sidebar'] else None,
+                                            #elem_id="add-button" if visible_upload and not kwargs[
+                                            #    'actions_in_sidebar'] else None,
                                             value="Ingest",
                                             size="sm",
                                             min_width=mw0,
@@ -1150,7 +1150,7 @@ def go_gradio(**kwargs):
                                                              value=visible_models_state0,
                                                              interactive=True,
                                                              multiselect=True,
-                                                             visible=visible_model_choice,
+                                                             visible=False,
                                                              elem_id="multi-selection",
                                                              filterable=False,
                                                              )
