@@ -81,6 +81,7 @@ prompt_type_to_model_name = {
         'h2oai/h2ogpt-research-oasst1-llama-65b',
         'h2oai/h2ogpt-oasst1-falcon-40b',
         'h2oai/h2ogpt-oig-oasst1-falcon-40b',
+        'llmware/dragon-mistral-7b-v0',  # https://huggingface.co/llmware/dragon-mistral-7b-v0
     ],
     'dai_faq': [],
     'summarize': [],
