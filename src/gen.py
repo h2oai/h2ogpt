@@ -2004,6 +2004,8 @@ def get_config(base_model,
                     print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
                     max_seq_len = 2048
                 # HF TGI server only should really require prompt_type, not HF model state
+                print("Not using tokenizer from HuggingFace:\n\n", flush=True)
+                traceback.print_exc()
                 return None, None, max_seq_len
             else:
                 raise
