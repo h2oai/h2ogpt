@@ -1016,7 +1016,7 @@ def go_gradio(**kwargs):
                                             value="🔴",
                                             size="sm",
                                             min_width=mw0,
-                                            visible=kwargs['enable_stt'])
+                                            visible=False)
                                         attach_button = gr.UploadButton(
                                             elem_id="attach-button" if visible_upload else None,
                                             value=None,
@@ -1025,14 +1025,14 @@ def go_gradio(**kwargs):
                                             min_width=mw0,
                                             file_types=['.' + x for x in file_types],
                                             file_count="multiple",
-                                            visible=visible_upload)
+                                            visible=False)
                                         add_button = gr.Button(
                                             elem_id="add-button" if visible_upload and not kwargs[
                                                 'actions_in_sidebar'] else None,
                                             value="Ingest",
                                             size="sm",
                                             min_width=mw0,
-                                            visible=visible_upload and not kwargs['actions_in_sidebar'])
+                                            visible=False)
 
                                     # AUDIO
                                     if kwargs['enable_stt']:
@@ -1086,9 +1086,9 @@ def go_gradio(**kwargs):
                                 with submit_buttons:
                                     mw1 = 50
                                     mw2 = 50
+                                    submit = gr.Button(value='Submit', variant='primary',# size='sm',
+                                                       min_width=mw1, elem_id="submit")
                                     with gr.Column(min_width=mw1):
-                                        submit = gr.Button(value='Submit', variant='primary', size='sm',
-                                                           min_width=mw1, elem_id="submit")
                                         stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
                                                              min_width=mw1, elem_id='stop', visible=False)
                                         save_chat_btn = gr.Button("Save", size='sm', min_width=mw1, visible=False)
@@ -1162,7 +1162,7 @@ def go_gradio(**kwargs):
                                             value=default_action,
                                             label='Action',
                                             show_label=visible_model_choice,
-                                            visible=True,
+                                            visible=False,
                                             min_width=mw0)
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
