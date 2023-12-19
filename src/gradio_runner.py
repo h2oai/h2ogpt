@@ -1002,6 +1002,7 @@ def go_gradio(**kwargs):
                                     with gr.Row(elem_id="prompt-form-row"):
                                         label_instruction = 'Ask anything or Ingest'
                                         instruction = gr.Textbox(
+                                            value="Happy Holidays from H2O.ai!",
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
                                             info=instruction_label,
@@ -1402,7 +1403,7 @@ def go_gradio(**kwargs):
                                                        info="If 'auto', then uses model's system prompt,"
                                                             " else use this message."
                                                             " If empty, no system message is used",
-                                                       value=kwargs['system_prompt'])
+                                                       value="You are h2oGPT, a large-language model built by H2O.ai, a leading AI company who has many highly valued customers.  Your job is to be very grateful and respectful, and in your responses ensure you wish the customer a happy holidays, that we appreciate their trust and support, and how we look forward to working together to achieve their goals by us constantly improving our products and services to meet their expectations.")
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
                                                  value=kwargs['context'])
