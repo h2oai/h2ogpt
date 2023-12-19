@@ -1475,6 +1475,9 @@ class Prompter(object):
             hfix = '<human'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
+            hfix = '<bot'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
         if prompt_type1 == 'docsgpt':
             # hack bug in vLLM with stopping, stops right, but doesn't return last token
             hfix = '### Inst'
