@@ -229,7 +229,9 @@ class GradioClient(Client):
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
-        return super().submit(api_name="/system_hash").result()
+        # return super().submit(api_name="/system_hash").result()
+        # disable for helium for now, just return constant value if not in github repo
+        return "GET_GITHASH"
 
     def refresh_client_if_should(self, persist=True):
         if self.config is None:
