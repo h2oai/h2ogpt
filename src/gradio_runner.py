@@ -4099,7 +4099,8 @@ def go_gradio(**kwargs):
                     save_dict_iter = {}
                     # ensure good visually, else markdown ignores multiple \n
                     bot_message = fix_text_for_gradio(output, fix_latex_dollars=not api, fix_new_lines=not api)
-                    bot_message =bot_message.replace('[Your Name]', '')
+                    bot_message = bot_message.replace('[Your Name]', '')
+                    output_no_refs = output_no_refs.replace('[Your Name]', '')
 
                     history[-1][1] = bot_message
 
