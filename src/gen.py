@@ -801,6 +801,7 @@ def main(
     :param pdf_height: Height of PDF viewer in UI
     :param avatars: Whether to show avatars in chatbot
     :param add_disk_models_to_ui: Whether to add HF cache models and llama.cpp models to UI
+    :param page_title: Title of the web page, default is h2oGPT
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
