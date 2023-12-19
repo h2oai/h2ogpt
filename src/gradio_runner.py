@@ -1000,12 +1000,12 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=50):
                                     with gr.Row(elem_id="prompt-form-row"):
-                                        label_instruction = 'Ask anything or Ingest'
+                                        label_instruction = 'Ask anything'
                                         instruction = gr.Textbox(
                                             value="Happy Holidays from H2O.ai!",
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
-                                            info=instruction_label,
+                                            info="Type here, then Hit Enter",
                                             # info=None,
                                             elem_id='prompt-form',
                                             container=True,
@@ -1087,7 +1087,9 @@ def go_gradio(**kwargs):
                                     mw1 = 50
                                     mw2 = 50
                                     submit = gr.Button(value='Submit', variant='primary',# size='sm',
-                                                       min_width=mw1, elem_id="submit")
+                                                       min_width=mw1,
+                                                       visible=False)
+                                                       #elem_id="submit",)
                                     with gr.Column(min_width=mw1):
                                         stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
                                                              min_width=mw1, elem_id='stop', visible=False)
