@@ -1448,10 +1448,10 @@ def go_gradio(**kwargs):
                                                        info="Set env CRAWL_DEPTH to control depth for Scrape, default is 1 (given page + links on that page)",
                                                        value=url_loaders_options0)
                         jq_schema = gr.Textbox(label="JSON jq_schema", value=jq_schema0)
-                        extract_frames = gr.Number(value=kwargs['extract_frames'] if not is_public else 5,
-                                                   precision=0,
+                        extract_frames = gr.Slider(value=kwargs['extract_frames'] if not is_public else 5,
+                                                   step=1,
                                                    minimum=0,
-                                                   maximum=5 if is_public else max(kwargs['extract_frames'], 200),
+                                                   maximum=5 if is_public else max(kwargs['extract_frames'], 1000),
                                                    label="Number of unique images to extract from videos",
                                                    info="If 0, just audio extracted if enabled",
                                                    visible=have_fiftyone)
