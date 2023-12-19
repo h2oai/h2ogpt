@@ -4455,7 +4455,7 @@ def go_gradio(**kwargs):
                                              expect_bytes=kwargs['return_as_byte'])
                 if len(bots) > 1:
                     for bot in bots:
-                        bot[-1][1] = (bot[-1][1], 'giphy.gif')
+                        bot.extend([[None, ('giphy.gif',)]])
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
                     yield bots[0], exceptions_str, final_audio
