@@ -148,15 +148,15 @@ def clean_sentence(sentence, verbose=False):
     sentence = sentence.replace("Dr. ", "Doctor ")
     sentence = sentence.replace(" w/ ", " with ")
 
-    sentence = sentence.replace('H2O.ai', "aych two oh ae eye.")
-    sentence = sentence.replace('H2O.AI', "aych two oh ae eye.")
-    sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
-    sentence = sentence.replace('h2o.ai', "aych two oh ae eye.")
+    sentence = sentence.replace('H2O.ai', "H. two. O. A. eye.")
+    sentence = sentence.replace('H2O.AI', "H. two. O. A. eye.")
+    sentence = sentence.replace('h2o.ai', "H. two. O. A. eye.")
+    sentence = sentence.replace('h2o.ai', "H. two. O. A. eye.")
 
-    sentence = sentence.replace('h2oGPT', "aych two oh ae eye.")
-    sentence = sentence.replace('h2ogpt', "aych two oh gee pee teaae.")
-    sentence = sentence.replace('H2O-GPT', "aych two oh gee pee teaae.")
-    sentence = sentence.replace('H2OGPT', "aych two oh gee pee teaae.")
+    sentence = sentence.replace('h2oGPT', "h.2.o.G.P.T.")
+    sentence = sentence.replace('h2ogpt', "h.2.o.G.P.T.")
+    sentence = sentence.replace('H2O-GPT', "h.2.o.G.P.T.")
+    sentence = sentence.replace('H2OGPT', "h.2.o.G.P.T.")
 
     # filter out emojis
     if have_emoji:

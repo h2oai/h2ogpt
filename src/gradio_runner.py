@@ -1002,7 +1002,7 @@ def go_gradio(**kwargs):
                                     with gr.Row(elem_id="prompt-form-row"):
                                         label_instruction = 'Ask anything'
                                         instruction = gr.Textbox(
-                                            value="Happy Holidays from H2O.ai!",
+                                            value="Happy Holidays!",
                                             lines=kwargs['input_lines'],
                                             label=label_instruction,
                                             info="Type here, then Hit Enter",
