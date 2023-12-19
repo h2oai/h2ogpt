@@ -292,6 +292,7 @@ def main(
         pdf_height: int = 800,
         avatars: bool = True,
         add_disk_models_to_ui=True,
+        page_title: str = "h2oGPT",
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
