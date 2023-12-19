@@ -249,11 +249,13 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
     kill_weaviate(db_type)
 
 
-def get_test_model():
+def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
+                   tokenizer_base_model='',
+                   prompt_type='human_bot',
+                   inference_server='',
+                   max_seq_len=None):
     # need to get model externally, so don't OOM
     from src.gen import get_model
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
     all_kwargs = dict(load_8bit=False,
                       load_4bit=False,
                       low_bit_mode=1,
@@ -266,8 +268,8 @@ def get_test_model():
                       revision=None,
                       use_gpu_id=True,
                       base_model=base_model,
-                      tokenizer_base_model=base_model,
-                      inference_server='',
+                      tokenizer_base_model=tokenizer_base_model,
+                      inference_server=inference_server,
                       regenerate_clients=False,
                       lora_weights='',
                       gpu_id=0,
@@ -281,7 +283,7 @@ def get_test_model():
                       trust_remote_code=True,
                       offload_folder=None,
                       rope_scaling=None,
-                      max_seq_len=None,
+                      max_seq_len=max_seq_len,
                       compile_model=True,
                       llamacpp_dict={},
                       exllama_dict={},
