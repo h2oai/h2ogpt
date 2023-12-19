@@ -2379,8 +2379,13 @@ def file_to_doc(file,
         'http://www.youtube.com/watch?v=',
         'www.youtube.com/watch?v=',
         'youtube.com/watch?v=',
+        'https://youtube.com/watch?v=',
+        'http://youtube.com/watch?v=',
+
         'https://www.youtube.com/shorts/',
         'http://www.youtube.com/shorts/',
+        'https://youtube.com/shorts/',
+        'http://youtube.com/shorts/',
         'www.youtube.com/shorts/',
         'youtube.com/shorts/'
     ]
