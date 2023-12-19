@@ -460,6 +460,9 @@ def main(
         heap_app_id: str = "1680123994",
 ):
     enable_tts = False
+    gradio_upload_to_chatbot=False
+    enable_imagegen_high=False
+    enable_imagegen=True
     """
 
     :param load_8bit: load model in 8-bit using bitsandbytes
