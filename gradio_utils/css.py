@@ -195,4 +195,8 @@ def make_css_base() -> str:
         padding: 0 4px;
         margin-right: 2px;
     }
+    img.center {
+    display: block;
+    margin: 0 auto;
+}
     """

@@ -267,17 +267,17 @@ def main(
         visible_models: list = None,
         visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
-        visible_side_bar: bool = True,
-        visible_doc_track: bool = True,
+        visible_side_bar: bool = False,
+        visible_doc_track: bool = False,
         visible_chat_tab: bool = True,
-        visible_doc_selection_tab: bool = True,
-        visible_doc_view_tab: bool = True,
-        visible_chat_history_tab: bool = True,
-        visible_expert_tab: bool = True,
-        visible_models_tab: bool = True,
-        visible_system_tab: bool = True,
+        visible_doc_selection_tab: bool = False,
+        visible_doc_view_tab: bool = False,
+        visible_chat_history_tab: bool = False,
+        visible_expert_tab: bool = False,
+        visible_models_tab: bool = False,
+        visible_system_tab: bool = False,
         visible_tos_tab: bool = False,
-        visible_login_tab: bool = True,
+        visible_login_tab: bool = False,
         visible_hosts_tab: bool = False,
         chat_tables: bool = False,
         visible_h2ogpt_links: bool = True,
@@ -1163,7 +1163,7 @@ def main(
         # nominally allow UI access public or not
         enforce_h2ogpt_ui_key = False
     if is_public:
-        visible_tos_tab = visible_hosts_tab = True
+        #visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = True
     else:
