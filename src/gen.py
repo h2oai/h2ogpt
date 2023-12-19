@@ -1996,6 +1996,8 @@ def get_config(base_model,
         except OSError as e:
             if raise_exception:
                 raise
+            if base_model in anthropic_gpts + openai_gpts + google_gpts:
+                return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
                 # e.g. llama, gpjt, etc.
@@ -2369,16 +2371,31 @@ def get_model(
 
     model_name_exllama_if_no_config = '' if not llamacpp_dict else llamacpp_dict.get('model_name_exllama_if_no_config',
                                                                                      '')
-    model_loader, tokenizer_loader, conditional_type = (
-        get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq,
-                    use_autogptq=use_autogptq,
-                    load_awq=load_awq, load_exllama=load_exllama,
-                    config=config,
-                    rope_scaling=rope_scaling, max_seq_len=max_seq_len,
-                    model_name_exllama_if_no_config=model_name_exllama_if_no_config,
-                    exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                    hf_model_dict=hf_model_dict))
+    loader_kwargs = dict(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
+                         load_gptq=load_gptq,
+                         use_autogptq=use_autogptq,
+                         load_awq=load_awq, load_exllama=load_exllama,
+                         config=config,
+                         rope_scaling=rope_scaling, max_seq_len=max_seq_len,
+                         model_name_exllama_if_no_config=model_name_exllama_if_no_config,
+                         exllama_dict=exllama_dict, gptq_dict=gptq_dict,
+                         hf_model_dict=hf_model_dict)
+    model_loader, tokenizer_loader, conditional_type = get_loaders(**loader_kwargs)
+
+    if not tokenizer_base_model:
+        tokenizer_base_model = base_model
+        config_tokenizer = config
+        # ignore sequence length of tokenizer
+    else:
+        # get tokenizer specific objects
+        config_tokenizer, _, max_seq_len_tokenizer = get_config(tokenizer_base_model, **config_kwargs,
+                                                                raise_exception=False)
+        if config is None:
+            assert max_seq_len, "Must set max_seq_len if passing different tokenizer than model that cannot be found (config is None) e.g. because a private model"
+
+        loader_kwargs_tokenizer = loader_kwargs.copy()
+        loader_kwargs_tokenizer['model_name'] = tokenizer_base_model
+        _, tokenizer_loader, _ = get_loaders(**loader_kwargs_tokenizer)
 
     tokenizer_kwargs = dict(local_files_only=local_files_only,
                             resume_download=resume_download,
@@ -2387,15 +2404,14 @@ def get_model(
                             offload_folder=offload_folder,
                             revision=revision,
                             padding_side='left',
-                            config=config,
+                            config=config_tokenizer,
                             )
-    if not tokenizer_base_model:
-        tokenizer_base_model = base_model
 
     if load_exllama:
         tokenizer = tokenizer_loader
-    elif config is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
+    elif config_tokenizer is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         if load_exllama:
+            assert base_model == tokenizer_base_model
             tokenizer = tokenizer_loader
         else:
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
@@ -2613,6 +2629,7 @@ def get_model(
                         llama_type=llama_type,
                         config_kwargs=config_kwargs,
                         tokenizer_kwargs=tokenizer_kwargs,
+                        loader_kwargs=loader_kwargs,
                         gptq_dict=gptq_dict,
                         hf_model_dict=hf_model_dict,
 
@@ -2648,6 +2665,7 @@ def get_hf_model(load_8bit: bool = False,
                  llama_type: bool = False,
                  config_kwargs=None,
                  tokenizer_kwargs=None,
+                 loader_kwargs=None,
                  gptq_dict=None,
                  hf_model_dict=None,
 
@@ -2673,20 +2691,24 @@ def get_hf_model(load_8bit: bool = False,
         "Please choose a base model with --base_model (CLI) or load one from Models Tab (gradio)"
     )
 
-    model_loader, tokenizer_loader, conditional_type = (
-        get_loaders(model_name=base_model, reward_type=reward_type, llama_type=llama_type,
-                    load_gptq=load_gptq,
-                    use_autogptq=use_autogptq,
-                    load_awq=load_awq, load_exllama=load_exllama,
-                    exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                    hf_model_dict=hf_model_dict))
-
     config, _, max_seq_len = get_config(base_model, return_model=False, raise_exception=True, **config_kwargs)
+
+    model_loader, tokenizer_loader, conditional_type = get_loaders(**loader_kwargs)
+
+    if not tokenizer_base_model:
+        tokenizer_base_model = base_model
+        # ignore sequence length of tokenizer
+    else:
+        loader_kwargs_tokenizer = loader_kwargs.copy()
+        loader_kwargs_tokenizer['model_name'] = tokenizer_base_model
+        _, tokenizer_loader, _ = get_loaders(**loader_kwargs_tokenizer)
 
     if tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         if load_exllama:
             tokenizer = tokenizer_loader
         else:
+            # tokenizer_kwargs already contains config=config_tokenizer
+            assert tokenizer_kwargs.get('config') is not None, "Tokenizer is invalid: %s" % tokenizer_base_model
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model,
                                                          **tokenizer_kwargs)
     else:
