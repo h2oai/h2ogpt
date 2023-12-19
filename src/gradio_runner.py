@@ -4452,6 +4452,7 @@ def go_gradio(**kwargs):
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
                 if len(bots) > 1:
+                    bots[-1][1] = (bots[-1][1], 'giphy.gif')
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
                     yield bots[0], exceptions_str, final_audio
