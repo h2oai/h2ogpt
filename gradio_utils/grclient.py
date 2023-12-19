@@ -200,6 +200,8 @@ class GradioClient(Client):
 
         if is_gradio_client_version7:
             protocol = self.config.get("protocol")
+            from gradio_client.client import EndpointV3Compatibility
+
             endpoint_class = Endpoint if protocol == "sse" else EndpointV3Compatibility
         else:
             endpoint_class = Endpoint
