@@ -196,7 +196,7 @@ def get_h2o_title(title, description, visible_h2ogpt_qrcode):
     #ret = """<img src="https://h2o-release.s3.amazonaws.com/h2ogpt/banner-happyHolidaysFromH2O.jpg" class="center">"""
     if visible_h2ogpt_qrcode:
         ret += """
-                <div style="float:right; height: 200px; width: 200px; margin-top:0px">
+                <div style="float:right; height: 200px; width: 200px; margin-top:-200px">
                     <img src="https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/h2o-qr.png">
                 </div>
                 """
