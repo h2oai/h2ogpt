@@ -3780,8 +3780,6 @@ def evaluate(
                     text = responses.choices[0].text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
                 else:
                     collected_events = []
                     tgen0 = time.time()
@@ -3834,8 +3832,6 @@ def evaluate(
                     text = responses.choices[0].text  # FIXME: Untested
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
                 else:
                     tgen0 = time.time()
                     for chunk in responses:
@@ -3980,8 +3976,6 @@ def evaluate(
                     sources = res_dict['sources']
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
                 else:
                     from gradio_utils.grclient import check_job
                     job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
@@ -4091,8 +4085,6 @@ def evaluate(
                     text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
                 else:
                     tgen0 = time.time()
                     text = ""
@@ -4125,6 +4117,7 @@ def evaluate(
                                tokens_persecond=None,
                                ))
         save_dict.update(dict(prompt=prompt, output=text, where_from=where_from, extra_dict=extra_dict))
+        # if not streaming, only place yield should be done
         yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
         return
@@ -4143,6 +4136,7 @@ def evaluate(
         yield dict(response=response, sources=sources, save_dict=save_dict,
                    llm_answers={},
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
+        return
 
     if 'mbart-' in base_model.lower():
         assert src_lang is not None
@@ -4291,8 +4285,10 @@ def evaluate(
                                 if verbose:
                                     print("Took too long for Torch: %s" % (time.time() - tgen0), flush=True)
                                 break
-                        # yield if anything left over as can happen (FIXME: Understand better)
-                        yield ret
+                        if stream_output:
+                            # will yield at end if required
+                            # yield if anything left over as can happen (FIXME: Understand better)
+                            yield ret
                     except BaseException:
                         # if any exception, raise that exception if was from thread, first
                         if thread.exc:
@@ -4323,12 +4319,11 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw=prompt)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
 
             # full return with save_dict and prompt_raw
+            # if not streaming, only place yield should be
             extra_dict.update(gen_config_kwargs)
             extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens,
                                    t_generate=time.time() - t_generate,
