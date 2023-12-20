@@ -1570,7 +1570,7 @@ def step_back_prompts(which):
         return f"""You are a mathematician or physicist.  {gen1}"""
     elif which == 2:
         return f"""You are a mathematician or physicist.  {gen2}"""
-    elif which == 2:
+    elif which == 3:
         return f"""You are a very helpful expert at the topic of the question.  {gen3}"""
 
     else:
