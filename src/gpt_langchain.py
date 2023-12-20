@@ -5231,7 +5231,8 @@ def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
     elif one_doc_size is not None:
         docs_with_score = [(docs_with_score[0][:one_doc_size], docs_with_score[0][1])]
     else:
-        docs_with_score = []
+        # do nothing
+        pass
     return docs_with_score
 
 
