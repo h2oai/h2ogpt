@@ -166,6 +166,7 @@ def get_prompt_type2(is_public, **kwargs):
 
 
 def go_gradio(**kwargs):
+    page_title = kwargs['page_title']
     allow_api = kwargs['allow_api']
     is_public = kwargs['is_public']
     is_hf = kwargs['is_hf']
@@ -263,7 +264,7 @@ def go_gradio(**kwargs):
                                  radius_size=gr.themes.sizes.spacing_md))
 
     theme = H2oTheme(**theme_kwargs) if kwargs['h2ocolors'] else SoftTheme(**theme_kwargs)
-    demo = gr.Blocks(theme=theme, css=css_code, title="h2oGPT", analytics_enabled=False)
+    demo = gr.Blocks(theme=theme, css=css_code, title=page_title, analytics_enabled=False)
     callback = gr.CSVLogger()
 
     # modify, if model lock then don't show models, then need prompts in expert
@@ -5616,7 +5617,7 @@ def go_gradio(**kwargs):
 
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
-    favicon_path = favicon_file
+    favicon_path = kwargs['favicon_path'] or favicon_file
     if not os.path.isfile(favicon_file):
         print("favicon_path1=%s not found" % favicon_file, flush=True)
         alt_path = os.path.dirname(os.path.abspath(__file__))
