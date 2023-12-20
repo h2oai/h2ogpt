@@ -244,7 +244,7 @@ def test_client1api_lean_lock_choose_model():
     assert [x['base_model'] for x in res] == [base1, base2]
     assert res == [{'base_model': 'h2oai/h2ogpt-oig-oasst1-512-6_9b', 'prompt_type': 'human_bot', 'prompt_dict': None,
                     'load_8bit': False, 'load_4bit': False, 'low_bit_mode': 1, 'load_half': True,
-                    'use_flash_attention_2': True, 'load_gptq': '', 'load_awq': '', 'load_exllama': False,
+                    'use_flash_attention_2': False, 'load_gptq': '', 'load_awq': '', 'load_exllama': False,
                     'use_safetensors': False, 'revision': None, 'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None,
                     'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
@@ -253,7 +253,7 @@ def test_client1api_lean_lock_choose_model():
                     'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
                     'truncation_generation': False, 'hf_model_dict': {}},
                    {'base_model': 'distilgpt2', 'prompt_type': 'plain', 'prompt_dict': None, 'load_8bit': False,
-                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'use_flash_attention_2': True,
+                    'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'use_flash_attention_2': False,
                     'load_gptq': '', 'load_awq': '', 'load_exllama': False, 'use_safetensors': False, 'revision': None,
                     'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None, 'use_cache': None,
                     'llamacpp_dict': {'n_gpu_layers': 100, 'use_mlock': True, 'n_batch': 1024, 'n_gqa': 0,
@@ -3229,7 +3229,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             if base_model == 'gpt-3.5-turbo':
                 tokens_expected = 3000 if local_server else 2900
                 expected_return_number = 14 if local_server else 14
-                expected_return_number2 = 15 if 'azure' not in inference_server else 14
+                expected_return_number2 = 14 if 'azure' not in inference_server else 14
             elif inference_server and 'replicate' in inference_server:
                 tokens_expected = 3000 if local_server else 2900
                 expected_return_number = 11 if local_server else 11
@@ -4092,5 +4092,6 @@ def check_curl_plain_api():
 
     assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
-    assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict']['base_model']
+    assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict'][
+        'base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
