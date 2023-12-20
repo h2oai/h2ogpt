@@ -63,7 +63,8 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                        user_path=user_path,
                        langchain_modes=langchain_modes,
                        docs_ordering_type=docs_ordering_type,
-                       force_langchain_evaluate=force_langchain_evaluate)
+                       force_langchain_evaluate=force_langchain_evaluate,
+                       verbose=True)
 
     # inference server
     from src.gen import main
