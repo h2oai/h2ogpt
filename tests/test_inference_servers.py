@@ -41,13 +41,16 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
         # from src.gpt_langchain import get_some_dbs_from_hf
         # get_some_dbs_from_hf()
 
+    max_seq_len_client = None
     if base_model in ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-oasst1-512-12b']:
         prompt_type = PromptType.human_bot.name
     elif base_model in ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']:
         prompt_type = PromptType.prompt_answer.name
     elif base_model in ['llama']:
+        max_seq_len_client = 2048
         prompt_type = PromptType.llama2.name
     elif base_model in ['gptj']:
+        max_seq_len_client = 2048
         prompt_type = PromptType.gptj.name
     else:
         raise NotImplementedError(base_model)
@@ -79,6 +82,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
     main_kwargs = main_kwargs.copy()
     if enforce_h2ogpt_api_key:
         main_kwargs.update(dict(enforce_h2ogpt_api_key=True, h2ogpt_api_keys=[h2ogpt_key]))
+    main_kwargs.update(dict(max_seq_len=max_seq_len_client))
     main(**main_kwargs, inference_server=inference_server)
 
     # client test to server that only consumes inference server

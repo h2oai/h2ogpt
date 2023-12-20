@@ -2000,7 +2000,7 @@ def get_config(base_model,
         except OSError as e:
             if raise_exception:
                 raise
-            if base_model in anthropic_gpts + openai_gpts + google_gpts:
+            if base_model in anthropic_gpts + openai_gpts + google_gpts + non_hf_types:
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
@@ -2585,6 +2585,11 @@ def get_model(
             # if model None, means native inference server (and no concern about slowness of regenerating client)
             model = inference_server
 
+        return model, tokenizer, inference_server
+
+    if inference_server and base_model in non_hf_types and tokenizer is None:
+        assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for non-HF model %s" % base_model
+        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
         return model, tokenizer, inference_server
 
     # shouldn't reach here if had inference server
