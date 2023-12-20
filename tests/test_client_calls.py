@@ -2609,36 +2609,44 @@ def test_client_load_unload_models(model_choice):
     if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type_ex = 'human_bot'
         max_seq_len_ex = 2048.0
+        max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['llama']:
         prompt_type_ex = 'llama2'
         model_choice_ex = 'llama'
         model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
         max_seq_len_ex = 4096.0
+        max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['TheBloke/Llama-2-7B-Chat-GGUF']:
         prompt_type_ex = 'llama2'
         model_choice_ex = 'llama'
         model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf?download=true'
         max_seq_len_ex = 4096.0
+        max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['TheBloke/zephyr-7B-beta-GGUF']:
         prompt_type_ex = 'zephyr'
         model_choice_ex = 'llama'
         model_path_llama_ex = 'https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true'
         max_seq_len_ex = 4096.0
+        max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
                           'TheBloke/zephyr-7B-beta-AWQ']:
         prompt_type_ex = 'zephyr'
         max_seq_len_ex = 32768.0
+        max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['TheBloke/Xwin-LM-13B-V0.1-GPTQ']:
         prompt_type_ex = 'xwin'
         max_seq_len_ex = 4096.0
+        max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['gpt-3.5-turbo']:
         prompt_type_ex = 'openai_chat'
-        max_seq_len_ex = 4046.0
+        max_seq_len_ex = 4096.0
+        max_seq_len_ex2 = 4046
     else:
         raise ValueError("No such model_choice=%s" % model_choice)
     res_expected = (
-        model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex, {'__type__': 'update', 'maximum': 1024},
-        {'__type__': 'update', 'maximum': 1024},
+        model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex2,
+        {'__type__': 'update', 'maximum': int(max_seq_len_ex)},
+        {'__type__': 'update', 'maximum': int(max_seq_len_ex)},
         model_path_llama_ex,
         '', '',
         model_load_gptq_ex, model_load_awq_ex,
