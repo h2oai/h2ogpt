@@ -27,7 +27,9 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
-- **OpenAI-compliant Python client API** for client-server control
+- **OpenAI-compliant**
+  - Server Proxy (experimental)
+  - Python client API
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
 - **Evaluate** performance using reward models
@@ -236,6 +238,8 @@ These are not part of normal installation instructions and are experimental.
     make -C client setup
     make -C client build
     pytest --instafail -s -v client/tests
+    # for openai server test on already-running local server
+    pytest -s -v -n 4 openai_server/test_openai_server.py::test_openai_client
     ```
   or tweak/run `tests/test4gpus.sh` to run tests in parallel.
 

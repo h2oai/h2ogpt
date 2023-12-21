@@ -277,7 +277,7 @@ def go_gradio(**kwargs):
         model_options0 = model_names_curated + kwargs['extra_model_options']
     if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
-    if kwargs['add_disk_models_to_ui'] and kwargs['visible_models_tab']:
+    if kwargs['add_disk_models_to_ui'] and kwargs['visible_models_tab'] and not kwargs['model_lock']:
         model_options0.extend(get_on_disk_models(llamacpp_path=kwargs['llamacpp_path'],
                                                  use_auth_token=kwargs['use_auth_token'],
                                                  trust_remote_code=kwargs['trust_remote_code']))
@@ -5694,6 +5694,17 @@ def go_gradio(**kwargs):
         webbrowser.open_new_tab(demo.local_url)
     else:
         print("Use local URL: %s" % demo.local_url, flush=True)
+
+    if kwargs['openai_server']:
+        from openai_server.server import run
+        url_split = demo.local_url.split(':')
+        if len(url_split) == 3:
+            gradio_host = ':'.join(url_split[1:2]).replace('//', '')
+            gradio_port = ':'.join(url_split[2:])
+        else:
+            gradio_host = ':'.join(url_split[0:1])
+            gradio_port = ':'.join(url_split[1:])
+        run(wait=False, host=gradio_host, port=kwargs['openai_port'], gradio_host=gradio_host, gradio_port=gradio_port)
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()
