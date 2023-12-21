@@ -205,6 +205,8 @@ def main(
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
+        openai_server: bool = True,
+        openai_port: int = 5000,
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
         share: bool = False,
@@ -650,6 +652,8 @@ def main(
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
+    :param openai_server: whether to launch OpenAI proxy server for local gradio server
+    :param openai_port: port for OpenAI proxy server
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.
@@ -1966,6 +1970,7 @@ def main(
                                   base_model=score_model, tokenizer_base_model='', lora_weights='',
                                   inference_server='', prompt_type='', prompt_dict='',
                                   visible_models=None, h2ogpt_key=None)
+
 
         # assume gradio needs everything
         go_gradio(**locals())
@@ -3834,7 +3839,7 @@ def evaluate(
                 sources = []
                 response = ""
                 if not stream_output:
-                    text = responses.choices[0].text  # FIXME: Untested
+                    text = responses.choices[0].message.content
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                 else:

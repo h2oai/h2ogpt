@@ -192,6 +192,16 @@ python generate.py --inference_server="http://192.168.0.10:7680" --base_model=fo
 ```
 which is just an example for the `human_bot` prompt type.
 
+## OpenAI Proxy Inference Server-Client
+
+Run with `--openai_server=True` (default) to run OpenAI Proxy Server to connect to h2oGPT server via openai python package.  E.g. the LLM can be on a remote inference server:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --verbose=True --score_model=None --pre_load_embedding_model=False --gradio_offline_level=2 --base_model=openchat/openchat-3.5-1210 --inference_server=vllm:<ip>:<port> --max_seq_len=4096 --save_dir=duder1 --verbose --openai_server=True --concurrency_count=64
+````
+for some `<ip>` and `<port>`.  Or the model can be local torch/llama.cpp/GPT4All model (then set `--concurrency_count=1 to avoid multi-threading issues).
+
+Then as client, h2oGPT currently supports `.chat.completions` and `.completions` for streaming and non-streaming, as well as `.models.retrieve()` and `.models.list()`.  See tests [test_openai_server.py](../openai_server/test_openai_server.py).
+
 ## OpenAI Inference Server-Client
 
 If you have an OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access OpenAI models via gradio by running:
