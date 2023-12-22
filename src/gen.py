@@ -11,6 +11,8 @@ import typing
 import uuid
 import warnings
 from datetime import datetime
+
+import httpx
 import requests
 from requests import ConnectTimeout, JSONDecodeError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionError
@@ -2211,7 +2213,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
             gr_client = None
             print("GR Client Failed %s %s: %s" % (inference_server, base_model, str(e)), flush=True)
         except (ConnectTimeoutError, ConnectTimeout, MaxRetryError, ConnectionError, ConnectionError2,
-                JSONDecodeError, ReadTimeout2, KeyError) as e:
+                JSONDecodeError, ReadTimeout2, KeyError, httpx.LocalProtocolError) as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
             print("GR Client Failed %s %s: %s" % (inference_server, base_model, str(ex)), flush=True)

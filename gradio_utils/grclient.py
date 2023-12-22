@@ -8,6 +8,7 @@ import concurrent.futures
 import time
 import urllib.parse
 import uuid
+from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
@@ -79,6 +80,7 @@ prompt_extraction0 = "Using only the information in the document sources above, 
 
 hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
+
 class GradioClient(Client):
     """
     Parent class of gradio client
@@ -116,6 +118,7 @@ class GradioClient(Client):
             serialize=serialize,
             output_dir=output_dir,
             verbose=verbose,
+            auth=auth,
             h2ogpt_key=h2ogpt_key,
         )
 
@@ -155,6 +158,7 @@ class GradioClient(Client):
             library_name="gradio_client",
             library_version=utils.__version__,
         )
+        # self.headers.pop('authorization', None)  # else get illegal Bearer for old servers
         if src.startswith("http://") or src.startswith("https://"):
             _src = src if src.endswith("/") else src + "/"
         else:
@@ -180,6 +184,10 @@ class GradioClient(Client):
         if self.verbose:
             print(f"Loaded as API: {self.src} ✔")
 
+        if is_gradio_client_version7:
+            if self.auth is not None:
+                self._login(self.auth)
+
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
         if is_gradio_client_version7:
             self.sse_url = urllib.parse.urljoin(self.src, utils.SSE_URL)
@@ -189,26 +197,31 @@ class GradioClient(Client):
         )
         self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
         self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
-        if is_gradio_client_version7:
-            if self.auth is not None:
-                self._login(self.auth)
         self.config = self._get_config()
         if is_gradio_client_version7:
+            self.protocol: str = self.config.get("protocol", "ws")
             self.app_version = version.parse(self.config.get("version", "2.0"))
             self._info = self._get_api_info()
         self.session_hash = str(uuid.uuid4())
 
         if is_gradio_client_version7:
-            protocol = self.config.get("protocol")
             from gradio_client.client import EndpointV3Compatibility
-
-            endpoint_class = Endpoint if protocol == "sse" else EndpointV3Compatibility
+            endpoint_class = (
+                Endpoint if self.protocol.startswith("sse") else EndpointV3Compatibility
+            )
         else:
             endpoint_class = Endpoint
-        self.endpoints = [
-            endpoint_class(self, fn_index, dependency)
-            for fn_index, dependency in enumerate(self.config["dependencies"])
-        ]
+
+        if is_gradio_client_version7:
+            self.endpoints = [
+                endpoint_class(self, fn_index, dependency, self.protocol)
+                for fn_index, dependency in enumerate(self.config["dependencies"])
+            ]
+        else:
+            self.endpoints = [
+                endpoint_class(self, fn_index, dependency)
+                for fn_index, dependency in enumerate(self.config["dependencies"])
+            ]
 
         # Create a pool of threads to handle the requests
         self.executor = concurrent.futures.ThreadPoolExecutor(
@@ -219,6 +232,13 @@ class GradioClient(Client):
         # threading.Thread(target=self._telemetry_thread).start()
 
         self.server_hash = self.get_server_hash()
+
+        if is_gradio_client_version7:
+            self.stream_open = False
+            self.streaming_future: Future | None = None
+            from gradio_client.utils import Message
+            self.pending_messages_per_event: dict[str, list[Message | None]] = {}
+            self.pending_event_ids: set[str] = set()
 
         return self
 
