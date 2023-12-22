@@ -377,6 +377,7 @@ def main(
         hyde_level: int = 0,
         hyde_template: str = None,
         hyde_show_only_final: bool = False,
+        hyde_show_intermediate_in_accordion: bool = True,
         doc_json_mode: bool = False,
 
         auto_reduce_chunks: bool = True,
@@ -770,7 +771,8 @@ def main(
     :param hyde_template:
                  None, 'None', 'auto' uses internal value and enable
                  '{query}' is minimal template one can pass
-    :param hyde_show_only_final:  Whether to show only last result of HYDEE, not intermediate steps
+    :param hyde_show_only_final:  Whether to show only last result of HYDE, not intermediate steps
+    :param hyde_show_intermediate_in_accordion: Whether to show intermediate HYDE, but inside HTML accordion
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -3176,6 +3178,7 @@ def evaluate(
         first_para=None,
         text_limit=None,
         show_accordions=None,
+        hyde_show_intermediate_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         verbose=False,
@@ -3611,6 +3614,7 @@ def evaluate(
                 first_para=first_para,
                 text_limit=text_limit,
                 show_accordions=show_accordions,
+                hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                 top_k_docs_max_show=top_k_docs_max_show,
                 show_link_in_sources=show_link_in_sources,
 
