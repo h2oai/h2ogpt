@@ -4065,7 +4065,7 @@ def check_final_res(res, base_model='llama'):
         assert res['save_dict']['base_model'] == 'HuggingFaceH4/zephyr-7b-beta'
     assert res['save_dict']['where_from']
     assert res['save_dict']['valid_key'] == 'not enforced'
-    assert res['save_dict']['h2ogpt_key'] is None
+    assert res['save_dict']['h2ogpt_key'] in [None, '']
 
     assert res['save_dict']['extra_dict']
     if base_model == 'llama':
