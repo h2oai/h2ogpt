@@ -200,7 +200,19 @@ CUDA_VISIBLE_DEVICES=0 python generate.py --verbose=True --score_model=None --pr
 ````
 for some `<ip>` and `<port>`.  Or the model can be local torch/llama.cpp/GPT4All model (then set `--concurrency_count=1 to avoid multi-threading issues).
 
-Then as client, h2oGPT currently supports `.chat.completions` and `.completions` for streaming and non-streaming, as well as `.models.retrieve()` and `.models.list()`.  See tests [test_openai_server.py](../openai_server/test_openai_server.py).
+Then as client, h2oGPT currently supports `.chat.completions` and `.completions` for streaming and non-streaming, as well as `.models.retrieve()` and `.models.list()`.  See tests [test_openai_server.py](../openai_server/test_openai_server.py) for Python API examples.
+
+Curl also works like one would do for OpenAI endpoint.
+
+In both Python API and curl case, one should use a `base_url` the same as chosen for the API, e.g. `http://localhost:5000/v1`.
+
+This mode is disabled when `--auth=closed` or `--allow_api=False`, because gradio 3 does not support API calls.
+
+However, keyed access still works, e.g.
+```bash
+python generate.py --score_model=None --base_model=openchat/openchat-3.5-1210 --h2ogpt_api_keys=h2ogpt_api_keys.json --auth_filename=auth.json --enforce_h2ogpt_api_key=True --enforce_h2ogpt_ui_key=True --add_disk_models_to_ui=False
+```
+and OpenAI server can still communicate via Gradio API to Gradio server via the first key.  In addition, the OpenAI server will be keyed with the same key unless otherwise set using env `H2OGPT_OPENAI_API_KEY`, in which case the OpenAI key and h2oGPT key can be different.
 
 ## OpenAI Inference Server-Client
 

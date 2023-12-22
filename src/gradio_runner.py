@@ -132,6 +132,20 @@ def is_valid_key(enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, h2ogpt_api_keys,
         return valid_key
 
 
+def get_one_key(h2ogpt_api_keys, enforce_h2ogpt_api_key):
+    if not enforce_h2ogpt_api_key:
+        # return None so OpenAI server has no keyed access if not enforcing API key on h2oGPT regardless if keys passed
+        return None
+    if isinstance(h2ogpt_api_keys, list) and h2ogpt_api_keys:
+        return h2ogpt_api_keys[0]
+    elif isinstance(h2ogpt_api_keys, str) and os.path.isfile(h2ogpt_api_keys):
+        with filelock.FileLock(h2ogpt_api_keys + '.lock'):
+            with open(h2ogpt_api_keys, 'rt') as f:
+                h2ogpt_api_keys = json.load(f)
+            if h2ogpt_api_keys:
+                return h2ogpt_api_keys[0]
+
+
 def get_prompt_type1(is_public, **kwargs):
     prompt_types_strings_used = prompt_types_strings.copy()
     if kwargs['model_lock']:
@@ -624,7 +638,7 @@ def go_gradio(**kwargs):
                  prompt_type=kwargs['prompt_type'],
                  prompt_dict=kwargs['prompt_dict'],
                  visible_models=visible_models_to_model_choice(kwargs['visible_models']),
-                 h2ogpt_key=kwargs['h2ogpt_key'],
+                 h2ogpt_key=None,  # only apply at runtime when doing API call with gradio inference server
                  )
         )
 
@@ -2138,7 +2152,8 @@ def go_gradio(**kwargs):
                         label_h2ogpt_key = "h2oGPT Token for UI access"
                     else:
                         label_h2ogpt_key = 'Unused'
-                    h2ogpt_key = gr.Text(value=kwargs['h2ogpt_key'],
+                    h2ogpt_key = gr.Text(value='',
+                                         # do not use kwargs['h2ogpt_key'] here, that's only for gradio inference server
                                          label=label_h2ogpt_key,
                                          type='password',
                                          visible=kwargs['enforce_h2ogpt_ui_key'],  # only show if need for UI
@@ -3985,6 +4000,10 @@ def go_gradio(**kwargs):
                 # i.e. may be '' and used to override overall local key
                 assert isinstance(model_state1['h2ogpt_key'], str)
                 args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
+            elif not args_list[eval_func_param_names.index('h2ogpt_key')]:
+                # now that checked if key was valid or not, now can inject default key in case gradio inference server
+                # only do if key not already set by user
+                args_list[eval_func_param_names.index('h2ogpt_key')] = kwargs['h2ogpt_key']
 
             args_list[0] = instruction1  # override original instruction with history from user
             args_list[2] = context1
@@ -5699,12 +5718,20 @@ def go_gradio(**kwargs):
         from openai_server.server import run
         url_split = demo.local_url.split(':')
         if len(url_split) == 3:
+            gradio_prefix = ':'.join(url_split[0:1]).replace('//', '')
             gradio_host = ':'.join(url_split[1:2]).replace('//', '')
-            gradio_port = ':'.join(url_split[2:])
+            gradio_port = ':'.join(url_split[2:]).split('/')[0]
         else:
+            gradio_prefix = 'http'
             gradio_host = ':'.join(url_split[0:1])
-            gradio_port = ':'.join(url_split[1:])
-        run(wait=False, host=gradio_host, port=kwargs['openai_port'], gradio_host=gradio_host, gradio_port=gradio_port)
+            gradio_port = ':'.join(url_split[1:]).split('/')[0]
+        h2ogpt_key1 = get_one_key(kwargs['h2ogpt_api_keys'], kwargs['enforce_h2ogpt_api_key'])
+        run(wait=False, host=gradio_host,
+            port=kwargs['openai_port'],
+            gradio_prefix=gradio_prefix,
+            gradio_host=gradio_host,
+            gradio_port=gradio_port,
+            h2ogpt_key=h2ogpt_key1)
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

@@ -6,6 +6,7 @@ no_default_param_names = [
     'context',
     'instruction_nochat',
     'iinput_nochat',
+    'h2ogpt_key',
 ]
 
 gen_hyper0 = ['num_beams',

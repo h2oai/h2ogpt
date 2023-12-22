@@ -104,10 +104,11 @@ class ModelListResponse(BaseModel):
     model_names: List[str]
 
 
-server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
-
-
 def verify_api_key(authorization: str = Header(None)) -> None:
+    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+    if server_api_key == 'EMPTY':
+        # dummy case since '' cannot be handled
+        return
     if server_api_key and (authorization is None or authorization != f"Bearer {server_api_key}"):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -173,16 +174,6 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest):
         return JSONResponse(response)
 
 
-def get_gradio_client():
-    from gradio_client import Client
-    gradio_port = int(os.getenv('H2OGPT_OPENAI_HOST', '7860'))
-    client = Client(os.getenv('H2OGPT_OPENAI_HOST', 'http://localhost:%d' % gradio_port))
-    return client
-
-
-gradio_client = get_gradio_client()
-
-
 # https://platform.openai.com/docs/api-reference/models/list
 @app.get("/v1/models", dependencies=check_key)
 @app.get("/v1/models/{model}", dependencies=check_key)
@@ -191,6 +182,7 @@ async def handle_models(request: Request):
     path = request.url.path
     model_name = path[len('/v1/models/'):]
 
+    from openai_server.backend import gradio_client
     model_dict = ast.literal_eval(gradio_client.predict(api_name='/model_names'))
     base_models = [x['base_model'] for x in model_dict]
 
@@ -211,30 +203,35 @@ async def handle_models(request: Request):
 
 @app.get("/v1/internal/model/info", response_model=ModelInfoResponse, dependencies=check_key)
 async def handle_model_info():
-    model_dict = ast.literal_eval(gradio_client.predict(api_name='/model_names'))
-    response = dict(model_names=model_dict[0])
-    return JSONResponse(content=response)
+    from openai_server.backend import get_model_info
+    return JSONResponse(content=get_model_info())
 
 
 @app.get("/v1/internal/model/list", response_model=ModelListResponse, dependencies=check_key)
 async def handle_list_models():
-    model_dict = ast.literal_eval(gradio_client.predict(api_name='/model_names'))
-    base_models = [x['base_model'] for x in model_dict]
-    response = dict(model_names=base_models)
-    return JSONResponse(content=response)
+    from openai_server.backend import get_model_list
+    return JSONResponse(content=get_model_list())
 
 
 def run_server(host='0.0.0.0',
                port=5000,
                ssl_certfile=None,
                ssl_keyfile=None,
+               gradio_prefix=None,
                gradio_host=None,
                gradio_port=None,
+               h2ogpt_key=None,
                ):
-    os.environ['H2OGPT_OPENAI_HOST'] = gradio_host or 'localhost'
-    os.environ['H2OGPT_OPENAI_PORT'] = gradio_port or '7860'
+    os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
+    os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
+    os.environ['GRADIO_SERVER_PORT'] = gradio_port or '7860'
+    os.environ['GRADIO_H2OGPT_H2OGPT_KEY'] = h2ogpt_key or ''  # don't use H2OGPT_H2OGPT_KEY, mixes things up
+    # use h2ogpt_key if no server api key, so OpenAI inherits key by default if any keys set and enforced via API for h2oGPT
+    # but OpenAI key cannot be '', so dummy value is EMPTY and if EMPTY we ignore the key in authorization
+    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', os.environ['GRADIO_H2OGPT_H2OGPT_KEY']) or 'EMPTY'
+    os.environ['H2OGPT_OPENAI_API_KEY'] = server_api_key
 
-    port = int(os.getenv('H2OGPT_OPENAIPORT', port))
+    port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
     ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
 
