@@ -1,9 +1,11 @@
+import contextlib
 import os
 import sys
 import ast
 import json
 from threading import Thread
 import time
+from traceback import print_exception
 from typing import List
 from pydantic import BaseModel, Field
 
@@ -13,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from sse_starlette import EventSourceResponse
+from starlette.responses import PlainTextResponse
 
 sys.path.append('openai_server')
 from log import logger, logging
@@ -125,6 +128,17 @@ app.add_middleware(
 
 
 # https://platform.openai.com/docs/models/how-we-use-your-data
+
+
+class InvalidRequestError(Exception):
+    pass
+
+
+@app.exception_handler(Exception)
+async def validation_exception_handler(request, exc):
+    print_exception(exc)
+    exc2 = InvalidRequestError(str(exc))
+    return PlainTextResponse(str(exc2), status_code=400)
 
 
 @app.options("/", dependencies=check_key)
