@@ -13,6 +13,10 @@ def launch_openai_server():
 
 
 def test_openai_server():
+    # for manual separate OpenAI server on existing h2oGPT, run:
+    # Shell 1: CUDA_VISIBLE_DEVICES=0 python generate.py --verbose=True --score_model=None --pre_load_embedding_model=False --gradio_offline_level=2 --base_model=openchat/openchat-3.5-1210 --inference_server=vllm:ip:port --max_seq_len=4096 --save_dir=duder1 --verbose --openai_server=True --concurrency_count=64 --openai_server=False
+    # Shell 2: pytest -s -v openai_server/test_openai_server.py::test_openai_server  # once client done, hit CTRL-C, should pass
+    # Shell 3: pytest -s -v openai_server/test_openai_server.py::test_openai_client_test2  # should pass
     launch_openai_server()
 
 
@@ -22,7 +26,18 @@ repeat0 = 1
 
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
-# @pytest.mark.parametrize("local_server", [False])
+@pytest.mark.parametrize("local_server", [False])
+@wrap_test_forked
+def test_openai_client_test2(stream_output, chat, local_server):
+    prompt = "Who are you?"
+    api_key = 'EMPTY'
+    enforce_h2ogpt_api_key = False
+    repeat = 1
+    run_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat)
+
+
+@pytest.mark.parametrize("stream_output", [False, True])
+@pytest.mark.parametrize("chat", [False, True])
 @pytest.mark.parametrize("local_server", [True])
 @pytest.mark.parametrize("prompt", ["Who are you?", "Tell a very long kid's story about birds."])
 @pytest.mark.parametrize("api_key", [None, "EMPTY", os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')])
@@ -30,6 +45,10 @@ repeat0 = 1
 @pytest.mark.parametrize("repeat", list(range(0, repeat0)))
 @wrap_test_forked
 def test_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat):
+    run_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat)
+
+
+def run_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat):
     base_model = 'openchat/openchat-3.5-1210'
 
     if local_server:
