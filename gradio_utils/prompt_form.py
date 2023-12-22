@@ -24,7 +24,9 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
     if inference_server is None:
         inference_server = ''
     human_avatar = "models/human.jpg"
-    if 'mistralai'.lower() in base_model.lower() or \
+    if 'h2ogpt-gm'.lower() in base_model.lower():
+        bot_avatar = "models/h2oai.png"
+    elif 'mistralai'.lower() in base_model.lower() or \
             'mistral'.lower() in base_model.lower() or \
             'mixtral'.lower() in base_model.lower():
         bot_avatar = "models/mistralai.png"

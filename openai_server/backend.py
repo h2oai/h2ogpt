@@ -1,3 +1,5 @@
+import ast
+import os
 import time
 import uuid
 from collections import deque
@@ -32,13 +34,49 @@ def count_tokens(x, encoding_name="cl100k_base"):
         return 0
 
 
+def get_gradio_client():
+    try:
+        from gradio_utils.grclient import GradioClient as Client
+        concurrent_client = True
+    except ImportError:
+        print("Using slower gradio API, for speed ensure gradio_utils/grclient.py exists.")
+        from gradio_client import Client
+        concurrent_client = False
+
+    gradio_prefix = os.getenv('GRADIO_PREFIX', 'http')
+    gradio_host = os.getenv('GRADIO_SERVER_HOST', 'localhost')
+    gradio_port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
+    gradio_url = f'{gradio_prefix}://{gradio_host}:{gradio_port}'
+    print("Getting gradio client at %s" % gradio_url, flush=True)
+    client = Client(gradio_url)
+    if concurrent_client:
+        client.setup()
+    return client
+
+
+gradio_client = get_gradio_client()
+
+
+def get_client():
+    # concurrent gradio client
+    if hasattr(gradio_client, 'clone'):
+        client = gradio_client.clone()
+    else:
+        print(
+            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.")
+        client = get_gradio_client()
+    return client
+
+
 def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, stream_output=False):
-    from gradio_client import Client
     import ast
-    import os
-    client = Client(os.getenv('HOST', 'http://localhost:7860'))
     kwargs = dict(instruction=instruction)
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
+        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
     kwargs.update(**gen_kwargs)
+
+    # concurrent gradio client
+    client = get_client()
 
     if stream_output:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -335,3 +373,18 @@ def completions(body: dict) -> dict:
 def stream_completions(body: dict):
     for resp in completions_action(body, stream_output=True):
         yield resp
+
+
+def get_model_info():
+    # concurrent gradio client
+    client = get_client()
+    model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
+    return dict(model_names=model_dict[0])
+
+
+def get_model_list():
+    # concurrent gradio client
+    client = get_client()
+    model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
+    base_models = [x['base_model'] for x in model_dict]
+    return dict(model_names=base_models)

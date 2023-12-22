@@ -653,6 +653,7 @@ def main(
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
+           Disabled if API is disabled or --auth=closed
     :param openai_port: port for OpenAI proxy server
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
@@ -743,6 +744,7 @@ def main(
     :param enforce_h2ogpt_ui_key: Whether to enforce h2oGPT token usage for UI (same keys as API assumed)
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
     :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
+                       Only applied for API at runtime when API accesses using gradio inference_server are made
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
@@ -1384,6 +1386,10 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
+    if openai_server and (not allow_api or auth_access == 'closed'):
+        print("Cannot enable OpenAI server when allow_api=False or auth is closed")
+        openai_server = False
+
     if not os.getenv('CLEAR_CLEAR_TORCH'):
         if clear_torch_cache_level == 0:
             os.environ['CLEAR_CLEAR_TORCH'] = '0'
@@ -1970,7 +1976,6 @@ def main(
                                   base_model=score_model, tokenizer_base_model='', lora_weights='',
                                   inference_server='', prompt_type='', prompt_dict='',
                                   visible_models=None, h2ogpt_key=None)
-
 
         # assume gradio needs everything
         go_gradio(**locals())
