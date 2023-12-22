@@ -4927,6 +4927,13 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                         sanitize_bot_response=sanitize_bot_response,
                                         verbose=verbose)
 
+    run_target_func_hyde = functools.partial(run_target,
+                                             stream_output=stream_output,
+                                             lora_weights=lora_weights, max_time=max_time,
+                                             sanitize_bot_response=sanitize_bot_response,
+                                             allow_response_no_refs=False,
+                                             verbose=verbose)
+
     func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
@@ -5066,6 +5073,7 @@ def run_target(query='',
                lora_weights='',
                max_time=0,
                sanitize_bot_response=False,
+               allow_response_no_refs=True,
                verbose=False):
     # context stuff similar to used in evaluate()
     import torch
@@ -5118,7 +5126,9 @@ def run_target(query='',
                         # in-place change to this key so exposed outside this generator
                         llm_answers[llm_answers_key] = output1
                         res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0,
-                                        llm_answers=llm_answers, response_no_refs=output1, sources_str='',
+                                        llm_answers=llm_answers,
+                                        response_no_refs=output1 if allow_response_no_refs else '',
+                                        sources_str='',
                                         prompt_raw=query)
                         if output1 != output1_old:
                             yield res_dict
@@ -5381,7 +5391,7 @@ def run_hyde(*args, **kwargs):
     # get vars
     query = kwargs['query']
     sim_kwargs = kwargs['sim_kwargs']
-    run_target_func = kwargs['run_target_func']
+    run_target_func = kwargs['run_target_func_hyde']
     prompter = kwargs['prompter']
     hyde_level = kwargs['hyde_level']
     hyde_llm_prompt = kwargs['hyde_llm_prompt']
@@ -5470,7 +5480,9 @@ def run_hyde(*args, **kwargs):
             # print("answer: %s" % answer)
             if not hyde_show_only_final:
                 yield dict(prompt_raw=prompt_basic, response=ret_no_refs, sources=sources, num_prompt_tokens=0,
-                           llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
+                           llm_answers=llm_answers,
+                           response_no_refs='' if hyde_level1 < hyde_level else ret_no_refs,
+                           sources_str=sources_str)
 
             # update embedding query
             # use all answers, but use newer answers first, often shorter due to LLM RLHF not used to long docs inputted,
@@ -6649,12 +6661,13 @@ def get_sources_answer(query, docs, answer,
         print("answer: %s" % answer, flush=True)
 
     pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
-    answer = pre_answer + answer
+    if pre_answer:
+        pre_answer = pre_answer + '<br>'
+    answer_with_acc = pre_answer + answer
 
     if len(docs) == 0:
         sources = []
-        ret = answer
-        return ret, sources, answer, ''
+        return answer_with_acc, sources, answer, ''
 
     sources = [dict(score=score, content=get_doc(x), source=get_source(x), orig_index=x.metadata.get('orig_index', 0))
                for score, x in zip(scores, docs)][
@@ -6663,9 +6676,9 @@ def get_sources_answer(query, docs, answer,
         sources_str = [str(x) for x in sources]
         sources_str = '\n'.join(sources_str)
         if append_sources_to_answer:
-            ret = answer + '\n\n' + sources_str
+            ret = answer_with_acc + '\n\n' + sources_str
         else:
-            ret = answer
+            ret = answer_with_acc
         return ret, sources, answer, sources_str
 
     # link
@@ -6726,16 +6739,18 @@ def get_sources_answer(query, docs, answer,
 
     if isinstance(answer, str) and not answer.endswith('\n'):
         answer += '\n'
+    if isinstance(answer_with_acc, str) and not answer_with_acc.endswith('\n'):
+        answer_with_acc += '\n'
 
     answer_no_refs = answer
     if answer_with_sources:
         sources_str = '\n' + sorted_sources_urls
     else:
         sources_str = ''
-    if isinstance(answer, str) and append_sources_to_answer:
-        ret = answer + sources_str
+    if isinstance(answer_with_acc, str) and append_sources_to_answer:
+        ret = answer_with_acc + sources_str
     else:
-        ret = answer
+        ret = answer_with_acc
     return ret, sources, answer_no_refs, sources_str
 
 

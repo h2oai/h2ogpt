@@ -4125,11 +4125,8 @@ def go_gradio(**kwargs):
                             if audio0 is not None:
                                 yield history, error, sources_iter, sources_str_iter, prompt_raw_iter, llm_answers, save_dict_iter, audio0
                                 audio0 = None
-                            if sentence is not None:
-                                # print("in %s %s" % (sentence is None, audio1 is None), flush=True)
-                                yield history, error, sources_iter, sources_str_iter, prompt_raw_iter, llm_answers, save_dict_iter, audio1
-                            else:
-                                # print("break %s %s" % (sentence is None, audio1 is None), flush=True)
+                            yield history, error, sources_iter, sources_str_iter, prompt_raw_iter, llm_answers, save_dict_iter, audio1
+                            if not sentence:
                                 # while True to handle case when streaming is fast enough that see multiple sentences in single go
                                 break
                     else:

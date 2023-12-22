@@ -128,13 +128,16 @@ def generate_speech(response, speaker,
                     tts_speed=1.0,
                     return_as_byte=True, return_gradio=False,
                     is_final=False, verbose=False):
-    if model is None or processor is None or vocoder is None:
-        processor, model, vocoder = get_tts_model()
-    if sentence_state is None:
-        sentence_state = init_sentence_state()
+    if response:
+        if model is None or processor is None or vocoder is None:
+            processor, model, vocoder = get_tts_model()
+        if sentence_state is None:
+            sentence_state = init_sentence_state()
 
-    sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final,
-                                               verbose=verbose)
+        sentence, sentence_state, _ = get_sentence(response, sentence_state=sentence_state, is_final=is_final,
+                                                   verbose=verbose)
+    else:
+        sentence = ''
     if sentence:
         if verbose:
             print("begin _predict_from_text")
