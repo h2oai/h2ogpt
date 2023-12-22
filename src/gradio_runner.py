@@ -615,7 +615,8 @@ def go_gradio(**kwargs):
         stop_kwargs = dict(js=click_stop())
         dark_kwargs = dict(js=wrap_js_to_lambda(0, get_dark_js()))
         queue_kwargs = dict(default_concurrency_limit=kwargs['concurrency_count'])
-        mic_sources_kwargs = dict(sources=['microphone'], show_recording_waveform=False)
+        mic_sources_kwargs = dict(sources=['microphone'],
+                                  waveform_options=dict(show_controls=False, show_recording_waveform=False))
     else:
         noqueue_kwargs = dict(queue=False)
         noqueue_kwargs2 = dict()
