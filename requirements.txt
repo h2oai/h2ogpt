@@ -2,6 +2,7 @@
 datasets==2.13.0
 sentencepiece==0.1.99
 gradio==3.50.2
+sse_starlette==1.8.2
 huggingface_hub==0.19.4
 appdirs==1.4.4
 fire==0.5.0
