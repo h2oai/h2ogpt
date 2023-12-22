@@ -73,6 +73,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs = dict(instruction=instruction)
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_tokens', 256)
+    gen_kwargs['visible_models'] = gen_kwargs.pop('model', 0)
+
     kwargs.update(**gen_kwargs)
 
     # concurrent gradio client
@@ -190,11 +193,6 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         'stream_output': stream_output
     })
 
-    max_tokens = gen_kwargs['max_new_tokens']
-    if max_tokens in [None, 0]:
-        gen_kwargs['max_new_tokens'] = 512
-        gen_kwargs['auto_max_new_tokens'] = True
-
     def chat_streaming_chunk(content):
         # begin streaming
         chunk = {
@@ -270,7 +268,6 @@ def completions_action(body: dict, stream_output=False):
     assert prompt_str in body, "Missing prompt"
 
     gen_kwargs = body
-    gen_kwargs['max_new_tokens'] = body.pop('max_tokens')
     gen_kwargs['stream_output'] = stream_output
 
     if not stream_output:

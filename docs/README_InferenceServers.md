@@ -214,6 +214,24 @@ python generate.py --score_model=None --base_model=openchat/openchat-3.5-1210 --
 ```
 and OpenAI server can still communicate via Gradio API to Gradio server via the first key.  In addition, the OpenAI server will be keyed with the same key unless otherwise set using env `H2OGPT_OPENAI_API_KEY`, in which case the OpenAI key and h2oGPT key can be different.
 
+For completeness, an example is as follows for non-streaming chat case is as follows:
+```python
+import os
+from openai import OpenAI
+base_url = 'http://<IP>:5000/v1'
+client_args = dict(base_url=base_url, api_key='<API_KEY>')
+openai_client = OpenAI(**client_args)
+
+messages = [{'role': 'user', 'content': 'Who are you?'}]
+client_kwargs = dict(model='h2oai/h2ogpt-4096-llama2-70b-chat', max_tokens=200, stream=False, messages=messages)
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```
+for some IP `<IP>`, which could be the local IP and some key `<API_KEY>`. If OpenAI server was run from h2oGPT using `--openai_server=True` (default), then `api_key` is from ENV `H2OGPT_OPENAI_API_KEY` on same host as Gradio server OpenAI.  If ENV `H2OGPT_OPENAI_API_KEY` is not defined, then h2oGPT will use the first key in the `h2ogpt_api_keys` (file or CLI list) as the OpenAI API key.  If no key is at all set, the OpenAI server is "open" with key `EMPTY` as long as `--allow_api=True`.  If h2oGPT was started with `--model_lock` with multiple inference servers, use `model` to choose which model to select, like done with `--visible_models` from h2oGPT CLI.
+
 ## OpenAI Inference Server-Client
 
 If you have an OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access OpenAI models via gradio by running:
