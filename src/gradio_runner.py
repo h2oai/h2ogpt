@@ -5727,7 +5727,7 @@ def go_gradio(**kwargs):
             gradio_port = ':'.join(url_split[1:]).split('/')[0]
         h2ogpt_key1 = get_one_key(kwargs['h2ogpt_api_keys'], kwargs['enforce_h2ogpt_api_key'])
         # ensure can reach out
-        openai_host = gradio_host if gradio_host not in ['localhost, 127.0.0.1'] else '0.0.0.0'
+        openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
         run(wait=False,
             host=openai_host,
             port=kwargs['openai_port'],
