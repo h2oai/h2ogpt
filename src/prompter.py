@@ -1598,7 +1598,17 @@ system_coding = """You are an AI programming assistant. Follow the user's requir
 
 system_summary = """Give a summary that is well-structured with step-by-step sections and elaborate details for each section."""
 
+
 def get_system_prompts():
-    return ['', 'auto', system_generic, system_docqa, system_coding, system_python_tutor, system_ml_tutor,
-            step_forward_prompts(2),
-            step_forward_prompts(6), step_back_prompts(0), step_back_prompts(3)]
+    return [('None', ''),
+            ('Auto', 'auto'),
+            ('Generic', system_generic),
+            ('DocQA', system_docqa),
+            ('Coding', system_coding),
+            ('PythonTutor', system_python_tutor),
+            ('MLTutor', system_ml_tutor),
+            ('CoT', step_forward_prompts(2)),
+            ('Math', step_forward_prompts(6)),
+            ('StepBackSimple', step_back_prompts(0)),
+            ('StepBackFull', step_back_prompts(3)),
+            ]

@@ -1414,13 +1414,20 @@ def go_gradio(**kwargs):
                                 prompt_type = get_prompt_type1(**kwargs)
                                 prompt_type2 = get_prompt_type2(**kwargs)
 
-                            system_prompt = gr.Dropdown(label="System Prompt",
-                                                        info="""Empty: no system message is used.  'auto': uses model's system prompt if LLM or DocQA for Query.  Others are: generic, DocQA, Coding, PythonTutor, MLTutor, CoT, Math, StepBackSimple, StepBackAdvanced""",
-                                                        value=kwargs['system_prompt'],
-                                                        choices=get_system_prompts(),
-                                                        allow_custom_value=True,
-                                                        filterable=True,
-                                                        )
+                            system_prompt_type = gr.Dropdown(label="System Prompt Type",
+                                                             value=kwargs['system_prompt'],
+                                                             choices=get_system_prompts(),
+                                                             filterable=True,
+                                                             )
+                            system_prompt = gr.Textbox(label='System Prompt',
+                                                       info="Can add your own custom system prompt here",
+                                                       value=kwargs['system_prompt'], lines=2)
+
+                            def show_sys(x):
+                                return x
+
+                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt)
+
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
                                                  value=kwargs['context'])
