@@ -5,11 +5,11 @@
 No special docker instructions are required, just follow [these instructions](https://docs.docker.com/engine/install/ubuntu/) to get docker setup at all, i.e.:
 ```bash
 sudo apt update
-sudo apt install apt-transport-https ca-certificates curl software-properties-common
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
 apt-cache policy docker-ce
-sudo apt install docker-ce
+sudo apt install -y docker-ce
 sudo systemctl status docker
 ```
 
@@ -39,7 +39,7 @@ Confirm runs nvidia-smi from within docker without errors:
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 ```
 
-If running on A100's, might require [Installing Fabric Manager](INSTALL.md#install-and-run-fabric-manager-if-have-multiple-a100100s) and [Installing GPU Manager](INSTALL.md#install-nvidia-gpu-manager-if-have-multiple-a100h100s).
+If running on A100's, might require [Installing Fabric Manager](INSTALL.md#install-and-run-nvidia-fabric-manager-on-systems-with-multiple-a100-or-h100-gpus) and [Installing GPU Manager](INSTALL.md#install-nvidia-gpu-manager-on-systems-with-multiple-a100-or-h100-gpus).
 
 ## Run h2oGPT using Docker
 
