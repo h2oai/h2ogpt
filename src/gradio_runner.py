@@ -1415,7 +1415,7 @@ def go_gradio(**kwargs):
                                 prompt_type2 = get_prompt_type2(**kwargs)
 
                             system_prompt = gr.Dropdown(label="System Prompt",
-                                                        info="""'auto': uses model's system prompt.  Empty: no system message is used""",
+                                                        info="""Empty: no system message is used.  'auto': uses model's system prompt.  Others are: generic, DocQA, Coding, PythonTutor, MLTutor, StepBackSimple, StepBackAdvanced""",
                                                         value=kwargs['system_prompt'],
                                                         choices=get_system_prompts(),
                                                         )
