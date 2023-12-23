@@ -58,7 +58,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt, model_names_curated
+    get_prompt, model_names_curated, get_system_prompts
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
@@ -1414,11 +1414,11 @@ def go_gradio(**kwargs):
                                 prompt_type = get_prompt_type1(**kwargs)
                                 prompt_type2 = get_prompt_type2(**kwargs)
 
-                            system_prompt = gr.Textbox(label="System Prompt",
-                                                       info="If 'auto', then uses model's system prompt,"
-                                                            " else use this message."
-                                                            " If empty, no system message is used",
-                                                       value=kwargs['system_prompt'])
+                            system_prompt = gr.Dropdown(label="System Prompt",
+                                                        info="""'auto': uses model's system prompt.  Empty: no system message is used""",
+                                                        value=kwargs['system_prompt'],
+                                                        choices=get_system_prompts(),
+                                                        )
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
                                                  value=kwargs['context'])
