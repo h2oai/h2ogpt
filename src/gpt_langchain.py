@@ -65,7 +65,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     user_prompt_for_fake_system_prompt
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
-from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids
+from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids, system_docqa, system_summary
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
@@ -4821,6 +4821,18 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     if doc_json_mode:
         prompter.system_prompt = system_prompt = doc_json_mode_system_prompt
+
+    # handle auto case
+    if system_prompt == 'auto':
+        changed = False
+        if query_action:
+            system_prompt = system_docqa
+            changed = True
+        elif summarize_action:
+            system_prompt = system_summary
+            changed = True
+        if changed and prompter:
+            prompter.system_prompt = system_prompt
 
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure

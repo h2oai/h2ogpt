@@ -153,7 +153,7 @@ def main(
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
-        system_prompt: str = '',
+        system_prompt: str = 'auto',
         allow_chat_system_prompt: bool = True,
 
         # llama and gpt4all settings
