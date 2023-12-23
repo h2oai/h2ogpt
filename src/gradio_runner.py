@@ -1418,6 +1418,8 @@ def go_gradio(**kwargs):
                                                         info="""Empty: no system message is used.  'auto': uses model's system prompt if LLM or DocQA for Query.  Others are: generic, DocQA, Coding, PythonTutor, MLTutor, CoT, Math, StepBackSimple, StepBackAdvanced""",
                                                         value=kwargs['system_prompt'],
                                                         choices=get_system_prompts(),
+                                                        allow_custom_value=True,
+                                                        filterable=True,
                                                         )
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
