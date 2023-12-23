@@ -1598,6 +1598,86 @@ system_coding = """You are an AI programming assistant. Follow the user's requir
 
 system_summary = """Give a summary that is well-structured with step-by-step sections and elaborate details for each section."""
 
+system_know_math = """Follow these steps in solving any problem:
+1) Know: This will help students find the important information.
+2) Need to Know: This will force students to reread the question and write down what they are trying to solve for.
+3) Organize:  I think this would be a great place for teachers to emphasize drawing a model or picture.
+4) Work: Students show their calculations here.
+5) Solution: This is where students will ask themselves if the answer is reasonable and whether it answered the question.
+"""
+
+system_algebra = """The fundamentals of algebra teach students how to apply algebraic concepts to elementary mathematical operations such as addition, subtraction, multiplication, and division using both constants and variables. For example, x + 10 = 0. Equations, a fundamental concept in algebra, are presented here as an example of this. The algebraic equation can be conceptualised as a scale, with the “weights” being represented by numbers or constants, and the scale is balanced.
+
+In algebra, letters of the alphabet are substituted for numbers in order to solve mathematical problems. Algebra is a subfield of mathematics. These alphabetic characters are also referred to as variables. The values, such as numbers, that are known to be present in the expression being evaluated are referred to as constants. The concept of algebra at the potential level will be taught to students even though they are in higher-level classes. However, when we talk about its fundamentals, it encompasses the general algebraic expressions, formulas, and identities that are used to solve a wide variety of mathematical issues.
+
+Algebra Basics
+In order for us to understand the fundamentals of algebra, it is necessary for us to be familiar with the terminology that is associated with it. An expression known as an algebraic equation contains a variable, an operator, an exponent, a coefficient, and a constant, as well as the symbol for equal to connect all of these components together. Let us take an equation, ax2 + bx + c = d. When doing algebra, you begin by writing the term that has the highest exponent, and then you write the subsequent terms with reducing powers.
+
+There are four terms in the equation ax2 + bx + c = d, which can be seen above. An algebraic equation may contain different terms that are the same or different from one another. When solving an equation, like terms are terms that have the same variables and exponents. On the other hand, terms in an equation that are dissimilar to one another constitute distinct variables and exponents.
+
+Algebra Rules
+There are five fundamental rules that makeup algebra. They are as follows:
+
+1) Commutative Rule of Addition
+The commutative rule of addition is a fundamental concept in algebra. According to this rule, the order in which two terms are added together does not affect the final result. (a+ b) =(b+ a) is the equation that describes the same thing. For example, (x3 + 2x) = (2x + x3)
+
+2) Commutative Rule of Multiplication
+According to the commutative rule of multiplication, when multiplying two terms, it does not make a difference which orders the multiplication is performed in (a.b) = (b.a) is the equation that describes the same thing mathematically. For example, (x4 – 2x) × 3x = 3x × (x4 – 2x).
+
+LHS = (x4 – 2x) × 3x = (3x5 – 6x2)
+
+RHS = 3x × (x4 – 2x) = (3x5 – 6x2)
+
+Since the left-hand side (LHS) equals the right-hand side (RHS), this demonstrates that the two sets of values are comparable.
+
+3) Associative Rule of Addition
+According to the associative rule of addition in algebra, when three or more terms are added together, it does not matter what order the additions are performed in. The corresponding equation is written as follows: a + (b + c) = (a + b) + c. For example, x5 + (3x2 + 2) = (x5 + 3x2) + 2
+
+4) Multiplication according to the Associative Rule
+In a similar vein, the associative rule of multiplication states that it does not make a difference in which order the terms are multiplied when there are three or more terms being multiplied together. The corresponding equation is written as follows: a plus (b plus c) equals (a plus b) plus c. For example, x3 × (2x4 × x) = (x3 × 2x4) × x.
+
+5) Distributive Rule of Multiplication.
+According to the distributive rule of multiplication, the answer that we get when we multiply a number by the addition of two other numbers should be the same as the sum of the products those numbers have when they are multiplied by the number on their own. This demonstrates the prevalence of multiplication in comparison to addition. The corresponding equation reads as follows: a x (b + c) = (a.b) +(a .c). For example, x2× (2x + 1) = (x2 × 2x) + (x2× 1).
+"""
+
+system_problem_solve = """8-Step Problem Solving Process:
+Step 1: Define the Problem. What is the problem?
+Step 2: Clarify the Problem.
+Step 3: Define the Goals.
+Step 4: Identify Root Cause of the Problem.
+Step 5: Develop Action Plan.
+Step 6: Execute Action Plan.
+Step 7: Evaluate the Results.
+Step 8: Continuously Improve.
+"""
+
+system_problem_solve_full = """Steps for solving any problem:
+
+Step 1: Define the Problem
+What is the problem? How did you discover the problem? When did the problem start and how long has this problem been going on? Is there enough data available to contain the problem and prevent it from getting passed to the next process step? If yes, contain the problem.
+
+Step 2: Clarify the Problem
+What data is available or needed to help clarify, or fully understand the problem? Is it a top priority to resolve the problem at this point in time? Are additional resources required to clarify the problem? If yes, elevate the problem to your leader to help locate the right resources and form a team.   Consider a Lean Event (Do-it, Burst, RPI, Project). ∙Ensure the problem is contained and does not get passed to the next process step.
+
+Step 3: Define the Goals
+What is your end goal or desired future state? What will you accomplish if you fix this problem? What is the desired timeline for solving this problem?
+
+Step 4: Identify Root Cause of the Problem
+Identify possible causes of the problem. Prioritize possible root causes of the problem. What information or data is there to validate the root cause?
+
+Step 5: Develop Action Plan
+Generate a list of actions required to address the root cause and prevent problem from getting to others. Assign an owner and timeline to each action. Status actions to ensure completion.
+
+Step 6: Execute Action Plan
+Implement action plan to address the root cause. Verify actions are completed.
+
+Step 7: Evaluate the Results
+Monitor and Collect Data. Did you meet your goals defined in step 3? If not, repeat the 8-Step Process.  Were there any unforeseen consequences? If problem is resolved, remove activities that were added previously to contain the problem.
+
+Step 8: Continuously Improve
+Look for additional opportunities to implement solution. Ensure problem will not come back and communicate lessons learned. If needed, repeat the 8-Step Problem Solving Process to drive further improvements.
+"""
+
 
 def get_system_prompts():
     return [('None', ''),
@@ -1609,6 +1689,10 @@ def get_system_prompts():
             ('MLTutor', system_ml_tutor),
             ('CoT', step_forward_prompts(2)),
             ('Math', step_forward_prompts(6)),
+            ('MathSteps', system_know_math),
+            ('Algebra', system_algebra),
+            ('ProblemSolve', system_problem_solve),
+            ('ProblemSolveFull', system_problem_solve_full),
             ('StepBackSimple', step_back_prompts(0)),
             ('StepBackFull', step_back_prompts(3)),
             ]
