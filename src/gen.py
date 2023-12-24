@@ -1371,6 +1371,10 @@ def main(
     if str(score_model) == 'None':
         score_model = ''
     all_inference_server = inference_server or model_lock and all(x.get('inference_server') for x in model_lock)
+    if inference_server == 'openai' and base_model in openai_gpts:
+        # deprecate chat models with non-chat API
+        inference_server = 'openai_chat'
+
     if os.getenv('CONCURRENCY_COUNT'):
         concurrency_count = int(os.getenv('CONCURRENCY_COUNT'))
     elif concurrency_count:
