@@ -118,9 +118,10 @@ class GradioClient(Client):
             serialize=serialize,
             output_dir=output_dir,
             verbose=verbose,
-            auth=auth,
             h2ogpt_key=h2ogpt_key,
         )
+        if is_gradio_client_version7:
+            self.kwargs.update(dict(auth=auth))
 
         self.verbose = verbose
         self.hf_token = hf_token
