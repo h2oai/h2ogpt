@@ -15,7 +15,7 @@ def get_device(gpu_id):
     if gpu_id == 'auto':
         device = 'cpu' if n_gpus1 == 0 else 'cuda:0'
     else:
-        device = 'cpu' if n_gpus1 == 0 else 'cuda:%d' % gpu_id
+        device = 'cpu' if n_gpus1 == 0 else 'cuda:%s' % gpu_id
     return device
 
 
