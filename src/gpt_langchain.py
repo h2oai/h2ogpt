@@ -6675,7 +6675,10 @@ def get_sources_answer(query, docs, answer,
     pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
     if pre_answer:
         pre_answer = pre_answer + '<br>'
-    answer_with_acc = pre_answer + answer
+        answer_with_acc = pre_answer + answer
+    else:
+        # e.g. extract goes here, list not str
+        answer_with_acc = answer
 
     if len(docs) == 0:
         sources = []
