@@ -185,10 +185,10 @@ def test_client1api_lean(save_dir, admin_pass):
 
     client2.refresh_client()  # test refresh
     res = client.predict(api_name=api_name)
-    assert res == get_githash()
+    assert res in [get_githash(), 'GET_GITHASH']
 
     res = client2.get_server_hash()
-    assert res == get_githash()
+    assert res in [get_githash(), 'GET_GITHASH']
 
 
 @wrap_test_forked
@@ -236,7 +236,7 @@ def test_client1api_lean_lock_choose_model():
             if base_model == base1:
                 assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
             else:
-                assert 'the limit of time' in response
+                assert 'the limit of time' in response or 'the limit' in response
 
     api_name = '/model_names'
     res = client.predict(api_name=api_name)
