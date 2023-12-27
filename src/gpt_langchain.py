@@ -4825,7 +4825,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     # handle auto case
     if system_prompt == 'auto':
         changed = False
-        if query_action:
+        if query_action and langchain_mode not in langchain_modes_non_db :
             system_prompt = system_docqa
             changed = True
         elif summarize_action:
