@@ -1168,6 +1168,7 @@ def go_gradio(**kwargs):
                                                              visible=visible_model_choice,
                                                              elem_id="multi-selection",
                                                              filterable=False,
+                                                             max_choices=kwargs['max_visible_models'],
                                                              )
                                 mw0 = 100
                                 with gr.Column(min_width=mw0):

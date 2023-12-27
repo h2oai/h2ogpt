@@ -269,6 +269,8 @@ def main(
         max_max_new_tokens=None,
 
         visible_models: list = None,
+        max_visible_models: int = None,
+
         visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
@@ -783,6 +785,7 @@ def main(
            Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
               and the value is not used to access the inference server.
               If need a visible_models for an inference server, then use --model_lock and group together.
+    :para max_visible_models: maximum visible models to allow to select in UI
 
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -1177,6 +1180,8 @@ def main(
         # nominally allow UI access public or not
         enforce_h2ogpt_ui_key = False
     if is_public:
+        if max_visible_models is None:
+            max_visible_models = 4
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = True
