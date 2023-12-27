@@ -1181,7 +1181,7 @@ def main(
         enforce_h2ogpt_ui_key = False
     if is_public:
         if max_visible_models is None:
-            max_visible_models = 4
+            max_visible_models = None  # FIXME
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = True
