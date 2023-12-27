@@ -1427,7 +1427,7 @@ def go_gradio(**kwargs):
                             def show_sys(x):
                                 return x
 
-                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt)
+                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt, **noqueue_kwargs)
 
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
