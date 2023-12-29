@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, docs_joiner_default
 from src.utils import remove
 
@@ -52,7 +52,8 @@ def test_eval_json():
 
 
 def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', eval_filename=None,
-              eval_prompts_only_num=1):
+              eval_prompts_only_num=1,
+              langchain_mode='Disabled'):
     if base_model == 'junelee/wizard-vicuna-13b' and (bits != 8 or cpu):
         # Too much CPU memory or GPU memory
         return
@@ -80,7 +81,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         temperature=0.4, top_p=0.85, top_k=70, penalty_alpha=0.0, num_beams=1, max_new_tokens=256,
         min_new_tokens=0, early_stopping=False, max_time=180, repetition_penalty=1.07,
         num_return_sequences=1, do_sample=True, chat=False,
-        langchain_mode='Disabled', add_chat_history_to_context=True,
+        langchain_mode=langchain_mode, add_chat_history_to_context=True,
         add_search_to_context=False,
         langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
         chunk=True, chunk_size=512,
@@ -221,3 +222,53 @@ e the posterior ligaments are attached to the back. The anterior ligaments are c
     bleu = BLEU()
     assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 25
     return eval_out_filename
+
+
+@wrap_test_forked
+def test_eval_json_langchain():
+    base_model = 'llama'
+    user_path = make_user_path_test()
+
+    # make 2 rows of json
+    prompts = [dict(instruction="What is Whisper?", response="""Whisper is a audio to text conversion model."""),
+               dict(instruction="Who made Whisper?", response="""Whisper was made by OpenAI"""),
+               ]
+    eval_prompts_only_num = len(prompts)
+    eval_filename = 'test_prompts.json'
+    remove(eval_filename)
+    import json
+    with open(eval_filename, "wt") as f:
+        f.write(json.dumps(prompts, indent=2))
+
+    import pandas as pd
+    from src.evaluate_params import eval_func_param_names, eval_extra_columns
+    from src.gen import main
+    kwargs = dict(
+        stream_output=False,
+        langchain_mode='UserData',
+        user_path=user_path,
+    )
+    eval_out_filename = main(base_model=base_model,
+                             gradio=False,
+                             eval_filename=eval_filename,
+                             eval_prompts_only_num=eval_prompts_only_num,
+                             eval_as_output=False,
+                             eval_prompts_only_seed=1235,
+                             score_model='OpenAssistant/reward-model-deberta-v3-large-v2',
+                             **kwargs)
+    df = pd.read_parquet(eval_out_filename)
+    assert df.shape[0] == 1
+    columns = eval_func_param_names + eval_extra_columns
+    assert df.shape[1] == len(columns)
+    result_list = list(df.values[0])
+    key_separate = ['response', 'score']
+    actuals = {k: v for k, v in zip(columns, result_list) if k in key_separate}
+    expecteds = [0.7533428072929382, 0.7533428072929382]
+
+    for prompt, expected, score in zip(prompts, expecteds, actuals):
+        import numpy as np
+        assert np.abs(score - expected) < 0.3
+
+        from sacrebleu.metrics import BLEU
+        bleu = BLEU()
+        assert bleu.sentence_score(expected['response'], prompt[['response']]).score > 25
