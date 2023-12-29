@@ -253,6 +253,10 @@ def test_eval_json_langchain():
                              eval_filename=eval_filename,
                              eval_prompts_only_num=eval_prompts_only_num,
                              eval_as_output=False,
+                             asr_model='',
+                             answer_with_sources=False,
+                             show_link_in_sources=False,
+                             append_sources_to_answer=False,
                              eval_prompts_only_seed=1235,
                              score_model='OpenAssistant/reward-model-deberta-v3-large-v2',
                              **kwargs)
