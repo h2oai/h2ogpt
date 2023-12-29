@@ -153,8 +153,8 @@ def run_eval(  # for local function:
                 os.system(
                     'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % eval_filename)
             import json
-            with open(eval_filename, 'rt') as f:
-                data = json.load(f, encoding='utf-8')
+            with open(eval_filename, 'r', encoding='utf-8') as f:
+                data = json.load(f)
             # focus on data that starts with human, else likely chopped from other data
             turn_start = 0  # odd in general
             data = [x for x in data if len(x['conversations']) > turn_start + 1 and
