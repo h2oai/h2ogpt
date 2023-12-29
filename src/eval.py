@@ -176,7 +176,8 @@ def run_eval(  # for local function:
             # get data, assume in correct format: json of rows of dict of instruction and output
             # only instruction is required
             import json
-            data = json.load(open(eval_filename, 'rt'))
+            with open(eval_filename, 'r', encoding='utf-8') as f:
+                data = json.load(f)
             for i in sorted(np.random.randint(0, len(data), size=eval_prompts_only_num)):
                 examplenew = example1.copy()
                 instruction = data[i]['instruction']
