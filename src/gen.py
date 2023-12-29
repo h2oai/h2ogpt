@@ -3700,8 +3700,9 @@ def evaluate(
             response_no_refs = r['response_no_refs']
             sources_str = r['sources_str']
             prompt_raw = str(r['prompt_raw'])
-            yield dict(response=response, sources=[], save_dict={}, llm_answers=llm_answers,
-                       response_no_refs=response_no_refs, sources_str='', prompt_raw='')
+            if stream_output:
+                yield dict(response=response, sources=[], save_dict={}, llm_answers=llm_answers,
+                           response_no_refs=response_no_refs, sources_str='', prompt_raw='')
         extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens,
                                t_generate=time.time() - t_generate,
                                # tokens_persecond computed in save_generate_output

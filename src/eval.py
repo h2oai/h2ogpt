@@ -131,6 +131,11 @@ def run_eval(  # for local function:
         model_state_none=None,
 ):
     from_ui = False
+    # makes no sense to evaluate document content for langchain case
+    answer_with_sources = False
+    show_link_in_sources = False
+    append_sources_to_answer = False
+
     check_locals(**locals())
 
     if not context:

@@ -261,7 +261,7 @@ def test_eval_json_langchain():
                              score_model='OpenAssistant/reward-model-deberta-v3-large-v2',
                              **kwargs)
     df = pd.read_parquet(eval_out_filename)
-    assert df.shape[0] == 1
+    assert df.shape[0] == 2
     columns = eval_func_param_names + eval_extra_columns
     assert df.shape[1] == len(columns)
     result_list = list(df.values[0])
