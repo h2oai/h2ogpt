@@ -131,6 +131,11 @@ def run_eval(  # for local function:
         model_state_none=None,
 ):
     from_ui = False
+    # makes no sense to evaluate document content for langchain case
+    answer_with_sources = False
+    show_link_in_sources = False
+    append_sources_to_answer = False
+
     check_locals(**locals())
 
     if not context:
@@ -265,7 +270,14 @@ def run_eval(  # for local function:
             # fun yields as generator, so have to iterate over it
             # Also means likely do NOT want --stream_output=True, else would show all generations
             t1 = time.time()
-            gener = fun(*tuple(ex), exi=exi) if eval_as_output else fun(*tuple(ex))
+
+            # grab other parameters, like langchain_mode
+            eval_vars = ex.copy()
+            for k in eval_func_param_names:
+                if k in locals():
+                    eval_vars[eval_func_param_names.index(k)] = locals()[k]
+
+            gener = fun(*tuple(eval_vars), exi=exi) if eval_as_output else fun(*tuple(eval_vars))
             for res_fun in gener:
                 res = res_fun['response']
                 sources = res_fun['sources']
