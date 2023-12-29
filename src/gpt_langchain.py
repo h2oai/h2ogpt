@@ -445,8 +445,12 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
 
-        device, torch_dtype, context_class = get_device_dtype()
-        model_kwargs = dict(device=device)
+        if isinstance(gpu_id, int) or gpu_id == 'auto':
+            device, torch_dtype, context_class = get_device_dtype()
+            model_kwargs = dict(device=device)
+        else:
+            # use gpu_id as device name
+            model_kwargs = dict(device=gpu_id)
         if 'instructor' in hf_embedding_model:
             encode_kwargs = {'normalize_embeddings': True}
             embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
