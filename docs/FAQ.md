@@ -781,6 +781,18 @@ This section describes how to add a new embedding model.
   python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
   ```
 
+To run the embedding model on the CPU, use options like:
+```bash
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None
+```
+The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
+
+The change of cut distance is required for other arbitrary models since the distance is not normalized for each model.
+
+See [Embedding Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) for other options for smaller size that are still quite accurate, where smaller should be faster on CPU.
+
+Also review the low memory documentation for other low memory options.
+
 ### System Prompting
 
 Some models explicitly take a system prompt (in the raw prompt or via some chat API).  However, some models have no system prompt, in which case by default with `--allow_chat_system_prompt=True`, we fill conversation history with a [prompt-response pair](../src/enums.py) for `user_prompt_for_fake_system_prompt` to replace the system_prompt, which often works well.
