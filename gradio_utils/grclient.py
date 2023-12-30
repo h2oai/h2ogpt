@@ -97,6 +97,7 @@ class GradioClient(Client):
             verbose: bool = True,
             auth: tuple[str, str] | None = None,
             h2ogpt_key: str = None,
+            persist: bool = False
     ):
         """
         Parameters:
@@ -106,6 +107,10 @@ class GradioClient(Client):
             serialize: Whether the client should serialize the inputs and deserialize the outputs of the remote API. If set to False, the client will pass the inputs and outputs as-is, without serializing/deserializing them. E.g. you if you set this to False, you'd submit an image in base64 format instead of a filepath, and you'd get back an image in base64 format from the remote API instead of a filepath.
             output_dir: The directory to save files that are downloaded from the remote API. If None, reads from the GRADIO_TEMP_DIR environment variable. Defaults to a temporary directory on your machine.
             verbose: Whether the client should print statements to the console.
+
+            h2ogpt_key: h2oGPT key to gain access to the server
+            persist: whether to persist the state, so repeated calls are aware of the prior user session
+
         """
         if serialize is None:
             # else converts inputs arbitrarily and outputs mutate
@@ -119,6 +124,7 @@ class GradioClient(Client):
             output_dir=output_dir,
             verbose=verbose,
             h2ogpt_key=h2ogpt_key,
+            persist=persist,
         )
         if is_gradio_client_version7:
             self.kwargs.update(dict(auth=auth))
@@ -140,6 +146,7 @@ class GradioClient(Client):
         self.config = None
         self.server_hash = None
         self.h2ogpt_key = h2ogpt_key
+        self.persist = persist
 
     def __repr__(self):
         if self.config:
@@ -282,6 +289,7 @@ class GradioClient(Client):
 
         kwargs = self.kwargs.copy()
         kwargs.pop('h2ogpt_key', None)
+        kwargs.pop('persist', None)
         client = Client(*self.args, **kwargs)
         for k, v in client.__dict__.items():
             setattr(self, k, v)
@@ -600,7 +608,10 @@ class GradioClient(Client):
         """
         if self.config is None:
             self.setup()
-        client = self.clone()
+        if self.persist:
+            client = self
+        else:
+            client = self.clone()
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
 
