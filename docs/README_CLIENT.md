@@ -149,3 +149,22 @@ and get back for a 7B LLaMA2-chat GPTQ model:
 `{"data":["{'response': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'sources': '', 'save_dict': {'prompt': \"<s>[INST] <<SYS>>\\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\\n\\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\\n<</SYS>>\\n\\nWho are you? [/INST]\", 'output': \" Hello! I'm just an AI assistant designed to provide helpful and informative responses to your questions. My purpose is to assist and provide accurate information to the best of my abilities, while adhering to ethical and moral guidelines. I am not capable of providing personal opinions or engaging in discussions that promote harmful or offensive content. My goal is to be a positive and respectful presence in your interactions with me. Is there anything else I can help you with?\", 'base_model': 'TheBloke/Llama-2-7b-Chat-GPTQ', 'save_dir': 'fooasdf', 'where_from': 'evaluate_False', 'extra_dict': {'num_beams': 1, 'do_sample': False, 'repetition_penalty': 1.07, 'num_return_sequences': 1, 'renormalize_logits': True, 'remove_invalid_values': True, 'use_cache': True, 'eos_token_id': 2, 'bos_token_id': 1, 'num_prompt_tokens': 5, 't_generate': 9.243812322616577, 'ntokens': 120, 'tokens_persecond': 12.981605669647344}, 'error': None, 'extra': None}}"],"is_generating":true,"duration":39.33809685707092,"average_duration":39.33809685707092}`
 
 This response contains the full dictionary of `data` from the `curl` operation as well as the data contents that are a string of a dictionary like when using the API `submit_nochat_api` for Gradio client.  This inner string of a dictionary can be parsed as a literal python string to get keys `response`, `source`, `save_dict`, where `save_dict` contains metadata about the query such as generation hyperparameters, tokens generated, etc.
+
+### OpenAI Proxy client API
+
+h2oGPT by default starts an [OpenAI compatible server](README_InferenceServers.md#openai-proxy-inference-server-client).  One communicates to it via OpenAI 1.x Python package.  For example:
+```python
+from openai import OpenAI
+base_url = 'https://gpt-docs.h2o.ai:5000/v1'
+api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+messages = [{'role': 'user', 'content': 'Who are you?'}]
+client_kwargs = dict(model='h2oai/h2ogpt-4096-llama2-70b-chat', max_tokens=200, stream=False, messages=messages)
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```

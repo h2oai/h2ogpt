@@ -28,8 +28,8 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
 - **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
 - **OpenAI-compliant**
-  - Server Proxy (experimental)
-  - Python client API
+  - Server Proxy API (drop-in-replacement to OpenAI server)
+  - Python client API (to talk to Gradio server)
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
 - **Evaluate** performance using reward models
