@@ -4829,7 +4829,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     # handle auto case
     if system_prompt == 'auto':
         changed = False
-        if query_action and langchain_mode not in langchain_modes_non_db :
+        if query_action and langchain_mode not in langchain_modes_non_db:
             system_prompt = system_docqa
             changed = True
         elif summarize_action:
@@ -6014,13 +6014,20 @@ def get_chain(query=None,
 
     if not attention_sinks:
         # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get the largest input allowable
-        # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
+        #  else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
+        # but if summarization, this defines max tokens in each chunk, for same used max_new_tokens, so need to use original,
+        #  e.g. first map may produce some output, larger than 256 tokens, and upon reduce includes that large output, which won't work for same large max_new_tokens -> max_input_tokens
+        if query_action:
+            max_new_tokens_used = min_max_new_tokens
+        else:
+            max_new_tokens_used = max_new_tokens
         max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                                        model_name=model_name, max_new_tokens=min_max_new_tokens)
+                                                        model_name=model_name, max_new_tokens=max_new_tokens_used)
         if max_input_tokens >= 0:
             max_input_tokens = min(max_input_tokens_default, max_input_tokens)
         else:
             max_input_tokens = max_input_tokens_default
+
     else:
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
@@ -6319,7 +6326,8 @@ def get_chain(query=None,
         num_prompt_basic_tokens = get_token_count(prompt_basic, tokenizer)
 
         if truncation_generation:
-            max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
+            max_new_tokens = max(min_max_new_tokens,
+                                 min(max_new_tokens, model_max_length - max_doc_tokens - num_prompt_basic_tokens))
             if os.getenv('HARD_ASSERTS') is not None:
                 # imperfect calculation, so will see how testing does
                 assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
