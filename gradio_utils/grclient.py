@@ -735,6 +735,9 @@ class GradioClient(Client):
             doc_json_mode=doc_json_mode,
         )
 
+        # ensure can fill conversation
+        self.chat_conversation.append((instruction, None))
+
         # get result
         trials = 3
         for trial in range(trials):
@@ -761,6 +764,7 @@ class GradioClient(Client):
                         assert len(texts_out) == len(scores_out)
 
                     yield response, texts_out
+                    self.chat_conversation[-1] = (instruction, response)
                 else:
                     job = client.submit(str(dict(kwargs)), api_name=api_name)
                     text0 = ""
@@ -800,10 +804,12 @@ class GradioClient(Client):
                         sources = res_dict["sources"]
                         texts_out = [x["content"] for x in sources]
                         yield response[len(text0):], texts_out
+                        self.chat_conversation[-1] = (instruction, response[len(text0):])
                     else:
                         # 1.0 slightly longer than 0.3 in open source
                         check_job(job, timeout=1.0, raise_exception=True)
                         yield response[len(text0):], texts_out
+                        self.chat_conversation[-1] = (instruction, response[len(text0):])
                 break
             except Exception as e:
                 print(
