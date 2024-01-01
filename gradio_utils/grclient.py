@@ -110,6 +110,8 @@ class GradioClient(Client):
 
             h2ogpt_key: h2oGPT key to gain access to the server
             persist: whether to persist the state, so repeated calls are aware of the prior user session
+                     This allows the scratch MyData to be reused, etc.
+                     This also maintains the chat_conversation history
 
         """
         if serialize is None:
@@ -147,6 +149,7 @@ class GradioClient(Client):
         self.server_hash = None
         self.h2ogpt_key = h2ogpt_key
         self.persist = persist
+        self.chat_conversation = []  # internal for persist=True
 
     def __repr__(self):
         if self.config:
@@ -261,21 +264,20 @@ class GradioClient(Client):
         # disable for helium for now, just return constant value if not in github repo
         return "GET_GITHASH"
 
-    def refresh_client_if_should(self, persist=True):
+    def refresh_client_if_should(self):
         if self.config is None:
             self.setup()
         # get current hash in order to update api_name -> fn_index map in case gradio server changed
         # FIXME: Could add cli api as hash
         server_hash = self.get_server_hash()
         if self.server_hash != server_hash:
+            if self.server_hash is not None and self.persist:
+                print("Failed to persist due to server hash change, only kept chat_conversation not user session hash", flush=True)
             # risky to persist if hash changed
-            self.refresh_client(persist=False)
+            self.refresh_client()
             self.server_hash = server_hash
-        else:
-            if not persist:
-                self.reset_session()
 
-    def refresh_client(self, persist=True):
+    def refresh_client(self):
         """
         Ensure every client call is independent
         Also ensure map between api_name and fn_index is updated in case server changed (e.g. restarted with new code)
@@ -283,16 +285,17 @@ class GradioClient(Client):
         """
         if self.config is None:
             self.setup()
-        if not persist:
-            # need session hash to be new every time, to avoid "generator already executing"
-            self.reset_session()
 
         kwargs = self.kwargs.copy()
         kwargs.pop('h2ogpt_key', None)
         kwargs.pop('persist', None)
         client = Client(*self.args, **kwargs)
+        session_hash0 = self.session_hash if self.persist else None
         for k, v in client.__dict__.items():
             setattr(self, k, v)
+        if session_hash0:
+            # keep same system hash in case server API only changed and not restarted
+            self.session_hash = session_hash0
 
     def clone(self):
         if self.config is None:
@@ -718,7 +721,7 @@ class GradioClient(Client):
             max_new_tokens=max_new_tokens,
 
             add_search_to_context=add_search_to_context,
-            chat_conversation=chat_conversation,
+            chat_conversation=chat_conversation if chat_conversation else self.chat_conversation,
             text_context_list=text_context_list,
             docs_ordering_type=docs_ordering_type,
             min_max_new_tokens=min_max_new_tokens,
