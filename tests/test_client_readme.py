@@ -4,8 +4,9 @@ from tests.utils import wrap_test_forked
 
 
 @pytest.mark.parametrize("local_server", [True, False])
+@pytest.mark.parametrize("persist", [True, False])
 @wrap_test_forked
-def test_readme_example(local_server):
+def test_readme_example(local_server, persist):
     if local_server:
         from src.gen import main
         main(base_model='llama', chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True)
@@ -21,10 +22,17 @@ def test_readme_example(local_server):
         host = "http://0.0.0.0:7860"
     else:
         host = "https://gpt.h2o.ai"
-    client = GradioClient(host, h2ogpt_key=h2ogpt_key)
+
+    client = GradioClient(host, h2ogpt_key=h2ogpt_key, persist=persist)
 
     models = client.list_models()
     print(models)
+
+    print(client.question("Who are you?", model=models[0]))
+    print(client.question("What did I just ask?", model=models[0]))
+    if persist:
+        assert len(client.chat_conversation) == 2
+        assert client.chat_conversation[-1][1] == "You just asked: Who are you?"
 
     # LLM
     print(client.question("Who are you?", model=models[0]))
@@ -42,3 +50,6 @@ def test_readme_example(local_server):
     print(client.summarize(query="List all names", url=url, top_k_docs=3, model=models[0]))
     # extraction (map per page)
     print(client.extract(query="Give valid JSON for any names.", url=url, top_k_docs=3, model=models[0]))
+
+    if persist:
+        assert len(client.chat_conversation) == 8
