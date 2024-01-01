@@ -3831,10 +3831,7 @@ def evaluate(
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                             break
             elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
-                if inf_type == 'vllm_chat':
-                    other_dict = dict(request_timeout=max_time)
-                else:
-                    other_dict = dict(timeout=max_time)
+                other_dict = dict(timeout=max_time)
                 if system_prompt in [None, 'None', 'auto']:
                     openai_system_prompt = "You are a helpful assistant."
                 else:
