@@ -379,7 +379,11 @@ def get_githash():
     try:
         githash = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8')[0:-1]
     except:
-        githash = ''
+        try:
+            with open('git_hash.txt', 'rt') as f:
+                githash = f.read()
+        except:
+            githash = "GET_GITHASH"
     return githash
 
 

@@ -96,8 +96,9 @@ mkdir -p /h2ogpt_conda/envs/vllm/bin
 ln -s /h2ogpt_conda/vllm_env/bin/python3.10 /h2ogpt_conda/envs/vllm/bin/python3.10
 
 # Track build info
-cd /workspace && make build_info.txt
+cd /workspace && make build_info.txt git_hash.txt
 cp /workspace/build_info.txt /build_info.txt
+cp /workspace/git_hash.txt /git_hash.txt
 
 mkdir -p /workspace/save
 chmod -R a+rwx /workspace/save

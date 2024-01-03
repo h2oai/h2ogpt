@@ -3,7 +3,7 @@ import pytest
 from tests.utils import wrap_test_forked
 
 
-@pytest.mark.parametrize("local_server", [True, False])
+@pytest.mark.parametrize("local_server", [False, True])
 @pytest.mark.parametrize("persist", [True, False])
 @wrap_test_forked
 def test_readme_example(local_server, persist):
