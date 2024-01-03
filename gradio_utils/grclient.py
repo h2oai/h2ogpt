@@ -343,6 +343,9 @@ class GradioClient(Client):
             Endpoint(client, fn_index, dependency)
             for fn_index, dependency in enumerate(client.config["dependencies"])
         ]
+        # transfer internals in case used
+        client.server_hash = self.server_hash
+        client.chat_conversation = self.chat_conversation
         return client
 
     def submit(
@@ -767,6 +770,9 @@ class GradioClient(Client):
             doc_json_mode=doc_json_mode,
         )
 
+        # in case server changed, update in case clone()
+        self.server_hash = client.server_hash
+
         # ensure can fill conversation
         self.chat_conversation.append((instruction, None))
 
@@ -779,6 +785,8 @@ class GradioClient(Client):
                         str(dict(kwargs)),
                         api_name=api_name,
                     )
+                    # in case server changed, update in case clone()
+                    self.server_hash = client.server_hash
                     res = ast.literal_eval(res)
                     response = res["response"]
                     if langchain_action != LangChainAction.EXTRACT.value:
@@ -854,6 +862,9 @@ class GradioClient(Client):
                 else:
                     print("trying again: %s" % trial, flush=True)
                     time.sleep(1 * trial)
+            finally:
+                # in case server changed, update in case clone()
+                self.server_hash = client.server_hash
 
     def check_model(self, model):
         if model != 0 and self.check_model_name:
