@@ -94,7 +94,7 @@ class GradioClient(Client):
             max_workers: int = 40,
             serialize: bool = None,
             output_dir: str | Path | None = DEFAULT_TEMP_DIR,
-            verbose: bool = True,
+            verbose: bool = False,
             auth: tuple[str, str] | None = None,
             h2ogpt_key: str = None,
             persist: bool = False,
