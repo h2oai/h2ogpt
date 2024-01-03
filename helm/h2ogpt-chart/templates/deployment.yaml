@@ -156,9 +156,15 @@ spec:
             {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
           image: "{{ .Values.h2ogpt.image.repository }}:{{ .Values.h2ogpt.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.h2ogpt.image.pullPolicy }}
-          command: []
+          command: ["/bin/bash", "-c"]
           args:
-            - /workspace/generate.py
+          - |
+            while [[ "$(curl --insecure -s -o /dev/null -w ''%{http_code}''
+            http://localhost:5000/v1/models)" != "200" ]]; do
+              echo "Waiting for inference service to become ready... (2sec)"
+              sleep 2
+            done
+            python3 /workspace/generate.py
           ports:
             - name: http
               containerPort: 7860
