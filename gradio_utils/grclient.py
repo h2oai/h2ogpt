@@ -97,7 +97,8 @@ class GradioClient(Client):
             verbose: bool = True,
             auth: tuple[str, str] | None = None,
             h2ogpt_key: str = None,
-            persist: bool = False
+            persist: bool = False,
+            check_hash: bool = True,
     ):
         """
         Parameters:
@@ -112,7 +113,7 @@ class GradioClient(Client):
             persist: whether to persist the state, so repeated calls are aware of the prior user session
                      This allows the scratch MyData to be reused, etc.
                      This also maintains the chat_conversation history
-
+            check_hash: whether to check git hash for consistency between server and client to ensure API always up to date
         """
         if serialize is None:
             # else converts inputs arbitrarily and outputs mutate
@@ -127,6 +128,7 @@ class GradioClient(Client):
             verbose=verbose,
             h2ogpt_key=h2ogpt_key,
             persist=persist,
+            check_hash=check_hash,
         )
         if is_gradio_client_version7:
             self.kwargs.update(dict(auth=auth))
@@ -149,6 +151,7 @@ class GradioClient(Client):
         self.server_hash = None
         self.h2ogpt_key = h2ogpt_key
         self.persist = persist
+        self.check_hash = check_hash
         self.chat_conversation = []  # internal for persist=True
 
     def __repr__(self):
@@ -260,9 +263,10 @@ class GradioClient(Client):
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
-        # return super().submit(api_name="/system_hash").result()
-        # disable for helium for now, just return constant value if not in github repo
-        return "GET_GITHASH"
+        if self.check_hash:
+            return super().submit(api_name="/system_hash").result()
+        else:
+            return "GET_GITHASH"
 
     def refresh_client_if_should(self):
         if self.config is None:
@@ -289,6 +293,7 @@ class GradioClient(Client):
         kwargs = self.kwargs.copy()
         kwargs.pop('h2ogpt_key', None)
         kwargs.pop('persist', None)
+        kwargs.pop('check_hash', None)
         client = Client(*self.args, **kwargs)
         session_hash0 = self.session_hash if self.persist else None
         for k, v in client.__dict__.items():
