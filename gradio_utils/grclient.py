@@ -99,6 +99,7 @@ class GradioClient(Client):
             h2ogpt_key: str = None,
             persist: bool = False,
             check_hash: bool = True,
+            check_model_name: bool = False,
     ):
         """
         Parameters:
@@ -114,6 +115,7 @@ class GradioClient(Client):
                      This allows the scratch MyData to be reused, etc.
                      This also maintains the chat_conversation history
             check_hash: whether to check git hash for consistency between server and client to ensure API always up to date
+            check_model_name: whether to check the model name here (adds delays), or just let server fail (fater)
         """
         if serialize is None:
             # else converts inputs arbitrarily and outputs mutate
@@ -129,6 +131,7 @@ class GradioClient(Client):
             h2ogpt_key=h2ogpt_key,
             persist=persist,
             check_hash=check_hash,
+            check_model_name=check_model_name,
         )
         if is_gradio_client_version7:
             self.kwargs.update(dict(auth=auth))
@@ -148,11 +151,13 @@ class GradioClient(Client):
         self.src = src
         self.auth = auth
         self.config = None
-        self.server_hash = None
         self.h2ogpt_key = h2ogpt_key
         self.persist = persist
         self.check_hash = check_hash
+        self.check_model_name = check_model_name
+
         self.chat_conversation = []  # internal for persist=True
+        self.server_hash = None  # internal
 
     def __repr__(self):
         if self.config:
@@ -275,8 +280,11 @@ class GradioClient(Client):
         # FIXME: Could add cli api as hash
         server_hash = self.get_server_hash()
         if self.server_hash != server_hash:
+            if self.verbose:
+                print("server hash changed: %s %s" % (self.server_hash, server_hash), flush=True)
             if self.server_hash is not None and self.persist:
-                print("Failed to persist due to server hash change, only kept chat_conversation not user session hash", flush=True)
+                if self.verbose:
+                    print("Failed to persist due to server hash change, only kept chat_conversation not user session hash", flush=True)
             # risky to persist if hash changed
             self.refresh_client()
             self.server_hash = server_hash
@@ -294,13 +302,32 @@ class GradioClient(Client):
         kwargs.pop('h2ogpt_key', None)
         kwargs.pop('persist', None)
         kwargs.pop('check_hash', None)
-        client = Client(*self.args, **kwargs)
+        kwargs.pop('check_model_name', None)
+        ntrials = 3
+        client = None
+        for trial in range(0, ntrials + 1):
+            try:
+                client = Client(*self.args, **kwargs)
+            except ValueError as e:
+                if trial >= ntrials:
+                    raise
+                else:
+                    if self.verbose:
+                        print("Trying refresh %d/%d %s" % (trial, ntrials - 1, str(e)))
+                    trial += 1
+                    time.sleep(10)
+        if client is None:
+            raise RuntimeError("Failed to get new client")
         session_hash0 = self.session_hash if self.persist else None
         for k, v in client.__dict__.items():
             setattr(self, k, v)
         if session_hash0:
             # keep same system hash in case server API only changed and not restarted
             self.session_hash = session_hash0
+        if self.verbose:
+            print("Hit refresh_client(): %s %s" % (self.session_hash, session_hash0))
+        # ensure server hash also updated
+        self.server_hash = self.get_server_hash()
 
     def clone(self):
         if self.config is None:
@@ -829,7 +856,7 @@ class GradioClient(Client):
                     time.sleep(1 * trial)
 
     def check_model(self, model):
-        if model != 0:
+        if model != 0 and self.check_model_name:
             valid_llms = self.list_models()
             if (
                     isinstance(model, int)
