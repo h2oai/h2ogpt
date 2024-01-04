@@ -168,3 +168,21 @@ responses = client.create(**client_kwargs)
 text = responses.choices[0].message.content
 print(text)
 ```
+
+Or for curl, with api_key set or as `EMPTY` if not set, one can do:
+```bash
+export OPENAI_API_KEY=xxxx
+curl https://gpt-docs.h2o.ai:5000/v1/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "prompt": "Who are you?",
+    "max_tokens": 200,
+    "temperature": 0,
+    "seed": 1234,
+    "h2ogpt_key": "$OPENAI_API_KEY"
+  }'
+```
+where one should pass along the `h2ogpt_key` if gradio is itself protected for some queries.
+
+The strings `prompt` and `max_tokens` are taken as OpenAI type names that are converted to `instruction` and `max_new_tokens`.  In either case, any additional parameters are passed along to the Gradio `submit_nochat_api` API.  
