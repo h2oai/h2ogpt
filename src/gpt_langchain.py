@@ -1232,7 +1232,7 @@ class ExtraChat:
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)):
+            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropicSys):
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -1357,6 +1357,10 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+
+
+class H2OChatAnthropicSys(H2OChatAnthropic):
+    pass
 
 
 class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
@@ -1695,7 +1699,11 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server.startswith('anthropic'):
-        cls = H2OChatAnthropic
+        if model_name == "claude-2.1":
+            # https://docs.anthropic.com/claude/docs/how-to-use-system-prompts
+            cls = H2OChatAnthropicSys
+        else:
+            cls = H2OChatAnthropic
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
