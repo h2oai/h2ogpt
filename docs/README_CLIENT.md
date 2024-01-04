@@ -155,7 +155,7 @@ This response contains the full dictionary of `data` from the `curl` operation a
 h2oGPT by default starts an [OpenAI compatible server](README_InferenceServers.md#openai-proxy-inference-server-client).  One communicates to it via OpenAI 1.x Python package.  For example:
 ```python
 from openai import OpenAI
-base_url = 'https://gpt-docs.h2o.ai:5000/v1'
+base_url = 'https://localhost:5000/v1'
 api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
 client_args = dict(base_url=base_url, api_key=api_key)
 openai_client = OpenAI(**client_args)
@@ -172,7 +172,7 @@ print(text)
 Or for curl, with api_key set or as `EMPTY` if not set, one can do:
 ```bash
 export OPENAI_API_KEY=xxxx
-curl https://gpt-docs.h2o.ai:5000/v1/completions \
+curl https://localhost:5000/v1/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -d '{
@@ -185,4 +185,21 @@ curl https://gpt-docs.h2o.ai:5000/v1/completions \
 ```
 where one should pass along the `h2ogpt_key` if gradio is itself protected for some queries.
 
-The strings `prompt` and `max_tokens` are taken as OpenAI type names that are converted to `instruction` and `max_new_tokens`.  In either case, any additional parameters are passed along to the Gradio `submit_nochat_api` API.  
+Chat completion also works with curl like:
+```bash
+curl http://localhost:5000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a beautiful dragon who likes to breath fire."
+      },
+      {
+        "role": "user",
+        "content": "Who are you?"
+    ],
+  }'
+```
+
+The strings `prompt` and `max_tokens` are taken as OpenAI type names that are converted to `instruction` and `max_new_tokens`.  In either case, any additional parameters are passed along to the Gradio `submit_nochat_api` API.  Either `http` or `https` works if using ngrok or some proxy service, or setup directly in the OpenAI proxy server.
