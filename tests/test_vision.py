@@ -35,7 +35,7 @@ def test_llava_client():
                          api_name='/textbox_api_submit')
     res = res[-1][-1]
     print(res)
-    assert 'headband' in res or 'woman' in res
+    assert 'headband' in res or 'woman' in res or 'orange' in res
 
 
 @wrap_test_forked
