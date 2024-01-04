@@ -959,19 +959,10 @@ where `use_auth_token` has been set as required for LLaMa2.
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--use_gpu_id=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
 
-For GPUs with at least 24GB of memory, we recommend:
+For GPUs with at least 9GB of memory, one can do 4-bit quantization like:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --load_4bit=True
 ```
-or
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
-```
-For GPUs with at least 48GB of memory, we recommend:
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
-```
-etc.
 
 ### CPU with no AVX2 or using LLaMa.cpp
 

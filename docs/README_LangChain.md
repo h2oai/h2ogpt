@@ -178,7 +178,7 @@ Metadata is added using `add_meta` function, and other metadata, like chunk_id, 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
 python src/make_db.py --download_some=True
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --langchain_mode=UserData --langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
 ```
 which downloads example databases.  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
 

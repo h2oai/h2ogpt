@@ -496,7 +496,7 @@ def main(
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param inference_server: Consume base_model as type of model at this address
                              Address can be text-generation-server hosting that base_model
-                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=HuggingFaceH4/zephyr-7b-beta
 
                              Or Address can be "openai_chat" or "openai" for OpenAI API
                              Or Address can be "openai_azure_chat" or "openai_azure" for Azure OpenAI API
