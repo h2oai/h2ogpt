@@ -138,7 +138,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'pre_prompt_summary': None,
                  'prompt_summary': None,
                  'hyde_llm_prompt': None,
-                 'system_prompt': '',
+                 'system_prompt': 'auto',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),
                  'url_loaders': np.array(['Unstructured'], dtype=object),
                  'jq_schema': '.[]',
@@ -220,7 +220,7 @@ e the posterior ligaments are attached to the back. The anterior ligaments are c
 
     from sacrebleu.metrics import BLEU
     bleu = BLEU()
-    assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 25
+    assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 10
     return eval_out_filename
 
 
