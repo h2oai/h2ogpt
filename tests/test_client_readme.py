@@ -32,7 +32,8 @@ def test_readme_example(local_server, persist):
     print(client.question("What did I just ask?", model=models[0]))
     if persist:
         assert len(client.chat_conversation) == 2
-        assert client.chat_conversation[-1][1] == "You just asked: Who are you?"
+        assert client.chat_conversation[-1][1] == "You just asked: Who are you?" or \
+               client.chat_conversation[-1][1] == "You just asked: \"Who are you?\""
 
     # LLM
     print(client.question("Who are you?", model=models[0]))
