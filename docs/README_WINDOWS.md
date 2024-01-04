@@ -108,7 +108,7 @@ For newer builds of windows versions of 10/11.
 * AutoAWQ support:
    ```bash
     pip uninstall -y autoawq
-    pip install autoawq==0.1.7
+    pip install autoawq==0.1.8
    ```
 * Exllama support (GPU only):
     ```bash

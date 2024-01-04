@@ -124,7 +124,7 @@ fi
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 #* GPU Optional: For AutoAWQ support on x86_64 linux
 #    ```bash
-    pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.7/autoawq-0.1.7+cu118-cp310-cp310-linux_x86_64.whl
+    pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8+cu118-cp310-cp310-linux_x86_64.whl
     # fix version since don't need lm-eval to have its version of 1.5.0
     pip install sacrebleu==2.3.1 --upgrade
 #    ```
