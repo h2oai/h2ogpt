@@ -188,7 +188,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     instruction, system_message, history = convert_messages_to_structure(messages)
     gen_kwargs.update({
-        'system_message': system_message,
+        'system_prompt': system_message,
         'chat_conversation': history,
         'stream_output': stream_output
     })
