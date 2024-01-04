@@ -922,6 +922,28 @@ def main(
            For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+
+    For query, prompt template is:
+      "{pre_prompt_query}
+        \"\"\"
+        {fstring}
+        \"\"\"
+        {prompt_query}{instruction}"
+    For summarization or extraction, for some internal document part fstring, the template looks like:
+        "{pre_prompt_summary}
+        \"\"\"
+        {fstring}
+        \"\"\"
+        {prompt_summary}"
+     If added instruction for summarization or extraction, prompt template is
+      "{pre_prompt_summary}
+        \"\"\"
+        {fstring}
+        \"\"\"
+        Focusing on {instruction}, {prompt_summary}"
+        
+    {fstring} is some document chunks separated by {docs_joiner}
+
     :param hyde_llm_prompt: hyde prompt for first step when using LLM
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
