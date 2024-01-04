@@ -1416,12 +1416,13 @@ def go_gradio(**kwargs):
                                 prompt_type2 = get_prompt_type2(**kwargs)
 
                             system_prompt_type = gr.Dropdown(label="System Prompt Type",
+                                                             info="Choose System Prompt Type",
                                                              value=kwargs['system_prompt'],
                                                              choices=get_system_prompts(),
                                                              filterable=True,
                                                              )
                             system_prompt = gr.Textbox(label='System Prompt',
-                                                       info="Can add your own custom system prompt here",
+                                                       info="Filled by choice above, or can enter your own custom system prompt",
                                                        value=kwargs['system_prompt'], lines=2)
 
                             def show_sys(x):
@@ -1447,19 +1448,19 @@ def go_gradio(**kwargs):
                                                 interactive=not is_public)
                         with gr.Column():
                             pre_prompt_query = gr.Textbox(label="Query Pre-Prompt",
-                                                          info="Added before documents",
+                                                          info="In prompt template, added before document text chunks",
                                                           value=kwargs['pre_prompt_query'] or '')
                             prompt_query = gr.Textbox(label="Query Prompt",
                                                       info="Added after documents",
                                                       value=kwargs['prompt_query'] or '')
                             pre_prompt_summary = gr.Textbox(label="Summary Pre-Prompt",
-                                                            info="Added before documents",
+                                                            info="In prompt template, added before documents",
                                                             value=kwargs['pre_prompt_summary'] or '')
                             prompt_summary = gr.Textbox(label="Summary Prompt",
-                                                        info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
+                                                        info="In prompt template, added after documents text chunks (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
                             hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
-                                                         info="When doing HYDE, this is first prompt followed by the user query.",
+                                                         info="When doing HYDE, this is first prompt, and in template the user query comes right after this.",
                                                          value=kwargs['hyde_llm_prompt'] or '')
                     gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
