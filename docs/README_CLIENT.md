@@ -161,13 +161,36 @@ client_args = dict(base_url=base_url, api_key=api_key)
 openai_client = OpenAI(**client_args)
 
 messages = [{'role': 'user', 'content': 'Who are you?'}]
-client_kwargs = dict(model='h2oai/h2ogpt-4096-llama2-70b-chat', max_tokens=200, stream=False, messages=messages)
+stream = False
+client_kwargs = dict(model='h2oai/h2ogpt-4096-llama2-70b-chat', max_tokens=200, stream=stream, messages=messages)
 client = openai_client.chat.completions
 
 responses = client.create(**client_kwargs)
 text = responses.choices[0].message.content
 print(text)
 ```
+or for streaming:
+```python
+from openai import OpenAI
+base_url = 'http://localhost:5000/v1'
+api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+messages = [{'role': 'user', 'content': 'Who are you?'}]
+stream = True
+client_kwargs = dict(model='h2oai/h2ogpt-4096-llama2-70b-chat', max_tokens=200, stream=stream, messages=messages)
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = ''
+for chunk in responses:
+    delta = chunk.choices[0].delta.content
+    if delta:
+        text += delta
+        print(delta, end='')
+```
+just as with OpenAI, and related API for text completion (non-chat) mode.
 
 Or for curl, with api_key set or as `EMPTY` if not set, one can do:
 ```bash
