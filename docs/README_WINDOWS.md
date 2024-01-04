@@ -28,7 +28,7 @@ For newer builds of windows versions of 10/11.
 * Download and install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html)
 * Run Miniconda shell (not powershell!) as Administrator
 * Run: `set path=%path%;c:\MinGW\msys\1.0\bin\` to get C++ in path.  In some cases it may be instead correct to use `set path=%path%;c:\MinGW\bin\`
-* Download latest nvidia driver for windows if one has old drivers before CUDA 11.7 supported
+* Download latest nvidia driver for windows if one has old drivers before CUDA 11.8 supported
 * Confirm can run `nvidia-smi` and see driver version
 * Setup Conda Environment:
     * ![minicondashellsmall.png](minicondashellsmall.png)
@@ -41,7 +41,7 @@ For newer builds of windows versions of 10/11.
     ```
 * GPU Only: Install CUDA
    ```bash
-    conda install cudatoolkit=11.7 -c conda-forge -y
+    conda install cudatoolkit=11.8 -c conda-forge -y
     set CUDA_HOME=$CONDA_PREFIX
     ```
 * Install Git:
