@@ -28,7 +28,6 @@ from urllib.parse import urlparse
 
 import filelock
 import tabulate
-import torch
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
