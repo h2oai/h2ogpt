@@ -4321,9 +4321,10 @@ def go_gradio(**kwargs):
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
                 if error:
-                    if history[-1][1] is None:
-                        history[-1][1] = ''
-                    history[-1][1] += error_with_str
+                    if history and history[-1] and len(history[-1]) == 2:
+                        if history and history[-1] and history[-1][1] is None:
+                            history[-1][1] = ''
+                        history[-1][1] += error_with_str
 
                 yield history, error, final_audio
             except BaseException as e:
@@ -4546,9 +4547,10 @@ def go_gradio(**kwargs):
                                              expect_bytes=kwargs['return_as_byte'])
                 # add error accordion
                 for boti, bot in enumerate(bots):
-                    if bots[boti][-1][1] is None:
-                        bots[boti][-1][1] = ''
-                    bots[boti][-1][1] += exceptions_each_str[boti]
+                    if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2:
+                        if bots[boti][-1][1] is None:
+                            bots[boti][-1][1] = ''
+                        bots[boti][-1][1] += exceptions_each_str[boti]
                 if len(bots) > 1:
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
