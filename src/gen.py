@@ -3250,6 +3250,7 @@ def evaluate(
         url_loaders_options0=None,
         jq_schema0=None,
         keep_sources_in_context=None,
+        gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
 
         # carry defaults to know what forced-off means
@@ -3646,6 +3647,7 @@ def evaluate(
                 add_chat_history_to_context=add_chat_history_to_context,
                 add_search_to_context=add_search_to_context,
                 keep_sources_in_context=keep_sources_in_context,
+                gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                 memory_restriction_level=memory_restriction_level,
                 system_prompt=system_prompt,
                 allow_chat_system_prompt=allow_chat_system_prompt,
@@ -3793,6 +3795,7 @@ def evaluate(
                            gradio_server=gradio_server,
                            attention_sinks=attention_sinks,
                            hyde_level=hyde_level,
+                           gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -4990,7 +4993,7 @@ def merge_chat_conversation_history(chat_conversation1, history):
     return history
 
 
-def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level):
+def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot):
     # md -> back to text, maybe not super important if model trained enough
     if not keep_sources_in_context and \
             langchain_mode != 'Disabled' and \
@@ -5003,10 +5006,11 @@ def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level):
             text = text[:-4]
 
     # HYDE
-    if (hyde_level is None or hyde_level > 0) and \
-            not keep_sources_in_context and \
-            langchain_mode != 'Disabled' and \
-            text.find(generic_prefix) >= 0:
+    in_generic_chat = gradio_errors_to_chatbot or \
+                      (hyde_level is None or hyde_level > 0) and \
+                      not keep_sources_in_context and \
+                      langchain_mode != 'Disabled'
+    if in_generic_chat and text.find(generic_prefix) >= 0:
         # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
         import re
         text = re.sub(f'{re.escape(generic_prefix)}.*?{re.escape(generic_postfix)}', '', text,
@@ -5043,6 +5047,7 @@ def history_to_context(history, langchain_mode=None,
                        memory_restriction_level=None, keep_sources_in_context=None,
                        system_prompt=None, chat_conversation=None,
                        hyde_level=None,
+                       gradio_errors_to_chatbot=None,
                        min_max_new_tokens=256):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
@@ -5096,7 +5101,7 @@ def history_to_context(history, langchain_mode=None,
                                 making_context=True,
                                 system_prompt=system_prompt,
                                 histi=histi)
-            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode, hyde_level)
+            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot)
             prompt = prompt.replace('<br>', chat_turn_sep)
             if not prompt.endswith(chat_turn_sep):
                 prompt += chat_turn_sep
@@ -5141,6 +5146,7 @@ def get_limited_prompt(instruction,
                        allow_chat_system_prompt=None,
                        context='', chat_conversation=None, text_context_list=None,
                        keep_sources_in_context=False,
+                       gradio_errors_to_chatbot=True,
                        model_max_length=None, memory_restriction_level=0,
                        langchain_mode=None, add_chat_history_to_context=True,
                        verbose=False,
@@ -5225,6 +5231,7 @@ def get_limited_prompt(instruction,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt,
                                                 hyde_level=hyde_level,
+                                                gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
     context2 = history_to_context_func(history)
     context1 = context
@@ -5401,7 +5408,8 @@ def get_limited_prompt(instruction,
     # if not from history, then reduced=False inside correct
     # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
     context_from_history = len(history) > 0 and len(context1) > 0
-    reduced = len(context2) > 0  # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+    # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+    reduced = len(context2) > 0
     prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 

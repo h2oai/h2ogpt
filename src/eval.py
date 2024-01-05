@@ -105,6 +105,7 @@ def run_eval(  # for local function:
         url_loaders_options0=None,
         jq_schema0=None,
         keep_sources_in_context=None,
+        gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,

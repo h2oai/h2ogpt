@@ -5589,7 +5589,8 @@ def go_gradio(**kwargs):
                                               keep_sources_in_context=keep_sources_in_context1,
                                               system_prompt=system_prompt1,
                                               chat_conversation=chat_conversation1,
-                                              hyde_level=None)
+                                              hyde_level=None,
+                                              gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'])
                 tokens = tokenizer(context1, return_tensors="pt")['input_ids']
                 if len(tokens.shape) == 1:
                     return str(tokens.shape[0])
@@ -5639,7 +5640,8 @@ def go_gradio(**kwargs):
             keep_sources_in_context1 = False
             langchain_mode1 = None  # so always tries
             hyde_level1 = None  # so always tries
-            response = remove_refs(response, keep_sources_in_context1, langchain_mode1, hyde_level1)
+            response = remove_refs(response, keep_sources_in_context1, langchain_mode1, hyde_level1,
+                                   kwargs['gradio_errors_to_chatbot'])
 
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
                 if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
