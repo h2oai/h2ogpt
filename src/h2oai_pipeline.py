@@ -48,7 +48,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
             else:
-                self.prompter = Prompter(self.prompt_type, self.prompt_dict, debug=debug, chat=chat,
+                self.prompter = Prompter(self.prompt_type, self.prompt_dict, debug=debug,
                                          stream_output=stream_output)
             self.human = self.prompter.humanstr
             self.bot = self.prompter.botstr

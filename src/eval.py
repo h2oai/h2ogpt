@@ -289,7 +289,7 @@ def run_eval(  # for local function:
                     if score_with_prompt:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
                         prompter = Prompter(prompt_type, prompt_dict,
-                                            debug=debug, chat=chat, stream_output=stream_output)
+                                            debug=debug, stream_output=stream_output)
                         prompt = prompter.generate_prompt(data_point, context_from_history=False)
                     else:
                         # just raw input and output

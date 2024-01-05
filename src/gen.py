@@ -51,7 +51,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
-    user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs
+    user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
+    generic_postfix
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -1943,7 +1944,7 @@ def main(
                                                                llamacpp_dict=model_dict['llamacpp_dict'])
                 if prompt_type1_trial:
                     model_dict['prompt_type'] = prompt_type1_trial
-                    get_prompt_kwargs = dict(chat=False, context='', reduced=False,
+                    get_prompt_kwargs = dict(context='', reduced=False,
                                              making_context=False,
                                              return_dict=True,
                                              system_prompt=system_prompt)
@@ -3501,7 +3502,7 @@ def evaluate(
     stream_output = gradio and num_beams == 1
 
     # get prompter
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                         system_prompt=system_prompt)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
@@ -3789,6 +3790,7 @@ def evaluate(
                            truncation_generation=truncation_generation,
                            gradio_server=gradio_server,
                            attention_sinks=attention_sinks,
+                           hyde_level=hyde_level,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -3927,10 +3929,10 @@ def evaluate(
                 # Note: h2oGPT gradio server could handle input token size issues for prompt,
                 # but best to handle here so send less data to server
 
-                chat_client = False
+                chat_client = chat
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
-                client_add_chat_history_to_context = True
+                client_add_chat_history_to_context = add_chat_history_to_context
                 client_add_search_to_context = False
                 client_langchain_action = LangChainAction.QUERY.value
                 client_langchain_agents = []
@@ -3986,7 +3988,16 @@ def evaluate(
                                      instruction_nochat=gr_prompt if not chat_client else '',
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
+
                                      add_chat_history_to_context=client_add_chat_history_to_context,
+                                     chat_conversation=chat_conversation,
+                                     text_context_list=text_context_list,
+
+                                     chatbot_role=chatbot_role,
+                                     speaker=speaker,
+                                     tts_language=tts_language,
+                                     tts_speed=tts_speed,
+
                                      langchain_action=client_langchain_action,
                                      langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
@@ -4024,6 +4035,7 @@ def evaluate(
                                      hyde_show_only_final=hyde_show_only_final,
                                      doc_json_mode=doc_json_mode,
                                      )
+                assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
                 text = ''
@@ -4811,7 +4823,7 @@ y = np.random.randint(0, 1, 100)
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     if prompt_type:
         prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
-                                         chat=False, context='', reduced=False, making_context=False, return_dict=True,
+                                         context='', reduced=False, making_context=False, return_dict=True,
                                          system_prompt=system_prompt)
         if error0:
             raise RuntimeError("Prompt wrong: %s" % error0)
@@ -4970,15 +4982,30 @@ def merge_chat_conversation_history(chat_conversation1, history):
     return history
 
 
-def remove_refs(text, keep_sources_in_context, langchain_mode):
+def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level):
     # md -> back to text, maybe not super important if model trained enough
-    if not keep_sources_in_context and langchain_mode != 'Disabled' and text.find(super_source_prefix) >= 0:
+    if not keep_sources_in_context and \
+            langchain_mode != 'Disabled' and \
+            text.find(super_source_prefix) >= 0:
         # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
         import re
         text = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', text,
                       flags=re.DOTALL)
         if text.endswith('\n<p>'):
             text = text[:-4]
+
+    # HYDE
+    if (hyde_level is None or hyde_level > 0) and \
+            not keep_sources_in_context and \
+            langchain_mode != 'Disabled' and \
+            text.find(generic_prefix) >= 0:
+        # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
+        import re
+        text = re.sub(f'{re.escape(generic_prefix)}.*?{re.escape(generic_postfix)}', '', text,
+                      flags=re.DOTALL)
+        if text.endswith('\n<p>'):
+            text = text[:-4]
+
     return text
 
 
@@ -5004,9 +5031,10 @@ def gradio_to_llm(x, bot=False):
 
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
-                       prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
+                       prompt_type=None, prompt_dict=None, model_max_length=None,
                        memory_restriction_level=None, keep_sources_in_context=None,
                        system_prompt=None, chat_conversation=None,
+                       hyde_level=None,
                        min_max_new_tokens=256):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
@@ -5049,12 +5077,11 @@ def history_to_context(history, langchain_mode=None,
                 generate_prompt(data_point,
                                 prompt_type,
                                 prompt_dict,
-                                chat,
                                 reduced=True,
                                 making_context=True,
                                 system_prompt=system_prompt,
                                 histi=histi)
-            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode)
+            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode, hyde_level)
             prompt = prompt.replace('<br>', chat_turn_sep)
             if not prompt.endswith(chat_turn_sep):
                 prompt += chat_turn_sep
@@ -5066,7 +5093,7 @@ def history_to_context(history, langchain_mode=None,
 
         _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
             generate_prompt({}, prompt_type, prompt_dict,
-                            chat, reduced=True,
+                            reduced=True,
                             making_context=True,
                             system_prompt=system_prompt,
                             histi=-1)
@@ -5094,7 +5121,7 @@ def get_limited_prompt(instruction,
                        estimated_instruction=None,
                        prompter=None,
                        inference_server=None,
-                       prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
+                       prompt_type=None, prompt_dict=None, max_new_tokens=None,
                        system_prompt='',
                        allow_chat_system_prompt=None,
                        context='', chat_conversation=None, text_context_list=None,
@@ -5103,6 +5130,7 @@ def get_limited_prompt(instruction,
                        langchain_mode=None, add_chat_history_to_context=True,
                        verbose=False,
                        doc_importance=0.5,
+                       hyde_level=None,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
                        max_total_input_tokens=-1,
@@ -5136,7 +5164,6 @@ def get_limited_prompt(instruction,
     if prompter:
         prompt_type = prompter.prompt_type
         prompt_dict = prompter.prompt_dict
-        chat = prompter.chat
         stream_output = prompter.stream_output
         system_prompt = prompter.system_prompt
         can_handle_system_prompt = prompter.can_handle_system_prompt
@@ -5178,11 +5205,11 @@ def get_limited_prompt(instruction,
                                                 add_chat_history_to_context=add_chat_history_to_context,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
-                                                chat=chat,
                                                 model_max_length=max_input_tokens,
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt,
+                                                hyde_level=hyde_level,
                                                 min_max_new_tokens=min_max_new_tokens)
     context2 = history_to_context_func(history)
     context1 = context
@@ -5348,7 +5375,7 @@ def get_limited_prompt(instruction,
         # get prompter
         debug = False
         stream_output = False  # doesn't matter
-        prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+        prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                             system_prompt=system_prompt)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
@@ -5359,7 +5386,8 @@ def get_limited_prompt(instruction,
     # if not from history, then reduced=False inside correct
     # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
     context_from_history = len(history) > 0 and len(context1) > 0
-    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history)
+    reduced = len(context2) > 0  # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \

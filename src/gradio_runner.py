@@ -5196,7 +5196,7 @@ def go_gradio(**kwargs):
 
             tokenizer_base_model = model_name
             prompt_dict1, error0 = get_prompt(prompt_type1, '',
-                                              chat=False, context='', reduced=False, making_context=False,
+                                              context='', reduced=False, making_context=False,
                                               return_dict=True, system_prompt=system_prompt1)
             model_state_new = dict(model=model1, tokenizer=tokenizer1, device=device1,
                                    base_model=model_name, tokenizer_base_model=tokenizer_base_model,
@@ -5232,7 +5232,7 @@ def go_gradio(**kwargs):
             if prompt_type1 in ['', None]:
                 print("Got prompt_type %s: %s" % (which, prompt_type1), flush=True)
                 return str({})
-            prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
+            prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, context='',
                                                          reduced=False, making_context=False, return_dict=True,
                                                          system_prompt=system_prompt1)
             if prompt_dict_error:
@@ -5537,12 +5537,12 @@ def go_gradio(**kwargs):
                                               add_chat_history_to_context=add_chat_history_to_context1,
                                               prompt_type=prompt_type1,
                                               prompt_dict=prompt_dict1,
-                                              chat=True,
                                               model_max_length=model_max_length1,
                                               memory_restriction_level=memory_restriction_level1,
                                               keep_sources_in_context=keep_sources_in_context1,
                                               system_prompt=system_prompt1,
-                                              chat_conversation=chat_conversation1)
+                                              chat_conversation=chat_conversation1,
+                                              hyde_level=None)
                 tokens = tokenizer(context1, return_tensors="pt")['input_ids']
                 if len(tokens.shape) == 1:
                     return str(tokens.shape[0])
@@ -5591,7 +5591,8 @@ def go_gradio(**kwargs):
 
             keep_sources_in_context1 = False
             langchain_mode1 = None  # so always tries
-            response = remove_refs(response, keep_sources_in_context1, langchain_mode1)
+            hyde_level1 = None  # so always tries
+            response = remove_refs(response, keep_sources_in_context1, langchain_mode1, hyde_level1)
 
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
                 if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:

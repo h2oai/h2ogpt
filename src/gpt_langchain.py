@@ -55,7 +55,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named
+    get_accordion_named, hyde_titles
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1883,7 +1883,7 @@ def get_llm(use_openai_model=False,
         if prompter:
             prompt_type = prompter.prompt_type
         else:
-            prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
+            prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name=model_name,
@@ -4932,7 +4932,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             prompt_type = prompt_type_out
         # get prompter
         chat = True  # FIXME?
-        prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=chat, stream_output=stream_output,
+        prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
                             system_prompt=system_prompt)
 
     scores = []
@@ -5646,6 +5646,8 @@ def get_chain(query=None,
               async_output=True,
               gradio_server=False,
 
+              hyde_level=None,
+
               # local
               auto_reduce_chunks=True,
               max_chunks=100,
@@ -6277,7 +6279,6 @@ def get_chain(query=None,
                                inference_server=inference_server,
                                prompt_type=prompt_type,
                                prompt_dict=prompt_dict,
-                               chat=chat,
                                max_new_tokens=max_new_tokens,
                                system_prompt=system_prompt,
                                allow_chat_system_prompt=allow_chat_system_prompt,
@@ -6294,6 +6295,7 @@ def get_chain(query=None,
                                truncation_generation=truncation_generation,
                                gradio_server=gradio_server,
                                attention_sinks=attention_sinks,
+                               hyde_level=hyde_level,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput, system_prompt=system_prompt)
@@ -6682,13 +6684,15 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
                 continue
             # improve title for UI
             if 'llm_answers_hyde_level_0' == title:
-                title = "HYDE 0: LLM"
-            if 'llm_answers_hyde_level_1' == title:
-                title = "HYDE 1: Prompt+LLM embedding"
-            if 'llm_answers_hyde_level_2' == title:
-                title = "HYDE 2: Prompt+LLM+HYDE 1 embedding"
-            if 'llm_answers_hyde_level_3' == title:
-                title = "HYDE 3: Prompt+LLM+HYDE 1&2 embedding"
+                title = hyde_titles(0)
+            elif 'llm_answers_hyde_level_1' == title:
+                title = hyde_titles(1)
+            elif 'llm_answers_hyde_level_2' == title:
+                title = hyde_titles(2)
+            elif 'llm_answers_hyde_level_3' == title:
+                title = hyde_titles(3)
+            elif 'llm_answers_hyde_level_4' == title:
+                title = hyde_titles(4)
             pre_answer += get_accordion_named(content, title, font_size=3)
             count += 1
 
