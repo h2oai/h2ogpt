@@ -1703,4 +1703,5 @@ def get_llava_prompts():
             ('Auto', 'auto'),
             ('Generic', "Describe the image and what does the image say?"),
             ('OCR', "Read all text from the image, keeping any structure"),
+            ('Ignore', "Ignore -- for https://github.com/gradio-app/gradio/issues/6957"),
             ]
