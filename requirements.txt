@@ -68,6 +68,7 @@ text-generation==0.6.1
 tiktoken==0.4.0
 
 requests>=2.31.0
+httpx==0.24.1
 urllib3>=1.26.16
 filelock>=3.12.2
 joblib>=1.3.1
