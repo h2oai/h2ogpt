@@ -3250,7 +3250,7 @@ def go_gradio(**kwargs):
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
                 else:
-                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion Issue", font_size=2))]
+                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure", font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
