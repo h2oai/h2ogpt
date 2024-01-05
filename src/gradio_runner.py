@@ -3314,13 +3314,9 @@ def go_gradio(**kwargs):
             eventdb2e_btn = eventdb2d_btn.then(**show_sources_kwargs)
             eventdb2f_btn = eventdb2e_btn.then(**get_viewable_sources_args)
             eventdb2g_btn = eventdb2f_btn.then(**viewable_kwargs)
-            if kwargs['gradio_upload_to_chatbot']:
-                eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
-                if kwargs['gradio_errors_to_chatbot']:
-                    eventdb2i_btn = eventdb2h_btn.then(**update_chatbots_errors_kwargs)
-            else:
-                if kwargs['gradio_errors_to_chatbot']:
-                    eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_errors_kwargs)
+            eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
+            if kwargs['gradio_errors_to_chatbot']:
+                eventdb2i_btn = eventdb2h_btn.then(**update_chatbots_errors_kwargs)
 
             # file upload
             eventdb1c = eventdb1.then(**get_sources_kwargs)
