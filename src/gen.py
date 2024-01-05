@@ -150,7 +150,7 @@ def main(
         compile_model: bool = None,
         use_cache: bool = None,
         inference_server: str = "",
-        regenerate_clients: bool = False,
+        regenerate_clients: bool = True,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -541,6 +541,7 @@ def main(
 
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
+           Maybe risky, some lack of thread safety: https://github.com/encode/httpx/discussions/3043, so disabled
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -2325,7 +2326,7 @@ def get_model(
         use_gpu_id: bool = True,
         base_model: str = '',
         inference_server: str = "",
-        regenerate_clients: bool = False,
+        regenerate_clients: bool = True,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -3070,7 +3071,7 @@ def get_score_model(score_model: str = None,
         tokenizer_base_model = ''
         lora_weights = ''
         inference_server = ''
-        regenerate_clients = False
+        regenerate_clients = True
         llama_type = False
         max_seq_len = None
         rope_scaling = {}
