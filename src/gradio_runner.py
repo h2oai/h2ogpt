@@ -58,7 +58,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt, model_names_curated, get_system_prompts
+    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
@@ -1428,7 +1428,8 @@ def go_gradio(**kwargs):
                             def show_sys(x):
                                 return x
 
-                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt, **noqueue_kwargs)
+                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt,
+                                                      **noqueue_kwargs)
 
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
@@ -1462,6 +1463,23 @@ def go_gradio(**kwargs):
                             hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
                                                          info="When doing HYDE, this is first prompt, and in template the user query comes right after this.",
                                                          value=kwargs['hyde_llm_prompt'] or '')
+                            llava_prompt_type = gr.Dropdown(label="LLaVa LLM Prompt Type",
+                                                            info="Pick pre-defined LLaVa prompt",
+                                                            value=kwargs['llava_prompt'],
+                                                            choices=get_llava_prompts(),
+                                                            filterable=True,
+                                                            )
+                            llava_prompt = gr.Textbox(label="LLaVa LLM Prompt",
+                                                      info="LLaVa prompt",
+                                                      value=kwargs['llava_prompt'],
+                                                      lines=2)
+
+                            def show_llava(x):
+                                return x
+
+                            llava_prompt_type.change(fn=show_llava, inputs=llava_prompt_type, outputs=llava_prompt,
+                                                     **noqueue_kwargs)
+
                     gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
@@ -2287,6 +2305,7 @@ def go_gradio(**kwargs):
                                        url_loaders,
                                        jq_schema,
                                        extract_frames,
+                                       llava_prompt,
                                        h2ogpt_key,
                                        ],
                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2320,6 +2339,7 @@ def go_gradio(**kwargs):
                                         url_loaders,
                                         jq_schema,
                                         extract_frames,
+                                        llava_prompt,
                                         h2ogpt_key,
                                         ],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2345,6 +2365,7 @@ def go_gradio(**kwargs):
                                       url_loaders,
                                       jq_schema,
                                       extract_frames,
+                                      llava_prompt,
                                       h2ogpt_key,
                                       ],
                               outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2383,6 +2404,7 @@ def go_gradio(**kwargs):
                                        url_loaders,
                                        jq_schema,
                                        extract_frames,
+                                       llava_prompt,
                                        h2ogpt_key,
                                        ],
                                outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2615,6 +2637,7 @@ def go_gradio(**kwargs):
                                           url_loaders,
                                           jq_schema,
                                           extract_frames,
+                                          llava_prompt,
                                           ],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
@@ -6007,6 +6030,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       url_loaders,
                       jq_schema,
                       extract_frames,
+                      llava_prompt,
                       h2ogpt_key,
 
                       captions_model=None,
@@ -6039,6 +6063,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
                              llava_model=llava_model,
+                             llava_prompt=llava_prompt,
                              asr_model=asr_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
@@ -6167,6 +6192,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         url_loaders,
                                                         jq_schema,
                                                         extract_frames,
+                                                        llava_prompt,
 
                                                         captions_model=None,
                                                         caption_loader=None,
@@ -6217,6 +6243,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
                              llava_model=llava_model,
+                             llava_prompt=llava_prompt,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
                              extract_frames=extract_frames,

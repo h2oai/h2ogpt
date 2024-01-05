@@ -420,6 +420,7 @@ def main(
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
         llava_model: str = None,
+        llava_prompt: str = 'auto',
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
@@ -1028,6 +1029,7 @@ def main(
     :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
            E.g. http://192.168.1.46:7861
            None means no such LLaVa support
+    :param llava_prompt: Prompt passed to LLaVa for querying the image
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
@@ -1597,6 +1599,7 @@ def main(
                             url_loaders,
                             jq_schema,
                             extract_frames,
+                            llava_prompt,
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
@@ -3144,6 +3147,7 @@ def evaluate(
         url_loaders,
         jq_schema,
         extract_frames,
+        llava_prompt,
         visible_models,
         h2ogpt_key,
         add_search_to_context,
@@ -3610,6 +3614,7 @@ def evaluate(
                                  asr_loader=asr_loader,
                                  jq_schema=jq_schema,
                                  extract_frames=extract_frames,
+                                 llava_prompt=llava_prompt,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
         # no longer stuff chat history directly into context this early
@@ -4003,6 +4008,7 @@ def evaluate(
                                      url_loaders=url_loaders,
                                      jq_schema=jq_schema,
                                      extract_frames=extract_frames,
+                                     llava_prompt=llava_prompt,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
@@ -4562,6 +4568,7 @@ def get_generate_params(model_lower,
                         url_loaders,
                         jq_schema,
                         extract_frames,
+                        llava_prompt,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
@@ -4764,6 +4771,7 @@ y = np.random.randint(0, 1, 100)
                     url_loaders,
                     jq_schema,
                     extract_frames,
+                    llava_prompt,
                     None,
                     None,
                     False,
