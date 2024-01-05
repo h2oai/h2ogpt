@@ -1790,7 +1790,7 @@ def check_langchain():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -2117,7 +2117,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     user_path = make_user_path_test()
 
     if loaders is None:
-        loaders = tuple([None, None, None, None, None])
+        loaders = tuple([None, None, None, None, None, None])
     else:
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
@@ -2133,10 +2133,15 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                      try_pdf_as_html=True,
                      enable_llava=True,
                      llava_model=None,
+                     llava_prompt=None,
                      max_quality=True)
         # use all loaders except crawling ones
         url_loaders_options = [x for x in url_loaders_options if 'scrape' not in x.lower()]
-        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options, None, 0]
+        jq_schema = None
+        extract_frames = 0
+        llava_prompt = None
+        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
+                   jq_schema, extract_frames, llava_prompt]
 
     stream_output = True
     max_new_tokens = 256
@@ -2737,7 +2742,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file1, langchain_mode, True, 512, True,
                          *loaders,
@@ -2817,7 +2822,7 @@ def test_client_timeout(stream_output, max_time):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -3356,7 +3361,7 @@ Rating: 5 (most positive)"""
     embed = False
     chunk = False
     chunk_size = 512
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     print("TIME prep: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
@@ -3569,7 +3574,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -3673,7 +3678,7 @@ def test_client_summarization_from_text():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(all_text_contents,
                          langchain_mode, chunk, chunk_size, True,
@@ -3729,7 +3734,7 @@ def test_client_summarization_from_url(url, top_k_docs):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(url,
                          langchain_mode, chunk, chunk_size, True,
@@ -3822,7 +3827,7 @@ def test_fastsys(stream_output, bits, prompt_type):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -3887,7 +3892,7 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     embed = True
     res = client.predict(test_file_server,

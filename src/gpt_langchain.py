@@ -666,6 +666,7 @@ class GradioInference(H2Oagenerate, LLM):
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
                              extract_frames=10,
+                             llava_prompt=None,
                              visible_models=self.visible_models,
                              h2ogpt_key=self.h2ogpt_key,
                              add_search_to_context=client_add_search_to_context,
@@ -2359,6 +2360,7 @@ def file_to_doc(file,
                 enable_transcriptions=True,
                 captions_model=None,
                 llava_model=None,
+                llava_prompt=None,
 
                 asr_model=None,
                 asr_gpu_id=0,
@@ -2465,6 +2467,7 @@ def file_to_doc(file,
                                           captions_model=captions_model,
                                           enable_llava=enable_llava,
                                           llava_model=llava_model,
+                                          llava_prompt=llava_prompt,
 
                                           # audio
                                           enable_transcriptions=enable_transcriptions,
@@ -2477,6 +2480,7 @@ def file_to_doc(file,
 
                                           # json
                                           jq_schema=jq_schema,
+                                          # video
                                           extract_frames=extract_frames,
 
                                           db_type=db_type,
@@ -2927,14 +2931,14 @@ def file_to_doc(file,
                 print("BEGIN: LLaVa", flush=True)
             try:
                 from src.vision.utils_vision import get_llava_response
-                res = get_llava_response(file, llava_model)
+                res = get_llava_response(file, llava_model, prompt=llava_prompt)
                 metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
                 docs1c = [Document(page_content=res, metadata=metadata)]
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, parser='LLaVa: %s' % llava_model)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, hashid=hash_of_file, llava_prompt=llava_prompt) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("LLaVa: %s" % str(e0), flush=True)
@@ -3330,6 +3334,7 @@ def path_to_doc1(file,
                  # json
                  jq_schema='.[]',
                  extract_frames=10,
+                 llava_prompt=None,
 
                  model_loaders=None,
 
@@ -3385,12 +3390,15 @@ def path_to_doc1(file,
                           enable_transcriptions=enable_transcriptions,
                           captions_model=captions_model,
                           llava_model=llava_model,
+                          llava_prompt=llava_prompt,
                           asr_model=asr_model,
 
                           model_loaders=model_loaders,
 
                           # json
                           jq_schema=jq_schema,
+
+                          # video
                           extract_frames=extract_frames,
 
                           headsize=headsize,
@@ -3460,6 +3468,7 @@ def path_to_docs(path_or_paths,
                  enable_transcriptions=True,
                  captions_model=None,
                  llava_model=None,
+                 llava_prompt=None,
                  asr_model=None,
 
                  caption_loader=None,
@@ -3469,7 +3478,9 @@ def path_to_docs(path_or_paths,
 
                  # json
                  jq_schema='.[]',
+                 # video
                  extract_frames=10,
+
                  db_type=None,
                  is_public=False,
 
@@ -3606,6 +3617,7 @@ def path_to_docs(path_or_paths,
                   enable_transcriptions=enable_transcriptions,
                   captions_model=captions_model,
                   llava_model=llava_model,
+                  llava_prompt=llava_prompt,
                   asr_model=asr_model,
 
                   model_loaders=model_loaders,
@@ -4184,6 +4196,7 @@ def _make_db(use_openai_embedding=False,
              captions_model=None,
              caption_loader=None,
              llava_model=None,
+             llava_prompt=None,
              doctr_loader=None,
              pix2struct_loader=None,
              asr_model=None,
@@ -4191,6 +4204,7 @@ def _make_db(use_openai_embedding=False,
 
              # json
              jq_schema='.[]',
+             # video
              extract_frames=10,
 
              langchain_mode=None,
@@ -4285,6 +4299,7 @@ def _make_db(use_openai_embedding=False,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
                                 llava_model=llava_model,
+                                llava_prompt=llava_prompt,
                                 doctr_loader=doctr_loader,
                                 pix2struct_loader=pix2struct_loader,
                                 asr_model=asr_model,
@@ -4634,6 +4649,7 @@ def _run_qa_db(query=None,
                captions_model=None,
                caption_loader=None,
                llava_model=None,
+               llava_prompt=None,
                doctr_loader=None,
                pix2struct_loader=None,
                asr_model=None,
@@ -5555,6 +5571,7 @@ def get_chain(query=None,
               doctr_loader=None,
               pix2struct_loader=None,
               llava_model=None,
+              llava_prompt=None,
               asr_model=None,
               asr_loader=None,
 
@@ -5986,6 +6003,7 @@ def get_chain(query=None,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
                                                         llava_model=llava_model,
+                                                        llava_prompt=llava_prompt,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 
@@ -6991,6 +7009,7 @@ def _update_user_db(file,
                     doctr_loader=None,
                     pix2struct_loader=None,
                     llava_model=None,
+                    llava_prompt=None,
                     asr_model=None,
                     asr_loader=None,
 
@@ -7140,6 +7159,7 @@ def _update_user_db(file,
                            doctr_loader=doctr_loader,
                            pix2struct_loader=pix2struct_loader,
                            llava_model=llava_model,
+                           llava_prompt=llava_prompt,
                            asr_model=asr_model,
                            asr_loader=asr_loader,
 
@@ -7422,6 +7442,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      doctr_loader=None,
                                                      pix2struct_loader=None,
                                                      llava_model=None,
+                                                     llava_prompt=None,
                                                      asr_model=None,
                                                      asr_loader=None,
 
@@ -7501,6 +7522,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
                                                         llava_model=llava_model,
+                                                        llava_prompt=llava_prompt,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 

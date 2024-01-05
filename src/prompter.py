@@ -1696,3 +1696,12 @@ def get_system_prompts():
             ('StepBackSimple', step_back_prompts(0)),
             ('StepBackFull', step_back_prompts(3)),
             ]
+
+
+def get_llava_prompts():
+    return [('None', ''),
+            ('Auto', 'auto'),
+            ('Generic', "Describe the image and what does the image say?"),
+            ('OCR', "Read all text from the image, keeping any structure"),
+            ('Ignore', "Ignore -- for https://github.com/gradio-app/gradio/issues/6957"),
+            ]
