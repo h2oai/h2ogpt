@@ -234,6 +234,9 @@ source_postfix = "End Sources<p>"
 super_source_prefix = f"""<details><summary><font size="{font_size}">Sources</font></summary><font size="{font_size}"><font size="{font_size}">Sources [Score | Link]:"""
 super_source_postfix = f"""End Sources<p></font></font></details>"""
 
+generic_prefix = f"""<details><summary><font size="""
+generic_postfix = f"""</font></details>"""
+
 
 def t5_type(model_name):
     return 't5' == model_name.lower() or \

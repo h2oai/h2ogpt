@@ -618,10 +618,10 @@ def generate_and_tokenize_prompt(data_point, prompt_type=None, train_on_inputs=F
     assert tokenizer is not None
     prompt_dict = ''  # only for custom prompt_type
     assert prompt_type != PromptType.custom.name, "custom not setup for finetune"
-    full_prompt, _, _, _, _ = generate_prompt(data_point, prompt_type, prompt_dict, False, False, False)
+    full_prompt, _, _, _, _ = generate_prompt(data_point, prompt_type, prompt_dict, False, False)
     tokenized_full_prompt = tokenize(full_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
     if not train_on_inputs:
-        user_prompt, _, _, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, prompt_dict, False, False,
+        user_prompt, _, _, _, _ = generate_prompt({**data_point, "output": ""}, prompt_type, prompt_dict, False,
                                                   False)
         tokenized_user_prompt = tokenize(user_prompt, tokenizer, cutoff_len, add_eos_token=add_eos_token)
         user_prompt_len = len(tokenized_user_prompt["input_ids"])
