@@ -6017,10 +6017,10 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     from src.gpt_langchain import image_types, audio_types, video_types
     if any([file.lower().endswith('.' + x) for x in image_types]):
         return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
-    elif any([file.lower().endswith('.' + x) for x in audio_types]):
-        return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file), dummy1
     elif any([file.lower().endswith('.' + x) for x in video_types]):
         return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file)
+    elif any([file.lower().endswith('.' + x) for x in audio_types]):
+        return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file), dummy1
     elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
 
         # account for when use `wget -b -m -k -o wget.log -e robots=off`
