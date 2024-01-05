@@ -1,5 +1,13 @@
 ## Frequently asked questions
 
+### Control location of files
+
+* HUGGINGFACE_HUB_CACHE : else set by HF transformers package to be `~/.cache/huggingface/hub` in linux or in windows `C:\Users\username\.cache\huggingface\hub`.
+* TRANSFORMERS_CACHE : else set by HF transformers package to be `~/.cache/huggingface/transformers` in linux or in windows `C:\Users\username\.cache\huggingface\transformers`.
+* HF_HOME: More broad location for any HF objects
+* XDG_CACHE_HOME: Broadly any `~/.cache` items.  Some [other packages](README_offline.md) use this folder.
+* `--llamacpp_path=<location>` : Location for llama.cpp models, like GGUF models.
+
 ### Mixtral GGUF
 
 Here is how to get Mixtral GGUF going with h2oGPT with no update to llama cpp python package except in a PR.
