@@ -40,7 +40,7 @@ def get_llava_response(file, llava_model,
                        prompt=None,
                        image_model='llava-v1.5-13b', temperature=0.2,
                        top_p=0.7, max_new_tokens=512):
-    if prompt is None:
+    if prompt in ['auto', None]:
         prompt = "Describe the image and what does the image say?"
     # prompt = "According to the image, describe the image in full details with a well-structured response."
 
