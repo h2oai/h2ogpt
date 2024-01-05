@@ -251,6 +251,7 @@ def main(
         gradio_api_use_same_stream_limits: bool = True,
         gradio_upload_to_chatbot: bool = False,
         gradio_upload_to_chatbot_num_max: bool = 2,
+        gradio_errors_to_chatbot: bool = True,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -728,6 +729,7 @@ def main(
     :param gradio_api_use_same_stream_limits: Whether to use same streaming limits as UI for API
     :param gradio_upload_to_chatbot: Whether to show upload in chatbots
     :param gradio_upload_to_chatbot_num_max: Max number of things to add to chatbot
+    :param gradio_errors_to_chatbot: Whether to show errors in Accordion in chatbot or just in exceptions in each tab
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
     :param embedding_gpu_id: which GPU to place embedding model on.
@@ -4098,7 +4100,13 @@ def evaluate(
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
                         text = res_dict['response']
-                        sources = res_dict['sources']
+                        sources = res_dict.get('sources')
+                        if sources is None:
+                            # then communication terminated, keep what have, but send error
+                            if is_public:
+                                raise ValueError("Abrupt termination of communication")
+                            else:
+                                raise ValueError("Abrupt termination of communication: %s" % strex)
                     else:
                         # if got no answer at all, probably something bad, always raise exception
                         # UI will still put exception in Chat History under chat exceptions
@@ -5069,8 +5077,15 @@ def history_to_context(history, langchain_mode=None,
         context1 = ''
         # - 1 below because current instruction already in history from user()
         for histi in range(0, len_history):
-            instruction = gradio_to_llm(history[histi][0], bot=False)
-            output = gradio_to_llm(history[histi][1], bot=True)
+            user = history[histi][0]
+            bot = history[histi][1]
+
+            if user is None:
+                # used to indicate was error or something similar put into chatbot stream
+                continue
+
+            instruction = gradio_to_llm(user, bot=False)
+            output = gradio_to_llm(bot, bot=True)
 
             data_point = dict(instruction=instruction, input='', output=output)
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \

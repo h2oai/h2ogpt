@@ -63,7 +63,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens
+    _save_generate_tokens, get_accordion_named
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -1369,6 +1369,8 @@ def go_gradio(**kwargs):
                         doc_view6 = PDF(visible=False)
                     else:
                         doc_view6 = gr.HTML(visible=False)
+                    doc_view7 = gr.Audio(visible=False)
+                    doc_view8 = gr.Video(visible=False)
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
@@ -2577,7 +2579,8 @@ def go_gradio(**kwargs):
                                inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                        view_document_choice, view_raw_text_checkbox,
                                        text_context_list, pdf_height],
-                               outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5, doc_view6])
+                               outputs=[doc_view, doc_view2, doc_view3, doc_view4,
+                                        doc_view5, doc_view6, doc_view7, doc_view8])
         eventdb_viewa.then(**show_doc_kwargs)
 
         view_raw_text_checkbox.change(**view_doc_select_kwargs) \
@@ -3233,14 +3236,21 @@ def go_gradio(**kwargs):
 
             def update_chatbots(*args,
                                 num_model_lock=0,
-                                all_possible_visible_models=None):
+                                all_possible_visible_models=None,
+                                for_errors=False,
+                                gradio_errors_to_chatbot=False):
                 args_list = list(args)
 
                 gradio_upload_to_chatbot1 = args_list[0]
+                gradio_errors_to_chatbot1 = gradio_errors_to_chatbot and for_errors
+                do_show = gradio_upload_to_chatbot1 or gradio_errors_to_chatbot1
 
-                new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
-                assert isinstance(new_files_last1, dict)
-                added_history = docs_to_message(new_files_last1)
+                if not for_errors:
+                    new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
+                    assert isinstance(new_files_last1, dict)
+                    added_history = docs_to_message(new_files_last1)
+                else:
+                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure", font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3258,7 +3268,7 @@ def go_gradio(**kwargs):
                     history_list = args_list[-num_model_lock - 2:]
 
                 assert len(history_list) > 0, "Bad history list: %s" % history_list
-                if gradio_upload_to_chatbot1:
+                if do_show:
                     for hi, history in enumerate(history_list):
                         if not visible_list[hi]:
                             continue
@@ -3281,14 +3291,32 @@ def go_gradio(**kwargs):
                                                   text_output, text_output2] + text_outputs,
                                           outputs=[text_output, text_output2] + text_outputs
                                           )
+
+            update_chatbots_errors_func = functools.partial(update_chatbots,
+                                                            num_model_lock=len(text_outputs),
+                                                            all_possible_visible_models=kwargs[
+                                                                'all_possible_visible_models'],
+                                                            for_errors=True,
+                                                            gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'],
+                                                            )
+            update_chatbots_errors_kwargs = dict(fn=update_chatbots_errors_func,
+                                                 inputs=[gradio_upload_to_chatbot,
+                                                         doc_exception_text,
+                                                         compare_checkbox,
+                                                         visible_models,
+                                                         text_output, text_output2] + text_outputs,
+                                                 outputs=[text_output, text_output2] + text_outputs
+                                                 )
+
             # Ingest, add button
             eventdb2c_btn = eventdb2_btn.then(**get_sources_kwargs)
             eventdb2d_btn = eventdb2c_btn.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb2e_btn = eventdb2d_btn.then(**show_sources_kwargs)
             eventdb2f_btn = eventdb2e_btn.then(**get_viewable_sources_args)
             eventdb2g_btn = eventdb2f_btn.then(**viewable_kwargs)
-            if kwargs['gradio_upload_to_chatbot']:
-                eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
+            eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
+            if kwargs['gradio_errors_to_chatbot']:
+                eventdb2i_btn = eventdb2h_btn.then(**update_chatbots_errors_kwargs)
 
             # file upload
             eventdb1c = eventdb1.then(**get_sources_kwargs)
@@ -4215,6 +4243,13 @@ def go_gradio(**kwargs):
         nonelist = [None, '', 'None']
         noneset = set(nonelist)
 
+        def choose_exc(x):
+            # don't expose ports etc. to exceptions window
+            if is_public:
+                return "Endpoint unavailable or failed"
+            else:
+                return x
+
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
@@ -4223,6 +4258,7 @@ def go_gradio(**kwargs):
                 langchain_action1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
+            error_with_str = ''
             sources = []
             history_str_old = ''
             error_old = ''
@@ -4238,6 +4274,9 @@ def go_gradio(**kwargs):
                                         api=False):
                     do_yield = False
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
+                    error_with_str = get_accordion_named(choose_exc(error), "Generate Error",
+                                                         font_size=2) if error not in ['', None, 'None'] else ''
+
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     could_yield = (
@@ -4281,6 +4320,11 @@ def go_gradio(**kwargs):
                 # yield if anything left over
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
+                if error:
+                    if history[-1][1] is None:
+                        history[-1][1] = ''
+                    history[-1][1] += error_with_str
+
                 yield history, error, final_audio
             except BaseException as e:
                 print("evaluate_nochat exception: %s: %s" % (str(e), str(args)), flush=True)
@@ -4382,19 +4426,13 @@ def go_gradio(**kwargs):
             finally:
                 pass
 
-            def choose_exc(x):
-                # don't expose ports etc. to exceptions window
-                if is_public:
-                    return "Endpoint unavailable or failed"
-                else:
-                    return x
-
             bots = bots_old = chatbots.copy()
             bot_strs = bot_strs_old = str(chatbots)
             exceptions = exceptions_old = [''] * len(bots_old)
             exceptions_str = '\n'.join(
                 ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                  x not in [None, '', 'None']])
+            exceptions_each_str = [''] * len(bots_old)
             exceptions_old_str = exceptions_str
             sources = sources_all_old = [[]] * len(bots_old)
             sources_str = sources_str_all_old = [''] * len(bots_old)
@@ -4441,6 +4479,10 @@ def go_gradio(**kwargs):
 
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
+                    exceptions_each_str = [
+                        get_accordion_named(choose_exc(x), "Generate Error", font_size=2) if x not in ['', None,
+                                                                                                       'None'] else ''
+                        for x in exceptions]
                     do_yield |= any(
                         x != y for x, y in zip(exceptions, exceptions_old) if (x not in noneset or y not in noneset))
                     exceptions_old = exceptions.copy()
@@ -4502,6 +4544,11 @@ def go_gradio(**kwargs):
                 # yield if anything left over as can happen (FIXME: Understand better)
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
+                # add error accordion
+                for boti, bot in enumerate(bots):
+                    if bots[boti][-1][1] is None:
+                        bots[boti][-1][1] = ''
+                    bots[boti][-1][1] += exceptions_each_str[boti]
                 if len(bots) > 1:
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
@@ -5891,11 +5938,11 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     dummy1 = gr.update(visible=False, value=None)
     # backup is text dump of db version
     if content:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1
         if view_raw_text_checkbox1:
             return dummy_ret
     else:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
 
     if not isinstance(file, str):
         return dummy_ret
@@ -5905,7 +5952,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1, dummy1
+            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5913,7 +5960,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5922,7 +5969,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```python\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5932,7 +5979,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```text\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5955,16 +6002,21 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             # actual JSON required
             with open(file, 'rt') as f:
                 json_blob = f.read()
-            return dummy1, dummy1, gr.update(visible=True, value=json_blob), dummy1, dummy1, dummy1
-        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1
+            return dummy1, dummy1, gr.update(visible=True, value=json_blob), dummy1, dummy1, dummy1, dummy1, dummy1
+        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
     port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     import pathlib
     absolute_path_string = os.path.abspath(file)
     url_path = pathlib.Path(absolute_path_string).as_uri()
     url = get_url(absolute_path_string, from_str=True)
     img_url = url.replace("""<a href=""", """<img src=""")
-    if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
-        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1
+    from src.gpt_langchain import image_types, audio_types, video_types
+    if any([file.lower().endswith('.' + x) for x in image_types]):
+        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
+    elif any([file.lower().endswith('.' + x) for x in video_types]):
+        return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file)
+    elif any([file.lower().endswith('.' + x) for x in audio_types]):
+        return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file), dummy1
     elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
 
         # account for when use `wget -b -m -k -o wget.log -e robots=off`
@@ -5979,11 +6031,11 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             return gr.update(visible=True,
                              value=f"""<iframe width="1000" height="{pdf_height}" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
 </iframe>
-"""), dummy1, dummy1, dummy1, dummy1, dummy1
+"""), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
         elif have_gradio_pdf and os.path.isfile(file):
             from gradio_pdf import PDF
             return dummy1, dummy1, dummy1, dummy1, dummy1, PDF(file, visible=True, label=file, show_label=True,
-                                                               height=pdf_height)
+                                                               height=pdf_height), dummy1, dummy1
         else:
             return dummy_ret
     else:
