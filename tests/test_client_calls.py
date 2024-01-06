@@ -2160,6 +2160,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
+         append_sources_to_answer=True,
+         append_sources_to_chat=False,
          **main_kwargs,
          verbose=True)
 
@@ -2228,6 +2230,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "finds more text to be boring" in res_dict['response'] or
             "text to be boring" in res_dict['response'] or
             "author finds more text to be boring" in res_dict['response'] or
+            "more text is boring" in res_dict['response'] or
             "more text is boring" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
