@@ -182,7 +182,7 @@ def run_cli(  # for local function:
             res_old = ''
             for gen_output in gener:
                 res = gen_output['response']
-                sources = gen_output['sources']
+                sources = gen_output.get('sources', 'Failure of Generation')
                 if base_model not in non_hf_types or base_model in ['llama']:
                     if not stream_output:
                         print(res)

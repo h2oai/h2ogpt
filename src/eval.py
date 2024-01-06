@@ -284,7 +284,7 @@ def run_eval(  # for local function:
             gener = fun(*tuple(eval_vars), exi=exi) if eval_as_output else fun(*tuple(eval_vars))
             for res_fun in gener:
                 res = res_fun['response']
-                sources = res_fun['sources']
+                sources = res_fun.get('sources', 'Failure of Generation')
                 print(res)
                 if smodel:
                     score_with_prompt = False
