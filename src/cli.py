@@ -101,6 +101,7 @@ def run_cli(  # for local function:
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        append_sources_to_chat=None,
         show_accordions=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,

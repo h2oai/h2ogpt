@@ -120,6 +120,7 @@ def run_eval(  # for local function:
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        append_sources_to_chat=None,
         show_accordions=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
@@ -138,6 +139,7 @@ def run_eval(  # for local function:
     answer_with_sources = False
     show_link_in_sources = False
     append_sources_to_answer = False
+    append_sources_to_chat = False
 
     check_locals(**locals())
 

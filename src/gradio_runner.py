@@ -3449,6 +3449,8 @@ def go_gradio(**kwargs):
                 kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
             if 'show_accordions' not in user_kwargs:
                 kwargs1['show_accordions'] = False
+            if 'append_sources_to_chat' not in user_kwargs:
+                kwargs1['append_sources_to_chat'] = False
             if 'append_sources_to_answer' not in user_kwargs:
                 kwargs1['append_sources_to_answer'] = False
             if 'show_link_in_sources' not in user_kwargs:
@@ -3703,7 +3705,7 @@ def go_gradio(**kwargs):
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
-        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False, from_ui=False))
+        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False, from_ui=False, append_sources_to_chat=False))
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
@@ -4262,6 +4264,7 @@ def go_gradio(**kwargs):
             sources = []
             history_str_old = ''
             error_old = ''
+            sources_str = None
             from src.tts_utils import get_no_audio
             no_audio = get_no_audio()
             audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
@@ -4320,11 +4323,13 @@ def go_gradio(**kwargs):
                 # yield if anything left over
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
-                if error:
-                    if history and history[-1] and len(history[-1]) == 2:
+                if error_with_str:
+                    if history and history[-1] and len(history[-1]) == 2 and error_with_str:
                         if history and history[-1] and history[-1][1] is None:
                             history[-1][1] = ''
                         history[-1][1] += error_with_str
+                if kwargs['append_sources_to_chat'] and sources_str:
+                    history.append((None, sources_str))
 
                 yield history, error, final_audio
             except BaseException as e:
@@ -4437,6 +4442,7 @@ def go_gradio(**kwargs):
             exceptions_old_str = exceptions_str
             sources = sources_all_old = [[]] * len(bots_old)
             sources_str = sources_str_all_old = [''] * len(bots_old)
+            sources_str_all = [None] * len(bots_old)
             prompt_raw = prompt_raw_all_old = [''] * len(bots_old)
             llm_answers = llm_answers_all_old = [{}] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
@@ -4547,10 +4553,13 @@ def go_gradio(**kwargs):
                                              expect_bytes=kwargs['return_as_byte'])
                 # add error accordion
                 for boti, bot in enumerate(bots):
-                    if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2:
+                    if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2 and exceptions_each_str[boti]:
                         if bots[boti][-1][1] is None:
                             bots[boti][-1][1] = ''
                         bots[boti][-1][1] += exceptions_each_str[boti]
+                    if kwargs['append_sources_to_chat'] and sources_str_all[boti]:
+                        bots[boti].append((None, sources_str_all[boti]))
+
                 if len(bots) > 1:
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:

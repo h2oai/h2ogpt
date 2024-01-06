@@ -350,7 +350,8 @@ def main(
         auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
-        append_sources_to_answer: bool = True,
+        append_sources_to_answer: bool = False,
+        append_sources_to_chat: bool = True,
         show_accordions: bool = True,
         top_k_docs_max_show: int = 10,
         show_link_in_sources: bool = True,
@@ -919,6 +920,7 @@ def main(
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
+    :param append_sources_to_chat: Whether to place sources information in chat response but in separate chat turn (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
            If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
@@ -3253,6 +3255,7 @@ def evaluate(
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        append_sources_to_chat=None,
         image_audio_loaders_options0=None,
         pdf_loaders_options0=None,
         url_loaders_options0=None,
@@ -3652,6 +3655,7 @@ def evaluate(
                 cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
+                append_sources_to_chat=append_sources_to_chat,
                 add_chat_history_to_context=add_chat_history_to_context,
                 add_search_to_context=add_search_to_context,
                 keep_sources_in_context=keep_sources_in_context,

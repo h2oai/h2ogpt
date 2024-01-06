@@ -4677,7 +4677,8 @@ def _run_qa_db(query=None,
                prompt_type=None,
                prompt_dict=None,
                answer_with_sources=True,
-               append_sources_to_answer=True,
+               append_sources_to_answer=False,
+               append_sources_to_chat=True,
                cut_distance=1.64,
                add_chat_history_to_context=True,
                add_search_to_context=False,
@@ -5004,7 +5005,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                  llm_answers,
                                  scores, show_rank,
                                  answer_with_sources,
-                                 append_sources_to_answer])
+                                 append_sources_to_answer,
+                                 append_sources_to_chat])
         get_answer_kwargs.update(dict(t_run=time.time() - t_run,
                                       count_input_tokens=0,
                                       count_output_tokens=0,
@@ -5057,7 +5059,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                              llm_answers,
                              scores, show_rank,
                              answer_with_sources,
-                             append_sources_to_answer])
+                             append_sources_to_answer,
+                             append_sources_to_chat])
     get_answer_kwargs.update(dict(t_run=time.time() - t_run,
                                   count_input_tokens=llm.count_input_tokens
                                   if hasattr(llm, 'count_input_tokens') else None,
@@ -5444,6 +5447,7 @@ def run_hyde(*args, **kwargs):
     answer_with_sources = kwargs['answer_with_sources']
     get_answer_kwargs = kwargs['get_answer_kwargs']
     append_sources_to_answer = kwargs['append_sources_to_answer']
+    append_sources_to_chat = kwargs['append_sources_to_chat']
     prompt_basic = kwargs['prompt_basic']
     docs_joiner = kwargs['docs_joiner']
 
@@ -5512,7 +5516,8 @@ def run_hyde(*args, **kwargs):
                                      llm_answers,
                                      scores, show_rank,
                                      answer_with_sources,
-                                     append_sources_to_answer])
+                                     append_sources_to_answer,
+                                     append_sources_to_chat])
             ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
             # FIXME: Something odd, UI gets stuck and no more yields if pass these sources inside ret
             # https://github.com/gradio-app/gradio/issues/6100
@@ -6706,7 +6711,9 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
 def get_sources_answer(query, docs, answer,
                        llm_answers,
                        scores, show_rank,
-                       answer_with_sources, append_sources_to_answer,
+                       answer_with_sources,
+                       append_sources_to_answer,
+                       append_sources_to_chat,
                        show_accordions=True,
                        hyde_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
