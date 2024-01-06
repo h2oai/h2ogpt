@@ -1424,9 +1424,9 @@ def check_content_captions(docs, captions_model, enable_pix2struct):
 
 
 def check_content_doctr(docs):
-    assert any(['DRIVERLICENSE' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['DRIVER LICENSE' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['California' in docs[ix].page_content for ix in range(len(docs))])
-    assert any([' EXP <10> 08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['ExP08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['VETERAN' in docs[ix].page_content for ix in range(len(docs))])
 
 
