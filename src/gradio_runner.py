@@ -4875,11 +4875,11 @@ def go_gradio(**kwargs):
                     if len(stepyy) != 2:
                         # something off
                         return False
-                    questionx = stepxx[0].replace('<p>', '').replace('</p>', '') if stepxx[0] is not None else None
-                    answerx = stepxx[1].replace('<p>', '').replace('</p>', '') if stepxx[1] is not None else None
+                    questionx = str(stepxx[0]).replace('<p>', '').replace('</p>', '') if str(stepxx[0]) is not None else None
+                    answerx = str(stepxx[1]).replace('<p>', '').replace('</p>', '') if str(stepxx[1]) is not None else None
 
-                    questiony = stepyy[0].replace('<p>', '').replace('</p>', '') if stepyy[0] is not None else None
-                    answery = stepyy[1].replace('<p>', '').replace('</p>', '') if stepyy[1] is not None else None
+                    questiony = str(stepyy[0]).replace('<p>', '').replace('</p>', '') if str(stepyy[0]) is not None else None
+                    answery = str(stepyy[1]).replace('<p>', '').replace('</p>', '') if str(stepyy[1]) is not None else None
 
                     if questionx != questiony or answerx != answery:
                         return False
