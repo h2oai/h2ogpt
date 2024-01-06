@@ -1000,11 +1000,18 @@ def go_gradio(**kwargs):
                         flag_btn_nochat = gr.Button("Flag", size='sm', visible=not kwargs['chat'])
                         score_text_nochat = gr.Textbox("Response Score: NA", show_label=False,
                                                        visible=not kwargs['chat'])
+
                         submit_nochat_api = gr.Button("Submit nochat API", visible=False)
+
                         submit_nochat_api_plain = gr.Button("Submit nochat API Plain", visible=False)
                         inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
                         text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                             show_copy_button=True)
+
+                        submit_verifier = gr.Button("Submit verifier", visible=False)
+                        verifier_inputs_dict_str = gr.Textbox(label='Verifier input', show_label=False, visible=False)
+                        text_output_verifier = gr.Textbox(lines=5, label='Verifier output', visible=False,
+                                                          show_copy_button=True)
 
                         visible_upload = (allow_upload_to_user_data or
                                           allow_upload_to_my_data) and \
@@ -3250,7 +3257,9 @@ def go_gradio(**kwargs):
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
                 else:
-                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
+                    added_history = [(None, get_accordion_named(args_list[1],
+                                                                "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.",
+                                                                font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3428,12 +3437,15 @@ def go_gradio(**kwargs):
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
 
-        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, **kwargs1):
+        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, **kwargs1):
             args_list = list(args1)
             if str_api:
                 if plain_api:
-                    # i.e. not fresh model, tells evaluate to use model_state0
-                    args_list.insert(0, kwargs['model_state_none'].copy())
+                    if not verifier:
+                        # i.e. not fresh model, tells evaluate to use model_state0
+                        args_list.insert(0, kwargs['model_state_none'].copy())
+                    else:
+                        args_list.insert(0, kwargs['verifier_model_state0'].copy())
                     args_list.insert(1, my_db_state0.copy())
                     args_list.insert(2, selection_docs_state0.copy())
                     args_list.insert(3, requests_state0.copy())
@@ -3723,6 +3735,10 @@ def go_gradio(**kwargs):
                                           **kwargs_evaluate_nochat
                                           )
 
+        fun_with_dict_verifier = partial(fun_with_dict_str_plain,
+                                         verifier=True,
+                                         )
+
         dark_mode_btn.click(
             None,
             None,
@@ -3932,9 +3948,11 @@ def go_gradio(**kwargs):
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
             if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
-                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
+                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (
+                    langchain_mode1, document_subset1, document_choice1)
             if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
-                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
+                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (
+                    langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
@@ -5107,6 +5125,12 @@ def go_gradio(**kwargs):
                                                                       outputs=text_output_nochat_api,
                                                                       **noqueue_kwargs,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
+
+        submit_event_verifier = submit_verifier.click(fun_with_dict_verifier,
+                                                      inputs=verifier_inputs_dict_str,
+                                                      outputs=text_output_verifier,
+                                                      **noqueue_kwargs,
+                                                      api_name='submit_verifier' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name,
                        model_state_old,
