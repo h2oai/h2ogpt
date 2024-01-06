@@ -43,7 +43,7 @@ def test_llava_client2():
     file = "models/wizard.jpg"
     llava_model = os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861')
     from src.vision.utils_vision import get_llava_response
-    res = get_llava_response(file, llava_model)
+    res, llava_prompt = get_llava_response(file, llava_model)
     print(res)
     assert 'pumpkins' in res
 

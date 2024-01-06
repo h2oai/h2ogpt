@@ -2931,7 +2931,7 @@ def file_to_doc(file,
                 print("BEGIN: LLaVa", flush=True)
             try:
                 from src.vision.utils_vision import get_llava_response
-                res = get_llava_response(file, llava_model, prompt=llava_prompt)
+                res, llava_prompt = get_llava_response(file, llava_model, prompt=llava_prompt)
                 metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
                 docs1c = [Document(page_content=res, metadata=metadata)]
                 docs1c = [x for x in docs1c if x.page_content]

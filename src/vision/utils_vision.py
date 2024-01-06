@@ -87,4 +87,4 @@ def get_llava_response(file, llava_model,
     res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
                          api_name='/textbox_api_submit')
     res = res[-1][-1]
-    return res
+    return res, prompt
