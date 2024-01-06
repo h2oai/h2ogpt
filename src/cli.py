@@ -12,7 +12,8 @@ def run_cli(  # for local function:
         debug=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
-        score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None, use_flash_attention_2=None,
+        score_model=None, verifier_server=None,
+        load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None, use_flash_attention_2=None,
         load_gptq=None, use_autogptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, n_gpus=None, local_files_only=None, resume_download=None, use_auth_token=None,
@@ -128,6 +129,7 @@ def run_cli(  # for local function:
     check_locals(**locals())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
+    verifier_server = ""  # FIXME: For now, so user doesn't have to pass
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = 'cpu' if n_gpus == 0 else 'cuda'
     context_class = NullContext if n_gpus > 1 or n_gpus == 0 else torch.device

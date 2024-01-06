@@ -19,7 +19,8 @@ def run_eval(  # for local function:
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # for get_model:
-        score_model=None, load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None, use_flash_attention_2=None,
+        score_model=None, verifier_server=None,
+        load_8bit=None, load_4bit=None, low_bit_mode=None, load_half=None, use_flash_attention_2=None,
         load_gptq=None, use_autogptq=None, load_awq=None, load_exllama=None, use_safetensors=None, revision=None,
         use_gpu_id=None, tokenizer_base_model=None,
         gpu_id=None, n_jobs=None, n_gpus=None, local_files_only=None, resume_download=None, use_auth_token=None,

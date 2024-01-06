@@ -311,6 +311,9 @@ def main(
         extra_server_options: typing.List[str] = [],
 
         score_model: str = 'auto',
+        verifier_model: str = None,
+        verifier_tokenizer_base_model: str = None,
+        verifier_inference_server: str = None,
 
         eval_filename: str = None,
         eval_prompts_only_num: int = 0,
@@ -841,6 +844,11 @@ def main(
            None: no response scoring
            'auto': auto mode, '' (no model) for CPU or 1 GPU, 'OpenAssistant/reward-model-deberta-v3-large-v2' for >=2 GPUs,
             because on CPU takes too much compute just for scoring response
+
+    :param verifier_model: model for verifier
+    :param verifier_tokenizer_base_model: tokenizer server for verifier (if empty/None, infer from model)
+    :param verifier_inference_server: inference server for verifier
+
     :param eval_filename: json file to use for evaluation, if None is sharegpt
     :param eval_prompts_only_num: for no gradio benchmark, if using eval_filename prompts for eval instead of examples
     :param eval_prompts_only_seed: for no gradio benchmark, seed for eval_filename sampling
@@ -2029,6 +2037,22 @@ def main(
                                   base_model=score_model, tokenizer_base_model='', lora_weights='',
                                   inference_server='', prompt_type='', prompt_dict='',
                                   visible_models=None, h2ogpt_key=None)
+
+        # get verifier model
+        all_kwargs = locals().copy()
+        all_kwargs.update(base_model=verifier_model,
+                          tokenizer_base_model=verifier_tokenizer_base_model,
+                          inference_server=verifier_inference_server,
+                          prompt_type='plain', prompt_dict={},
+                          visible_models=None, h2ogpt_key=None)
+        vmodel, vtokenizer, vdevice = get_model_retry(reward_type=False,
+                                                      **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                   **all_kwargs))
+        verifier_model_state0 = dict(model=vmodel, tokenizer=vtokenizer, device=vdevice,
+                                     base_model=verifier_model, tokenizer_base_model=verifier_tokenizer_base_model,
+                                     lora_weights='',
+                                     inference_server=verifier_inference_server, prompt_type='plain', prompt_dict={},
+                                     visible_models=None, h2ogpt_key=None)
 
         # assume gradio needs everything
         go_gradio(**locals())
