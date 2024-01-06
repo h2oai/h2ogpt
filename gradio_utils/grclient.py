@@ -658,7 +658,7 @@ class GradioClient(Client):
         # chunking not used here
         # MyData specifies scratch space, only persisted for this individual client call
         langchain_mode = langchain_mode or "MyData"
-        loaders = tuple([None, None, None, None, None])
+        loaders = tuple([None, None, None, None, None, None])
         doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
         asserts |= bool(os.getenv("HARD_ASSERTS", False))
         if (
