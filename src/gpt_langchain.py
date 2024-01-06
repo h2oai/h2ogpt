@@ -4623,6 +4623,7 @@ def _run_qa_db(query=None,
                context=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
+               langchain_instruct_mode=True,
 
                # urls
                use_unstructured=True,
@@ -5543,6 +5544,7 @@ def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               use_openai_model=False, use_openai_embedding=False,
+              langchain_instruct_mode=True,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
 
               # urls
@@ -6023,8 +6025,7 @@ def get_chain(query=None,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
-    num_docs_before_cut = 0
-    use_template = not use_openai_model and prompt_type not in ['plain'] or langchain_only_model
+    use_template = not use_openai_model and langchain_instruct_mode or langchain_only_model
     template, template_if_no_docs, auto_reduce_chunks, query = \
         get_template(query, iinput,
                      pre_prompt_query, prompt_query,

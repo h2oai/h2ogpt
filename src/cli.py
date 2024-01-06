@@ -104,6 +104,7 @@ def run_cli(  # for local function:
         show_accordions=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
+        langchain_instruct_mode=None,
         add_chat_history_to_context=None,
         context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None,

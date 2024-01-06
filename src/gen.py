@@ -354,6 +354,8 @@ def main(
         show_accordions: bool = True,
         top_k_docs_max_show: int = 10,
         show_link_in_sources: bool = True,
+        langchain_instruct_mode: bool = True,
+
         pre_prompt_query: str = None,
         prompt_query: str = None,
         pre_prompt_summary: str = None,
@@ -921,6 +923,9 @@ def main(
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
            If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
+    :param langchain_instruct_mode: Whether to have langchain operate in instruct mode (True) or few-shot mode (False)
+           Normally this might be decidable from --prompt_type=plain, but in some cases (like vllm_chat) we want inference server to handle all prompting, so need to tell h2oGPT to use plain prompting, but don't want to change langchain behavior
+
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
     :param pre_prompt_summary: prompt before documents to summarize/extract from, if None then use internal defaults
@@ -3224,6 +3229,8 @@ def evaluate(
         hyde_show_intermediate_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
+        langchain_instruct_mode=None,
+
         verbose=False,
         gradio=True,
         cli=False,
@@ -3663,6 +3670,7 @@ def evaluate(
                 hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                 top_k_docs_max_show=top_k_docs_max_show,
                 show_link_in_sources=show_link_in_sources,
+                langchain_instruct_mode=langchain_instruct_mode,
 
                 # evaluate args items
                 query=instruction,
