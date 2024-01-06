@@ -3250,7 +3250,7 @@ def go_gradio(**kwargs):
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
                 else:
-                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure", font_size=2))]
+                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3931,6 +3931,10 @@ def go_gradio(**kwargs):
                     # reject non-retry submit/enter
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
+            if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
+                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
+            if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
+                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
@@ -4325,9 +4329,11 @@ def go_gradio(**kwargs):
                                              expect_bytes=kwargs['return_as_byte'])
                 if error_with_str:
                     if history and history[-1] and len(history[-1]) == 2 and error_with_str:
-                        if history and history[-1] and history[-1][1] is None:
-                            history[-1][1] = ''
-                        history[-1][1] += error_with_str
+                        if not history[-1][1]:
+                            history[-1][1] = error_with_str
+                        else:
+                            # separate bot if already text present
+                            history.append((None, error_with_str))
                 if kwargs['append_sources_to_chat'] and sources_str:
                     history.append((None, sources_str))
 
@@ -4554,9 +4560,10 @@ def go_gradio(**kwargs):
                 # add error accordion
                 for boti, bot in enumerate(bots):
                     if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2 and exceptions_each_str[boti]:
-                        if bots[boti][-1][1] is None:
-                            bots[boti][-1][1] = ''
-                        bots[boti][-1][1] += exceptions_each_str[boti]
+                        if not bots[boti][-1][1]:
+                            bots[boti][-1][1] = exceptions_each_str[boti]
+                        else:
+                            bots[boti].append((None, exceptions_each_str[boti]))
                     if kwargs['append_sources_to_chat'] and sources_str_all[boti]:
                         bots[boti].append((None, sources_str_all[boti]))
 
