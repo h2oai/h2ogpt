@@ -3512,7 +3512,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
         elif inference_server == 'https://gpt.h2o.ai':
-            base_model = 'h2oai/h2ogpt-4096-llama2-13b-chat'
+            base_model = 'HuggingFaceH4/zephyr-7b-beta'
         else:
             base_model = 'gpt-3.5-turbo'
 
