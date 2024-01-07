@@ -5718,7 +5718,11 @@ def get_chain(query=None,
         from langchain_experimental.autonomous_agents.autogpt.agent import AutoGPT
         from langchain.agents import load_tools
 
-        tools = load_tools(["ddg-search"], llm=llm)
+        tools1 = load_tools(["ddg-search"], llm=llm)
+        tools2 = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
+        from langchain_community.tools.file_management.read import ReadFileTool
+        from langchain_community.tools.file_management.write import WriteFileTool
+        tools = tools1 + tools2 + [WriteFileTool(), ReadFileTool()]
 
         from langchain.docstore import InMemoryDocstore
         from langchain.embeddings import OpenAIEmbeddings
