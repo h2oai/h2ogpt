@@ -5734,8 +5734,8 @@ def get_chain(query=None,
         vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {})
 
         agent = AutoGPT.from_llm_and_tools(
-            ai_name="Anthox",
-            ai_role="Cooking Assistant",
+            ai_name="h2oAutoGPT",
+            ai_role="General Search and Knowledge Assistant",
             tools=tools,
             llm=llm,
             memory=vectorstore.as_retriever(),
