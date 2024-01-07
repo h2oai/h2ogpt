@@ -5,3 +5,4 @@ duckduckgo-search==4.1.1
 gradio_tools==0.0.9
 wikipedia==1.4.0
 wolframalpha==5.0.0
+# semanticscholar==0.7.0

@@ -8,3 +8,12 @@ Various agents from LangChain are included:
 * Pandas -- Disabled until load csv/json with pandas.
 * JSON -- Alpha tested, only currently allowed with OpenAI
 * AutoGPT -- Alpha tested
+  * Tools:
+    * Search
+    * Wikipedia
+    * Shell
+    * File
+    * Python
+    * Requests
+    * Wolfram Alpha
+  * Memory

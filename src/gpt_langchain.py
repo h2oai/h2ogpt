@@ -5718,25 +5718,24 @@ def get_chain(query=None,
         from langchain_experimental.autonomous_agents.autogpt.agent import AutoGPT
         from langchain.agents import load_tools
 
-        tools1 = load_tools(["ddg-search"], llm=llm)
-        tools2 = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
-        from langchain_community.tools.file_management.read import ReadFileTool
-        from langchain_community.tools.file_management.write import WriteFileTool
+        search_tools1 = load_tools(["ddg-search"], llm=llm)
+        search_tools2 = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
+        search_tools = search_tools1 + search_tools2
 
         from langchain_community.tools import WikipediaQueryRun
         from langchain_community.utilities import WikipediaAPIWrapper
         api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=chunk_size)
-        tools3 = [WikipediaQueryRun(api_wrapper=api_wrapper)]
+        wiki_tools = [WikipediaQueryRun(api_wrapper=api_wrapper)]
 
+        # from langchain_community.tools.file_management.read import ReadFileTool
+        # from langchain_community.tools.file_management.write import WriteFileTool
+        # file_tools = [WriteFileTool(), ReadFileTool()]
         from langchain.tools import ShellTool
-
         shell_tool = ShellTool()
         shell_tool.description = shell_tool.description + f"args {shell_tool.args}".replace(
             "{", "{{"
         ).replace("}", "}}")
         shell_tools = [shell_tool]
-
-        # file_tools = [WriteFileTool(), ReadFileTool()]
 
         from langchain_community.agent_toolkits import FileManagementToolkit
         # from tempfile import TemporaryDirectory
@@ -5781,8 +5780,27 @@ def get_chain(query=None,
             func=wolfram.run,
         )
 
-        # image_tools : times out and blocks everything.
-        tools = tools1 + tools2 + tools3 + shell_tools + file_tools + [repl_tool] + requests_tools
+        if False:
+            # Hit: Can't patch loop of type <class 'uvloop.Loop'>
+            from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            semantic = SemanticScholarAPIWrapper()
+            scholar_tool = Tool(
+                name="semantictool",
+                description="Semantic Scholar is a searchable database that uses AI to search and discover academic papers. It's supported by the Allen Institute for AI and indexes over 200 million academic papers.",
+                func=semantic.run,
+            )
+            scholar_tools = [scholar_tool]
+
+        tools = ([]
+                 + search_tools
+                 + wiki_tools
+                 + shell_tools
+                 + file_tools
+                 + [repl_tool]
+                 + requests_tools
+                 # + scholar_tools
+                 # + image_tools : times out and blocks everything.
+                 )
         if os.getenv('WOLFRAM_ALPHA_APPID'):
             tools.extend([wolfram_tool])
 
