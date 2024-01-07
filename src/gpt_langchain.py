@@ -61,7 +61,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt
+    user_prompt_for_fake_system_prompt, does_support_json_mode
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
 from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids, system_docqa, system_summary
@@ -1502,6 +1502,8 @@ def get_llm(use_openai_model=False,
             sink_dict={},
             truncation_generation=None,
 
+            langchain_agents=None,
+
             n_jobs=None,
             cli=False,
             llamacpp_path=None,
@@ -1622,6 +1624,9 @@ def get_llm(use_openai_model=False,
                             deployment_name=deployment_type,
                             azure_endpoint=base_url,
                             )
+        if LangChainAgent.AUTOGPT.value in langchain_agents and \
+                does_support_json_mode(inference_server, model_name):
+            azure_kwargs.update(response_format={"type": "json_object"})
 
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
@@ -4913,6 +4918,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       attention_sinks=attention_sinks,
                       sink_dict=sink_dict,
                       truncation_generation=truncation_generation,
+                      langchain_agents=langchain_agents,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
