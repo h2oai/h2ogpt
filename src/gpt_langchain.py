@@ -5722,7 +5722,69 @@ def get_chain(query=None,
         tools2 = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
         from langchain_community.tools.file_management.read import ReadFileTool
         from langchain_community.tools.file_management.write import WriteFileTool
-        tools = tools1 + tools2 + [WriteFileTool(), ReadFileTool()]
+
+        from langchain_community.tools import WikipediaQueryRun
+        from langchain_community.utilities import WikipediaAPIWrapper
+        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=chunk_size)
+        tools3 = [WikipediaQueryRun(api_wrapper=api_wrapper)]
+
+        from langchain.tools import ShellTool
+
+        shell_tool = ShellTool()
+        shell_tool.description = shell_tool.description + f"args {shell_tool.args}".replace(
+            "{", "{{"
+        ).replace("}", "}}")
+        shell_tools = [shell_tool]
+
+        # file_tools = [WriteFileTool(), ReadFileTool()]
+
+        from langchain_community.agent_toolkits import FileManagementToolkit
+        # from tempfile import TemporaryDirectory
+        # working_directory = TemporaryDirectory().name
+        working_directory = "autogpt_files"
+        makedirs(working_directory)
+        toolkit = FileManagementToolkit(
+            root_dir=str(working_directory)
+        )  # If you don't provide a root_dir, operations will default to the current working directory
+        file_tools = toolkit.get_tools()
+
+        from gradio_tools.tools import (
+            ImageCaptioningTool,
+            StableDiffusionPromptGeneratorTool,
+            StableDiffusionTool,
+            TextToVideoTool,
+        )
+        image_tools = [
+            StableDiffusionTool().langchain,
+            ImageCaptioningTool().langchain,
+            StableDiffusionPromptGeneratorTool().langchain,
+            TextToVideoTool().langchain,
+        ]
+
+        from langchain_experimental.utilities import PythonREPL
+        python_repl = PythonREPL()
+        # You can create the tool to pass to an agent
+        from langchain.agents import Tool
+        repl_tool = Tool(
+            name="python_repl",
+            description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
+            func=python_repl.run,
+        )
+
+        requests_tools = load_tools(["requests_all"])
+
+        from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
+        wolfram = WolframAlphaAPIWrapper()
+        wolfram_tool = Tool(
+            name="wolframalpha",
+            description="WolframAlpha is an answer engine developed by Wolfram Research. It answers factual queries by computing answers from externally sourced data.",
+            func=wolfram.run,
+        )
+
+        # image_tools : times out and blocks everything.
+        tools = tools1 + tools2 + tools3 + shell_tools + file_tools + [repl_tool] + requests_tools
+        if os.getenv('WOLFRAM_ALPHA_APPID'):
+            tools.extend([wolfram_tool])
 
         from langchain.docstore import InMemoryDocstore
         from langchain.embeddings import OpenAIEmbeddings
