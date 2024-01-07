@@ -299,7 +299,7 @@ def main(
         max_raw_chunks: int = None,
         pdf_height: int = 800,
         avatars: bool = True,
-        add_disk_models_to_ui=True,
+        add_disk_models_to_ui: bool = True,
         page_title: str = "h2oGPT",
         favicon_path: str = None,
 
@@ -5483,6 +5483,9 @@ def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
             config = AutoConfig.from_pretrained(x,
                                                 token=use_auth_token,
                                                 trust_remote_code=trust_remote_code)
+            if hasattr(config, 'is_encoder_decoder') and config.is_encoder_decoder and x != 'lmsys/fastchat-t5-3b-v1.0':
+                print("No loading model %s because is_encoder_decoder=True" % x)
+                continue
             if hasattr(config, 'vocab_size'):
                 text_hf_models.append(x)
         except Exception as e:

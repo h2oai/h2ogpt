@@ -295,6 +295,7 @@ def go_gradio(**kwargs):
         model_options0.extend(get_on_disk_models(llamacpp_path=kwargs['llamacpp_path'],
                                                  use_auth_token=kwargs['use_auth_token'],
                                                  trust_remote_code=kwargs['trust_remote_code']))
+    model_options0 = sorted(set(model_options0))
 
     # Initial LORA options
     lora_options = kwargs['extra_lora_options']
