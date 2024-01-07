@@ -5753,13 +5753,16 @@ def get_chain(query=None,
             StableDiffusionTool,
             TextToVideoTool,
         )
-        if False:
+        do_image_tools = False # FIXME: times out and blocks everything
+        if do_image_tools:
             image_tools = [
                 StableDiffusionTool().langchain,
                 ImageCaptioningTool().langchain,
                 StableDiffusionPromptGeneratorTool().langchain,
                 TextToVideoTool().langchain,
             ]
+        else:
+            image_tools = []
 
         from langchain_experimental.utilities import PythonREPL
         python_repl = PythonREPL()
@@ -5789,16 +5792,21 @@ def get_chain(query=None,
             func=sympy_math.run,
         )
 
-        if False:
-            # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
-            from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
-            semantic = SemanticScholarAPIWrapper()
+        enable_semantictool = False # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
+        if enable_semantictool:
+            #from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            #semantic = SemanticScholarAPIWrapper()
+            # So can pass API key as ENV: S2_API_KEY
+            from utils_langchain import H2OSemanticScholarAPIWrapper
+            semantic = H2OSemanticScholarAPIWrapper()
             scholar_tool = Tool(
                 name="semantictool",
                 description="Semantic Scholar is a searchable database that uses AI to search and discover academic papers. It's supported by the Allen Institute for AI and indexes over 200 million academic papers.",
                 func=semantic.run,
             )
             scholar_tools = [scholar_tool]
+        else:
+            scholar_tools = []
 
         tools = ([]
                  + search_tools
@@ -5807,8 +5815,8 @@ def get_chain(query=None,
                  + file_tools
                  + [repl_tool]
                  + requests_tools
-                 # + scholar_tools
-                 # + image_tools : times out and blocks everything.
+                 + scholar_tools
+                 + image_tools
                  )
         if os.getenv('WOLFRAM_ALPHA_APPID'):
             tools.extend([wolfram_tool])
