@@ -5753,12 +5753,13 @@ def get_chain(query=None,
             StableDiffusionTool,
             TextToVideoTool,
         )
-        image_tools = [
-            StableDiffusionTool().langchain,
-            ImageCaptioningTool().langchain,
-            StableDiffusionPromptGeneratorTool().langchain,
-            TextToVideoTool().langchain,
-        ]
+        if False:
+            image_tools = [
+                StableDiffusionTool().langchain,
+                ImageCaptioningTool().langchain,
+                StableDiffusionPromptGeneratorTool().langchain,
+                TextToVideoTool().langchain,
+            ]
 
         from langchain_experimental.utilities import PythonREPL
         python_repl = PythonREPL()
@@ -5780,8 +5781,16 @@ def get_chain(query=None,
             func=wolfram.run,
         )
 
+        from langchain_experimental.llm_symbolic_math.base import LLMSymbolicMathChain
+        sympy_math = LLMSymbolicMathChain.from_llm(llm)
+        sympy_tool = Tool(
+            name="sympy",
+            description="SymPy is a Python library for symbolic mathematics. It aims to become a full-featured computer algebra system (CAS) while keeping the code as simple as possible in order to be comprehensible and easily extensible.",
+            func=sympy_math.run,
+        )
+
         if False:
-            # Hit: Can't patch loop of type <class 'uvloop.Loop'>
+            # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
             from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
             semantic = SemanticScholarAPIWrapper()
             scholar_tool = Tool(
@@ -5803,6 +5812,8 @@ def get_chain(query=None,
                  )
         if os.getenv('WOLFRAM_ALPHA_APPID'):
             tools.extend([wolfram_tool])
+        else:
+            tools.extend([sympy_tool])
 
         from langchain.docstore import InMemoryDocstore
         from langchain.embeddings import OpenAIEmbeddings
