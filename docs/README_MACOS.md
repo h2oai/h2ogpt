@@ -46,6 +46,7 @@ Supports CPU and MPS (Metal M1/M2).
     brew install poppler
     brew install tesseract
     brew install tesseract-lang
+    brew install rubberband
     ```
 
 See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
