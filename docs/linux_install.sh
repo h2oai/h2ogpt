@@ -148,9 +148,7 @@ fi
 #  * For LLaMa2, can set `max_tokens` to a larger value for longer output.
 #  * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
 #  * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
-#* GPU Optional: Support attention sinks for infinite generation
-pip install attention_sinks --no-deps
-# --no-deps is to avoid going back to old transformers/tokenizers https://github.com/tomaarsen/attention_sinks/issues/26
+
 #* GPU Optional: Support amazon/MistralLite with flash attention 2
 if [[ -v CUDA_HOME ]];
 then

@@ -591,8 +591,7 @@ def main(
          inject_fused_attention=False
          disable_exllama=True
          use_triton=True
-    :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
-         git clone https://github.com/tomaarsen/attention_sinks.git
+    :param attention_sinks: Whether to enable attention sinks.
     :param sink_dict: dict of options for attention sinks
            E.g. {'window_length': 1024, 'num_sink_tokens': 4}
            Default is window length same size as max_input_tokens (max_seq_len if max_input_tokens not set)
@@ -2393,7 +2392,7 @@ def get_model(
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param exllama_dict: dict of exllama options
     :param gptq_dict: dict of AutoGPTQ options
-    :param attention_sinks: whether to use attention_sinks package
+    :param attention_sinks: whether to use attention_sinks
     :param sink_dict: dict of attention sinks options
     :param truncation_generation: whether to truncate generation in torch case to max_seq_len
     :param hf_model_dict
