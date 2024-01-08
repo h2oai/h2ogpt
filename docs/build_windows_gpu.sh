@@ -12,6 +12,7 @@
 # 1) clear old build
 
 del build
+del wheels
 
 # 2) Follow through README_WINDOWS.md installation, replacing pip install with pip download.  Easier than picking each wheel that's not on pypi.  So this for GPU and CPU separately in different repos (e.g. h2ogpt and h2ogpt.2).
 
