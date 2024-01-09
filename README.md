@@ -78,7 +78,7 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer
     * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_cpu.exe) (1.3GB file)
-    * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.
+    * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.  All paths saved are relative to this path.
     * If have a GPU, when first running h2oGPT after clicking icon, it will be downloading Torch for GPU in background, which is a 2.7GB file and to install requires another 4GB.  This takes about 7 minutes to download on fast connection, this only happens once.
       * If the lack of progress in download is not pleasant, then, for this one-time case, you change the h2oGPT launch icon command by replacing `pythonw.exe` with `python.exe`, or run in console.  E.g. for user `pseud` in command prompt run:
         * `C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"`
