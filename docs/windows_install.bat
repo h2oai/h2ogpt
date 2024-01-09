@@ -45,6 +45,10 @@ REM Only for Microsoft TTS, not Coqui
 pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8
 pip install soundfile==0.12.1
 
+pip install TTS deepspeed noisereduce emoji ffmpeg-python==0.2.0 trainer pysbd coqpit
+REM # for Coqui XTTS language helpers (specific versions probably not required)
+pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1
+
 IF "%GPLOK%"=="1" (
     curl https://breakfastquay.com/files/releases/rubberband-3.3.0-gpl-executable-windows.zip -o rubberband-3.3.0-gpl-executable-windows.zip
     tar -xf rubberband-3.3.0-gpl-executable-windows.zip
@@ -58,7 +62,8 @@ REM # ffmpeg
 curl https://www.7-zip.org/a/7zr.exe -o 7zr.exe
 curl https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2024-01-07-git-90bef6390f-full_build.7z -o ffmpeg.7z
 7zr.exe x ffmpeg.7z
-copy ffmpeg-2024-01-07-git-90bef6390f-full_build\bin\ffmpeg.exe .
+mkdir ffmpeg
+copy ffmpeg-2024-01-07-git-90bef6390f-full_build\bin\ffmpeg.exe ffmpeg\
 
 REM # Vision/Image packages
 pip install fiftyone

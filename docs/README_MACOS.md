@@ -93,7 +93,7 @@ See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README
   * If any issues, then compile:
       ```bash
       pip uninstall llama-cpp-python -y
-      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.23 --no-cache-dir
+      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.26 --no-cache-dir
       ```
 
 * If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.

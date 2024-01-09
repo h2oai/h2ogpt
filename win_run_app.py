@@ -36,11 +36,34 @@ for sub in ['src', 'iterators', 'gradio_utils', 'metrics', 'models', '.']:
     sys.path.append(path2)
     print(path2, flush=True)
 
+from importlib.metadata import distribution, PackageNotFoundError
+
+try:
+    assert distribution('torch') is not None
+    have_torch = True
+except (PackageNotFoundError, AssertionError):
+    have_torch = False
+
 
 def main():
     from generate import entrypoint_main as main_h2ogpt
     os.environ['h2ogpt_block_gradio_exit'] = 'False'
     os.environ['h2ogpt_score_model'] = ''
+
+    import sys
+    if not have_torch and sys.platform == "win32":
+        # for one-click, don't have torch installed, install now
+        import subprocess
+        import sys
+
+        def install(package):
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+        if os.getenv('CUDA_VISIBLE_DEVICES') != '':
+            install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl")
+        else:
+            install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl")
+
     main_h2ogpt()
 
     server_name = os.getenv('h2ogpt_server_name', os.getenv('H2OGPT_SERVER_NAME', 'localhost'))

@@ -84,7 +84,7 @@ See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README
     set LLAMA_CUBLAS=1
     set CMAKE_ARGS=-DLLAMA_CUBLAS=on
     set FORCE_CMAKE=1
-    pip install llama-cpp-python==0.2.23 --no-cache-dir --verbose
+    pip install llama-cpp-python==0.2.26 --no-cache-dir --verbose
     ```
 * SSL Certification failure when connecting to Hugging Face.
   * Your org may be blocking HF

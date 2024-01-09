@@ -28,12 +28,15 @@ for /r %i in (*.zip) do pip wheel %i
 
 # GPU (so package name not confusing to installer)
 ren exllama-0.0.18+cu118-cp310-cp310-win_amd64.whl exllama-0.0.18-cp310-cp310-win_amd64.whl
-ren llama_cpp_python-0.2.23+cpuavx2-cp310-cp310-win_amd64.whl llama_cpp_python-0.2.23-cp310-cp310-win_amd64.whl
-ren llama_cpp_python_cuda-0.2.23+cu118avx-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.23-cp310-cp310-win_amd64.whl
+ren llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-win_amd64.whl llama_cpp_python-0.2.26-cp310-cp310-win_amd64.whl
+ren llama_cpp_python_cuda-0.2.26+cu118avx-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.26-cp310-cp310-win_amd64.whl
 ren torchvision-0.16.2+cu118-cp310-cp310-win_amd64.whl torchvision-0.16.2-cp310-cp310-win_amd64.whl
 del hnswlib-0.7.0-cp310-cp310-win_amd64.whl
 # others:
 pip wheel tabula==1.0.5
+
+# FIXME:
+# pip install --global-option build_ext --global-option --compiler=mingw32 pygobject
 
 cd ..
 # Download: https://github.com/oschwartz10612/poppler-windows/releases/download/v23.08.0-0/Release-23.08.0-0.zip
