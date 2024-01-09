@@ -16,20 +16,22 @@ del wheels
 
 # 2) Follow through README_WINDOWS.md installation, then do:
 
+mkdir wheels
 cd wheels
-pip freeze > freezelist.txt
-pip download -r freezelist.txt
+pip freeze > ..\docs\windows_freezelist.txt
+# file needs some edits for download
+pip download -r ..\docs\windows_freezelist.txt
+
 # extra things from tar.gz need to be wheel not just download:
 for /r %i in (*.tar.gz) do pip wheel %i
+for /r %i in (*.zip) do pip wheel %i
 
 # GPU (so package name not confusing to installer)
 ren exllama-0.0.18+cu118-cp310-cp310-win_amd64.whl exllama-0.0.18-cp310-cp310-win_amd64.whl
 ren llama_cpp_python-0.2.23+cpuavx2-cp310-cp310-win_amd64.whl llama_cpp_python-0.2.23-cp310-cp310-win_amd64.whl
-ren llama_cpp_python_cuda-0.2.23+cu121avx-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.23-cp310-cp310-win_amd64.whl
+ren llama_cpp_python_cuda-0.2.23+cu118avx-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.23-cp310-cp310-win_amd64.whl
 ren torchvision-0.16.2+cu118-cp310-cp310-win_amd64.whl torchvision-0.16.2-cp310-cp310-win_amd64.whl
 del hnswlib-0.7.0-cp310-cp310-win_amd64.whl
-cd ..
-
 # others:
 pip wheel tabula==1.0.5
 
