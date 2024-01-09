@@ -59,10 +59,13 @@ def main():
         def install(package):
             subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
-        if os.getenv('CUDA_VISIBLE_DEVICES') != '':
-            install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl")
+        if os.getenv('TORCH_WHEEL'):
+            install("TORCH_WHEEL")
         else:
-            install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl")
+            if os.getenv('CUDA_VISIBLE_DEVICES') != '':
+                install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl")
+            else:
+                install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl")
 
     main_h2ogpt()
 
