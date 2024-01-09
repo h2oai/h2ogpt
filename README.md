@@ -76,35 +76,29 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
 ---
 
 #### Windows 10/11 64-bit with full document Q/A capability
-  * One-click Installers
-
-    Jan 9, 2024:
-    *  Get Torch Wheel (torch has become too large for 2GB limit for installer, download separately):
-       * [GPU Torch Download](https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl)
-       * [CPU Torch Download](https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl)
-       * Set windows env `TORCH_WHEEL` to full path + filename of above file downloaded.
-    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_gpu.exe) (1.9GB file)
-    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_cpu.exe) (850MB file)
-
-    Nov 05, 2023:
-    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2oGPT_0.0.1_gpu.exe) (1.9GB file)
-    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2oGPT_0.0.1_cpu.exe) (850MB file)
-
-    Oct 06, 2023:
-    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_gpu.exe) (1.9GB file)
-    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Oct2023/h2oGPT_0.0.1_cpu.exe) (800MB file)
-
-    Aug 19, 2023:
-    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_gpu.exe) (1.8GB file)
-    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/h2oGPT_0.0.1_cpu.exe) (755MB file)
-
-    The installers include all dependencies for document Q/A except for models (LLM, embedding, reward), which you can download through the UI.  After installation, go to start and run h2oGPT, and a web browser will open for h2oGPT.  To use LLaMa model, go to Models tab, select `llama` base model, then click load to download from preset URL.  Then use as normal.  To terminate the app, in task manager kill the `Python` process named `pythonw.exe` as will also show up in `nvidia-smi` if using GPUs.  Set environment variables (in system properties->advanced->environment variables) to control things:
+  * One-Click Installer
+    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_cpu.exe) (1.3GB file)
+    * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.
+    * If have a GPU, when first running h2oGPT after clicking icon, it will be downloading Torch for GPU in background, which is a 2.7GB file and to install requires another 4GB.  This takes about 7 minutes to download on fast connection, this only happens once.
+      * If the lack of progress in download is not pleasant, then, for this one-time case, you change the h2oGPT launch icon command by replacing `pythonw.exe` with `python.exe`, or run in console.  E.g. for user `pseud` in command prompt run:
+        * `C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"`
+        * This console launch mode is also way to see console output for debugging issues, installing new packages via pip, etc.
+  * To control startup, tweak the python startup file, e.g. for user `pseud`: `C:\Users\pseud\AppData\Local\Programs\h2oGPT\pkgs\win_run_app.py`
+    * Environment variables can be changed, e.g.:
       * `n_jobs`: number of cores for various tasks
       * `OMP_NUM_THREADS` thread count for LLaMa
       * `CUDA_VISIBLE_DEVICES` which GPUs are used.  Recommend set to single fast GPU, e.g. `CUDA_VISIBLE_DEVICES=0` if have multiple GPUs.  Note that UI cannot control which GPUs (or CPU mode) for LLaMa models.
       * Any CLI argument from `python generate.py --help` with environment variable set as `h2ogpt_x`, e.g. `h2ogpt_h2ocolors` to `False`.
       * Set env `h2ogpt_server_name` to actual IP address for LAN to see app, e.g. `h2ogpt_server_name` to `192.168.1.172` and allow access through firewall if have Windows Defender activated.
-  * [Windows 10/11 Manual Install and Run Docs](docs/README_WINDOWS.md)
+      * In python, envs are set like `os.environ['name'] = 'value'`, e.g. `os.environ['n_jobs'] = '10'` (must be always a string).
+      * One could also set system environment variables (in system properties->advanced->environment variables) to control some things, but that leads to global changes instead of only for h2oGPT.
+  * One can tweak installed h2oGPT code at, e.g. `C:\Users\pseud\AppData\Local\Programs\h2oGPT`.
+  * To terminate the app, go to System Tab and click Admin and click Shutdown h2oGPT.
+    * If startup fails, run as console and check for errors, e.g. and kill any old Python processes.
+
+  * [Full Windows 10/11 Manual Installation Script](docs/README_WINDOWS.md)
+    * Manual installation allows using Conda env, which allows for DocTR that requires pygobject that has otherwise no support (except `mysys2` that cannot be used by h2oGPT).
+    * Also allows for TTS package by Coqui, which is otherwise not enabled currently in one-click installer.
 
 ---
 

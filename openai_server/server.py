@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import os
 import sys
 import ast
@@ -17,8 +18,9 @@ from fastapi.responses import JSONResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
 
+from openai_server.log import logger
+
 sys.path.append('openai_server')
-from log import logger, logging
 
 
 # https://github.com/h2oai/h2ogpt/issues/1132
