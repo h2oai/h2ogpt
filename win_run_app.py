@@ -49,10 +49,18 @@ def main():
     os.environ['h2ogpt_block_gradio_exit'] = 'False'
     os.environ['h2ogpt_score_model'] = ''
 
-    print("Torch Status: %s" % have_torch)
+    expect_gpus = os.getenv('CUDA_VISIBLE_DEVICES') != ''
+
+    need_get_gpu_torch = False
+    if have_torch and expect_gpus:
+        import torch
+        if not torch.cuda.is_available():
+            need_get_gpu_torch = True
+
+    print("Torch Status: %s %s" % (have_torch, need_get_gpu_torch))
 
     import sys
-    if not have_torch and sys.platform == "win32":
+    if (not have_torch or need_get_gpu_torch) and sys.platform == "win32":
         print("Installing Torch")
         # for one-click, don't have torch installed, install now
         import subprocess
@@ -65,14 +73,15 @@ def main():
             print("Installing Torch from %s" % os.getenv('TORCH_WHEEL'))
             install(os.getenv('TORCH_WHEEL'))
         else:
-            if os.getenv('CUDA_VISIBLE_DEVICES') != '':
+            if need_get_gpu_torch:
                 wheel_file = "https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl"
                 print("Installing Torch from %s" % wheel_file)
                 install(wheel_file)
-            else:
-                wheel_file = "https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl"
-                print("Installing Torch from %s" % wheel_file)
-                install(wheel_file)
+            # assume cpu torch part of install
+            #else:
+            #   wheel_file = "https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl"
+            #    print("Installing Torch from %s" % wheel_file)
+            #    install(wheel_file)
 
     from generate import entrypoint_main as main_h2ogpt
     main_h2ogpt()
