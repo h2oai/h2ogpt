@@ -3,7 +3,7 @@ import sys
 import time
 import webbrowser
 
-# ensure CPU install only uses CPU
+# uncomment below to ensure CPU install only uses CPU
 # os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 print('__file__: %s' % __file__)
@@ -77,8 +77,6 @@ def main():
     os.environ['h2ogpt_block_gradio_exit'] = 'False'
     os.environ['h2ogpt_score_model'] = ''
 
-    expect_gpus = os.getenv('CUDA_VISIBLE_DEVICES') != ''
-
     try:
         from pynvml import nvmlInit, nvmlDeviceGetCount
         nvmlInit()
@@ -88,11 +86,11 @@ def main():
         deviceCount = 0
 
     need_get_gpu_torch = False
-    if have_torch and expect_gpus:
+    if have_torch and deviceCount > 0:
         import torch
         if not torch.cuda.is_available():
             need_get_gpu_torch = True
-    elif not have_torch and expect_gpus:
+    elif not have_torch and deviceCount > 0:
         need_get_gpu_torch = True
 
     print("Torch Status: have torch: %s need get gpu torch: %s CVD: %s GPUs: %s" % (have_torch, need_get_gpu_torch, os.getenv('CUDA_VISIBLE_DEVICES'), deviceCount))
