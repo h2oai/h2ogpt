@@ -82,6 +82,7 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
     * If have a GPU, when first running h2oGPT after clicking icon, it will be downloading Torch for GPU in background, which is a 2.7GB file and to install requires another 4GB.  This takes about 7 minutes to download on fast connection, this only happens once.
       * If the lack of progress in download is not pleasant, then, for this one-time case, you change the h2oGPT launch icon command by replacing `pythonw.exe` with `python.exe`, or run in console.  E.g. for user `pseud` in command prompt run:
         * `C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"`
+        * The GPU Torch file we download automatically is this pre-built wheel](https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl), if working fully offline, one could download and tweak the startup script.
         * This console launch mode is also way to see console output for debugging issues, installing new packages via pip, etc.
   * To control startup, tweak the python startup file, e.g. for user `pseud`: `C:\Users\pseud\AppData\Local\Programs\h2oGPT\pkgs\win_run_app.py`
     * Environment variables can be changed, e.g.:
