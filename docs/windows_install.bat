@@ -65,6 +65,19 @@ curl https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-2024-01-07-git-90bef6390
 mkdir ffmpeg
 copy ffmpeg-2024-01-07-git-90bef6390f-full_build\bin\ffmpeg.exe ffmpeg\
 
+curl https://h2o-release.s3.amazonaws.com/h2ogpt/jpeg-6b-4-dep.zip -o jpeg-6b-4-dep.zip
+curl https://h2o-release.s3.amazonaws.com/h2ogpt/libpng-1.2.37-dep.zip -o libpng-1.2.37-dep.zip
+curl https://h2o-release.s3.amazonaws.com/h2ogpt/jpeg-6b-4-bin.zip -o jpeg-6b-4-bin.zip
+curl https://h2o-release.s3.amazonaws.com/h2ogpt/libpng-1.2.37-bin.zip -o libpng-1.2.37-bin.zip
+tar -xf jpeg-6b-4-dep.zip
+tar -xf libpng-1.2.37-dep.zip
+tar -xf jpeg-6b-4-bin.zip
+tar -xf libpng-1.2.37-bin.zip
+copy jpeg-6b-4-dep\bin\* ffmpeg\
+copy libpng-1.2.37-dep\bin\* ffmpeg\
+copy jpeg-6b-4-bin\bin\* ffmpeg\
+copy libpng-1.2.37-bin\bin\* ffmpeg\
+
 REM # Vision/Image packages
 pip install fiftyone
 pip install pytube

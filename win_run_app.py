@@ -46,12 +46,14 @@ except (PackageNotFoundError, AssertionError):
 
 
 def main():
-    from generate import entrypoint_main as main_h2ogpt
     os.environ['h2ogpt_block_gradio_exit'] = 'False'
     os.environ['h2ogpt_score_model'] = ''
 
+    print("Torch Status: %s" % have_torch)
+
     import sys
     if not have_torch and sys.platform == "win32":
+        print("Installing Torch")
         # for one-click, don't have torch installed, install now
         import subprocess
         import sys
@@ -60,13 +62,19 @@ def main():
             subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
         if os.getenv('TORCH_WHEEL'):
-            install("TORCH_WHEEL")
+            print("Installing Torch from %s" % os.getenv('TORCH_WHEEL'))
+            install(os.getenv('TORCH_WHEEL'))
         else:
             if os.getenv('CUDA_VISIBLE_DEVICES') != '':
-                install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl")
+                wheel_file = "https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl"
+                print("Installing Torch from %s" % wheel_file)
+                install(wheel_file)
             else:
-                install("https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl")
+                wheel_file = "https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl"
+                print("Installing Torch from %s" % wheel_file)
+                install(wheel_file)
 
+    from generate import entrypoint_main as main_h2ogpt
     main_h2ogpt()
 
     server_name = os.getenv('h2ogpt_server_name', os.getenv('H2OGPT_SERVER_NAME', 'localhost'))

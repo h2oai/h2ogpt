@@ -78,6 +78,14 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-click Installers
 
+    Jan 9, 2024:
+    *  Get Torch Wheel (torch has become too large for 2GB limit for installer, download separately):
+       * [GPU Torch Download](https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl)
+       * [CPU Torch Download](https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2-cp310-cp310-win_amd64.whl)
+       * Set windows env `TORCH_WHEEL` to full path + filename of above file downloaded.
+    * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_gpu.exe) (1.9GB file)
+    * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_cpu.exe) (850MB file)
+
     Nov 05, 2023:
     * [h2oGPT GPU-CUDA Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2oGPT_0.0.1_gpu.exe) (1.9GB file)
     * [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2oGPT_0.0.1_cpu.exe) (850MB file)

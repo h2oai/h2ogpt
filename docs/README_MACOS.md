@@ -48,6 +48,7 @@ Supports CPU and MPS (Metal M1/M2).
     brew install tesseract-lang
     brew install rubberband
     brew install pygobject3 gtk4
+    brew libjpeg libpng
     ```
 
 See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.

@@ -345,6 +345,7 @@ semantic-version==2.10.0
 semanticscholar==0.7.0
 sentence-transformers==2.2.2
 sentencepiece==0.1.99
+setuptools==68.2.2
 sgmllib3k==1.0.0
 Shapely==1.8.5.post1
 simplejson==3.19.2
