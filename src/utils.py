@@ -192,6 +192,18 @@ def system_info():
         pass
     system['hash'] = get_githash()
 
+    debug_mem = False
+    if debug_mem:
+        try:
+            # pip install guppy3
+            from guppy import hpy
+            h = hpy()
+            print(h.heap())
+            print(h.heap().byvia)
+            print(h.heap().byid)
+        except:
+            pass
+
     return system
 
 

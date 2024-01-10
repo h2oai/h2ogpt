@@ -5764,15 +5764,18 @@ def go_gradio(**kwargs):
     scheduler = BackgroundScheduler()
     if kwargs['clear_torch_cache_level'] in [0, 1]:
         interval_time = 120
+        clear_torch_cache_func_periodic = clear_torch_cache_func_soft
     else:
         interval_time = 20
-    scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=interval_time)
+        clear_torch_cache_func_periodic = clear_torch_cache
+    # don't require ever clear torch cache
+    scheduler.add_job(func=clear_torch_cache_func_periodic, trigger="interval", seconds=interval_time)
     if is_public and \
             kwargs['base_model'] not in non_hf_types:
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
-    if is_public or os.getenv('PING_GPU'):
+    if os.getenv('PING_GPU'):
         scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
     scheduler.start()
 

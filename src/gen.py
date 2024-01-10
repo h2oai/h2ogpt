@@ -994,7 +994,7 @@ def main(
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param n_gpus: Number of GPUs (None = autodetect)
     :param clear_torch_cache_level: 0: never clear except where critically required
-                                    1: clear critical + periodically every 120s
+                                    1: clear critical
                                     2: clear aggressively and clear periodically every 20s to free-up GPU memory (may lead to lag in response)
 
     :param use_unstructured: Enable unstructured URL loader
