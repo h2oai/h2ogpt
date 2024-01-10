@@ -56,7 +56,6 @@ playwright install
 xcopy C:\Users\pseud\AppData\Local\ms-playwright ms-playwright /s /e /h  # say specifies Directory
 
 # build
-# for CPU, ensure win_rup_app.py sets CVD=''
 python -m nsist windows_installer.cfg
 
 # test

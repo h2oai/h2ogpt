@@ -77,7 +77,7 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer
-    * CPU or GPU: Download [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1_cpu.exe) (1.3GB file)
+    * CPU or GPU: Download [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1.exe) (1.3GB file)
       * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.  All paths saved are relative to this path.
     * CPU: Click h2oGPT icon in start menu.
     * GPU: Before starting, run these commands (replace `pseud` with your user):
@@ -88,7 +88,7 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
       Now Click h2oGPT icon in start menu.
     * To debug any issues, run (replace `pseud` with your user):
       ```
-      C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw
+      C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"
       ```
       Any exceptions are appended to log, e.g. `C:\Users\pseud\h2ogpt_exception.log`.
   * To control startup, tweak the python startup file, e.g. for user `pseud`: `C:\Users\pseud\AppData\Local\Programs\h2oGPT\pkgs\win_run_app.py`
@@ -105,7 +105,8 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
     * If startup fails, run as console and check for errors, e.g. and kill any old Python processes.
 
   * [Full Windows 10/11 Manual Installation Script](docs/README_WINDOWS.md)
-    * Manual installation allows using Conda env, which allows for DocTR that requires pygobject that has otherwise no support (except `mysys2` that cannot be used by h2oGPT).
+    * Single `.bat` file for installation.
+    * Recommend base Conda env, which allows for DocTR that requires pygobject that has otherwise no support (except `mysys2` that cannot be used by h2oGPT).
     * Also allows for TTS package by Coqui, which is otherwise not enabled currently in one-click installer.
 
 ---

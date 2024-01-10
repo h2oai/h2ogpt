@@ -61,10 +61,10 @@ For newer builds of windows versions of 10/11.
    ```cmdline
    set PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
    ```
-* Run (`./docs/windows_install.sh`)[windows_install.sh] for full normal document Q/A installation.  To allow all (GPL too) packages, run:
+* Run (`docs\windows_install.bat`)[windows_install.bat] for full normal document Q/A installation.  To allow all (GPL too) packages, run:
     ```cmdline
     set GPLOK=1
-    docs/windows_install.sh
+    docs\windows_install.bat
     ```
 One can pick and choose different optional things to install instead by commenting them out in the shell script, or edit the script if any issues.  See script for notes about installation.
 
