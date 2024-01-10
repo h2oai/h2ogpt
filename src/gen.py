@@ -293,13 +293,14 @@ def main(
         visible_h2ogpt_logo: bool = True,
         visible_chatbot_label: bool = True,
         visible_all_prompter_models: bool = False,
+        visible_curated_models: bool = True,
         actions_in_sidebar: bool = False,
         document_choice_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
         pdf_height: int = 800,
         avatars: bool = True,
-        add_disk_models_to_ui=True,
+        add_disk_models_to_ui: bool = True,
         page_title: str = "h2oGPT",
         favicon_path: str = None,
 
@@ -594,8 +595,7 @@ def main(
          inject_fused_attention=False
          disable_exllama=True
          use_triton=True
-    :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
-         git clone https://github.com/tomaarsen/attention_sinks.git
+    :param attention_sinks: Whether to enable attention sinks.
     :param sink_dict: dict of options for attention sinks
            E.g. {'window_length': 1024, 'num_sink_tokens': 4}
            Default is window length same size as max_input_tokens (max_seq_len if max_input_tokens not set)
@@ -821,6 +821,7 @@ def main(
     :param visible_h2ogpt_logo: Whether central logo is visible
     :param visible_chatbot_label: Whether to show label in chatbot (e.g. if only one model for own purpose, then can set to False)
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
+    :param visible_curated_models: Whether to show curated models (useful to see few good options)
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
     :param document_choice_in_sidebar: Whether to show document choices in sidebar
            Useful if often changing picking specific document(s)
@@ -1001,7 +1002,7 @@ def main(
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param n_gpus: Number of GPUs (None = autodetect)
     :param clear_torch_cache_level: 0: never clear except where critically required
-                                    1: clear critical + periodically every 120s
+                                    1: clear critical
                                     2: clear aggressively and clear periodically every 20s to free-up GPU memory (may lead to lag in response)
 
     :param use_unstructured: Enable unstructured URL loader
@@ -2417,7 +2418,7 @@ def get_model(
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param exllama_dict: dict of exllama options
     :param gptq_dict: dict of AutoGPTQ options
-    :param attention_sinks: whether to use attention_sinks package
+    :param attention_sinks: whether to use attention_sinks
     :param sink_dict: dict of attention sinks options
     :param truncation_generation: whether to truncate generation in torch case to max_seq_len
     :param hf_model_dict
@@ -2594,8 +2595,10 @@ def get_model(
             base_model in google_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
-            if inference_server.startswith('openai'):
-                assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+            if  inference_server.startswith('openai'):
+                client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+                    set_openai(inference_server, model_name=base_model)
+                assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
             # Don't return None, None for model, tokenizer so triggers
             if base_model in model_token_mapping:
                 max_seq_len = model_token_mapping[base_model]
@@ -5507,6 +5510,9 @@ def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
             config = AutoConfig.from_pretrained(x,
                                                 token=use_auth_token,
                                                 trust_remote_code=trust_remote_code)
+            if hasattr(config, 'is_encoder_decoder') and config.is_encoder_decoder and x != 'lmsys/fastchat-t5-3b-v1.0':
+                print("No loading model %s because is_encoder_decoder=True" % x)
+                continue
             if hasattr(config, 'vocab_size'):
                 text_hf_models.append(x)
         except Exception as e:

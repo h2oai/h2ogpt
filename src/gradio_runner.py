@@ -288,13 +288,17 @@ def go_gradio(**kwargs):
     if kwargs['visible_all_prompter_models']:
         model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     else:
-        model_options0 = model_names_curated + kwargs['extra_model_options']
+        model_options0 = []
+        if kwargs['visible_curated_models']:
+            model_options0.extend(model_names_curated)
+        model_options0.extend(kwargs['extra_model_options'])
     if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
     if kwargs['add_disk_models_to_ui'] and kwargs['visible_models_tab'] and not kwargs['model_lock']:
         model_options0.extend(get_on_disk_models(llamacpp_path=kwargs['llamacpp_path'],
                                                  use_auth_token=kwargs['use_auth_token'],
                                                  trust_remote_code=kwargs['trust_remote_code']))
+    model_options0 = sorted(set(model_options0))
 
     # Initial LORA options
     lora_options = kwargs['extra_lora_options']
@@ -1718,10 +1722,12 @@ def go_gradio(**kwargs):
                             return new_file
 
                         if audio_visible:
+                            model_base = os.getenv('MODEL_BASE', 'models/')
+                            female_voice = os.path.join(model_base, "female.wav")
                             ref_voice_clone = gr.Audio(
                                 label="File for Clone (x resets)",
                                 type="filepath",
-                                value="models/female.wav",
+                                value=female_voice if os.path.isfile(female_voice) else None,
                                 # max_length=30 if is_public else None,
                                 visible=clone_visible,
                             )
@@ -3251,15 +3257,14 @@ def go_gradio(**kwargs):
                 gradio_upload_to_chatbot1 = args_list[0]
                 gradio_errors_to_chatbot1 = gradio_errors_to_chatbot and for_errors
                 do_show = gradio_upload_to_chatbot1 or gradio_errors_to_chatbot1
+                added_history = []
 
                 if not for_errors:
                     new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
-                else:
-                    added_history = [(None, get_accordion_named(args_list[1],
-                                                                "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.",
-                                                                font_size=2))]
+                elif str(args_list[1]).strip():
+                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3277,7 +3282,7 @@ def go_gradio(**kwargs):
                     history_list = args_list[-num_model_lock - 2:]
 
                 assert len(history_list) > 0, "Bad history list: %s" % history_list
-                if do_show:
+                if do_show and added_history:
                     for hi, history in enumerate(history_list):
                         if not visible_list[hi]:
                             continue
@@ -4893,11 +4898,11 @@ def go_gradio(**kwargs):
                     if len(stepyy) != 2:
                         # something off
                         return False
-                    questionx = stepxx[0].replace('<p>', '').replace('</p>', '') if stepxx[0] is not None else None
-                    answerx = stepxx[1].replace('<p>', '').replace('</p>', '') if stepxx[1] is not None else None
+                    questionx = str(stepxx[0]).replace('<p>', '').replace('</p>', '') if stepxx[0] is not None else None
+                    answerx = str(stepxx[1]).replace('<p>', '').replace('</p>', '') if stepxx[1] is not None else None
 
-                    questiony = stepyy[0].replace('<p>', '').replace('</p>', '') if stepyy[0] is not None else None
-                    answery = stepyy[1].replace('<p>', '').replace('</p>', '') if stepyy[1] is not None else None
+                    questiony = str(stepyy[0]).replace('<p>', '').replace('</p>', '') if stepyy[0] is not None else None
+                    answery = str(stepyy[1]).replace('<p>', '').replace('</p>', '') if stepyy[1] is not None else None
 
                     if questionx != questiony or answerx != answery:
                         return False
@@ -5781,15 +5786,18 @@ def go_gradio(**kwargs):
     scheduler = BackgroundScheduler()
     if kwargs['clear_torch_cache_level'] in [0, 1]:
         interval_time = 120
+        clear_torch_cache_func_periodic = clear_torch_cache_func_soft
     else:
         interval_time = 20
-    scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=interval_time)
+        clear_torch_cache_func_periodic = clear_torch_cache
+    # don't require ever clear torch cache
+    scheduler.add_job(func=clear_torch_cache_func_periodic, trigger="interval", seconds=interval_time)
     if is_public and \
             kwargs['base_model'] not in non_hf_types:
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
-    if is_public or os.getenv('PING_GPU'):
+    if os.getenv('PING_GPU'):
         scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
     scheduler.start()
 

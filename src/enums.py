@@ -211,6 +211,8 @@ google_mapping_outputs = {
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
                                  "gpt-4-1106-preview", "gpt-35-turbo-1106"]
 
+openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106"]
+
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
 model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096, "gpt-35-turbo-1106": 4096})
@@ -219,6 +221,16 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096, "gpt-35-turbo-11
 def does_support_functiontools(inference_server, model_name):
     if any([inference_server.startswith(x) for x in ['openai_azure', 'openai_azure_chat']]):
         return model_name.lower() in openai_supports_functiontools
+    elif any([inference_server.startswith(x) for x in ['openai', 'openai_chat']]):
+        # assume OpenAI serves updated models
+        return True
+    else:
+        return False
+
+
+def does_support_json_mode(inference_server, model_name):
+    if any([inference_server.startswith(x) for x in ['openai_azure', 'openai_azure_chat']]):
+        return model_name.lower() in openai_supports_json_mode
     elif any([inference_server.startswith(x) for x in ['openai', 'openai_chat']]):
         # assume OpenAI serves updated models
         return True

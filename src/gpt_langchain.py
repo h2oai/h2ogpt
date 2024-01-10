@@ -61,7 +61,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt
+    user_prompt_for_fake_system_prompt, does_support_json_mode
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
 from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids, system_docqa, system_summary
@@ -1502,6 +1502,8 @@ def get_llm(use_openai_model=False,
             sink_dict={},
             truncation_generation=None,
 
+            langchain_agents=None,
+
             n_jobs=None,
             cli=False,
             llamacpp_path=None,
@@ -1622,6 +1624,9 @@ def get_llm(use_openai_model=False,
                             deployment_name=deployment_type,
                             azure_endpoint=base_url,
                             )
+        if LangChainAgent.AUTOGPT.value in langchain_agents and \
+                does_support_json_mode(inference_server, model_name):
+            azure_kwargs.update(response_format={"type": "json_object"})
 
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
@@ -4913,6 +4918,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       attention_sinks=attention_sinks,
                       sink_dict=sink_dict,
                       truncation_generation=truncation_generation,
+                      langchain_agents=langchain_agents,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -5718,7 +5724,110 @@ def get_chain(query=None,
         from langchain_experimental.autonomous_agents.autogpt.agent import AutoGPT
         from langchain.agents import load_tools
 
-        tools = load_tools(["ddg-search"], llm=llm)
+        search_tools1 = load_tools(["ddg-search"], llm=llm)
+        search_tools2 = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
+        search_tools = search_tools1 + search_tools2
+
+        from langchain_community.tools import WikipediaQueryRun
+        from langchain_community.utilities import WikipediaAPIWrapper
+        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=chunk_size)
+        wiki_tools = [WikipediaQueryRun(api_wrapper=api_wrapper)]
+
+        # from langchain_community.tools.file_management.read import ReadFileTool
+        # from langchain_community.tools.file_management.write import WriteFileTool
+        # file_tools = [WriteFileTool(), ReadFileTool()]
+        from langchain.tools import ShellTool
+        shell_tool = ShellTool()
+        shell_tool.description = shell_tool.description + f"args {shell_tool.args}".replace(
+            "{", "{{"
+        ).replace("}", "}}")
+        shell_tools = [shell_tool]
+
+        from langchain_community.agent_toolkits import FileManagementToolkit
+        # from tempfile import TemporaryDirectory
+        # working_directory = TemporaryDirectory().name
+        working_directory = "autogpt_files"
+        makedirs(working_directory)
+        toolkit = FileManagementToolkit(
+            root_dir=str(working_directory)
+        )  # If you don't provide a root_dir, operations will default to the current working directory
+        file_tools = toolkit.get_tools()
+
+        from gradio_tools.tools import (
+            ImageCaptioningTool,
+            StableDiffusionPromptGeneratorTool,
+            StableDiffusionTool,
+            TextToVideoTool,
+        )
+        do_image_tools = False # FIXME: times out and blocks everything
+        if do_image_tools:
+            image_tools = [
+                StableDiffusionTool().langchain,
+                ImageCaptioningTool().langchain,
+                StableDiffusionPromptGeneratorTool().langchain,
+                TextToVideoTool().langchain,
+            ]
+        else:
+            image_tools = []
+
+        from langchain_experimental.utilities import PythonREPL
+        python_repl = PythonREPL()
+        # You can create the tool to pass to an agent
+        from langchain.agents import Tool
+        repl_tool = Tool(
+            name="python_repl",
+            description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
+            func=python_repl.run,
+        )
+
+        requests_tools = load_tools(["requests_all"])
+
+        from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
+        wolfram = WolframAlphaAPIWrapper()
+        wolfram_tool = Tool(
+            name="wolframalpha",
+            description="WolframAlpha is an answer engine developed by Wolfram Research. It answers factual queries by computing answers from externally sourced data.",
+            func=wolfram.run,
+        )
+
+        from langchain_experimental.llm_symbolic_math.base import LLMSymbolicMathChain
+        sympy_math = LLMSymbolicMathChain.from_llm(llm)
+        sympy_tool = Tool(
+            name="sympy",
+            description="SymPy is a Python library for symbolic mathematics. It aims to become a full-featured computer algebra system (CAS) while keeping the code as simple as possible in order to be comprehensible and easily extensible.",
+            func=sympy_math.run,
+        )
+
+        enable_semantictool = False # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
+        if enable_semantictool:
+            #from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            #semantic = SemanticScholarAPIWrapper()
+            # So can pass API key as ENV: S2_API_KEY
+            from utils_langchain import H2OSemanticScholarAPIWrapper
+            semantic = H2OSemanticScholarAPIWrapper()
+            scholar_tool = Tool(
+                name="semantictool",
+                description="Semantic Scholar is a searchable database that uses AI to search and discover academic papers. It's supported by the Allen Institute for AI and indexes over 200 million academic papers.",
+                func=semantic.run,
+            )
+            scholar_tools = [scholar_tool]
+        else:
+            scholar_tools = []
+
+        tools = ([]
+                 + search_tools
+                 + wiki_tools
+                 + shell_tools
+                 + file_tools
+                 + [repl_tool]
+                 + requests_tools
+                 + scholar_tools
+                 + image_tools
+                 )
+        if os.getenv('WOLFRAM_ALPHA_APPID'):
+            tools.extend([wolfram_tool])
+        else:
+            tools.extend([sympy_tool])
 
         from langchain.docstore import InMemoryDocstore
         from langchain.embeddings import OpenAIEmbeddings
@@ -5734,8 +5843,8 @@ def get_chain(query=None,
         vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {})
 
         agent = AutoGPT.from_llm_and_tools(
-            ai_name="Anthox",
-            ai_role="Cooking Assistant",
+            ai_name="h2oAutoGPT",
+            ai_role="General Search and Knowledge Assistant",
             tools=tools,
             llm=llm,
             memory=vectorstore.as_retriever(),

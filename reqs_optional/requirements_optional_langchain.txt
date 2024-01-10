@@ -22,7 +22,7 @@ langchain-google-genai==0.0.3
 google-generativeai==0.3.1
 
 # local vector db
-chromadb==0.4.18
+chromadb==0.4.22
 
 # chroma migration
 chroma-migrate==0.0.7
@@ -39,7 +39,7 @@ pydantic-settings==2.1.0
 
 # strong support for images
 # Requires on Ubuntu: sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-unstructured[local-inference]==0.11.0
+unstructured[local-inference]==0.11.8
 #pdf2image==1.16.3
 #pytesseract==0.3.10
 pillow==9.5.0

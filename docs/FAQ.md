@@ -8,31 +8,6 @@
 * XDG_CACHE_HOME: Broadly any `~/.cache` items.  Some [other packages](README_offline.md) use this folder.
 * `--llamacpp_path=<location>` : Location for llama.cpp models, like GGUF models.
 
-### Mixtral GGUF
-
-Here is how to get Mixtral GGUF going with h2oGPT with no update to llama cpp python package except in a PR.
-
-```bash
-pip uninstall llama_cpp_python
-pip uninstall llama_cpp_python_cuda
-git clone --recurse-submodules https://github.com/abetlen/llama-cpp-python.git
-cd llama-cpp-python/
-git fetch origin pull/1007/head:1007
-git switch 1007
-git submodule update --remote
-git submodule update
-CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install -e .
-cd ~/h2ogpt/
-python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096
-```
-Downloads 31GB GGUF file.  Good to pass `--max_seq_len` to avoid relaunch of model to find automatically the size, since uses more memory.  Also, if use automatic setting, h2oGPT says auto-context set at 4096 instead of up to `--max_seq_len=32768`.
-
-Use appropriate `CMAKE_ARGS` [instructions](https://github.com/abetlen/llama-cpp-python#installation) for building on MAC/CPU/etc.
-
-Set `CUDA_VISIBLE_DEVICES=0` to run on single 48GB GPU for maximum speed, or set to more GPUs if required. Model without usage consumes about 36GB, but uses 40GB after simple usage.
-
-NOTE: For long-context input or large max_seq_len, Mixtral GGUF seems unstable at moment.  Even just starting model with 32k context using 2*48 GPUs.  So expect llama.cpp to have more bug fixes.  We have not seen Mixtral work on llama.cpp for more than `--max_seq_len=4096`.
-
 ### Video Extraction (experimental)
 
 Ways to get Audio (ASR) and Video extraction:

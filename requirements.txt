@@ -7,8 +7,8 @@ huggingface_hub==0.19.4
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.20.1
-torch==2.1.1; sys_platform != "darwin" and platform_machine != "arm64"
-torch==2.1.1; sys_platform == "darwin" and platform_machine == "arm64"
+torch==2.1.2; sys_platform != "darwin" and platform_machine != "arm64"
+torch==2.1.2; sys_platform == "darwin" and platform_machine == "arm64"
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
@@ -22,8 +22,8 @@ matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.41.3
 accelerate==0.25.0
-peft==0.6.2
-transformers==4.36.1
+peft==0.7.1
+transformers==4.36.2
 tokenizers==0.15.0
 APScheduler==3.10.1
 
@@ -65,7 +65,7 @@ python-dotenv==1.0.0
 
 text-generation==0.6.1
 # for tokenization when don't have HF tokenizer
-tiktoken==0.4.0
+tiktoken==0.5.2
 
 requests>=2.31.0
 httpx==0.24.1
