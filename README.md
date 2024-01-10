@@ -107,7 +107,7 @@ For any platform, some packages download models at runtime, like for DocTR, Unst
     * If startup fails, run as console and check for errors, e.g. and kill any old Python processes.
 
   * [Full Windows 10/11 Manual Installation Script](docs/README_WINDOWS.md)
-    * Single `.bat` file for installation.
+    * Single `.bat` file for installation (if do not skip any optional packages, takes about 9GB filled on disk).
     * Recommend base Conda env, which allows for DocTR that requires pygobject that has otherwise no support (except `mysys2` that cannot be used by h2oGPT).
     * Also allows for TTS package by Coqui, which is otherwise not enabled currently in one-click installer.
 
