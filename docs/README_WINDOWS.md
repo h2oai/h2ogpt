@@ -4,9 +4,6 @@ If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers
 
 For newer builds of windows versions of 10/11.
 
-- [Install](#install)
-- [Run](#run)
-
 ## Install
 * Download Visual Studio 2022: [Download Link](https://visualstudio.microsoft.com/vs/community/)
   * Run Installer, click ok to run, click Continue
@@ -61,31 +58,22 @@ For newer builds of windows versions of 10/11.
    ```cmdline
    set PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
    ```
-* Run (`docs\windows_install.bat`)[windows_install.bat] for full normal document Q/A installation.  To allow all (GPL too) packages, run:
+* Run [`docs\windows_install.bat](windows_install.bat) for full normal document Q/A installation.  To allow all (GPL too) packages, run:
     ```cmdline
     set GPLOK=1
     docs\windows_install.bat
     ```
 One can pick and choose different optional things to install instead by commenting them out in the shell script, or edit the script if any issues.  See script for notes about installation.
 
-See the script for additional installation instructions for:
- * docx support
+See [`docs\windows_install.bat](windows_install.bat) for additional installation instructions for:
+ * Microsoft Word/Excel support
  * Tesseract OCR support
 
 Note models are stored in `C:\Users\<user>\.cache\` for chroma, huggingface, selenium, torch, weaviate, etc. directories.  For an absolute windows path, choose `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.  If the model is using the GPU, in `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.  Use `set CUDA_VISIBLE_DEVICES=0` to pick first model, since llama.cpp models cannot choose which GPU otherwise.
 
 See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try, quantization, etc.
 
-## Issues
-* llama_cpp_python with GGUF support for llama.cpp models should be installed correctly for avx2 or CUDA systems.  Change `reqs_optional/requirements_optional_gpt4all.txt` by commenting out avx2 if you don't have it.  Or download one from [CUDA llama-cpp-python wheel](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases).
-  * If any issues, then must compile llama-cpp-python with CUDA support:
-    ```bash
-    pip uninstall -y llama-cpp-python
-    set LLAMA_CUBLAS=1
-    set CMAKE_ARGS=-DLLAMA_CUBLAS=on
-    set FORCE_CMAKE=1
-    pip install llama-cpp-python==0.2.26 --no-cache-dir --verbose
-    ```
+## Possible Issues
 * SSL Certification failure when connecting to Hugging Face.
   * Your org may be blocking HF
   * Try: https://stackoverflow.com/a/75111104
