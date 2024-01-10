@@ -168,8 +168,9 @@ class H2OOCRLoader(ImageCaptionLoader):
         for image in images:
             shape0 = str(image.shape)
             image = self.pad_resize_image(image)
-            import cv2
-            cv2.imwrite('new1.png', image)
+            # debug, to see effect of pad-resize
+            # import cv2
+            # cv2.imwrite('new1.png', image)
             shape1 = str(image.shape)
 
             ocr_output = model([image])
