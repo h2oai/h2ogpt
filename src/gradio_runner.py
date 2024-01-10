@@ -3250,6 +3250,7 @@ def go_gradio(**kwargs):
                 gradio_upload_to_chatbot1 = args_list[0]
                 gradio_errors_to_chatbot1 = gradio_errors_to_chatbot and for_errors
                 do_show = gradio_upload_to_chatbot1 or gradio_errors_to_chatbot1
+                added_history = []
 
                 if not for_errors:
                     new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
@@ -3274,7 +3275,7 @@ def go_gradio(**kwargs):
                     history_list = args_list[-num_model_lock - 2:]
 
                 assert len(history_list) > 0, "Bad history list: %s" % history_list
-                if do_show:
+                if do_show and added_history:
                     for hi, history in enumerate(history_list):
                         if not visible_list[hi]:
                             continue
