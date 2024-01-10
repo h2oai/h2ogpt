@@ -4045,8 +4045,20 @@ def go_gradio(**kwargs):
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
-                instruction1 = history[-1][0]
-                history[-1][1] = None
+                # avoid None users
+                history_copy = history.copy()
+                last_user_ii = len(history_copy) - 1
+                for ii in range(len(history_copy) - 1, -1, -1):
+                    if history[ii] and history[ii][0] is not None:
+                        last_user_ii = ii
+                        print("Got last_user_ii: %s" % last_user_ii, flush=True)
+                        break
+                if history_copy[last_user_ii] and history_copy[last_user_ii][0]:
+                    instruction1 = history_copy[last_user_ii][0]
+                    history[last_user_ii][1] = None
+                    history = history[:last_user_ii + 1]
+                else:
+                    return dummy_return
             elif not instruction1:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
                     # if not retrying, then reject empty query
