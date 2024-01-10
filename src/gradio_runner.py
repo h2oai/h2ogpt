@@ -288,7 +288,10 @@ def go_gradio(**kwargs):
     if kwargs['visible_all_prompter_models']:
         model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     else:
-        model_options0 = model_names_curated + kwargs['extra_model_options']
+        model_options0 = []
+        if kwargs['visible_curated_models']:
+            model_options0.extend(model_names_curated)
+        model_options0.extend(kwargs['extra_model_options'])
     if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
     if kwargs['add_disk_models_to_ui'] and kwargs['visible_models_tab'] and not kwargs['model_lock']:

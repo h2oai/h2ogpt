@@ -293,6 +293,7 @@ def main(
         visible_h2ogpt_logo: bool = True,
         visible_chatbot_label: bool = True,
         visible_all_prompter_models: bool = False,
+        visible_curated_models: bool = True,
         actions_in_sidebar: bool = False,
         document_choice_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
@@ -817,6 +818,7 @@ def main(
     :param visible_h2ogpt_logo: Whether central logo is visible
     :param visible_chatbot_label: Whether to show label in chatbot (e.g. if only one model for own purpose, then can set to False)
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
+    :param visible_curated_models: Whether to show curated models (useful to see few good options)
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
     :param document_choice_in_sidebar: Whether to show document choices in sidebar
            Useful if often changing picking specific document(s)
