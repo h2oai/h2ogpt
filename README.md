@@ -79,7 +79,7 @@ For any platform, some packages download models at runtime, like for DocTR, Unst
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer
-    * CPU or GPU: Download [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1.exe) (1.3GB file)
+    * CPU or GPU: Download [h2oGPT Windows Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1.exe) (1.3GB file)
       * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.  All paths saved are relative to this path.
     * CPU: Click h2oGPT icon in start menu.  Give it about 15 seconds to open browser, if many optional packages included.  The browser will launch with actual local IP address by default, not localhost.
     * GPU: Before starting, run these commands (replace `pseud` with your user):
