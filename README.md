@@ -81,13 +81,13 @@ For any platform, some packages download models at runtime, like for DocTR, Unst
   * One-Click Installer
     * CPU or GPU: Download [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1.exe) (1.3GB file)
       * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.  All paths saved are relative to this path.
-    * CPU: Click h2oGPT icon in start menu.
+    * CPU: Click h2oGPT icon in start menu.  Give it about 15 seconds to open browser, if many optional packages included.
     * GPU: Before starting, run these commands (replace `pseud` with your user):
       ```
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe -m pip uninstall -y torch
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl
       ```
-      Now Click h2oGPT icon in start menu.
+      Now Click h2oGPT icon in start menu.  Give it about 20 seconds to open browser, if many optional packages included.
     * To debug any issues, run (replace `pseud` with your user):
       ```
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"
