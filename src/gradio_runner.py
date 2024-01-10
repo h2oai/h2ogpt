@@ -3825,8 +3825,7 @@ def go_gradio(**kwargs):
 
             if not nochat:
                 history = args_list[-1]
-                if history is None:
-                    history = []
+                history = get_llm_history(history)
                 if smodel is not None and \
                         stokenizer is not None and \
                         sdevice is not None and \
@@ -3985,6 +3984,17 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
+        def get_llm_history(history):
+            # avoid None users used for sources, errors, etc.
+            if history is None:
+                history = []
+            for ii in range(len(history) - 1, -1, -1):
+                if history[ii] and history[ii][0] is not None:
+                    last_user_ii = ii
+                    history = history[:last_user_ii + 1]
+                    break
+            return history
+
         def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None, plain_api=False):
             """
 
@@ -4045,19 +4055,11 @@ def go_gradio(**kwargs):
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
-                # avoid None users
-                history_copy = history.copy()
-                last_user_ii = len(history_copy) - 1
-                for ii in range(len(history_copy) - 1, -1, -1):
-                    if history[ii] and history[ii][0] is not None:
-                        last_user_ii = ii
-                        # print("Got last_user_ii: %s" % last_user_ii, flush=True)
-                        break
-                if history_copy[last_user_ii] and history_copy[last_user_ii][0]:
-                    instruction1 = history_copy[last_user_ii][0]
-                    history[last_user_ii][1] = None
-                    history = history[:last_user_ii + 1]
-                else:
+                history = get_llm_history(history)
+                instruction1 = history[-1][0] if history and history[-1] and len(history[-1]) == 2 else None
+                if history and history[-1]:
+                    history[-1][1] = None
+                if not instruction1:
                     return dummy_return
             elif not instruction1:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
