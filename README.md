@@ -75,6 +75,8 @@ We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-
 
 ---
 
+For any platform, some packages download models at runtime, like for DocTR, Unstructured, BLIP, Stable Diffusion, etc. that appear to delay operations in the UI.  The progress appears in the console logs.
+
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer
     * CPU or GPU: Download [h2oGPT CPU Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1.exe) (1.3GB file)
