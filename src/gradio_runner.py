@@ -4051,7 +4051,7 @@ def go_gradio(**kwargs):
                 for ii in range(len(history_copy) - 1, -1, -1):
                     if history[ii] and history[ii][0] is not None:
                         last_user_ii = ii
-                        print("Got last_user_ii: %s" % last_user_ii, flush=True)
+                        # print("Got last_user_ii: %s" % last_user_ii, flush=True)
                         break
                 if history_copy[last_user_ii] and history_copy[last_user_ii][0]:
                     instruction1 = history_copy[last_user_ii][0]
