@@ -3255,7 +3255,7 @@ def go_gradio(**kwargs):
                     new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
-                else:
+                elif str(args_list[1]).strip():
                     added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
 
                 compare_checkbox1 = args_list[2]
