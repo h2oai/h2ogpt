@@ -6,7 +6,6 @@ import time
 
 from tvalmetrics import RagScoresCalculator
 import tiktoken
-from openai import OpenAI
 
 RUN_COMBINE_ESSAYS = True
 
@@ -24,7 +23,7 @@ def get_sorted_essays():
 def combine_essays(group_num):
     if not RUN_COMBINE_ESSAYS:
         return
-    essays = os.listdir('paul_graham_essays')
+    essays = os.listdir('../tvalmetrics/examples/paul_graham_essays')
     group_size = math.ceil(len(essays) / group_num)
     print(f"Grouping {len(essays)} files into groups of {group_size} files for a total of {group_num} groups")
 
@@ -40,7 +39,7 @@ def combine_essays(group_num):
     file_counter = 1
     curr_file_text = ""
     for filename in tqdm(essays):
-        with open('paul_graham_essays/' + filename, 'r') as file:
+        with open('../tvalmetrics/examples/paul_graham_essays/' + filename, 'r') as file:
             curr_file_text += file.read().strip() + "\n\n\n\n"
             group_counter += 1
             if group_counter == group_size:
@@ -95,7 +94,7 @@ def get_response(prompt, assistant, client):
 def load_qa():
     # Load questions from qa_pairs.json
     import json
-    with open('qa_pairs.json', 'r') as qa_file:
+    with open('../tvalmetrics/examples/rag_eval_series/qa_pairs.json', 'r') as qa_file:
         qa_pairs = json.load(qa_file)
 
     question_list = [qa_pair['question'] for qa_pair in qa_pairs]
@@ -128,7 +127,7 @@ def upload_essays(combined_essays, client):
     return files
 
 
-def create_assistant(files, client):
+def create_assistant(files, client, model):
     return client.beta.assistants.create(
         name=f"OpenAI Rag Test {len(files)} Files",
         instructions=(
@@ -136,16 +135,16 @@ def create_assistant(files, client):
             "Use your knowledge base to best respond to questions. "
             "NO MATTER WHAT, DO NOT PULL INFORMATION FROM EXTERNAL KNOWLEDGE. ONLY USE YOUR OWN KNOWLEDGE BASE."
         ),
-        model="gpt-4-1106-preview",
+        model=model,
         tools=[{"type": "retrieval"}],
         file_ids=[file.id for file in files]
     )
 
 
-def setup_assistant(file_count, client):
+def setup_assistant(file_count, client, model):
     combined_essays = combine_essays(file_count)
     files = upload_essays(combined_essays, client)
-    return create_assistant(files, client)
+    return create_assistant(files, client, model)
 
 
 # Helper function if you want to view the tokens for each file
@@ -184,8 +183,8 @@ def run_questions(question_list, openai_responses, assistant, openai_context, cl
                 continue
 
 
-def run_full_test(file_count, question_list, answer_list, score_calculator, client):
-    assistant = setup_assistant(file_count, client)
+def run_full_test(file_count, question_list, answer_list, score_calculator, client, model):
+    assistant = setup_assistant(file_count, client, model)
     openai_responses, openai_context = [], []
 
     def get_openai_response(question):
@@ -250,18 +249,21 @@ def cleanup(client):
 
 
 def main():
-    model_name = 'gpt-4-1106-preview'
+    #model_name = 'gpt-4-1106-preview'
+    model_name = 'gpt-3.5-turbo-1106'
+    #model_name = 'gpt-3.5-turbo'
     score_calculator = RagScoresCalculator(
         model=model_name,
         answer_similarity_score=True,
     )
-    # client = OpenAI()
-    from src.utils import set_openai
-    inference_server = ''
-    client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
-        set_openai(inference_server, model_name=model_name)
+    from openai import OpenAI
+    client = OpenAI()
+    #from src.utils import set_openai
+    #inference_server = 'openai_chat'
+    #client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+    #    set_openai(inference_server, model_name=model_name)
 
-    assistant = setup_assistant(5, client)
+    assistant = setup_assistant(5, client, model_name)
 
     prompt = "What was Airbnb's monthly financial goal to achieve ramen profitability during their time at Y Combinator?"
     openai_response = get_response(prompt, assistant, client)
