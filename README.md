@@ -92,7 +92,7 @@ For any platform, some packages download models at runtime, like for DocTR, Unst
       ```
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"
       ```
-      Any exceptions are appended to log, e.g. `C:\Users\pseud\h2ogpt_exception.log`.
+      Any start-up exceptions are appended to log, e.g. `C:\Users\pseud\h2ogpt_exception.log`.
   * To control startup, tweak the python startup file, e.g. for user `pseud`: `C:\Users\pseud\AppData\Local\Programs\h2oGPT\pkgs\win_run_app.py`
     * In this Python code, set ENVs anywhere before main_h2ogpt() is called
       * E.g. `os.environ['name'] = 'value'`, e.g. `os.environ['n_jobs'] = '10'` (must be always a string).
