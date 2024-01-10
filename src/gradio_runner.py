@@ -1712,10 +1712,12 @@ def go_gradio(**kwargs):
                             return new_file
 
                         if audio_visible:
+                            model_base = os.getenv('MODEL_BASE', 'models/')
+                            female_voice = os.path.join(model_base, "female.wav")
                             ref_voice_clone = gr.Audio(
                                 label="File for Clone (x resets)",
                                 type="filepath",
-                                value="models/female.wav",
+                                value=female_voice if os.path.isfile(female_voice) else None,
                                 # max_length=30 if is_public else None,
                                 visible=clone_visible,
                             )

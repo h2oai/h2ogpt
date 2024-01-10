@@ -2569,8 +2569,10 @@ def get_model(
             base_model in google_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
-            if inference_server.startswith('openai'):
-                assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+            if  inference_server.startswith('openai'):
+                client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+                    set_openai(inference_server, model_name=base_model)
+                assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
             # Don't return None, None for model, tokenizer so triggers
             if base_model in model_token_mapping:
                 max_seq_len = model_token_mapping[base_model]

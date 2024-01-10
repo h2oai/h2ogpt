@@ -23,45 +23,51 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
         base_model = model_path_llama
     if inference_server is None:
         inference_server = ''
-    human_avatar = "models/human.jpg"
+
+    model_base = os.getenv('MODEL_BASE', 'models/')
+    human_avatar = "human.jpg"
     if 'h2ogpt-gm'.lower() in base_model.lower():
-        bot_avatar = "models/h2oai.png"
+        bot_avatar = "h2oai.png"
     elif 'mistralai'.lower() in base_model.lower() or \
             'mistral'.lower() in base_model.lower() or \
             'mixtral'.lower() in base_model.lower():
-        bot_avatar = "models/mistralai.png"
+        bot_avatar = "mistralai.png"
     elif '01-ai/Yi-'.lower() in base_model.lower():
-        bot_avatar = "models/yi.svg"
+        bot_avatar = "yi.svg"
     elif 'wizard' in base_model.lower():
-        bot_avatar = "models/wizard.jpg"
+        bot_avatar = "wizard.jpg"
     elif 'openchat' in base_model.lower():
-        bot_avatar = "models/openchat.png"
+        bot_avatar = "openchat.png"
     elif 'vicuna' in base_model.lower():
-        bot_avatar = "models/vicuna.jpeg"
+        bot_avatar = "vicuna.jpeg"
     elif 'longalpaca' in base_model.lower():
-        bot_avatar = "models/longalpaca.png"
+        bot_avatar = "longalpaca.png"
     elif 'llama2-70b-chat' in base_model.lower():
-        bot_avatar = "models/meta.png"
+        bot_avatar = "meta.png"
     elif 'llama2-13b-chat' in base_model.lower():
-        bot_avatar = "models/meta.png"
+        bot_avatar = "meta.png"
     elif 'llama2-7b-chat' in base_model.lower():
-        bot_avatar = "models/meta.png"
+        bot_avatar = "meta.png"
     elif 'llama2' in base_model.lower():
-        bot_avatar = "models/lama2.jpeg"
+        bot_avatar = "lama2.jpeg"
     elif 'llama-2' in base_model.lower():
-        bot_avatar = "models/lama2.jpeg"
+        bot_avatar = "lama2.jpeg"
     elif 'llama' in base_model.lower():
-        bot_avatar = "models/lama.jpeg"
+        bot_avatar = "lama.jpeg"
     elif 'openai' in base_model.lower() or 'openai' in inference_server.lower():
-        bot_avatar = "models/openai.png"
+        bot_avatar = "openai.png"
     elif 'hugging' in base_model.lower():
-        bot_avatar = "models/hf-logo.png"
+        bot_avatar = "hf-logo.png"
     elif 'claude' in base_model.lower():
-        bot_avatar = "models/anthropic.jpeg"
+        bot_avatar = "anthropic.jpeg"
     elif 'gemini' in base_model.lower():
-        bot_avatar = "models/google.png"
+        bot_avatar = "google.png"
     else:
-        bot_avatar = "models/h2oai.png"
+        bot_avatar = "h2oai.png"
+
+    bot_avatar = os.path.join(model_base, bot_avatar)
+    human_avatar = os.path.join(model_base, human_avatar)
+
     human_avatar = human_avatar if os.path.isfile(human_avatar) else None
     bot_avatar = bot_avatar if os.path.isfile(bot_avatar) else None
     return human_avatar, bot_avatar
