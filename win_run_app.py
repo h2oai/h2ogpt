@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import traceback
 import webbrowser
 
 # uncomment below to ensure CPU install only uses CPU
@@ -15,16 +16,17 @@ os.environ['PYTHONPATH'] = path1
 print('path1', path1, flush=True)
 
 os.environ['NLTK_DATA'] = os.path.join(base_path, './nltk_data')
-os.environ['PATH'] = os.environ['PATH'] + ';' + \
-                     os.path.join(base_path, 'poppler/Library/bin/') + ';' + \
-                     os.path.join(base_path, 'poppler/Library/lib/') + ';' + \
-                     os.path.join(base_path, 'Tesseract-OCR') + \
-                     os.path.join(base_path, 'ms-playwright') + \
-                     os.path.join(base_path, 'ms-playwright/chromium-1076/chrome-win') + \
-                     os.path.join(base_path, 'ms-playwright/ffmpeg-1009') + \
-                     os.path.join(base_path, 'ms-playwright/firefox-1422/firefox') + \
-                     os.path.join(base_path, 'ms-playwright/webkit-1883') + \
-                     os.path.join(base_path, 'rubberband/')
+path_list = [os.environ['PATH'],
+                     os.path.join(base_path, 'poppler/Library/bin/'),
+                     os.path.join(base_path, 'poppler/Library/lib/'),
+                     os.path.join(base_path, 'Tesseract-OCR'),
+                     os.path.join(base_path, 'ms-playwright'),
+                     os.path.join(base_path, 'ms-playwright/chromium-1076/chrome-win'),
+                     os.path.join(base_path, 'ms-playwright/ffmpeg-1009'),
+                     os.path.join(base_path, 'ms-playwright/firefox-1422/firefox'),
+                     os.path.join(base_path, 'ms-playwright/webkit-1883'),
+                     os.path.join(base_path, 'rubberband/')]
+os.environ['PATH'] = ';'.join(path_list)
 print(os.environ['PATH'])
 
 import shutil, errno
@@ -66,13 +68,16 @@ def setup_paths():
 from importlib.metadata import distribution, PackageNotFoundError
 
 try:
-    assert distribution('torch') is not None
+    dtorch = distribution('torch')
+    assert dtorch is not None
     have_torch = True
+    torch_version = dtorch.version
 except (PackageNotFoundError, AssertionError):
     have_torch = False
+    torch_version = ''
 
 
-def main():
+def _main():
     setup_paths()
     os.environ['h2ogpt_block_gradio_exit'] = 'False'
     os.environ['h2ogpt_score_model'] = ''
@@ -87,8 +92,7 @@ def main():
 
     need_get_gpu_torch = False
     if have_torch and deviceCount > 0:
-        import torch
-        if not torch.cuda.is_available():
+        if '+cu' not in torch_version:
             need_get_gpu_torch = True
     elif not have_torch and deviceCount > 0:
         need_get_gpu_torch = True
@@ -134,6 +138,17 @@ def main():
 
     while True:
         time.sleep(10000)
+
+
+def main():
+    try:
+        _main()
+    except BaseException as e:
+        with open('h2ogpt_exception.log', 'at') as f:
+            f.write(traceback.format_exc())
+        time.sleep(10)
+        raise
+    time.sleep(10)
 
 
 if __name__ == "__main__":
