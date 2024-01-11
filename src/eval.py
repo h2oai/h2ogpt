@@ -1,5 +1,4 @@
 import os
-import traceback
 import numpy as np
 import pandas as pd
 import torch
@@ -19,7 +18,8 @@ def run_eval(  # for local function:
         eval_filename=None, eval_prompts_only_num=None, eval_prompts_only_seed=None, eval_as_output=None,
         examples=None, memory_restriction_level=None,
         # evaluate kwargs
-        n_jobs=None, llamacpp_path=None, llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None, sink_dict=None, truncation_generation=None, hf_model_dict=None, load_exllama=None,
+        n_jobs=None, llamacpp_path=None, llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None,
+        sink_dict=None, truncation_generation=None, hf_model_dict=None, load_exllama=None,
 
         use_pymupdf=None,
         use_unstructured_pdf=None,
@@ -286,23 +286,24 @@ def run_eval(  # for local function:
                             # only our own examples have this filled at moment
                             assert iinput in [None, ''], iinput  # should be no iinput
                         prompt = instruction
-                    score = score_qa(smodel, stokenizer, prompt, res, memory_restriction_level=memory_restriction_level, numeric_only=True)
+                    score = score_qa(smodel, stokenizer, prompt, res, memory_restriction_level=memory_restriction_level)
                     score_dump.append(ex + [prompt, res, score])
                     # dump every score in case abort
                     df_scores = pd.DataFrame(score_dump,
                                              columns=eval_func_param_names +
                                                      eval_extra_columns)
                     df_scores.to_parquet(eval_out_filename, index=False)
-                    # plot histogram so far
-                    plt.figure(figsize=(10, 10))
-                    plt.hist(df_scores['score'], bins=20)
-                    score_avg = np.mean(df_scores['score'])
-                    score_median = np.median(df_scores['score'])
-                    print("SCORE %s: %s  So far: AVG: %s MEDIAN: %s" % (exi, score, score_avg, score_median),
-                          flush=True)
-                    plt.title("Score avg: %s median: %s" % (score_avg, score_median))
-                    plt.savefig(eval_out_filename.replace('.parquet', '.png'))
-                    plt.close()
+                    if not isinstance(score, str):
+                        # plot histogram so far
+                        plt.figure(figsize=(10, 10))
+                        plt.hist(df_scores['score'], bins=20)
+                        score_avg = np.mean(df_scores['score'])
+                        score_median = np.median(df_scores['score'])
+                        print("SCORE %s: %s  So far: AVG: %s MEDIAN: %s" % (exi, score, score_avg, score_median),
+                              flush=True)
+                        plt.title("Score avg: %s median: %s" % (score_avg, score_median))
+                        plt.savefig(eval_out_filename.replace('.parquet', '.png'))
+                        plt.close()
 
             print("END" + "=" * 102)
             print("")

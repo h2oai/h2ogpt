@@ -4914,7 +4914,7 @@ def languages_covered():
     return covered
 
 
-def score_qa(smodel, stokenizer, question, answer, memory_restriction_level=0, numeric_only=False):
+def score_qa(smodel, stokenizer, question, answer, memory_restriction_level=0):
     if memory_restriction_level > 0:
         max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
     elif hasattr(stokenizer, 'model_max_length'):
