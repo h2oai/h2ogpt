@@ -1879,16 +1879,19 @@ def main(
 
 
     # get score model
+    score_model_state0 = dict(model=None, tokenizer=None, device=None,
+                              base_model=None, tokenizer_base_model='', lora_weights='',
+                              inference_server='', prompt_type='', prompt_dict='',
+                              visible_models=None, h2ogpt_key=None,
+                              reward_model=None)
     if score_model:
         all_kwargs = locals().copy()
         smodel, stokenizer, sdevice = get_score_model(reward_type=True,
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
-        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
-                                  base_model=score_model, tokenizer_base_model='', lora_weights='',
-                                  inference_server='', prompt_type='', prompt_dict='',
-                                  visible_models=None, h2ogpt_key=None,
-                                  reward_model=True)
+        score_model_state0.update(dict(model=smodel, tokenizer=stokenizer, device=sdevice,
+                                  base_model=score_model,
+                                  reward_model=True))
 
     # get verifier model, replaces score_model if exists
     if verifier_model:
@@ -1902,16 +1905,14 @@ def main(
         smodel, stokenizer, sdevice = get_model_retry(reward_type=False,
                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
-        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
+        score_model_state0.update(dict(model=smodel, tokenizer=stokenizer, device=sdevice,
                                   base_model=verifier_model,
                                   tokenizer_base_model=verifier_tokenizer_base_model,
-                                  lora_weights='',
                                   inference_server=verifier_inference_server,
-                                  prompt_type='plain', prompt_dict={},
-                                  visible_models=None, h2ogpt_key=None,
-                                  reward_model=False)
+                                  prompt_type='plain',
+                                  reward_model=False))
 
-    # get default model
+    # get default model(s)
     model_states = []
     model_list = [dict(base_model=base_model, base_model0=base_model0,
                        tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
@@ -2056,13 +2057,13 @@ def main(
             hasattr(model_state0['tokenizer'], 'model_max_length'):
         max_seq_len = model_state0['tokenizer'].model_max_length
 
-
+    # run
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
+        return run_cli(**get_kwargs(run_cli, **locals()))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, exclude_names=['model_state0'], **locals()))
+        return run_eval(**get_kwargs(run_eval, **locals()))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
@@ -3456,8 +3457,8 @@ def evaluate(
         raise AssertionError(no_model_msg)
 
     assert base_model.strip(), no_model_msg
-    assert model, "Model is missing"
-    assert tokenizer, "Tokenizer is missing"
+    assert model is not None, "Model is missing"
+    assert tokenizer is not None, "Tokenizer is missing"
 
     # choose chat or non-chat mode
     if not chat:
@@ -4963,19 +4964,21 @@ def check_locals(**kwargs):
         # get_model:
         'reward_type'
     ]
+    missing1 = []
     for k in eval_func_param_names:
         if k in can_skip_because_locally_generated:
             continue
-        assert k in kwargs, "Missing %s" % k
+        if k not in kwargs:
+            missing1.append(k)
+    assert not missing1, "Missing %s" % missing1
+
+    missing2 = []
     for k in inputs_kwargs_list:
         if k in can_skip_because_locally_generated:
             continue
-        assert k in kwargs, "Missing %s" % k
-
-    for k in list(inspect.signature(get_model).parameters):
-        if k in can_skip_because_locally_generated:
-            continue
-        assert k in kwargs, "Missing %s" % k
+        if k not in kwargs:
+            missing2.append(k)
+    assert not missing2, "Missing %s" % missing2
 
 
 def get_model_max_length(model_state):
