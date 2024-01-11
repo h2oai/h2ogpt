@@ -1423,6 +1423,9 @@ def main(
     score_model = os.getenv('SCORE_MODEL', score_model)
     if str(score_model) == 'None':
         score_model = ''
+    # prioritize verifier model to replace output
+    if verifier_model:
+        score_model = ''
     all_inference_server = inference_server or model_lock and all(x.get('inference_server') for x in model_lock)
     if inference_server == 'openai' and base_model in openai_gpts:
         # deprecate chat models with non-chat API
@@ -1874,6 +1877,186 @@ def main(
                                   llamacpp_dict['model_path_llama'],
                                   doc_json_mode)
 
+
+    # get score model
+    if score_model:
+        all_kwargs = locals().copy()
+        smodel, stokenizer, sdevice = get_score_model(reward_type=True,
+                                                      **get_kwargs(get_score_model, exclude_names=['reward_type'],
+                                                                   **all_kwargs))
+        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
+                                  base_model=score_model, tokenizer_base_model='', lora_weights='',
+                                  inference_server='', prompt_type='', prompt_dict='',
+                                  visible_models=None, h2ogpt_key=None,
+                                  reward_model=True)
+
+    # get verifier model, replaces score_model if exists
+    if verifier_model:
+        score_model = verifier_model
+        all_kwargs = locals().copy()
+        all_kwargs.update(base_model=verifier_model,
+                          tokenizer_base_model=verifier_tokenizer_base_model,
+                          inference_server=verifier_inference_server,
+                          prompt_type='plain', prompt_dict={},
+                          visible_models=None, h2ogpt_key=None)
+        smodel, stokenizer, sdevice = get_model_retry(reward_type=False,
+                                                      **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                   **all_kwargs))
+        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
+                                  base_model=verifier_model,
+                                  tokenizer_base_model=verifier_tokenizer_base_model,
+                                  lora_weights='',
+                                  inference_server=verifier_inference_server,
+                                  prompt_type='plain', prompt_dict={},
+                                  visible_models=None, h2ogpt_key=None,
+                                  reward_model=False)
+
+    # get default model
+    model_states = []
+    model_list = [dict(base_model=base_model, base_model0=base_model0,
+                       tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
+                       inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                       visible_models=None, h2ogpt_key=None)]
+    model_list[0].update(other_model_state_defaults)
+    # FIXME: hyper per model, not about model loading
+    # for k in gen_hyper:
+    #     model_list[k] = locals()[k]
+
+    model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
+    model_state0 = model_state_none.copy()
+    assert len(model_state_none) == len(model_state0)
+    if model_lock:
+        model_list = model_lock
+    # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
+    for model_dict in reversed(model_list):
+        # handle defaults user didn't have to pass
+        # special defaults, ignore defaults for these if not specifically set, replace with ''
+        model_dict['base_model'] = model_dict.get('base_model', '')
+        model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
+        model_dict['lora_weights'] = model_dict.get('lora_weights', '')
+        model_dict['inference_server'] = model_dict.get('inference_server', '')
+        if prepare_offline_level >= 2:
+            if 'openai' not in model_dict['inference_server'] and 'replicate' not in model_dict['inference_server']:
+                # assume want locally, but OpenAI and replicate are never local for model part
+                model_dict['inference_server'] = ''
+        prompt_type_infer = not model_dict.get('prompt_type')
+        model_dict['prompt_type'] = model_dict.get('prompt_type',
+                                                   model_list0[0]['prompt_type'])  # don't use mutated value
+        # rest of generic defaults
+        for k in model_list0[0]:
+            if k not in model_dict:
+                model_dict[k] = model_list0[0][k]
+        # make so don't have to pass dict in dict so more like CLI for these options
+        inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
+                           'model_name_exllama_if_no_config']
+        for key in inner_dict_keys:
+            if key in model_dict:
+                model_dict['llamacpp_dict'][key] = model_dict.pop(key)
+
+        model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
+        model_dict['base_model0'] = model_dict['base_model']
+        model_dict['base_model'], model_dict['llamacpp_dict']['model_path_llama'], \
+            model_dict['load_gptq'], \
+            model_dict['load_awq'], \
+            model_dict['llamacpp_dict']['n_gqa'] = \
+            switch_a_roo_llama(model_dict['base_model'],
+                               model_dict['llamacpp_dict']['model_path_llama'],
+                               model_dict['load_gptq'],
+                               model_dict['load_awq'],
+                               model_dict['llamacpp_dict'].get('n_gqa', 0),
+                               llamacpp_path)
+
+        # begin prompt adjustments
+        # get query prompt for (say) last base model if using model lock
+        pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1, hyde_llm_prompt1 = (
+            get_langchain_prompts(pre_prompt_query, prompt_query,
+                                  pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+                                  model_dict['base_model'],
+                                  model_dict['inference_server'],
+                                  model_dict['llamacpp_dict']['model_path_llama'],
+                                  doc_json_mode))
+        # if mixed setup, choose non-empty so best models best
+        # FIXME: Make per model dict passed through to evaluate
+        pre_prompt_query = pre_prompt_query or pre_prompt_query1
+        prompt_query = prompt_query or prompt_query1
+        pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
+        prompt_summary = prompt_summary or prompt_summary1
+        hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
+
+        # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
+        if prompt_type_infer:
+            prompt_type1_trial = model_name_to_prompt_type(model_dict['base_model'],
+                                                           model_name0=model_dict['base_model0'],
+                                                           llamacpp_dict=model_dict['llamacpp_dict'])
+            if prompt_type1_trial:
+                model_dict['prompt_type'] = prompt_type1_trial
+                get_prompt_kwargs = dict(context='', reduced=False,
+                                         making_context=False,
+                                         return_dict=True,
+                                         system_prompt=system_prompt)
+                model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
+                                                               **get_prompt_kwargs)
+            else:
+                model_dict['prompt_dict'] = prompt_dict
+        else:
+            model_dict['prompt_dict'] = prompt_dict
+        model_dict['prompt_dict'] = model_dict.get('prompt_dict', model_dict['prompt_dict'])
+        # end prompt adjustments
+        all_kwargs = locals().copy()
+        all_kwargs.update(model_dict)
+        if model_dict['base_model'] and not login_mode_if_model0:
+            model0, tokenizer0, device = get_model_retry(reward_type=False,
+                                                         **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                                      **all_kwargs))
+            # update model state
+            if hasattr(tokenizer0, 'model_max_length'):
+                model_dict['max_seq_len'] = tokenizer0.model_max_length
+        else:
+            # if empty model, then don't load anything, just get gradio up
+            model0, tokenizer0, device = None, None, None
+        if model0 is None:
+            if fail_if_cannot_connect:
+                raise RuntimeError("Could not connect, see logs")
+            # skip
+            if isinstance(model_lock, list):
+                model_lock.remove(model_dict)
+            continue
+        model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
+        model_state_trial.update(model_dict)
+        diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
+        assert len(model_state_none) == len(model_state_trial), diff_keys
+        print("Model %s" % model_dict, flush=True)
+        if model_lock:
+            # last in iteration will be first
+            model_states.insert(0, model_state_trial)
+            # fill model_state0 so go_gradio() easier, manage model_states separately
+            model_state0 = model_state_trial.copy()
+        else:
+            model_state0 = model_state_trial.copy()
+        assert len(model_state_none) == len(model_state0)
+
+    visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
+    all_possible_visible_models = [
+        x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
+                                   not x.get('llamacpp_dict').get('model_path_llama', '')
+        else x.get('llamacpp_dict').get('model_path_llama', '')
+        for xi, x in enumerate(model_states)]
+    visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
+                             visible_models is None or
+                             x in visible_models or
+                             xi in visible_models]
+
+    # update to be consistent with what is passed from CLI and model chose
+    # do after go over all models if multi-model, so don't contaminate
+    # This is just so UI shows reasonable correct value, not 2048 dummy value
+    if len(model_states) >= 1:
+        max_seq_len = model_states[0]['tokenizer'].model_max_length
+    elif model_state0 is not None and \
+            'tokenizer' in model_state0 and \
+            hasattr(model_state0['tokenizer'], 'model_max_length'):
+        max_seq_len = model_state0['tokenizer'].model_max_length
+
+
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, exclude_names=['model_state0'], **locals()))
@@ -1883,178 +2066,6 @@ def main(
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
-
-        # get default model
-        model_states = []
-        model_list = [dict(base_model=base_model, base_model0=base_model0,
-                           tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
-                           inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
-                           visible_models=None, h2ogpt_key=None)]
-        model_list[0].update(other_model_state_defaults)
-        # FIXME: hyper per model, not about model loading
-        # for k in gen_hyper:
-        #     model_list[k] = locals()[k]
-
-        model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
-        model_state0 = model_state_none.copy()
-        assert len(model_state_none) == len(model_state0)
-        if model_lock:
-            model_list = model_lock
-        # do reverse, so first is default base_model etc., so some logic works in go_gradio() more easily
-        for model_dict in reversed(model_list):
-            # handle defaults user didn't have to pass
-            # special defaults, ignore defaults for these if not specifically set, replace with ''
-            model_dict['base_model'] = model_dict.get('base_model', '')
-            model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
-            model_dict['lora_weights'] = model_dict.get('lora_weights', '')
-            model_dict['inference_server'] = model_dict.get('inference_server', '')
-            if prepare_offline_level >= 2:
-                if 'openai' not in model_dict['inference_server'] and 'replicate' not in model_dict['inference_server']:
-                    # assume want locally, but OpenAI and replicate are never local for model part
-                    model_dict['inference_server'] = ''
-            prompt_type_infer = not model_dict.get('prompt_type')
-            model_dict['prompt_type'] = model_dict.get('prompt_type',
-                                                       model_list0[0]['prompt_type'])  # don't use mutated value
-            # rest of generic defaults
-            for k in model_list0[0]:
-                if k not in model_dict:
-                    model_dict[k] = model_list0[0][k]
-            # make so don't have to pass dict in dict so more like CLI for these options
-            inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
-                               'model_name_exllama_if_no_config']
-            for key in inner_dict_keys:
-                if key in model_dict:
-                    model_dict['llamacpp_dict'][key] = model_dict.pop(key)
-
-            model_dict['llamacpp_dict'] = model_dict.get('llamacpp_dict', {})
-            model_dict['base_model0'] = model_dict['base_model']
-            model_dict['base_model'], model_dict['llamacpp_dict']['model_path_llama'], \
-                model_dict['load_gptq'], \
-                model_dict['load_awq'], \
-                model_dict['llamacpp_dict']['n_gqa'] = \
-                switch_a_roo_llama(model_dict['base_model'],
-                                   model_dict['llamacpp_dict']['model_path_llama'],
-                                   model_dict['load_gptq'],
-                                   model_dict['load_awq'],
-                                   model_dict['llamacpp_dict'].get('n_gqa', 0),
-                                   llamacpp_path)
-
-            # begin prompt adjustments
-            # get query prompt for (say) last base model if using model lock
-            pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1, hyde_llm_prompt1 = (
-                get_langchain_prompts(pre_prompt_query, prompt_query,
-                                      pre_prompt_summary, prompt_summary, hyde_llm_prompt,
-                                      model_dict['base_model'],
-                                      model_dict['inference_server'],
-                                      model_dict['llamacpp_dict']['model_path_llama'],
-                                      doc_json_mode))
-            # if mixed setup, choose non-empty so best models best
-            # FIXME: Make per model dict passed through to evaluate
-            pre_prompt_query = pre_prompt_query or pre_prompt_query1
-            prompt_query = prompt_query or prompt_query1
-            pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
-            prompt_summary = prompt_summary or prompt_summary1
-            hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
-
-            # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
-            if prompt_type_infer:
-                prompt_type1_trial = model_name_to_prompt_type(model_dict['base_model'],
-                                                               model_name0=model_dict['base_model0'],
-                                                               llamacpp_dict=model_dict['llamacpp_dict'])
-                if prompt_type1_trial:
-                    model_dict['prompt_type'] = prompt_type1_trial
-                    get_prompt_kwargs = dict(context='', reduced=False,
-                                             making_context=False,
-                                             return_dict=True,
-                                             system_prompt=system_prompt)
-                    model_dict['prompt_dict'], error0 = get_prompt(model_dict['prompt_type'], '',
-                                                                   **get_prompt_kwargs)
-                else:
-                    model_dict['prompt_dict'] = prompt_dict
-            else:
-                model_dict['prompt_dict'] = prompt_dict
-            model_dict['prompt_dict'] = model_dict.get('prompt_dict', model_dict['prompt_dict'])
-            # end prompt adjustments
-            all_kwargs = locals().copy()
-            all_kwargs.update(model_dict)
-            if model_dict['base_model'] and not login_mode_if_model0:
-                model0, tokenizer0, device = get_model_retry(reward_type=False,
-                                                             **get_kwargs(get_model, exclude_names=['reward_type'],
-                                                                          **all_kwargs))
-                # update model state
-                if hasattr(tokenizer0, 'model_max_length'):
-                    model_dict['max_seq_len'] = tokenizer0.model_max_length
-            else:
-                # if empty model, then don't load anything, just get gradio up
-                model0, tokenizer0, device = None, None, None
-            if model0 is None:
-                if fail_if_cannot_connect:
-                    raise RuntimeError("Could not connect, see logs")
-                # skip
-                if isinstance(model_lock, list):
-                    model_lock.remove(model_dict)
-                continue
-            model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
-            model_state_trial.update(model_dict)
-            diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
-            assert len(model_state_none) == len(model_state_trial), diff_keys
-            print("Model %s" % model_dict, flush=True)
-            if model_lock:
-                # last in iteration will be first
-                model_states.insert(0, model_state_trial)
-                # fill model_state0 so go_gradio() easier, manage model_states separately
-                model_state0 = model_state_trial.copy()
-            else:
-                model_state0 = model_state_trial.copy()
-            assert len(model_state_none) == len(model_state0)
-
-        visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
-        all_possible_visible_models = [
-            x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
-                                       not x.get('llamacpp_dict').get('model_path_llama', '')
-            else x.get('llamacpp_dict').get('model_path_llama', '')
-            for xi, x in enumerate(model_states)]
-        visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
-                                 visible_models is None or
-                                 x in visible_models or
-                                 xi in visible_models]
-
-        # update to be consistent with what is passed from CLI and model chose
-        # do after go over all models if multi-model, so don't contaminate
-        # This is just so UI shows reasonable correct value, not 2048 dummy value
-        if len(model_states) >= 1:
-            max_seq_len = model_states[0]['tokenizer'].model_max_length
-        elif model_state0 is not None and \
-                'tokenizer' in model_state0 and \
-                hasattr(model_state0['tokenizer'], 'model_max_length'):
-            max_seq_len = model_state0['tokenizer'].model_max_length
-
-        # get score model
-        all_kwargs = locals().copy()
-        smodel, stokenizer, sdevice = get_score_model(reward_type=True,
-                                                      **get_kwargs(get_score_model, exclude_names=['reward_type'],
-                                                                   **all_kwargs))
-        score_model_state0 = dict(model=smodel, tokenizer=stokenizer, device=sdevice,
-                                  base_model=score_model, tokenizer_base_model='', lora_weights='',
-                                  inference_server='', prompt_type='', prompt_dict='',
-                                  visible_models=None, h2ogpt_key=None)
-
-        # get verifier model
-        all_kwargs = locals().copy()
-        all_kwargs.update(base_model=verifier_model,
-                          tokenizer_base_model=verifier_tokenizer_base_model,
-                          inference_server=verifier_inference_server,
-                          prompt_type='plain', prompt_dict={},
-                          visible_models=None, h2ogpt_key=None)
-        vmodel, vtokenizer, vdevice = get_model_retry(reward_type=False,
-                                                      **get_kwargs(get_model, exclude_names=['reward_type'],
-                                                                   **all_kwargs))
-        verifier_model_state0 = dict(model=vmodel, tokenizer=vtokenizer, device=vdevice,
-                                     base_model=verifier_model, tokenizer_base_model=verifier_tokenizer_base_model,
-                                     lora_weights='',
-                                     inference_server=verifier_inference_server, prompt_type='plain', prompt_dict={},
-                                     visible_models=None, h2ogpt_key=None)
-
         # assume gradio needs everything
         go_gradio(**locals())
 
@@ -2595,7 +2606,7 @@ def get_model(
             base_model in google_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
-            if  inference_server.startswith('openai'):
+            if inference_server.startswith('openai'):
                 client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
                     set_openai(inference_server, model_name=base_model)
                 assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
@@ -4899,7 +4910,16 @@ def languages_covered():
     return covered
 
 
-def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len):
+def score_qa(smodel, stokenizer, question, answer, memory_restriction_level=0, numeric_only=False):
+    if memory_restriction_level > 0:
+        max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
+    elif hasattr(stokenizer, 'model_max_length'):
+        max_length_tokenize = stokenizer.model_max_length
+    else:
+        # limit to 1024, not worth OOMing on reward score
+        max_length_tokenize = 2048 - 1024
+    cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
+
     question = question[-cutoff_len:]
     answer = answer[-cutoff_len:]
 
@@ -4910,12 +4930,14 @@ def score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_l
     try:
         score = torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[0]
     except torch.cuda.OutOfMemoryError as e:
+        score = 0.0
         print("GPU OOM 3: question: %s answer: %s exception: %s" % (question, answer, str(e)), flush=True)
         del inputs
         traceback.print_exc()
         clear_torch_cache()
         return 'Response Score: GPU OOM'
     except (Exception, RuntimeError) as e:
+        score = 0.0
         if 'Expected all tensors to be on the same device' in str(e) or \
                 'expected scalar type Half but found Float' in str(e) or \
                 'probability tensor contains either' in str(e) or \

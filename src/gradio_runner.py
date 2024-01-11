@@ -3827,15 +3827,7 @@ def go_gradio(**kwargs):
             smodel = score_model_state0['model']
             stokenizer = score_model_state0['tokenizer']
             sdevice = score_model_state0['device']
-
-            if memory_restriction_level > 0:
-                max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
-            elif hasattr(stokenizer, 'model_max_length'):
-                max_length_tokenize = stokenizer.model_max_length
-            else:
-                # limit to 1024, not worth OOMing on reward score
-                max_length_tokenize = 2048 - 1024
-            cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
+            reward_model = score_model_state0['reward_model']
 
             if not nochat:
                 history = args_list[-1]
@@ -3850,7 +3842,6 @@ def go_gradio(**kwargs):
                     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
                     question = history[-1][0]
-
                     answer = history[-1][1]
                 else:
                     return '%sNA' % prefix
@@ -3863,13 +3854,14 @@ def go_gradio(**kwargs):
                 return '%sBad Question' % prefix
             if answer is None:
                 return '%sBad Answer' % prefix
-            try:
-                score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
-            finally:
-                clear_torch_cache(allow_skip=True)
-            if isinstance(score, str):
-                return '%sNA' % prefix
-            return '{}{:.1%}'.format(prefix, score)
+            score = score_qa(smodel, stokenizer, question, answer, memory_restriction_level=memory_restriction_level)
+            if reward_model:
+                if isinstance(score, str):
+                    return '%sNA' % prefix
+                return '{}{:.1%}'.format(prefix, score)
+            else:
+                # any text
+                return score
 
         def noop_score_last_response(*args, **kwargs):
             return "Response Score: Disabled"

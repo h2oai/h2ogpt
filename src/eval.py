@@ -6,7 +6,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from evaluate_params import eval_func_param_names, eval_extra_columns, input_args_list
-from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry
+from gen import get_score_model, get_model, evaluate, check_locals, get_model_retry, score_qa
 from prompter import Prompter
 from utils import clear_torch_cache, NullContext, get_kwargs, makedirs
 
@@ -306,32 +306,7 @@ def run_eval(  # for local function:
                         cutoff_len = 768 if memory_restriction_level <= 2 else 512
                     else:
                         cutoff_len = tokenizer.model_max_length
-                    inputs = stokenizer(prompt, res,
-                                        return_tensors="pt",
-                                        truncation=True,
-                                        max_length=cutoff_len)
-                    try:
-                        score = \
-                            torch.sigmoid(smodel(**inputs.to(smodel.device)).logits[0].float()).cpu().detach().numpy()[
-                                0]
-                    except torch.cuda.OutOfMemoryError as e:
-                        print("GPU OOM 1: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
-                              flush=True)
-                        traceback.print_exc()
-                        score = 0.0
-                        clear_torch_cache()
-                    except (Exception, RuntimeError) as e:
-                        if 'Expected all tensors to be on the same device' in str(e) or \
-                                'expected scalar type Half but found Float' in str(e) or \
-                                'probability tensor contains either' in str(e) or \
-                                'cublasLt ran into an error!' in str(e):
-                            print("GPU error: question: %s answer: %s exception: %s" % (prompt, res, str(e)),
-                                  flush=True)
-                            traceback.print_exc()
-                            score = 0.0
-                            clear_torch_cache()
-                        else:
-                            raise
+                    score = score_qa(smodel, stokenizer, prompt, res, memory_restriction_level=memory_restriction_level, numeric_only=True)
                     score_dump.append(ex + [prompt, res, score])
                     # dump every score in case abort
                     df_scores = pd.DataFrame(score_dump,
