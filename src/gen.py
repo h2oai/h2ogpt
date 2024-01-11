@@ -3461,6 +3461,9 @@ def evaluate(
     top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
+    if temperature == 0.0:
+        # override
+        do_sample = False
     temperature = min(max(0.01, temperature), 2.0)
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1

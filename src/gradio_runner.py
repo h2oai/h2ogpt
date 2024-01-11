@@ -1568,13 +1568,13 @@ def go_gradio(**kwargs):
                         stream_output = gr.components.Checkbox(label="Stream output",
                                                                value=kwargs['stream_output'])
                         do_sample = gr.Checkbox(label="Sample",
-                                                info="Enable sampler (required for use of temperature, top_p, top_k)",
+                                                info="Enable sampler (required for use of temperature, top_p, top_k).  If temperature=0 is set, this is forced to False.",
                                                 value=kwargs['do_sample'])
                         max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
                                              value=min(kwargs['max_max_time'],
                                                        kwargs['max_time']), label="Max. time",
                                              info="Max. time to search optimal output.")
-                        temperature = gr.Slider(minimum=0.01, maximum=2,
+                        temperature = gr.Slider(minimum=0, maximum=2,
                                                 value=kwargs['temperature'],
                                                 label="Temperature",
                                                 info="Lower is deterministic, higher more creative")
