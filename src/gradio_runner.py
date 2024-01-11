@@ -1575,13 +1575,13 @@ def go_gradio(**kwargs):
                         stream_output = gr.components.Checkbox(label="Stream output",
                                                                value=kwargs['stream_output'])
                         do_sample = gr.Checkbox(label="Sample",
-                                                info="Enable sampler (required for use of temperature, top_p, top_k)",
+                                                info="Enable sampler (required for use of temperature, top_p, top_k).  If temperature=0 is set, this is forced to False.",
                                                 value=kwargs['do_sample'])
                         max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
                                              value=min(kwargs['max_max_time'],
                                                        kwargs['max_time']), label="Max. time",
                                              info="Max. time to search optimal output.")
-                        temperature = gr.Slider(minimum=0.01, maximum=2,
+                        temperature = gr.Slider(minimum=0, maximum=2,
                                                 value=kwargs['temperature'],
                                                 label="Temperature",
                                                 info="Lower is deterministic, higher more creative")
@@ -3831,8 +3831,7 @@ def go_gradio(**kwargs):
 
             if not nochat:
                 history = args_list[-1]
-                if history is None:
-                    history = []
+                history = get_llm_history(history)
                 if smodel is not None and \
                         stokenizer is not None and \
                         sdevice is not None and \
@@ -3993,6 +3992,17 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
+        def get_llm_history(history):
+            # avoid None users used for sources, errors, etc.
+            if history is None:
+                history = []
+            for ii in range(len(history) - 1, -1, -1):
+                if history[ii] and history[ii][0] is not None:
+                    last_user_ii = ii
+                    history = history[:last_user_ii + 1]
+                    break
+            return history
+
         def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None, plain_api=False):
             """
 
@@ -4053,8 +4063,12 @@ def go_gradio(**kwargs):
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
-                instruction1 = history[-1][0]
-                history[-1][1] = None
+                history = get_llm_history(history)
+                instruction1 = history[-1][0] if history and history[-1] and len(history[-1]) == 2 else None
+                if history and history[-1]:
+                    history[-1][1] = None
+                if not instruction1:
+                    return dummy_return
             elif not instruction1:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
                     # if not retrying, then reject empty query
