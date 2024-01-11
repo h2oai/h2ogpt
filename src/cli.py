@@ -144,6 +144,8 @@ def run_cli(  # for local function:
         all_generations = []
         if not context:
             context = ''
+        if chat_conversation is None:
+            chat_conversation = []
         while True:
             clear_torch_cache(allow_skip=True)
             instruction = input("\nEnter an instruction: ")
@@ -185,4 +187,7 @@ def run_cli(  # for local function:
             all_generations.append(outr + '\n')
             if not cli_loop:
                 break
+            if add_chat_history_to_context:
+                # for CLI keep track of conversation
+                chat_conversation.extend([[instruction, outr]])
     return all_generations
