@@ -270,7 +270,7 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       base_model=base_model,
                       tokenizer_base_model=tokenizer_base_model,
                       inference_server=inference_server,
-                      regenerate_clients=False,
+                      regenerate_clients=True,
                       lora_weights='',
                       gpu_id=0,
                       n_jobs=1,
@@ -528,6 +528,7 @@ def test_make_add_db(repeat, db_type):
                                   enable_transcriptions=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
                                   llava_model=None,
+                                  llava_prompt=None,
                                   asr_model='openai/whisper-medium',
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
@@ -1423,9 +1424,9 @@ def check_content_captions(docs, captions_model, enable_pix2struct):
 
 
 def check_content_doctr(docs):
-    assert any(['DRIVERLICENSE' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['DRIVER LICENSE' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['California' in docs[ix].page_content for ix in range(len(docs))])
-    assert any([' EXP <10> 08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['ExP08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['VETERAN' in docs[ix].page_content for ix in range(len(docs))])
 
 
@@ -1462,6 +1463,7 @@ def test_llava_add(image_file, db_type):
                                                add_if_exists=False,
                                                enable_llava=True,
                                                llava_model=os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'),
+                                               llava_prompt=None,
                                                enable_doctr=False,
                                                enable_captions=False,
                                                enable_ocr=False,

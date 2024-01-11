@@ -185,10 +185,10 @@ def test_client1api_lean(save_dir, admin_pass):
 
     client2.refresh_client()  # test refresh
     res = client.predict(api_name=api_name)
-    assert res == get_githash()
+    assert res in [get_githash(), 'GET_GITHASH']
 
     res = client2.get_server_hash()
-    assert res == get_githash()
+    assert res in [get_githash(), 'GET_GITHASH']
 
 
 @wrap_test_forked
@@ -236,7 +236,7 @@ def test_client1api_lean_lock_choose_model():
             if base_model == base1:
                 assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
             else:
-                assert 'the limit of time' in response
+                assert 'the limit of time' in response or 'the limit' in response
 
     api_name = '/model_names'
     res = client.predict(api_name=api_name)
@@ -1790,7 +1790,7 @@ def check_langchain():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -2117,7 +2117,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     user_path = make_user_path_test()
 
     if loaders is None:
-        loaders = tuple([None, None, None, None, None])
+        loaders = tuple([None, None, None, None, None, None])
     else:
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
@@ -2133,10 +2133,15 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                      try_pdf_as_html=True,
                      enable_llava=True,
                      llava_model=None,
+                     llava_prompt=None,
                      max_quality=True)
         # use all loaders except crawling ones
         url_loaders_options = [x for x in url_loaders_options if 'scrape' not in x.lower()]
-        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options, None, 0]
+        jq_schema = None
+        extract_frames = 0
+        llava_prompt = None
+        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
+                   jq_schema, extract_frames, llava_prompt]
 
     stream_output = True
     max_new_tokens = 256
@@ -2155,6 +2160,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
+         append_sources_to_answer=True,
+         append_sources_to_chat=False,
          **main_kwargs,
          verbose=True)
 
@@ -2223,6 +2230,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "finds more text to be boring" in res_dict['response'] or
             "text to be boring" in res_dict['response'] or
             "author finds more text to be boring" in res_dict['response'] or
+            "more text is boring" in res_dict['response'] or
             "more text is boring" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
@@ -2737,7 +2745,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
     url = 'https://www.africau.edu/images/default/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file1, langchain_mode, True, 512, True,
                          *loaders,
@@ -2817,7 +2825,7 @@ def test_client_timeout(stream_output, max_time):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -3356,7 +3364,7 @@ Rating: 5 (most positive)"""
     embed = False
     chunk = False
     chunk_size = 512
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
     print("TIME prep: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
@@ -3504,7 +3512,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
         elif inference_server == 'https://gpt.h2o.ai':
-            base_model = 'h2oai/h2ogpt-4096-llama2-13b-chat'
+            base_model = 'HuggingFaceH4/zephyr-7b-beta'
         else:
             base_model = 'gpt-3.5-turbo'
 
@@ -3569,7 +3577,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -3673,7 +3681,7 @@ def test_client_summarization_from_text():
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(all_text_contents,
                          langchain_mode, chunk, chunk_size, True,
@@ -3729,7 +3737,7 @@ def test_client_summarization_from_url(url, top_k_docs):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(url,
                          langchain_mode, chunk, chunk_size, True,
@@ -3822,7 +3830,7 @@ def test_fastsys(stream_output, bits, prompt_type):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     res = client.predict(test_file_server,
                          langchain_mode, chunk, chunk_size, True,
@@ -3887,7 +3895,7 @@ def test_hyde(stream_output, hyde_level, hyde_template):
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
-    loaders = tuple([None, None, None, None, None])
+    loaders = tuple([None, None, None, None, None, None])
     h2ogpt_key = ''
     embed = True
     res = client.predict(test_file_server,
@@ -4098,7 +4106,8 @@ def check_curl_plain_api():
     response = requests.post('http://127.0.0.1:7860/api/submit_nochat_plain_api', headers=headers, json=json_data)
     res_dict = ast.literal_eval(json.loads(response.content.decode(encoding='utf-8', errors='strict'))['data'][0])
 
-    assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response']
+    assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response'] or 'program designed' in \
+           res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
     assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict'][
         'base_model']

@@ -94,9 +94,12 @@ class GradioClient(Client):
             max_workers: int = 40,
             serialize: bool = None,
             output_dir: str | Path | None = DEFAULT_TEMP_DIR,
-            verbose: bool = True,
+            verbose: bool = False,
             auth: tuple[str, str] | None = None,
             h2ogpt_key: str = None,
+            persist: bool = False,
+            check_hash: bool = True,
+            check_model_name: bool = False,
     ):
         """
         Parameters:
@@ -106,6 +109,13 @@ class GradioClient(Client):
             serialize: Whether the client should serialize the inputs and deserialize the outputs of the remote API. If set to False, the client will pass the inputs and outputs as-is, without serializing/deserializing them. E.g. you if you set this to False, you'd submit an image in base64 format instead of a filepath, and you'd get back an image in base64 format from the remote API instead of a filepath.
             output_dir: The directory to save files that are downloaded from the remote API. If None, reads from the GRADIO_TEMP_DIR environment variable. Defaults to a temporary directory on your machine.
             verbose: Whether the client should print statements to the console.
+
+            h2ogpt_key: h2oGPT key to gain access to the server
+            persist: whether to persist the state, so repeated calls are aware of the prior user session
+                     This allows the scratch MyData to be reused, etc.
+                     This also maintains the chat_conversation history
+            check_hash: whether to check git hash for consistency between server and client to ensure API always up to date
+            check_model_name: whether to check the model name here (adds delays), or just let server fail (fater)
         """
         if serialize is None:
             # else converts inputs arbitrarily and outputs mutate
@@ -118,9 +128,13 @@ class GradioClient(Client):
             serialize=serialize,
             output_dir=output_dir,
             verbose=verbose,
-            auth=auth,
             h2ogpt_key=h2ogpt_key,
+            persist=persist,
+            check_hash=check_hash,
+            check_model_name=check_model_name,
         )
+        if is_gradio_client_version7:
+            self.kwargs.update(dict(auth=auth))
 
         self.verbose = verbose
         self.hf_token = hf_token
@@ -137,8 +151,13 @@ class GradioClient(Client):
         self.src = src
         self.auth = auth
         self.config = None
-        self.server_hash = None
         self.h2ogpt_key = h2ogpt_key
+        self.persist = persist
+        self.check_hash = check_hash
+        self.check_model_name = check_model_name
+
+        self.chat_conversation = []  # internal for persist=True
+        self.server_hash = None  # internal
 
     def __repr__(self):
         if self.config:
@@ -249,25 +268,28 @@ class GradioClient(Client):
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
-        # return super().submit(api_name="/system_hash").result()
-        # disable for helium for now, just return constant value if not in github repo
-        return "GET_GITHASH"
+        if self.check_hash:
+            return super().submit(api_name="/system_hash").result()
+        else:
+            return "GET_GITHASH"
 
-    def refresh_client_if_should(self, persist=True):
+    def refresh_client_if_should(self):
         if self.config is None:
             self.setup()
         # get current hash in order to update api_name -> fn_index map in case gradio server changed
         # FIXME: Could add cli api as hash
         server_hash = self.get_server_hash()
         if self.server_hash != server_hash:
+            if self.verbose:
+                print("server hash changed: %s %s" % (self.server_hash, server_hash), flush=True)
+            if self.server_hash is not None and self.persist:
+                if self.verbose:
+                    print("Failed to persist due to server hash change, only kept chat_conversation not user session hash", flush=True)
             # risky to persist if hash changed
-            self.refresh_client(persist=False)
+            self.refresh_client()
             self.server_hash = server_hash
-        else:
-            if not persist:
-                self.reset_session()
 
-    def refresh_client(self, persist=True):
+    def refresh_client(self):
         """
         Ensure every client call is independent
         Also ensure map between api_name and fn_index is updated in case server changed (e.g. restarted with new code)
@@ -275,15 +297,37 @@ class GradioClient(Client):
         """
         if self.config is None:
             self.setup()
-        if not persist:
-            # need session hash to be new every time, to avoid "generator already executing"
-            self.reset_session()
 
         kwargs = self.kwargs.copy()
         kwargs.pop('h2ogpt_key', None)
-        client = Client(*self.args, **kwargs)
+        kwargs.pop('persist', None)
+        kwargs.pop('check_hash', None)
+        kwargs.pop('check_model_name', None)
+        ntrials = 3
+        client = None
+        for trial in range(0, ntrials + 1):
+            try:
+                client = Client(*self.args, **kwargs)
+            except ValueError as e:
+                if trial >= ntrials:
+                    raise
+                else:
+                    if self.verbose:
+                        print("Trying refresh %d/%d %s" % (trial, ntrials - 1, str(e)))
+                    trial += 1
+                    time.sleep(10)
+        if client is None:
+            raise RuntimeError("Failed to get new client")
+        session_hash0 = self.session_hash if self.persist else None
         for k, v in client.__dict__.items():
             setattr(self, k, v)
+        if session_hash0:
+            # keep same system hash in case server API only changed and not restarted
+            self.session_hash = session_hash0
+        if self.verbose:
+            print("Hit refresh_client(): %s %s" % (self.session_hash, session_hash0))
+        # ensure server hash also updated
+        self.server_hash = self.get_server_hash()
 
     def clone(self):
         if self.config is None:
@@ -299,6 +343,9 @@ class GradioClient(Client):
             Endpoint(client, fn_index, dependency)
             for fn_index, dependency in enumerate(client.config["dependencies"])
         ]
+        # transfer internals in case used
+        client.server_hash = self.server_hash
+        client.chat_conversation = self.chat_conversation
         return client
 
     def submit(
@@ -599,7 +646,10 @@ class GradioClient(Client):
         """
         if self.config is None:
             self.setup()
-        client = self.clone()
+        if self.persist:
+            client = self
+        else:
+            client = self.clone()
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
 
@@ -608,7 +658,7 @@ class GradioClient(Client):
         # chunking not used here
         # MyData specifies scratch space, only persisted for this individual client call
         langchain_mode = langchain_mode or "MyData"
-        loaders = tuple([None, None, None, None, None])
+        loaders = tuple([None, None, None, None, None, None])
         doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
         asserts |= bool(os.getenv("HARD_ASSERTS", False))
         if (
@@ -706,7 +756,7 @@ class GradioClient(Client):
             max_new_tokens=max_new_tokens,
 
             add_search_to_context=add_search_to_context,
-            chat_conversation=chat_conversation,
+            chat_conversation=chat_conversation if chat_conversation else self.chat_conversation,
             text_context_list=text_context_list,
             docs_ordering_type=docs_ordering_type,
             min_max_new_tokens=min_max_new_tokens,
@@ -720,6 +770,12 @@ class GradioClient(Client):
             doc_json_mode=doc_json_mode,
         )
 
+        # in case server changed, update in case clone()
+        self.server_hash = client.server_hash
+
+        # ensure can fill conversation
+        self.chat_conversation.append((instruction, None))
+
         # get result
         trials = 3
         for trial in range(trials):
@@ -729,6 +785,8 @@ class GradioClient(Client):
                         str(dict(kwargs)),
                         api_name=api_name,
                     )
+                    # in case server changed, update in case clone()
+                    self.server_hash = client.server_hash
                     res = ast.literal_eval(res)
                     response = res["response"]
                     if langchain_action != LangChainAction.EXTRACT.value:
@@ -746,6 +804,7 @@ class GradioClient(Client):
                         assert len(texts_out) == len(scores_out)
 
                     yield response, texts_out
+                    self.chat_conversation[-1] = (instruction, response)
                 else:
                     job = client.submit(str(dict(kwargs)), api_name=api_name)
                     text0 = ""
@@ -785,10 +844,12 @@ class GradioClient(Client):
                         sources = res_dict["sources"]
                         texts_out = [x["content"] for x in sources]
                         yield response[len(text0):], texts_out
+                        self.chat_conversation[-1] = (instruction, response[len(text0):])
                     else:
                         # 1.0 slightly longer than 0.3 in open source
                         check_job(job, timeout=1.0, raise_exception=True)
                         yield response[len(text0):], texts_out
+                        self.chat_conversation[-1] = (instruction, response[len(text0):])
                 break
             except Exception as e:
                 print(
@@ -801,9 +862,12 @@ class GradioClient(Client):
                 else:
                     print("trying again: %s" % trial, flush=True)
                     time.sleep(1 * trial)
+            finally:
+                # in case server changed, update in case clone()
+                self.server_hash = client.server_hash
 
     def check_model(self, model):
-        if model != 0:
+        if model != 0 and self.check_model_name:
             valid_llms = self.list_models()
             if (
                     isinstance(model, int)

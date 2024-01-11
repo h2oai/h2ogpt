@@ -51,7 +51,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
-    user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs
+    user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
+    generic_postfix
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -149,7 +150,7 @@ def main(
         compile_model: bool = None,
         use_cache: bool = None,
         inference_server: str = "",
-        regenerate_clients: bool = False,
+        regenerate_clients: bool = True,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -250,6 +251,7 @@ def main(
         gradio_api_use_same_stream_limits: bool = True,
         gradio_upload_to_chatbot: bool = False,
         gradio_upload_to_chatbot_num_max: bool = 2,
+        gradio_errors_to_chatbot: bool = True,
 
         pre_load_embedding_model: bool = True,
         embedding_gpu_id: Union[int, str] = 'auto',
@@ -269,6 +271,8 @@ def main(
         max_max_new_tokens=None,
 
         visible_models: list = None,
+        max_visible_models: int = None,
+
         visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
@@ -289,13 +293,14 @@ def main(
         visible_h2ogpt_logo: bool = True,
         visible_chatbot_label: bool = True,
         visible_all_prompter_models: bool = False,
+        visible_curated_models: bool = True,
         actions_in_sidebar: bool = False,
         document_choice_in_sidebar: bool = False,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
         pdf_height: int = 800,
         avatars: bool = True,
-        add_disk_models_to_ui=True,
+        add_disk_models_to_ui: bool = True,
         page_title: str = "h2oGPT",
         favicon_path: str = None,
 
@@ -346,10 +351,13 @@ def main(
         auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
-        append_sources_to_answer: bool = True,
+        append_sources_to_answer: bool = False,
+        append_sources_to_chat: bool = True,
         show_accordions: bool = True,
         top_k_docs_max_show: int = 10,
         show_link_in_sources: bool = True,
+        langchain_instruct_mode: bool = True,
+
         pre_prompt_query: str = None,
         prompt_query: str = None,
         pre_prompt_summary: str = None,
@@ -418,6 +426,7 @@ def main(
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
         llava_model: str = None,
+        llava_prompt: str = 'auto',
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
@@ -494,7 +503,7 @@ def main(
     :param use_cache: Whether to use caching in model (some models fail when multiple threads use)
     :param inference_server: Consume base_model as type of model at this address
                              Address can be text-generation-server hosting that base_model
-                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=h2oai/h2ogpt-oasst1-512-12b
+                             e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=HuggingFaceH4/zephyr-7b-beta
 
                              Or Address can be "openai_chat" or "openai" for OpenAI API
                              Or Address can be "openai_azure_chat" or "openai_azure" for Azure OpenAI API
@@ -536,6 +545,7 @@ def main(
 
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
+           Maybe risky, some lack of thread safety: https://github.com/encode/httpx/discussions/3043, so disabled
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -582,8 +592,7 @@ def main(
          inject_fused_attention=False
          disable_exllama=True
          use_triton=True
-    :param attention_sinks: Whether to enable attention sinks. Requires in local repo:
-         git clone https://github.com/tomaarsen/attention_sinks.git
+    :param attention_sinks: Whether to enable attention sinks.
     :param sink_dict: dict of options for attention sinks
            E.g. {'window_length': 1024, 'num_sink_tokens': 4}
            Default is window length same size as max_input_tokens (max_seq_len if max_input_tokens not set)
@@ -724,9 +733,13 @@ def main(
     :param gradio_api_use_same_stream_limits: Whether to use same streaming limits as UI for API
     :param gradio_upload_to_chatbot: Whether to show upload in chatbots
     :param gradio_upload_to_chatbot_num_max: Max number of things to add to chatbot
+    :param gradio_errors_to_chatbot: Whether to show errors in Accordion in chatbot or just in exceptions in each tab
 
     :param pre_load_embedding_model: Whether to preload embedding model for shared use across DBs and users (multi-thread safe only)
-    :param embedding_gpu_id: which GPU to place embedding model on.  Only used if preloading embedding model.
+    :param embedding_gpu_id: which GPU to place embedding model on.
+                             Only used if preloading embedding model.
+                             If 'auto', then use first device as is default
+                             If 'cpu' or some other string like 'mps', then use that as device name.
 
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
@@ -783,6 +796,7 @@ def main(
            Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
               and the value is not used to access the inference server.
               If need a visible_models for an inference server, then use --model_lock and group together.
+    :para max_visible_models: maximum visible models to allow to select in UI
 
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
@@ -804,8 +818,10 @@ def main(
     :param visible_h2ogpt_logo: Whether central logo is visible
     :param visible_chatbot_label: Whether to show label in chatbot (e.g. if only one model for own purpose, then can set to False)
     :param visible_all_prompter_models: Whether to show all prompt_type_to_model_name items or just curated ones
+    :param visible_curated_models: Whether to show curated models (useful to see few good options)
     :param actions_in_sidebar: Whether to show sidebar with actions in old style
     :param document_choice_in_sidebar: Whether to show document choices in sidebar
+           Useful if often changing picking specific document(s)
     :param enable_add_models_to_list_ui: Whether to show add model, lora, server to dropdown list
            Disabled by default since clutters Models tab in UI, and can just add custom item directly in dropdown
     :param max_raw_chunks: Maximum number of chunks to show in UI when asking for raw DB text from documents/collection
@@ -905,10 +921,14 @@ def main(
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
+    :param append_sources_to_chat: Whether to place sources information in chat response but in separate chat turn (ignored by LLM).  Always disabled for API.
     :param show_accordions: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
            If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
+    :param langchain_instruct_mode: Whether to have langchain operate in instruct mode (True) or few-shot mode (False)
+           Normally this might be decidable from --prompt_type=plain, but in some cases (like vllm_chat) we want inference server to handle all prompting, so need to tell h2oGPT to use plain prompting, but don't want to change langchain behavior
+
     :param pre_prompt_query: prompt before documents to query, if None then use internal defaults
     :param prompt_query: prompt after documents to query, if None then use internal defaults
     :param pre_prompt_summary: prompt before documents to summarize/extract from, if None then use internal defaults
@@ -916,6 +936,28 @@ def main(
            For summarize/extract, normal to have empty query (nothing added in ask anything in UI or empty string in API)
            If pass query, template is "Focusing on %s, %s" % (query, prompt_summary)
            If pass query and iinput, template is "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+
+    For query, prompt template is:
+      "{pre_prompt_query}
+        \"\"\"
+        {fstring}
+        \"\"\"
+        {prompt_query}{instruction}"
+    For summarization or extraction, for some internal document part fstring, the template looks like:
+        "{pre_prompt_summary}
+        \"\"\"
+        {fstring}
+        \"\"\"
+        {prompt_summary}"
+     If added instruction for summarization or extraction, prompt template is
+      "{pre_prompt_summary}
+        \"\"\"
+        {fstring}
+        \"\"\"
+        Focusing on {instruction}, {prompt_summary}"
+        
+    {fstring} is some document chunks separated by {docs_joiner}
+
     :param hyde_llm_prompt: hyde prompt for first step when using LLM
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param add_chat_history_to_context: Include chat context when performing action
@@ -952,7 +994,7 @@ def main(
     :param n_jobs: Number of processors to use when consuming documents (-1 = all, is default)
     :param n_gpus: Number of GPUs (None = autodetect)
     :param clear_torch_cache_level: 0: never clear except where critically required
-                                    1: clear critical + periodically every 120s
+                                    1: clear critical
                                     2: clear aggressively and clear periodically every 20s to free-up GPU memory (may lead to lag in response)
 
     :param use_unstructured: Enable unstructured URL loader
@@ -1000,6 +1042,7 @@ def main(
     :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
            E.g. http://192.168.1.46:7861
            None means no such LLaVa support
+    :param llava_prompt: Prompt passed to LLaVa for querying the image
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
@@ -1177,6 +1220,8 @@ def main(
         # nominally allow UI access public or not
         enforce_h2ogpt_ui_key = False
     if is_public:
+        if max_visible_models is None:
+            max_visible_models = None  # FIXME
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = True
@@ -1371,6 +1416,10 @@ def main(
     if str(score_model) == 'None':
         score_model = ''
     all_inference_server = inference_server or model_lock and all(x.get('inference_server') for x in model_lock)
+    if inference_server == 'openai' and base_model in openai_gpts:
+        # deprecate chat models with non-chat API
+        inference_server = 'openai_chat'
+
     if os.getenv('CONCURRENCY_COUNT'):
         concurrency_count = int(os.getenv('CONCURRENCY_COUNT'))
     elif concurrency_count:
@@ -1563,6 +1612,7 @@ def main(
                             url_loaders,
                             jq_schema,
                             extract_frames,
+                            llava_prompt,
                             docs_ordering_type,
                             min_max_new_tokens,
                             max_input_tokens,
@@ -1580,7 +1630,7 @@ def main(
                             verbose,
                             )
 
-    git_hash = get_githash() if is_public or os.getenv('GET_GITHASH') else "GET_GITHASH"
+    git_hash = get_githash()
     locals_dict = locals()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
@@ -1905,7 +1955,7 @@ def main(
                                                                llamacpp_dict=model_dict['llamacpp_dict'])
                 if prompt_type1_trial:
                     model_dict['prompt_type'] = prompt_type1_trial
-                    get_prompt_kwargs = dict(chat=False, context='', reduced=False,
+                    get_prompt_kwargs = dict(context='', reduced=False,
                                              making_context=False,
                                              return_dict=True,
                                              system_prompt=system_prompt)
@@ -2284,7 +2334,7 @@ def get_model(
         use_gpu_id: bool = True,
         base_model: str = '',
         inference_server: str = "",
-        regenerate_clients: bool = False,
+        regenerate_clients: bool = True,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -2344,7 +2394,7 @@ def get_model(
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
     :param exllama_dict: dict of exllama options
     :param gptq_dict: dict of AutoGPTQ options
-    :param attention_sinks: whether to use attention_sinks package
+    :param attention_sinks: whether to use attention_sinks
     :param sink_dict: dict of attention sinks options
     :param truncation_generation: whether to truncate generation in torch case to max_seq_len
     :param hf_model_dict
@@ -2521,8 +2571,10 @@ def get_model(
             base_model in google_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
-            if inference_server.startswith('openai'):
-                assert os.getenv('OPENAI_API_KEY'), "Set environment for OPENAI_API_KEY"
+            if  inference_server.startswith('openai'):
+                client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
+                    set_openai(inference_server, model_name=base_model)
+                assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
             # Don't return None, None for model, tokenizer so triggers
             if base_model in model_token_mapping:
                 max_seq_len = model_token_mapping[base_model]
@@ -3029,7 +3081,7 @@ def get_score_model(score_model: str = None,
         tokenizer_base_model = ''
         lora_weights = ''
         inference_server = ''
-        regenerate_clients = False
+        regenerate_clients = True
         llama_type = False
         max_seq_len = None
         rope_scaling = {}
@@ -3110,6 +3162,7 @@ def evaluate(
         url_loaders,
         jq_schema,
         extract_frames,
+        llava_prompt,
         visible_models,
         h2ogpt_key,
         add_search_to_context,
@@ -3181,6 +3234,8 @@ def evaluate(
         hyde_show_intermediate_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
+        langchain_instruct_mode=None,
+
         verbose=False,
         gradio=True,
         cli=False,
@@ -3203,11 +3258,13 @@ def evaluate(
         load_exllama=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        append_sources_to_chat=None,
         image_audio_loaders_options0=None,
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
         keep_sources_in_context=None,
+        gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
 
         # carry defaults to know what forced-off means
@@ -3404,6 +3461,9 @@ def evaluate(
     top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
+    if temperature == 0.0:
+        # override
+        do_sample = False
     temperature = min(max(0.01, temperature), 2.0)
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
@@ -3462,7 +3522,7 @@ def evaluate(
     stream_output = gradio and num_beams == 1
 
     # get prompter
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                         system_prompt=system_prompt)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
@@ -3576,6 +3636,7 @@ def evaluate(
                                  asr_loader=asr_loader,
                                  jq_schema=jq_schema,
                                  extract_frames=extract_frames,
+                                 llava_prompt=llava_prompt,
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
         # no longer stuff chat history directly into context this early
@@ -3600,9 +3661,11 @@ def evaluate(
                 cut_distance=1.1 if langchain_mode in ['wiki_full'] else cut_distance,
                 answer_with_sources=answer_with_sources,
                 append_sources_to_answer=append_sources_to_answer,
+                append_sources_to_chat=append_sources_to_chat,
                 add_chat_history_to_context=add_chat_history_to_context,
                 add_search_to_context=add_search_to_context,
                 keep_sources_in_context=keep_sources_in_context,
+                gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                 memory_restriction_level=memory_restriction_level,
                 system_prompt=system_prompt,
                 allow_chat_system_prompt=allow_chat_system_prompt,
@@ -3617,6 +3680,7 @@ def evaluate(
                 hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                 top_k_docs_max_show=top_k_docs_max_show,
                 show_link_in_sources=show_link_in_sources,
+                langchain_instruct_mode=langchain_instruct_mode,
 
                 # evaluate args items
                 query=instruction,
@@ -3691,8 +3755,9 @@ def evaluate(
             response_no_refs = r['response_no_refs']
             sources_str = r['sources_str']
             prompt_raw = str(r['prompt_raw'])
-            yield dict(response=response, sources=[], save_dict={}, llm_answers=llm_answers,
-                       response_no_refs=response_no_refs, sources_str='', prompt_raw='')
+            if stream_output:
+                yield dict(response=response, sources=[], save_dict={}, llm_answers=llm_answers,
+                           response_no_refs=response_no_refs, sources_str='', prompt_raw='')
         extra_dict.update(dict(num_prompt_tokens=num_prompt_tokens,
                                t_generate=time.time() - t_generate,
                                # tokens_persecond computed in save_generate_output
@@ -3748,6 +3813,8 @@ def evaluate(
                            truncation_generation=truncation_generation,
                            gradio_server=gradio_server,
                            attention_sinks=attention_sinks,
+                           hyde_level=hyde_level,
+                           gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -3818,10 +3885,7 @@ def evaluate(
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                             break
             elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
-                if inf_type == 'vllm_chat':
-                    other_dict = dict(request_timeout=max_time)
-                else:
-                    other_dict = dict(timeout=max_time)
+                other_dict = dict(timeout=max_time)
                 if system_prompt in [None, 'None', 'auto']:
                     openai_system_prompt = "You are a helpful assistant."
                 else:
@@ -3889,10 +3953,10 @@ def evaluate(
                 # Note: h2oGPT gradio server could handle input token size issues for prompt,
                 # but best to handle here so send less data to server
 
-                chat_client = False
+                chat_client = chat
                 where_from = "gr_client"
                 client_langchain_mode = 'Disabled'
-                client_add_chat_history_to_context = True
+                client_add_chat_history_to_context = add_chat_history_to_context
                 client_add_search_to_context = False
                 client_langchain_action = LangChainAction.QUERY.value
                 client_langchain_agents = []
@@ -3948,7 +4012,16 @@ def evaluate(
                                      instruction_nochat=gr_prompt if not chat_client else '',
                                      iinput_nochat=gr_iinput,  # only for chat=False
                                      langchain_mode=client_langchain_mode,
+
                                      add_chat_history_to_context=client_add_chat_history_to_context,
+                                     chat_conversation=chat_conversation,
+                                     text_context_list=text_context_list,
+
+                                     chatbot_role=chatbot_role,
+                                     speaker=speaker,
+                                     tts_language=tts_language,
+                                     tts_speed=tts_speed,
+
                                      langchain_action=client_langchain_action,
                                      langchain_agents=client_langchain_agents,
                                      top_k_docs=top_k_docs,
@@ -3971,6 +4044,7 @@ def evaluate(
                                      url_loaders=url_loaders,
                                      jq_schema=jq_schema,
                                      extract_frames=extract_frames,
+                                     llava_prompt=llava_prompt,
                                      visible_models=visible_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
@@ -3985,6 +4059,7 @@ def evaluate(
                                      hyde_show_only_final=hyde_show_only_final,
                                      doc_json_mode=doc_json_mode,
                                      )
+                assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                 response = ''
                 text = ''
@@ -4047,7 +4122,13 @@ def evaluate(
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
                         text = res_dict['response']
-                        sources = res_dict['sources']
+                        sources = res_dict.get('sources')
+                        if sources is None:
+                            # then communication terminated, keep what have, but send error
+                            if is_public:
+                                raise ValueError("Abrupt termination of communication")
+                            else:
+                                raise ValueError("Abrupt termination of communication: %s" % strex)
                     else:
                         # if got no answer at all, probably something bad, always raise exception
                         # UI will still put exception in Chat History under chat exceptions
@@ -4530,6 +4611,7 @@ def get_generate_params(model_lower,
                         url_loaders,
                         jq_schema,
                         extract_frames,
+                        llava_prompt,
                         docs_ordering_type,
                         min_max_new_tokens,
                         max_input_tokens,
@@ -4732,6 +4814,7 @@ y = np.random.randint(0, 1, 100)
                     url_loaders,
                     jq_schema,
                     extract_frames,
+                    llava_prompt,
                     None,
                     None,
                     False,
@@ -4770,7 +4853,7 @@ y = np.random.randint(0, 1, 100)
     # get prompt_dict from prompt_type, so user can see in UI etc., or for custom do nothing except check format
     if prompt_type:
         prompt_dict, error0 = get_prompt(prompt_type, prompt_dict,
-                                         chat=False, context='', reduced=False, making_context=False, return_dict=True,
+                                         context='', reduced=False, making_context=False, return_dict=True,
                                          system_prompt=system_prompt)
         if error0:
             raise RuntimeError("Prompt wrong: %s" % error0)
@@ -4929,15 +5012,31 @@ def merge_chat_conversation_history(chat_conversation1, history):
     return history
 
 
-def remove_refs(text, keep_sources_in_context, langchain_mode):
+def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot):
     # md -> back to text, maybe not super important if model trained enough
-    if not keep_sources_in_context and langchain_mode != 'Disabled' and text.find(super_source_prefix) >= 0:
+    if not keep_sources_in_context and \
+            langchain_mode != 'Disabled' and \
+            text.find(super_source_prefix) >= 0:
         # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
         import re
         text = re.sub(f'{re.escape(super_source_prefix)}.*?{re.escape(super_source_postfix)}', '', text,
                       flags=re.DOTALL)
         if text.endswith('\n<p>'):
             text = text[:-4]
+
+    # HYDE
+    in_generic_chat = gradio_errors_to_chatbot or \
+                      (hyde_level is None or hyde_level > 0) and \
+                      not keep_sources_in_context and \
+                      langchain_mode != 'Disabled'
+    if in_generic_chat and text.find(generic_prefix) >= 0:
+        # FIXME: This is relatively slow even for small amount of text, like 0.3s each history item
+        import re
+        text = re.sub(f'{re.escape(generic_prefix)}.*?{re.escape(generic_postfix)}', '', text,
+                      flags=re.DOTALL)
+        if text.endswith('\n<p>'):
+            text = text[:-4]
+
     return text
 
 
@@ -4963,9 +5062,11 @@ def gradio_to_llm(x, bot=False):
 
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
-                       prompt_type=None, prompt_dict=None, chat=None, model_max_length=None,
+                       prompt_type=None, prompt_dict=None, model_max_length=None,
                        memory_restriction_level=None, keep_sources_in_context=None,
                        system_prompt=None, chat_conversation=None,
+                       hyde_level=None,
+                       gradio_errors_to_chatbot=None,
                        min_max_new_tokens=256):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
@@ -5000,20 +5101,26 @@ def history_to_context(history, langchain_mode=None,
         context1 = ''
         # - 1 below because current instruction already in history from user()
         for histi in range(0, len_history):
-            instruction = gradio_to_llm(history[histi][0], bot=False)
-            output = gradio_to_llm(history[histi][1], bot=True)
+            user = history[histi][0]
+            bot = history[histi][1]
+
+            if user is None:
+                # used to indicate was error or something similar put into chatbot stream
+                continue
+
+            instruction = gradio_to_llm(user, bot=False)
+            output = gradio_to_llm(bot, bot=True)
 
             data_point = dict(instruction=instruction, input='', output=output)
             prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
                 generate_prompt(data_point,
                                 prompt_type,
                                 prompt_dict,
-                                chat,
                                 reduced=True,
                                 making_context=True,
                                 system_prompt=system_prompt,
                                 histi=histi)
-            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode)
+            prompt = remove_refs(prompt, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot)
             prompt = prompt.replace('<br>', chat_turn_sep)
             if not prompt.endswith(chat_turn_sep):
                 prompt += chat_turn_sep
@@ -5025,7 +5132,7 @@ def history_to_context(history, langchain_mode=None,
 
         _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
             generate_prompt({}, prompt_type, prompt_dict,
-                            chat, reduced=True,
+                            reduced=True,
                             making_context=True,
                             system_prompt=system_prompt,
                             histi=-1)
@@ -5053,15 +5160,17 @@ def get_limited_prompt(instruction,
                        estimated_instruction=None,
                        prompter=None,
                        inference_server=None,
-                       prompt_type=None, prompt_dict=None, chat=False, max_new_tokens=None,
+                       prompt_type=None, prompt_dict=None, max_new_tokens=None,
                        system_prompt='',
                        allow_chat_system_prompt=None,
                        context='', chat_conversation=None, text_context_list=None,
                        keep_sources_in_context=False,
+                       gradio_errors_to_chatbot=True,
                        model_max_length=None, memory_restriction_level=0,
                        langchain_mode=None, add_chat_history_to_context=True,
                        verbose=False,
                        doc_importance=0.5,
+                       hyde_level=None,
                        min_max_new_tokens=256,
                        max_input_tokens=-1,
                        max_total_input_tokens=-1,
@@ -5095,7 +5204,6 @@ def get_limited_prompt(instruction,
     if prompter:
         prompt_type = prompter.prompt_type
         prompt_dict = prompter.prompt_dict
-        chat = prompter.chat
         stream_output = prompter.stream_output
         system_prompt = prompter.system_prompt
         can_handle_system_prompt = prompter.can_handle_system_prompt
@@ -5137,11 +5245,12 @@ def get_limited_prompt(instruction,
                                                 add_chat_history_to_context=add_chat_history_to_context,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
-                                                chat=chat,
                                                 model_max_length=max_input_tokens,
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt,
+                                                hyde_level=hyde_level,
+                                                gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
     context2 = history_to_context_func(history)
     context1 = context
@@ -5307,7 +5416,7 @@ def get_limited_prompt(instruction,
         # get prompter
         debug = False
         stream_output = False  # doesn't matter
-        prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+        prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                             system_prompt=system_prompt)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
@@ -5318,7 +5427,9 @@ def get_limited_prompt(instruction,
     # if not from history, then reduced=False inside correct
     # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
     context_from_history = len(history) > 0 and len(context1) > 0
-    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history)
+    # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+    reduced = len(context2) > 0
+    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \
@@ -5378,6 +5489,9 @@ def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
             config = AutoConfig.from_pretrained(x,
                                                 token=use_auth_token,
                                                 trust_remote_code=trust_remote_code)
+            if hasattr(config, 'is_encoder_decoder') and config.is_encoder_decoder and x != 'lmsys/fastchat-t5-3b-v1.0':
+                print("No loading model %s because is_encoder_decoder=True" % x)
+                continue
             if hasattr(config, 'vocab_size'):
                 text_hf_models.append(x)
         except Exception as e:

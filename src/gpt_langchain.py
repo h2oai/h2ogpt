@@ -28,14 +28,13 @@ from urllib.parse import urlparse
 
 import filelock
 import tabulate
-import torch
 
 from joblib import delayed
 from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
 from langchain.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.llms.huggingface_pipeline import VALID_TASKS
+from langchain_community.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
@@ -56,13 +55,13 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named
+    get_accordion_named, hyde_titles
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt
+    user_prompt_for_fake_system_prompt, does_support_json_mode
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
 from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids, system_docqa, system_summary
@@ -445,8 +444,12 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
         # to ensure can fork without deadlock
         from langchain.embeddings import HuggingFaceEmbeddings
 
-        device, torch_dtype, context_class = get_device_dtype()
-        model_kwargs = dict(device=device)
+        if isinstance(gpu_id, int) or gpu_id == 'auto':
+            device, torch_dtype, context_class = get_device_dtype()
+            model_kwargs = dict(device=device)
+        else:
+            # use gpu_id as device name
+            model_kwargs = dict(device=gpu_id)
         if 'instructor' in hf_embedding_model:
             encode_kwargs = {'normalize_embeddings': True}
             embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
@@ -663,6 +666,7 @@ class GradioInference(H2Oagenerate, LLM):
                              url_loaders=None,  # don't need to further do doc specific things
                              jq_schema=None,  # don't need to further do doc specific things
                              extract_frames=10,
+                             llava_prompt=None,
                              visible_models=self.visible_models,
                              h2ogpt_key=self.h2ogpt_key,
                              add_search_to_context=client_add_search_to_context,
@@ -1228,7 +1232,7 @@ class ExtraChat:
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)):
+            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropicSys):
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -1353,6 +1357,10 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+
+
+class H2OChatAnthropicSys(H2OChatAnthropic):
+    pass
 
 
 class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
@@ -1494,6 +1502,8 @@ def get_llm(use_openai_model=False,
             sink_dict={},
             truncation_generation=None,
 
+            langchain_agents=None,
+
             n_jobs=None,
             cli=False,
             llamacpp_path=None,
@@ -1614,6 +1624,9 @@ def get_llm(use_openai_model=False,
                             deployment_name=deployment_type,
                             azure_endpoint=base_url,
                             )
+        if LangChainAgent.AUTOGPT.value in langchain_agents and \
+                does_support_json_mode(inference_server, model_name):
+            azure_kwargs.update(response_format={"type": "json_object"})
 
         kwargs_extra = {}
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
@@ -1621,13 +1634,14 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
-                async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
+                async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
+                # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
                                          openai_api_key=api_key,
-                                         batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         # batch_size=1,
                                          client=openai_client,
                                          async_client=openai_async_client,
-                                         async_sem=async_sem,
+                                         # async_sem=async_sem,
                                          ))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
@@ -1690,7 +1704,11 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server.startswith('anthropic'):
-        cls = H2OChatAnthropic
+        if model_name == "claude-2.1":
+            # https://docs.anthropic.com/claude/docs/how-to-use-system-prompts
+            cls = H2OChatAnthropicSys
+        else:
+            cls = H2OChatAnthropic
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
@@ -1870,7 +1888,7 @@ def get_llm(use_openai_model=False,
         if prompter:
             prompt_type = prompter.prompt_type
         else:
-            prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=False, stream_output=stream_output)
+            prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name=model_name,
@@ -2347,6 +2365,7 @@ def file_to_doc(file,
                 enable_transcriptions=True,
                 captions_model=None,
                 llava_model=None,
+                llava_prompt=None,
 
                 asr_model=None,
                 asr_gpu_id=0,
@@ -2453,6 +2472,7 @@ def file_to_doc(file,
                                           captions_model=captions_model,
                                           enable_llava=enable_llava,
                                           llava_model=llava_model,
+                                          llava_prompt=llava_prompt,
 
                                           # audio
                                           enable_transcriptions=enable_transcriptions,
@@ -2465,6 +2485,7 @@ def file_to_doc(file,
 
                                           # json
                                           jq_schema=jq_schema,
+                                          # video
                                           extract_frames=extract_frames,
 
                                           db_type=db_type,
@@ -2915,14 +2936,14 @@ def file_to_doc(file,
                 print("BEGIN: LLaVa", flush=True)
             try:
                 from src.vision.utils_vision import get_llava_response
-                res = get_llava_response(file, llava_model)
+                res, llava_prompt = get_llava_response(file, llava_model, prompt=llava_prompt)
                 metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
                 docs1c = [Document(page_content=res, metadata=metadata)]
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, parser='LLaVa: %s' % llava_model)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, hashid=hash_of_file, llava_prompt=llava_prompt) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("LLaVa: %s" % str(e0), flush=True)
@@ -3318,6 +3339,7 @@ def path_to_doc1(file,
                  # json
                  jq_schema='.[]',
                  extract_frames=10,
+                 llava_prompt=None,
 
                  model_loaders=None,
 
@@ -3373,12 +3395,15 @@ def path_to_doc1(file,
                           enable_transcriptions=enable_transcriptions,
                           captions_model=captions_model,
                           llava_model=llava_model,
+                          llava_prompt=llava_prompt,
                           asr_model=asr_model,
 
                           model_loaders=model_loaders,
 
                           # json
                           jq_schema=jq_schema,
+
+                          # video
                           extract_frames=extract_frames,
 
                           headsize=headsize,
@@ -3448,6 +3473,7 @@ def path_to_docs(path_or_paths,
                  enable_transcriptions=True,
                  captions_model=None,
                  llava_model=None,
+                 llava_prompt=None,
                  asr_model=None,
 
                  caption_loader=None,
@@ -3457,7 +3483,9 @@ def path_to_docs(path_or_paths,
 
                  # json
                  jq_schema='.[]',
+                 # video
                  extract_frames=10,
+
                  db_type=None,
                  is_public=False,
 
@@ -3594,6 +3622,7 @@ def path_to_docs(path_or_paths,
                   enable_transcriptions=enable_transcriptions,
                   captions_model=captions_model,
                   llava_model=llava_model,
+                  llava_prompt=llava_prompt,
                   asr_model=asr_model,
 
                   model_loaders=model_loaders,
@@ -4172,6 +4201,7 @@ def _make_db(use_openai_embedding=False,
              captions_model=None,
              caption_loader=None,
              llava_model=None,
+             llava_prompt=None,
              doctr_loader=None,
              pix2struct_loader=None,
              asr_model=None,
@@ -4179,6 +4209,7 @@ def _make_db(use_openai_embedding=False,
 
              # json
              jq_schema='.[]',
+             # video
              extract_frames=10,
 
              langchain_mode=None,
@@ -4273,6 +4304,7 @@ def _make_db(use_openai_embedding=False,
                                 captions_model=captions_model,
                                 caption_loader=caption_loader,
                                 llava_model=llava_model,
+                                llava_prompt=llava_prompt,
                                 doctr_loader=doctr_loader,
                                 pix2struct_loader=pix2struct_loader,
                                 asr_model=asr_model,
@@ -4596,6 +4628,7 @@ def _run_qa_db(query=None,
                context=None,
                use_openai_model=False, use_openai_embedding=False,
                first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
+               langchain_instruct_mode=True,
 
                # urls
                use_unstructured=True,
@@ -4622,6 +4655,7 @@ def _run_qa_db(query=None,
                captions_model=None,
                caption_loader=None,
                llava_model=None,
+               llava_prompt=None,
                doctr_loader=None,
                pix2struct_loader=None,
                asr_model=None,
@@ -4648,11 +4682,13 @@ def _run_qa_db(query=None,
                prompt_type=None,
                prompt_dict=None,
                answer_with_sources=True,
-               append_sources_to_answer=True,
+               append_sources_to_answer=False,
+               append_sources_to_chat=True,
                cut_distance=1.64,
                add_chat_history_to_context=True,
                add_search_to_context=False,
                keep_sources_in_context=False,
+               gradio_errors_to_chatbot=True,
                memory_restriction_level=0,
                system_prompt='',
                allow_chat_system_prompt=True,
@@ -4825,7 +4861,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     # handle auto case
     if system_prompt == 'auto':
         changed = False
-        if query_action:
+        if query_action and langchain_mode not in langchain_modes_non_db:
             system_prompt = system_docqa
             changed = True
         elif summarize_action:
@@ -4882,6 +4918,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       attention_sinks=attention_sinks,
                       sink_dict=sink_dict,
                       truncation_generation=truncation_generation,
+                      langchain_agents=langchain_agents,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -4904,7 +4941,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             prompt_type = prompt_type_out
         # get prompter
         chat = True  # FIXME?
-        prompter = Prompter(prompt_type, prompt_dict, debug=False, chat=chat, stream_output=stream_output,
+        prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
                             system_prompt=system_prompt)
 
     scores = []
@@ -4974,7 +5011,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                  llm_answers,
                                  scores, show_rank,
                                  answer_with_sources,
-                                 append_sources_to_answer])
+                                 append_sources_to_answer,
+                                 append_sources_to_chat])
         get_answer_kwargs.update(dict(t_run=time.time() - t_run,
                                       count_input_tokens=0,
                                       count_output_tokens=0,
@@ -5027,7 +5065,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                              llm_answers,
                              scores, show_rank,
                              answer_with_sources,
-                             append_sources_to_answer])
+                             append_sources_to_answer,
+                             append_sources_to_chat])
     get_answer_kwargs.update(dict(t_run=time.time() - t_run,
                                   count_input_tokens=llm.count_input_tokens
                                   if hasattr(llm, 'count_input_tokens') else None,
@@ -5414,6 +5453,7 @@ def run_hyde(*args, **kwargs):
     answer_with_sources = kwargs['answer_with_sources']
     get_answer_kwargs = kwargs['get_answer_kwargs']
     append_sources_to_answer = kwargs['append_sources_to_answer']
+    append_sources_to_chat = kwargs['append_sources_to_chat']
     prompt_basic = kwargs['prompt_basic']
     docs_joiner = kwargs['docs_joiner']
 
@@ -5482,7 +5522,8 @@ def run_hyde(*args, **kwargs):
                                      llm_answers,
                                      scores, show_rank,
                                      answer_with_sources,
-                                     append_sources_to_answer])
+                                     append_sources_to_answer,
+                                     append_sources_to_chat])
             ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
             # FIXME: Something odd, UI gets stuck and no more yields if pass these sources inside ret
             # https://github.com/gradio-app/gradio/issues/6100
@@ -5514,6 +5555,7 @@ def get_chain(query=None,
               iinput=None,
               context=None,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               use_openai_model=False, use_openai_embedding=False,
+              langchain_instruct_mode=True,
               first_para=False, text_limit=None, top_k_docs=4, chunk=True, chunk_size=512,
 
               # urls
@@ -5543,6 +5585,7 @@ def get_chain(query=None,
               doctr_loader=None,
               pix2struct_loader=None,
               llava_model=None,
+              llava_prompt=None,
               asr_model=None,
               asr_loader=None,
 
@@ -5570,6 +5613,7 @@ def get_chain(query=None,
               add_chat_history_to_context=True,  # FIXME: https://github.com/hwchase17/langchain/issues/6638
               add_search_to_context=False,
               keep_sources_in_context=False,
+              gradio_errors_to_chatbot=True,
               memory_restriction_level=0,
               top_k_docs_max_show=10,
 
@@ -5616,6 +5660,8 @@ def get_chain(query=None,
               stream_output=True,
               async_output=True,
               gradio_server=False,
+
+              hyde_level=None,
 
               # local
               auto_reduce_chunks=True,
@@ -5678,7 +5724,110 @@ def get_chain(query=None,
         from langchain_experimental.autonomous_agents.autogpt.agent import AutoGPT
         from langchain.agents import load_tools
 
-        tools = load_tools(["ddg-search"], llm=llm)
+        search_tools1 = load_tools(["ddg-search"], llm=llm)
+        search_tools2 = load_tools(["serpapi"], llm=llm, serpapi_api_key=os.environ.get('SERPAPI_API_KEY'))
+        search_tools = search_tools1 + search_tools2
+
+        from langchain_community.tools import WikipediaQueryRun
+        from langchain_community.utilities import WikipediaAPIWrapper
+        api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=chunk_size)
+        wiki_tools = [WikipediaQueryRun(api_wrapper=api_wrapper)]
+
+        # from langchain_community.tools.file_management.read import ReadFileTool
+        # from langchain_community.tools.file_management.write import WriteFileTool
+        # file_tools = [WriteFileTool(), ReadFileTool()]
+        from langchain.tools import ShellTool
+        shell_tool = ShellTool()
+        shell_tool.description = shell_tool.description + f"args {shell_tool.args}".replace(
+            "{", "{{"
+        ).replace("}", "}}")
+        shell_tools = [shell_tool]
+
+        from langchain_community.agent_toolkits import FileManagementToolkit
+        # from tempfile import TemporaryDirectory
+        # working_directory = TemporaryDirectory().name
+        working_directory = "autogpt_files"
+        makedirs(working_directory)
+        toolkit = FileManagementToolkit(
+            root_dir=str(working_directory)
+        )  # If you don't provide a root_dir, operations will default to the current working directory
+        file_tools = toolkit.get_tools()
+
+        from gradio_tools.tools import (
+            ImageCaptioningTool,
+            StableDiffusionPromptGeneratorTool,
+            StableDiffusionTool,
+            TextToVideoTool,
+        )
+        do_image_tools = False # FIXME: times out and blocks everything
+        if do_image_tools:
+            image_tools = [
+                StableDiffusionTool().langchain,
+                ImageCaptioningTool().langchain,
+                StableDiffusionPromptGeneratorTool().langchain,
+                TextToVideoTool().langchain,
+            ]
+        else:
+            image_tools = []
+
+        from langchain_experimental.utilities import PythonREPL
+        python_repl = PythonREPL()
+        # You can create the tool to pass to an agent
+        from langchain.agents import Tool
+        repl_tool = Tool(
+            name="python_repl",
+            description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
+            func=python_repl.run,
+        )
+
+        requests_tools = load_tools(["requests_all"])
+
+        from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
+        wolfram = WolframAlphaAPIWrapper()
+        wolfram_tool = Tool(
+            name="wolframalpha",
+            description="WolframAlpha is an answer engine developed by Wolfram Research. It answers factual queries by computing answers from externally sourced data.",
+            func=wolfram.run,
+        )
+
+        from langchain_experimental.llm_symbolic_math.base import LLMSymbolicMathChain
+        sympy_math = LLMSymbolicMathChain.from_llm(llm)
+        sympy_tool = Tool(
+            name="sympy",
+            description="SymPy is a Python library for symbolic mathematics. It aims to become a full-featured computer algebra system (CAS) while keeping the code as simple as possible in order to be comprehensible and easily extensible.",
+            func=sympy_math.run,
+        )
+
+        enable_semantictool = False # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
+        if enable_semantictool:
+            #from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            #semantic = SemanticScholarAPIWrapper()
+            # So can pass API key as ENV: S2_API_KEY
+            from utils_langchain import H2OSemanticScholarAPIWrapper
+            semantic = H2OSemanticScholarAPIWrapper()
+            scholar_tool = Tool(
+                name="semantictool",
+                description="Semantic Scholar is a searchable database that uses AI to search and discover academic papers. It's supported by the Allen Institute for AI and indexes over 200 million academic papers.",
+                func=semantic.run,
+            )
+            scholar_tools = [scholar_tool]
+        else:
+            scholar_tools = []
+
+        tools = ([]
+                 + search_tools
+                 + wiki_tools
+                 + shell_tools
+                 + file_tools
+                 + [repl_tool]
+                 + requests_tools
+                 + scholar_tools
+                 + image_tools
+                 )
+        if os.getenv('WOLFRAM_ALPHA_APPID'):
+            tools.extend([wolfram_tool])
+        else:
+            tools.extend([sympy_tool])
 
         from langchain.docstore import InMemoryDocstore
         from langchain.embeddings import OpenAIEmbeddings
@@ -5694,8 +5843,8 @@ def get_chain(query=None,
         vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {})
 
         agent = AutoGPT.from_llm_and_tools(
-            ai_name="Anthox",
-            ai_role="Cooking Assistant",
+            ai_name="h2oAutoGPT",
+            ai_role="General Search and Knowledge Assistant",
             tools=tools,
             llm=llm,
             memory=vectorstore.as_retriever(),
@@ -5974,6 +6123,7 @@ def get_chain(query=None,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
                                                         llava_model=llava_model,
+                                                        llava_prompt=llava_prompt,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 
@@ -5989,8 +6139,7 @@ def get_chain(query=None,
                                                         db=db,
                                                         n_jobs=n_jobs,
                                                         verbose=verbose)
-    num_docs_before_cut = 0
-    use_template = not use_openai_model and prompt_type not in ['plain'] or langchain_only_model
+    use_template = not use_openai_model and langchain_instruct_mode or langchain_only_model
     template, template_if_no_docs, auto_reduce_chunks, query = \
         get_template(query, iinput,
                      pre_prompt_query, prompt_query,
@@ -6010,13 +6159,20 @@ def get_chain(query=None,
 
     if not attention_sinks:
         # use min_max_new_tokens instead of max_new_tokens for max_new_tokens to get the largest input allowable
-        # else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
+        #  else max_input_tokens interpreted as user input as smaller than possible and get over-restricted
+        # but if summarization, this defines max tokens in each chunk, for same used max_new_tokens, so need to use original,
+        #  e.g. first map may produce some output, larger than 256 tokens, and upon reduce includes that large output, which won't work for same large max_new_tokens -> max_input_tokens
+        if query_action:
+            max_new_tokens_used = min_max_new_tokens
+        else:
+            max_new_tokens_used = max_new_tokens
         max_input_tokens_default = get_max_input_tokens(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
-                                                        model_name=model_name, max_new_tokens=min_max_new_tokens)
+                                                        model_name=model_name, max_new_tokens=max_new_tokens_used)
         if max_input_tokens >= 0:
             max_input_tokens = min(max_input_tokens_default, max_input_tokens)
         else:
             max_input_tokens = max_input_tokens_default
+
     else:
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
@@ -6240,7 +6396,6 @@ def get_chain(query=None,
                                inference_server=inference_server,
                                prompt_type=prompt_type,
                                prompt_dict=prompt_dict,
-                               chat=chat,
                                max_new_tokens=max_new_tokens,
                                system_prompt=system_prompt,
                                allow_chat_system_prompt=allow_chat_system_prompt,
@@ -6248,6 +6403,7 @@ def get_chain(query=None,
                                chat_conversation=chat_conversation,
                                text_context_list=[x[0].page_content for x in docs_with_score],
                                keep_sources_in_context=keep_sources_in_context,
+                               gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                model_max_length=model_max_length,
                                memory_restriction_level=memory_restriction_level,
                                langchain_mode=langchain_mode,
@@ -6257,6 +6413,7 @@ def get_chain(query=None,
                                truncation_generation=truncation_generation,
                                gradio_server=gradio_server,
                                attention_sinks=attention_sinks,
+                               hyde_level=hyde_level,
                                )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput, system_prompt=system_prompt)
@@ -6315,7 +6472,8 @@ def get_chain(query=None,
         num_prompt_basic_tokens = get_token_count(prompt_basic, tokenizer)
 
         if truncation_generation:
-            max_new_tokens = model_max_length - max_doc_tokens - num_prompt_basic_tokens
+            max_new_tokens = max(min_max_new_tokens,
+                                 min(max_new_tokens, model_max_length - max_doc_tokens - num_prompt_basic_tokens))
             if os.getenv('HARD_ASSERTS') is not None:
                 # imperfect calculation, so will see how testing does
                 assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
@@ -6644,13 +6802,15 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
                 continue
             # improve title for UI
             if 'llm_answers_hyde_level_0' == title:
-                title = "HYDE 0: LLM"
-            if 'llm_answers_hyde_level_1' == title:
-                title = "HYDE 1: Prompt+LLM embedding"
-            if 'llm_answers_hyde_level_2' == title:
-                title = "HYDE 2: Prompt+LLM+HYDE 1 embedding"
-            if 'llm_answers_hyde_level_3' == title:
-                title = "HYDE 3: Prompt+LLM+HYDE 1&2 embedding"
+                title = hyde_titles(0)
+            elif 'llm_answers_hyde_level_1' == title:
+                title = hyde_titles(1)
+            elif 'llm_answers_hyde_level_2' == title:
+                title = hyde_titles(2)
+            elif 'llm_answers_hyde_level_3' == title:
+                title = hyde_titles(3)
+            elif 'llm_answers_hyde_level_4' == title:
+                title = hyde_titles(4)
             pre_answer += get_accordion_named(content, title, font_size=3)
             count += 1
 
@@ -6660,7 +6820,9 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
 def get_sources_answer(query, docs, answer,
                        llm_answers,
                        scores, show_rank,
-                       answer_with_sources, append_sources_to_answer,
+                       answer_with_sources,
+                       append_sources_to_answer,
+                       append_sources_to_chat,
                        show_accordions=True,
                        hyde_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
@@ -6675,7 +6837,10 @@ def get_sources_answer(query, docs, answer,
     pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
     if pre_answer:
         pre_answer = pre_answer + '<br>'
-    answer_with_acc = pre_answer + answer
+        answer_with_acc = pre_answer + answer
+    else:
+        # e.g. extract goes here, list not str
+        answer_with_acc = answer
 
     if len(docs) == 0:
         sources = []
@@ -6968,6 +7133,7 @@ def _update_user_db(file,
                     doctr_loader=None,
                     pix2struct_loader=None,
                     llava_model=None,
+                    llava_prompt=None,
                     asr_model=None,
                     asr_loader=None,
 
@@ -7117,6 +7283,7 @@ def _update_user_db(file,
                            doctr_loader=doctr_loader,
                            pix2struct_loader=pix2struct_loader,
                            llava_model=llava_model,
+                           llava_prompt=llava_prompt,
                            asr_model=asr_model,
                            asr_loader=asr_loader,
 
@@ -7399,6 +7566,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      doctr_loader=None,
                                                      pix2struct_loader=None,
                                                      llava_model=None,
+                                                     llava_prompt=None,
                                                      asr_model=None,
                                                      asr_loader=None,
 
@@ -7478,6 +7646,7 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                         doctr_loader=doctr_loader,
                                                         pix2struct_loader=pix2struct_loader,
                                                         llava_model=llava_model,
+                                                        llava_prompt=llava_prompt,
                                                         asr_model=asr_model,
                                                         asr_loader=asr_loader,
 

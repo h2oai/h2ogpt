@@ -37,9 +37,11 @@ def png_to_base64(image_file):
 
 
 def get_llava_response(file, llava_model,
-                       prompt="Describe the image and what does the image say?",
+                       prompt=None,
                        image_model='llava-v1.5-13b', temperature=0.2,
                        top_p=0.7, max_new_tokens=512):
+    if prompt in ['auto', None]:
+        prompt = "Describe the image and what does the image say?"
     # prompt = "According to the image, describe the image in full details with a well-structured response."
 
     prefix = ''
@@ -85,4 +87,4 @@ def get_llava_response(file, llava_model,
     res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
                          api_name='/textbox_api_submit')
     res = res[-1][-1]
-    return res
+    return res, prompt

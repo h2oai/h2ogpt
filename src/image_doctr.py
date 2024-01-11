@@ -96,6 +96,53 @@ class H2OOCRLoader(ImageCaptionLoader):
 
         return results
 
+    @staticmethod
+    def pad_resize_image(image):
+        import cv2
+
+        L = 1024
+        H = 1024
+
+        # Load the image
+        Li, Hi = image.shape[1], image.shape[0]
+
+        # Calculate the aspect ratio
+        aspect_ratio_original = Li / Hi
+        aspect_ratio_final = L / H
+
+        # Check the original size and determine the processing needed
+        if Li < L and Hi < H:
+            # Padding
+            padding_x = (L - Li) // 2
+            padding_y = (H - Hi) // 2
+            image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        elif Li > L and Hi > H:
+            # Resizing
+            if aspect_ratio_original < aspect_ratio_final:
+                # The image is taller than the target aspect ratio
+                new_height = H
+                new_width = int(H * aspect_ratio_original)
+            else:
+                # The image is wider than the target aspect ratio
+                new_width = L
+                new_height = int(L / aspect_ratio_original)
+            image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        else:
+            # Intermediate case, resize without cropping
+            if aspect_ratio_original < aspect_ratio_final:
+                # The image is taller than the target aspect ratio
+                new_height = H
+                new_width = int(H * aspect_ratio_original)
+            else:
+                # The image is wider than the target aspect ratio
+                new_width = L
+                new_height = int(L / aspect_ratio_original)
+            image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            padding_x = (L - new_width) // 2
+            padding_y = (H - new_height) // 2
+            image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        return image
+
     def _get_captions_and_metadata(
             self, model: Any, document_path: str) -> Tuple[list, dict]:
         """
@@ -117,7 +164,15 @@ class H2OOCRLoader(ImageCaptionLoader):
         except Exception:
             raise ValueError(f"Could not get image data for {document_path}")
         document_words = []
+        shapes = []
         for image in images:
+            shape0 = str(image.shape)
+            image = self.pad_resize_image(image)
+            # debug, to see effect of pad-resize
+            # import cv2
+            # cv2.imwrite('new1.png', image)
+            shape1 = str(image.shape)
+
             ocr_output = model([image])
             page_words = []
             page_boxes = []
@@ -137,7 +192,8 @@ class H2OOCRLoader(ImageCaptionLoader):
             else:
                 page_words = " ".join(page_words)
             document_words.append(page_words)
-        metadata: dict = {"image_path": document_path}
+            shapes.append(dict(shape0=shape0, shape1=shape1))
+        metadata: dict = {"image_path": document_path, 'shape': str(shapes)}
         return document_words, metadata
 
 

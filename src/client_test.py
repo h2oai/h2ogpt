@@ -143,6 +143,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          url_loaders=None,
                          jq_schema=None,
                          extract_frames=None,
+                         llava_prompt=None,
                          visible_models=visible_models,
                          h2ogpt_key=h2ogpt_key,
                          add_search_to_context=add_search_to_context,
@@ -443,6 +444,7 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
         kwargs['answer_with_sources'] = True
         kwargs['show_accordions'] = True
         kwargs['append_sources_to_answer'] = True
+        kwargs['append_sources_to_chat'] = False
         kwargs['show_link_in_sources'] = True
         res_dict, client = run_client_gen(client, kwargs, do_md_to_text=do_md_to_text)
         res_dict['response'] += str(res_dict['sources_str'])

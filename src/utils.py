@@ -192,6 +192,18 @@ def system_info():
         pass
     system['hash'] = get_githash()
 
+    debug_mem = False
+    if debug_mem:
+        try:
+            # pip install guppy3
+            from guppy import hpy
+            h = hpy()
+            print(h.heap())
+            print(h.heap().byvia)
+            print(h.heap().byid)
+        except:
+            pass
+
     return system
 
 
@@ -379,7 +391,11 @@ def get_githash():
     try:
         githash = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8')[0:-1]
     except:
-        githash = ''
+        try:
+            with open('git_hash.txt', 'rt') as f:
+                githash = f.read()
+        except:
+            githash = "GET_GITHASH"
     return githash
 
 
@@ -689,6 +705,19 @@ def get_source(x):
 def get_accordion_named(content, title, font_size=8):
     return f"""<details><summary><font size="{font_size}">{title}</font></summary><font size="{font_size}">{content}</font></details>"""
 
+
+def hyde_titles(level):
+    if level == 0:
+        title = "HYDE 0: LLM"
+    elif level == 1:
+        title = "HYDE 1: Prompt+LLM embedding"
+    elif level == 2:
+        title = "HYDE 2: Prompt+LLM+HYDE 1 embedding"
+    elif level == 3:
+        title = "HYDE 3: Prompt+LLM+HYDE 1&2 embedding"
+    else:
+        title = "HYDE 4: Prompt+LLM+HYDE 1&2&3 embedding"
+    return title
 
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')

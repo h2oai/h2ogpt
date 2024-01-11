@@ -136,13 +136,14 @@ prompt_type_to_model_name = {
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
                 'mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
-                'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ'],
+                'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ',
+                'TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ'],
     "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
                'TheBloke/zephyr-7B-beta-AWQ', 'zephyr-7b-beta.Q5_K_M.gguf'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
-    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ'],
+    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ', 'Xwin-LM/Xwin-LM-70B-V0.1'],
     "xwincoder": ['Xwin-LM/XwinCoder-7B', 'Xwin-LM/XwinCoder-13B', 'Xwin-LM/XwinCoder-34B'],
     "xwinmath": ["Xwin-LM/Xwin-Math-7B-V1.0", "Xwin-LM/Xwin-Math-70B-V1.0", "Xwin-LM/Xwin-Math-13B-V1.0"],
     "mistrallite": ['amazon/MistralLite'],
@@ -202,7 +203,7 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
-def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context, return_dict=False,
+def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
                system_prompt=None, histi=-1):
     prompt_dict_error = ''
     generates_leading_space = False
@@ -255,10 +256,8 @@ def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context,
                          PromptType.instruct.name] + [PromptType.instruct_with_end.value,
                                                       str(PromptType.instruct_with_end.value),
                                                       PromptType.instruct_with_end.name]:
-        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not (
-                chat and reduced) else ''
-        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not (
-                chat and reduced) else ''
+        promptA = 'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n' if not reduced else ''
+        promptB = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n' if not reduced else ''
 
         PreInstruct = """
 ### Instruction:
@@ -281,10 +280,8 @@ def get_prompt(prompt_type, prompt_dict, chat, context, reduced, making_context,
         botstr = PreResponse
     elif prompt_type in [PromptType.quality.value, str(PromptType.quality.value),
                          PromptType.quality.name]:
-        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not (
-                chat and reduced) else ''
-        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not (
-                chat and reduced) else ''
+        promptA = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction as applied on the Input.\n' if not reduced else ''
+        promptB = 'Write a detailed high-quality, accurate, fair, Response with about 100 words by following the Instruction.\n' if not reduced else ''
 
         PreInstruct = """
 ### Instruction:
@@ -373,7 +370,7 @@ Current Time: {}
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious human and an artificial intelligence assistant. " \
                             "The assistant gives helpful, detailed, and polite answers to the human's questions."
-        promptA = promptB = system_prompt if not (chat and reduced) else ''
+        promptA = promptB = system_prompt if not reduced else ''
 
         PreInstruct = """
 ### Human:
@@ -470,7 +467,7 @@ Current Time: {}
         botstr = PreResponse
     elif prompt_type in [PromptType.instruct_vicuna2.value, str(PromptType.instruct_vicuna2.value),
                          PromptType.instruct_vicuna2.name]:
-        promptA = promptB = "" if not (chat and reduced) else ''
+        promptA = promptB = "" if not reduced else ''
 
         PreInstruct = """
 HUMAN:
@@ -488,7 +485,7 @@ ASSISTANT:
         botstr = PreResponse
     elif prompt_type in [PromptType.instruct_vicuna3.value, str(PromptType.instruct_vicuna3.value),
                          PromptType.instruct_vicuna3.name]:
-        promptA = promptB = "" if not (chat and reduced) else ''
+        promptA = promptB = "" if not reduced else ''
 
         PreInstruct = """
 ### User:
@@ -510,7 +507,7 @@ ASSISTANT:
         # https://huggingface.co/TheBloke/WizardLM-7B-uncensored-GGML
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-        preprompt = """%s""" % system_prompt if not (chat and reduced) else ''
+        preprompt = """%s""" % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """
@@ -530,7 +527,7 @@ ASSISTANT:
         can_handle_system_prompt = True
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
-        preprompt = """%s""" % system_prompt if not (chat and reduced) else ''
+        preprompt = """%s""" % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -555,7 +552,7 @@ ASSISTANT:
 
     elif prompt_type in [PromptType.instruct_simple.value, str(PromptType.instruct_simple.value),
                          PromptType.instruct_simple.name]:
-        promptB = promptA = '' if not (chat and reduced) else ''
+        promptB = promptA = '' if not reduced else ''
 
         PreInstruct = """
 ### Instruction:
@@ -577,7 +574,7 @@ ASSISTANT:
         can_handle_system_prompt = True
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly."
-        preprompt = """%s""" % system_prompt if not (chat and reduced) else ''
+        preprompt = """%s""" % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = "\nHuman: "
@@ -589,8 +586,7 @@ ASSISTANT:
         botstr = PreResponse
     elif prompt_type in [PromptType.gptj.value, str(PromptType.gptj.value),
                          PromptType.gptj.name]:
-        preprompt = "### Instruction:\n The prompt below is a question to answer, a task to complete, or a conversation to respond to; decide which and write an appropriate response." if not (
-                chat and reduced) else ''
+        preprompt = "### Instruction:\n The prompt below is a question to answer, a task to complete, or a conversation to respond to; decide which and write an appropriate response." if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = "\n### Prompt: "
@@ -631,7 +627,7 @@ ASSISTANT:
             # totally remove system prompt stuff, maybe not always done for every model like this
             preprompt = ""
         else:
-            preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
+            preprompt = """%s """ % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         eos = '</s>'
@@ -657,7 +653,7 @@ ASSISTANT:
         # https://huggingface.co/mosaicml/mpt-30b-instruct#formatting
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-        promptA = promptB = '%s\n' % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = '%s\n' % system_prompt if not reduced else ''
 
         PreInstruct = """
 ### Instruction
@@ -680,7 +676,7 @@ ASSISTANT:
         # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
-        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not reduced else ''
 
         PreInstruct = """<|im_start|>user
 """
@@ -700,7 +696,7 @@ ASSISTANT:
         # https://huggingface.co/microsoft/Orca-2-13b#getting-started-with-orca-2
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "You are Orca, an AI language model created by Microsoft. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior."
-        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = """<|im_start|>system\n%s\n<|im_end|>""" % system_prompt if not reduced else ''
 
         PreInstruct = """<|im_start|>user
 """
@@ -716,7 +712,7 @@ ASSISTANT:
         botstr = PreResponse
     elif prompt_type in [PromptType.falcon.value, str(PromptType.falcon.value),
                          PromptType.falcon.name]:
-        promptA = promptB = "" if not (chat and reduced) else ''
+        promptA = promptB = "" if not reduced else ''
 
         PreInstruct = """User: """
 
@@ -739,7 +735,7 @@ ASSISTANT:
     elif prompt_type in [PromptType.guanaco.value, str(PromptType.guanaco.value),
                          PromptType.guanaco.name]:
         # https://huggingface.co/TheBloke/guanaco-65B-GPTQ
-        promptA = promptB = "" if not (chat and reduced) else ''
+        promptA = promptB = "" if not reduced else ''
 
         PreInstruct = """### Human: """
 
@@ -762,13 +758,13 @@ ASSISTANT:
             sys_msg = """<<SYS>>\n%s\n<</SYS>>\n\n""" % system_prompt
         else:
             sys_msg = ''
-        if not (chat and reduced):
+        if not reduced:
             promptA = promptB = ''
         else:
             promptA = promptB = ''
         PreInput = None
         PreInstruct = "<s>[INST] "
-        if making_context and histi == 0 or not making_context and not (chat and reduced):
+        if making_context and histi == 0 or not making_context and not reduced:
             PreInstruct += sys_msg
         PreResponse = "[/INST]"
         terminate_response = ["[INST]", "</s>"]
@@ -788,7 +784,7 @@ ASSISTANT:
             sys_msg = """### System:\n%s\n\n""" % system_prompt
         else:
             sys_msg = ''
-        if sys_msg and not (chat and reduced):
+        if sys_msg and not reduced:
             # too much safety, hurts accuracy
             promptA = promptB = sys_msg
         else:
@@ -804,8 +800,7 @@ ASSISTANT:
     elif prompt_type in [PromptType.wizard3nospace.value, str(PromptType.wizard3nospace.value),
                          PromptType.wizard3nospace.name]:
         # https://huggingface.co/WizardLM/WizardLM-13B-V1.2/discussions/3
-        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.""" if not (
-                chat and reduced) else ''
+        preprompt = """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.""" if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -828,8 +823,7 @@ ASSISTANT:
 6. Cooking Party: Have a cooking-themed party where the kids can prepare their own mini pizzas, cupcakes, or cookies. Provide toppings, frosting, and decorating supplies, and let them get hands-on in the kitchen.
 7. Superhero Training Camp: Create a superhero-themed party where the kids can engage in fun training activities. Set up an obstacle course, have them design their own superhero capes or masks, and organize superhero-themed games and challenges.
 8. Outdoor Adventure: Plan an outdoor adventure party at a local park or nature reserve. Arrange activities like hiking, nature scavenger hunts, or a picnic with games. Encourage exploration and appreciation for the outdoors.
-Remember to tailor the activities to the birthday child's interests and preferences. Have a great celebration!""" if not (
-                chat and reduced) else ''
+Remember to tailor the activities to the birthday child's interests and preferences. Have a great celebration!""" if not reduced else ''
 
         PreInstruct = """
 ### Human: """
@@ -853,7 +847,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
             sys_msg = "System: %s\n" % system_prompt
         else:
             sys_msg = ''
-        if sys_msg and not (chat and reduced):
+        if sys_msg and not reduced:
             # too much safety, hurts accuracy
             promptA = promptB = sys_msg
         else:
@@ -874,7 +868,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         promptA = promptB = ''
         PreInput = None
         PreInstruct = "[INST] "
-        if making_context and histi == 0 or not making_context and not (chat and reduced):
+        if making_context and histi == 0 or not making_context and not reduced:
             PreInstruct = '<s>' + PreInstruct
         PreResponse = "[/INST]"
         terminate_response = ["[INST]", "</s>"]
@@ -896,7 +890,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
             sys_msg = """<|system|>\n%s""" % system_prompt
         else:
             sys_msg = ''
-        if sys_msg and not (chat and reduced):
+        if sys_msg and not reduced:
             # too much safety, hurts accuracy
             promptA = promptB = sys_msg
         else:
@@ -922,7 +916,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
             sys_msg = """<|system|>\n%s</s>\n""" % system_prompt
         else:
             sys_msg = ''
-        if sys_msg and not (chat and reduced):
+        if sys_msg and not reduced:
             # too much safety, hurts accuracy
             promptA = promptB = sys_msg
         else:
@@ -942,7 +936,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
         # space below intended
-        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
+        preprompt = """%s """ % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -962,7 +956,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "You are an AI coding assistant that helps people with programming. Write a response that appropriately completes the user's request.\n"
         # space below intended
-        preprompt = """<system>: %s\n""" % system_prompt if not (chat and reduced) else ''
+        preprompt = """<system>: %s\n""" % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """<user>: """
@@ -982,7 +976,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."
         # space below intended
-        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
+        preprompt = """%s """ % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -1002,7 +996,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "Du bist ein hilfreicher"
         # space below intended
-        preprompt = """%s """ % system_prompt if not (chat and reduced) else ''
+        preprompt = """%s """ % system_prompt if not reduced else ''
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
         PreInstruct = """USER: """
@@ -1039,7 +1033,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         # https://huggingface.co/BAAI/AquilaChat2-34B-16K/blob/main/predict.py#L197-L210
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
-        promptA = promptB = "%s###" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = "%s###" % system_prompt if not reduced else ''
 
         PreInstruct = """Human: """
 
@@ -1059,7 +1053,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         # like aquila but less strictly correct (but less complex) for multi-turn
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions."
-        promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = "%s" % system_prompt if not reduced else ''
 
         PreInstruct = """###Human: """
 
@@ -1079,7 +1073,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A chat between a curious human and an artificial intelligence assistant. " \
                             "The assistant gives helpful, detailed, and polite answers to the human's questions.\n\n"
-        promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = "%s" % system_prompt if not reduced else ''
 
         PreInstruct = """### Human: """
 
@@ -1095,7 +1089,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
             PreResponse = botstr + ' '
     elif prompt_type in [PromptType.aquila_v1.value, str(PromptType.aquila_v1.value),
                          PromptType.aquila_v1.name]:
-        promptA = promptB = "" if not (chat and reduced) else ''
+        promptA = promptB = "" if not reduced else ''
 
         PreInstruct = """<|startofpiece|>"""
 
@@ -1115,7 +1109,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         # https://huggingface.co/deepseek-ai/deepseek-coder-33b-instruct
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "<｜begin▁of▁sentence｜>You are an AI programming assistant, utilizing the Deepseek Coder model, developed by Deepseek Company, and you only answer questions related to computer science. For politically sensitive questions, security and privacy issues, and other non-computer science questions, you will refuse to answer\n"
-        promptA = promptB = "%s" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = "%s" % system_prompt if not reduced else ''
         PreInput = None
         PreInstruct = "### Instruction:\n"
         PreResponse = "### Response:\n"
@@ -1172,8 +1166,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         # https://huggingface.co/core42/jais-30b-chat-v1
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = """Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between."""
-        promptA = promptB = "### Instruction: %s [|Human|] and [|AI|]:" % system_prompt if not (
-                chat and reduced) else "### Instruction: %s [|Human|] and [|AI|]:"
+        promptA = promptB = "### Instruction: %s [|Human|] and [|AI|]:" % system_prompt if not reduced else "### Instruction: %s [|Human|] and [|AI|]:"
         PreInstruct = """\n### Input: [|Human|] """
 
         PreInput = None
@@ -1191,7 +1184,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         # https://huggingface.co/01-ai/Yi-34B-Chat#31-use-the-chat-model
         if system_prompt in [None, 'None', 'auto']:
             system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
-        promptA = promptB = """<|im_start|>system\n%s<|im_end|>""" % system_prompt if not (chat and reduced) else ''
+        promptA = promptB = """<|im_start|>system\n%s<|im_end|>""" % system_prompt if not reduced else ''
 
         PreInstruct = """\n<|im_start|>user\n"""
 
@@ -1238,7 +1231,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         return tuple(list(ret_dict.values()))
 
 
-def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_context, system_prompt=None,
+def generate_prompt(data_point, prompt_type, prompt_dict, reduced, making_context, system_prompt=None,
                     histi=-1):
     context = data_point.get('context')
     if context is None:
@@ -1252,7 +1245,7 @@ def generate_prompt(data_point, prompt_type, prompt_dict, chat, reduced, making_
     promptA, promptB, PreInstruct, PreInput, PreResponse, \
         terminate_response, chat_sep, chat_turn_sep, humanstr, botstr, \
         generates_leading_space, system_prompt, can_handle_system_prompt = \
-        get_prompt(prompt_type, prompt_dict, chat,
+        get_prompt(prompt_type, prompt_dict,
                    context, reduced, making_context,
                    system_prompt=system_prompt,
                    histi=histi)
@@ -1319,12 +1312,11 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
 
 
 class Prompter(object):
-    def __init__(self, prompt_type, prompt_dict, debug=False, chat=False, stream_output=False, repeat_penalty=False,
+    def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
                  allowed_repeat_line_length=10, system_prompt=None):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
-        self.chat = chat
         self.stream_output = stream_output
         self.repeat_penalty = repeat_penalty
         self.allowed_repeat_line_length = allowed_repeat_line_length
@@ -1336,7 +1328,7 @@ class Prompter(object):
         self.promptA, self.promptB, self.PreInstruct, self.PreInput, self.PreResponse, \
             self.terminate_response, self.chat_sep, self.chat_turn_sep, self.humanstr, self.botstr, \
             self.generates_leading_space, self.system_prompt, self.can_handle_system_prompt = \
-            get_prompt(self.prompt_type, self.prompt_dict, chat, context, reduced, making_context,
+            get_prompt(self.prompt_type, self.prompt_dict, context, reduced, making_context,
                        system_prompt=system_prompt)
         self.pre_response = self.PreResponse
 
@@ -1360,7 +1352,7 @@ class Prompter(object):
             context_from_history = True
             reduced = True
         making_context = False  # whether really making final prompt or just generating context
-        prompt, _, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, self.chat, reduced,
+        prompt, _, _, _, _ = generate_prompt(data_point, self.prompt_type, self.prompt_dict, reduced,
                                              making_context, histi=-1, system_prompt=self.system_prompt)
         if self.debug:
             print("prompt: %s" % prompt, flush=True)
@@ -1695,4 +1687,13 @@ def get_system_prompts():
             ('ProblemSolveFull', system_problem_solve_full),
             ('StepBackSimple', step_back_prompts(0)),
             ('StepBackFull', step_back_prompts(3)),
+            ]
+
+
+def get_llava_prompts():
+    return [('None', ''),
+            ('Auto', 'auto'),
+            ('Generic', "Describe the image and what does the image say?"),
+            ('OCR', "Read all text from the image, keeping any structure"),
+            ('Ignore', "Ignore -- for https://github.com/gradio-app/gradio/issues/6957"),
             ]

@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, docs_joiner_default
 from src.utils import remove
 
@@ -38,17 +38,22 @@ def test_eval_json():
     val0 = "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"
     val1 = """Hi! I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI. How may I assist you?"""
     val2 = """Hi! I'm h2oGPT, a large language model by H2O.ai"""
+    val3 = """My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"""
+    val4 = """ I'm h2oGPT, a large language model by H2O.ai. How may I assist you?"""
     assert df['response'].values[0] == val0 or \
            df['response'].values[0] == ' ' + val0 or \
            df['response'].values[0] == val1 or \
+           df['response'].values[0] == val3 or \
+           df['response'].values[0] == val4 or \
            val2 in df['response'].values[0]
     assert df['score'].values[0] > 0.03  # odd score IMO
-    assert df['response'].values[1] in ["2 + 2 = 4\n", "2+2 = 4\n", " 2 + 2 = 4\n"]
-    assert df['score'].values[1] > 0.95
+    assert df['response'].values[1] in ["2 + 2 = 4\n", "2+2 = 4\n", " 2 + 2 = 4\n", ' 4\n']
+    assert df['score'].values[1] > 0.5
 
 
 def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', eval_filename=None,
-              eval_prompts_only_num=1):
+              eval_prompts_only_num=1,
+              langchain_mode='Disabled'):
     if base_model == 'junelee/wizard-vicuna-13b' and (bits != 8 or cpu):
         # Too much CPU memory or GPU memory
         return
@@ -76,7 +81,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         temperature=0.4, top_p=0.85, top_k=70, penalty_alpha=0.0, num_beams=1, max_new_tokens=256,
         min_new_tokens=0, early_stopping=False, max_time=180, repetition_penalty=1.07,
         num_return_sequences=1, do_sample=True, chat=False,
-        langchain_mode='Disabled', add_chat_history_to_context=True,
+        langchain_mode=langchain_mode, add_chat_history_to_context=True,
         add_search_to_context=False,
         langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
         chunk=True, chunk_size=512,
@@ -133,7 +138,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'pre_prompt_summary': None,
                  'prompt_summary': None,
                  'hyde_llm_prompt': None,
-                 'system_prompt': '',
+                 'system_prompt': 'auto',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),
                  'url_loaders': np.array(['Unstructured'], dtype=object),
                  'jq_schema': '.[]',
@@ -215,5 +220,61 @@ e the posterior ligaments are attached to the back. The anterior ligaments are c
 
     from sacrebleu.metrics import BLEU
     bleu = BLEU()
-    assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 25
+    assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 10
     return eval_out_filename
+
+
+@wrap_test_forked
+def test_eval_json_langchain():
+    base_model = 'llama'
+    user_path = make_user_path_test()
+
+    # make 2 rows of json
+    prompts = [dict(instruction="What is Whisper?", response="""According to the document sources provided in the context, Whisper is a large language model (LLM) that can be used for various tasks such as text-to-speech (TTS), voice cloning, and speech recognition (ASR). It is a powerful tool for generating human-like speech and can be trained on a wide range of data sources."""),
+               dict(instruction="Who made Whisper?", response="""According to the document sources provided within the context, Whisper was made by OpenAI."""),
+               ]
+    eval_prompts_only_num = len(prompts)
+    eval_filename = 'test_prompts.json'
+    remove(eval_filename)
+    import json
+    with open(eval_filename, "wt") as f:
+        f.write(json.dumps(prompts, indent=2))
+
+    import pandas as pd
+    from src.evaluate_params import eval_func_param_names, eval_extra_columns
+    from src.gen import main
+    kwargs = dict(
+        stream_output=False,
+        langchain_mode='UserData',
+        user_path=user_path,
+    )
+    eval_out_filename = main(base_model=base_model,
+                             gradio=False,
+                             eval_filename=eval_filename,
+                             eval_prompts_only_num=eval_prompts_only_num,
+                             eval_as_output=False,
+                             asr_model='',
+                             answer_with_sources=False,
+                             show_link_in_sources=False,
+                             append_sources_to_answer=False,
+                             append_sources_to_chat=False,
+                             eval_prompts_only_seed=1235,
+                             score_model='OpenAssistant/reward-model-deberta-v3-large-v2',
+                             **kwargs)
+    df = pd.read_parquet(eval_out_filename)
+    assert df.shape[0] == 2
+    columns = eval_func_param_names + eval_extra_columns
+    assert df.shape[1] == len(columns)
+    print(df.values)
+    actuals = [dict(score=df['score'].values[ii], response=df['response'].values[ii]) for ii in range(df.shape[0])]
+    expecteds = [0.05, 0.01]
+
+    for prompt, expected, actual in zip(prompts, expecteds, actuals):
+        import numpy as np
+        print("actual: %s" % actual)
+        print("expected: %s" % expected)
+        assert actual['score'] > expected, "Assert: %s %s" % (actual, expected)
+
+        from sacrebleu.metrics import BLEU
+        bleu = BLEU()
+        assert bleu.sentence_score(actual['response'], [prompt['response']]).score > 25

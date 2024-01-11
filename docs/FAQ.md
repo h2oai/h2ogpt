@@ -1,29 +1,12 @@
 ## Frequently asked questions
 
-### Mixtral GGUF
+### Control location of files
 
-Here is how to get Mixtral GGUF going with h2oGPT with no update to llama cpp python package except in a PR.
-
-```bash
-pip uninstall llama_cpp_python
-pip uninstall llama_cpp_python_cuda
-git clone --recurse-submodules https://github.com/abetlen/llama-cpp-python.git
-cd llama-cpp-python/
-git fetch origin pull/1007/head:1007
-git switch 1007
-git submodule update --remote
-git submodule update
-CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install -e .
-cd ~/h2ogpt/
-python generate.py --base-model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096
-```
-Downloads 31GB GGUF file.  Good to pass `--max_seq_len` to avoid relaunch of model to find automatically the size, since uses more memory.  Also, if use automatic setting, h2oGPT says auto-context set at 4096 instead of up to `--max_seq_len=32768`.
-
-Use appropriate `CMAKE_ARGS` [instructions](https://github.com/abetlen/llama-cpp-python#installation) for building on MAC/CPU/etc.
-
-Set `CUDA_VISIBLE_DEVICES=0` to run on single 48GB GPU for maximum speed, or set to more GPUs if required. Model without usage consumes about 36GB, but uses 40GB after simple usage.
-
-NOTE: For long-context input or large max_seq_len, Mixtral GGUF seems unstable at moment.  Even just starting model with 32k context using 2*48 GPUs.  So expect llama.cpp to have more bug fixes.  We have not seen Mixtral work on llama.cpp for more than `--max_seq_len=4096`.
+* HUGGINGFACE_HUB_CACHE : else set by HF transformers package to be `~/.cache/huggingface/hub` in linux or in windows `C:\Users\username\.cache\huggingface\hub`.
+* TRANSFORMERS_CACHE : else set by HF transformers package to be `~/.cache/huggingface/transformers` in linux or in windows `C:\Users\username\.cache\huggingface\transformers`.
+* HF_HOME: More broad location for any HF objects
+* XDG_CACHE_HOME: Broadly any `~/.cache` items.  Some [other packages](README_offline.md) use this folder.
+* `--llamacpp_path=<location>` : Location for llama.cpp models, like GGUF models.
 
 ### Video Extraction (experimental)
 
@@ -626,6 +609,16 @@ GGUF using Mistral:
 python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
 ```
 
+GGUF using Mixtral:
+```bash
+python generate.py --base_model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096 --score_model=None
+```
+Also note that Mixtral GGUF has max context of 4k if allowed to auto-detect in h2oGPT.  One can try larger up to 32k with `--max_seq_len`.  But higher uses alot of GPU memory and is slow but for document QA is probably not helpful (e.g. `--top_k_docs=-1` with 32k actually hurts RAG performance, better to limit RAG to 4k, summarization can use more though).  This can be controlled per-query with `max_input_tokens` in API/UI.
+
+Also, with `--top_k_docs=-1` or too large positive value, context-filling of the 4k leads to very slow results for GGUF Mixtral compared to vLLM FP16 performance.
+
+Also, best to use a single GPU if possible, since multiple GPU usage is much slower with GGUF than vLLM, but context-filling issue is worse problem for llama.cpp performance.
+
 [Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
 
 If you see:
@@ -634,21 +627,6 @@ CUDA error 704 at /home/runner/work/llama-cpp-python-cuBLAS-wheels/llama-cpp-pyt
 current device: 0
 ```
 This is known bug in `llama.cpp` for some multi-GPU systems.  Only work-around is to restrict to single GPU by adding `export CUDA_VISIBLE_DEVICES=0` or similar value.
-
-#### GGML
-
-GGML v3 quantized models are not recommended, but are supported.  E.g. [TheBloke](https://huggingface.co/TheBloke) also has many of those, such as:
-```bash
-python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-```
-For GGML models, passing `--max_seq_len` directly is always recommended. When you pass the filename as shown in the preceding example, we assume you have previously downloaded the model to the local path, but if you pass a URL, then we download the file for you.
-You can also pass a URL for automatic downloading (which will not re-download if the file already exists):
-```bash
-python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-```
-for any TheBloke GGML v3 models.
-
-GGMLv3 requires installing older llama_cpp_python versions as listed in each linux/windows/mac installation, but it has bugs, so GGUF is recommended in all cases.
 
 #### GPT4All
 
@@ -780,6 +758,18 @@ This section describes how to add a new embedding model.
   ```bash
   python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
   ```
+
+To run the embedding model on the CPU, use options like:
+```bash
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None
+```
+The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
+
+The change of cut distance is required for other arbitrary models since the distance is not normalized for each model.
+
+See [Embedding Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) for other options for smaller size that are still quite accurate, where smaller should be faster on CPU.
+
+Also review the low memory documentation for other low memory options.
 
 ### System Prompting
 
@@ -947,19 +937,10 @@ where `use_auth_token` has been set as required for LLaMa2.
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--use_gpu_id=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
 
-For GPUs with at least 24GB of memory, we recommend:
+For GPUs with at least 9GB of memory, one can do 4-bit quantization like:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --load_4bit=True
 ```
-or
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
-```
-For GPUs with at least 48GB of memory, we recommend:
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
-```
-etc.
 
 ### CPU with no AVX2 or using LLaMa.cpp
 
@@ -1093,7 +1074,6 @@ This warning can be safely ignored.
    - `ALLOW_API`: Whether to allow API access,
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
-   - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
    - `H2OGPT_BASE_PATH`: Choose base folder for all files except personal/scratch files
    - `LLAMACPP_PATH`: Choose directory where url downloads for llama models are kept.
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.

@@ -156,11 +156,13 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
             embed = True
             loaders = tuple([None, None, None, None, None])
             extract_frames = 1
+            llava_prompt = ''
             h2ogpt_key = ''
             res = client.predict(test_file_server,
                                  chunk, chunk_size, langchain_mode, embed,
                                  *loaders,
                                  extract_frames,
+                                 llava_prompt,
                                  h2ogpt_key,
                                  api_name='/add_file_api')
             assert res[0] is None

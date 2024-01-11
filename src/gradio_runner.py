@@ -58,12 +58,12 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt, model_names_curated, get_system_prompts
+    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens
+    _save_generate_tokens, get_accordion_named
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -288,13 +288,17 @@ def go_gradio(**kwargs):
     if kwargs['visible_all_prompter_models']:
         model_options0 = flatten_list(list(prompt_type_to_model_name.values())) + kwargs['extra_model_options']
     else:
-        model_options0 = model_names_curated + kwargs['extra_model_options']
+        model_options0 = []
+        if kwargs['visible_curated_models']:
+            model_options0.extend(model_names_curated)
+        model_options0.extend(kwargs['extra_model_options'])
     if kwargs['base_model'].strip() and kwargs['base_model'].strip() not in model_options0:
         model_options0 = [kwargs['base_model'].strip()] + model_options0
     if kwargs['add_disk_models_to_ui'] and kwargs['visible_models_tab'] and not kwargs['model_lock']:
         model_options0.extend(get_on_disk_models(llamacpp_path=kwargs['llamacpp_path'],
                                                  use_auth_token=kwargs['use_auth_token'],
                                                  trust_remote_code=kwargs['trust_remote_code']))
+    model_options0 = sorted(set(model_options0))
 
     # Initial LORA options
     lora_options = kwargs['extra_lora_options']
@@ -1168,6 +1172,7 @@ def go_gradio(**kwargs):
                                                              visible=visible_model_choice,
                                                              elem_id="multi-selection",
                                                              filterable=False,
+                                                             max_choices=kwargs['max_visible_models'],
                                                              )
                                 mw0 = 100
                                 with gr.Column(min_width=mw0):
@@ -1368,6 +1373,8 @@ def go_gradio(**kwargs):
                         doc_view6 = PDF(visible=False)
                     else:
                         doc_view6 = gr.HTML(visible=False)
+                    doc_view7 = gr.Audio(visible=False)
+                    doc_view8 = gr.Video(visible=False)
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
@@ -1415,18 +1422,20 @@ def go_gradio(**kwargs):
                                 prompt_type2 = get_prompt_type2(**kwargs)
 
                             system_prompt_type = gr.Dropdown(label="System Prompt Type",
+                                                             info="Choose System Prompt Type",
                                                              value=kwargs['system_prompt'],
                                                              choices=get_system_prompts(),
                                                              filterable=True,
                                                              )
                             system_prompt = gr.Textbox(label='System Prompt',
-                                                       info="Can add your own custom system prompt here",
+                                                       info="Filled by choice above, or can enter your own custom system prompt",
                                                        value=kwargs['system_prompt'], lines=2)
 
                             def show_sys(x):
                                 return x
 
-                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt)
+                            system_prompt_type.change(fn=show_sys, inputs=system_prompt_type, outputs=system_prompt,
+                                                      **noqueue_kwargs)
 
                             context = gr.Textbox(lines=2, label="System Pre-Context",
                                                  info="Directly pre-appended without prompt processing (before Pre-Conversation)",
@@ -1446,20 +1455,37 @@ def go_gradio(**kwargs):
                                                 interactive=not is_public)
                         with gr.Column():
                             pre_prompt_query = gr.Textbox(label="Query Pre-Prompt",
-                                                          info="Added before documents",
+                                                          info="In prompt template, added before document text chunks",
                                                           value=kwargs['pre_prompt_query'] or '')
                             prompt_query = gr.Textbox(label="Query Prompt",
                                                       info="Added after documents",
                                                       value=kwargs['prompt_query'] or '')
                             pre_prompt_summary = gr.Textbox(label="Summary Pre-Prompt",
-                                                            info="Added before documents",
+                                                            info="In prompt template, added before documents",
                                                             value=kwargs['pre_prompt_summary'] or '')
                             prompt_summary = gr.Textbox(label="Summary Prompt",
-                                                        info="Added after documents (if query given, 'Focusing on {query}, ' is pre-appended)",
+                                                        info="In prompt template, added after documents text chunks (if query given, 'Focusing on {query}, ' is pre-appended)",
                                                         value=kwargs['prompt_summary'] or '')
                             hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
-                                                         info="When doing HYDE, this is first prompt followed by the user query.",
+                                                         info="When doing HYDE, this is first prompt, and in template the user query comes right after this.",
                                                          value=kwargs['hyde_llm_prompt'] or '')
+                            llava_prompt_type = gr.Dropdown(label="LLaVa LLM Prompt Type",
+                                                            info="Pick pre-defined LLaVa prompt",
+                                                            value=kwargs['llava_prompt'],
+                                                            choices=get_llava_prompts(),
+                                                            filterable=True,
+                                                            )
+                            llava_prompt = gr.Textbox(label="LLaVa LLM Prompt",
+                                                      info="LLaVa prompt",
+                                                      value=kwargs['llava_prompt'],
+                                                      lines=2)
+
+                            def show_llava(x):
+                                return x
+
+                            llava_prompt_type.change(fn=show_llava, inputs=llava_prompt_type, outputs=llava_prompt,
+                                                     **noqueue_kwargs)
+
                     gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
@@ -1542,13 +1568,13 @@ def go_gradio(**kwargs):
                         stream_output = gr.components.Checkbox(label="Stream output",
                                                                value=kwargs['stream_output'])
                         do_sample = gr.Checkbox(label="Sample",
-                                                info="Enable sampler (required for use of temperature, top_p, top_k)",
+                                                info="Enable sampler (required for use of temperature, top_p, top_k).  If temperature=0 is set, this is forced to False.",
                                                 value=kwargs['do_sample'])
                         max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
                                              value=min(kwargs['max_max_time'],
                                                        kwargs['max_time']), label="Max. time",
                                              info="Max. time to search optimal output.")
-                        temperature = gr.Slider(minimum=0.01, maximum=2,
+                        temperature = gr.Slider(minimum=0, maximum=2,
                                                 value=kwargs['temperature'],
                                                 label="Temperature",
                                                 info="Lower is deterministic, higher more creative")
@@ -1689,10 +1715,12 @@ def go_gradio(**kwargs):
                             return new_file
 
                         if audio_visible:
+                            model_base = os.getenv('MODEL_BASE', 'models/')
+                            female_voice = os.path.join(model_base, "female.wav")
                             ref_voice_clone = gr.Audio(
                                 label="File for Clone (x resets)",
                                 type="filepath",
-                                value="models/female.wav",
+                                value=female_voice if os.path.isfile(female_voice) else None,
                                 # max_length=30 if is_public else None,
                                 visible=clone_visible,
                             )
@@ -2285,6 +2313,7 @@ def go_gradio(**kwargs):
                                        url_loaders,
                                        jq_schema,
                                        extract_frames,
+                                       llava_prompt,
                                        h2ogpt_key,
                                        ],
                                outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2318,6 +2347,7 @@ def go_gradio(**kwargs):
                                         url_loaders,
                                         jq_schema,
                                         extract_frames,
+                                        llava_prompt,
                                         h2ogpt_key,
                                         ],
                                 outputs=add_file_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2343,6 +2373,7 @@ def go_gradio(**kwargs):
                                       url_loaders,
                                       jq_schema,
                                       extract_frames,
+                                      llava_prompt,
                                       h2ogpt_key,
                                       ],
                               outputs=add_url_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2381,6 +2412,7 @@ def go_gradio(**kwargs):
                                        url_loaders,
                                        jq_schema,
                                        extract_frames,
+                                       llava_prompt,
                                        h2ogpt_key,
                                        ],
                                outputs=add_text_outputs + [sources_text, doc_exception_text, text_file_last,
@@ -2553,7 +2585,8 @@ def go_gradio(**kwargs):
                                inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                        view_document_choice, view_raw_text_checkbox,
                                        text_context_list, pdf_height],
-                               outputs=[doc_view, doc_view2, doc_view3, doc_view4, doc_view5, doc_view6])
+                               outputs=[doc_view, doc_view2, doc_view3, doc_view4,
+                                        doc_view5, doc_view6, doc_view7, doc_view8])
         eventdb_viewa.then(**show_doc_kwargs)
 
         view_raw_text_checkbox.change(**view_doc_select_kwargs) \
@@ -2613,6 +2646,7 @@ def go_gradio(**kwargs):
                                           url_loaders,
                                           jq_schema,
                                           extract_frames,
+                                          llava_prompt,
                                           ],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
@@ -3208,14 +3242,22 @@ def go_gradio(**kwargs):
 
             def update_chatbots(*args,
                                 num_model_lock=0,
-                                all_possible_visible_models=None):
+                                all_possible_visible_models=None,
+                                for_errors=False,
+                                gradio_errors_to_chatbot=False):
                 args_list = list(args)
 
                 gradio_upload_to_chatbot1 = args_list[0]
+                gradio_errors_to_chatbot1 = gradio_errors_to_chatbot and for_errors
+                do_show = gradio_upload_to_chatbot1 or gradio_errors_to_chatbot1
+                added_history = []
 
-                new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
-                assert isinstance(new_files_last1, dict)
-                added_history = docs_to_message(new_files_last1)
+                if not for_errors:
+                    new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
+                    assert isinstance(new_files_last1, dict)
+                    added_history = docs_to_message(new_files_last1)
+                elif str(args_list[1]).strip():
+                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3233,7 +3275,7 @@ def go_gradio(**kwargs):
                     history_list = args_list[-num_model_lock - 2:]
 
                 assert len(history_list) > 0, "Bad history list: %s" % history_list
-                if gradio_upload_to_chatbot1:
+                if do_show and added_history:
                     for hi, history in enumerate(history_list):
                         if not visible_list[hi]:
                             continue
@@ -3256,14 +3298,32 @@ def go_gradio(**kwargs):
                                                   text_output, text_output2] + text_outputs,
                                           outputs=[text_output, text_output2] + text_outputs
                                           )
+
+            update_chatbots_errors_func = functools.partial(update_chatbots,
+                                                            num_model_lock=len(text_outputs),
+                                                            all_possible_visible_models=kwargs[
+                                                                'all_possible_visible_models'],
+                                                            for_errors=True,
+                                                            gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'],
+                                                            )
+            update_chatbots_errors_kwargs = dict(fn=update_chatbots_errors_func,
+                                                 inputs=[gradio_upload_to_chatbot,
+                                                         doc_exception_text,
+                                                         compare_checkbox,
+                                                         visible_models,
+                                                         text_output, text_output2] + text_outputs,
+                                                 outputs=[text_output, text_output2] + text_outputs
+                                                 )
+
             # Ingest, add button
             eventdb2c_btn = eventdb2_btn.then(**get_sources_kwargs)
             eventdb2d_btn = eventdb2c_btn.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
             eventdb2e_btn = eventdb2d_btn.then(**show_sources_kwargs)
             eventdb2f_btn = eventdb2e_btn.then(**get_viewable_sources_args)
             eventdb2g_btn = eventdb2f_btn.then(**viewable_kwargs)
-            if kwargs['gradio_upload_to_chatbot']:
-                eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
+            eventdb2h_btn = eventdb2g_btn.then(**update_chatbots_kwargs)
+            if kwargs['gradio_errors_to_chatbot']:
+                eventdb2i_btn = eventdb2h_btn.then(**update_chatbots_errors_kwargs)
 
             # file upload
             eventdb1c = eventdb1.then(**get_sources_kwargs)
@@ -3396,6 +3456,8 @@ def go_gradio(**kwargs):
                 kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
             if 'show_accordions' not in user_kwargs:
                 kwargs1['show_accordions'] = False
+            if 'append_sources_to_chat' not in user_kwargs:
+                kwargs1['append_sources_to_chat'] = False
             if 'append_sources_to_answer' not in user_kwargs:
                 kwargs1['append_sources_to_answer'] = False
             if 'show_link_in_sources' not in user_kwargs:
@@ -3650,7 +3712,7 @@ def go_gradio(**kwargs):
 
         kwargs_evaluate_nochat = kwargs_evaluate.copy()
         # nominally never want sources appended for API calls, which is what nochat used for primarily
-        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False, from_ui=False))
+        kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False, from_ui=False, append_sources_to_chat=False))
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
@@ -3763,8 +3825,7 @@ def go_gradio(**kwargs):
 
             if not nochat:
                 history = args_list[-1]
-                if history is None:
-                    history = []
+                history = get_llm_history(history)
                 if smodel is not None and \
                         stokenizer is not None and \
                         sdevice is not None and \
@@ -3876,6 +3937,10 @@ def go_gradio(**kwargs):
                     # reject non-retry submit/enter
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
+            if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
+                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
+            if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
+                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
@@ -3918,6 +3983,17 @@ def go_gradio(**kwargs):
                 return int(tokenizer.model_max_length)
             else:
                 return 2000
+
+        def get_llm_history(history):
+            # avoid None users used for sources, errors, etc.
+            if history is None:
+                history = []
+            for ii in range(len(history) - 1, -1, -1):
+                if history[ii] and history[ii][0] is not None:
+                    last_user_ii = ii
+                    history = history[:last_user_ii + 1]
+                    break
+            return history
 
         def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None, plain_api=False):
             """
@@ -3979,8 +4055,12 @@ def go_gradio(**kwargs):
             instruction1 = history[-1][0]
             if retry and history:
                 # if retry, pop history and move onto bot stuff
-                instruction1 = history[-1][0]
-                history[-1][1] = None
+                history = get_llm_history(history)
+                instruction1 = history[-1][0] if history and history[-1] and len(history[-1]) == 2 else None
+                if history and history[-1]:
+                    history[-1][1] = None
+                if not instruction1:
+                    return dummy_return
             elif not instruction1:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
                     # if not retrying, then reject empty query
@@ -4190,6 +4270,13 @@ def go_gradio(**kwargs):
         nonelist = [None, '', 'None']
         noneset = set(nonelist)
 
+        def choose_exc(x):
+            # don't expose ports etc. to exceptions window
+            if is_public:
+                return "Endpoint unavailable or failed"
+            else:
+                return x
+
         def bot(*args, retry=False):
             history, fun1, langchain_mode1, db1, requests_state1, \
                 valid_key, h2ogpt_key1, \
@@ -4198,9 +4285,11 @@ def go_gradio(**kwargs):
                 langchain_action1 = prep_bot(*args, retry=retry)
             save_dict = dict()
             error = ''
+            error_with_str = ''
             sources = []
             history_str_old = ''
             error_old = ''
+            sources_str = None
             from src.tts_utils import get_no_audio
             no_audio = get_no_audio()
             audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
@@ -4213,6 +4302,9 @@ def go_gradio(**kwargs):
                                         api=False):
                     do_yield = False
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
+                    error_with_str = get_accordion_named(choose_exc(error), "Generate Error",
+                                                         font_size=2) if error not in ['', None, 'None'] else ''
+
                     # pass back to gradio only these, rest are consumed in this function
                     history_str = str(history)
                     could_yield = (
@@ -4256,6 +4348,16 @@ def go_gradio(**kwargs):
                 # yield if anything left over
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
+                if error_with_str:
+                    if history and history[-1] and len(history[-1]) == 2 and error_with_str:
+                        if not history[-1][1]:
+                            history[-1][1] = error_with_str
+                        else:
+                            # separate bot if already text present
+                            history.append((None, error_with_str))
+                if kwargs['append_sources_to_chat'] and sources_str:
+                    history.append((None, sources_str))
+
                 yield history, error, final_audio
             except BaseException as e:
                 print("evaluate_nochat exception: %s: %s" % (str(e), str(args)), flush=True)
@@ -4357,22 +4459,17 @@ def go_gradio(**kwargs):
             finally:
                 pass
 
-            def choose_exc(x):
-                # don't expose ports etc. to exceptions window
-                if is_public:
-                    return "Endpoint unavailable or failed"
-                else:
-                    return x
-
             bots = bots_old = chatbots.copy()
             bot_strs = bot_strs_old = str(chatbots)
             exceptions = exceptions_old = [''] * len(bots_old)
             exceptions_str = '\n'.join(
                 ['Model %s: %s' % (iix, choose_exc(x)) for iix, x in enumerate(exceptions) if
                  x not in [None, '', 'None']])
+            exceptions_each_str = [''] * len(bots_old)
             exceptions_old_str = exceptions_str
             sources = sources_all_old = [[]] * len(bots_old)
             sources_str = sources_str_all_old = [''] * len(bots_old)
+            sources_str_all = [None] * len(bots_old)
             prompt_raw = prompt_raw_all_old = [''] * len(bots_old)
             llm_answers = llm_answers_all_old = [{}] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
@@ -4416,6 +4513,10 @@ def go_gradio(**kwargs):
 
                     exceptions = [x[1] if x is not None and not isinstance(x, BaseException) else larger_str(str(x), y)
                                   for x, y in zip(res1, exceptions_old)]
+                    exceptions_each_str = [
+                        get_accordion_named(choose_exc(x), "Generate Error", font_size=2) if x not in ['', None,
+                                                                                                       'None'] else ''
+                        for x in exceptions]
                     do_yield |= any(
                         x != y for x, y in zip(exceptions, exceptions_old) if (x not in noneset or y not in noneset))
                     exceptions_old = exceptions.copy()
@@ -4477,6 +4578,16 @@ def go_gradio(**kwargs):
                 # yield if anything left over as can happen (FIXME: Understand better)
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'])
+                # add error accordion
+                for boti, bot in enumerate(bots):
+                    if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2 and exceptions_each_str[boti]:
+                        if not bots[boti][-1][1]:
+                            bots[boti][-1][1] = exceptions_each_str[boti]
+                        else:
+                            bots[boti].append((None, exceptions_each_str[boti]))
+                    if kwargs['append_sources_to_chat'] and sources_str_all[boti]:
+                        bots[boti].append((None, sources_str_all[boti]))
+
                 if len(bots) > 1:
                     yield tuple(bots + [exceptions_str, final_audio])
                 else:
@@ -4785,11 +4896,11 @@ def go_gradio(**kwargs):
                     if len(stepyy) != 2:
                         # something off
                         return False
-                    questionx = stepxx[0].replace('<p>', '').replace('</p>', '') if stepxx[0] is not None else None
-                    answerx = stepxx[1].replace('<p>', '').replace('</p>', '') if stepxx[1] is not None else None
+                    questionx = str(stepxx[0]).replace('<p>', '').replace('</p>', '') if stepxx[0] is not None else None
+                    answerx = str(stepxx[1]).replace('<p>', '').replace('</p>', '') if stepxx[1] is not None else None
 
-                    questiony = stepyy[0].replace('<p>', '').replace('</p>', '') if stepyy[0] is not None else None
-                    answery = stepyy[1].replace('<p>', '').replace('</p>', '') if stepyy[1] is not None else None
+                    questiony = str(stepyy[0]).replace('<p>', '').replace('</p>', '') if stepyy[0] is not None else None
+                    answery = str(stepyy[1]).replace('<p>', '').replace('</p>', '') if stepyy[1] is not None else None
 
                     if questionx != questiony or answerx != answery:
                         return False
@@ -5171,7 +5282,7 @@ def go_gradio(**kwargs):
 
             tokenizer_base_model = model_name
             prompt_dict1, error0 = get_prompt(prompt_type1, '',
-                                              chat=False, context='', reduced=False, making_context=False,
+                                              context='', reduced=False, making_context=False,
                                               return_dict=True, system_prompt=system_prompt1)
             model_state_new = dict(model=model1, tokenizer=tokenizer1, device=device1,
                                    base_model=model_name, tokenizer_base_model=tokenizer_base_model,
@@ -5207,7 +5318,7 @@ def go_gradio(**kwargs):
             if prompt_type1 in ['', None]:
                 print("Got prompt_type %s: %s" % (which, prompt_type1), flush=True)
                 return str({})
-            prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, chat=False, context='',
+            prompt_dict1, prompt_dict_error = get_prompt(prompt_type1, prompt_dict1, context='',
                                                          reduced=False, making_context=False, return_dict=True,
                                                          system_prompt=system_prompt1)
             if prompt_dict_error:
@@ -5512,12 +5623,13 @@ def go_gradio(**kwargs):
                                               add_chat_history_to_context=add_chat_history_to_context1,
                                               prompt_type=prompt_type1,
                                               prompt_dict=prompt_dict1,
-                                              chat=True,
                                               model_max_length=model_max_length1,
                                               memory_restriction_level=memory_restriction_level1,
                                               keep_sources_in_context=keep_sources_in_context1,
                                               system_prompt=system_prompt1,
-                                              chat_conversation=chat_conversation1)
+                                              chat_conversation=chat_conversation1,
+                                              hyde_level=None,
+                                              gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'])
                 tokens = tokenizer(context1, return_tensors="pt")['input_ids']
                 if len(tokens.shape) == 1:
                     return str(tokens.shape[0])
@@ -5566,7 +5678,9 @@ def go_gradio(**kwargs):
 
             keep_sources_in_context1 = False
             langchain_mode1 = None  # so always tries
-            response = remove_refs(response, keep_sources_in_context1, langchain_mode1)
+            hyde_level1 = None  # so always tries
+            response = remove_refs(response, keep_sources_in_context1, langchain_mode1, hyde_level1,
+                                   kwargs['gradio_errors_to_chatbot'])
 
             if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
                 if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
@@ -5664,15 +5778,18 @@ def go_gradio(**kwargs):
     scheduler = BackgroundScheduler()
     if kwargs['clear_torch_cache_level'] in [0, 1]:
         interval_time = 120
+        clear_torch_cache_func_periodic = clear_torch_cache_func_soft
     else:
         interval_time = 20
-    scheduler.add_job(func=clear_torch_cache, trigger="interval", seconds=interval_time)
+        clear_torch_cache_func_periodic = clear_torch_cache
+    # don't require ever clear torch cache
+    scheduler.add_job(func=clear_torch_cache_func_periodic, trigger="interval", seconds=interval_time)
     if is_public and \
             kwargs['base_model'] not in non_hf_types:
         # FIXME: disable for gptj, langchain or gpt4all modify print itself
         # FIXME: and any multi-threaded/async print will enter model output!
         scheduler.add_job(func=ping, trigger="interval", seconds=60)
-    if is_public or os.getenv('PING_GPU'):
+    if os.getenv('PING_GPU'):
         scheduler.add_job(func=ping_gpu, trigger="interval", seconds=60 * 10)
     scheduler.start()
 
@@ -5865,11 +5982,11 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
     dummy1 = gr.update(visible=False, value=None)
     # backup is text dump of db version
     if content:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1
         if view_raw_text_checkbox1:
             return dummy_ret
     else:
-        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
+        dummy_ret = dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
 
     if not isinstance(file, str):
         return dummy_ret
@@ -5879,7 +5996,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1, dummy1
+            return gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5887,7 +6004,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5896,7 +6013,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```python\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5906,7 +6023,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             with open(file, 'rt') as f:
                 content = f.read()
             content = f"```text\n{content}\n```"
-            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1
+            return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
 
@@ -5929,16 +6046,21 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             # actual JSON required
             with open(file, 'rt') as f:
                 json_blob = f.read()
-            return dummy1, dummy1, gr.update(visible=True, value=json_blob), dummy1, dummy1, dummy1
-        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1
+            return dummy1, dummy1, gr.update(visible=True, value=json_blob), dummy1, dummy1, dummy1, dummy1, dummy1
+        return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
     port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     import pathlib
     absolute_path_string = os.path.abspath(file)
     url_path = pathlib.Path(absolute_path_string).as_uri()
     url = get_url(absolute_path_string, from_str=True)
     img_url = url.replace("""<a href=""", """<img src=""")
-    if file.lower().endswith('.png') or file.lower().endswith('.jpg') or file.lower().endswith('.jpeg'):
-        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1
+    from src.gpt_langchain import image_types, audio_types, video_types
+    if any([file.lower().endswith('.' + x) for x in image_types]):
+        return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
+    elif any([file.lower().endswith('.' + x) for x in video_types]):
+        return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file)
+    elif any([file.lower().endswith('.' + x) for x in audio_types]):
+        return dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, gr.update(visible=True, value=file), dummy1
     elif file.lower().endswith('.pdf') or 'arxiv.org/pdf' in file:
 
         # account for when use `wget -b -m -k -o wget.log -e robots=off`
@@ -5953,11 +6075,11 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
             return gr.update(visible=True,
                              value=f"""<iframe width="1000" height="{pdf_height}" src="https://docs.google.com/viewerng/viewer?url={document1}&embedded=true" frameborder="0" height="100%" width="100%">
 </iframe>
-"""), dummy1, dummy1, dummy1, dummy1, dummy1
+"""), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
         elif have_gradio_pdf and os.path.isfile(file):
             from gradio_pdf import PDF
             return dummy1, dummy1, dummy1, dummy1, dummy1, PDF(file, visible=True, label=file, show_label=True,
-                                                               height=pdf_height)
+                                                               height=pdf_height), dummy1, dummy1
         else:
             return dummy_ret
     else:
@@ -6005,6 +6127,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       url_loaders,
                       jq_schema,
                       extract_frames,
+                      llava_prompt,
                       h2ogpt_key,
 
                       captions_model=None,
@@ -6037,6 +6160,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
                              llava_model=llava_model,
+                             llava_prompt=llava_prompt,
                              asr_model=asr_model,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
@@ -6165,6 +6289,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         url_loaders,
                                                         jq_schema,
                                                         extract_frames,
+                                                        llava_prompt,
 
                                                         captions_model=None,
                                                         caption_loader=None,
@@ -6215,6 +6340,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                              caption_loader=caption_loader,
                              doctr_loader=doctr_loader,
                              llava_model=llava_model,
+                             llava_prompt=llava_prompt,
                              asr_loader=asr_loader,
                              jq_schema=jq_schema,
                              extract_frames=extract_frames,

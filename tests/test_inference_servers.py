@@ -64,6 +64,7 @@ def test_gradio_inference_server(base_model, force_langchain_evaluate, do_langch
                        langchain_modes=langchain_modes,
                        docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate,
+                       system_prompt='',
                        verbose=True)
 
     # inference server
@@ -407,6 +408,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        prompt_type=prompt_type,
                        prompt_dict=prompt_dict,
                        chat=True,
+                       system_prompt='',
                        stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
                        max_new_tokens=max_new_tokens,
                        langchain_mode=langchain_mode,

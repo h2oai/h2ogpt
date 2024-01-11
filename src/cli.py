@@ -47,6 +47,7 @@ def run_cli(  # for local function:
         url_loaders=None,
         jq_schema=None,
         extract_frames=None,
+        llava_prompt=None,
         visible_models=None,
         h2ogpt_key=None,
         add_search_to_context=None,
@@ -61,6 +62,7 @@ def run_cli(  # for local function:
         hyde_level=None,
         hyde_template=None,
         hyde_show_only_final=None,
+        hyde_show_intermediate_in_accordion=None,
         doc_json_mode=None,
         chatbot_role=None,
         speaker=None,
@@ -84,6 +86,7 @@ def run_cli(  # for local function:
         url_loaders_options0=None,
         jq_schema0=None,
         keep_sources_in_context=None,
+        gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
@@ -98,9 +101,11 @@ def run_cli(  # for local function:
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        append_sources_to_chat=None,
         show_accordions=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
+        langchain_instruct_mode=None,
         add_chat_history_to_context=None,
         context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None,
@@ -178,7 +183,7 @@ def run_cli(  # for local function:
             res_old = ''
             for gen_output in gener:
                 res = gen_output['response']
-                sources = gen_output['sources']
+                sources = gen_output.get('sources', 'Failure of Generation')
                 if base_model not in non_hf_types or base_model in ['llama']:
                     if not stream_output:
                         print(res)

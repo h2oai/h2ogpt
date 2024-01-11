@@ -66,6 +66,7 @@ def run_eval(  # for local function:
         url_loaders=None,
         jq_schema=None,
         extract_frames=None,
+        llava_prompt=None,
         visible_models=None,
         h2ogpt_key=None,
         add_search_to_context=None,
@@ -80,6 +81,7 @@ def run_eval(  # for local function:
         hyde_level=None,
         hyde_template=None,
         hyde_show_only_final=None,
+        hyde_show_intermediate_in_accordion=None,
         doc_json_mode=None,
         chatbot_role=None,
         speaker=None,
@@ -103,6 +105,7 @@ def run_eval(  # for local function:
         url_loaders_options0=None,
         jq_schema0=None,
         keep_sources_in_context=None,
+        gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
@@ -117,9 +120,11 @@ def run_eval(  # for local function:
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
+        append_sources_to_chat=None,
         show_accordions=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
+        langchain_instruct_mode=None,
         add_chat_history_to_context=None,
         context=None, iinput=None,
         db_type=None, first_para=None, text_limit=None, verbose=None,
@@ -130,6 +135,12 @@ def run_eval(  # for local function:
         model_state_none=None,
 ):
     from_ui = False
+    # makes no sense to evaluate document content for langchain case
+    answer_with_sources = False
+    show_link_in_sources = False
+    append_sources_to_answer = False
+    append_sources_to_chat = False
+
     check_locals(**locals())
 
     if not context:
@@ -147,7 +158,8 @@ def run_eval(  # for local function:
                 os.system(
                     'wget https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/%s' % eval_filename)
             import json
-            data = json.load(open(eval_filename, 'rt'))
+            with open(eval_filename, 'r', encoding='utf-8') as f:
+                data = json.load(f)
             # focus on data that starts with human, else likely chopped from other data
             turn_start = 0  # odd in general
             data = [x for x in data if len(x['conversations']) > turn_start + 1 and
@@ -169,7 +181,8 @@ def run_eval(  # for local function:
             # get data, assume in correct format: json of rows of dict of instruction and output
             # only instruction is required
             import json
-            data = json.load(open(eval_filename, 'rt'))
+            with open(eval_filename, 'r', encoding='utf-8') as f:
+                data = json.load(f)
             for i in sorted(np.random.randint(0, len(data), size=eval_prompts_only_num)):
                 examplenew = example1.copy()
                 instruction = data[i]['instruction']
@@ -263,17 +276,24 @@ def run_eval(  # for local function:
             # fun yields as generator, so have to iterate over it
             # Also means likely do NOT want --stream_output=True, else would show all generations
             t1 = time.time()
-            gener = fun(*tuple(ex), exi=exi) if eval_as_output else fun(*tuple(ex))
+
+            # grab other parameters, like langchain_mode
+            eval_vars = ex.copy()
+            for k in eval_func_param_names:
+                if k in locals():
+                    eval_vars[eval_func_param_names.index(k)] = locals()[k]
+
+            gener = fun(*tuple(eval_vars), exi=exi) if eval_as_output else fun(*tuple(eval_vars))
             for res_fun in gener:
                 res = res_fun['response']
-                sources = res_fun['sources']
+                sources = res_fun.get('sources', 'Failure of Generation')
                 print(res)
                 if smodel:
                     score_with_prompt = False
                     if score_with_prompt:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
                         prompter = Prompter(prompt_type, prompt_dict,
-                                            debug=debug, chat=chat, stream_output=stream_output)
+                                            debug=debug, stream_output=stream_output)
                         prompt = prompter.generate_prompt(data_point, context_from_history=False)
                     else:
                         # just raw input and output

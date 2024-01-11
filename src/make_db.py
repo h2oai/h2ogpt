@@ -40,6 +40,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                caption_loader=None,
                doctr_loader=None,
                llava_model=None,
+               llava_prompt=None,
                asr_model=None,
                asr_loader=None,
 
@@ -89,6 +90,7 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
         caption_loader=caption_loader,
         doctr_loader=doctr_loader,
         llava_model=llava_model,
+        llava_prompt=llava_prompt,
         asr_model=asr_model,
         asr_loader=asr_loader,
 
@@ -150,6 +152,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_llava=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
                  llava_model: str = None,
+                 llava_prompt: str = None,
                  pre_load_image_audio_models: bool = False,
                  caption_gpu: bool = True,
                  # caption_loader=None,  # set internally
@@ -228,6 +231,7 @@ def make_db_main(use_openai_embedding: bool = False,
     :param enable_llava: See gen.py
     :param captions_model: See gen.py
     :param llava_model: See gen.py
+    :param llava_prompt: See gen.py
     :param pre_load_image_audio_models: See generate.py
     :param caption_gpu: Caption images on GPU if present
 
@@ -355,6 +359,7 @@ def make_db_main(use_openai_embedding: bool = False,
                          caption_loader=caption_loader,
                          doctr_loader=doctr_loader,
                          llava_model=llava_model,
+                         llava_prompt=llava_prompt,
                          # Note: we don't reload doctr model
                          asr_loader=asr_loader,
                          asr_model=asr_model,
