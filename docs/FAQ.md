@@ -609,6 +609,16 @@ GGUF using Mistral:
 python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
 ```
 
+GGUF using Mixtral:
+```bash
+python generate.py --base_model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096 --score_model=None
+```
+Also note that Mixtral GGUF has max context of 4k if allowed to auto-detect in h2oGPT.  One can try larger up to 32k with `--max_seq_len`.  But higher uses alot of GPU memory and is slow but for document QA is probably not helpful (e.g. `--top_k_docs=-1` with 32k actually hurts RAG performance, better to limit RAG to 4k, summarization can use more though).  This can be controlled per-query with `max_input_tokens` in API/UI.
+
+Also, with `--top_k_docs=-1` or too large positive value, context-filling of the 4k leads to very slow results for GGUF Mixtral compared to vLLM FP16 performance.
+
+Also, best to use a single GPU if possible, since multiple GPU usage is much slower with GGUF than vLLM, but context-filling issue is worse problem for llama.cpp performance.
+
 [Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
 
 If you see:
@@ -617,21 +627,6 @@ CUDA error 704 at /home/runner/work/llama-cpp-python-cuBLAS-wheels/llama-cpp-pyt
 current device: 0
 ```
 This is known bug in `llama.cpp` for some multi-GPU systems.  Only work-around is to restrict to single GPU by adding `export CUDA_VISIBLE_DEVICES=0` or similar value.
-
-#### GGML
-
-GGML v3 quantized models are not recommended, but are supported.  E.g. [TheBloke](https://huggingface.co/TheBloke) also has many of those, such as:
-```bash
-python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-```
-For GGML models, passing `--max_seq_len` directly is always recommended. When you pass the filename as shown in the preceding example, we assume you have previously downloaded the model to the local path, but if you pass a URL, then we download the file for you.
-You can also pass a URL for automatic downloading (which will not re-download if the file already exists):
-```bash
-python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-```
-for any TheBloke GGML v3 models.
-
-GGMLv3 requires installing older llama_cpp_python versions as listed in each linux/windows/mac installation, but it has bugs, so GGUF is recommended in all cases.
 
 #### GPT4All
 
