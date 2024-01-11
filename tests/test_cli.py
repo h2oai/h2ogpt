@@ -35,7 +35,8 @@ def test_cli_langchain(base_model, monkeypatch):
 
     print(all_generations)
     assert len(all_generations) == 1
-    assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
+    # no sources in output now
+    # assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
     assert "looking out the window" in all_generations[0] or \
            "staring out the window at the city skyline" in all_generations[0] or \
            "what the cat is doing" in all_generations[0] or \
