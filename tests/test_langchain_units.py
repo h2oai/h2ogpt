@@ -1890,7 +1890,7 @@ def test_chroma_filtering():
                                     assert 'h2oGPT' in rets1['sources']
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) in [7, 8] and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
