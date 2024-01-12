@@ -35,7 +35,7 @@ from langchain.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
 from langchain.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain.embeddings import HuggingFaceInstructEmbeddings
-from langchain.llms.huggingface_pipeline import VALID_TASKS
+from langchain_community.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
