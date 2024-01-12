@@ -1,5 +1,5 @@
 # optional for chat with PDF
-langchain==0.0.354
+langchain==0.1.0
 langchain_experimental==0.0.47
 langchain-community==0.0.8
 langsmith==0.0.77

@@ -163,7 +163,7 @@ jsonschema-specifications==2023.12.1
 kaleido==0.2.1
 kiwisolver==1.4.5
 kubernetes==28.1.0
-langchain==0.0.354
+langchain==0.1.0
 langchain-community==0.0.8
 langchain-core==0.1.6
 langchain-experimental==0.0.47
