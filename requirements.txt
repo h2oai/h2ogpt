@@ -1,3 +1,8 @@
+langchain==0.0.354
+langchain_experimental==0.0.47
+langchain-community==0.0.8
+langsmith==0.0.77
+langchain-core==0.1.6
 # for generate (gradio server) and finetune
 datasets==2.13.0
 sentencepiece==0.1.99

@@ -81,7 +81,7 @@ python -m venv vllm_env --system-site-packages
 # gputil is for rayWorker in vllm to run as non-root
 # below required outside docker:
 # apt-get install libnccl2
-/h2ogpt_conda/vllm_env/bin/python -m pip install https://github.com/vllm-project/vllm/releases/download/v0.2.5/vllm-0.2.5+cu118-cp310-cp310-manylinux1_x86_64.whl
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://github.com/vllm-project/vllm/releases/download/v0.2.4/vllm-0.2.4+cu118-cp310-cp310-manylinux1_x86_64.whl
 /h2ogpt_conda/vllm_env/bin/python -m pip install mosaicml-turbo
 #/h2ogpt_conda/vllm_env/bin/python -m pip install megablocks==0.5.0
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/triton-2.1.0-0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
