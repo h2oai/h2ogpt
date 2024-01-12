@@ -87,7 +87,7 @@ pip install diffusers==0.24.0
 #    In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
 pip uninstall -y hnswlib chroma-hnswlib
 # restore correct version
-pip install chroma-hnswlib==0.7.3 --upgrade
+pip install chromadb==0.4.22 --upgrade
 #* Selenium needs to have chrome installed, e.g. on Ubuntu:
 sudo apt install -y unzip xvfb libxi6 libgconf-2-4 libu2f-udev
 sudo apt install -y default-jdk
