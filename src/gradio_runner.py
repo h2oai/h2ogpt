@@ -1715,7 +1715,7 @@ def go_gradio(**kwargs):
                             return new_file
 
                         if audio_visible:
-                            model_base = os.getenv('MODEL_BASE', 'models/')
+                            model_base = os.getenv('H2OGPT_MODEL_BASE', 'models/')
                             female_voice = os.path.join(model_base, "female.wav")
                             ref_voice_clone = gr.Audio(
                                 label="File for Clone (x resets)",
