@@ -20,6 +20,8 @@ Supports CPU and MPS (Metal M1/M2).
 
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
+    pip install --upgrade pip
+    python -m pip install --upgrade setuptools
     
     # Install Torch:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
