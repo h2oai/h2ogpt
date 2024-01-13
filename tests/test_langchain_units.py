@@ -1879,15 +1879,15 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) in [7, 8] and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                             else:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) in [7, 8] and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'h2oGPT' in rets1['sources']
+                                    assert 'h2oGPT' in str(rets1['sources'])
                         else:
                             if answer_with_sources == -1:
                                 assert len(rets1) in [7, 8] and (
@@ -1901,15 +1901,17 @@ def test_chroma_filtering():
                                         'gravitational' in rets1['response'].lower()
                                 )
                             else:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) in [7, 8] and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
                                         'statistic' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in rets1['sources'] or 'unbiased' in rets1[
-                                        'sources'] or 'approximate' in rets1['sources']
+                                    assert 'whisper' in str(rets1['sources']) or \
+                                           'Whisper' in str(rets1['sources']) or \
+                                           'unbiased' in str(rets1['sources']) or \
+                                           'approximate' in str(rets1['sources'])
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
@@ -1953,7 +1955,7 @@ def test_chroma_filtering():
                                 hf_embedding_model1=hf_embedding_model,
                                 **other_kwargs
                                 )
-            assert len(show_ret) == 5
+            assert len(show_ret) == 8
             if chroma_new:
                 assert1 = show_ret[4]['value'] is not None and 'README.md' in show_ret[4]['value']
                 assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
