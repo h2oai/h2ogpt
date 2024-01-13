@@ -102,8 +102,10 @@ def _main():
 
     print("Torch Status: have torch: %s need get gpu torch: %s CVD: %s GPUs: %s" % (have_torch, need_get_gpu_torch, os.getenv('CUDA_VISIBLE_DEVICES'), deviceCount))
 
+    auto_install_torch_gpu = False
+
     import sys
-    if (not have_torch or need_get_gpu_torch) and sys.platform == "win32":
+    if auto_install_torch_gpu and (not have_torch or need_get_gpu_torch) and sys.platform == "win32":
         print("Installing Torch")
         # for one-click, don't have torch installed, install now
         import subprocess
