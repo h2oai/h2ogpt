@@ -3903,10 +3903,10 @@ def evaluate(
                         if len(message1) == 2:
                             if message1[0]:
                                 messages0.append(
-                                    {'role': 'user', 'content': message1[0]})
+                                    {'role': 'user', 'content': gradio_to_llm(message1[0], bot=False)})
                             if message1[1]:
                                 messages0.append(
-                                    {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
+                                    {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
                 if prompt:
                     messages0.append({'role': 'user', 'content': prompt})
                 responses = openai_client.create(
