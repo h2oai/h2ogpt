@@ -1995,7 +1995,7 @@ def get_llm(use_openai_model=False,
             streamer = None
 
         from h2oai_pipeline import H2OTextGenerationPipeline
-        if not hasattr(model, 'config'):
+        if 'AWQ' in str(model) and hasattr(model, 'model'):
             # e.g. AutoAWQForCausalLM
             model = model.model
         pipe = H2OTextGenerationPipeline(model=model,
@@ -5133,7 +5133,7 @@ def run_target(query='',
                                                                                                'conditional_type') and llm.pipeline.model.conditional_type
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
-        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
         if conditional_type:
             # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
             context_class_cast = NullContext
