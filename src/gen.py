@@ -3897,12 +3897,18 @@ def evaluate(
                     assert external_handle_chat_conversation, "Should be handling only externally"
                     # history_to_use_final handles token counting issues
                     for message1 in history_to_use_final:
+                        if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+                            # then not really part of LLM, internal, so avoid
+                            continue
                         if len(message1) == 2:
-                            messages0.append(
-                                {'role': 'user', 'content': message1[0] if message1[0] is not None else ''})
-                            messages0.append(
-                                {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
-                messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
+                            if message1[0]:
+                                messages0.append(
+                                    {'role': 'user', 'content': message1[0]})
+                            if message1[1]:
+                                messages0.append(
+                                    {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
+                if prompt:
+                    messages0.append({'role': 'user', 'content': prompt})
                 responses = openai_client.create(
                     model=base_model,
                     messages=messages0,

@@ -1239,11 +1239,15 @@ class ExtraChat:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
-                instruction = gradio_to_llm(messages1[0], bot=False)
-                output = gradio_to_llm(messages1[1], bot=True)
-
-                messages.append(HumanMessage(content=instruction))
-                messages.append(AIMessage(content=output))
+                if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
+                    # then not really part of LLM, internal, so avoid
+                    continue
+                if messages1[0]:
+                    instruction = gradio_to_llm(messages1[0], bot=False)
+                    messages.append(HumanMessage(content=instruction))
+                if messages1[1]:
+                    output = gradio_to_llm(messages1[1], bot=True)
+                    messages.append(AIMessage(content=output))
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
