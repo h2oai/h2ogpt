@@ -33,10 +33,14 @@ Supports CPU and MPS (Metal M1/M2).
     # Required for CPU: LLaMa/GPT4All:
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip install librosa
+    pip install llama-cpp-python
     # Optional: PyMuPDF/ArXiv:
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+    # Optional: DocTR OCR:
+    pip install -r reqs_optional/requirements_optional_doctr.txt                     
     # Optional: for supporting unstructured package
     python3 -m nltk.downloader all
   ```
