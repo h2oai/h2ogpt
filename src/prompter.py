@@ -1224,6 +1224,10 @@ Remember to tailor the activities to the birthday child's interests and preferen
     if isinstance(terminate_response, (tuple, list)):
         assert '' not in terminate_response, "Bad terminate_response"
 
+    if system_prompt == 'auto':
+        # if still auto, then safest then to just avoid system prompt
+        system_prompt = ''
+
     ret_dict = dict(promptA=promptA, promptB=promptB, PreInstruct=PreInstruct, PreInput=PreInput,
                     PreResponse=PreResponse, terminate_response=terminate_response, chat_sep=chat_sep,
                     chat_turn_sep=chat_turn_sep,

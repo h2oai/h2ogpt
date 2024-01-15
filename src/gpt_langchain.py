@@ -4944,6 +4944,12 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             changed = True
         if changed and prompter:
             prompter.system_prompt = system_prompt
+        if system_prompt == 'auto':
+            if prompter:
+                system_prompt = prompter.system_prompt
+            if system_prompt == 'auto':
+                # safest then to just avoid system prompt
+                system_prompt = prompter.system_prompt = ""
 
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
