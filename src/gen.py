@@ -52,7 +52,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
-    generic_postfix
+    generic_postfix, mistralai_mapping, mistralai_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -72,7 +72,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_stop_token_ids, anthropic_gpts, google_gpts
+    openai_gpts, get_stop_token_ids, anthropic_gpts, google_gpts, mistralai_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -542,6 +542,10 @@ def main(
                              Or Address can be for Google Gemini.  Ensure key is set in env GOOGLE_API_KEY
                               Use: "google"
                               E.g. --base_model=gemini-pro --inference_server=google
+
+                             Or Address can be for MistralAI.  Ensure key is set in env MISTRAL_API_KEY
+                              Use: "mistralai"
+                              E.g. --base_model=mistral-medium --inference_server=mistralai
 
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
@@ -2064,7 +2068,7 @@ def get_config(base_model,
         except OSError as e:
             if raise_exception:
                 raise
-            if base_model in anthropic_gpts + openai_gpts + google_gpts + non_hf_types:
+            if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + non_hf_types:
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
@@ -2507,6 +2511,8 @@ def get_model(
         raise ValueError("Must select inference server when choosing Anthropic models")
     if base_model in google_gpts and not inference_server:
         raise ValueError("Must select inference server when choosing Google models")
+    if base_model in mistralai_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing MistralAI models")
 
     # see if we can set max_seq_len and tokenizer for non-HF models or check at least if set when required
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
@@ -2560,7 +2566,32 @@ def get_model(
         client = genai.GenerativeModel(base_model)
         async_client = genai.GenerativeModel(base_model)
         timeout = 600
-        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=None, api_key=api_key,
+        model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
+                     timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
+    if not regenerate_clients and inference_server.startswith('mistralai'):
+        t0 = time.time()
+        from mistralai.client import MistralClient
+        from mistralai.async_client import MistralAsyncClient
+
+        api_key = os.environ["MISTRAL_API_KEY"]
+        assert api_key, "Missing MistralAI API key"
+        client = MistralClient(api_key=api_key)
+
+        list_models_response = client.list_models()
+        see_model = False
+        models = []
+        list_models = [x.id for x in dict(list_models_response)['data']]
+        for name in list_models:
+            see_model |= base_model == name
+        assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+
+        async_client = MistralAsyncClient(api_key=api_key)
+
+        timeout = 600
+        model = dict(client=client, async_client=async_client, inf_type='mistralai', base_url=None, api_key=api_key,
                      timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
@@ -2568,7 +2599,8 @@ def get_model(
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
             base_model in anthropic_gpts or \
-            base_model in google_gpts:
+            base_model in google_gpts or \
+            base_model in mistralai_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
             if  inference_server.startswith('openai'):
@@ -2610,6 +2642,19 @@ def get_model(
                 max_output_len = google_mapping_outputs[base_model]
             else:
                 max_output_len = None
+        if inference_server.startswith('mistralai') or base_model in mistralai_gpts:
+            if inference_server.startswith('mistralai'):
+                assert os.getenv('MISTRAL_API_KEY'), "Set environment for MISTRAL_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in mistralai_mapping:
+                max_seq_len = mistralai_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in mistralai_mapping_outputs:
+                max_output_len = mistralai_mapping_outputs[base_model]
+            else:
+                max_output_len = None
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2635,9 +2680,11 @@ def get_model(
                 inference_server.startswith('anthropic') or \
                 base_model in anthropic_gpts or \
                 inference_server.startswith('google') or \
-                base_model in google_gpts:
+                base_model in google_gpts or \
+                inference_server.startswith('mistralai') or \
+                base_model in mistralai_gpts:
             # must be set by now
-            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google models by now."
+            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google or MistralAI models by now."
 
         if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
@@ -3558,7 +3605,8 @@ def evaluate(
                            inference_server.startswith('openai_azure_chat') or \
                            inference_server.startswith('openai_azure') or \
                            inference_server.startswith('anthropic') or \
-                           inference_server.startswith('google')
+                           inference_server.startswith('google') or \
+                           inference_server.startswith('mistralai')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \

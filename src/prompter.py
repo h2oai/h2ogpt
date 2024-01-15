@@ -2,7 +2,7 @@ import ast
 import time
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -175,6 +175,9 @@ prompt_type_to_model_name['anthropic'] = anthropic_gpts
 
 google_gpts = sorted(google_mapping.keys())
 prompt_type_to_model_name['google'] = google_gpts
+
+mistralai_gpts = sorted(mistralai_mapping.keys())
+prompt_type_to_model_name['mistralai'] = mistralai_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
@@ -601,8 +604,13 @@ ASSISTANT:
             prompt_type in [PromptType.anthropic.value, str(PromptType.anthropic.value),
                             PromptType.anthropic.name] or \
             prompt_type in [PromptType.google.value, str(PromptType.google.value),
-                            PromptType.google.name]:
+                            PromptType.google.name] or \
+            prompt_type in [PromptType.mistralai.value, str(PromptType.mistralai.value),
+                            PromptType.mistralai.name]:
         can_handle_system_prompt = True  # handled via special messages/arguments not part of prompt
+        # mistral safe_mode=True is same as this system prompt:
+        # Always assist with care, respect, and truth. Respond with utmost utility yet securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies promote fairness and positivity.
+
         # prompting and termination all handled by endpoint
         preprompt = """"""
         start = ''
