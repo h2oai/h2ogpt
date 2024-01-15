@@ -2303,6 +2303,8 @@ def go_gradio(**kwargs):
                                            enable_pdf_doctr=kwargs['enable_pdf_doctr'],
                                            try_pdf_as_html=kwargs['try_pdf_as_html'],
                                            gradio_upload_to_chatbot_num_max=kwargs['gradio_upload_to_chatbot_num_max'],
+                                           allow_upload_to_my_data=kwargs['allow_upload_to_my_data'],
+                                           allow_upload_to_user_data=kwargs['allow_upload_to_user_data'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -3252,7 +3254,7 @@ def go_gradio(**kwargs):
                 do_show = gradio_upload_to_chatbot1 or gradio_errors_to_chatbot1
                 added_history = []
 
-                if not for_errors:
+                if not for_errors and str(args_list[1]).strip():
                     new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)

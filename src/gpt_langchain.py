@@ -7237,6 +7237,9 @@ def _update_user_db(file,
                     from_ui=False,
 
                     gradio_upload_to_chatbot_num_max=None,
+
+                    allow_upload_to_my_data=None,
+                    allow_upload_to_user_data=None,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -7260,10 +7263,22 @@ def _update_user_db(file,
     assert enable_llava is not None
     assert verbose is not None
     assert gradio_upload_to_chatbot_num_max is not None
+    assert allow_upload_to_my_data is not None
+    assert allow_upload_to_user_data is not None
 
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
+
+
+    if langchain_mode is not None:
+        in_scratch_db = langchain_mode in db1s
+        in_user_db = dbs is not None and langchain_mode in dbs
+        if in_scratch_db and not allow_upload_to_my_data:
+            raise ValueError("Not allowed to upload to scratch/personal space")
+        elif in_user_db and not allow_upload_to_user_data:
+            raise ValueError("Not allowed to upload to shared space")
+
     # handle case of list of temp buffer
     if isinstance(file, str) and file.strip().startswith('['):
         try:
