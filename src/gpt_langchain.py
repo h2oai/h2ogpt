@@ -1762,6 +1762,32 @@ def get_llm(use_openai_model=False,
                   )
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
+    elif inference_server.startswith('mistralai'):
+        from langchain_mistralai import ChatMistralAI
+        cls = ChatMistralAI
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict()
+        kwargs_extra = {}
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            # FIXME: _AnthropicCommon ignores these and makes no client anyways
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
+
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        llm = cls(model=model_name,
+                  mistral_api_key=os.getenv('MISTRAL_API_KEY'),
+                  top_p=top_p if do_sample else 1,
+                  top_k=top_k,
+                  temperature=temperature if do_sample else 0,
+                  callbacks=callbacks if stream_output else None,
+                  streaming=stream_output,
+                  default_request_timeout=max_time,
+                  model_kwargs=model_kwargs,
+                  **kwargs_extra
+                  )
+        streamer = callbacks[0] if stream_output else None
+        prompt_type = inference_server
     elif inference_server and inference_server.startswith('sagemaker'):
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]  # FIXME
         streamer = None
