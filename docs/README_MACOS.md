@@ -38,7 +38,7 @@ Supports CPU and MPS (Metal M1/M2).
     # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: for supporting unstructured package
-    python -m nltk.downloader all
+    python3 -m nltk.downloader all
   ```
 * For supporting Word and Excel documents, download libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, install [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html):
@@ -50,7 +50,8 @@ Supports CPU and MPS (Metal M1/M2).
     brew install tesseract-lang
     brew install rubberband
     brew install pygobject3 gtk4
-    brew libjpeg libpng
+    brew install libjpeg
+    brew install libpng
     ```
 
 See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
