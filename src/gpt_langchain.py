@@ -7270,7 +7270,6 @@ def _update_user_db(file,
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
 
-
     if langchain_mode is not None:
         in_scratch_db = langchain_mode in db1s
         in_user_db = dbs is not None and langchain_mode in dbs
