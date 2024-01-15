@@ -1827,6 +1827,7 @@ def get_llm(use_openai_model=False,
                   model_kwargs=model_kwargs,
                   max_tokens=max_new_tokens,
                   safe_mode=False,
+                  random_seed=SEED,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
                   )
