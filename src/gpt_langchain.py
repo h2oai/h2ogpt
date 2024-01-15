@@ -42,6 +42,7 @@ from langchain.schema.output import GenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_mistralai import ChatMistralAI
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
@@ -1401,6 +1402,45 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
         )
 
 
+class H2OChatMistralAI(ChatMistralAI, ExtraChat):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    stream_output: bool = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
+
 class H2OAzureOpenAI(AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1763,8 +1803,7 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server.startswith('mistralai'):
-        from langchain_mistralai import ChatMistralAI
-        cls = ChatMistralAI
+        cls = H2OChatMistralAI
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
@@ -1782,9 +1821,14 @@ def get_llm(use_openai_model=False,
                   temperature=temperature if do_sample else 0,
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
+                  stream=stream_output,
+                  stream_output=stream_output,
                   default_request_timeout=max_time,
                   model_kwargs=model_kwargs,
-                  **kwargs_extra
+                  max_tokens=max_new_tokens,
+                  safe_mode=False,
+                  **kwargs_extra,
+                  llm_kwargs=dict(stream=True),
                   )
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
