@@ -55,7 +55,7 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
    # for windows/mac use "set" or relevant environment setting mechanism
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
    ```
-Then do on any system:
+Then run the following commands on any system:
    ```bash
    git clone https://github.com/h2oai/h2ogpt.git
    cd h2ogpt
@@ -68,27 +68,27 @@ Then do on any system:
 
    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
    ```
-then go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
+Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.  For AVX1 or AMD ROC systems, edit `reqs_optional/requirements_optional_gpt4all.txt` to choose valid packages.
 
 We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) for 9GB+ GPU memory or larger models like [LLaMa-2-13B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-13b-chat.Q6_K.gguf) if you have 16GB+ GPU memory.
 
 ---
 
-For any platform, some packages download models at runtime, like for DocTR, Unstructured, BLIP, Stable Diffusion, etc. that appear to delay operations in the UI.  The progress appears in the console logs.
+Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, Stable Diffusion, etc. download models at runtime that appear to delay operations in the UI. The progress appears in the console logs.
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer
     * CPU or GPU: Download [h2oGPT Windows Installer](https://h2o-release.s3.amazonaws.com/h2ogpt/Jan2024/h2oGPT_0.0.1.exe) (1.3GB file)
       * Once installed, feel free to change start directory for icon from `%HOMEDRIVE%\%HOMEPATH%` to (e.g.) `%HOMEDRIVE%\%HOMEPATH%\h2ogpt_data` so all created files (like database) go there.  All paths saved are relative to this path.
-    * CPU: Click h2oGPT icon in start menu.  Give it about 15 seconds to open browser, if many optional packages included.  The browser will launch with actual local IP address by default, not localhost.
-    * GPU: Before starting, run these commands (replace `pseud` with your user):
+    * CPU: Click the h2oGPT icon in the Start menu.  Give it about 15 seconds to open in a browser if many optional packages are included.  By default, the browser will launch with the actual local IP address, not localhost.
+    * GPU: Before starting, run the following commands (replace `pseud` with your user):
       ```
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe -m pip uninstall -y torch
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl
       ```
-      Now Click h2oGPT icon in start menu.  Give it about 20 seconds to open browser, if many optional packages included.  The browser will launch with actual local IP address by default, not localhost.
-    * To debug any issues, run (replace `pseud` with your user):
+      Now click the h2oGPT icon in the Start menu.  Give it about 20 seconds to open in a browser if many optional packages are included.  By default, the browser will launch with the actual local IP address, not localhost.
+    * To debug any issues, run the following (replace `pseud` with your user):
       ```
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"
       ```
@@ -107,9 +107,9 @@ For any platform, some packages download models at runtime, like for DocTR, Unst
     * If startup fails, run as console and check for errors, e.g. and kill any old Python processes.
 
   * [Full Windows 10/11 Manual Installation Script](docs/README_WINDOWS.md)
-    * Single `.bat` file for installation (if do not skip any optional packages, takes about 9GB filled on disk).
+    * Single `.bat` file for installation (if you do not skip any optional packages, takes about 9GB filled on disk).
     * Recommend base Conda env, which allows for DocTR that requires pygobject that has otherwise no support (except `mysys2` that cannot be used by h2oGPT).
-    * Also allows for TTS package by Coqui, which is otherwise not enabled currently in one-click installer.
+    * Also allows for the TTS package by Coqui, which is otherwise not currently enabled in the one-click installer.
 
 ---
 
