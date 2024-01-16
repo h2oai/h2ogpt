@@ -622,6 +622,13 @@ ASSISTANT:
         chat_turn_sep = chat_sep = '\n'
         humanstr = None
         botstr = None
+
+        if prompt_type in [PromptType.google.value, str(PromptType.google.value),
+                            PromptType.google.name] and system_prompt == 'auto':
+            # google throws safety/harassment errors if don't tell the model it's helpful, even for asking "what is 1+1?"
+            # so give basic prompt if auto, the current default, so part of pre-conversation always
+            system_prompt = 'I am a helpful assistant.  I will accurately answer all your questions.'
+
     elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
                          PromptType.vicuna11.name] or \
             prompt_type in [PromptType.vicuna11nosys.value, str(PromptType.vicuna11nosys.value),
