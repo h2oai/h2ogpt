@@ -42,7 +42,7 @@ Supports CPU and MPS (Metal M1/M2).
     # Optional: DocTR OCR:
     pip install -r reqs_optional/requirements_optional_doctr.txt                     
     # Optional: for supporting unstructured package
-    python3 -m nltk.downloader all
+    python -m nltk.downloader all
   ```
 * For supporting Word and Excel documents, download libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, install [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html):
