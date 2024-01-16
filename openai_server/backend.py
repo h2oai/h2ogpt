@@ -73,8 +73,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs = dict(instruction=instruction)
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
-    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_tokens', 256)
-    gen_kwargs['visible_models'] = gen_kwargs.pop('model', 0)
+    # max_tokens=16 for text completion by default
+    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
+    gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
 
     kwargs.update(**gen_kwargs)
 
@@ -184,8 +185,6 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     resp_list = 'choices'
 
     gen_kwargs = body
-    gen_kwargs['max_new_tokens'] = body.pop('max_tokens')
-
     instruction, system_message, history = convert_messages_to_structure(messages)
     gen_kwargs.update({
         'system_prompt': system_message,

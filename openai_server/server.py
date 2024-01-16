@@ -39,7 +39,7 @@ class Generation(BaseModel):
     eta_cutoff: float = 0
     penalty_alpha: float = 0
     do_sample: bool = False
-    seed: int = -1
+    seed: int = 1234
     encoder_repetition_penalty: float = 1
     no_repeat_ngram_size: int = 0
     min_length: int = 0
@@ -53,12 +53,12 @@ class Params(BaseModel):
     model: str | None = Field(default=None, description="Choose model")
     best_of: int | None = Field(default=1, description="Unused")
     frequency_penalty: float | None = 0
-    max_tokens: int | None = 16
+    max_tokens: int | None = 256
     n: int | None = Field(default=1, description="Unused")
     presence_penalty: float | None = 0
     stop: str | List[str] | None = None
     stream: bool | None = False
-    temperature: float | None = 1
+    temperature: float | None = 0.3
     top_p: float | None = 1
 
 
