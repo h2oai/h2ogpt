@@ -87,7 +87,7 @@ python -m venv vllm_env --system-site-packages
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/triton-2.1.0-0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/megablocks-0.5.0-cp310-cp310-linux_x86_64.whl
 # 1006.9       RuntimeError: Found no NVIDIA driver on your system. Please check that you have an NVIDIA GPU and installed a driver from http://www.nvidia.com/Download/index.aspx
-/h2ogpt_conda/vllm_env/bin/python -m pip install ray pandas gputil==1.4.0 fschat==0.2.34 flash-attn==2.4.2
+/h2ogpt_conda/vllm_env/bin/python -m pip install ray pandas gputil==1.4.0 fschat==0.2.34 flash-attn==2.4.2 autoawq==0.1.8
 mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
