@@ -29,16 +29,13 @@ sys.path.append('openai_server')
 
 
 class Generation(BaseModel):
-    top_k: int = 0
-    top_p: int = 0
+    top_k: int = 1
+    top_p: int = 1
     repetition_penalty: float = 1
     typical_p: float = 1
     tfs: float = 1
     top_a: float = 0
-    epsilon_cutoff: float = 0
-    eta_cutoff: float = 0
     penalty_alpha: float = 0
-    do_sample: bool = False
     seed: int = 1234
     encoder_repetition_penalty: float = 1
     no_repeat_ngram_size: int = 0
