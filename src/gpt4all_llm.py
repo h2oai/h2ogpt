@@ -406,7 +406,9 @@ class H2OLlamaCpp(LlamaCpp):
         prompt = self.prompter.generate_prompt(data_point)
         self.count_input_tokens += self.get_num_tokens(prompt)
         self.prompts.append(prompt)
-        stop = self.prompter.stop_sequences
+        if stop is None:
+            stop = []
+        stop.extend(self.prompter.stop_sequences)
 
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
