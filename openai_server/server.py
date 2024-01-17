@@ -29,34 +29,28 @@ sys.path.append('openai_server')
 
 
 class Generation(BaseModel):
-    top_k: int = 1
-    top_p: float = 1
-    repetition_penalty: float = 1
-    typical_p: float = 1
-    tfs: float = 1
-    top_a: float = 0
-    penalty_alpha: float = 0
-    seed: int = 1234
-    encoder_repetition_penalty: float = 1
-    no_repeat_ngram_size: int = 0
-    min_length: int = 0
-    num_beams: int = 1
-    length_penalty: float = 1
-    early_stopping: bool = False
+    # put here things not supported by OpenAI but are by torch or vLLM
+    # https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
+    top_k: int | None = 1
+    repetition_penalty: float | None = 1
+    min_p: float | None = 0.0
 
 
 class Params(BaseModel):
+    # https://platform.openai.com/docs/api-reference/completions/create
     user: str | None = Field(default=None, description="Track user")
     model: str | None = Field(default=None, description="Choose model")
     best_of: int | None = Field(default=1, description="Unused")
-    frequency_penalty: float | None = 0
+    frequency_penalty: float | None = 0.0
     max_tokens: int | None = 256
     n: int | None = Field(default=1, description="Unused")
-    presence_penalty: float | None = 0
+    presence_penalty: float | None = 0.0
     stop: str | List[str] | None = None
+    stop_token_ids: List[int] | None = None
     stream: bool | None = False
     temperature: float | None = 0.3
-    top_p: float | None = 1
+    top_p: float | None = 1.0
+    seed: int | None = 1234
 
 
 class CompletionParams(Params):

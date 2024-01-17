@@ -57,6 +57,8 @@ def run_openai_client(stream_output, chat, local_server, prompt, api_key, enforc
              stream_output=stream_output, gradio=True,
              num_beams=1, block_gradio_exit=False,
              add_disk_models_to_ui=False,
+             enable_tts=False,
+             enable_stt=False,
              enforce_h2ogpt_api_key=enforce_h2ogpt_api_key,
              # or use file with h2ogpt_api_keys=h2ogpt_api_keys.json
              h2ogpt_api_keys=[api_key] if api_key else None,

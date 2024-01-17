@@ -92,6 +92,11 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         gen_kwargs['top_p'] = 1.0
         gen_kwargs['top_k'] = 1
 
+    if gen_kwargs.get('repetition_penalty', 1) == 1 and gen_kwargs.get('presence_penalty', 0.0) != 0.0:
+        # then user using presence_penalty, convert to repetition_penalty for h2oGPT
+        # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
+        gen_kwargs['repetition_penalty'] = 0.5 * (gen_kwargs['presence_penalty'] - 0.0) + 1.0
+
     kwargs.update(**gen_kwargs)
 
     # concurrent gradio client
