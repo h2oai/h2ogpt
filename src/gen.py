@@ -2603,7 +2603,7 @@ def get_model(
             base_model in mistralai_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
-            if  inference_server.startswith('openai'):
+            if inference_server.startswith('openai'):
                 client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
                     set_openai(inference_server, model_name=base_model)
                 assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
@@ -3894,12 +3894,13 @@ def evaluate(
                                      frequency_penalty=0,
                                      seed=SEED,
                                      n=num_return_sequences,
-                                     presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                                     presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
             if inf_type == 'vllm' or inf_type == 'openai':
                 if inf_type == 'vllm':
                     stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=stop_sequences)
                     other_dict = dict(timeout=max_time)
+                    # gen_server_kwargs.update(dict(repetition_penalty=repetition_penalty))
                 else:
                     stop_token_ids_dict = {}
                     other_dict = dict(timeout=max_time)

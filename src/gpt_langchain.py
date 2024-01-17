@@ -1658,9 +1658,11 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
                             frequency_penalty=0,
-                            presence_penalty=1.07 - repetition_penalty + 0.6,
+                            presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                             logit_bias=None if inf_type == 'vllm' else {},
                             )
+        # if inference_server.startswith('vllm'):
+        #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
 
         azure_kwargs = dict(openai_api_type='azure',
                             openai_api_key=api_key,
@@ -5840,7 +5842,7 @@ def get_chain(query=None,
             StableDiffusionTool,
             TextToVideoTool,
         )
-        do_image_tools = False # FIXME: times out and blocks everything
+        do_image_tools = False  # FIXME: times out and blocks everything
         if do_image_tools:
             image_tools = [
                 StableDiffusionTool().langchain,
@@ -5879,10 +5881,10 @@ def get_chain(query=None,
             func=sympy_math.run,
         )
 
-        enable_semantictool = False # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
+        enable_semantictool = False  # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
         if enable_semantictool:
-            #from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
-            #semantic = SemanticScholarAPIWrapper()
+            # from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            # semantic = SemanticScholarAPIWrapper()
             # So can pass API key as ENV: S2_API_KEY
             from utils_langchain import H2OSemanticScholarAPIWrapper
             semantic = H2OSemanticScholarAPIWrapper()
