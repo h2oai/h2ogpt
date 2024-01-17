@@ -30,7 +30,7 @@ sys.path.append('openai_server')
 
 class Generation(BaseModel):
     top_k: int = 1
-    top_p: int = 1
+    top_p: float = 1
     repetition_penalty: float = 1
     typical_p: float = 1
     tfs: float = 1
