@@ -5288,7 +5288,7 @@ def get_limited_prompt(instruction,
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
                          allow_chat_system_prompt
-    if chat_system_prompt:
+    if chat_system_prompt and system_prompt:
         chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
     else:
         chat_conversation_system_prompt = []

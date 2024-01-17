@@ -1428,7 +1428,7 @@ def go_gradio(**kwargs):
                                                              filterable=True,
                                                              )
                             system_prompt = gr.Textbox(label='System Prompt',
-                                                       info="Filled by choice above, or can enter your own custom system prompt",
+                                                       info="Filled by choice above, or can enter your own custom system prompt.  auto means automatic, which will auto-switch to DocQA prompt when using collections.",
                                                        value=kwargs['system_prompt'], lines=2)
 
                             def show_sys(x):
