@@ -135,9 +135,10 @@ prompt_type_to_model_name = {
         'TheBloke/Llama-2-7B-Chat-GGUF',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
-                'mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
-                'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ',
-                'TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ'],
+                'mistralai/Mistral-7B-Instruct-v0.2', 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
+                ],
+    "mixtral": ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
+                'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ'],
     "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
                'TheBloke/zephyr-7B-beta-AWQ', 'zephyr-7b-beta.Q5_K_M.gguf'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
@@ -885,6 +886,21 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = "[INST] "
         if making_context and histi == 0 or not making_context and not reduced:
             PreInstruct = '<s>' + PreInstruct
+        PreResponse = "[/INST]"
+        terminate_response = ["[INST]", "</s>"]
+        chat_sep = ' '
+        chat_turn_sep = '</s> '
+        humanstr = '[INST]'
+        botstr = '[/INST]'
+        if making_context:
+            PreResponse += ""
+    elif prompt_type in [PromptType.mixtral.value, str(PromptType.mixtral.value),
+                         PromptType.mixtral.name]:
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "[INST] "
+        if making_context and histi == 0 or not making_context and not reduced:
+            PreInstruct = '<s> ' + PreInstruct
         PreResponse = "[/INST]"
         terminate_response = ["[INST]", "</s>"]
         chat_sep = ' '

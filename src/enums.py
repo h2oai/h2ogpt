@@ -62,6 +62,7 @@ class PromptType(Enum):
     docsgpt = 56
     open_chat_math = 57
     mistralai = 58
+    mixtral = 59
 
 
 class DocumentSubset(Enum):
