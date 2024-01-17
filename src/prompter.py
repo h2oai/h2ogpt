@@ -139,12 +139,14 @@ prompt_type_to_model_name = {
                 ],
     "mixtral": ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
                 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ'],
+    "mixtralnosys": [],
     "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
                'TheBloke/zephyr-7B-beta-AWQ', 'zephyr-7b-beta.Q5_K_M.gguf'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
-    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ', 'Xwin-LM/Xwin-LM-70B-V0.1'],
+    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ',
+             'Xwin-LM/Xwin-LM-70B-V0.1'],
     "xwincoder": ['Xwin-LM/XwinCoder-7B', 'Xwin-LM/XwinCoder-13B', 'Xwin-LM/XwinCoder-34B'],
     "xwinmath": ["Xwin-LM/Xwin-Math-7B-V1.0", "Xwin-LM/Xwin-Math-70B-V1.0", "Xwin-LM/Xwin-Math-13B-V1.0"],
     "mistrallite": ['amazon/MistralLite'],
@@ -625,7 +627,7 @@ ASSISTANT:
         botstr = None
 
         if prompt_type in [PromptType.google.value, str(PromptType.google.value),
-                            PromptType.google.name] and system_prompt == 'auto':
+                           PromptType.google.name] and system_prompt == 'auto':
             # google throws safety/harassment errors if don't tell the model it's helpful, even for asking "what is 1+1?"
             # so give basic prompt if auto, the current default, so part of pre-conversation always
             system_prompt = 'I am a helpful assistant.  I will accurately answer all your questions.'
@@ -895,8 +897,28 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if making_context:
             PreResponse += ""
     elif prompt_type in [PromptType.mixtral.value, str(PromptType.mixtral.value),
-                         PromptType.mixtral.name]:
-        promptA = promptB = ''
+                         PromptType.mixtral.name] or \
+            prompt_type in [PromptType.mixtralnosys.value, str(PromptType.mixtralnosys.value),
+                            PromptType.mixtralnosys.name]:
+        if prompt_type in [PromptType.mixtral.value, str(PromptType.mixtral.value),
+                           PromptType.mixtral.name]:
+            can_handle_system_prompt = True
+            if system_prompt in [None, 'None', 'auto']:
+                # automatic
+                system_prompt = "You are an AI that follows instructions extremely well and as helpful as possible."
+            if system_prompt:
+                # sys_msg = """<|system|>\n%s""" % system_prompt
+                sys_msg = """<<SYS>>\n%s\n<</SYS>>\n\n""" % system_prompt
+            else:
+                sys_msg = ''
+        else:
+            sys_msg = ''
+        if sys_msg and not reduced:
+            # too much safety, hurts accuracy
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
+
         PreInput = None
         PreInstruct = "[INST] "
         if making_context and histi == 0 or not making_context and not reduced:
