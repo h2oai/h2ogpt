@@ -61,6 +61,9 @@ class PromptType(Enum):
     google = 55
     docsgpt = 56
     open_chat_math = 57
+    mistralai = 58
+    mixtral = 59
+    mixtralnosys = 60
 
 
 class DocumentSubset(Enum):
@@ -206,6 +209,18 @@ google_mapping = {
 google_mapping_outputs = {
     "gemini-pro": 8192,
     "gemini-pro-vision": 2048,
+}
+
+mistralai_mapping = {
+    "mistral-medium": 32768,
+    "mistral-small": 32768,
+    "mistral-tiny": 32768,
+}
+
+mistralai_mapping_outputs = {
+    "mistral-medium": 32768,
+    "mistral-small": 32768,
+    "mistral-tiny": 32768,
 }
 
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",

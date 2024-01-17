@@ -1834,7 +1834,7 @@ def str_to_dict(x):
 def get_token_count(x, tokenizer, token_count_fun=None):
     # NOTE: Somewhat duplicates H2OTextGenerationPipeline.get_token_count()
     # handle ambiguity in if get dict or list
-    if tokenizer:
+    if tokenizer is not None:
         if hasattr(tokenizer, 'encode'):
             tokens = tokenizer.encode(x)
         else:

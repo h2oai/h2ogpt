@@ -42,6 +42,7 @@ from langchain.schema.output import GenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_mistralai import ChatMistralAI
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
@@ -1239,11 +1240,15 @@ class ExtraChat:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
-                instruction = gradio_to_llm(messages1[0], bot=False)
-                output = gradio_to_llm(messages1[1], bot=True)
-
-                messages.append(HumanMessage(content=instruction))
-                messages.append(AIMessage(content=output))
+                if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
+                    # then not really part of LLM, internal, so avoid
+                    continue
+                if messages1[0]:
+                    instruction = gradio_to_llm(messages1[0], bot=False)
+                    messages.append(HumanMessage(content=instruction))
+                if messages1[1]:
+                    output = gradio_to_llm(messages1[1], bot=True)
+                    messages.append(AIMessage(content=output))
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
@@ -1392,6 +1397,45 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
+
+class H2OChatMistralAI(ChatMistralAI, ExtraChat):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    stream_output: bool = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
@@ -1614,9 +1658,11 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
                             frequency_penalty=0,
-                            presence_penalty=1.07 - repetition_penalty + 0.6,
+                            presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                             logit_bias=None if inf_type == 'vllm' else {},
                             )
+        # if inference_server.startswith('vllm'):
+        #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
 
         azure_kwargs = dict(openai_api_type='azure',
                             openai_api_key=api_key,
@@ -1745,8 +1791,8 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
-                  top_p=top_p if do_sample else 1,
-                  top_k=top_k,
+                  top_p=top_p if do_sample else 1.0,
+                  top_k=top_k if do_sample else 1,
                   temperature=temperature if do_sample else 0,
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
@@ -1755,6 +1801,37 @@ def get_llm(use_openai_model=False,
                   n=1,  # candidates
                   model_kwargs=model_kwargs,
                   **kwargs_extra
+                  )
+        streamer = callbacks[0] if stream_output else None
+        prompt_type = inference_server
+    elif inference_server.startswith('mistralai'):
+        cls = H2OChatMistralAI
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict()
+        kwargs_extra = {}
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            # FIXME: _AnthropicCommon ignores these and makes no client anyways
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
+
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        llm = cls(model=model_name,
+                  mistral_api_key=os.getenv('MISTRAL_API_KEY'),
+                  top_p=top_p if do_sample else 1,
+                  top_k=top_k,
+                  temperature=temperature if do_sample else 0,
+                  callbacks=callbacks if stream_output else None,
+                  streaming=stream_output,
+                  stream=stream_output,
+                  stream_output=stream_output,
+                  default_request_timeout=max_time,
+                  model_kwargs=model_kwargs,
+                  max_tokens=max_new_tokens,
+                  safe_mode=False,
+                  random_seed=SEED,
+                  **kwargs_extra,
+                  llm_kwargs=dict(stream=True),
                   )
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
@@ -1995,7 +2072,7 @@ def get_llm(use_openai_model=False,
             streamer = None
 
         from h2oai_pipeline import H2OTextGenerationPipeline
-        if not hasattr(model, 'config'):
+        if 'AWQ' in str(model) and hasattr(model, 'model'):
             # e.g. AutoAWQForCausalLM
             model = model.model
         pipe = H2OTextGenerationPipeline(model=model,
@@ -4869,6 +4946,12 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             changed = True
         if changed and prompter:
             prompter.system_prompt = system_prompt
+        if system_prompt == 'auto':
+            if prompter:
+                system_prompt = prompter.system_prompt
+            if system_prompt == 'auto':
+                # safest then to just avoid system prompt
+                system_prompt = prompter.system_prompt = ""
 
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
@@ -5133,7 +5216,7 @@ def run_target(query='',
                                                                                                'conditional_type') and llm.pipeline.model.conditional_type
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
-        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
         if conditional_type:
             # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
             context_class_cast = NullContext
@@ -5759,7 +5842,7 @@ def get_chain(query=None,
             StableDiffusionTool,
             TextToVideoTool,
         )
-        do_image_tools = False # FIXME: times out and blocks everything
+        do_image_tools = False  # FIXME: times out and blocks everything
         if do_image_tools:
             image_tools = [
                 StableDiffusionTool().langchain,
@@ -5798,10 +5881,10 @@ def get_chain(query=None,
             func=sympy_math.run,
         )
 
-        enable_semantictool = False # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
+        enable_semantictool = False  # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
         if enable_semantictool:
-            #from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
-            #semantic = SemanticScholarAPIWrapper()
+            # from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            # semantic = SemanticScholarAPIWrapper()
             # So can pass API key as ENV: S2_API_KEY
             from utils_langchain import H2OSemanticScholarAPIWrapper
             semantic = H2OSemanticScholarAPIWrapper()
@@ -6746,7 +6829,7 @@ def get_template(query, iinput,
         if iinput:
             query = "%s\n%s" % (query, iinput)
         if not got_any_docs:
-            template_if_no_docs = template = """{context}%s""" % question_fstring
+            template_if_no_docs = template = """{context}\n%s""" % question_fstring
         else:
             fstring = "{context}"
             if prompter and prompter.prompt_type == 'docsgpt':
@@ -6757,12 +6840,12 @@ def get_template(query, iinput,
                 # {context} will be empty string, so ok that no new line surrounding it
                 template_if_no_docs = """%s%s%s%s%s""" % (question_fstring, sys_context_no_docs, '', fstring, '')
             else:
-                template = """%s%s%s%s%s%s""" % (
+                template = """%s%s%s%s%s\n%s""" % (
                     pre_prompt_query, triple_quotes, fstring, triple_quotes, prompt_query, question_fstring)
                 if doc_json_mode:
                     template_if_no_docs = """{context}{{"question": {question}}}"""
                 else:
-                    template_if_no_docs = """{context}{question}"""
+                    template_if_no_docs = """{context}\n{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
@@ -6779,7 +6862,7 @@ def get_template(query, iinput,
         else:
             fstring = '{input_documents}'
         # triple_quotes includes \n before """ and after """
-        template = """%s%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
+        template = """%s%s%s%s%s\n""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
@@ -7156,6 +7239,9 @@ def _update_user_db(file,
                     from_ui=False,
 
                     gradio_upload_to_chatbot_num_max=None,
+
+                    allow_upload_to_my_data=None,
+                    allow_upload_to_user_data=None,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -7179,10 +7265,21 @@ def _update_user_db(file,
     assert enable_llava is not None
     assert verbose is not None
     assert gradio_upload_to_chatbot_num_max is not None
+    assert allow_upload_to_my_data is not None
+    assert allow_upload_to_user_data is not None
 
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
+
+    if langchain_mode is not None:
+        in_scratch_db = langchain_mode in db1s
+        in_user_db = dbs is not None and langchain_mode in dbs
+        if in_scratch_db and not allow_upload_to_my_data:
+            raise ValueError("Not allowed to upload to scratch/personal space")
+        elif in_user_db and not allow_upload_to_user_data:
+            raise ValueError("Not allowed to upload to shared space")
+
     # handle case of list of temp buffer
     if isinstance(file, str) and file.strip().startswith('['):
         try:

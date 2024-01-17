@@ -1741,7 +1741,8 @@ def test_mp4_add(db_type):
             test_file1 = os.path.join(tmp_user_path, 'demo.mp4')
             download_simple(url, dest=test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
-                                               fail_any_exception=True, db_type=db_type)
+                                               fail_any_exception=True, db_type=db_type,
+                                               enable_captions=True)
             assert db is not None
             docs = db.similarity_search("Gemini")
             assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)

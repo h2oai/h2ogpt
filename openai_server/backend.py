@@ -73,8 +73,29 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs = dict(instruction=instruction)
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
-    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_tokens', 256)
-    gen_kwargs['visible_models'] = gen_kwargs.pop('model', 0)
+    # max_tokens=16 for text completion by default
+    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
+    gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
+    # be more like OpenAI, only temperature, not do_sample, to control
+    gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
+    # https://platform.openai.com/docs/api-reference/chat/create
+    if gen_kwargs['temperature'] > 0.0:
+        # let temperature control sampling
+        gen_kwargs['do_sample'] = True
+    elif gen_kwargs['top_p'] != 1.0:
+        # let top_p control sampling
+        gen_kwargs['do_sample'] = True
+        if gen_kwargs.get('top_k') == 1 and gen_kwargs.get('temperature') == 0.0:
+            logger.warning("Sampling with top_k=1 has no effect if top_k=1 and temperature=0")
+    else:
+        # no sampling, make consistent
+        gen_kwargs['top_p'] = 1.0
+        gen_kwargs['top_k'] = 1
+
+    if gen_kwargs.get('repetition_penalty', 1) == 1 and gen_kwargs.get('presence_penalty', 0.0) != 0.0:
+        # then user using presence_penalty, convert to repetition_penalty for h2oGPT
+        # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
+        gen_kwargs['repetition_penalty'] = 0.5 * (gen_kwargs['presence_penalty'] - 0.0) + 1.0
 
     kwargs.update(**gen_kwargs)
 
@@ -184,8 +205,6 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     resp_list = 'choices'
 
     gen_kwargs = body
-    gen_kwargs['max_new_tokens'] = body.pop('max_tokens')
-
     instruction, system_message, history = convert_messages_to_structure(messages)
     gen_kwargs.update({
         'system_prompt': system_message,

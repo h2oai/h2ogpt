@@ -4112,3 +4112,123 @@ def check_curl_plain_api():
     assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict'][
         'base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
+
+
+@wrap_test_forked
+def test_client_upload_to_user_not_allowed():
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model, block_gradio_exit=False, verbose=True, allow_upload_to_user_data=False,
+         add_disk_models_to_ui=False)
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    loaders = tuple([None, None, None, None, None, None])
+    h2ogpt_key = ''
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         *loaders,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    langchain_mode = 'UserData'
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         *loaders,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) not in res[2] and 'Not allowed to upload to shared space' in res[2]
+    assert res[3] == ''
+
+
+@wrap_test_forked
+def test_client_upload_to_my_not_allowed():
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model, block_gradio_exit=False, verbose=True, allow_upload_to_my_data=False,
+         add_disk_models_to_ui=False, langchain_mode='UserData')
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'UserData'
+    loaders = tuple([None, None, None, None, None, None])
+    h2ogpt_key = ''
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         *loaders,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    langchain_mode = 'MyData'
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         *loaders,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) not in res[2] and "Not allowed to upload to scratch/personal space" in res[2]
+    assert res[3] == 'Not allowed to upload to scratch/personal space'
+
+
+@wrap_test_forked
+def test_client_upload_to_user_or_my_not_allowed():
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    from src.gen import main
+    main(base_model=base_model, block_gradio_exit=False, verbose=True,
+         allow_upload_to_my_data=False,
+         allow_upload_to_user_data=False,
+         add_disk_models_to_ui=False, langchain_mode='UserData')
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
+    download_simple(url, dest=test_file1)
+
+    # PURE client code
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # upload file(s).  Can be list or single file
+    try:
+        test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+    except ValueError as e:
+        if 'Cannot find a function with' in str(e):
+            pass
+        else:
+            raise

@@ -2,7 +2,7 @@ import ast
 import time
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -135,15 +135,18 @@ prompt_type_to_model_name = {
         'TheBloke/Llama-2-7B-Chat-GGUF',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
-                'mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
-                'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ',
-                'TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ'],
+                'mistralai/Mistral-7B-Instruct-v0.2', 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
+                ],
+    "mixtral": ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF',
+                'TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ', 'TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ'],
+    "mixtralnosys": [],
     "zephyr": ['HuggingFaceH4/zephyr-7b-alpha', 'HuggingFaceH4/zephyr-7b-beta', 'TheBloke/zephyr-7B-beta-GGUF',
                'TheBloke/zephyr-7B-beta-AWQ', 'zephyr-7b-beta.Q5_K_M.gguf'],
     "beluga": ['stabilityai/StableBeluga2', 'psmathur/orca_mini_v3_7b'],
     "wizard3nospace": ['WizardLM/WizardLM-13B-V1.2'],
     "falcon_chat": ['tiiuae/falcon-180B-chat'],
-    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ', 'Xwin-LM/Xwin-LM-70B-V0.1'],
+    "xwin": ['Xwin-LM/Xwin-LM-13B-V0.1', 'TheBloke/Xwin-LM-13B-V0.1-GPTQ', 'TheBloke/Xwin-LM-13B-v0.2-GPTQ',
+             'Xwin-LM/Xwin-LM-70B-V0.1'],
     "xwincoder": ['Xwin-LM/XwinCoder-7B', 'Xwin-LM/XwinCoder-13B', 'Xwin-LM/XwinCoder-34B'],
     "xwinmath": ["Xwin-LM/Xwin-Math-7B-V1.0", "Xwin-LM/Xwin-Math-70B-V1.0", "Xwin-LM/Xwin-Math-13B-V1.0"],
     "mistrallite": ['amazon/MistralLite'],
@@ -175,6 +178,9 @@ prompt_type_to_model_name['anthropic'] = anthropic_gpts
 
 google_gpts = sorted(google_mapping.keys())
 prompt_type_to_model_name['google'] = google_gpts
+
+mistralai_gpts = sorted(mistralai_mapping.keys())
+prompt_type_to_model_name['mistralai'] = mistralai_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
@@ -601,8 +607,13 @@ ASSISTANT:
             prompt_type in [PromptType.anthropic.value, str(PromptType.anthropic.value),
                             PromptType.anthropic.name] or \
             prompt_type in [PromptType.google.value, str(PromptType.google.value),
-                            PromptType.google.name]:
+                            PromptType.google.name] or \
+            prompt_type in [PromptType.mistralai.value, str(PromptType.mistralai.value),
+                            PromptType.mistralai.name]:
         can_handle_system_prompt = True  # handled via special messages/arguments not part of prompt
+        # mistral safe_mode=True is same as this system prompt:
+        # Always assist with care, respect, and truth. Respond with utmost utility yet securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies promote fairness and positivity.
+
         # prompting and termination all handled by endpoint
         preprompt = """"""
         start = ''
@@ -614,6 +625,13 @@ ASSISTANT:
         chat_turn_sep = chat_sep = '\n'
         humanstr = None
         botstr = None
+
+        if prompt_type in [PromptType.google.value, str(PromptType.google.value),
+                           PromptType.google.name] and system_prompt == 'auto':
+            # google throws safety/harassment errors if don't tell the model it's helpful, even for asking "what is 1+1?"
+            # so give basic prompt if auto, the current default, so part of pre-conversation always
+            system_prompt = 'I am a helpful assistant.  I will accurately answer all your questions.'
+
     elif prompt_type in [PromptType.vicuna11.value, str(PromptType.vicuna11.value),
                          PromptType.vicuna11.name] or \
             prompt_type in [PromptType.vicuna11nosys.value, str(PromptType.vicuna11nosys.value),
@@ -870,6 +888,41 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = "[INST] "
         if making_context and histi == 0 or not making_context and not reduced:
             PreInstruct = '<s>' + PreInstruct
+        PreResponse = "[/INST]"
+        terminate_response = ["[INST]", "</s>"]
+        chat_sep = ' '
+        chat_turn_sep = '</s> '
+        humanstr = '[INST]'
+        botstr = '[/INST]'
+        if making_context:
+            PreResponse += ""
+    elif prompt_type in [PromptType.mixtral.value, str(PromptType.mixtral.value),
+                         PromptType.mixtral.name] or \
+            prompt_type in [PromptType.mixtralnosys.value, str(PromptType.mixtralnosys.value),
+                            PromptType.mixtralnosys.name]:
+        if prompt_type in [PromptType.mixtral.value, str(PromptType.mixtral.value),
+                           PromptType.mixtral.name]:
+            can_handle_system_prompt = True
+            if system_prompt in [None, 'None', 'auto']:
+                # automatic
+                system_prompt = "You are an AI that follows instructions extremely well and as helpful as possible."
+            if system_prompt:
+                # sys_msg = """<|system|>\n%s""" % system_prompt
+                sys_msg = """<<SYS>>\n%s\n<</SYS>>\n\n""" % system_prompt
+            else:
+                sys_msg = ''
+        else:
+            sys_msg = ''
+        if sys_msg and not reduced:
+            # too much safety, hurts accuracy
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
+
+        PreInput = None
+        PreInstruct = "[INST] "
+        if making_context and histi == 0 or not making_context and not reduced:
+            PreInstruct = '<s> ' + PreInstruct
         PreResponse = "[/INST]"
         terminate_response = ["[INST]", "</s>"]
         chat_sep = ' '
@@ -1215,6 +1268,10 @@ Remember to tailor the activities to the birthday child's interests and preferen
 
     if isinstance(terminate_response, (tuple, list)):
         assert '' not in terminate_response, "Bad terminate_response"
+
+    if system_prompt == 'auto':
+        # if still auto, then safest then to just avoid system prompt
+        system_prompt = ''
 
     ret_dict = dict(promptA=promptA, promptB=promptB, PreInstruct=PreInstruct, PreInput=PreInput,
                     PreResponse=PreResponse, terminate_response=terminate_response, chat_sep=chat_sep,

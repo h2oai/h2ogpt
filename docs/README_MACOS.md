@@ -20,6 +20,8 @@ Supports CPU and MPS (Metal M1/M2).
 
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
+    pip install --upgrade pip
+    python -m pip install --upgrade setuptools
     
     # Install Torch:
     pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
@@ -31,10 +33,14 @@ Supports CPU and MPS (Metal M1/M2).
     # Required for CPU: LLaMa/GPT4All:
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip install librosa
+    pip install llama-cpp-python
     # Optional: PyMuPDF/ArXiv:
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
     # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+    # Optional: DocTR OCR:
+    pip install -r reqs_optional/requirements_optional_doctr.txt                     
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
   ```
@@ -48,7 +54,8 @@ Supports CPU and MPS (Metal M1/M2).
     brew install tesseract-lang
     brew install rubberband
     brew install pygobject3 gtk4
-    brew libjpeg libpng
+    brew install libjpeg
+    brew install libpng
     ```
 
 See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
