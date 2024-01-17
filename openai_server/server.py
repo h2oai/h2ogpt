@@ -34,6 +34,7 @@ class Generation(BaseModel):
     top_k: int | None = 1
     repetition_penalty: float | None = 1
     min_p: float | None = 0.0
+    max_time: float | None = 360
 
 
 class Params(BaseModel):
