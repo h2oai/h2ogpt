@@ -939,6 +939,7 @@ class GradioClient(Client):
             if outputs_list is not None and len(outputs_list) > 0:
                 job_outputs_num_new = len(outputs_list[job_outputs_num:])
                 for num in range(job_outputs_num_new):
+                    do_yield = True
                     res = outputs_list[job_outputs_num + num]
                     res_dict = ast.literal_eval(res)
                     # yield what have
@@ -950,10 +951,9 @@ class GradioClient(Client):
                         response = text
                     text_chunk = response[len(text0):]
                     if not text_chunk:
-                        job_outputs_num += job_outputs_num_new
                         # just need some sleep for threads to switch
                         time.sleep(0.001)
-                        continue
+                        do_yield = False
                     # save old
                     text0 = response
                     ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
@@ -966,7 +966,8 @@ class GradioClient(Client):
                         if verbose:
                             print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
                         break
-                    yield ret_yield
+                    if do_yield:
+                        yield ret_yield
                 job_outputs_num += job_outputs_num_new
                 time.sleep(0.01)
 
@@ -981,6 +982,7 @@ class GradioClient(Client):
                 strex = ''.join(traceback.format_tb(e.__traceback__))
 
             for num in range(job_outputs_num_new):
+                do_yield = True
                 res = outputs_list[job_outputs_num + num]
                 res_dict = ast.literal_eval(res)
 
@@ -990,14 +992,17 @@ class GradioClient(Client):
                                                  sanitize_bot_response=sanitize_bot_response) if prompter else text
                 text_chunk = response[len(text0):]
                 if not text_chunk:
-                    continue
+                    do_yield = False
                 # save old
                 text0 = response
                 ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                  response_no_refs=response, sources_str='', prompt_raw='')
                 if hit_timeout and timeout_time > 0:
                     save_dict['extra_dict']['timeout'] = timeout_time
-                yield ret_yield
+                    do_yield = True
+                    # don't break, let play out rest since already have data
+                if do_yield:
+                    yield ret_yield
                 time.sleep(0.001)
 
             # check validity of final results and check for timeout
