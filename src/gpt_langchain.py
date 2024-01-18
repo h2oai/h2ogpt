@@ -1044,6 +1044,7 @@ class H2OOpenAI(OpenAI):
     prompts: Any = []
     count_output_tokens: Any = 0
     max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
 
     def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
@@ -1081,6 +1082,30 @@ class H2OOpenAI(OpenAI):
         else:
             return self.max_context_size - num_tokens
 
+    def count_out_tokens(self, rets):
+        try:
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+
+    def collect_llm_results(self, rets):
+        generations = [x.generations[0] for x in rets]
+
+        def reducer(accumulator, element):
+            for key, value in element.items():
+                accumulator[key] = accumulator.get(key, 0) + value
+            return accumulator
+
+        collection = [x.llm_output['token_usage'] for x in rets]
+        token_usage = reduce(reducer, collection, {})
+
+        llm_output = {"token_usage": token_usage, "model_name": self.model_name}
+        self.count_output_tokens += token_usage.get('completion_tokens', 0)
+        return LLMResult(generations=generations, llm_output=llm_output)
+
     def _generate(
             self,
             prompts: List[str],
@@ -1092,15 +1117,17 @@ class H2OOpenAI(OpenAI):
             print("Hit _generate", flush=True)
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        self.count_llm_calls += len(prompts)
         self.prompts.extend(prompts)
-        rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
-        try:
-            self.count_output_tokens += sum(
-                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
-        except Exception as e:
-            if os.getenv('HARD_ASSERTS'):
-                raise
-            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+        if self.batch_size > 1:
+            rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            self.count_out_tokens(rets)
+        else:
+            rets = []
+            for sub_prompt in prompts:
+                rets1 = super()._generate([sub_prompt], stop=stop, run_manager=run_manager, **kwargs)
+                rets.append(rets1)
+            rets = self.collect_llm_results(rets)  # counts output tokens already
 
         # handle fact that multi-character stops will only stop streaming once last matching character, then we get rest
         if stop is None:
@@ -1146,28 +1173,19 @@ class H2OOpenAI(OpenAI):
             **kwargs: Any,
     ) -> LLMResult:
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        self.count_llm_calls += len(prompts)
         if self.batch_size > 1 or self.streaming:
-            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            rets = await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            self.count_out_tokens(rets)
+            return rets
         else:
-            self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
             self.prompts.extend(prompts)
             tasks = [
                 asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager, **kwargs))
                 for prompt in prompts]
             llm_results = await asyncio.gather(*tasks)
-            generations = [x.generations[0] for x in llm_results]
-
-            def reducer(accumulator, element):
-                for key, value in element.items():
-                    accumulator[key] = accumulator.get(key, 0) + value
-                return accumulator
-
-            collection = [x.llm_output['token_usage'] for x in llm_results]
-            token_usage = reduce(reducer, collection, {})
-
-            llm_output = {"token_usage": token_usage, "model_name": self.model_name}
-            self.count_output_tokens += token_usage.get('completion_tokens', 0)
-            return LLMResult(generations=generations, llm_output=llm_output)
+            return self.collect_llm_results(llm_results)
 
     async def _agenerate_one(
             self,
