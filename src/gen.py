@@ -2523,16 +2523,17 @@ def get_model(
             inference_server.startswith('anthropic')
     )
 
-    if not regenerate_clients and (inference_server.startswith('vllm') or inference_server.startswith('openai')):
+    if inference_server.startswith('vllm') or inference_server.startswith('openai'):
         t0 = time.time()
         client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=base_model)
-        model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
-                     base_url=base_url, api_version=api_version, api_key=api_key)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
+                         base_url=base_url, api_version=api_version, api_key=api_key)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('anthropic'):
+    if inference_server.startswith('anthropic'):
         t0 = time.time()
         import anthropic
         base_url = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com")
@@ -2541,12 +2542,13 @@ def get_model(
         anthropic_kwargs = dict(base_url=base_url, api_key=api_key, timeout=timeout)
         client = anthropic.Anthropic(**anthropic_kwargs)
         async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
-        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
-                     timeout=timeout)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('google'):
+    if inference_server.startswith('google'):
         t0 = time.time()
         import google.generativeai as genai
         see_model = False
@@ -2566,12 +2568,13 @@ def get_model(
         client = genai.GenerativeModel(base_model)
         async_client = genai.GenerativeModel(base_model)
         timeout = 600
-        model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
-                     timeout=timeout)
+        if regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('mistralai'):
+    if inference_server.startswith('mistralai'):
         t0 = time.time()
         from mistralai.client import MistralClient
         from mistralai.async_client import MistralAsyncClient
@@ -2591,8 +2594,9 @@ def get_model(
         async_client = MistralAsyncClient(api_key=api_key)
 
         timeout = 600
-        model = dict(client=client, async_client=async_client, inf_type='mistralai', base_url=None, api_key=api_key,
-                     timeout=timeout)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='mistralai', base_url=None, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
@@ -4131,86 +4135,96 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                 else:
-                    from gradio_utils.grclient import check_job
-                    job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = dict(response=text, sources=sources, save_dict={}, llm_answers={},
-                                    response_no_refs=text, sources_str='', prompt_raw='')
-                    text0 = ''
-                    tgen0 = time.time()
-                    while not job.done():
-                        if job.communicator.job.latest_status.code.name == 'FINISHED':
-                            break
-                        e = check_job(job, timeout=0, raise_exception=False)
-                        if e is not None:
-                            break
-                        outputs_list = job.communicator.job.outputs
-                        if outputs_list:
-                            res = job.communicator.job.outputs[-1]
+                    new_stream = False  # hanging for many chatbots
+                    if new_stream:
+                        response = yield from gr_client.stream(client_kwargs,
+                                                               prompt=prompt, prompter=prompter,
+                                                               sanitize_bot_response=sanitize_bot_response,
+                                                               chat=chat, max_time=max_time,
+                                                               is_public=is_public,
+                                                               base_model=base_model,
+                                                               verbose=verbose)
+                    else:
+                        from gradio_utils.grclient import check_job
+                        job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+                        res_dict = dict(response=text, sources=sources, save_dict={}, llm_answers={},
+                                        response_no_refs=text, sources_str='', prompt_raw='')
+                        text0 = ''
+                        tgen0 = time.time()
+                        while not job.done():
+                            if job.communicator.job.latest_status.code.name == 'FINISHED':
+                                break
+                            e = check_job(job, timeout=0, raise_exception=False)
+                            if e is not None:
+                                break
+                            outputs_list = job.communicator.job.outputs
+                            if outputs_list:
+                                res = job.communicator.job.outputs[-1]
+                                res_dict = ast.literal_eval(res)
+                                text = res_dict['response']
+                                if gr_prompt_type == 'plain':
+                                    # then gradio server passes back full prompt + text
+                                    prompt_and_text = text
+                                else:
+                                    prompt_and_text = prompt + text
+                                response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                                 sanitize_bot_response=sanitize_bot_response)
+                                text_chunk = response[len(text0):]
+                                if not text_chunk:
+                                    # just need some sleep for threads to switch
+                                    time.sleep(0.001)
+                                    continue
+                                # save old
+                                text0 = response
+                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                           response_no_refs=response, sources_str='', prompt_raw='')
+                                if time.time() - tgen0 > max_time:
+                                    if verbose:
+                                        print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                                    break
+                            time.sleep(0.01)
+                        # ensure get last output to avoid race
+                        res_all = job.outputs()
+                        if len(res_all) > 0:
+                            # don't raise unless nochat API for now
+                            e = check_job(job, timeout=0.02, raise_exception=not chat)
+                            if e is not None:
+                                strex = ''.join(traceback.format_tb(e.__traceback__))
+
+                            res = res_all[-1]
                             res_dict = ast.literal_eval(res)
                             text = res_dict['response']
-                            if gr_prompt_type == 'plain':
-                                # then gradio server passes back full prompt + text
-                                prompt_and_text = text
-                            else:
-                                prompt_and_text = prompt + text
-                            response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                             sanitize_bot_response=sanitize_bot_response)
-                            text_chunk = response[len(text0):]
-                            if not text_chunk:
-                                # just need some sleep for threads to switch
-                                time.sleep(0.001)
-                                continue
-                            # save old
-                            text0 = response
-                            yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                       response_no_refs=response, sources_str='', prompt_raw='')
-                            if time.time() - tgen0 > max_time:
-                                if verbose:
-                                    print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
-                                break
-                        time.sleep(0.01)
-                    # ensure get last output to avoid race
-                    res_all = job.outputs()
-                    if len(res_all) > 0:
-                        # don't raise unless nochat API for now
-                        e = check_job(job, timeout=0.02, raise_exception=not chat)
-                        if e is not None:
-                            strex = ''.join(traceback.format_tb(e.__traceback__))
-
-                        res = res_all[-1]
-                        res_dict = ast.literal_eval(res)
-                        text = res_dict['response']
-                        sources = res_dict.get('sources')
-                        if sources is None:
-                            # then communication terminated, keep what have, but send error
-                            if is_public:
-                                raise ValueError("Abrupt termination of communication")
-                            else:
-                                raise ValueError("Abrupt termination of communication: %s" % strex)
-                    else:
-                        # if got no answer at all, probably something bad, always raise exception
-                        # UI will still put exception in Chat History under chat exceptions
-                        e = check_job(job, timeout=0.3, raise_exception=True)
-                        # go with old text if last call didn't work
-                        if e is not None:
-                            stre = str(e)
-                            strex = ''.join(traceback.format_tb(e.__traceback__))
+                            sources = res_dict.get('sources')
+                            if sources is None:
+                                # then communication terminated, keep what have, but send error
+                                if is_public:
+                                    raise ValueError("Abrupt termination of communication")
+                                else:
+                                    raise ValueError("Abrupt termination of communication: %s" % strex)
                         else:
-                            stre = ''
-                            strex = ''
+                            # if got no answer at all, probably something bad, always raise exception
+                            # UI will still put exception in Chat History under chat exceptions
+                            e = check_job(job, timeout=0.3, raise_exception=True)
+                            # go with old text if last call didn't work
+                            if e is not None:
+                                stre = str(e)
+                                strex = ''.join(traceback.format_tb(e.__traceback__))
+                            else:
+                                stre = ''
+                                strex = ''
 
-                        print("Bad final response: %s %s %s %s %s: %s %s" % (base_model, inference_server,
-                                                                             res_all, prompt, text, stre, strex),
-                              flush=True)
-                    if gr_prompt_type == 'plain':
-                        # then gradio server passes back full prompt + text
-                        prompt_and_text = text
-                    else:
-                        prompt_and_text = prompt + text
-                    response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
+                            print("Bad final response: %s %s %s %s %s: %s %s" % (base_model, inference_server,
+                                                                                 res_all, prompt, text, stre, strex),
+                                  flush=True)
+                        if gr_prompt_type == 'plain':
+                            # then gradio server passes back full prompt + text
+                            prompt_and_text = text
+                        else:
+                            prompt_and_text = prompt + text
+                        response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                        yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
+                                   response_no_refs=response, sources_str='', prompt_raw='')
             elif hf_client:
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"

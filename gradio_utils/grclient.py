@@ -35,7 +35,6 @@ except (PackageNotFoundError, AssertionError):
     have_gradio_client = False
     is_gradio_client_version7 = False
 
-
 from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint
 from gradio_client import Client
 
@@ -76,7 +75,6 @@ prompt_summary0 = "Using only the information in the document sources above, wri
 
 pre_prompt_extraction0 = """In order to extract information, pay attention to the following text."""
 prompt_extraction0 = "Using only the information in the document sources above, extract "
-
 
 hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
@@ -284,7 +282,9 @@ class GradioClient(Client):
                 print("server hash changed: %s %s" % (self.server_hash, server_hash), flush=True)
             if self.server_hash is not None and self.persist:
                 if self.verbose:
-                    print("Failed to persist due to server hash change, only kept chat_conversation not user session hash", flush=True)
+                    print(
+                        "Failed to persist due to server hash change, only kept chat_conversation not user session hash",
+                        flush=True)
             # risky to persist if hash changed
             self.refresh_client()
             self.server_hash = server_hash
@@ -900,3 +900,139 @@ class GradioClient(Client):
         if self.config is None:
             self.setup()
         return [x['base_model'] for x in ast.literal_eval(self.predict(api_name="/model_names"))]
+
+    def stream(self,
+               client_kwargs,
+               api_name='/submit_nochat_api',
+               prompt='', prompter=None, sanitize_bot_response=False,
+               chat=True, max_time=None,
+               is_public=False,
+               base_model=None,
+               verbose=False):
+        job = self.submit(str(dict(client_kwargs)), api_name=api_name)
+
+        response = ''
+        text = ''
+        sources = []
+        strex = ''
+
+        save_dict = {}
+        save_dict['extra_dict'] = {}
+        res_dict = dict(response=text, sources=sources, save_dict=save_dict, llm_answers={},
+                        response_no_refs=text, sources_str='', prompt_raw='')
+        yield res_dict
+
+        text0 = ''
+        tgen0 = time.time()
+        hit_timeout = False
+        timeout_time = 0.0
+        job_outputs_num = 0
+        while not job.done():
+            if hit_timeout:
+                break
+            if job.communicator.job.latest_status.code.name == 'FINISHED':
+                break
+            e = check_job(job, timeout=0, raise_exception=False)
+            if e is not None:
+                break
+            outputs_list = job.communicator.job.outputs
+            if outputs_list is not None and len(outputs_list) > 0:
+                job_outputs_num_new = len(outputs_list[job_outputs_num:])
+                for num in range(job_outputs_num_new):
+                    res = outputs_list[job_outputs_num + num]
+                    res_dict = ast.literal_eval(res)
+                    # yield what have
+                    text = res_dict['response']
+                    if prompter:
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        response = text
+                    text_chunk = response[len(text0):]
+                    if not text_chunk:
+                        job_outputs_num += job_outputs_num_new
+                        # just need some sleep for threads to switch
+                        time.sleep(0.001)
+                        continue
+                    # save old
+                    text0 = response
+                    ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                                     response_no_refs=response, sources_str='', prompt_raw='')
+                    timeout_time = time.time() - tgen0
+                    if max_time is not None and timeout_time > max_time:
+                        hit_timeout = True
+                        save_dict['extra_dict']['timeout'] = timeout_time
+                        yield ret_yield
+                        if verbose:
+                            print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                        break
+                    yield ret_yield
+                job_outputs_num += job_outputs_num_new
+                time.sleep(0.01)
+
+        # ensure get last output to avoid race
+        # do all since may be actual streaming elements like audio
+        outputs_list = job.outputs()
+        job_outputs_num_new = len(outputs_list[job_outputs_num:])
+        if len(outputs_list) > 0:
+            # don't raise unless nochat API for now
+            e = check_job(job, timeout=0.02, raise_exception=not chat)
+            if e is not None:
+                strex = ''.join(traceback.format_tb(e.__traceback__))
+
+            for num in range(job_outputs_num_new):
+                res = outputs_list[job_outputs_num + num]
+                res_dict = ast.literal_eval(res)
+
+                text = res_dict['response']
+                sources = res_dict.get('sources')
+                response = prompter.get_response(prompt + text, prompt=prompt,
+                                                 sanitize_bot_response=sanitize_bot_response) if prompter else text
+                text_chunk = response[len(text0):]
+                if not text_chunk:
+                    continue
+                # save old
+                text0 = response
+                ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                                 response_no_refs=response, sources_str='', prompt_raw='')
+                if hit_timeout and timeout_time > 0:
+                    save_dict['extra_dict']['timeout'] = timeout_time
+                yield ret_yield
+                time.sleep(0.001)
+
+            # check validity of final results and check for timeout
+            # NOTE: server may have more before its timeout, and res_all will have more if waited a bit
+            timeout_time_other = res_dict.get('save_dict', {}).get('extra_dict', {}).get('timeout')
+            if timeout_time_other is not None:
+                raise TimeoutError("Timeout from server after %s %s" % (timeout_time, ': ' + strex if e else ''))
+            if hit_timeout and timeout_time > 0:
+                raise TimeoutError("Timeout from local after %s %s" % (timeout_time, ': ' + strex if e else ''))
+            if sources is None:
+                # then communication terminated, keep what have, but send error
+                if is_public:
+                    raise ValueError("Abrupt termination of communication")
+                else:
+                    raise ValueError("Abrupt termination of communication: %s" % strex)
+
+            # add new just for counting/debugging, not used
+            job_outputs_num += job_outputs_num_new
+            if verbose:
+                print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+        else:
+            # if got no answer at all, probably something bad, always raise exception
+            # UI will still put exception in Chat History under chat exceptions
+            e = check_job(job, timeout=0.3, raise_exception=True)
+            # go with old text if last call didn't work
+            if e is not None:
+                stre = str(e)
+                strex = ''.join(traceback.format_tb(e.__traceback__))
+            else:
+                stre = ''
+                strex = ''
+
+            print("Bad final response: %s %s: %s : %s %s" % (prompt, text, base_model, stre, strex), flush=True)
+        response = prompter.get_response(prompt + text, prompt=prompt,
+                                         sanitize_bot_response=sanitize_bot_response) if prompter else text
+        yield dict(response=response, sources=sources, save_dict=save_dict, error=strex, llm_answers={},
+                   response_no_refs=response, sources_str='', prompt_raw='')
+        return response

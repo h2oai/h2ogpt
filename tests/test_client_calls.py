@@ -4037,29 +4037,29 @@ def test_client1_tts_stream(tts_model, base_model):
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
             res = outputs_list[job_outputs_num + num]
-            res = ast.literal_eval(res)
+            res_dict = ast.literal_eval(res)
             if verbose:
-                print('Stream %d: %s\n\n %s\n\n' % (num, res['response'], res), flush=True)
+                print('Stream %d: %s\n\n %s\n\n' % (num, res_dict['response'], res_dict), flush=True)
             else:
                 print('Stream %d' % (job_outputs_num + num), flush=True)
-            play_audio(res, sr=sr)
+            play_audio(res_dict, sr=sr)
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
     outputs_list = job.outputs()
     job_outputs_num_new = len(outputs_list[job_outputs_num:])
-    res = {}
+    res_dict = {}
     for num in range(job_outputs_num_new):
         res = outputs_list[job_outputs_num + num]
-        res = ast.literal_eval(res)
+        res_dict = ast.literal_eval(res)
         if verbose:
-            print('Final Stream %d: %s\n\n%s\n\n' % (num, res['response'], res), flush=True)
+            print('Final Stream %d: %s\n\n%s\n\n' % (num, res_dict['response'], res_dict), flush=True)
         else:
             print('Final Stream %d' % (job_outputs_num + num), flush=True)
-        play_audio(res, sr=sr)
+        play_audio(res_dict, sr=sr)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
-    check_final_res(res, base_model=base_model)
+    check_final_res(res_dict, base_model=base_model)
 
     check_curl_plain_api()
 
@@ -4202,7 +4202,8 @@ def test_client_upload_to_my_not_allowed():
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
-    assert os.path.basename(test_file_server) not in res[2] and "Not allowed to upload to scratch/personal space" in res[2]
+    assert os.path.basename(test_file_server) not in res[2] and "Not allowed to upload to scratch/personal space" in \
+           res[2]
     assert res[3] == 'Not allowed to upload to scratch/personal space'
 
 
