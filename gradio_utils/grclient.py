@@ -901,11 +901,16 @@ class GradioClient(Client):
             self.setup()
         return [x['base_model'] for x in ast.literal_eval(self.predict(api_name="/model_names"))]
 
-    def stream(self, job,
+    def stream(self,
+               client_kwargs,
+               api_name='/submit_nochat_api',
                prompt='', prompter=None, sanitize_bot_response=False,
                chat=True, max_time=None,
                is_public=False,
+               base_model=None,
                verbose=False):
+        job = self.submit(str(dict(client_kwargs)), api_name=api_name)
+
         response = ''
         text = ''
         sources = []
@@ -952,7 +957,7 @@ class GradioClient(Client):
                     # save old
                     text0 = response
                     ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
+                                     response_no_refs=response, sources_str='', prompt_raw='')
                     timeout_time = time.time() - tgen0
                     if max_time is not None and timeout_time > max_time:
                         hit_timeout = True
@@ -966,6 +971,7 @@ class GradioClient(Client):
                 time.sleep(0.01)
 
         # ensure get last output to avoid race
+        # do all since may be actual streaming elements like audio
         outputs_list = job.outputs()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         if len(outputs_list) > 0:
@@ -981,7 +987,7 @@ class GradioClient(Client):
                 text = res_dict['response']
                 sources = res_dict.get('sources')
                 response = prompter.get_response(prompt + text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response) if prompter else text
+                                                 sanitize_bot_response=sanitize_bot_response) if prompter else text
                 text_chunk = response[len(text0):]
                 if not text_chunk:
                     continue
@@ -992,6 +998,7 @@ class GradioClient(Client):
                 if hit_timeout and timeout_time > 0:
                     save_dict['extra_dict']['timeout'] = timeout_time
                 yield ret_yield
+                time.sleep(0.001)
 
             # check validity of final results and check for timeout
             # NOTE: server may have more before its timeout, and res_all will have more if waited a bit
@@ -1023,7 +1030,7 @@ class GradioClient(Client):
                 stre = ''
                 strex = ''
 
-            print("Bad final response: %s %s: %s %s" % (prompt, text, stre, strex), flush=True)
+            print("Bad final response: %s %s: %s : %s %s" % (prompt, text, base_model, stre, strex), flush=True)
         response = prompter.get_response(prompt + text, prompt=prompt,
                                          sanitize_bot_response=sanitize_bot_response) if prompter else text
         yield dict(response=response, sources=sources, save_dict=save_dict, error=strex, llm_answers={},

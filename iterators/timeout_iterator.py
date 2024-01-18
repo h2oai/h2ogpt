@@ -104,7 +104,7 @@ class TimeoutIterator:
                     raise StopIteration()
         except BaseException as e:
             if not isinstance(e, StopIteration):
-                print("Generation Failed lookahead: %s %s %s" % (str(e), type(e), self._whichi), flush=True)
+                print("Generation Failed lookahead: %s %s %s %s" % (str(e), type(e), self._whichi, traceback.format_exc()), flush=True)
             self._buffer.put(e)
 
 

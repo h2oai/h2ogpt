@@ -4202,7 +4202,8 @@ def test_client_upload_to_my_not_allowed():
                          api_name='/add_file_api')
     assert res[0] is None
     assert res[1] == langchain_mode
-    assert os.path.basename(test_file_server) not in res[2] and "Not allowed to upload to scratch/personal space" in res[2]
+    assert os.path.basename(test_file_server) not in res[2] and "Not allowed to upload to scratch/personal space" in \
+           res[2]
     assert res[3] == 'Not allowed to upload to scratch/personal space'
 
 

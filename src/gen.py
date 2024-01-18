@@ -2523,16 +2523,17 @@ def get_model(
             inference_server.startswith('anthropic')
     )
 
-    if not regenerate_clients and (inference_server.startswith('vllm') or inference_server.startswith('openai')):
+    if inference_server.startswith('vllm') or inference_server.startswith('openai'):
         t0 = time.time()
         client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=base_model)
-        model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
-                     base_url=base_url, api_version=api_version, api_key=api_key)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
+                         base_url=base_url, api_version=api_version, api_key=api_key)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('anthropic'):
+    if inference_server.startswith('anthropic'):
         t0 = time.time()
         import anthropic
         base_url = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com")
@@ -2541,12 +2542,13 @@ def get_model(
         anthropic_kwargs = dict(base_url=base_url, api_key=api_key, timeout=timeout)
         client = anthropic.Anthropic(**anthropic_kwargs)
         async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
-        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
-                     timeout=timeout)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('google'):
+    if inference_server.startswith('google'):
         t0 = time.time()
         import google.generativeai as genai
         see_model = False
@@ -2566,12 +2568,13 @@ def get_model(
         client = genai.GenerativeModel(base_model)
         async_client = genai.GenerativeModel(base_model)
         timeout = 600
-        model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
-                     timeout=timeout)
+        if regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('mistralai'):
+    if inference_server.startswith('mistralai'):
         t0 = time.time()
         from mistralai.client import MistralClient
         from mistralai.async_client import MistralAsyncClient
@@ -2591,8 +2594,9 @@ def get_model(
         async_client = MistralAsyncClient(api_key=api_key)
 
         timeout = 600
-        model = dict(client=client, async_client=async_client, inf_type='mistralai', base_url=None, api_key=api_key,
-                     timeout=timeout)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='mistralai', base_url=None, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
@@ -4131,14 +4135,12 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                 else:
-                    from gradio_utils.grclient import check_job
-                    job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-
-                    response = yield from gr_client.stream(job,
+                    response = yield from gr_client.stream(client_kwargs,
                                                            prompt=prompt, prompter=prompter,
                                                            sanitize_bot_response=sanitize_bot_response,
                                                            chat=chat, max_time=max_time,
                                                            is_public=is_public,
+                                                           base_model=base_model,
                                                            verbose=verbose)
             elif hf_client:
                 # HF inference server needs control over input tokens
