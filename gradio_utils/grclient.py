@@ -354,6 +354,7 @@ class GradioClient(Client):
             api_name: str | None = None,
             fn_index: int | None = None,
             result_callbacks: Callable | list[Callable] | None = None,
+            exception_handling=True,  # new_stream = True, can make False, doesn't matter.
     ) -> Job:
         if self.config is None:
             self.setup()
@@ -367,24 +368,25 @@ class GradioClient(Client):
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
 
-        # see if immediately failed
-        e = check_job(job, timeout=0.01, raise_exception=False)
-        if e is not None:
-            print(
-                "GR job failed: %s %s"
-                % (str(e), "".join(traceback.format_tb(e.__traceback__))),
-                flush=True,
-            )
-            # force reconfig in case only that
-            self.refresh_client()
-            job = super().submit(*args, api_name=api_name, fn_index=fn_index)
-            e2 = check_job(job, timeout=0.1, raise_exception=False)
-            if e2 is not None:
+        if exception_handling: # for debugging if causes issues
+            # see if immediately failed
+            e = check_job(job, timeout=0.01, raise_exception=False)
+            if e is not None:
                 print(
-                    "GR job failed again: %s\n%s"
-                    % (str(e2), "".join(traceback.format_tb(e2.__traceback__))),
+                    "GR job failed: %s %s"
+                    % (str(e), "".join(traceback.format_tb(e.__traceback__))),
                     flush=True,
                 )
+                # force reconfig in case only that
+                self.refresh_client()
+                job = super().submit(*args, api_name=api_name, fn_index=fn_index)
+                e2 = check_job(job, timeout=0.1, raise_exception=False)
+                if e2 is not None:
+                    print(
+                        "GR job failed again: %s\n%s"
+                        % (str(e2), "".join(traceback.format_tb(e2.__traceback__))),
+                        flush=True,
+                    )
 
         return job
 
@@ -905,17 +907,51 @@ class GradioClient(Client):
                client_kwargs,
                api_name='/submit_nochat_api',
                prompt='', prompter=None, sanitize_bot_response=False,
-               chat=True, max_time=None,
+               max_time=None,
                is_public=False,
-               base_model=None,
+               raise_exception=True,
                verbose=False):
+        strex = ''
+        e = None
+        res_dict = {}
+        try:
+            res_dict = yield from self._stream(client_kwargs,
+                                               api_name=api_name,
+                                               prompt=prompt,
+                                               prompter=prompter,
+                                               sanitize_bot_response=sanitize_bot_response,
+                                               max_time=max_time,
+                                               verbose=verbose)
+        except Exception as e:
+            strex = ''.join(traceback.format_tb(e.__traceback__))
+            # check validity of final results and check for timeout
+            # NOTE: server may have more before its timeout, and res_all will have more if waited a bit
+            if raise_exception:
+                raise
+
+        if 'timeout' in res_dict['save_dict']['extra_dict']:
+            timeout_time = res_dict['save_dict']['extra_dict']['timeout']
+            raise TimeoutError("Timeout from local after %s %s" % (timeout_time, ': ' + strex if e else ''))
+
+        # won't have sources if timed out
+        if res_dict.get('sources') is None:
+            # then communication terminated, keep what have, but send error
+            if is_public:
+                raise ValueError("Abrupt termination of communication")
+            else:
+                raise ValueError("Abrupt termination of communication: %s" % strex)
+        return res_dict
+
+    def _stream(self,
+                client_kwargs,
+                api_name='/submit_nochat_api',
+                prompt='', prompter=None, sanitize_bot_response=False,
+                max_time=None,
+                verbose=False):
         job = self.submit(str(dict(client_kwargs)), api_name=api_name)
 
-        response = ''
         text = ''
         sources = []
-        strex = ''
-
         save_dict = {}
         save_dict['extra_dict'] = {}
         res_dict = dict(response=text, sources=sources, save_dict=save_dict, llm_answers={},
@@ -924,120 +960,60 @@ class GradioClient(Client):
 
         text0 = ''
         tgen0 = time.time()
-        hit_timeout = False
-        timeout_time = 0.0
-        job_outputs_num = 0
-        while not job.done():
-            if hit_timeout:
+        n = 0
+        for res in job:
+            res_dict, text0 = yield from self.yield_res(res, res_dict, prompt, prompter, sanitize_bot_response,
+                                                        max_time, text0, tgen0, verbose)
+            n += 1
+            if 'timeout' in res_dict['save_dict']['extra_dict']:
                 break
-            if job.communicator.job.latest_status.code.name == 'FINISHED':
-                break
-            e = check_job(job, timeout=0, raise_exception=False)
-            if e is not None:
-                break
-            outputs_list = job.communicator.job.outputs
-            if outputs_list is not None and len(outputs_list) > 0:
-                job_outputs_num_new = len(outputs_list[job_outputs_num:])
-                for num in range(job_outputs_num_new):
-                    do_yield = True
-                    res = outputs_list[job_outputs_num + num]
-                    res_dict = ast.literal_eval(res)
-                    # yield what have
-                    text = res_dict['response']
-                    if prompter:
-                        response = prompter.get_response(prompt + text, prompt=prompt,
-                                                         sanitize_bot_response=sanitize_bot_response)
-                    else:
-                        response = text
-                    text_chunk = response[len(text0):]
-                    if not text_chunk:
-                        # just need some sleep for threads to switch
-                        time.sleep(0.001)
-                        do_yield = False
-                    # save old
-                    text0 = response
-                    ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
-                                     response_no_refs=response, sources_str='', prompt_raw='')
-                    timeout_time = time.time() - tgen0
-                    if max_time is not None and timeout_time > max_time:
-                        hit_timeout = True
-                        save_dict['extra_dict']['timeout'] = timeout_time
-                        yield ret_yield
-                        if verbose:
-                            print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
-                        break
-                    if do_yield:
-                        yield ret_yield
-                job_outputs_num += job_outputs_num_new
-                time.sleep(0.01)
+        # final res
+        all_n = len(job.outputs())
+        for nn in range(n, all_n):
+            res = job.outputs()[nn]
+            res_dict, text0 = yield from self.yield_res(res, res_dict, prompt, prompter, sanitize_bot_response,
+                                                        max_time, text0, tgen0, verbose)
+        return res_dict
 
-        # ensure get last output to avoid race
-        # do all since may be actual streaming elements like audio
-        outputs_list = job.outputs()
-        job_outputs_num_new = len(outputs_list[job_outputs_num:])
-        if len(outputs_list) > 0:
-            # don't raise unless nochat API for now
-            e = check_job(job, timeout=0.02, raise_exception=not chat)
-            if e is not None:
-                strex = ''.join(traceback.format_tb(e.__traceback__))
-
-            for num in range(job_outputs_num_new):
-                do_yield = True
-                res = outputs_list[job_outputs_num + num]
-                res_dict = ast.literal_eval(res)
-
-                text = res_dict['response']
-                sources = res_dict.get('sources')
-                response = prompter.get_response(prompt + text, prompt=prompt,
-                                                 sanitize_bot_response=sanitize_bot_response) if prompter else text
-                text_chunk = response[len(text0):]
-                if not text_chunk:
-                    do_yield = False
-                # save old
-                text0 = response
-                ret_yield = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
-                                 response_no_refs=response, sources_str='', prompt_raw='')
-                if hit_timeout and timeout_time > 0:
-                    save_dict['extra_dict']['timeout'] = timeout_time
-                    do_yield = True
-                    # don't break, let play out rest since already have data
-                if do_yield:
-                    yield ret_yield
-                time.sleep(0.001)
-
-            # check validity of final results and check for timeout
-            # NOTE: server may have more before its timeout, and res_all will have more if waited a bit
-            timeout_time_other = res_dict.get('save_dict', {}).get('extra_dict', {}).get('timeout')
-            if timeout_time_other is not None:
-                raise TimeoutError("Timeout from server after %s %s" % (timeout_time, ': ' + strex if e else ''))
-            if hit_timeout and timeout_time > 0:
-                raise TimeoutError("Timeout from local after %s %s" % (timeout_time, ': ' + strex if e else ''))
-            if sources is None:
-                # then communication terminated, keep what have, but send error
-                if is_public:
-                    raise ValueError("Abrupt termination of communication")
-                else:
-                    raise ValueError("Abrupt termination of communication: %s" % strex)
-
-            # add new just for counting/debugging, not used
-            job_outputs_num += job_outputs_num_new
-            if verbose:
-                print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+    @staticmethod
+    def yield_res(res, res_dict, prompt, prompter, sanitize_bot_response, max_time, text0, tgen0, verbose):
+        do_yield = True
+        res_dict_server = ast.literal_eval(res)
+        # yield what have
+        text = res_dict_server['response']
+        if prompter:
+            response = prompter.get_response(prompt + text, prompt=prompt,
+                                             sanitize_bot_response=sanitize_bot_response)
         else:
-            # if got no answer at all, probably something bad, always raise exception
-            # UI will still put exception in Chat History under chat exceptions
-            e = check_job(job, timeout=0.3, raise_exception=True)
-            # go with old text if last call didn't work
-            if e is not None:
-                stre = str(e)
-                strex = ''.join(traceback.format_tb(e.__traceback__))
-            else:
-                stre = ''
-                strex = ''
+            response = text
+        text_chunk = response[len(text0):]
+        if not text_chunk:
+            # just need some sleep for threads to switch
+            time.sleep(0.001)
+            do_yield = False
+        # save old
+        text0 = response
+        res_dict.update(res_dict_server)
+        res_dict.update(dict(response=response, response_no_refs=response))
 
-            print("Bad final response: %s %s: %s : %s %s" % (prompt, text, base_model, stre, strex), flush=True)
-        response = prompter.get_response(prompt + text, prompt=prompt,
-                                         sanitize_bot_response=sanitize_bot_response) if prompter else text
-        yield dict(response=response, sources=sources, save_dict=save_dict, error=strex, llm_answers={},
-                   response_no_refs=response, sources_str='', prompt_raw='')
-        return response
+        timeout_time_other = res_dict.get('save_dict', {}).get('extra_dict', {}).get('timeout')
+        if timeout_time_other:
+            if verbose:
+                print("Took too long for other Gradio: %s" % (time.time() - tgen0), flush=True)
+            return res_dict, text0
+
+        timeout_time = time.time() - tgen0
+        if max_time is not None and timeout_time > max_time:
+            if 'save_dict' not in res_dict:
+                res_dict['save_dict'] = {}
+            if 'extra_dict' not in res_dict['save_dict']:
+                res_dict['save_dict']['extra_dict'] = {}
+            res_dict['save_dict']['extra_dict']['timeout'] = timeout_time
+            yield res_dict
+            if verbose:
+                print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+            return res_dict, text0
+        if do_yield:
+            yield res_dict
+            time.sleep(0.01)
+        return res_dict, text0

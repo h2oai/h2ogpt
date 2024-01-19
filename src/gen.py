@@ -4137,13 +4137,14 @@ def evaluate(
                 else:
                     new_stream = False  # hanging for many chatbots
                     if new_stream:
-                        response = yield from gr_client.stream(client_kwargs,
+                        res_dict = yield from gr_client.stream(client_kwargs,
+                                                               api_name=api_name,
                                                                prompt=prompt, prompter=prompter,
                                                                sanitize_bot_response=sanitize_bot_response,
-                                                               chat=chat, max_time=max_time,
+                                                               max_time=max_time,
                                                                is_public=is_public,
-                                                               base_model=base_model,
                                                                verbose=verbose)
+                        response = res_dict.get('response', '')
                     else:
                         from gradio_utils.grclient import check_job
                         job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
