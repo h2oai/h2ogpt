@@ -4008,9 +4008,6 @@ def evaluate(
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                           base_model=base_model)
 
-            # quick sanity check to avoid long timeouts, just see if can reach server
-            requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-
             if gr_client is not None:
                 # Note: h2oGPT gradio server could handle input token size issues for prompt,
                 # but best to handle here so send less data to server
@@ -4227,6 +4224,8 @@ def evaluate(
                         yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
             elif hf_client:
+                # quick sanity check to avoid long timeouts, just see if can reach server
+                requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
                 response = ''
