@@ -74,3 +74,5 @@ pip-licenses==4.3.0
 weaviate-client==3.25.3
 
 # vllm==0.2.2
+
+gradio_pdf==0.0.3
