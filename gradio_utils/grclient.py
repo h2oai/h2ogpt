@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import difflib
 import traceback
-import concurrent.futures
 import os
 import concurrent.futures
 import time

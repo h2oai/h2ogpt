@@ -11,7 +11,7 @@ import torch
 import librosa
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence
-from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change
+from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
 
 speaker_embeddings = {
     "BDL": "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy",
@@ -158,12 +158,23 @@ def generate_speech(response, speaker,
     return audio, sentence, sentence_state
 
 
-def predict_from_text(text, speaker, tts_speed, processor=None, model=None, vocoder=None, return_as_byte=True, verbose=False):
+def predict_from_text(text, speaker, tts_speed, processor=None, model=None, vocoder=None, return_as_byte=True,
+                      return_prefix_every_yield=False,
+                      include_audio0=True,
+                      return_dict=False,
+                      sr=16000,
+                      verbose=False):
     if speaker == "None":
         return
     if return_as_byte:
         audio0 = prepare_speech(sr=16000)
-        yield audio0
+        if not return_prefix_every_yield and include_audio0:
+            if not return_dict:
+                yield audio0
+            else:
+                yield dict(audio=audio0, sr=sr)
+    else:
+        audio0 = None
     sentence_state = init_sentence_state()
     speaker_embedding = get_speaker_embedding(speaker, model.device)
 
@@ -175,7 +186,15 @@ def predict_from_text(text, speaker, tts_speed, processor=None, model=None, voco
                                        speaker_embedding=speaker_embedding,
                                        return_as_byte=return_as_byte,
                                        tts_speed=tts_speed)
-            yield audio
+            if return_prefix_every_yield and include_audio0:
+                audio_out = combine_audios([audio0], audio=audio, channels=1, sample_width=2, sr=sr,
+                                           expect_bytes=return_as_byte)
+            else:
+                audio_out = audio
+            if not return_dict:
+                yield audio_out
+            else:
+                yield dict(audio=audio_out, sr=sr)
         else:
             if is_done:
                 break
@@ -185,7 +204,15 @@ def predict_from_text(text, speaker, tts_speed, processor=None, model=None, voco
         audio = _predict_from_text(sentence, speaker, processor=processor, model=model, vocoder=vocoder,
                                    speaker_embedding=speaker_embedding,
                                    return_as_byte=return_as_byte)
-        yield audio
+        if return_prefix_every_yield and include_audio0:
+            audio_out = combine_audios([audio0], audio=audio, channels=1, sample_width=2, sr=sr,
+                                       expect_bytes=return_as_byte)
+        else:
+            audio_out = audio
+        if not return_dict:
+            yield audio_out
+        else:
+            yield dict(audio=audio_out, sr=sr)
 
 
 def get_speaker_embedding(speaker, device):
