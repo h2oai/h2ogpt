@@ -4169,7 +4169,7 @@ def play_audio_str(audio_str1, n):
     channels = 1
     sample_width = 2
 
-    make_file = False  # can choose
+    make_file = True  # WIP: can't choose yet
     if make_file:
         import uuid
         # NOTE: pip install playsound
@@ -4179,6 +4179,7 @@ def play_audio_str(audio_str1, n):
         audio.export(filename, format='wav')
         playsound(filename)
     else:
+        # WIP, needs header, while other shouldn't have header
         from pydub import AudioSegment
         from pydub.playback import play
         song = AudioSegment.from_file(s, format="wav")

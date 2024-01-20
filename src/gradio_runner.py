@@ -5718,7 +5718,7 @@ def go_gradio(**kwargs):
                                                                 sr=sr1)
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1,
-                                                                return_prefix_every_yield=True,
+                                                                return_prefix_every_yield=False,
                                                                 include_audio0=False,
                                                                 return_dict=True,
                                                                 sr=sr1)

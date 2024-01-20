@@ -173,7 +173,7 @@ def play_audio_str(audio_str1, n):
     channels = 1
     sample_width = 2
 
-    make_file = False  # can choose
+    make_file = True  # WIP: can't choose yet
     if make_file:
         import uuid
         # NOTE: pip install playsound
