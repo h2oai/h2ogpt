@@ -4200,7 +4200,8 @@ def test_pure_client_test():
                   speaker="SLT (female)",
                   tts_language='autodetect',
                   tts_speed=1.0,
-                  prompt=prompt)
+                  prompt=prompt,
+                  stream_output=True)
     job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
 
     n = 0
