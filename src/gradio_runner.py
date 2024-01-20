@@ -5667,14 +5667,14 @@ def go_gradio(**kwargs):
                                                              inputs=[instruction, chatbot_role, tts_language,
                                                                      roles_state, tts_speed],
                                                              outputs=speech_human,
-                                                             api_name='speak_human' if allow_api else None,
+                                                             api_name=None,   # not for API
                                                              )
                 speak_events.extend([speak_human_event])
             elif kwargs['tts_model'].startswith('microsoft'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
                                                              inputs=[instruction, speaker, tts_speed],
                                                              outputs=speech_human,
-                                                             api_name='speak_human' if allow_api else None,
+                                                             api_name=None,   # not for API
                                                              )
                 speak_events.extend([speak_human_event])
 
@@ -5755,7 +5755,7 @@ def go_gradio(**kwargs):
                                                          visible_models, text_output,
                                                          text_output2] + text_outputs,
                                                  outputs=speech_bot,
-                                                 api_name='speak_bot' if allow_api else None,
+                                                 api_name=None,   # not for API
                                                  )
         speak_events.extend([speak_bot_event])
 
