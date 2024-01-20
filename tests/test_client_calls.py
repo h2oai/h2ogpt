@@ -4159,8 +4159,6 @@ def play_audio_str(audio_str1, n):
     import ast
     import io
     from pydub import AudioSegment
-    # NOTE: pip install playsound
-    from playsound import playsound
 
     print(n)
     n += 1
@@ -4171,10 +4169,20 @@ def play_audio_str(audio_str1, n):
     channels = 1
     sample_width = 2
 
-    filename = '/tmp/myfile.wav'
-    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
-    audio.export(filename, format='wav')
-    playsound(filename)
+    make_file = False  # can choose
+    if make_file:
+        import uuid
+        # NOTE: pip install playsound
+        from playsound import playsound
+        filename = '/tmp/audio_%s.wav' % str(uuid.uuid4())
+        audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+        audio.export(filename, format='wav')
+        playsound(filename)
+    else:
+        from pydub import AudioSegment
+        from pydub.playback import play
+        song = AudioSegment.from_file(s, format="wav")
+        play(song)
     return n
 
 
