@@ -40,6 +40,7 @@ Supports CPU and MPS (Metal M1/M2).
     # Optional: Selenium/PlayWright:
     pip install -r reqs_optional/requirements_optional_langchain.urls.txt
     # Optional: DocTR OCR:
+    conda install weasyprint pygobject -c conda-forge -y
     pip install -r reqs_optional/requirements_optional_doctr.txt                     
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
