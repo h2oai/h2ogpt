@@ -200,6 +200,7 @@ inputs = dict(chatbot_role="Female AI Assistant",
               tts_speed=1.0,
               prompt=prompt,
               stream_output=True,
+              h2ogpt_key='',  # set if required, else leave as empty string.  Always needs to be passed
               )
 job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
 

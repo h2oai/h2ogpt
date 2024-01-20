@@ -4112,17 +4112,21 @@ def check_curl_plain_api():
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
 
 
+@pytest.mark.parametrize("h2ogpt_key", ['', 'Foo#21525'])
 @pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("tts_model", [
     'microsoft/speecht5_tts',
     'tts_models/multilingual/multi-dataset/xtts_v2'
 ])
 @wrap_test_forked
-def test_client1_tts_api(tts_model, stream_output):
+def test_client1_tts_api(tts_model, stream_output, h2ogpt_key):
     from src.gen import main
     main(base_model='llama',
          tts_model=tts_model,
-         stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
+         stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False,
+         enforce_h2ogpt_api_key=True if h2ogpt_key else False,
+         enforce_h2ogpt_ui_key=False,
+         h2ogpt_api_keys=[h2ogpt_key] if h2ogpt_key else [])
 
     from gradio_client import Client
     client = Client(get_inf_server())
@@ -4130,7 +4134,8 @@ def test_client1_tts_api(tts_model, stream_output):
     # string of dict for input
     prompt = 'I am a robot.  I like to eat cookies, cakes, and donuts.  Please feed me every day.'
     inputs = dict(chatbot_role="Female AI Assistant", speaker="SLT (female)", tts_language='autodetect', tts_speed=1.0,
-                  prompt=prompt, stream_output=stream_output)
+                  prompt=prompt, stream_output=stream_output,
+                  h2ogpt_key=h2ogpt_key)
     if stream_output:
         job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
 
@@ -4179,6 +4184,7 @@ def play_audio_str(audio_str1, n):
         audio.export(filename, format='wav')
         playsound(filename)
     else:
+        # pip install simpleaudio==1.0.4
         # WIP, needs header, while other shouldn't have header
         from pydub import AudioSegment
         from pydub.playback import play
@@ -4201,7 +4207,9 @@ def test_pure_client_test():
                   tts_language='autodetect',
                   tts_speed=1.0,
                   prompt=prompt,
-                  stream_output=True)
+                  stream_output=True,
+                  h2ogpt_key='',  # set if required, always needs to be passed
+                  )
     job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
 
     n = 0

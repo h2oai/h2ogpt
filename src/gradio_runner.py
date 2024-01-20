@@ -5724,7 +5724,17 @@ def go_gradio(**kwargs):
                                                                 sr=sr1)
 
         def wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
-                               response, stream_output1, roles_state1):
+                               response, stream_output1, h2ogpt_key, roles_state1, requests_state1):
+            # check key
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'],
+                                     h2ogpt_key,
+                                     requests_state1=requests_state1)
+            kwargs['from_ui'] = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
             if stream_output1:
                 yield from _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
                                                response, roles_state1)
@@ -5749,9 +5759,11 @@ def go_gradio(**kwargs):
                                                  )
         speak_events.extend([speak_bot_event])
 
-        speak_text_api_event = speak_text_api_button.click(wrap_pred_func_api,
+        speak_text_api_event1 = speak_text_api_button.click(**user_state_kwargs)
+        speak_text_api_event = speak_text_api_event1.then(wrap_pred_func_api,
                                                            inputs=[chatbot_role, speaker, tts_language, tts_speed,
-                                                                   text_speech, stream_output, roles_state],
+                                                                   text_speech, stream_output, h2ogpt_key,
+                                                                   roles_state],
                                                            outputs=text_speech_out,
                                                            api_name='speak_text_api' if allow_api else None,
                                                            )
