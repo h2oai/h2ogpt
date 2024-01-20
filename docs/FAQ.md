@@ -8,7 +8,7 @@
 * XDG_CACHE_HOME: Broadly any `~/.cache` items.  Some [other packages](README_offline.md) use this folder.
 * `--llamacpp_path=<location>` : Location for llama.cpp models, like GGUF models.
 
-### Video Extraction (experimental)
+### Video Extraction
 
 Ways to get Audio (ASR) and Video extraction:
 * Add YouTube link to Ask Anything and click Ingest
@@ -18,7 +18,7 @@ By default, image frames are extracted as a separate document, so when viewed in
 
 If you prefer to disable video extraction, choose `--extract_frames=0` with CLI or pick 0 in Document Control in expert settings in UI.
 
-### Image Generation (experimental)
+### Image Generation
 
 For image generation, then run:
 ```bash
@@ -26,7 +26,7 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_ima
 ```
 or for high-resolution run use `--enable_imagegen_high=True` (can add both).
 
-### LLaVa Vision Models (experimental)
+### LLaVa Vision Models
 
 https://github.com/haotian-liu/LLaVA
 
@@ -152,6 +152,54 @@ There is currently no TTS for CLI.
 In the expert panel you can replay any h2oGPT generation or speak instruction generation.
 
 If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
+
+### Client TTS
+
+From [Client Call Test Code](../tests/test_client_calls.py) eee function `play_audio` to play (or write) audio one gets using the `playsound` pypi package, and see test `test_client1_tts_stream` for how to stream audio along with LLM call for Microsoft or Coqui models, skipping main() call for pure client case.  See `test_client1_tts` test for non-streaming case.
+
+To just get a single one-off conversion of text to audio via API using gradio client, one can follow test `test_client1_tts_api`, self-contained and reduced here for pure client case:
+```python
+def play_audio_str(audio_str1, n):
+    import ast
+    import io
+    from pydub import AudioSegment
+    # NOTE: pip install playsound
+    from playsound import playsound
+
+    print(n)
+    n += 1
+    audio_dict = ast.literal_eval(audio_str1)
+    audio = audio_dict['audio']
+    sr = audio_dict['sr']
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+
+    filename = '/tmp/myfile.wav'
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+    audio.export(filename, format='wav')
+    playsound(filename)
+    return n
+from gradio_client import Client
+client = Client('http://localhost:7860')
+
+# string of dict for input
+prompt = 'I am a robot.  I like to eat cookies, cakes, and donuts.  Please feed me every day.'
+inputs = dict(chatbot_role="Female AI Assistant",
+              speaker="SLT (female)",
+              tts_language='autodetect',
+              tts_speed=1.0,
+              prompt=prompt)
+job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
+
+n = 0
+for audio_str in job:
+    n = play_audio_str(audio_str, n)
+
+# get rest after job done
+for audio_str in job.outputs()[n:]:
+    n = play_audio_str(audio_str, n)
+```
 
 ### Automatic Speech Recognition (ASR)
 

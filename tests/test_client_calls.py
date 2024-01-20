@@ -3949,12 +3949,12 @@ def set_env(tts_model):
 ])
 @wrap_test_forked
 def test_client1_tts(tts_model):
-    sr = set_env(tts_model)
-
     from src.gen import main
     main(base_model='llama', chat=False,
          tts_model=tts_model,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    sr = set_env(tts_model)
 
     from gradio_client import Client
     client = Client(get_inf_server())
@@ -3970,15 +3970,13 @@ def test_client1_tts(tts_model):
     assert 'endoftext' not in response
     print(response, flush=True)
 
-    play_audio(res, sr=sr)
+    play_audio(res['audio'], sr=sr)
 
     check_final_res(res)
 
 
-def play_audio(res, sr=16000):
+def play_audio(audio, sr=16000):
     # convert audio to file
-    audio = res['audio']
-
     if audio == b'':
         # no audio
         return
@@ -4010,13 +4008,13 @@ def play_audio(res, sr=16000):
 ])
 @wrap_test_forked
 def test_client1_tts_stream(tts_model, base_model):
-    sr = set_env(tts_model)
-
     from src.gen import main
     main(base_model=base_model, chat=False,
          tts_model=tts_model,
          save_dir='foodir',
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    sr = set_env(tts_model)
 
     from gradio_client import Client
     client = Client(get_inf_server())
@@ -4042,7 +4040,7 @@ def test_client1_tts_stream(tts_model, base_model):
                 print('Stream %d: %s\n\n %s\n\n' % (num, res_dict['response'], res_dict), flush=True)
             else:
                 print('Stream %d' % (job_outputs_num + num), flush=True)
-            play_audio(res_dict, sr=sr)
+            play_audio(res_dict['audio'], sr=sr)
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
@@ -4056,7 +4054,7 @@ def test_client1_tts_stream(tts_model, base_model):
             print('Final Stream %d: %s\n\n%s\n\n' % (num, res_dict['response'], res_dict), flush=True)
         else:
             print('Final Stream %d' % (job_outputs_num + num), flush=True)
-        play_audio(res_dict, sr=sr)
+        play_audio(res_dict['audio'], sr=sr)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
     check_final_res(res_dict, base_model=base_model)
@@ -4112,6 +4110,92 @@ def check_curl_plain_api():
     assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict'][
         'base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
+
+
+@pytest.mark.parametrize("tts_model", [
+    'microsoft/speecht5_tts',
+    'tts_models/multilingual/multi-dataset/xtts_v2'
+])
+@wrap_test_forked
+def test_client1_tts_api(tts_model):
+    from src.gen import main
+    main(base_model='llama',
+         tts_model=tts_model,
+         stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'I am a robot.  I like to eat cookies, cakes, and donuts.  Please feed me every day.'
+    inputs = dict(chatbot_role="Female AI Assistant", speaker="SLT (female)", tts_language='autodetect', tts_speed=1.0,
+                  prompt=prompt)
+    job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
+
+    # ensure no immediate failure (only required for testing)
+    import concurrent.futures
+    try:
+        e = job.exception(timeout=0.2)
+        if e is not None:
+            raise RuntimeError(e)
+    except concurrent.futures.TimeoutError:
+        pass
+
+    n = 0
+    for audio_str in job:
+        n = play_audio_str(audio_str, n)
+
+    # get rest after job done
+    for audio_str in job.outputs()[n:]:
+        n = play_audio_str(audio_str, n)
+
+
+def play_audio_str(audio_str1, n):
+    import ast
+    import io
+    from pydub import AudioSegment
+    # NOTE: pip install playsound
+    from playsound import playsound
+
+    print(n)
+    n += 1
+    audio_dict = ast.literal_eval(audio_str1)
+    audio = audio_dict['audio']
+    sr = audio_dict['sr']
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+
+    filename = '/tmp/myfile.wav'
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+    audio.export(filename, format='wav')
+    playsound(filename)
+    return n
+
+
+@pytest.mark.skipif(not os.environ.get('HAVE_SERVER'),
+                    reason="Should have separate server running, self-contained example for FAQ.md")
+# HAVE_SERVER=1 pytest -s -v tests/test_client_calls.py::test_pure_client_test
+def test_pure_client_test():
+    from gradio_client import Client
+    client = Client('http://localhost:7860')
+
+    # string of dict for input
+    prompt = 'I am a robot.  I like to eat cookies, cakes, and donuts.  Please feed me every day.'
+    inputs = dict(chatbot_role="Female AI Assistant",
+                  speaker="SLT (female)",
+                  tts_language='autodetect',
+                  tts_speed=1.0,
+                  prompt=prompt)
+    job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
+
+    n = 0
+    for audio_str in job:
+        n = play_audio_str(audio_str, n)
+
+    # get rest after job done
+    for audio_str in job.outputs()[n:]:
+        n = play_audio_str(audio_str, n)
 
 
 @wrap_test_forked

@@ -823,6 +823,7 @@ def go_gradio(**kwargs):
                     visible_speak_me = kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None
                     speak_human_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
                     speak_bot_button = gr.Button("Speak Response", visible=visible_speak_me, size='sm')
+                    speak_text_api_button = gr.Button("Speak Text API", visible=False)
                     stop_speak_button = gr.Button("Stop/Clear Speak", visible=visible_speak_me, size='sm')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                         from src.tts_coqui import get_roles
@@ -1691,11 +1692,15 @@ def go_gradio(**kwargs):
                                                    autoplay=False,
                                                    visible=False,
                                                    elem_id='bot2_audio')
+                            text_speech = gr.Textbox(visible=False)
+                            text_speech_out = gr.Textbox(visible=False)
                         else:
                             # Ensure not streaming media, just webconnect, if not doing TTS
                             speech_human = gr.Textbox(visible=False)
                             speech_bot = gr.Textbox(visible=False)
                             speech_bot2 = gr.Textbox(visible=False)
+                            text_speech = gr.Textbox(visible=False)
+                            text_speech_out = gr.Textbox(visible=False)
 
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                             from src.tts_coqui import get_languages_gr
@@ -3259,7 +3264,9 @@ def go_gradio(**kwargs):
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
                 elif str(args_list[1]).strip():
-                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
+                    added_history = [(None, get_accordion_named(args_list[1],
+                                                                "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.",
+                                                                font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3940,9 +3947,11 @@ def go_gradio(**kwargs):
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
             if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
-                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
+                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (
+                    langchain_mode1, document_subset1, document_choice1)
             if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
-                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (langchain_mode1, document_subset1, document_choice1)
+                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (
+                    langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
@@ -5691,6 +5700,29 @@ def go_gradio(**kwargs):
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1)
 
+        def wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                               response, roles_state1):
+            if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
+                sr1 = 16000
+            elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
+                sr1 = 24000
+            else:
+                return
+            if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
+                if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
+                    yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_state1,
+                                                                tts_speed1,
+                                                                return_prefix_every_yield=False,
+                                                                include_audio0=False,
+                                                                return_dict=True,
+                                                                sr=sr1)
+                elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
+                    yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1,
+                                                                return_prefix_every_yield=True,
+                                                                include_audio0=False,
+                                                                return_dict=True,
+                                                                sr=sr1)
+
         speak_bot_event = speak_bot_button.click(wrap_pred_func,
                                                  inputs=[chatbot_role, speaker, tts_language, roles_state, tts_speed,
                                                          visible_models, text_output,
@@ -5699,6 +5731,13 @@ def go_gradio(**kwargs):
                                                  api_name='speak_bot' if allow_api else None,
                                                  )
         speak_events.extend([speak_bot_event])
+
+        speak_text_api_event = speak_text_api_button.click(wrap_pred_func_api,
+                                                           inputs=[chatbot_role, speaker, tts_language, tts_speed,
+                                                                   text_speech, roles_state],
+                                                           outputs=text_speech_out,
+                                                           api_name='speak_text_api' if allow_api else None,
+                                                           )
 
         def stop_audio_func():
             return None, None
