@@ -5700,8 +5700,8 @@ def go_gradio(**kwargs):
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1)
 
-        def wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
-                               response, roles_state1):
+        def _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                                response, roles_state1):
             if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
                 sr1 = 16000
             elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
@@ -5723,6 +5723,23 @@ def go_gradio(**kwargs):
                                                                 return_dict=True,
                                                                 sr=sr1)
 
+        def wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                               response, stream_output1, roles_state1):
+            if stream_output1:
+                yield from _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                                               response, roles_state1)
+            else:
+                audios = []
+                for audio1 in _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                                                  response, roles_state1):
+                    audios.append(audio1)
+                srs = [x['sr'] for x in audios]
+                if len(srs) > 0:
+                    sr = srs[0]
+                    audios = [x['audio'] for x in audios]
+                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'])
+                    yield dict(audio=audios, sr=sr)
+
         speak_bot_event = speak_bot_button.click(wrap_pred_func,
                                                  inputs=[chatbot_role, speaker, tts_language, roles_state, tts_speed,
                                                          visible_models, text_output,
@@ -5734,7 +5751,7 @@ def go_gradio(**kwargs):
 
         speak_text_api_event = speak_text_api_button.click(wrap_pred_func_api,
                                                            inputs=[chatbot_role, speaker, tts_language, tts_speed,
-                                                                   text_speech, roles_state],
+                                                                   text_speech, stream_output, roles_state],
                                                            outputs=text_speech_out,
                                                            api_name='speak_text_api' if allow_api else None,
                                                            )

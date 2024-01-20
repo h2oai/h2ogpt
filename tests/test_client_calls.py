@@ -4112,12 +4112,13 @@ def check_curl_plain_api():
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
 
 
+@pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("tts_model", [
     'microsoft/speecht5_tts',
     'tts_models/multilingual/multi-dataset/xtts_v2'
 ])
 @wrap_test_forked
-def test_client1_tts_api(tts_model):
+def test_client1_tts_api(tts_model, stream_output):
     from src.gen import main
     main(base_model='llama',
          tts_model=tts_model,
@@ -4129,25 +4130,29 @@ def test_client1_tts_api(tts_model):
     # string of dict for input
     prompt = 'I am a robot.  I like to eat cookies, cakes, and donuts.  Please feed me every day.'
     inputs = dict(chatbot_role="Female AI Assistant", speaker="SLT (female)", tts_language='autodetect', tts_speed=1.0,
-                  prompt=prompt)
-    job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
+                  prompt=prompt, stream_output=stream_output)
+    if stream_output:
+        job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
 
-    # ensure no immediate failure (only required for testing)
-    import concurrent.futures
-    try:
-        e = job.exception(timeout=0.2)
-        if e is not None:
-            raise RuntimeError(e)
-    except concurrent.futures.TimeoutError:
-        pass
+        # ensure no immediate failure (only required for testing)
+        import concurrent.futures
+        try:
+            e = job.exception(timeout=0.2)
+            if e is not None:
+                raise RuntimeError(e)
+        except concurrent.futures.TimeoutError:
+            pass
 
-    n = 0
-    for audio_str in job:
-        n = play_audio_str(audio_str, n)
+        n = 0
+        for audio_str in job:
+            n = play_audio_str(audio_str, n)
 
-    # get rest after job done
-    for audio_str in job.outputs()[n:]:
-        n = play_audio_str(audio_str, n)
+        # get rest after job done
+        for audio_str in job.outputs()[n:]:
+            n = play_audio_str(audio_str, n)
+    else:
+        audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')
+        play_audio_str(audio_str, 0)
 
 
 def play_audio_str(audio_str1, n):
