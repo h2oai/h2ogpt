@@ -5761,12 +5761,12 @@ def go_gradio(**kwargs):
 
         speak_text_api_event1 = speak_text_api_button.click(**user_state_kwargs)
         speak_text_api_event = speak_text_api_event1.then(wrap_pred_func_api,
-                                                           inputs=[chatbot_role, speaker, tts_language, tts_speed,
-                                                                   text_speech, stream_output, h2ogpt_key,
-                                                                   roles_state],
-                                                           outputs=text_speech_out,
-                                                           api_name='speak_text_api' if allow_api else None,
-                                                           )
+                                                          inputs=[chatbot_role, speaker, tts_language, tts_speed,
+                                                                  text_speech, stream_output, h2ogpt_key,
+                                                                  roles_state],
+                                                          outputs=text_speech_out,
+                                                          api_name='speak_text_api' if allow_api else None,
+                                                          )
 
         def stop_audio_func():
             return None, None
