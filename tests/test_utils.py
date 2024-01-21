@@ -112,7 +112,7 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
                         stream_output=stream_output,
                         system_prompt=system_prompt)
 
-    min_max_new_tokens = 256  # like in get_limited_prompt()
+    min_max_new_tokens = 512  # like in get_limited_prompt()
     max_input_tokens = -1
     max_new_tokens = 1024
     model_max_length = 4096

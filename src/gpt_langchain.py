@@ -576,7 +576,7 @@ class GradioInference(H2Oagenerate, LLM):
     prompts: Any = []
     count_output_tokens: Any = 0
 
-    min_max_new_tokens: Any = 256
+    min_max_new_tokens: Any = 512
     max_input_tokens: Any = -1
     max_total_input_tokens: Any = -1
 
@@ -1588,7 +1588,7 @@ def get_llm(use_openai_model=False,
         # allow certain tests to use fake one
         tokenizer = FakeTokenizer()
         max_input_tokens = 1024
-        min_max_new_tokens = 256
+        min_max_new_tokens = 512
 
     model_max_length = tokenizer.model_max_length
     if not attention_sinks:
@@ -4834,7 +4834,7 @@ def _run_qa_db(query=None,
                visible_models=None,
                h2ogpt_key=None,
                docs_ordering_type=docs_ordering_types_default,
-               min_max_new_tokens=256,
+               min_max_new_tokens=512,
                max_input_tokens=-1,
                max_total_input_tokens=-1,
                docs_token_handling=None,
@@ -5752,7 +5752,7 @@ def get_chain(query=None,
               tokenizer=None,
               verbose=False,
               docs_ordering_type=docs_ordering_types_default,
-              min_max_new_tokens=256,
+              min_max_new_tokens=512,
               max_input_tokens=-1,
               max_total_input_tokens=-1,
               attention_sinks=False,

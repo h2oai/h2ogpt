@@ -377,7 +377,7 @@ def main(
         chunk_size: int = 512,
         top_k_docs: int = None,
         docs_ordering_type: str = docs_ordering_types_default,
-        min_max_new_tokens=256,
+        min_max_new_tokens=512,
         max_input_tokens=None,
         max_total_input_tokens=None,
         docs_token_handling: str = docs_token_handling_default,
@@ -3534,7 +3534,7 @@ def evaluate(
                                                 truncation_generation=truncation_generation)
     if min_max_new_tokens is None:
         # default for nochat api
-        min_max_new_tokens = 256
+        min_max_new_tokens = 512
     if max_input_tokens is None:
         max_input_tokens = -1
     if max_total_input_tokens is None:
@@ -4521,7 +4521,7 @@ state_names = input_args_list.copy()  # doesn't have to be the same, but state_n
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
-def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048, min_max_new_tokens=256):
+def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048, min_max_new_tokens=512):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
@@ -5140,7 +5140,7 @@ def history_to_context(history, langchain_mode=None,
                        system_prompt=None, chat_conversation=None,
                        hyde_level=None,
                        gradio_errors_to_chatbot=None,
-                       min_max_new_tokens=256):
+                       min_max_new_tokens=512):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -5244,7 +5244,7 @@ def get_limited_prompt(instruction,
                        verbose=False,
                        doc_importance=0.5,
                        hyde_level=None,
-                       min_max_new_tokens=256,
+                       min_max_new_tokens=512,
                        max_input_tokens=-1,
                        max_total_input_tokens=-1,
                        truncation_generation=False,
