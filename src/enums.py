@@ -278,11 +278,11 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
                           prompt_query_type='simple'):
     if prompt_query_type == 'advanced':
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
-        prompt_query1 = "According to (primarily) the information in the document sources provided within context above: "
+        prompt_query1 = "According to (primarily) the information in the document sources provided within context above, write an insightful and well-structured response to: "
     else:
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
-        prompt_query1 = "According to only the information in the document sources provided within the context above: "
+        prompt_query1 = "According to only the information in the document sources provided within the context above, write an insightful and well-structured response to: "
 
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text."""
     prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
