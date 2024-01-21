@@ -5,6 +5,7 @@ import io
 import os
 import tempfile
 
+import filelock
 import numpy as np
 import uuid
 import subprocess
@@ -12,7 +13,7 @@ import time
 
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
 from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
-from src.utils import cuda_vis_check
+from src.utils import cuda_vis_check, makedirs
 
 import torch
 
@@ -96,14 +97,20 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None, sr=240
 
     try:
         t0 = time.time()
-        chunks = model.inference_stream(
-            prompt,
-            language,
-            gpt_cond_latent,
-            speaker_embedding,
-            repetition_penalty=7.0,
-            temperature=0.85,
-        )
+        lock_type = "coqui"
+        base_path = os.path.join('locks', 'image_locks')
+        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+        lock_file = os.path.join(base_path, "%s.lock" % lock_type)
+        makedirs(os.path.dirname(lock_file))  # ensure made
+        with filelock.FileLock(lock_file):
+            chunks = model.inference_stream(
+                prompt,
+                language,
+                gpt_cond_latent,
+                speaker_embedding,
+                repetition_penalty=7.0,
+                temperature=0.85,
+            )
 
         first_chunk = True
         for i, chunk in enumerate(chunks):
