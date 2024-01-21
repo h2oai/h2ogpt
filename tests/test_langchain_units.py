@@ -1940,11 +1940,12 @@ def test_chroma_filtering():
         single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]
         text_context_list1 = []
         pdf_height = 800
+        h2ogpt_key1 = ''
         for view_raw_text_checkbox1 in [True, False]:
             print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
             from src.gradio_runner import show_doc
             show_ret = show_doc(db1s, selection_docs_state1, requests_state1,
-                                langchain_mode1,
+                                langchain_mode1, h2ogpt_key1,
                                 single_document_choice1,
                                 view_raw_text_checkbox1,
                                 text_context_list1,
