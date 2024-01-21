@@ -72,7 +72,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_stop_token_ids, anthropic_gpts, google_gpts, mistralai_gpts
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -3902,18 +3902,19 @@ def evaluate(
                                      )
             if inf_type == 'vllm' or inf_type == 'openai':
                 if inf_type == 'vllm':
-                    stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=stop_sequences)
+                    vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
+                                                          # repetition_penalty=repetition_penalty,  # could pass
+                                                          )
                     other_dict = dict(timeout=max_time)
-                    # gen_server_kwargs.update(dict(repetition_penalty=repetition_penalty))
                 else:
-                    stop_token_ids_dict = {}
+                    vllm_extra_dict = {}
                     other_dict = dict(timeout=max_time)
                 responses = openai_client.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
                     stop=stop_sequences,
-                    **stop_token_ids_dict,
+                    **vllm_extra_dict,
                     stream=stream_output,
                     **other_dict,
                 )

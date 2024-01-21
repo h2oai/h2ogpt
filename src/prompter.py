@@ -1626,13 +1626,15 @@ def step_back_prompts(which):
         raise ValueError("No such case for back prompts which=%d" % which)
 
 
-def get_stop_token_ids(tokenizer, stop_sequences=[]):
+def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None):
     stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
                       hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
     if hasattr(tokenizer, 'eos_token_id'):
         stop_token_ids.extend([tokenizer.eos_token_id])
-    stop_token_ids_dict = dict(stop_token_ids=stop_token_ids)
-    return stop_token_ids_dict
+    vllm_extra_dict = dict(extra_body=dict(stop_token_ids=stop_token_ids))
+    if repetition_penalty is not None:
+        vllm_extra_dict['extra_body'].update(repetition_penalty=repetition_penalty)
+    return vllm_extra_dict
 
 
 system_generic = """A chat between a curious human and an artificial intelligence assistant.  The assistant gives helpful, detailed, and polite answers to the human's questions."""

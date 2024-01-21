@@ -1386,21 +1386,20 @@ only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
 
 def set_openai(inference_server, model_name=None):
     if inference_server.startswith('vllm'):
-        import openvllm
-        api_key = openvllm.api_key = "EMPTY"
+        api_key = "EMPTY"
         inf_type = inference_server.split(':')[0].strip()
         ip_port_vllm = ':'.join(inference_server.split(':')[1:])
         if ip_port_vllm.startswith('https://') or ip_port_vllm.startswith('http://'):
-            api_base = openvllm.api_base = ip_port_vllm
+            api_base = ip_port_vllm
         else:
             ip_vllm = inference_server.split(':')[1].strip()
             port_vllm = inference_server.split(':')[2].strip()
-            api_base = openvllm.api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+            api_base = f"http://{ip_vllm}:{port_vllm}/v1"
 
-        from openvllm import vLLM, AsyncvLLM
+        from openai import OpenAI, AsyncOpenAI
         client_args = dict(base_url=api_base, api_key=api_key)
-        client = vLLM(**client_args)
-        async_client = AsyncvLLM(**client_args)
+        client = OpenAI(**client_args)
+        async_client = AsyncOpenAI(**client_args)
         if inf_type in ['vllm_chat']:
             client = client.chat.completions
             async_client = async_client.chat.completions
