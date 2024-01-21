@@ -62,7 +62,8 @@ def setup_paths():
         base0 = os.environ['H2OGPT_MODEL_BASE']
         if 'Programs' in os.environ['H2OGPT_MODEL_BASE']:
             os.environ['H2OGPT_MODEL_BASE'] = os.environ['H2OGPT_MODEL_BASE'].replace('Programs', 'Temp/gradio/')
-            shutil.rmtree(os.environ['H2OGPT_MODEL_BASE'])
+            if os.path.isdir(os.environ['H2OGPT_MODEL_BASE']):
+                shutil.rmtree(os.environ['H2OGPT_MODEL_BASE'], ignore_errors=True)
             if os.path.isfile(os.path.join(base0, 'human.jpg')):
                 copy_tree(base0, os.environ['H2OGPT_MODEL_BASE'])
 
