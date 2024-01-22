@@ -14,7 +14,7 @@ metadata:
   name: {{ include "h2ogpt.fullname" . }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}
-    {{- with .Values.h2ogpt.podLabel }}
+    {{- with .Values.h2ogpt.podLabels }}
     {{ toYaml . | nindent 2 }}
     {{- end }}
 spec:
@@ -318,7 +318,7 @@ metadata:
   name: {{ include "h2ogpt.fullname" . }}-tgi-inference
   labels:
     app: {{ include "h2ogpt.fullname" . }}-tgi-inference
-    {{- with .Values.tgi.podLabel }}
+    {{- with .Values.tgi.podLabels }}
     {{ toYaml . | nindent 2 }}
     {{- end }}
 spec:
@@ -476,7 +476,7 @@ metadata:
   name: {{ include "h2ogpt.fullname" . }}-vllm-inference
   labels:
     app: {{ include "h2ogpt.fullname" . }}-vllm-inference
-    {{- with .Values.vllm.podLabel }}
+    {{- with .Values.vllm.podLabels }}
     {{ toYaml . | nindent 2 }}
     {{- end }}
 spec:
