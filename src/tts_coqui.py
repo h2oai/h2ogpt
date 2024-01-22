@@ -54,21 +54,31 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
     supported_languages = config.languages
 
     model = Xtts.init_from_config(config)
-    model.load_checkpoint(
-        config,
-        checkpoint_dir=os.path.dirname(os.path.join(model_path, "model.pth")),
-        checkpoint_path=os.path.join(model_path, "model.pth"),
-        vocab_path=os.path.join(model_path, "vocab.json"),
-        eval=True,
-        use_deepspeed=deepspeed,
-    )
-    if use_gpu:
-        if gpu_id == 'auto':
-            model.cuda()
-        else:
-            model.cuda(device='cuda:%d' % gpu_id)
+    with filelock.FileLock(get_lock_file()):
+        model.load_checkpoint(
+            config,
+            checkpoint_dir=os.path.dirname(os.path.join(model_path, "model.pth")),
+            checkpoint_path=os.path.join(model_path, "model.pth"),
+            vocab_path=os.path.join(model_path, "vocab.json"),
+            eval=True,
+            use_deepspeed=deepspeed,
+        )
+        if use_gpu:
+            if gpu_id == 'auto':
+                model.cuda()
+            else:
+                model.cuda(device='cuda:%d' % gpu_id)
     print("Done loading TTS")
     return model, supported_languages
+
+
+def get_lock_file():
+    lock_type = "coqui"
+    base_path = os.path.join('locks', 'image_locks')
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+    lock_file = os.path.join(base_path, "%s.lock" % lock_type)
+    makedirs(os.path.dirname(lock_file))  # ensure made
+    return lock_file
 
 
 def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, max_ref_length=60, sr=24000):
@@ -84,8 +94,9 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, ma
     # create as function as we can populate here with voice cleanup/filtering
     # note diffusion_conditioning not used on hifigan (default mode), it will be empty but need to pass it to model.inference
     # latent = (gpt_cond_latent, speaker_embedding)
-    latent = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
-                                            max_ref_length=max_ref_length, load_sr=sr)
+    with filelock.FileLock(get_lock_file()):
+        latent = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
+                                                max_ref_length=max_ref_length, load_sr=sr)
     return latent
 
 
@@ -97,12 +108,7 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None, sr=240
 
     try:
         t0 = time.time()
-        lock_type = "coqui"
-        base_path = os.path.join('locks', 'image_locks')
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        lock_file = os.path.join(base_path, "%s.lock" % lock_type)
-        makedirs(os.path.dirname(lock_file))  # ensure made
-        with filelock.FileLock(lock_file):
+        with filelock.FileLock(get_lock_file()):
             chunks = model.inference_stream(
                 prompt,
                 language,
