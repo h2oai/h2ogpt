@@ -6037,7 +6037,7 @@ def get_chain(query=None,
                 description="DataBase of text from PDFs, Image Captions, or web URL content",
                 vectorstore=db,
             )
-            toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info)
+            toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info, llm=llm)
             chain = create_vectorstore_agent(llm=llm, toolkit=toolkit,
                                              agent_executor_kwargs=dict(output_parser=output_parser),
                                              verbose=True, max_execution_time=max_time)
