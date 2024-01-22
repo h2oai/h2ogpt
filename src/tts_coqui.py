@@ -74,7 +74,7 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
 
 def get_lock_file():
     lock_type = "coqui"
-    base_path = os.path.join('locks', 'image_locks')
+    base_path = os.path.join('locks', 'coqui_locks')
     base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
     lock_file = os.path.join(base_path, "%s.lock" % lock_type)
     makedirs(os.path.dirname(lock_file))  # ensure made
@@ -108,15 +108,14 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None, sr=240
 
     try:
         t0 = time.time()
-        with filelock.FileLock(get_lock_file()):
-            chunks = model.inference_stream(
-                prompt,
-                language,
-                gpt_cond_latent,
-                speaker_embedding,
-                repetition_penalty=7.0,
-                temperature=0.85,
-            )
+        chunks = model.inference_stream(
+            prompt,
+            language,
+            gpt_cond_latent,
+            speaker_embedding,
+            repetition_penalty=7.0,
+            temperature=0.85,
+        )
 
         first_chunk = True
         for i, chunk in enumerate(chunks):
@@ -209,31 +208,34 @@ def sentence_to_wave(sentence, supported_languages, tts_speed,
     try:
         wav_bytestream = b""
         for sentence in sentence_list:
+            # have to lock entire sentence, model doesn't handle threads,
+            # this is ok since usually have many sentences
+            with filelock.FileLock(get_lock_file()):
 
-            if any(c.isalnum() for c in sentence):
-                if language == "autodetect":
-                    # on first call autodetect, next sentence calls will use same language
-                    language = detect_language(sentence, supported_languages, verbose=verbose)
+                if any(c.isalnum() for c in sentence):
+                    if language == "autodetect":
+                        # on first call autodetect, next sentence calls will use same language
+                        language = detect_language(sentence, supported_languages, verbose=verbose)
 
-                # exists at least 1 alphanumeric (utf-8)
-                audio_stream = get_voice_streaming(
-                    sentence, language, latent,
-                    model=model,
-                    tts_speed=tts_speed,
-                )
-            else:
-                # likely got a ' or " or some other text without alphanumeric in it
-                audio_stream = None
+                    # exists at least 1 alphanumeric (utf-8)
+                    audio_stream = get_voice_streaming(
+                        sentence, language, latent,
+                        model=model,
+                        tts_speed=tts_speed,
+                    )
+                else:
+                    # likely got a ' or " or some other text without alphanumeric in it
+                    audio_stream = None
 
-            if audio_stream is not None:
-                frame_length = 0
-                for chunk in audio_stream:
-                    try:
-                        wav_bytestream += chunk
-                        frame_length += len(chunk)
-                    except Exception as e:
-                        print("Exception in chunk appending: %s" % str(e), flush=True)
-                        continue
+                if audio_stream is not None:
+                    frame_length = 0
+                    for chunk in audio_stream:
+                        try:
+                            wav_bytestream += chunk
+                            frame_length += len(chunk)
+                        except Exception as e:
+                            print("Exception in chunk appending: %s" % str(e), flush=True)
+                            continue
 
             # Filter output for better voice
             filter_output = False
