@@ -32,6 +32,9 @@ spec:
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}
+        {{- with .Values.h2ogpt.podLabels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.h2ogpt.nodeSelector }}
       nodeSelector:
@@ -333,6 +336,9 @@ spec:
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+        {{- with .Values.tgi.podLabels }}
+        {{ toYaml . | nindent 6 }}
+        {{- end }}
     spec:
       {{- with .Values.tgi.nodeSelector }}
       nodeSelector:
@@ -488,6 +494,9 @@ spec:
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+        {{- with .Values.vllm.podLabels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.vllm.nodeSelector }}
       nodeSelector:
