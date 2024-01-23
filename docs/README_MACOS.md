@@ -61,6 +61,20 @@ Supports CPU and MPS (Metal M1/M2).
 
 See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
 
+## Run 
+In your terminal, run: 
+
+```python3 generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096```
+
+Or you can run it from a file called `run.sh` that would contain following text:
+
+```
+#!/bin/bash
+python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+```
+
+and run `sh run.sh` from the terminal placed in the parent folder of `run.sh`
+
 ---
 
 ## Issues
