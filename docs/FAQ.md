@@ -204,13 +204,30 @@ inputs = dict(chatbot_role="Female AI Assistant",
               )
 job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
 
-n = 0
-for audio_str in job:
-    n = play_audio_str(audio_str, n)
+from gradio_client.utils import Status
+import time
 
-# get rest after job done
-for audio_str in job.outputs()[n:]:
-    n = play_audio_str(audio_str, n)
+do_play = True
+n = 0
+t0 = time.time()
+# work-around https://github.com/gradio-app/gradio/issues/7136
+while True:
+    if not job.communicator:
+        break
+    time.sleep(0.001)
+
+    if len(job.outputs()) - 1 >= n:
+        audio_str = job.outputs()[n]
+        print("n=%s/%s dt=%s" % (n, len(job.outputs()) - 1, (time.time() - t0)))
+        t0 = time.time()
+        n += 1
+        if do_play:
+            play_audio_str(audio_str)
+
+    n_outputs = len(job.outputs())  # must be outside lock below
+    with job.communicator.lock:
+        if job.communicator.job.latest_status.code == Status.FINISHED and n >= n_outputs - 1:
+            break
 ```
 
 ### Automatic Speech Recognition (ASR)
