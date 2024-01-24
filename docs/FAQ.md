@@ -226,7 +226,7 @@ while True:
 
     n_outputs = len(job.outputs())  # must be outside lock below
     with job.communicator.lock:
-        if job.communicator.job.latest_status.code == Status.FINISHED and n >= n_outputs - 1:
+        if job.communicator.job.latest_status.code == Status.FINISHED and n >= n_outputs:
             break
 ```
 
