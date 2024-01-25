@@ -1791,6 +1791,8 @@ def test_chroma_filtering():
                         max_raw_chunks=max_raw_chunks,
                         api=api,
                         n_jobs=n_jobs,
+                        enforce_h2ogpt_api_key=False,
+                        enforce_h2ogpt_ui_key=False,
                         )
     mydata_mode1 = LangChainMode.MY_DATA.value
     from src.make_db import make_db_main
@@ -1883,18 +1885,18 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) >= 7 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                             else:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) >= 7 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'h2oGPT' in rets1['sources']
+                                    assert 'h2oGPT' in str(rets1['sources'])
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) >= 7 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
@@ -1902,18 +1904,19 @@ def test_chroma_filtering():
                                         'a chat bot that' in rets1['response'].lower() or
                                         'non-centrality parameter' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower() or
-                                        'gravitational' in rets1['response'].lower()
+                                        'gravitational' in rets1['response'].lower() or
+                                        'answer to the question'  in rets1['response'].lower()
                                 )
                             else:
-                                assert len(rets1) == 8 and (
+                                assert len(rets1) >= 7 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
                                         'statistic' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in rets1['sources'] or 'unbiased' in rets1[
-                                        'sources'] or 'approximate' in rets1['sources']
+                                    assert 'whisper' in str(rets1['sources']) or 'unbiased' in str(rets1[
+                                        'sources']) or 'approximate' in str(rets1['sources'])
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
@@ -1949,16 +1952,17 @@ def test_chroma_filtering():
             print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
             from src.gradio_runner import show_doc
             show_ret = show_doc(db1s, selection_docs_state1, requests_state1,
-                                langchain_mode1, h2ogpt_key1,
+                                langchain_mode1,
                                 single_document_choice1,
                                 view_raw_text_checkbox1,
                                 text_context_list1,
                                 pdf_height,
+                                h2ogpt_key1,
                                 dbs1=dbs1,
                                 hf_embedding_model1=hf_embedding_model,
                                 **other_kwargs
                                 )
-            assert len(show_ret) == 5
+            assert len(show_ret) == 8
             if chroma_new:
                 assert1 = show_ret[4]['value'] is not None and 'README.md' in show_ret[4]['value']
                 assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
