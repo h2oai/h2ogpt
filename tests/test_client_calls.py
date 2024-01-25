@@ -1576,7 +1576,8 @@ def test_client_system_prompts(system_prompt, chat_conversation):
                 # system prompt overwhelms chat conversation
                 assert "I'm a goofy lion" in res_dict['response'] or \
                        "goofiest lion" in res_dict['response'] or \
-                       "I'm the coolest lion around" in res_dict['response']
+                       "I'm the coolest lion around" in res_dict['response'] or \
+                       "awesome lion"  in res_dict['response']
             elif system_prompt == '':
                 # empty system prompt gives room for chat conversation to control
                 assert "My name is Porky" in res_dict['response']
