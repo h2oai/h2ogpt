@@ -150,6 +150,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'docs_ordering_type': 'reverse_ucurve_sort',
                  'min_max_new_tokens': 512,
                  'max_input_tokens': -1,
+                 'llava_prompt': 'auto',
                  'max_total_input_tokens': -1,
                  'docs_token_handling': 'split_or_merge',
                  'docs_joiner': docs_joiner_default,
