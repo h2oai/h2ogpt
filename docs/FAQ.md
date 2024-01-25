@@ -229,6 +229,11 @@ while True:
         if job.communicator.job.latest_status.code == Status.FINISHED and n >= n_outputs:
             break
 ```
+or via curlable endpoint:
+```bash
+curl 127.0.0.1:7860/api/speak_text_plain_api -X POST -d '{"data": ["{\"chatbot_role\": \"Female AI Assistant\", \"speaker\": \"SLT (female)\", \"tts_language\": \"autodetect\", \"tts_speed\": 1.0, \"prompt\": \"Say cheese.\", \"stream_output\": \"False\", \"h2ogpt_key\": \"foodoo\"}"]}' -H 'Content-Type: application/json'
+```
+for h2oGPT key `foodoo`.
 
 ### Automatic Speech Recognition (ASR)
 
