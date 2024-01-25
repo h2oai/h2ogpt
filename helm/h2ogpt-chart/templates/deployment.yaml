@@ -12,6 +12,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}
 spec:
@@ -300,6 +301,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -316,6 +318,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-tgi-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}-tgi-inference
 spec:
@@ -459,6 +462,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -474,6 +478,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}-vllm-inference
 spec:
@@ -605,6 +610,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
