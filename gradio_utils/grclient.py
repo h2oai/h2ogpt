@@ -29,10 +29,12 @@ from importlib.metadata import distribution, PackageNotFoundError
 try:
     assert distribution('gradio_client') is not None
     have_gradio_client = True
-    is_gradio_client_version7 = distribution('gradio_client').version.startswith('0.7.')
+    from packaging import version
+    client_version = distribution('gradio_client').version
+    is_gradio_client_version7plus = version.parse(client_version) >= version.parse("0.7.0")
 except (PackageNotFoundError, AssertionError):
     have_gradio_client = False
-    is_gradio_client_version7 = False
+    is_gradio_client_version7plus = False
 
 from gradio_client.client import Job, DEFAULT_TEMP_DIR, Endpoint
 from gradio_client import Client
@@ -130,7 +132,7 @@ class GradioClient(Client):
             check_hash=check_hash,
             check_model_name=check_model_name,
         )
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             self.kwargs.update(dict(auth=auth))
 
         self.verbose = verbose
@@ -138,7 +140,7 @@ class GradioClient(Client):
         self.serialize = serialize
         self.space_id = None
         self.cookies: dict[str, str] = {}
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             self.output_dir = (
                 str(output_dir) if isinstance(output_dir, Path) else output_dir
             )
@@ -200,12 +202,12 @@ class GradioClient(Client):
         if self.verbose:
             print(f"Loaded as API: {self.src} ✔")
 
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             if self.auth is not None:
                 self._login(self.auth)
 
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             self.sse_url = urllib.parse.urljoin(self.src, utils.SSE_URL)
             self.sse_data_url = urllib.parse.urljoin(self.src, utils.SSE_DATA_URL)
         self.ws_url = urllib.parse.urljoin(
@@ -214,13 +216,13 @@ class GradioClient(Client):
         self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
         self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
         self.config = self._get_config()
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             self.protocol: str = self.config.get("protocol", "ws")
             self.app_version = version.parse(self.config.get("version", "2.0"))
             self._info = self._get_api_info()
         self.session_hash = str(uuid.uuid4())
 
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             from gradio_client.client import EndpointV3Compatibility
             endpoint_class = (
                 Endpoint if self.protocol.startswith("sse") else EndpointV3Compatibility
@@ -228,7 +230,7 @@ class GradioClient(Client):
         else:
             endpoint_class = Endpoint
 
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             self.endpoints = [
                 endpoint_class(self, fn_index, dependency, self.protocol)
                 for fn_index, dependency in enumerate(self.config["dependencies"])
@@ -249,7 +251,7 @@ class GradioClient(Client):
 
         self.server_hash = self.get_server_hash()
 
-        if is_gradio_client_version7:
+        if is_gradio_client_version7plus:
             self.stream_open = False
             self.streaming_future: Future | None = None
             from gradio_client.utils import Message
