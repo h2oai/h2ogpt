@@ -1688,7 +1688,8 @@ def get_llm(use_openai_model=False,
                             deployment_name=deployment_type,
                             azure_endpoint=base_url,
                             )
-        if LangChainAgent.AUTOGPT.value in langchain_agents and \
+        if langchain_agents is not None and \
+                LangChainAgent.AUTOGPT.value in langchain_agents and \
                 does_support_json_mode(inference_server, model_name):
             azure_kwargs.update(response_format={"type": "json_object"})
 
