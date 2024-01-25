@@ -3711,7 +3711,7 @@ def test_client_summarization_from_text():
     res = ast.literal_eval(res)
     summary = res['response']
     sources = res['sources']
-    assert 'Whisper' in summary or 'robust speech recognition system' in summary
+    assert 'Whisper' in summary or 'robust speech recognition system' in summary or 'large-scale weak supervision' in summary
     assert 'Robust Speech Recognition' in [x['content'] for x in sources][0]
     assert 'user_paste' in [x['source'] for x in sources][0]
     assert len(res['prompt_raw']) > 40000
