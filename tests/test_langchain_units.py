@@ -253,7 +253,8 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                    tokenizer_base_model='',
                    prompt_type='human_bot',
                    inference_server='',
-                   max_seq_len=None):
+                   max_seq_len=None,
+                   regenerate_clients=True):
     # need to get model externally, so don't OOM
     from src.gen import get_model
     all_kwargs = dict(load_8bit=False,
@@ -270,7 +271,7 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       base_model=base_model,
                       tokenizer_base_model=tokenizer_base_model,
                       inference_server=inference_server,
-                      regenerate_clients=True,
+                      regenerate_clients=regenerate_clients,
                       lora_weights='',
                       gpu_id=0,
                       n_jobs=1,

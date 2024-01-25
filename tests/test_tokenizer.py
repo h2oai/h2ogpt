@@ -118,6 +118,7 @@ def test_tokenizer_base_model2():
                                                                tokenizer_base_model='amazon/MistralLite',
                                                                prompt_type='human_bot',
                                                                inference_server="vllm:localhost:8080",
+                                                               regenerate_clients=False,
                                                                max_seq_len=4096)
     assert model['base_url'] == 'http://localhost:8080/v1'
     assert 'amazon/MistralLite' in str(tokenizer)
