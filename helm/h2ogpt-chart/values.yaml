@@ -1,6 +1,6 @@
 nameOverride: ""
 fullnameOverride: ""
-namespaceOverride: 
+namespaceOverride: ""
 
 h2ogpt:
   enabled: true
