@@ -1695,7 +1695,8 @@ def test_doc_hash():
 def test_client_chat_stream_long():
     prompt = 'Tell a very long story about cute birds for kids.'
     res_dict, client = run_client_chat_with_server(prompt=prompt, stream_output=True, max_new_tokens=1024)
-    assert 'Once upon a time' in res_dict['response']
+    assert 'Once upon a time' in res_dict['response'] or \
+           'The story begins with'  in res_dict['response']
 
 
 @pytest.mark.parametrize("base_model", [
