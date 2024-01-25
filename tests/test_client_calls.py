@@ -4268,7 +4268,7 @@ def test_client_upload_to_user_not_allowed():
     assert res[0] is None
     assert res[1] == langchain_mode
     assert os.path.basename(test_file_server) not in res[2] and 'Not allowed to upload to shared space' in res[2]
-    assert res[3] == ''
+    assert res[3] == 'Not allowed to upload to shared space'
 
 
 @wrap_test_forked
