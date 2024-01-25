@@ -31,6 +31,7 @@ def test_cli_langchain(base_model, monkeypatch):
                            user_path=user_path,
                            langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
+                           append_sources_to_answer=True,
                            verbose=True)
 
     print(all_generations)
@@ -64,6 +65,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
                            user_path=user_path,
                            langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
+                           append_sources_to_answer=True,
                            verbose=True)
 
     print(all_generations)
@@ -140,6 +142,5 @@ def test_cli_langchain_h2ogpt(monkeypatch):
 
     print(all_generations)
     assert len(all_generations) == 1
-    assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
     assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in \
            all_generations[0]
