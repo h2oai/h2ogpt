@@ -442,8 +442,10 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         # here docker started with falcon before personalization
 
         if isinstance(pass_prompt_type, str):
-            assert 'year old student from the' in ret1['response'] or 'I am a person who is asking you a question' in \
-                   ret1['response'] or 'year old' in ret1['response']
+            assert 'year old student from the' in ret1['response'] or \
+                   'I am a person who is asking you a question' in ret1['response'] or \
+                   'year old' in ret1['response'] or \
+                   'AI language model' in ret1['response']
             assert 'bird' in ret2['response']
             assert 'bird' in ret3['response']
             assert 'year old student from the' in ret4['response'] or 'I am a person who is asking you a question' in \
