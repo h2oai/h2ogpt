@@ -536,7 +536,10 @@ def test_make_add_db(repeat, db_type):
                                   enable_pdf_doctr=False,
                                   gradio_upload_to_chatbot_num_max=1,
                                   verbose=False,
-                                  is_url=False, is_txt=False)
+                                  is_url=False, is_txt=False,
+                                  allow_upload_to_my_data=True,
+                                  allow_upload_to_user_data=True,
+                                  )
                     langchain_mode2 = 'MyData'
                     selection_docs_state2 = dict(langchain_modes=[langchain_mode2],
                                                  langchain_mode_paths={},
