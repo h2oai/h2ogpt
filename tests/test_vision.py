@@ -65,13 +65,14 @@ def test_llava_client_stream():
     include_image = False
     res1 = client.predict(prompt, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
 
-    model_selector, temperature, top_p, max_output_tokens = 'Nous-Hermes-2-Vision', 0.2, 0.7, 512
+    #model_selector, temperature, top_p, max_output_tokens = 'Nous-Hermes-2-Vision', 0.2, 0.7, 512
+    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.5-13b', 0.2, 0.7, 512
     job = client.submit(model_selector, temperature, top_p, max_output_tokens, include_image,
                         api_name='/textbox_api_submit')
 
     job_outputs_num = 0
     while not job.done():
-        outputs_list = job.communicator.job.outputs
+        outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
             res = outputs_list[job_outputs_num + num]
@@ -79,13 +80,15 @@ def test_llava_client_stream():
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
-    outputs_list = job.outputs()
+    outputs_list = job.outputs().copy()
     job_outputs_num_new = len(outputs_list[job_outputs_num:])
     for num in range(job_outputs_num_new):
         res = outputs_list[job_outputs_num + num]
         print('Final Stream %d: %s\n' % (job_outputs_num + num, res[-1][-1]), flush=True)
     job_outputs_num += job_outputs_num_new
     print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+
+    assert 'The image features' in res[-1][-1]
 
 
 @wrap_test_forked

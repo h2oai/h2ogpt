@@ -740,9 +740,9 @@ class GradioInference(H2Oagenerate, LLM):
                     if self.verbose:
                         print("Exceeded max_time=%s" % self.max_time, flush=True)
                     break
-                outputs_list = job.communicator.job.outputs
+                outputs_list = job.outputs().copy()
                 if outputs_list:
-                    res = job.communicator.job.outputs[-1]
+                    res = outputs_list[-1]
                     res_dict = ast.literal_eval(res)
                     text = res_dict['response']
                     text = self.prompter.get_response(prompt + text, prompt=prompt,
@@ -762,7 +762,7 @@ class GradioInference(H2Oagenerate, LLM):
                 time.sleep(0.01)
 
             # ensure get last output to avoid race
-            res_all = job.outputs()
+            res_all = job.outputs().copy()
             if len(res_all) > 0:
                 # don't raise unless nochat API for now
                 # set below to True for now, not not self.chat_client, since not handling exception otherwise
@@ -817,9 +817,9 @@ class GradioInference(H2Oagenerate, LLM):
             e = job.future._exception
             if e is not None:
                 break
-            outputs_list = job.communicator.job.outputs
+            outputs_list = job.outputs().copy()
             if outputs_list:
-                res = job.communicator.job.outputs[-1]
+                res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
                 text = self.prompter.get_response(prompt + text, prompt=prompt,
@@ -839,7 +839,7 @@ class GradioInference(H2Oagenerate, LLM):
             await asyncio.sleep(0.01)
 
         # ensure get last output to avoid race
-        res_all = job.outputs()
+        res_all = job.outputs().copy()
         if len(res_all) > 0:
             res = res_all[-1]
             res_dict = ast.literal_eval(res)

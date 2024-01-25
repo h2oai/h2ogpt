@@ -107,7 +107,7 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         job_outputs_num = 0
         last_response = ''
         while not job.done():
-            outputs_list = job.communicator.job.outputs
+            outputs_list = job.outputs().copy()
             job_outputs_num_new = len(outputs_list[job_outputs_num:])
             for num in range(job_outputs_num_new):
                 res = outputs_list[job_outputs_num + num]
@@ -127,7 +127,7 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
             job_outputs_num += job_outputs_num_new
             time.sleep(0.01)
 
-        outputs_list = job.outputs()
+        outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         res = {}
         for num in range(job_outputs_num_new):

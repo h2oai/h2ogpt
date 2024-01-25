@@ -4038,7 +4038,7 @@ def test_client1_tts_stream(tts_model, base_model):
     job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
     job_outputs_num = 0
     while not job.done():
-        outputs_list = job.communicator.job.outputs
+        outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
             res = outputs_list[job_outputs_num + num]
@@ -4051,7 +4051,7 @@ def test_client1_tts_stream(tts_model, base_model):
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
-    outputs_list = job.outputs()
+    outputs_list = job.outputs().copy()
     job_outputs_num_new = len(outputs_list[job_outputs_num:])
     res_dict = {}
     for num in range(job_outputs_num_new):
@@ -4160,7 +4160,8 @@ def test_client1_tts_api(tts_model, stream_output, h2ogpt_key):
             n = play_audio_str(audio_str, n)
 
         # get rest after job done
-        for audio_str in job.outputs()[n:]:
+        outputs = job.outputs().copy()
+        for audio_str in outputs[n:]:
             n = play_audio_str(audio_str, n)
     else:
         audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')
@@ -4224,7 +4225,8 @@ def test_pure_client_test():
         n = play_audio_str(audio_str, n)
 
     # get rest after job done
-    for audio_str in job.outputs()[n:]:
+    outputs = job.outputs().copy()
+    for audio_str in outputs[n:]:
         n = play_audio_str(audio_str, n)
 
 

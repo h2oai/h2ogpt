@@ -466,14 +466,14 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
         job = client.submit(*tuple(args), api_name='/instruction_bot')
         res1 = ''
         while not job.done():
-            outputs_list = job.communicator.job.outputs
+            outputs_list = job.outputs().copy()
             if outputs_list:
-                res = job.communicator.job.outputs[-1]
+                res = outputs_list[-1]
                 res1 = res[0][-1][-1]
                 res1 = md_to_text(res1, do_md_to_text=do_md_to_text)
                 print(res1)
             time.sleep(0.1)
-        full_outputs = job.outputs()
+        full_outputs = job.outputs().copy()
         if verbose:
             print('job.outputs: %s' % str(full_outputs))
         # ensure get ending to avoid race
@@ -520,13 +520,13 @@ def run_client_gen(client, kwargs, do_md_to_text=True):
     else:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
         while not job.done():
-            outputs_list = job.communicator.job.outputs
+            outputs_list = job.outputs().copy()
             if outputs_list:
-                res = job.communicator.job.outputs[-1]
+                res = outputs_list[-1]
                 res_dict1 = ast.literal_eval(res)
                 print('Stream: %s' % res_dict1['response'])
             time.sleep(0.1)
-        res_list = job.outputs()
+        res_list = job.outputs().copy()
         assert len(res_list) > 0, "No response, check server"
         res = res_list[-1]
         res_dict1 = ast.literal_eval(res)

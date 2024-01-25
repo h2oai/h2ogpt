@@ -814,14 +814,12 @@ class GradioClient(Client):
                     response = ""
                     texts_out = []
                     while not job.done():
-                        if job.communicator.job.latest_status.code.name == "FINISHED":
-                            break
                         e = check_job(job, timeout=0, raise_exception=False)
                         if e is not None:
                             break
-                        outputs_list = job.communicator.job.outputs
+                        outputs_list = job.outputs().copy()
                         if outputs_list:
-                            res = job.communicator.job.outputs[-1]
+                            res = outputs_list[-1]
                             res_dict = ast.literal_eval(res)
                             response = res_dict["response"]  # keeps growing
                             text_chunk = response[len(text0):]  # only keep new stuff
@@ -836,7 +834,7 @@ class GradioClient(Client):
                         )  # let LLM deliver larger chunks, don't need to get every token output immediately
 
                     # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
-                    res_all = job.outputs()
+                    res_all = job.outputs().copy()
                     if len(res_all) > 0:
                         # 0.1 slightly longer than 0.02 in open source
                         check_job(job, timeout=0.1, raise_exception=True)
@@ -969,9 +967,10 @@ class GradioClient(Client):
             if 'timeout' in res_dict['save_dict']['extra_dict']:
                 break
         # final res
-        all_n = len(job.outputs())
+        outputs = job.outputs().copy()
+        all_n = len(outputs)
         for nn in range(n, all_n):
-            res = job.outputs()[nn]
+            res = outputs[nn]
             res_dict, text0 = yield from self.yield_res(res, res_dict, prompt, prompter, sanitize_bot_response,
                                                         max_time, text0, tgen0, verbose)
         return res_dict

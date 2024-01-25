@@ -4151,14 +4151,12 @@ def evaluate(
                         text0 = ''
                         tgen0 = time.time()
                         while not job.done():
-                            if job.communicator.job.latest_status.code.name == 'FINISHED':
-                                break
                             e = check_job(job, timeout=0, raise_exception=False)
                             if e is not None:
                                 break
-                            outputs_list = job.communicator.job.outputs
+                            outputs_list = job.outputs().copy()
                             if outputs_list:
-                                res = job.communicator.job.outputs[-1]
+                                res = outputs_list[-1]
                                 res_dict = ast.literal_eval(res)
                                 text = res_dict['response']
                                 if gr_prompt_type == 'plain':
@@ -4183,7 +4181,7 @@ def evaluate(
                                     break
                             time.sleep(0.01)
                         # ensure get last output to avoid race
-                        res_all = job.outputs()
+                        res_all = job.outputs().copy()
                         if len(res_all) > 0:
                             # don't raise unless nochat API for now
                             e = check_job(job, timeout=0.02, raise_exception=not chat)
