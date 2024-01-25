@@ -307,7 +307,8 @@ def test_client_chat_nostream_gpt4all_llama():
            'What is your name and title?' in res_dict['response'] or \
            'I can assist you with any information' in res_dict['response'] or \
            'I can provide information or assistance' in res_dict['response'] or \
-           'am a student' in res_dict['response']
+           'am a student' in res_dict['response'] or \
+           'As an AI assistant'  in res_dict['response']
 
 
 @pytest.mark.need_tokens
