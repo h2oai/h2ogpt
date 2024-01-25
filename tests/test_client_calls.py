@@ -3574,7 +3574,9 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         hash_server = hash_file(test_file_server)
         assert hash_client == hash_local
         assert hash_client == hash_server
-    assert os.path.normpath(test_file_local) != os.path.normpath(test_file_server)
+    from gradio_utils.grclient import is_gradio_client_version7plus
+    if is_gradio_client_version7plus:
+        assert os.path.normpath(test_file_local) != os.path.normpath(test_file_server)
 
     chunk = True
     chunk_size = 512
