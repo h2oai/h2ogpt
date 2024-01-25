@@ -4054,7 +4054,8 @@ def get_existing_db(db, persist_directory,
             except BaseException as e:
                 # migration when no embed_info
                 if 'Dimensionality of (768) does not match index dimensionality (384)' in str(e) or \
-                        'Embedding dimension 768 does not match collection dimensionality 384' in str(e):
+                        'Embedding dimension 768 does not match collection dimensionality 384' in str(e) or \
+                        'Dimensionality of (1536) does not match index dimensionality (384)' in str(e):
                     hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
                     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
                     db = chroma_class(persist_directory=persist_directory, embedding_function=embedding,

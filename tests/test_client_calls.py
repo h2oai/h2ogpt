@@ -3141,7 +3141,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
             inference_server += ':%s:%s' % (deployment_name, 'h2ogpt.openai.azure.com/')
             if 'azure' in inference_server:
                 assert 'OPENAI_AZURE_KEY' in os.environ, "Missing 'OPENAI_AZURE_KEY'"
-                os.environ['OPENAI_API_KEY'] = os.environ['OPENAI_AZURE_KEY']
+                inference_server += ':None:%s' %  os.environ['OPENAI_AZURE_KEY']
     else:
         if base_model == 'gpt-3.5-turbo':
             return
@@ -3165,7 +3165,7 @@ def run_client_chat_stream_langchain_fake_embeddings(data_kind, base_model, loca
              max_new_tokens=max_new_tokens,
              langchain_mode=langchain_mode,
              langchain_modes=langchain_modes,
-             use_openai_embedding=True,
+             use_openai_embedding=False,
              verbose=True)
     print("TIME main: %s %s %s" % (data_kind, base_model, time.time() - t0), flush=True, file=sys.stderr)
     t0 = time.time()
