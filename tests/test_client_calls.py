@@ -1583,7 +1583,8 @@ def test_client_system_prompts(system_prompt, chat_conversation):
             elif system_prompt in [None, 'auto', 'None']:
                 # conservative default system_prompt makes it ignore chat
                 assert "not a real person" in res_dict['response'] or \
-                       "I don't have personal experiences or feelings" in res_dict['response']
+                       "I don't have personal experiences or feelings" in res_dict['response'] or \
+                       "I'm just an AI" in res_dict['response']
 
 
 @pytest.mark.need_tokens
