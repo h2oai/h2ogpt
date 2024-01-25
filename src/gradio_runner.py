@@ -824,6 +824,7 @@ def go_gradio(**kwargs):
                     speak_human_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
                     speak_bot_button = gr.Button("Speak Response", visible=visible_speak_me, size='sm')
                     speak_text_api_button = gr.Button("Speak Text API", visible=False)
+                    speak_text_plain_api_button = gr.Button("Speak Text Plain API", visible=False)
                     stop_speak_button = gr.Button("Stop/Clear Speak", visible=visible_speak_me, size='sm')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                         from src.tts_coqui import get_roles
@@ -1701,6 +1702,8 @@ def go_gradio(**kwargs):
                             speech_bot2 = gr.Textbox(visible=False)
                             text_speech = gr.Textbox(visible=False)
                             text_speech_out = gr.Textbox(visible=False)
+                        speak_inputs_dict_str = gr.Textbox(label='API input for speak_text_plain_api', show_label=False,
+                                                           visible=False)
 
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                             from src.tts_coqui import get_languages_gr
@@ -5837,6 +5840,23 @@ def go_gradio(**kwargs):
                     audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'])
                     yield dict(audio=audios, sr=sr)
 
+        def wrap_pred_func_plain_api(*args1):
+            args_dict = ast.literal_eval(args1[0])
+            args_dict['requests_state'] = requests_state0.copy()
+            args_dict['roles_state'] = roles_state0.copy()
+
+            input_args_list_speak = ['chatbot_role', 'speaker', 'tts_language', 'tts_speed',
+                                     'prompt', 'stream_output', 'h2ogpt_key',
+                                     'roles_state', 'requests_state']
+            assert len(args_dict) == len(input_args_list_speak)
+
+            # fix order and make into list
+            args_dict = {k: args_dict[k] for k in input_args_list_speak}
+            args_list = list(args_dict.values())
+
+            ret = yield from wrap_pred_func_api(*tuple(args_list))
+            return ret
+
         speak_bot_event = speak_bot_button.click(wrap_pred_func,
                                                  inputs=[chatbot_role, speaker, tts_language, roles_state, tts_speed,
                                                          visible_models, text_output,
@@ -5854,6 +5874,13 @@ def go_gradio(**kwargs):
                                                           outputs=text_speech_out,
                                                           api_name='speak_text_api' if allow_api else None,
                                                           )
+
+        speak_text_plain_api_event = speak_text_plain_api_button.click(wrap_pred_func_plain_api,
+                                                                       inputs=speak_inputs_dict_str,
+                                                                       outputs=text_speech_out,
+                                                                       api_name='speak_text_plain_api' if allow_api else None,
+                                                                       **noqueue_kwargs,
+                                                                       )
 
         def stop_audio_func():
             return None, None
