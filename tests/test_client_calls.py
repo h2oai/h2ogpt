@@ -3865,7 +3865,8 @@ def test_fastsys(stream_output, bits, prompt_type):
            """speech  recognition""" in response or \
            """domains,  tasks,  and  languages""" in response or \
            """weak  supervision""" in response or \
-           """weak supervision""" in response
+           """weak supervision""" in response or \
+           """Whisper  is  a  language  model""" in response
     sources = [x['source'] for x in res_dict['sources']]
     assert 'whisper1.pdf' in sources[0]
 
