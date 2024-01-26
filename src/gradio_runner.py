@@ -3543,7 +3543,7 @@ def go_gradio(**kwargs):
                     args_list.insert(1, my_db_state0.copy())
                     args_list.insert(2, selection_docs_state0.copy())
                     args_list.insert(3, requests_state0.copy())
-                    args_list.insert(4, roles_state0.copy())
+                    args_list.insert(4, roles_state.value.copy())
                 user_kwargs = args_list[len(input_args_list)]
                 assert isinstance(user_kwargs, str)
                 user_kwargs = ast.literal_eval(user_kwargs)
@@ -5844,7 +5844,7 @@ def go_gradio(**kwargs):
         def wrap_pred_func_plain_api(*args1):
             args_dict = ast.literal_eval(args1[0])
             args_dict['requests_state'] = requests_state0.copy()
-            args_dict['roles_state'] = roles_state0.copy()
+            args_dict['roles_state'] = roles_state.value.copy()
 
             input_args_list_speak = ['chatbot_role', 'speaker', 'tts_language', 'tts_speed',
                                      'prompt', 'stream_output', 'h2ogpt_key',
