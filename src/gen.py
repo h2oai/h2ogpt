@@ -3941,6 +3941,7 @@ def evaluate(
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                             break
+                        time.sleep(0.01)
             elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
                 other_dict = dict(timeout=max_time)
                 if system_prompt in [None, 'None', 'auto']:
@@ -4271,6 +4272,7 @@ def evaluate(
                             sources = []
                             yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw='')
+                            time.sleep(0.01)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)

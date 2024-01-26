@@ -42,10 +42,10 @@ from gradio_client import Client
 
 def check_job(job, timeout=0.0, raise_exception=True, verbose=False):
     if timeout == 0:
-        e = job.future._exception
+        e = job.exception(timeout=0)
     else:
         try:
-            e = job.future.exception(timeout=timeout)
+            e = job.exception(timeout=timeout)
         except concurrent.futures.TimeoutError:
             # not enough time to determine
             if verbose:
@@ -54,7 +54,7 @@ def check_job(job, timeout=0.0, raise_exception=True, verbose=False):
     if e:
         # raise before complain about empty response if some error hit
         if raise_exception:
-            raise RuntimeError(e)
+            raise RuntimeError(traceback.format_exception(e))
         else:
             return e
 
@@ -829,9 +829,7 @@ class GradioClient(Client):
                             text0 = response
                             assert text_chunk, "must yield non-empty string"
                             yield text_chunk, texts_out
-                        time.sleep(
-                            0.1
-                        )  # let LLM deliver larger chunks, don't need to get every token output immediately
+                        time.sleep(0.01)
 
                     # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
                     res_all = job.outputs().copy()

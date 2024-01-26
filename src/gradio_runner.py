@@ -4333,6 +4333,7 @@ def go_gradio(**kwargs):
             except StopIteration:
                 # print("STOP ITERATION", flush=True)
                 yield history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, no_audio
+                raise
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo

@@ -765,7 +765,7 @@ class GradioInference(H2Oagenerate, LLM):
             res_all = job.outputs().copy()
             if len(res_all) > 0:
                 # don't raise unless nochat API for now
-                # set below to True for now, not not self.chat_client, since not handling exception otherwise
+                # set below to True for now, not self.chat_client, since not handling exception otherwise
                 # in some return of strex
                 check_job(job, timeout=0.02, raise_exception=True)
 
@@ -809,6 +809,8 @@ class GradioInference(H2Oagenerate, LLM):
             )
         # new client for each acall
         client = self.client.clone()
+        from gradio_utils.grclient import check_job
+
         job = client.submit(str(dict(client_kwargs)), api_name=api_name)
         text0 = ''
         while not job.done():
@@ -845,9 +847,12 @@ class GradioInference(H2Oagenerate, LLM):
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             # FIXME: derive chunk from full for now
+            check_job(job, timeout=0.02, raise_exception=True)
         else:
             # go with old if failure
             text = text0
+            check_job(job, timeout=0.3, raise_exception=True)
+
         text_chunk = text[len(text0):]
         if text_callback:
             await text_callback(text_chunk)
