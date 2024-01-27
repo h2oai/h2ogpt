@@ -95,7 +95,7 @@ prompt_type_to_model_name = {
     "wizard_vicuna": ['ehartford/Wizard-Vicuna-13B-Uncensored'],
     # "wizard2": [],
     "mptinstruct": ['mosaicml/mpt-30b-instruct', 'mosaicml/mpt-7b-instruct', 'mosaicml/mpt-30b-instruct'],
-    "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML'],
+    "mptchat": ['mosaicml/mpt-7b-chat', 'mosaicml/mpt-30b-chat', 'TheBloke/mpt-30B-chat-GGML', 'TheBloke/Nous-Hermes-2-Mixtral-8x7B-DPO-AWQ'],
     "orca2": ['TheBloke/Orca-2-13B-GGUF', 'microsoft/Orca-2-13b'],
     "vicuna11": ['lmsys/vicuna-33b-v1.3',
                  'lmsys/vicuna-7b-v1.5',
@@ -1647,7 +1647,7 @@ system_ml_tutor = """You are a Machine Learning Tutor AI, dedicated to guiding s
 
 system_coding = """You are an AI programming assistant. Follow the user's requirements carefully and to the letter. First, think step-by-step and describe your plan for what to build in pseudocode, written out in great detail. Then, output the code in a single code block. Minimize any other prose."""
 
-system_summary = """Give a summary that is well-structured with step-by-step sections and elaborate details for each section."""
+system_summary = """Give a summary that is well-structured yet concise."""
 
 system_know_math = """Follow these steps in solving any problem:
 1) Know: This will help students find the important information.
