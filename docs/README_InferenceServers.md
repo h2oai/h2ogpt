@@ -260,8 +260,7 @@ Assuming torch was installed with CUDA 12.1, and you have installed cuda locally
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
-pip install mosaicml-turbo --upgrade  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
-pip install git+https://github.com/stanford-futuredata/megablocks.git  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
+pip install mosaicml-turbo megablocks==0.5.1 --upgrade  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
 pip install fschat==0.2.34 ray pandas gputil==1.4.0 uvicorn[standard]
 # optional:
 pip install flash-attn==2.4.2
