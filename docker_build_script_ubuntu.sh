@@ -5,8 +5,8 @@ set -ex
 export DEBIAN_FRONTEND=noninteractive
 export PATH=/h2ogpt_conda/bin:$PATH
 export HOME=/workspace
-export CUDA_HOME=/usr/local/cuda-12.2
-export PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu122
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu121
 
 # Install linux dependencies
 apt-get update && apt-get install -y \

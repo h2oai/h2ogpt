@@ -256,9 +256,9 @@ conda create -n vllm -y
 conda activate vllm
 conda install python=3.10 -y
 ```
-Assuming torch was installed with CUDA 12.3, and you have installed cuda locally in `/usr/local/cuda-12.3`:
+Assuming torch was installed with CUDA 12.1, and you have installed cuda locally in `/usr/local/cuda-12.1`:
 ```bash
-export CUDA_HOME=/usr/local/cuda-12.3
+export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
 pip install mosaicml-turbo --upgrade  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
 pip install git+https://github.com/stanford-futuredata/megablocks.git  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
@@ -288,14 +288,8 @@ export CUDA_VISIBLE_DEVICESs=0,1,2,3
 python -m vllm.entrypoints.openai.api_server --port=5000 --host=0.0.0.0 --model h2oai/h2ogpt-4096-llama2-70b-chat --tokenizer=hf-internal-testing/llama-tokenizer --tensor-parallel-size=4 --seed 1234 --max-num-batched-tokens=8192
 ```
 
-For Mixtral 8*7B run:
+For Mixtral 8*7B need newer cuda 12 toolkit and vllm build, then run:
 ```bash
-export CUDA_HOME=/usr/local/cuda-12.3
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
-# so builds on cuda 12.3 given 12.1 is default build
-pip install git+https://github.com/vllm-project/vllm.git
-pip install mosaicml-turbo
-pip install git+https://github.com/stanford-futuredata/megablocks.git
 export CUDA_VISIBLE_DEVICES=0,1
 python -m vllm.entrypoints.openai.api_server --port=5002 --host=0.0.0.0 --model mistralai/Mixtral-8x7B-Instruct-v0.1 --seed 1234 --max-num-batched-tokens=65536 --tensor-parallel-size=2
 ```
