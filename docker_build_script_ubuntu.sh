@@ -87,6 +87,7 @@ python -m venv vllm_env --system-site-packages
 #/h2ogpt_conda/vllm_env/bin/python -m pip install vllm
 
 /h2ogpt_conda/vllm_env/bin/python -m pip install mosaicml-turbo==0.0.9 megablocks==0.5.1 triton==2.2.0 ray pandas gputil==1.4.0 fschat==0.2.34 flash-attn==2.4.2 autoawq==0.1.8 uvicorn[standard]
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/vllm-0.2.7%2Bcu123-cp310-cp310-linux_x86_64.whl
 mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
