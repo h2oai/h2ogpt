@@ -41,16 +41,13 @@ from gradio_client import Client
 
 
 def check_job(job, timeout=0.0, raise_exception=True, verbose=False):
-    if timeout == 0:
-        e = job.exception(timeout=0)
-    else:
-        try:
-            e = job.exception(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            # not enough time to determine
-            if verbose:
-                print("not enough time to determine job status: %s" % timeout)
-            e = None
+    try:
+        e = job.exception(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        # not enough time to determine
+        if verbose:
+            print("not enough time to determine job status: %s" % timeout)
+        e = None
     if e:
         # raise before complain about empty response if some error hit
         if raise_exception:
