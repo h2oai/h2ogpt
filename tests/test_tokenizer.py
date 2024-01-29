@@ -118,7 +118,9 @@ def test_tokenizer_base_model2():
                   tokenizer_base_model='amazon/MistralLite',
                   prompt_type='human_bot',
                   inference_server="vllm:localhost:8080",
-                  max_seq_len=4096, )
+                  regenerate_clients=False,
+                  max_seq_len=4096,
+                  )
     model, tokenizer, base_model, prompt_type = get_test_model(**kwargs, regenerate_clients=True)
     assert model == 'vllm:localhost:8080'
     assert 'amazon/MistralLite' in str(tokenizer)

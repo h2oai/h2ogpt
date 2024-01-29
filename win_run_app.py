@@ -45,24 +45,27 @@ def setup_paths():
     for sub in ['src', 'iterators', 'gradio_utils', 'metrics', 'models', '.']:
         path2 = os.path.join(base_path, '..', sub)
         if os.path.isdir(path2):
-            if sub == 'models':
-                os.environ['MODEL_BASE'] = path2
+            if sub == 'models' and os.path.isfile(os.path.join(path2, 'human.jpg')):
+                os.environ['H2OGPT_MODEL_BASE'] = path2
             sys.path.append(path2)
         print(path2, flush=True)
 
         path2 = os.path.join(path1, '..', sub)
         if os.path.isdir(path2):
-            if sub == 'models':
-                os.environ['MODEL_BASE'] = path2
+            if sub == 'models' and os.path.isfile(os.path.join(path2, 'human.jpg')):
+                os.environ['H2OGPT_MODEL_BASE'] = path2
             sys.path.append(path2)
         print(path2, flush=True)
 
     # for app, avoid forbidden for web access
-    if os.getenv('MODEL_BASE'):
-        base0 = os.environ['MODEL_BASE']
-        os.environ['MODEL_BASE'] = os.environ['MODEL_BASE'].replace('Programs', 'Temp/gradio/')
-        shutil.rmtree(os.environ['MODEL_BASE'])
-        copy_tree(base0, os.environ['MODEL_BASE'])
+    if os.getenv('H2OGPT_MODEL_BASE'):
+        base0 = os.environ['H2OGPT_MODEL_BASE']
+        if 'Programs' in os.environ['H2OGPT_MODEL_BASE']:
+            os.environ['H2OGPT_MODEL_BASE'] = os.environ['H2OGPT_MODEL_BASE'].replace('Programs', 'Temp/gradio/')
+            if os.path.isdir(os.environ['H2OGPT_MODEL_BASE']):
+                shutil.rmtree(os.environ['H2OGPT_MODEL_BASE'], ignore_errors=True)
+            if os.path.isfile(os.path.join(base0, 'human.jpg')):
+                copy_tree(base0, os.environ['H2OGPT_MODEL_BASE'])
 
 
 from importlib.metadata import distribution, PackageNotFoundError
@@ -99,8 +102,10 @@ def _main():
 
     print("Torch Status: have torch: %s need get gpu torch: %s CVD: %s GPUs: %s" % (have_torch, need_get_gpu_torch, os.getenv('CUDA_VISIBLE_DEVICES'), deviceCount))
 
+    auto_install_torch_gpu = False
+
     import sys
-    if (not have_torch or need_get_gpu_torch) and sys.platform == "win32":
+    if auto_install_torch_gpu and (not have_torch or need_get_gpu_torch) and sys.platform == "win32":
         print("Installing Torch")
         # for one-click, don't have torch installed, install now
         import subprocess

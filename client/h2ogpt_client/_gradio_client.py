@@ -23,7 +23,7 @@ class GradioClientWrapper:
     def predict_and_stream(self, *args, api_name: str) -> Generator[str, None, None]:
         job = self._client.submit(*args, api_name=api_name)
         while not job.done():
-            outputs: List[str] = job.outputs()
+            outputs: List[str] = job.outputs().copy()
             if not len(outputs):
                 time.sleep(0.1)
                 continue
@@ -42,7 +42,7 @@ class GradioClientWrapper:
     ) -> AsyncGenerator[Any, None]:
         job = self._client.submit(*args, api_name=api_name)
         while not job.done():
-            outputs: List[str] = job.outputs()
+            outputs: List[str] = job.outputs().copy()
             if not len(outputs):
                 await asyncio.sleep(0.1)
                 continue

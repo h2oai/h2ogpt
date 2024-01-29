@@ -52,7 +52,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
-    generic_postfix
+    generic_postfix, mistralai_mapping, mistralai_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -72,7 +72,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_stop_token_ids, anthropic_gpts, google_gpts
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -380,7 +380,7 @@ def main(
         chunk_size: int = 512,
         top_k_docs: int = None,
         docs_ordering_type: str = docs_ordering_types_default,
-        min_max_new_tokens=256,
+        min_max_new_tokens=512,
         max_input_tokens=None,
         max_total_input_tokens=None,
         docs_token_handling: str = docs_token_handling_default,
@@ -545,6 +545,10 @@ def main(
                              Or Address can be for Google Gemini.  Ensure key is set in env GOOGLE_API_KEY
                               Use: "google"
                               E.g. --base_model=gemini-pro --inference_server=google
+
+                             Or Address can be for MistralAI.  Ensure key is set in env MISTRAL_API_KEY
+                              Use: "mistralai"
+                              E.g. --base_model=mistral-medium --inference_server=mistralai
 
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
@@ -2100,7 +2104,7 @@ def get_config(base_model,
         except OSError as e:
             if raise_exception:
                 raise
-            if base_model in anthropic_gpts + openai_gpts + google_gpts + non_hf_types:
+            if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + non_hf_types:
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
@@ -2543,6 +2547,8 @@ def get_model(
         raise ValueError("Must select inference server when choosing Anthropic models")
     if base_model in google_gpts and not inference_server:
         raise ValueError("Must select inference server when choosing Google models")
+    if base_model in mistralai_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing MistralAI models")
 
     # see if we can set max_seq_len and tokenizer for non-HF models or check at least if set when required
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
@@ -2553,16 +2559,17 @@ def get_model(
             inference_server.startswith('anthropic')
     )
 
-    if not regenerate_clients and (inference_server.startswith('vllm') or inference_server.startswith('openai')):
+    if inference_server.startswith('vllm') or inference_server.startswith('openai'):
         t0 = time.time()
         client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=base_model)
-        model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
-                     base_url=base_url, api_version=api_version, api_key=api_key)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
+                         base_url=base_url, api_version=api_version, api_key=api_key)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('anthropic'):
+    if inference_server.startswith('anthropic'):
         t0 = time.time()
         import anthropic
         base_url = os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com")
@@ -2571,12 +2578,13 @@ def get_model(
         anthropic_kwargs = dict(base_url=base_url, api_key=api_key, timeout=timeout)
         client = anthropic.Anthropic(**anthropic_kwargs)
         async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
-        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
-                     timeout=timeout)
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if not regenerate_clients and inference_server.startswith('google'):
+    if inference_server.startswith('google'):
         t0 = time.time()
         import google.generativeai as genai
         see_model = False
@@ -2596,15 +2604,43 @@ def get_model(
         client = genai.GenerativeModel(base_model)
         async_client = genai.GenerativeModel(base_model)
         timeout = 600
-        model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=None, api_key=api_key,
-                     timeout=timeout)
+        if regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
+                         timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
+    if inference_server.startswith('mistralai'):
+        t0 = time.time()
+        from mistralai.client import MistralClient
+        from mistralai.async_client import MistralAsyncClient
+
+        api_key = os.environ["MISTRAL_API_KEY"]
+        assert api_key, "Missing MistralAI API key"
+        client = MistralClient(api_key=api_key)
+
+        list_models_response = client.list_models()
+        see_model = False
+        models = []
+        list_models = [x.id for x in dict(list_models_response)['data']]
+        for name in list_models:
+            see_model |= base_model == name
+        assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+
+        async_client = MistralAsyncClient(api_key=api_key)
+
+        timeout = 600
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='mistralai', base_url=None, api_key=api_key,
+                         timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
     if inf_server_for_max_seq_len_handling or \
             base_model in openai_gpts or \
             base_model in anthropic_gpts or \
-            base_model in google_gpts:
+            base_model in google_gpts or \
+            base_model in mistralai_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
             if inference_server.startswith('openai'):
@@ -2646,6 +2682,19 @@ def get_model(
                 max_output_len = google_mapping_outputs[base_model]
             else:
                 max_output_len = None
+        if inference_server.startswith('mistralai') or base_model in mistralai_gpts:
+            if inference_server.startswith('mistralai'):
+                assert os.getenv('MISTRAL_API_KEY'), "Set environment for MISTRAL_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in mistralai_mapping:
+                max_seq_len = mistralai_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in mistralai_mapping_outputs:
+                max_output_len = mistralai_mapping_outputs[base_model]
+            else:
+                max_output_len = None
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2671,9 +2720,11 @@ def get_model(
                 inference_server.startswith('anthropic') or \
                 base_model in anthropic_gpts or \
                 inference_server.startswith('google') or \
-                base_model in google_gpts:
+                base_model in google_gpts or \
+                inference_server.startswith('mistralai') or \
+                base_model in mistralai_gpts:
             # must be set by now
-            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google models by now."
+            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google or MistralAI models by now."
 
         if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
@@ -3500,6 +3551,9 @@ def evaluate(
     if temperature == 0.0:
         # override
         do_sample = False
+    # Note: Could do below, but for now gradio way can control do_sample directly
+    # elif temperature >= 0.01:
+    #     do_sample = True
     temperature = min(max(0.01, temperature), 2.0)
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
@@ -3516,7 +3570,7 @@ def evaluate(
                                                 truncation_generation=truncation_generation)
     if min_max_new_tokens is None:
         # default for nochat api
-        min_max_new_tokens = 256
+        min_max_new_tokens = 512
     if max_input_tokens is None:
         max_input_tokens = -1
     if max_total_input_tokens is None:
@@ -3594,7 +3648,8 @@ def evaluate(
                            inference_server.startswith('openai_azure_chat') or \
                            inference_server.startswith('openai_azure') or \
                            inference_server.startswith('anthropic') or \
-                           inference_server.startswith('google')
+                           inference_server.startswith('google') or \
+                           inference_server.startswith('mistralai')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
@@ -3879,21 +3934,23 @@ def evaluate(
                                      frequency_penalty=0,
                                      seed=SEED,
                                      n=num_return_sequences,
-                                     presence_penalty=1.07 - repetition_penalty + 0.6,  # so good default
+                                     presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
             if inf_type == 'vllm' or inf_type == 'openai':
                 if inf_type == 'vllm':
-                    stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=stop_sequences)
+                    vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
+                                                          # repetition_penalty=repetition_penalty,  # could pass
+                                                          )
                     other_dict = dict(timeout=max_time)
                 else:
-                    stop_token_ids_dict = {}
+                    vllm_extra_dict = {}
                     other_dict = dict(timeout=max_time)
                 responses = openai_client.create(
                     model=base_model,
                     prompt=prompt,
                     **gen_server_kwargs,
                     stop=stop_sequences,
-                    **stop_token_ids_dict,
+                    **vllm_extra_dict,
                     stream=stream_output,
                     **other_dict,
                 )
@@ -3920,6 +3977,7 @@ def evaluate(
                             if verbose:
                                 print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                             break
+                        time.sleep(0.01)
             elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
                 other_dict = dict(timeout=max_time)
                 if system_prompt in [None, 'None', 'auto']:
@@ -3933,12 +3991,18 @@ def evaluate(
                     assert external_handle_chat_conversation, "Should be handling only externally"
                     # history_to_use_final handles token counting issues
                     for message1 in history_to_use_final:
+                        if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+                            # then not really part of LLM, internal, so avoid
+                            continue
                         if len(message1) == 2:
-                            messages0.append(
-                                {'role': 'user', 'content': message1[0] if message1[0] is not None else ''})
-                            messages0.append(
-                                {'role': 'assistant', 'content': message1[1] if message1[1] is not None else ''})
-                messages0.append({'role': 'user', 'content': prompt if prompt is not None else ''})
+                            if message1[0]:
+                                messages0.append(
+                                    {'role': 'user', 'content': gradio_to_llm(message1[0], bot=False)})
+                            if message1[1]:
+                                messages0.append(
+                                    {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
+                if prompt:
+                    messages0.append({'role': 'user', 'content': prompt})
                 responses = openai_client.create(
                     model=base_model,
                     messages=messages0,
@@ -3981,9 +4045,6 @@ def evaluate(
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                           base_model=base_model)
-
-            # quick sanity check to avoid long timeouts, just see if can reach server
-            requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
 
             if gr_client is not None:
                 # Note: h2oGPT gradio server could handle input token size issues for prompt,
@@ -4109,87 +4170,98 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                 else:
-                    from gradio_utils.grclient import check_job
-                    job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = dict(response=text, sources=sources, save_dict={}, llm_answers={},
-                                    response_no_refs=text, sources_str='', prompt_raw='')
-                    text0 = ''
-                    tgen0 = time.time()
-                    while not job.done():
-                        if job.communicator.job.latest_status.code.name == 'FINISHED':
-                            break
-                        e = check_job(job, timeout=0, raise_exception=False)
-                        if e is not None:
-                            break
-                        outputs_list = job.communicator.job.outputs
-                        if outputs_list:
-                            res = job.communicator.job.outputs[-1]
+                    new_stream = False  # hanging for many chatbots
+                    if new_stream:
+                        res_dict = yield from gr_client.stream(client_kwargs,
+                                                               api_name=api_name,
+                                                               prompt=prompt, prompter=prompter,
+                                                               sanitize_bot_response=sanitize_bot_response,
+                                                               max_time=max_time,
+                                                               is_public=is_public,
+                                                               verbose=verbose)
+                        response = res_dict.get('response', '')
+                    else:
+                        from gradio_utils.grclient import check_job
+                        job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
+                        res_dict = dict(response=text, sources=sources, save_dict={}, llm_answers={},
+                                        response_no_refs=text, sources_str='', prompt_raw='')
+                        text0 = ''
+                        tgen0 = time.time()
+                        while not job.done():
+                            e = check_job(job, timeout=0, raise_exception=False)
+                            if e is not None:
+                                break
+                            outputs_list = job.outputs().copy()
+                            if outputs_list:
+                                res = outputs_list[-1]
+                                res_dict = ast.literal_eval(res)
+                                text = res_dict['response']
+                                if gr_prompt_type == 'plain':
+                                    # then gradio server passes back full prompt + text
+                                    prompt_and_text = text
+                                else:
+                                    prompt_and_text = prompt + text
+                                response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                                 sanitize_bot_response=sanitize_bot_response)
+                                text_chunk = response[len(text0):]
+                                if not text_chunk:
+                                    # just need some sleep for threads to switch
+                                    time.sleep(0.001)
+                                    continue
+                                # save old
+                                text0 = response
+                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                           response_no_refs=response, sources_str='', prompt_raw='')
+                                if time.time() - tgen0 > max_time:
+                                    if verbose:
+                                        print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                                    break
+                            time.sleep(0.01)
+                        # ensure get last output to avoid race
+                        res_all = job.outputs().copy()
+                        if len(res_all) > 0:
+                            # don't raise unless nochat API for now
+                            e = check_job(job, timeout=0.02, raise_exception=not chat)
+                            if e is not None:
+                                strex = ''.join(traceback.format_tb(e.__traceback__))
+
+                            res = res_all[-1]
                             res_dict = ast.literal_eval(res)
                             text = res_dict['response']
-                            if gr_prompt_type == 'plain':
-                                # then gradio server passes back full prompt + text
-                                prompt_and_text = text
-                            else:
-                                prompt_and_text = prompt + text
-                            response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                             sanitize_bot_response=sanitize_bot_response)
-                            text_chunk = response[len(text0):]
-                            if not text_chunk:
-                                # just need some sleep for threads to switch
-                                time.sleep(0.001)
-                                continue
-                            # save old
-                            text0 = response
-                            yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                       response_no_refs=response, sources_str='', prompt_raw='')
-                            if time.time() - tgen0 > max_time:
-                                if verbose:
-                                    print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
-                                break
-                        time.sleep(0.01)
-                    # ensure get last output to avoid race
-                    res_all = job.outputs()
-                    if len(res_all) > 0:
-                        # don't raise unless nochat API for now
-                        e = check_job(job, timeout=0.02, raise_exception=not chat)
-                        if e is not None:
-                            strex = ''.join(traceback.format_tb(e.__traceback__))
-
-                        res = res_all[-1]
-                        res_dict = ast.literal_eval(res)
-                        text = res_dict['response']
-                        sources = res_dict.get('sources')
-                        if sources is None:
-                            # then communication terminated, keep what have, but send error
-                            if is_public:
-                                raise ValueError("Abrupt termination of communication")
-                            else:
-                                raise ValueError("Abrupt termination of communication: %s" % strex)
-                    else:
-                        # if got no answer at all, probably something bad, always raise exception
-                        # UI will still put exception in Chat History under chat exceptions
-                        e = check_job(job, timeout=0.3, raise_exception=True)
-                        # go with old text if last call didn't work
-                        if e is not None:
-                            stre = str(e)
-                            strex = ''.join(traceback.format_tb(e.__traceback__))
+                            sources = res_dict.get('sources')
+                            if sources is None:
+                                # then communication terminated, keep what have, but send error
+                                if is_public:
+                                    raise ValueError("Abrupt termination of communication")
+                                else:
+                                    raise ValueError("Abrupt termination of communication: %s" % strex)
                         else:
-                            stre = ''
-                            strex = ''
+                            # if got no answer at all, probably something bad, always raise exception
+                            # UI will still put exception in Chat History under chat exceptions
+                            e = check_job(job, timeout=0.3, raise_exception=True)
+                            # go with old text if last call didn't work
+                            if e is not None:
+                                stre = str(e)
+                                strex = ''.join(traceback.format_tb(e.__traceback__))
+                            else:
+                                stre = ''
+                                strex = ''
 
-                        print("Bad final response: %s %s %s %s %s: %s %s" % (base_model, inference_server,
-                                                                             res_all, prompt, text, stre, strex),
-                              flush=True)
-                    if gr_prompt_type == 'plain':
-                        # then gradio server passes back full prompt + text
-                        prompt_and_text = text
-                    else:
-                        prompt_and_text = prompt + text
-                    response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
-                    yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
+                            print("Bad final response: %s %s %s %s %s: %s %s" % (base_model, inference_server,
+                                                                                 res_all, prompt, text, stre, strex),
+                                  flush=True)
+                        if gr_prompt_type == 'plain':
+                            # then gradio server passes back full prompt + text
+                            prompt_and_text = text
+                        else:
+                            prompt_and_text = prompt + text
+                        response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                        yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
+                                   response_no_refs=response, sources_str='', prompt_raw='')
             elif hf_client:
+                # quick sanity check to avoid long timeouts, just see if can reach server
+                requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
                 # HF inference server needs control over input tokens
                 where_from = "hf_client"
                 response = ''
@@ -4236,6 +4308,7 @@ def evaluate(
                             sources = []
                             yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw='')
+                            time.sleep(0.01)
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
@@ -4484,7 +4557,7 @@ state_names = input_args_list.copy()  # doesn't have to be the same, but state_n
 inputs_kwargs_list = [x for x in inputs_list_names if x not in eval_func_param_names + state_names]
 
 
-def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048, min_max_new_tokens=256):
+def get_cutoffs(memory_restriction_level, for_context=False, model_max_length=2048, min_max_new_tokens=512):
     # help to avoid errors like:
     # RuntimeError: The size of tensor a (2048) must match the size of tensor b (2049) at non-singleton dimension 3
     # RuntimeError: expected scalar type Half but found Float
@@ -5116,7 +5189,7 @@ def history_to_context(history, langchain_mode=None,
                        system_prompt=None, chat_conversation=None,
                        hyde_level=None,
                        gradio_errors_to_chatbot=None,
-                       min_max_new_tokens=256):
+                       min_max_new_tokens=512):
     """
     consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
     :param history:
@@ -5220,7 +5293,7 @@ def get_limited_prompt(instruction,
                        verbose=False,
                        doc_importance=0.5,
                        hyde_level=None,
-                       min_max_new_tokens=256,
+                       min_max_new_tokens=512,
                        max_input_tokens=-1,
                        max_total_input_tokens=-1,
                        truncation_generation=False,
@@ -5280,7 +5353,7 @@ def get_limited_prompt(instruction,
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
                          allow_chat_system_prompt
-    if chat_system_prompt:
+    if chat_system_prompt and system_prompt:
         chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
     else:
         chat_conversation_system_prompt = []

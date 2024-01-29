@@ -12,6 +12,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}
 spec:
@@ -32,6 +33,9 @@ spec:
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}
+        {{- with .Values.h2ogpt.podLabels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.h2ogpt.nodeSelector }}
       nodeSelector:
@@ -297,6 +301,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -313,6 +318,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-tgi-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}-tgi-inference
 spec:
@@ -333,6 +339,9 @@ spec:
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}-tgi-inference
+        {{- with .Values.tgi.podLabels }}
+        {{ toYaml . | nindent 6 }}
+        {{- end }}
     spec:
       {{- with .Values.tgi.nodeSelector }}
       nodeSelector:
@@ -453,6 +462,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -468,6 +478,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     app: {{ include "h2ogpt.fullname" . }}-vllm-inference
 spec:
@@ -488,6 +499,9 @@ spec:
       {{- end }}
       labels:
         app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+        {{- with .Values.vllm.podLabels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.vllm.nodeSelector }}
       nodeSelector:
@@ -596,6 +610,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce

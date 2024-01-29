@@ -170,14 +170,17 @@ sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
 #sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
 cd $pwd0
 
-# fix pytube to avoid errors for restricted content
 sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
+
+# fix pytube to avoid errors for restricted content
 sed -i "s/client='ANDROID_MUSIC'/client='ANDROID'/g" $sp/pytube/innertube.py
 
 # fix asyncio same way websockets was fixed, else keep hitting errors in async calls
 # https://github.com/python-websockets/websockets/commit/f9fd2cebcd42633ed917cd64e805bea17879c2d7
-sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
 sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends/_asyncio.py
+
+# https://github.com/gradio-app/gradio/issues/7086
+sed -i 's/while True:/while True:\n            time.sleep(0.001)\n/g' $sp/gradio_client/client.py
 
 #* PDF View support
 # only if using gradio4

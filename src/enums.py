@@ -61,6 +61,9 @@ class PromptType(Enum):
     google = 55
     docsgpt = 56
     open_chat_math = 57
+    mistralai = 58
+    mixtral = 59
+    mixtralnosys = 60
 
 
 class DocumentSubset(Enum):
@@ -208,6 +211,18 @@ google_mapping_outputs = {
     "gemini-pro-vision": 2048,
 }
 
+mistralai_mapping = {
+    "mistral-medium": 32768,
+    "mistral-small": 32768,
+    "mistral-tiny": 32768,
+}
+
+mistralai_mapping_outputs = {
+    "mistral-medium": 32768,
+    "mistral-small": 32768,
+    "mistral-tiny": 32768,
+}
+
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
                                  "gpt-4-1106-preview", "gpt-35-turbo-1106"]
 
@@ -263,11 +278,11 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
                           prompt_query_type='simple'):
     if prompt_query_type == 'advanced':
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
-        prompt_query1 = "According to (primarily) the information in the document sources provided within context above: "
+        prompt_query1 = "According to (primarily) the information in the document sources provided within context above, write an insightful and well-structured response to: "
     else:
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
-        prompt_query1 = "According to only the information in the document sources provided within the context above: "
+        prompt_query1 = "According to only the information in the document sources provided within the context above, write an insightful and well-structured response to: "
 
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text."""
     prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."

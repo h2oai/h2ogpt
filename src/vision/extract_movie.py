@@ -7,7 +7,7 @@ from src.utils import makedirs, sanitize_filename
 def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=None, extract_frames=10):
     download_dir = download_dir or os.getenv('VID_DOWNLOADS', "viddownloads")
     download_dir = os.path.join(download_dir, str(uuid.uuid4()))
-    os.environ['FIFTYONE_DISABLE_SERVICES'] = 'True'
+    # os.environ['FIFTYONE_DISABLE_SERVICES'] = 'True'
     if urls:
         import fiftyone.utils.youtube as fouy
         fouy.download_youtube_videos(urls, download_dir=download_dir)

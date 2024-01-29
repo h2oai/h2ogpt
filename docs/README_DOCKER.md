@@ -43,7 +43,7 @@ If running on A100's, might require [Installing Fabric Manager](INSTALL.md#insta
 
 ## Run h2oGPT using Docker
 
-All available public h2oGPT docker images can be found in [Google Container Registry](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).
+All available public h2oGPT docker images can be found in [Google Container Registry](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).  These require cuda drivers that handle CUDA 12.1 or higher.
 
 Ensure image is up-to-date by running:
 ```bash

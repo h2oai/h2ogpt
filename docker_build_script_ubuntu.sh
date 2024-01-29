@@ -5,7 +5,8 @@ set -ex
 export DEBIAN_FRONTEND=noninteractive
 export PATH=/h2ogpt_conda/bin:$PATH
 export HOME=/workspace
-export CUDA_HOME=/usr/local/cuda-11.8
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu121
 
 # Install linux dependencies
 apt-get update && apt-get install -y \
@@ -32,7 +33,7 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.
     bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
     conda install python=3.10 pygobject weasyprint -c conda-forge -y
 
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu122"
 
 bash docs/linux_install.sh
 
@@ -81,13 +82,15 @@ python -m venv vllm_env --system-site-packages
 # gputil is for rayWorker in vllm to run as non-root
 # below required outside docker:
 # apt-get install libnccl2
-/h2ogpt_conda/vllm_env/bin/python -m pip install https://github.com/vllm-project/vllm/releases/download/v0.2.6/vllm-0.2.6+cu118-cp310-cp310-manylinux1_x86_64.whl
-/h2ogpt_conda/vllm_env/bin/python -m pip install mosaicml-turbo
-#/h2ogpt_conda/vllm_env/bin/python -m pip install megablocks==0.5.0
-/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/triton-2.1.0-0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/megablocks-0.5.0-cp310-cp310-linux_x86_64.whl
-# 1006.9       RuntimeError: Found no NVIDIA driver on your system. Please check that you have an NVIDIA GPU and installed a driver from http://www.nvidia.com/Download/index.aspx
-/h2ogpt_conda/vllm_env/bin/python -m pip install ray pandas gputil==1.4.0 fschat==0.2.34
+#/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/vllm-0.2.7%2Bcu118-cp310-cp310-linux_x86_64.whl
+#/h2ogpt_conda/vllm_env/bin/python -m pip install https://github.com/vllm-project/vllm/releases/download/v0.2.7/vllm-0.2.7+cu118-cp310-cp310-manylinux1_x86_64.whl
+#/h2ogpt_conda/vllm_env/bin/python -m pip install vllm
+
+/h2ogpt_conda/vllm_env/bin/python -m pip install ray pandas gputil==1.4.0 fschat==0.2.34 flash-attn==2.4.2 autoawq==0.1.8 uvicorn[standard]
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/megablocks-0.5.1-cp310-cp310-linux_x86_64.whl
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/triton-2.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/mosaicml_turbo-0.0.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/vllm-0.2.7-cp310-cp310-linux_x86_64.whl
 mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 

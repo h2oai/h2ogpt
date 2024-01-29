@@ -823,6 +823,8 @@ def go_gradio(**kwargs):
                     visible_speak_me = kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None
                     speak_human_button = gr.Button("Speak Instruction", visible=visible_speak_me, size='sm')
                     speak_bot_button = gr.Button("Speak Response", visible=visible_speak_me, size='sm')
+                    speak_text_api_button = gr.Button("Speak Text API", visible=False)
+                    speak_text_plain_api_button = gr.Button("Speak Text Plain API", visible=False)
                     stop_speak_button = gr.Button("Stop/Clear Speak", visible=visible_speak_me, size='sm')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                         from src.tts_coqui import get_roles
@@ -1098,7 +1100,7 @@ def go_gradio(**kwargs):
                                                                          audio_state],
                                                                  outputs=[mic_button, instruction,
                                                                           audio_state],
-                                                                 api_name='mic' if allow_api else None,
+                                                                 api_name=None,
                                                                  show_progress='hidden')
                                         # JS first, then python, but all in one click instead of using .then() that will delay
                                         mic_button.click(fn=lambda: None, **mic_kwargs, **noqueue_kwargs2) \
@@ -1435,7 +1437,7 @@ def go_gradio(**kwargs):
                                                              filterable=True,
                                                              )
                             system_prompt = gr.Textbox(label='System Prompt',
-                                                       info="Filled by choice above, or can enter your own custom system prompt",
+                                                       info="Filled by choice above, or can enter your own custom system prompt.  auto means automatic, which will auto-switch to DocQA prompt when using collections.",
                                                        value=kwargs['system_prompt'], lines=2)
 
                             def show_sys(x):
@@ -1698,11 +1700,17 @@ def go_gradio(**kwargs):
                                                    autoplay=False,
                                                    visible=False,
                                                    elem_id='bot2_audio')
+                            text_speech = gr.Textbox(visible=False)
+                            text_speech_out = gr.Textbox(visible=False)
                         else:
                             # Ensure not streaming media, just webconnect, if not doing TTS
                             speech_human = gr.Textbox(visible=False)
                             speech_bot = gr.Textbox(visible=False)
                             speech_bot2 = gr.Textbox(visible=False)
+                            text_speech = gr.Textbox(visible=False)
+                            text_speech_out = gr.Textbox(visible=False)
+                        speak_inputs_dict_str = gr.Textbox(label='API input for speak_text_plain_api', show_label=False,
+                                                           visible=False)
 
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
                             from src.tts_coqui import get_languages_gr
@@ -1722,7 +1730,7 @@ def go_gradio(**kwargs):
                             return new_file
 
                         if audio_visible:
-                            model_base = os.getenv('MODEL_BASE', 'models/')
+                            model_base = os.getenv('H2OGPT_MODEL_BASE', 'models/')
                             female_voice = os.path.join(model_base, "female.wav")
                             ref_voice_clone = gr.Audio(
                                 label="File for Clone (x resets)",
@@ -2216,9 +2224,11 @@ def go_gradio(**kwargs):
         zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
         zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text],
                                   **noqueue_kwargs,
-                                  api_name='zip_data' if allow_api else None)
+                                  api_name=None,  # could be on API if key protected
+                                  )
         s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, **noqueue_kwargs,
-                                    api_name='s3up_data' if allow_api else None)
+                                    api_name=None,  # could be on API if key protected
+                                    )
 
         def clear_file_list():
             return None
@@ -2310,6 +2320,8 @@ def go_gradio(**kwargs):
                                            enable_pdf_doctr=kwargs['enable_pdf_doctr'],
                                            try_pdf_as_html=kwargs['try_pdf_as_html'],
                                            gradio_upload_to_chatbot_num_max=kwargs['gradio_upload_to_chatbot_num_max'],
+                                           allow_upload_to_my_data=kwargs['allow_upload_to_my_data'],
+                                           allow_upload_to_user_data=kwargs['allow_upload_to_user_data'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -2450,6 +2462,9 @@ def go_gradio(**kwargs):
                                          verbose=verbose,
                                          get_userid_auth=get_userid_auth,
                                          n_jobs=n_jobs,
+                                         enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                         enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                         h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                          )
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
@@ -2497,7 +2512,8 @@ def go_gradio(**kwargs):
             return gr.Dropdown(choices=source_list, value=[DocumentChoice.ALL.value])
 
         get_sources_kwargs = dict(fn=get_sources1,
-                                  inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                  inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                          h2ogpt_key],
                                   outputs=[file_source, docs_state, text_doc_count],
                                   queue=queue)
 
@@ -2510,7 +2526,8 @@ def go_gradio(**kwargs):
             .then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
 
         get_sources_api_args = dict(fn=functools.partial(get_sources1, api=True),
-                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                            h2ogpt_key],
                                     outputs=get_sources_api_text,
                                     queue=queue)
         get_sources_api_btn.click(**get_sources_api_args,
@@ -2528,13 +2545,18 @@ def go_gradio(**kwargs):
                                           auto_migrate_db=auto_migrate_db,
                                           verbose=verbose,
                                           get_userid_auth=get_userid_auth,
-                                          n_jobs=n_jobs)
+                                          n_jobs=n_jobs,
+                                          enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                          enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                          h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                          )
         eventdb8a = show_sources_btn.click(user_state_setup,
                                            inputs=[my_db_state, requests_state, show_sources_btn, show_sources_btn],
                                            outputs=[my_db_state, requests_state, show_sources_btn],
                                            show_progress='minimal')
         show_sources_kwargs = dict(fn=show_sources1,
-                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                   inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                           h2ogpt_key],
                                    outputs=sources_text)
         eventdb8 = eventdb8a.then(**show_sources_kwargs,
                                   api_name='show_sources' if allow_api else None)
@@ -2552,9 +2574,14 @@ def go_gradio(**kwargs):
                                                   auto_migrate_db=auto_migrate_db,
                                                   verbose=kwargs['verbose'],
                                                   get_userid_auth=get_userid_auth,
-                                                  n_jobs=n_jobs)
+                                                  n_jobs=n_jobs,
+                                                  enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                                  enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                                  h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                                  )
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
-                                         inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                         inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                                 h2ogpt_key],
                                          outputs=[file_source, viewable_docs_state, text_viewable_doc_count],
                                          queue=queue)
         eventdb12a = get_viewable_sources_btn.click(user_state_setup,
@@ -2586,12 +2613,16 @@ def go_gradio(**kwargs):
                                           max_raw_chunks=kwargs['max_raw_chunks'],
                                           api=False,
                                           n_jobs=n_jobs,
+                                          enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                          enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                          h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                           )
         # Note: Not really useful for API, so no api_name
         show_doc_kwargs = dict(fn=show_doc_func,
                                inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                        view_document_choice, view_raw_text_checkbox,
-                                       text_context_list, pdf_height],
+                                       text_context_list, pdf_height,
+                                       h2ogpt_key],
                                outputs=[doc_view, doc_view2, doc_view3, doc_view4,
                                         doc_view5, doc_view6, doc_view7, doc_view8])
         eventdb_viewa.then(**show_doc_kwargs)
@@ -2603,7 +2634,8 @@ def go_gradio(**kwargs):
         get_document_api_btn.click(fn=show_doc_func_api,
                                    inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                            view_document_choice, view_raw_text_checkbox,
-                                           text_context_list, pdf_height],
+                                           text_context_list, pdf_height,
+                                           h2ogpt_key],
                                    outputs=get_document_api_text, api_name='get_document_api')
 
         # Get inputs to evaluate() and make_db()
@@ -2639,6 +2671,9 @@ def go_gradio(**kwargs):
                                              enable_pdf_ocr=kwargs['enable_pdf_ocr'],
                                              enable_pdf_doctr=kwargs['enable_pdf_doctr'],
                                              try_pdf_as_html=kwargs['try_pdf_as_html'],
+                                             enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                             enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                             h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                              )
         eventdb9a = refresh_sources_btn.click(user_state_setup,
                                               inputs=[my_db_state, requests_state,
@@ -2654,6 +2689,7 @@ def go_gradio(**kwargs):
                                           jq_schema,
                                           extract_frames,
                                           llava_prompt,
+                                          h2ogpt_key,
                                           ],
                                   outputs=sources_text,
                                   api_name='refresh_sources' if allow_api else None)
@@ -2668,7 +2704,11 @@ def go_gradio(**kwargs):
                                             auto_migrate_db=auto_migrate_db,
                                             verbose=verbose,
                                             get_userid_auth=get_userid_auth,
-                                            n_jobs=n_jobs)
+                                            n_jobs=n_jobs,
+                                            enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                            enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                            h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                            )
         eventdb90a = delete_sources_btn.click(user_state_setup,
                                               inputs=[my_db_state, requests_state,
                                                       delete_sources_btn, delete_sources_btn],
@@ -2676,7 +2716,8 @@ def go_gradio(**kwargs):
                                               show_progress='minimal', **noqueue_kwargs2)
         eventdb90 = eventdb90a.then(fn=delete_sources1,
                                     inputs=[my_db_state, selection_docs_state, requests_state, document_choice,
-                                            langchain_mode],
+                                            langchain_mode,
+                                            h2ogpt_key],
                                     outputs=sources_text,
                                     api_name='delete_sources' if allow_api else None)
         db_events.extend([eventdb90a, eventdb90])
@@ -2932,7 +2973,21 @@ def go_gradio(**kwargs):
         add_role_event_save_event = add_role_event.then(**save_auth_kwargs)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
-                               auth_filename=None, auth_freeze=None, guest_name=None):
+                               h2ogpt_key1,
+                               auth_filename=None, auth_freeze=None, guest_name=None,
+                               enforce_h2ogpt_api_key=True,
+                               enforce_h2ogpt_ui_key=True,
+                               h2ogpt_api_keys=[],
+                               ):
+            valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                                     enforce_h2ogpt_ui_key,
+                                     h2ogpt_api_keys,
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1,
+                                     )
+            from_ui = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
             assert auth_filename is not None
             assert auth_freeze is not None
 
@@ -3026,9 +3081,25 @@ def go_gradio(**kwargs):
                                                           value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         def remove_langchain_mode(db1s, selection_docs_state1, requests_state1,
-                                  langchain_mode1, langchain_mode2, dbsu=None, auth_filename=None, auth_freeze=None,
+                                  langchain_mode1, langchain_mode2,
+                                  h2ogpt_key2,
+                                  dbsu=None, auth_filename=None, auth_freeze=None,
                                   guest_name=None,
-                                  purge=False):
+                                  purge=False,
+                                  enforce_h2ogpt_api_key=True,
+                                  enforce_h2ogpt_ui_key=True,
+                                  h2ogpt_api_keys=[],
+                                  ):
+            valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                                     enforce_h2ogpt_ui_key,
+                                     h2ogpt_api_keys,
+                                     h2ogpt_key2,
+                                     requests_state1=requests_state1,
+                                     )
+            from_ui = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
             assert auth_filename is not None
             assert auth_freeze is not None
 
@@ -3132,11 +3203,15 @@ def go_gradio(**kwargs):
                                                     auth_filename=kwargs['auth_filename'],
                                                     auth_freeze=kwargs['auth_freeze'],
                                                     guest_name=kwargs['guest_name'],
+                                                    enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                                    enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                                    h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                                     )
         eventdb20b = eventdb20a.then(fn=add_langchain_mode_func,
                                      inputs=[my_db_state, selection_docs_state, requests_state,
                                              langchain_mode,
-                                             new_langchain_mode_text],
+                                             new_langchain_mode_text,
+                                             h2ogpt_key],
                                      outputs=[my_db_state, selection_docs_state, langchain_mode,
                                               new_langchain_mode_text,
                                               langchain_mode_path_text],
@@ -3148,6 +3223,9 @@ def go_gradio(**kwargs):
                                                        auth_filename=kwargs['auth_filename'],
                                                        auth_freeze=kwargs['auth_freeze'],
                                                        guest_name=kwargs['guest_name'],
+                                                       enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                                       enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                                       h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                                        )
         eventdb21a = remove_langchain_mode_text.submit(user_state_setup,
                                                        inputs=[my_db_state,
@@ -3159,7 +3237,8 @@ def go_gradio(**kwargs):
         remove_langchain_mode_kwargs = dict(fn=remove_langchain_mode_func,
                                             inputs=[my_db_state, selection_docs_state, requests_state,
                                                     langchain_mode,
-                                                    remove_langchain_mode_text],
+                                                    remove_langchain_mode_text,
+                                                    h2ogpt_key],
                                             outputs=[my_db_state, selection_docs_state, langchain_mode,
                                                      remove_langchain_mode_text,
                                                      langchain_mode_path_text])
@@ -3178,7 +3257,8 @@ def go_gradio(**kwargs):
         purge_langchain_mode_kwargs = dict(fn=purge_langchain_mode_func,
                                            inputs=[my_db_state, selection_docs_state, requests_state,
                                                    langchain_mode,
-                                                   purge_langchain_mode_text],
+                                                   purge_langchain_mode_text,
+                                                   h2ogpt_key],
                                            outputs=[my_db_state, selection_docs_state, langchain_mode,
                                                     purge_langchain_mode_text,
                                                     langchain_mode_path_text])
@@ -3189,7 +3269,23 @@ def go_gradio(**kwargs):
         eventdb22b_auth = eventdb22b.then(**save_auth_kwargs)
         db_events.extend([eventdb22a, eventdb22b, eventdb22b_auth])
 
-        def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1, auth_filename=None):
+        def load_langchain_gr(db1s, selection_docs_state1, requests_state1, langchain_mode1,
+                              h2ogpt_key3,
+                              auth_filename=None,
+                              enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                              enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                              h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                              ):
+            valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                                     enforce_h2ogpt_ui_key,
+                                     h2ogpt_api_keys,
+                                     h2ogpt_key3,
+                                     requests_state1=requests_state1,
+                                     )
+            from_ui = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
             load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1)
 
             selection_docs_state1 = update_langchain_mode_paths(selection_docs_state1)
@@ -3205,7 +3301,8 @@ def go_gradio(**kwargs):
         load_langchain_gr_func = functools.partial(load_langchain_gr,
                                                    auth_filename=kwargs['auth_filename'])
         eventdbloadlb = eventdbloadla.then(fn=load_langchain_gr_func,
-                                           inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode],
+                                           inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                                   h2ogpt_key],
                                            outputs=[selection_docs_state, langchain_mode, langchain_mode_path_text],
                                            api_name='load_langchain' if allow_api and allow_upload_to_user_data else None)
 
@@ -3259,12 +3356,14 @@ def go_gradio(**kwargs):
                 do_show = gradio_upload_to_chatbot1 or gradio_errors_to_chatbot1
                 added_history = []
 
-                if not for_errors:
+                if not for_errors and str(args_list[1]).strip():
                     new_files_last1 = ast.literal_eval(args_list[1]) if isinstance(args_list[1], str) else {}
                     assert isinstance(new_files_last1, dict)
                     added_history = docs_to_message(new_files_last1)
                 elif str(args_list[1]).strip():
-                    added_history = [(None, get_accordion_named(args_list[1], "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.", font_size=2))]
+                    added_history = [(None, get_accordion_named(args_list[1],
+                                                                "Document Ingestion (maybe partial) Failure.  Click Undo to remove this message.",
+                                                                font_size=2))]
 
                 compare_checkbox1 = args_list[2]
 
@@ -3454,7 +3553,7 @@ def go_gradio(**kwargs):
                     args_list.insert(1, my_db_state0.copy())
                     args_list.insert(2, selection_docs_state0.copy())
                     args_list.insert(3, requests_state0.copy())
-                    args_list.insert(4, roles_state0.copy())
+                    args_list.insert(4, roles_state.value.copy())
                 user_kwargs = args_list[len(input_args_list)]
                 assert isinstance(user_kwargs, str)
                 user_kwargs = ast.literal_eval(user_kwargs)
@@ -4240,6 +4339,7 @@ def go_gradio(**kwargs):
             except StopIteration:
                 # print("STOP ITERATION", flush=True)
                 yield history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, no_audio
+                raise
             except RuntimeError as e:
                 if "generator raised StopIteration" in str(e):
                     # assume last entry was bad, undo
@@ -5670,14 +5770,14 @@ def go_gradio(**kwargs):
                                                              inputs=[instruction, chatbot_role, tts_language,
                                                                      roles_state, tts_speed],
                                                              outputs=speech_human,
-                                                             api_name='speak_human' if allow_api else None,
+                                                             api_name=None,  # not for API
                                                              )
                 speak_events.extend([speak_human_event])
             elif kwargs['tts_model'].startswith('microsoft'):
                 speak_human_event = speak_human_button.click(kwargs['predict_from_text_func'],
                                                              inputs=[instruction, speaker, tts_speed],
                                                              outputs=speech_human,
-                                                             api_name='speak_human' if allow_api else None,
+                                                             api_name=None,  # not for API
                                                              )
                 speak_events.extend([speak_human_event])
 
@@ -5703,14 +5803,97 @@ def go_gradio(**kwargs):
                 elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
                     yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1)
 
+        def _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                                response, roles_state1):
+            if kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
+                sr1 = 16000
+            elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
+                sr1 = 24000
+            else:
+                return
+            if kwargs['enable_tts'] and kwargs['predict_from_text_func'] is not None and response:
+                if kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, 'None']:
+                    yield from kwargs['predict_from_text_func'](response, chatbot_role1, tts_language1, roles_state1,
+                                                                tts_speed1,
+                                                                return_prefix_every_yield=False,
+                                                                include_audio0=False,
+                                                                return_dict=True,
+                                                                sr=sr1)
+                elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, 'None']:
+                    yield from kwargs['predict_from_text_func'](response, speaker1, tts_speed1,
+                                                                return_prefix_every_yield=False,
+                                                                include_audio0=False,
+                                                                return_dict=True,
+                                                                sr=sr1)
+
+        def wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                               response, stream_output1, h2ogpt_key1, roles_state1, requests_state1):
+            # check key
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'],
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1)
+            kwargs['from_ui'] = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
+            if stream_output1:
+                yield from _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                                               response, roles_state1)
+            else:
+                audios = []
+                for audio1 in _wrap_pred_func_api(chatbot_role1, speaker1, tts_language1, tts_speed1,
+                                                  response, roles_state1):
+                    audios.append(audio1)
+                srs = [x['sr'] for x in audios]
+                if len(srs) > 0:
+                    sr = srs[0]
+                    audios = [x['audio'] for x in audios]
+                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'])
+                    yield dict(audio=audios, sr=sr)
+
+        def wrap_pred_func_plain_api(*args1):
+            args_dict = ast.literal_eval(args1[0])
+            args_dict['requests_state'] = requests_state0.copy()
+            args_dict['roles_state'] = roles_state.value.copy()
+
+            input_args_list_speak = ['chatbot_role', 'speaker', 'tts_language', 'tts_speed',
+                                     'prompt', 'stream_output', 'h2ogpt_key',
+                                     'roles_state', 'requests_state']
+            assert len(args_dict) == len(input_args_list_speak)
+
+            # fix order and make into list
+            args_dict = {k: args_dict[k] for k in input_args_list_speak}
+            args_list = list(args_dict.values())
+
+            ret = yield from wrap_pred_func_api(*tuple(args_list))
+            return ret
+
         speak_bot_event = speak_bot_button.click(wrap_pred_func,
                                                  inputs=[chatbot_role, speaker, tts_language, roles_state, tts_speed,
                                                          visible_models, text_output,
                                                          text_output2] + text_outputs,
                                                  outputs=speech_bot,
-                                                 api_name='speak_bot' if allow_api else None,
+                                                 api_name=None,  # not for API
                                                  )
         speak_events.extend([speak_bot_event])
+
+        speak_text_api_event1 = speak_text_api_button.click(**user_state_kwargs)
+        speak_text_api_event = speak_text_api_event1.then(wrap_pred_func_api,
+                                                          inputs=[chatbot_role, speaker, tts_language, tts_speed,
+                                                                  text_speech, stream_output, h2ogpt_key,
+                                                                  roles_state, requests_state],
+                                                          outputs=text_speech_out,
+                                                          api_name='speak_text_api' if allow_api else None,
+                                                          )
+
+        speak_text_plain_api_event = speak_text_plain_api_button.click(wrap_pred_func_plain_api,
+                                                                       inputs=speak_inputs_dict_str,
+                                                                       outputs=text_speech_out,
+                                                                       api_name='speak_text_plain_api' if allow_api else None,
+                                                                       **noqueue_kwargs,
+                                                                       )
 
         def stop_audio_func():
             return None, None
@@ -5884,6 +6067,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
              view_raw_text_checkbox1,
              text_context_list1,
              pdf_height,
+             h2ogpt_key1,
              dbs1=None,
              load_db_if_exists1=None,
              db_type1=None,
@@ -5895,7 +6079,20 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
              get_userid_auth1=None,
              max_raw_chunks=1000000,
              api=False,
-             n_jobs=-1):
+             n_jobs=-1,
+             enforce_h2ogpt_api_key=True,
+             enforce_h2ogpt_ui_key=True,
+             h2ogpt_api_keys=[],
+             ):
+    valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                             enforce_h2ogpt_ui_key,
+                             h2ogpt_api_keys,
+                             h2ogpt_key1,
+                             requests_state1=requests_state1)
+    from_ui = is_from_ui(requests_state1)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
+
     file = single_document_choice1
     document_choice1 = [single_document_choice1]
     content = None
@@ -6156,7 +6353,8 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                       **kwargs):
     valid_key = is_valid_key(kwargs.pop('enforce_h2ogpt_api_key', None),
                              kwargs.pop('enforce_h2ogpt_ui_key', None),
-                             kwargs.pop('h2ogpt_api_keys', []), h2ogpt_key,
+                             kwargs.pop('h2ogpt_api_keys', []),
+                             h2ogpt_key,
                              requests_state1=requests_state1)
     kwargs['from_ui'] = is_from_ui(requests_state1)
     if not valid_key:
@@ -6203,7 +6401,8 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
                           **kwargs)
 
 
-def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode, dbs=None, docs_state0=None,
+def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode, h2ogpt_key1,
+                   dbs=None, docs_state0=None,
                    load_db_if_exists=None,
                    db_type=None,
                    use_openai_embedding=None,
@@ -6213,7 +6412,21 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    verbose=False,
                    get_userid_auth=None,
                    api=False,
-                   n_jobs=-1):
+                   n_jobs=-1,
+                   enforce_h2ogpt_api_key=True,
+                   enforce_h2ogpt_ui_key=True,
+                   h2ogpt_api_keys=[],
+                   ):
+    valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                             enforce_h2ogpt_ui_key,
+                             h2ogpt_api_keys,
+                             h2ogpt_key1,
+                             requests_state1=requests_state1,
+                             )
+    from_ui = is_from_ui(requests_state1)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
+
     from src.gpt_langchain import get_sources
     sources_file, source_list, num_chunks, num_sources_str, db = \
         get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
@@ -6239,6 +6452,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
 
 def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1,
                                              langchain_mode,
+                                             h2ogpt_key,
                                              dbs=None,
                                              load_db_if_exists=None,
                                              db_type=None,
@@ -6248,7 +6462,21 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              auto_migrate_db=None,
                                              verbose=False,
                                              get_userid_auth=None,
-                                             n_jobs=-1):
+                                             n_jobs=-1,
+                                             enforce_h2ogpt_api_key=True,
+                                             enforce_h2ogpt_ui_key=True,
+                                             h2ogpt_api_keys=[],
+                                             ):
+    valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                             enforce_h2ogpt_ui_key,
+                             h2ogpt_api_keys,
+                             h2ogpt_key,
+                             requests_state1=requests_state1,
+                             )
+    from_ui = is_from_ui(requests_state1)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
+
     from src.gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, None,
                                                  langchain_mode,
@@ -6267,6 +6495,7 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
 
 def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, requests_state1, document_choice1,
                                              langchain_mode,
+                                             h2ogpt_key1,
                                              dbs=None,
                                              load_db_if_exists=None,
                                              db_type=None,
@@ -6276,7 +6505,21 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              auto_migrate_db=None,
                                              verbose=False,
                                              get_userid_auth=None,
-                                             n_jobs=-1):
+                                             n_jobs=-1,
+                                             enforce_h2ogpt_api_key=True,
+                                             enforce_h2ogpt_ui_key=True,
+                                             h2ogpt_api_keys=[],
+                                             ):
+    valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                             enforce_h2ogpt_ui_key,
+                             h2ogpt_api_keys,
+                             h2ogpt_key1,
+                             requests_state1=requests_state1,
+                             )
+    from_ui = is_from_ui(requests_state1)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
+
     from src.gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
                                                  langchain_mode,
@@ -6305,6 +6548,8 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         extract_frames,
                                                         llava_prompt,
 
+                                                        h2ogpt_key1,
+
                                                         captions_model=None,
                                                         caption_loader=None,
                                                         doctr_loader=None,
@@ -6330,7 +6575,20 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         enable_pdf_ocr=None,
                                                         enable_pdf_doctr=None,
                                                         try_pdf_as_html=None,
+                                                        enforce_h2ogpt_api_key=True,
+                                                        enforce_h2ogpt_ui_key=True,
+                                                        h2ogpt_api_keys=[],
                                                         ):
+    valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                             enforce_h2ogpt_ui_key,
+                             h2ogpt_api_keys,
+                             h2ogpt_key1,
+                             requests_state1=requests_state,
+                             )
+    from_ui = is_from_ui(requests_state)
+    if not valid_key:
+        raise ValueError(invalid_key_msg)
+
     from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
 
     loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,

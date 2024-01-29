@@ -1,5 +1,6 @@
 nameOverride: ""
 fullnameOverride: ""
+namespaceOverride: ""
 
 h2ogpt:
   enabled: true
@@ -7,8 +8,10 @@ h2ogpt:
     # -- Run h2oGPT and vLLM on same pod.
     enabled: false 
   replicaCount: 1
+  imagePullSecrets: 
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    tag: 
     pullPolicy: IfNotPresent
   initImage:
     repository:
@@ -127,6 +130,7 @@ vllm:
 
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    tag:
     pullPolicy: IfNotPresent
 
   imagePullSecrets:

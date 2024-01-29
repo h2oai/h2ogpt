@@ -42,6 +42,7 @@ from langchain.schema.output import GenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_mistralai import ChatMistralAI
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
@@ -64,7 +65,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     user_prompt_for_fake_system_prompt, does_support_json_mode
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
-from prompter import non_hf_types, PromptType, Prompter, get_stop_token_ids, system_docqa, system_summary
+from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
@@ -575,7 +576,7 @@ class GradioInference(H2Oagenerate, LLM):
     prompts: Any = []
     count_output_tokens: Any = 0
 
-    min_max_new_tokens: Any = 256
+    min_max_new_tokens: Any = 512
     max_input_tokens: Any = -1
     max_total_input_tokens: Any = -1
 
@@ -739,9 +740,9 @@ class GradioInference(H2Oagenerate, LLM):
                     if self.verbose:
                         print("Exceeded max_time=%s" % self.max_time, flush=True)
                     break
-                outputs_list = job.communicator.job.outputs
+                outputs_list = job.outputs().copy()
                 if outputs_list:
-                    res = job.communicator.job.outputs[-1]
+                    res = outputs_list[-1]
                     res_dict = ast.literal_eval(res)
                     text = res_dict['response']
                     text = self.prompter.get_response(prompt + text, prompt=prompt,
@@ -761,10 +762,10 @@ class GradioInference(H2Oagenerate, LLM):
                 time.sleep(0.01)
 
             # ensure get last output to avoid race
-            res_all = job.outputs()
+            res_all = job.outputs().copy()
             if len(res_all) > 0:
                 # don't raise unless nochat API for now
-                # set below to True for now, not not self.chat_client, since not handling exception otherwise
+                # set below to True for now, not self.chat_client, since not handling exception otherwise
                 # in some return of strex
                 check_job(job, timeout=0.02, raise_exception=True)
 
@@ -808,6 +809,8 @@ class GradioInference(H2Oagenerate, LLM):
             )
         # new client for each acall
         client = self.client.clone()
+        from gradio_utils.grclient import check_job
+
         job = client.submit(str(dict(client_kwargs)), api_name=api_name)
         text0 = ''
         while not job.done():
@@ -816,9 +819,9 @@ class GradioInference(H2Oagenerate, LLM):
             e = job.future._exception
             if e is not None:
                 break
-            outputs_list = job.communicator.job.outputs
+            outputs_list = job.outputs().copy()
             if outputs_list:
-                res = job.communicator.job.outputs[-1]
+                res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
                 text = self.prompter.get_response(prompt + text, prompt=prompt,
@@ -838,15 +841,18 @@ class GradioInference(H2Oagenerate, LLM):
             await asyncio.sleep(0.01)
 
         # ensure get last output to avoid race
-        res_all = job.outputs()
+        res_all = job.outputs().copy()
         if len(res_all) > 0:
             res = res_all[-1]
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             # FIXME: derive chunk from full for now
+            check_job(job, timeout=0.02, raise_exception=True)
         else:
             # go with old if failure
             text = text0
+            check_job(job, timeout=0.3, raise_exception=True)
+
         text_chunk = text[len(text0):]
         if text_callback:
             await text_callback(text_chunk)
@@ -1043,6 +1049,7 @@ class H2OOpenAI(OpenAI):
     prompts: Any = []
     count_output_tokens: Any = 0
     max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
 
     def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
@@ -1080,6 +1087,30 @@ class H2OOpenAI(OpenAI):
         else:
             return self.max_context_size - num_tokens
 
+    def count_out_tokens(self, rets):
+        try:
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+
+    def collect_llm_results(self, rets):
+        generations = [x.generations[0] for x in rets]
+
+        def reducer(accumulator, element):
+            for key, value in element.items():
+                accumulator[key] = accumulator.get(key, 0) + value
+            return accumulator
+
+        collection = [x.llm_output['token_usage'] for x in rets]
+        token_usage = reduce(reducer, collection, {})
+
+        llm_output = {"token_usage": token_usage, "model_name": self.model_name}
+        self.count_output_tokens += token_usage.get('completion_tokens', 0)
+        return LLMResult(generations=generations, llm_output=llm_output)
+
     def _generate(
             self,
             prompts: List[str],
@@ -1091,15 +1122,17 @@ class H2OOpenAI(OpenAI):
             print("Hit _generate", flush=True)
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        self.count_llm_calls += len(prompts)
         self.prompts.extend(prompts)
-        rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
-        try:
-            self.count_output_tokens += sum(
-                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
-        except Exception as e:
-            if os.getenv('HARD_ASSERTS'):
-                raise
-            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+        if self.batch_size > 1:
+            rets = super()._generate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            self.count_out_tokens(rets)
+        else:
+            rets = []
+            for sub_prompt in prompts:
+                rets1 = super()._generate([sub_prompt], stop=stop, run_manager=run_manager, **kwargs)
+                rets.append(rets1)
+            rets = self.collect_llm_results(rets)  # counts output tokens already
 
         # handle fact that multi-character stops will only stop streaming once last matching character, then we get rest
         if stop is None:
@@ -1145,28 +1178,19 @@ class H2OOpenAI(OpenAI):
             **kwargs: Any,
     ) -> LLMResult:
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
+        self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
+        self.count_llm_calls += len(prompts)
         if self.batch_size > 1 or self.streaming:
-            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            rets = await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            self.count_out_tokens(rets)
+            return rets
         else:
-            self.count_input_tokens += sum([self.get_num_tokens(prompt) for prompt in prompts])
             self.prompts.extend(prompts)
             tasks = [
                 asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager, **kwargs))
                 for prompt in prompts]
             llm_results = await asyncio.gather(*tasks)
-            generations = [x.generations[0] for x in llm_results]
-
-            def reducer(accumulator, element):
-                for key, value in element.items():
-                    accumulator[key] = accumulator.get(key, 0) + value
-                return accumulator
-
-            collection = [x.llm_output['token_usage'] for x in llm_results]
-            token_usage = reduce(reducer, collection, {})
-
-            llm_output = {"token_usage": token_usage, "model_name": self.model_name}
-            self.count_output_tokens += token_usage.get('completion_tokens', 0)
-            return LLMResult(generations=generations, llm_output=llm_output)
+            return self.collect_llm_results(llm_results)
 
     async def _agenerate_one(
             self,
@@ -1239,11 +1263,15 @@ class ExtraChat:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
-                instruction = gradio_to_llm(messages1[0], bot=False)
-                output = gradio_to_llm(messages1[1], bot=True)
-
-                messages.append(HumanMessage(content=instruction))
-                messages.append(AIMessage(content=output))
+                if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
+                    # then not really part of LLM, internal, so avoid
+                    continue
+                if messages1[0]:
+                    instruction = gradio_to_llm(messages1[0], bot=False)
+                    messages.append(HumanMessage(content=instruction))
+                if messages1[1]:
+                    output = gradio_to_llm(messages1[1], bot=True)
+                    messages.append(AIMessage(content=output))
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
@@ -1397,6 +1425,45 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
         )
 
 
+class H2OChatMistralAI(ChatMistralAI, ExtraChat):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    stream_output: bool = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
+
 class H2OAzureOpenAI(AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1526,7 +1593,7 @@ def get_llm(use_openai_model=False,
         # allow certain tests to use fake one
         tokenizer = FakeTokenizer()
         max_input_tokens = 1024
-        min_max_new_tokens = 256
+        min_max_new_tokens = 512
 
     model_max_length = tokenizer.model_max_length
     if not attention_sinks:
@@ -1614,9 +1681,11 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
                             frequency_penalty=0,
-                            presence_penalty=1.07 - repetition_penalty + 0.6,
+                            presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                             logit_bias=None if inf_type == 'vllm' else {},
                             )
+        # if inference_server.startswith('vllm'):
+        #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
 
         azure_kwargs = dict(openai_api_type='azure',
                             openai_api_key=api_key,
@@ -1624,7 +1693,7 @@ def get_llm(use_openai_model=False,
                             deployment_name=deployment_type,
                             azure_endpoint=base_url,
                             )
-        if langchain_agents and \
+        if langchain_agents is not None and \
                 LangChainAgent.AUTOGPT.value in langchain_agents and \
                 does_support_json_mode(inference_server, model_name):
             azure_kwargs.update(response_format={"type": "json_object"})
@@ -1663,8 +1732,10 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                stop_token_ids_dict = get_stop_token_ids(tokenizer, stop_sequences=prompter.stop_sequences)
-                kwargs_extra.update(stop_token_ids_dict)
+                vllm_extra_dict = get_vllm_extra_dict(tokenizer,
+                                                      stop_sequences=prompter.stop_sequences,
+                                                      # repetition_penalty=repetition_penalty,  # could pass
+                                                      )
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -1682,6 +1753,7 @@ def get_llm(use_openai_model=False,
                                          ))
                 kwargs_extra.update(model_kwargs)
                 model_kwargs = {}
+                model_kwargs.update(vllm_extra_dict)
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
@@ -1746,8 +1818,8 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
-                  top_p=top_p if do_sample else 1,
-                  top_k=top_k,
+                  top_p=top_p if do_sample else 1.0,
+                  top_k=top_k if do_sample else 1,
                   temperature=temperature if do_sample else 0,
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
@@ -1756,6 +1828,37 @@ def get_llm(use_openai_model=False,
                   n=1,  # candidates
                   model_kwargs=model_kwargs,
                   **kwargs_extra
+                  )
+        streamer = callbacks[0] if stream_output else None
+        prompt_type = inference_server
+    elif inference_server.startswith('mistralai'):
+        cls = H2OChatMistralAI
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict()
+        kwargs_extra = {}
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            # FIXME: _AnthropicCommon ignores these and makes no client anyways
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
+
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        llm = cls(model=model_name,
+                  mistral_api_key=os.getenv('MISTRAL_API_KEY'),
+                  top_p=top_p if do_sample else 1,
+                  top_k=top_k,
+                  temperature=temperature if do_sample else 0,
+                  callbacks=callbacks if stream_output else None,
+                  streaming=stream_output,
+                  stream=stream_output,
+                  stream_output=stream_output,
+                  default_request_timeout=max_time,
+                  model_kwargs=model_kwargs,
+                  max_tokens=max_new_tokens,
+                  safe_mode=False,
+                  random_seed=SEED,
+                  **kwargs_extra,
+                  llm_kwargs=dict(stream=True),
                   )
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
@@ -1996,7 +2099,7 @@ def get_llm(use_openai_model=False,
             streamer = None
 
         from h2oai_pipeline import H2OTextGenerationPipeline
-        if not hasattr(model, 'config'):
+        if 'AWQ' in str(model) and hasattr(model, 'model'):
             # e.g. AutoAWQForCausalLM
             model = model.model
         pipe = H2OTextGenerationPipeline(model=model,
@@ -3956,7 +4059,8 @@ def get_existing_db(db, persist_directory,
             except BaseException as e:
                 # migration when no embed_info
                 if 'Dimensionality of (768) does not match index dimensionality (384)' in str(e) or \
-                        'Embedding dimension 768 does not match collection dimensionality 384' in str(e):
+                        'Embedding dimension 768 does not match collection dimensionality 384' in str(e) or \
+                        'Dimensionality of (1536) does not match index dimensionality (384)' in str(e):
                     hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
                     embedding = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
                     db = chroma_class(persist_directory=persist_directory, embedding_function=embedding,
@@ -4737,7 +4841,7 @@ def _run_qa_db(query=None,
                visible_models=None,
                h2ogpt_key=None,
                docs_ordering_type=docs_ordering_types_default,
-               min_max_new_tokens=256,
+               min_max_new_tokens=512,
                max_input_tokens=-1,
                max_total_input_tokens=-1,
                docs_token_handling=None,
@@ -4870,6 +4974,12 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             changed = True
         if changed and prompter:
             prompter.system_prompt = system_prompt
+        if system_prompt == 'auto':
+            if prompter:
+                system_prompt = prompter.system_prompt
+            if system_prompt == 'auto':
+                # safest then to just avoid system prompt
+                system_prompt = prompter.system_prompt = ""
 
     assert len(set(gen_hyper).difference(inspect.signature(get_llm).parameters)) == 0
     # pass in context to LLM directly, since already has prompt_type structure
@@ -5134,7 +5244,7 @@ def run_target(query='',
                                                                                                'conditional_type') and llm.pipeline.model.conditional_type
     with torch.no_grad():
         have_lora_weights = lora_weights not in [no_lora_str, '', None]
-        context_class_cast = NullContext if device == 'cpu' or have_lora_weights else torch.autocast
+        context_class_cast = NullContext if device == 'cpu' or have_lora_weights or device == 'mps' else torch.autocast
         if conditional_type:
             # issues when casting to float16, can mess up t5 model, e.g. only when not streaming, or other odd behaviors
             context_class_cast = NullContext
@@ -5649,7 +5759,7 @@ def get_chain(query=None,
               tokenizer=None,
               verbose=False,
               docs_ordering_type=docs_ordering_types_default,
-              min_max_new_tokens=256,
+              min_max_new_tokens=512,
               max_input_tokens=-1,
               max_total_input_tokens=-1,
               attention_sinks=False,
@@ -5760,7 +5870,7 @@ def get_chain(query=None,
             StableDiffusionTool,
             TextToVideoTool,
         )
-        do_image_tools = False # FIXME: times out and blocks everything
+        do_image_tools = False  # FIXME: times out and blocks everything
         if do_image_tools:
             image_tools = [
                 StableDiffusionTool().langchain,
@@ -5799,10 +5909,10 @@ def get_chain(query=None,
             func=sympy_math.run,
         )
 
-        enable_semantictool = False # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
+        enable_semantictool = False  # FIXME: Hit Can't patch loop of type <class 'uvloop.Loop'>
         if enable_semantictool:
-            #from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
-            #semantic = SemanticScholarAPIWrapper()
+            # from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+            # semantic = SemanticScholarAPIWrapper()
             # So can pass API key as ENV: S2_API_KEY
             from utils_langchain import H2OSemanticScholarAPIWrapper
             semantic = H2OSemanticScholarAPIWrapper()
@@ -5934,7 +6044,7 @@ def get_chain(query=None,
                 description="DataBase of text from PDFs, Image Captions, or web URL content",
                 vectorstore=db,
             )
-            toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info)
+            toolkit = VectorStoreToolkit(vectorstore_info=vectorstore_info, llm=llm)
             chain = create_vectorstore_agent(llm=llm, toolkit=toolkit,
                                              agent_executor_kwargs=dict(output_parser=output_parser),
                                              verbose=True, max_execution_time=max_time)
@@ -6747,7 +6857,7 @@ def get_template(query, iinput,
         if iinput:
             query = "%s\n%s" % (query, iinput)
         if not got_any_docs:
-            template_if_no_docs = template = """{context}%s""" % question_fstring
+            template_if_no_docs = template = """{context}\n%s""" % question_fstring
         else:
             fstring = "{context}"
             if prompter and prompter.prompt_type == 'docsgpt':
@@ -6758,12 +6868,12 @@ def get_template(query, iinput,
                 # {context} will be empty string, so ok that no new line surrounding it
                 template_if_no_docs = """%s%s%s%s%s""" % (question_fstring, sys_context_no_docs, '', fstring, '')
             else:
-                template = """%s%s%s%s%s%s""" % (
+                template = """%s%s%s%s%s\n%s""" % (
                     pre_prompt_query, triple_quotes, fstring, triple_quotes, prompt_query, question_fstring)
                 if doc_json_mode:
                     template_if_no_docs = """{context}{{"question": {question}}}"""
                 else:
-                    template_if_no_docs = """{context}{question}"""
+                    template_if_no_docs = """{context}\n{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
@@ -6780,7 +6890,7 @@ def get_template(query, iinput,
         else:
             fstring = '{input_documents}'
         # triple_quotes includes \n before """ and after """
-        template = """%s%s%s%s%s""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
+        template = """%s%s%s%s%s\n""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
@@ -7157,6 +7267,9 @@ def _update_user_db(file,
                     from_ui=False,
 
                     gradio_upload_to_chatbot_num_max=None,
+
+                    allow_upload_to_my_data=None,
+                    allow_upload_to_user_data=None,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -7180,10 +7293,21 @@ def _update_user_db(file,
     assert enable_llava is not None
     assert verbose is not None
     assert gradio_upload_to_chatbot_num_max is not None
+    assert allow_upload_to_my_data is not None
+    assert allow_upload_to_user_data is not None
 
     if dbs is None:
         dbs = {}
     assert isinstance(dbs, dict), "Wrong type for dbs: %s" % str(type(dbs))
+
+    if langchain_mode is not None:
+        in_scratch_db = langchain_mode in db1s
+        in_user_db = dbs is not None and langchain_mode in dbs
+        if in_scratch_db and not allow_upload_to_my_data:
+            raise ValueError("Not allowed to upload to scratch/personal space")
+        elif in_user_db and not allow_upload_to_user_data:
+            raise ValueError("Not allowed to upload to shared space")
+
     # handle case of list of temp buffer
     if isinstance(file, str) and file.strip().startswith('['):
         try:
