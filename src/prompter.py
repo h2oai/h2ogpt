@@ -173,6 +173,7 @@ prompt_type_to_model_name = {
     "jais": ['core42/jais-30b-chat-v1'],
     "yi": ['01-ai/Yi-34B-Chat', 'TheBloke/Yi-34B-Chat-AWQ'],
     "docsgpt": ['Arc53/docsgpt-7b-mistral'],
+    "orion": ['OrionStarAI/Orion-14B-Chat', 'OrionStarAI/Orion-14B-LongChat', 'OrionStarAI/Orion-14B-Chat-RAG'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 
