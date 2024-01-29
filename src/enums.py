@@ -64,6 +64,7 @@ class PromptType(Enum):
     mistralai = 58
     mixtral = 59
     mixtralnosys = 60
+    orion = 61
 
 
 class DocumentSubset(Enum):

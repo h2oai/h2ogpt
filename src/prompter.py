@@ -1266,6 +1266,26 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.orion.value, str(PromptType.orion.value),
+                         PromptType.orion.name]:
+        can_handle_system_prompt = False
+        # OrionStarAI/Orion-14B-Chat-RAG
+        # https://huggingface.co/OrionStarAI/Orion-14B-Chat-RAG/blob/main/generation_utils.py#L6-L8
+        #     # chat format:
+        #     # single-turn: <s>Human: Hello!\n\nAssistant: </s>
+        #     # multi-turn:  <s>Human: Hello!\n\nAssistant: </s>Hi!</s>Human: How are you?\n\nAssistant: </s>I'm fine</s>
+        promptA = promptB = ''
+        PreInstruct = """<s>Human: """ if not reduced or histi == 0 else """</s>Human: """
+        PreInput = None
+        eos = "</s>"
+        PreResponse = """\n\nAssistant: %s""" % eos
+        terminate_response = ['Human:', eos, "[UNK]", "Assistant:"]
+        chat_turn_sep = ''
+        chat_sep = ''
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ''
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
