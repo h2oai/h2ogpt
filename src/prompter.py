@@ -174,6 +174,7 @@ prompt_type_to_model_name = {
     "yi": ['01-ai/Yi-34B-Chat', 'TheBloke/Yi-34B-Chat-AWQ'],
     "docsgpt": ['Arc53/docsgpt-7b-mistral'],
     "orion": ['OrionStarAI/Orion-14B-Chat', 'OrionStarAI/Orion-14B-LongChat', 'OrionStarAI/Orion-14B-Chat-RAG'],
+    "sciphi": ['SciPhi/SciPhi-Self-RAG-Mistral-7B-32k'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
 }
 
@@ -1287,6 +1288,29 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = PreResponse
         if making_context:
             PreResponse = botstr + ''
+    elif prompt_type in [PromptType.sciphi.value, str(PromptType.sciphi.value),
+                         PromptType.sciphi.name]:
+        can_handle_system_prompt = True
+        if system_prompt in [None, 'None', 'auto']:
+            # automatic
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        if system_prompt:
+            sys_msg = """### System:\n%s\n\n""" % system_prompt
+        else:
+            sys_msg = ''
+        if sys_msg and not reduced:
+            # too much safety, hurts accuracy
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### Instruction:\n"
+        PreResponse = "\n### Response:\n"
+        terminate_response = ['### Response:', "</s>", "### Instruction:"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### Instruction:'
+        botstr = '### Response:'
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
