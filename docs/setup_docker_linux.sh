@@ -45,3 +45,18 @@ sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
 
 # no need to reboot
+
+# if /  is too small, can move docker to new location, change /etc/docker/daemon.json to have:
+#
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "args": [],
+#            "path": "nvidia-container-runtime"
+#        }
+#    },
+#    "data-root": "/ephemeral/docker-data"
+#}
+# then run:
+# docker image prune -a
+# sudo systemctl restart docker
