@@ -1,3 +1,8 @@
+# BUILD
+sudo apt-get update
+sudo apt install software-properties-common
+sudo apt-get install build-essential
+
 # DRIVER + toolkit
 sudo apt-get update
 sudo apt-get -y install nvidia-headless-535-server nvidia-fabricmanager-535 nvidia-utils-535-server
@@ -8,11 +13,12 @@ sudo apt-get -y install nvidia-headless-535-server nvidia-fabricmanager-535 nvid
 wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
 sudo sh cuda_12.1.0_530.30.02_linux.run
 
-
 echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/cuda/lib64/" >> ~/.bashrc
 echo "export CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
 echo "export PATH=\$PATH:/usr/local/cuda/bin/" >> ~/.bashrc
-source ~/.bashrc
+echo "sudo nvidia-smi -pm 1" >> ~/.bashrc
+
+# reboot after driver installed if installed driver, else no need if just cuda toolkit added, then just logout and log back in or do: source ~/.bashrc
 
 # DOCKER
 sudo apt update
@@ -37,3 +43,5 @@ sudo systemctl restart docker
 
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+
+# no need to reboot
