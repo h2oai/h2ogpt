@@ -657,7 +657,7 @@ ASSISTANT:
         PreInstruct = """USER: """
         PreInput = None
         PreResponse = """ASSISTANT:"""
-        terminate_response = [PreResponse]
+        terminate_response = [PreResponse, eos]
         chat_sep = ' '
         chat_turn_sep = eos
         humanstr = PreInstruct
