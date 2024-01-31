@@ -176,7 +176,8 @@ prompt_type_to_model_name = {
     "orion": ['OrionStarAI/Orion-14B-Chat', 'OrionStarAI/Orion-14B-LongChat', 'OrionStarAI/Orion-14B-Chat-RAG'],
     "sciphi": ['SciPhi/SciPhi-Self-RAG-Mistral-7B-32k'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
-    "beacon": ['namespace-Pt/activation-beacon-llama2-7b-chat'],
+    "beacon": [],
+    "beacon2": ['namespace-Pt/activation-beacon-llama2-7b-chat'],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -1320,6 +1321,20 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreInstruct = "\nQuestion: "
         PreResponse = "\nAnswer:"
         terminate_response = ["Question:", "</s>", "Answer:"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = 'Question:'
+        botstr = 'Answer:'
+        if making_context:
+            PreResponse += " "
+    elif prompt_type in [PromptType.beacon2.value, str(PromptType.beacon2.value),
+                         PromptType.beacon2.name]:
+        can_handle_system_prompt = False
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = ""
+        PreResponse = ""
+        terminate_response = ["</s>"]
         chat_sep = '\n'
         chat_turn_sep = '\n\n'
         humanstr = 'Question:'

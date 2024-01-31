@@ -67,6 +67,7 @@ class PromptType(Enum):
     orion = 61
     sciphi = 62
     beacon = 63
+    beacon2 = 64
 
 
 class DocumentSubset(Enum):
