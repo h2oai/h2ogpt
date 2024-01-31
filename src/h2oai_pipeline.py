@@ -233,6 +233,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             rec[key] = outputs
             if self.debug:
                 print("prompt: %s\noutputs: %s\n\n" % (self.prompt_text, outputs), flush=True)
+        if hasattr(self.model, 'memory') and hasattr(self.model.memory, 'reset'):
+            self.model.memory.reset()
+
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
