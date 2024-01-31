@@ -90,7 +90,7 @@ python -m venv vllm_env --system-site-packages
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/megablocks-0.5.1-cp310-cp310-linux_x86_64.whl
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/triton-2.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 /h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/mosaicml_turbo-0.0.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/vllm-0.3.0-cp310-cp310-linux_x86_64.whl
+/h2ogpt_conda/vllm_env/bin/python -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/vllm-0.3.0-cp310-cp310-manylinux1_x86_64.whl
 mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
