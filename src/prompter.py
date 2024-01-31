@@ -136,6 +136,7 @@ prompt_type_to_model_name = {
         'TheBloke/Llama-2-13B-chat-AWQ',
         'Yukang/LongAlpaca-70B',  # or can be instruct
         'TheBloke/Llama-2-7B-Chat-GGUF',
+        'namespace-Pt/activation-beacon-llama2-7b-chat',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
                 'mistralai/Mistral-7B-Instruct-v0.2', 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
@@ -177,7 +178,7 @@ prompt_type_to_model_name = {
     "sciphi": ['SciPhi/SciPhi-Self-RAG-Mistral-7B-32k'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
     "beacon": [],
-    "beacon2": ['namespace-Pt/activation-beacon-llama2-7b-chat'],
+    "beacon2": [],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())

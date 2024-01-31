@@ -4511,6 +4511,7 @@ def evaluate(
                                   extra_dict=extra_dict))
             yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                        response_no_refs=response, sources_str='', prompt_raw=prompt)
+            torch.cuda.empty_cache()
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
