@@ -4513,6 +4513,8 @@ def evaluate(
                        response_no_refs=response, sources_str='', prompt_raw=prompt)
             if torch.cuda.is_available() and device not in ['cpu', 'mps']:
                 torch.cuda.empty_cache()
+            if hasattr(model, 'memory') and hasattr(model.memory, 'reset'):
+                model.memory.reset()
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
