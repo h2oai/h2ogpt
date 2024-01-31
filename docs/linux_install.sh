@@ -152,7 +152,8 @@ fi
 #* GPU Optional: Support amazon/MistralLite with flash attention 2
 if [[ -v CUDA_HOME ]];
 then
-    pip install flash-attn==2.3.4 --no-build-isolation
+    pip install --upgrade pip
+    pip install flash-attn==2.4.2 --no-build-isolation --no-cache-dir
 fi
 #* Control Core Count for chroma < 0.4 using chromamigdb package:
 #    * Duckdb used by Chroma < 0.4 uses DuckDB 0.8.1 that has no control over number of threads per database, `import duckdb` leads to all virtual cores as threads and each db consumes another number of threads equal to virtual cores.  To prevent this, one can rebuild duckdb using [this modification](https://github.com/h2oai/duckdb/commit/dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad) or one can try to use the prebuild wheel for x86_64 built on Ubuntu 20.
