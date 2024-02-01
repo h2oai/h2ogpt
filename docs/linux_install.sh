@@ -163,15 +163,11 @@ pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg
 pip install -r reqs_optional/requirements_optional_agents.txt
 #  For more info see [SERP Docs](README_SerpAPI.md).
 #* Deal with not-thread-safe things in LangChain:
-pwd0=`pwd`
 sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
-cd $sp
-sed -i  's/with HiddenPrints():/if True:/g' langchain/utilities/serpapi.py
+sed -i  's/with HiddenPrints():/if True:/g' $sp/langchain_community/utilities/serpapi.py
 #sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
 #sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
-cd $pwd0
 
-sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
 
 # fix pytube to avoid errors for restricted content
 sed -i "s/client='ANDROID_MUSIC'/client='ANDROID'/g" $sp/pytube/innertube.py
