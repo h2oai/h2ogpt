@@ -1,5 +1,5 @@
 # for generate (gradio server) and finetune
-datasets==2.13.0
+datasets==2.16.1
 sentencepiece==0.1.99
 gradio==3.50.2
 sse_starlette==1.8.2
