@@ -13,7 +13,11 @@ sudo apt install -y docker-ce
 sudo systemctl status docker
 ```
 
-Add your user as part of `docker` group, exit shell, login back in, and run:
+Add your user as part of `docker` group:
+```bash
+sudo usermod -aG docker $USER
+```
+exit shell, login back in, and run:
 ```bash
 newgrp docker
 ```

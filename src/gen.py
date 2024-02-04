@@ -22,6 +22,16 @@ from requests.exceptions import ReadTimeout as ReadTimeout2
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+try:
+    from importlib.metadata import distribution, PackageNotFoundError
+    assert distribution('hf_transfer') is not None
+    have_hf_transfer = True
+except (PackageNotFoundError, AssertionError):
+    have_hf_transfer = False
+
+if have_hf_transfer:
+    os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
+
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
@@ -4547,6 +4557,10 @@ def evaluate(
                                   extra_dict=extra_dict))
             yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                        response_no_refs=response, sources_str='', prompt_raw=prompt)
+            if torch.cuda.is_available() and device not in ['cpu', 'mps']:
+                torch.cuda.empty_cache()
+            if hasattr(model, 'memory') and hasattr(model.memory, 'reset'):
+                model.memory.reset()
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)

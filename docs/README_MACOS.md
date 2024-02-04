@@ -24,24 +24,24 @@ Supports CPU and MPS (Metal M1/M2).
     python -m pip install --upgrade setuptools
     
     # Install Torch:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
+    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu -c reqs_optional/reqs_constraints.txt
     ```
 * Install document question-answer dependencies:
     ```bash
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
     # Required for CPU: LLaMa/GPT4All:
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt
-    pip install librosa
-    pip install llama-cpp-python
+    pip install -r reqs_optional/requirements_optional_gpt4all.txt -c reqs_optional/reqs_constraints.txt
+    pip install librosa -c reqs_optional/reqs_constraints.txt
+    pip install llama-cpp-python -c reqs_optional/reqs_constraints.txt
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt -c reqs_optional/reqs_constraints.txt
     # Optional: DocTR OCR:
     conda install weasyprint pygobject -c conda-forge -y
-    pip install -r reqs_optional/requirements_optional_doctr.txt                     
+    pip install -r reqs_optional/requirements_optional_doctr.txt -c reqs_optional/reqs_constraints.txt
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
   ```
@@ -109,14 +109,14 @@ and run `sh run.sh` from the terminal placed in the parent folder of `run.sh`
     ```
     during pip install.  If so, set your archflags during pip install. E.g.
     ```bash
-    ARCHFLAGS="-arch x86_64" pip install -r requirements.txt
+    ARCHFLAGS="-arch x86_64" pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
     ```
 * Metal M1/M2 Only
   * By default requirements_optional_gpt4all.txt should install correct llama_cpp_python packages for GGUF.  See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases) for other releases if you encounter any issues.
   * If any issues, then compile:
       ```bash
       pip uninstall llama-cpp-python -y
-      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.26 --no-cache-dir
+      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.26 --no-cache-dir -c reqs_optional/reqs_constraints.txt
       ```
 
 * If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.

@@ -136,6 +136,7 @@ prompt_type_to_model_name = {
         'TheBloke/Llama-2-13B-chat-AWQ',
         'Yukang/LongAlpaca-70B',  # or can be instruct
         'TheBloke/Llama-2-7B-Chat-GGUF',
+        'namespace-Pt/activation-beacon-llama2-7b-chat',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
                 'mistralai/Mistral-7B-Instruct-v0.2', 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
@@ -170,10 +171,14 @@ prompt_type_to_model_name = {
                           ],  # can be any from open_chat list, by using this prompt
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     "open_chat_math": [],  # can be any from open_chat list, by using this prompt
-    "jais": ['core42/jais-30b-chat-v1'],
+    "jais": ['core42/jais-30b-chat-v1', 'core42/jais-13b-chat'],
     "yi": ['01-ai/Yi-34B-Chat', 'TheBloke/Yi-34B-Chat-AWQ'],
     "docsgpt": ['Arc53/docsgpt-7b-mistral'],
+    "orion": ['OrionStarAI/Orion-14B-Chat', 'OrionStarAI/Orion-14B-LongChat', 'OrionStarAI/Orion-14B-Chat-RAG'],
+    "sciphi": ['SciPhi/SciPhi-Self-RAG-Mistral-7B-32k'],
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
+    "beacon": [],
+    "beacon2": [],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -655,7 +660,7 @@ ASSISTANT:
         PreInstruct = """USER: """
         PreInput = None
         PreResponse = """ASSISTANT:"""
-        terminate_response = [PreResponse]
+        terminate_response = [PreResponse, eos]
         chat_sep = ' '
         chat_turn_sep = eos
         humanstr = PreInstruct
@@ -1221,8 +1226,8 @@ Remember to tailor the activities to the birthday child's interests and preferen
         can_handle_system_prompt = True
         # https://huggingface.co/core42/jais-30b-chat-v1
         if system_prompt in [None, 'None', 'auto']:
-            system_prompt = """Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between."""
-        promptA = promptB = "### Instruction: %s [|Human|] and [|AI|]:" % system_prompt if not reduced else "### Instruction: %s [|Human|] and [|AI|]:"
+            system_prompt = """Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between"""
+        promptA = promptB = "### Instruction: %s [|Human|] and [|AI|]:" % system_prompt if not reduced else ""
         PreInstruct = """\n### Input: [|Human|] """
 
         PreInput = None
@@ -1230,7 +1235,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         PreResponse = """\n### Response: [|AI|]"""
         if making_context:
             PreResponse += " "
-        terminate_response = [PreResponse]
+        terminate_response = [PreResponse, PreInstruct]
         chat_turn_sep = chat_sep = ''
         humanstr = PreInstruct
         botstr = PreResponse
@@ -1266,6 +1271,77 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = chat_sep = '\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.orion.value, str(PromptType.orion.value),
+                         PromptType.orion.name]:
+        can_handle_system_prompt = False
+        # OrionStarAI/Orion-14B-Chat-RAG
+        # https://huggingface.co/OrionStarAI/Orion-14B-Chat-RAG/blob/main/generation_utils.py#L6-L8
+        #     # chat format:
+        #     # single-turn: <s>Human: Hello!\n\nAssistant: </s>
+        #     # multi-turn:  <s>Human: Hello!\n\nAssistant: </s>Hi!</s>Human: How are you?\n\nAssistant: </s>I'm fine</s>
+        promptA = promptB = ''
+        PreInstruct = """<s>Human: """ if not reduced or histi == 0 else """</s>Human: """
+        PreInput = None
+        eos = "</s>"
+        PreResponse = """\n\nAssistant: %s""" % eos
+        terminate_response = ['Human:', eos, "[UNK]", "Assistant:"]
+        chat_turn_sep = ''
+        chat_sep = ''
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ''
+    elif prompt_type in [PromptType.sciphi.value, str(PromptType.sciphi.value),
+                         PromptType.sciphi.name]:
+        can_handle_system_prompt = True
+        if system_prompt in [None, 'None', 'auto']:
+            # automatic
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        if system_prompt:
+            sys_msg = """### System:\n%s\n\n""" % system_prompt
+        else:
+            sys_msg = ''
+        if sys_msg and not reduced:
+            # too much safety, hurts accuracy
+            promptA = promptB = sys_msg
+        else:
+            promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### Instruction:\n"
+        PreResponse = "\n### Response:\n"
+        terminate_response = ['### Response:', "</s>", "### Instruction:"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### Instruction:'
+        botstr = '### Response:'
+    elif prompt_type in [PromptType.beacon.value, str(PromptType.beacon.value),
+                         PromptType.beacon.name]:
+        can_handle_system_prompt = False
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "\nQuestion: "
+        PreResponse = "\nAnswer:"
+        terminate_response = ["Question:", "</s>", "Answer:"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = 'Question:'
+        botstr = 'Answer:'
+        if making_context:
+            PreResponse += " "
+    elif prompt_type in [PromptType.beacon2.value, str(PromptType.beacon2.value),
+                         PromptType.beacon2.name]:
+        can_handle_system_prompt = False
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = ""
+        PreResponse = ""
+        terminate_response = ["</s>"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = 'Question:'
+        botstr = 'Answer:'
+        if making_context:
+            PreResponse += " "
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

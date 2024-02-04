@@ -269,10 +269,10 @@ pip install autoawq==0.1.8
 # CHOOSE VLLM:
 # for latest vllm:
 # pip install git+https://github.com/vllm-project/vllm.git
-# for h2oai vllm with reversion of memory changes on 0.2.7:
-pip install git+https://github.com/h2oai/vllm.git@v0.2.7h2oai  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
-# standard 0.2.7:
-# pip install vllm==0.2.7
+# for h2oai vllm with reversion of memory changes on 0.3.0:
+pip install git+https://github.com/h2oai/vllm.git@v0.3.0h2oai  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
+# standard 0.3.0:
+# pip install vllm==0.3.0
 ```
 Then can start in OpenAI compliant mode, e.g. for LLaMa 65B on 2*A100 GPUs:
 ```

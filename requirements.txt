@@ -1,5 +1,5 @@
 # for generate (gradio server) and finetune
-datasets==2.13.0
+datasets==2.16.1
 sentencepiece==0.1.99
 gradio==3.50.2
 sse_starlette==1.8.2
@@ -20,12 +20,13 @@ numpy==1.24.3
 pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
-bitsandbytes==0.41.3
-accelerate==0.25.0
-peft==0.7.1
-transformers==4.36.2
-tokenizers==0.15.0
+bitsandbytes==0.42.0
+accelerate==0.26.1
+peft==0.8.1
+transformers==4.37.2
+tokenizers==0.15.1
 APScheduler==3.10.1
+hf_transfer==0.1.5
 
 # optional for generate
 pynvml==11.5.0

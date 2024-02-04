@@ -316,6 +316,14 @@ One can also run such models in vLLM and have h2oGPT use `--inference_server` to
 In some cases LLaMa-2 or other chat models do ok on some languages, but others have been fine-tuned that are probably better:
 * Mistral-based [German](https://huggingface.co/LeoLM/leo-mistral-hessianai-7b-chat) or bilingual LLaMa-2 based [German](https://huggingface.co/LeoLM/leo-hessianai-13b-chat-bilingual)
 * LLaMa-2-7B-based [Spanish](https://huggingface.co/clibrain/Llama-2-7b-ft-instruct-es) or 13B-based [Spanish](https://huggingface.co/marianbasti/Llama-2-13b-fp16-alpaca-spanish)
+* JAIS-based Arabic-English [13B](https://huggingface.co/core42/jais-30b-v1) or [30B](https://huggingface.co/core42/jais-30b-chat-v1)
+
+For these various languages, if a specific embedding is not available, one can use multilingual models with [Mini-all](https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2) with `--hf_embedding_model=sentence-transformers/all-MiniLM-L12-v2`.
+
+E.g. for Arabic:
+```bash
+python generate.py --cut_distance=10000 --hf_embedding_model=sentence-transformers/all-MiniLM-L12-v2 --save_dir=save_jais --base_model=core42/jais-13b-chat --model_lock_columns=3 --gradio_size=small --height=400 --score_model=None --pre_prompt_query="انتبه وتذكر المعلومات الواردة أدناه، والتي ستساعد في الإجابة على السؤال أو الأمر الضروري بعد انتهاء السياق." --prompt_query="وفقًا للمعلومات الواردة في مصادر المستندات المقدمة في السياق أعلاه فقط، اكتب ردًا ثاقبًا ومنظمة جيدًا على:" --pre_prompt_summary="من أجل كتابة ملخص موجز من فقرة واحدة أو قائمة ذات تعداد نقطي، انتبه إلى النص التالي." --prompt_summary="باستخدام المعلومات الموجودة في مصادر المستندات أعلاه فقط، اكتب ملخصًا مكثفًا وموجزًا ​​للنتائج الرئيسية (يفضل أن يكون على شكل نقاط)." --system_prompt="أنت مساعد لغة عربية خالص مفيد يعمل حصريًا باللغة العربية."
+```
 
 In some cases more language boosting can be done by adding not just a system prompt but also a `--chat_conversation` that is a list of tuples of strings like `--chat_conversation=[(human, bot),(human, bot)]` (can also be passed to UI in expert panel for exploration of what works best).  Adding some reasonable but generic native language pre convsersation gets the model more into the mood of maintaining that language if it is a multilingual model or one that was heavily English based like LLaMa-2.
 
