@@ -88,6 +88,7 @@ Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, St
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe -m pip install https://h2o-release.s3.amazonaws.com/h2ogpt/torch-2.1.2%2Bcu118-cp310-cp310-win_amd64.whl
       ```
       Now click the h2oGPT icon in the Start menu.  Give it about 20 seconds to open in a browser if many optional packages are included.  By default, the browser will launch with the actual local IP address, not localhost.
+      * Some other users may have python located here: `C:\Program Files (x86)\h2oGPT\Python\python.exe`.
     * To debug any issues, run the following (replace `pseud` with your user):
       ```
       C:\Users\pseud\AppData\Local\Programs\h2oGPT\Python\python.exe "C:\Users\pseud\AppData\Local\Programs\h2oGPT\h2oGPT.launch.pyw"
