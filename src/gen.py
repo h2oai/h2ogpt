@@ -22,7 +22,16 @@ from requests.exceptions import ReadTimeout as ReadTimeout2
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
+try:
+    from importlib.metadata import distribution, PackageNotFoundError
+    assert distribution('hf_transfer') is not None
+    have_hf_transfer = True
+except (PackageNotFoundError, AssertionError):
+    have_hf_transfer = False
+
+if have_hf_transfer:
+    os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
+
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
