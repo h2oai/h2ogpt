@@ -640,8 +640,20 @@ def download_simple(url, dest=None, overwrite=False, verbose=False):
 
     uuid_tmp = str(uuid.uuid4())[:6]
     dest_tmp = dest + "_dl_" + uuid_tmp + ".tmp"
-    with open(dest_tmp, "wb") as f:
-        shutil.copyfileobj(url_data.raw, f)
+
+    # Sizes in bytes.
+    total_size = int(url_data.headers.get("content-length", 0))
+    block_size = 1024
+
+    with tqdm(total=total_size, unit="B", unit_scale=True) as progress_bar:
+        with open(dest_tmp, "wb") as file:
+            for data in url_data.iter_content(block_size):
+                progress_bar.update(len(data))
+                file.write(data)
+
+    if total_size != 0 and progress_bar.n != total_size:
+        raise RuntimeError("Could not download file")
+
     atomic_move_simple(dest_tmp, dest)
     if verbose:
         print("DONE url %s" % str(url), flush=True)
