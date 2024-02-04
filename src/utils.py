@@ -1379,6 +1379,17 @@ except (PackageNotFoundError, AssertionError):
     have_diffusers = False
 
 
+try:
+    assert distribution('opencv-python-headless') is not None
+    have_cv2 = True
+except (PackageNotFoundError, AssertionError):
+    try:
+        assert distribution('opencv-python') is not None
+        have_cv2 = True
+    except (PackageNotFoundError, AssertionError):
+        have_cv2 = False
+
+
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
 only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"

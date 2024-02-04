@@ -1,12 +1,10 @@
-import os
 import numpy as np
 from scipy.stats import mode
-import cv2
-from imutils.perspective import four_point_transform
 
 
 def largest_contour(contours):
     """ Find the largest contour in the list. """
+    import cv2
     largest_area = 0
     largest_contour = None
     for contour in contours:
@@ -18,6 +16,7 @@ def largest_contour(contours):
 
 
 def is_contour_acceptable(contour, image, size_threshold=0.1, aspect_ratio_range=(0.5, 2), rotation_threshold=30):
+    import cv2
     """ Check if the contour is acceptable based on size, aspect ratio, and rotation. """
     # Size check
     image_area = image.shape[0] * image.shape[1]
@@ -40,6 +39,8 @@ def is_contour_acceptable(contour, image, size_threshold=0.1, aspect_ratio_range
 
 
 def align_image(img_file):
+    import cv2
+    from imutils.perspective import four_point_transform
     # Load the image
     # img_file = '/home/jon/Downloads/fastfood.jpg'
     # img_file = "/home/jon/Documents/reciept.jpg"
@@ -74,6 +75,7 @@ def align_image(img_file):
 
 
 def correct_rotation(img_file, border_size=50):
+    import cv2
     # Function to rotate the image to the correct orientation
     # Load the image
     image = cv2.imread(img_file)
@@ -130,12 +132,74 @@ def correct_rotation(img_file, border_size=50):
     return out_file
 
 
-def test_fastfood():
-    assert os.path.isfile(align_image("tests/fastfood.jpg"))
-    # can't find box for receipt
-    assert align_image("tests/receipt.jpg") is None
-    assert os.path.isfile(align_image("tests/rotate-ex2.png"))
+def pad_resize_image_file(img_file):
+    import cv2
 
-    assert os.path.isfile(correct_rotation("tests/fastfood.jpg"))
-    assert os.path.isfile(correct_rotation("tests/receipt.jpg"))
-    assert os.path.isfile(correct_rotation("tests/rotate-ex2.png"))
+    image = cv2.imread(img_file)
+    image = pad_resize_image(image, return_none_if_no_change=True)
+    if image is None:
+        new_file = img_file
+    else:
+        new_file = img_file + "_pad_resized.png"
+        cv2.imwrite(new_file, image)
+
+    return new_file
+
+
+def pad_resize_image(image, return_none_if_no_change=False):
+    import cv2
+
+    L = 1024
+    H = 1024
+
+    # Load the image
+    Li, Hi = image.shape[1], image.shape[0]
+
+    if Li == L and Hi == H:
+        if return_none_if_no_change:
+            return None
+        else:
+            return image
+
+    # Calculate the aspect ratio
+    aspect_ratio_original = Li / Hi
+    aspect_ratio_final = L / H
+
+    # Check the original size and determine the processing needed
+    if Li < L and Hi < H:
+        # Padding
+        padding_x = (L - Li) // 2
+        padding_y = (H - Hi) // 2
+        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    elif Li > L and Hi > H:
+        # Resizing
+        if aspect_ratio_original < aspect_ratio_final:
+            # The image is taller than the target aspect ratio
+            new_height = H
+            new_width = int(H * aspect_ratio_original)
+        else:
+            # The image is wider than the target aspect ratio
+            new_width = L
+            new_height = int(L / aspect_ratio_original)
+        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    else:
+        # Intermediate case, resize without cropping
+        if aspect_ratio_original < aspect_ratio_final:
+            # The image is taller than the target aspect ratio
+            new_height = H
+            new_width = int(H * aspect_ratio_original)
+        else:
+            # The image is wider than the target aspect ratio
+            new_width = L
+            new_height = int(L / aspect_ratio_original)
+        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        padding_x = (L - new_width) // 2
+        padding_y = (H - new_height) // 2
+        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
+    # debug, to see effect of pad-resize
+    # import cv2
+    # cv2.imwrite('new1.png', image)
+
+    return image
+

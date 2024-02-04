@@ -56,7 +56,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles
+    get_accordion_named, hyde_titles, have_cv2
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -2928,6 +2928,17 @@ def file_to_doc(file,
             else:
                 raise ValueError("%s had no valid text and no meta data was parsed: %s" % (file, str(e)))
     elif any(file.lower().endswith(x) for x in set_image_audio_types1):
+        # always try to fix rotation/alignment since OCR better etc. in that case
+        if have_cv2:
+            from image_utils import align_image, correct_rotation, pad_resize_image_file
+            aligned_image = align_image(file)
+            if aligned_image is not None and os.path.isfile(aligned_image):
+                file = aligned_image
+            derotated_image = correct_rotation(file)
+            if derotated_image is not None and os.path.isfile(derotated_image):
+                file = derotated_image
+            file = pad_resize_image_file(file)
+
         handled = False
         e = None
         docs1 = []

@@ -124,3 +124,26 @@ def test_make_image_playv2():
     from src.vision.playv2 import make_image
     prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
     make_image(prompt, filename="output_p2i_v2.png")
+
+
+@wrap_test_forked
+def test_fastfood():
+    from src.image_utils import align_image
+    assert os.path.isfile(align_image("tests/fastfood.jpg"))
+    # can't find box for receipt
+    assert align_image("tests/receipt.jpg") is None
+    assert os.path.isfile(align_image("tests/rotate-ex2.png"))
+
+    from src.image_utils import correct_rotation
+    assert os.path.isfile(correct_rotation("tests/fastfood.jpg"))
+    assert os.path.isfile(correct_rotation("tests/receipt.jpg"))
+    assert os.path.isfile(correct_rotation("tests/rotate-ex2.png"))
+
+    # new
+    assert align_image("tests/revenue.png") is None
+    assert align_image("tests/dental.png") is None
+    assert align_image("tests/jon.png") is None
+
+    assert os.path.isfile(correct_rotation("tests/revenue.png"))
+    assert os.path.isfile(correct_rotation("tests/dental.png"))
+    assert os.path.isfile(correct_rotation("tests/jon.png"))
