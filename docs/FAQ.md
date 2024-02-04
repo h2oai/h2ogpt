@@ -944,41 +944,54 @@ Related to transformers.  There are two independent ways to do this (choose one)
 
 ### Low-memory mode
 
-For GPU case, a reasonable model for low memory is to run:
+* Use quantized models like GGUF, AWQ, GPTQ, or bitsandbytes 4-bit
+* Use CPU for embedding model
+* Use smaller embedding model
+* Disable score model (`--score_model=None`)
+* Disable TTS and STT and ASR (`--enable_tts=False --enable_stt=False --enable_transcriptions=False`)
+* Ensure only using main GPU with most memory if have mixed GPUs (`CUDA_VISIBLE_DEVICES=0` or `--use_gpu_id=0`)
+* Ensure use all GPUs if have multiple GPUs (`--use_gpu_id=False`)
+* Limit the sequence length (`--max_seq_len=4096`)
+
+If you can do 4-bit, then do:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_8bit=True --langchain_mode='UserData'
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_4bit=True --langchain_mode='UserData' --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=2048
 ```
-which uses good but smaller base model, embedding model, and no response score model to save GPU memory.  If you can do 4-bit, then do:
-```bash
-python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_4bit=True --langchain_mode='UserData'
-```
-This uses 5800MB to startup, then soon drops to 5075MB after torch cache is cleared. Asking a simple question uses up to 6050MB. Adding a document uses no more new GPU memory.  Asking a question uses up to 6312MB for a few chunks (default), then drops back down to 5600MB.
+which uses about 9GB.  But still uses embedding model on GPU.
 
 For some models, you can restrict the use of context to use less memory.  This does not work for long context models trained with static/linear RoPE scaling, for which the full static scaling should be used.  Otherwise, e.g. for LLaMa-2 you can use
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048 --enable_tts=False --enable_stt=False --enable_transcriptions=False
 ```
 even though normal value is `--max_seq_len=4096` if the option is not passed as inferred from the model `config.json`.
 
 Also try smaller GGUF models for GPU, e.g.:
 ```bash
-python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False
+python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False
 ```
 This only uses 2GB of GPU even during usage.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
 
 On CPU case, a good model that's still low memory is to run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path --enable_tts=False --enable_stt=False --enable_transcriptions=False
 ```
-
 Ensure to vary `n_gpu_layers` at CLI or in UI to smaller values to reduce offloading for smaller GPU memory boards.
 
 To run the embedding model on the CPU, use options like:
 ```bash
-python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False
 ```
 The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
 
+All together, one might do for a good 7B model using AWQ (4-bit) quantization with embedding model on CPU:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/openchat-3.5-1210-AWQ --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=4096
+```
+This uses about 7.2GB memory during usage of short questions.  Or use GGUF to control GPU offloading for more minimal GPU usage:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr  --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False
+```
+This uses about 2.3GB of GPU memory during usage of short questions.
 
 ### ValueError: ...offload....
 

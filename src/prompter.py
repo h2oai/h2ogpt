@@ -168,6 +168,7 @@ prompt_type_to_model_name = {
                   'openchat_3.5.Q5_K_M.gguf', 'NurtureAI/openchat_3.5-16k'],
     "open_chat_correct": ['berkeley-nest/Starling-LM-7B-alpha', 'openchat/openchat-3.5-1210',
                           'openchat/openchat_3.5', 'openchat/openchat_v3.2_super',
+                          'TheBloke/openchat-3.5-1210-AWQ',
                           ],  # can be any from open_chat list, by using this prompt
     "open_chat_code": [],  # can be any from open_chat list, by using this prompt
     "open_chat_math": [],  # can be any from open_chat list, by using this prompt
