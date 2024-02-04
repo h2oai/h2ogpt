@@ -1006,11 +1006,18 @@ def go_gradio(**kwargs):
                         flag_btn_nochat = gr.Button("Flag", size='sm', visible=not kwargs['chat'])
                         score_text_nochat = gr.Textbox("Response Score: NA", show_label=False,
                                                        visible=not kwargs['chat'])
+
                         submit_nochat_api = gr.Button("Submit nochat API", visible=False)
+
                         submit_nochat_api_plain = gr.Button("Submit nochat API Plain", visible=False)
                         inputs_dict_str = gr.Textbox(label='API input for nochat', show_label=False, visible=False)
                         text_output_nochat_api = gr.Textbox(lines=5, label='API nochat output', visible=False,
                                                             show_copy_button=True)
+
+                        submit_verifier = gr.Button("Submit verifier", visible=False)
+                        verifier_inputs_dict_str = gr.Textbox(label='Verifier input', show_label=False, visible=False)
+                        text_output_verifier = gr.Textbox(lines=5, label='Verifier output', visible=False,
+                                                          show_copy_button=True)
 
                         visible_upload = (allow_upload_to_user_data or
                                           allow_upload_to_my_data) and \
@@ -3534,12 +3541,15 @@ def go_gradio(**kwargs):
         for k in inputs_kwargs_list:
             assert k in kwargs_evaluate, "Missing %s" % k
 
-        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, **kwargs1):
+        def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, **kwargs1):
             args_list = list(args1)
             if str_api:
                 if plain_api:
-                    # i.e. not fresh model, tells evaluate to use model_state0
-                    args_list.insert(0, kwargs['model_state_none'].copy())
+                    if not verifier:
+                        # i.e. not fresh model, tells evaluate to use model_state0
+                        args_list.insert(0, kwargs['model_state_none'].copy())
+                    else:
+                        args_list.insert(0, kwargs['verifier_model_state0'].copy())
                     args_list.insert(1, my_db_state0.copy())
                     args_list.insert(2, selection_docs_state0.copy())
                     args_list.insert(3, requests_state0.copy())
@@ -3829,6 +3839,10 @@ def go_gradio(**kwargs):
                                           **kwargs_evaluate_nochat
                                           )
 
+        fun_with_dict_verifier = partial(fun_with_dict_str_plain,
+                                         verifier=True,
+                                         )
+
         dark_mode_btn.click(
             None,
             None,
@@ -3912,15 +3926,7 @@ def go_gradio(**kwargs):
             smodel = score_model_state0['model']
             stokenizer = score_model_state0['tokenizer']
             sdevice = score_model_state0['device']
-
-            if memory_restriction_level > 0:
-                max_length_tokenize = 768 - 256 if memory_restriction_level <= 2 else 512 - 256
-            elif hasattr(stokenizer, 'model_max_length'):
-                max_length_tokenize = stokenizer.model_max_length
-            else:
-                # limit to 1024, not worth OOMing on reward score
-                max_length_tokenize = 2048 - 1024
-            cutoff_len = max_length_tokenize * 4  # restrict deberta related to max for LLM
+            reward_model = score_model_state0['reward_model']
 
             if not nochat:
                 history = args_list[-1]
@@ -3934,7 +3940,6 @@ def go_gradio(**kwargs):
                     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
                     question = history[-1][0]
-
                     answer = history[-1][1]
                 else:
                     return '%sNA' % prefix
@@ -3947,13 +3952,14 @@ def go_gradio(**kwargs):
                 return '%sBad Question' % prefix
             if answer is None:
                 return '%sBad Answer' % prefix
-            try:
-                score = score_qa(smodel, stokenizer, max_length_tokenize, question, answer, cutoff_len)
-            finally:
-                clear_torch_cache(allow_skip=True)
-            if isinstance(score, str):
-                return '%sNA' % prefix
-            return '{}{:.1%}'.format(prefix, score)
+            score = score_qa(smodel, stokenizer, question, answer, memory_restriction_level=memory_restriction_level)
+            if reward_model:
+                if isinstance(score, str):
+                    return '%sNA' % prefix
+                return '{}{:.1%}'.format(prefix, score)
+            else:
+                # any text
+                return score
 
         def noop_score_last_response(*args, **kwargs):
             return "Response Score: Disabled"
@@ -5230,6 +5236,12 @@ def go_gradio(**kwargs):
                                                                       outputs=text_output_nochat_api,
                                                                       **noqueue_kwargs,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
+
+        submit_event_verifier = submit_verifier.click(fun_with_dict_verifier,
+                                                      inputs=verifier_inputs_dict_str,
+                                                      outputs=text_output_verifier,
+                                                      **noqueue_kwargs,
+                                                      api_name='submit_verifier' if allow_api else None)
 
         def load_model(model_name, lora_weights, server_name,
                        model_state_old,

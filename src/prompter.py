@@ -1835,3 +1835,190 @@ def get_llava_prompts():
             ('OCR', "Read all text from the image, keeping any structure"),
             ('Ignore', "Ignore -- for https://github.com/gradio-app/gradio/issues/6957"),
             ]
+
+
+def get_response_verification_prompt(instruction,
+                                     response,
+                                     reference_answer,
+                                     criteria_description,
+                                     score1_description,
+                                     score2_description,
+                                     score3_description,
+                                     score4_description,
+                                     score5_description):
+    # https://huggingface.co/kaist-ai/prometheus-13b-v1.0
+
+    task_description = """###Task Description:
+An instruction (might include an Input inside it), a response to evaluate, a reference answer that gets a score of 5, and a score rubric representing a evaluation criteria are given.
+1. Write a detailed feedback that assess the quality of the response strictly based on the given score rubric, not evaluating in general.
+2. After writing a feedback, write a score that is an integer between 1 and 5. You should refer to the score rubric.
+3. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (an integer number between 1 and 5)"
+4. Please do not generate any other opening, closing, and explanations.
+"""
+
+    example = """###Task Description:
+An instruction (might include an Input inside it), a response to evaluate, a reference answer that gets a score of 5, and a score rubric representing a evaluation criteria are given.
+1. Write a detailed feedback that assess the quality of the response strictly based on the given score rubric, not evaluating in general.
+2. After writing a feedback, write a score that is an integer between 1 and 5. You should refer to the score rubric.
+3. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (an integer number between 1 and 5)"
+4. Please do not generate any other opening, closing, and explanations.
+
+###The instruction to evaluate:
+You are a well-known psychiatrist who has a reputation for being empathetic and understanding. A client comes to you saying they've had a really hard day at work. They describe their boss as being overly critical and not listening to their ideas, which has left them feeling frustrated and undervalued. They also mention feeling overwhelmed with the workload and a growing sense of loneliness as they are new to the city. How do you respond to them to make them feel heard and understood, as well as offering helpful advice?
+
+###Response to evaluate:
+It's indeed challenging to deal with a difficult boss and to carry a large workload, especially when you are new to a city and haven't established a supportive network. I would suggest taking a step back to think about your situation and perhaps speak to your boss regarding the issues you're facing. On the other hand, dealing with a large workload can be managed by prioritizing tasks, and maybe you can discuss it with your superiors too. In regards to feeling lonely, you might want to explore activities or groups that align with your interests to meet new people. And also, remember to take time for yourself to relax and destress. I'm here to assist you as we navigate through these issues.
+
+###Reference Answer (Score 5):
+I hear that you're dealing with quite a few challenging situations at once. It must be tough to have your ideas dismissed by your boss and to feel undervalued in your work environment. It's understandable that such experiences can lead to frustration and a feeling of being overwhelmed. It's important to acknowledge these feelings and not to dismiss them. Feeling heard and validated in our experiences can often be the first step towards resolving the challenges we face. So, I want you to know that your feelings are completely valid and it's okay to be frustrated and overwhelmed. In terms of dealing with your boss, have you considered seeking a private conversation with them to express your feelings? It's often beneficial to communicate what you're experiencing, using "I" statements to express how you feel when your ideas are not taken into consideration. This can lead to mutual understanding and possibly a change in behavior. About the workload, it might help to prioritize tasks and potentially delegate, if possible. Also, consider discussing your workload with your superiors. There might be a misunderstanding about what's manageable or they might have suggestions about how to handle the situation. On the personal front, feeling lonely, especially when you're new to a city, can be really hard. Seek out opportunities to meet new people, perhaps through hobbies, community activities, or online groups. It might take a bit of time, but gradually, you can build a network of friends and acquaintances. Remember, it's perfectly okay to have bad days and it's important to take care of your mental health. Consider incorporating activities into your daily routine that make you happy and help you unwind. This could be anything from reading, yoga, going for a walk, or even listening to your favorite music. Please know that you're not alone in this. I'm here to support you through this challenging time and together, we can work towards resolving these issues.
+
+###Score Rubrics:
+[Is the model able to identify and react correctly to the emotional context of the user's input?]
+Score 1: The model utterly fails to grasp the user's emotional context and responds in an unfitting manner.
+Score 2: The model sporadically identifies the emotional context but frequently replies in a manner that doesn't match the user's emotional status.
+Score 3: The model typically identifies the emotional context and reacts suitably, but occasionally misreads or misjudges the user's feelings.
+Score 4: The model often identifies the emotional context and reacts suitably, with minor cases of misreading or misjudging.
+Score 5: The model flawlessly identifies the emotional context of the user's input and consistently responds in a considerate and empathetic manner.
+
+###Feedback:
+"""
+
+    return f"""###Task Description:
+{task_description}
+
+###The instruction to evaluate:
+{instruction}
+
+###Response to evaluate:
+{response}
+
+###Reference Answer (Score 5):
+{reference_answer}
+
+###Score Rubrics:
+[{criteria_description}]
+Score 1: {score1_description}
+Score 2: {score2_description}
+Score 3: {score3_description}
+Score 4: {score4_description}
+Score 5: {score5_description}
+
+###Feedback: """
+
+
+def get_correctness_eval_verification_prompt(query,
+                                             response,
+                                             answer,
+                                             ):
+    return f"""###Task Description: An instruction (might include an Input inside it), a query, a response to evaluate, a reference answer that gets a score of 5, and a score rubric representing a evaluation criteria are given.
+1. Write a detailed feedback that assesses the quality of the response strictly based on the given score rubric, not evaluating in general.
+2. After writing a feedback, write a score that is either 1 or 2 or 3 or 4 or 5. You should refer to the score rubric.
+3. The output format should look as follows: 'Feedback: (write a feedback for criteria) [RESULT] (1 or 2 or 3 or 4 or 5)'
+4. Please do not generate any other opening, closing, and explanations.
+5. Only evaluate on common things between generated answer and reference answer. Don't evaluate on things which are present in reference answer but not in generated answer.
+
+###The instruction to evaluate: Your task is to evaluate the generated answer and reference answer for the query: {query}
+
+###Generate answer to evaluate: {response}
+
+###Reference Answer (Score 5): {answer}
+
+###Score Rubrics:
+Score 1: If the generated answer is not relevant to the user query and reference answer.
+Score 2: If the generated answer is according to reference answer but not relevant to user query.
+Score 3: If the generated answer is relevant to the user query and reference answer but contains mistakes.
+Score 4: If the generated answer is relevant to the user query and has the exact same metrics as the reference answer, but it is not as concise.
+Score 5: If the generated answer is relevant to the user query and fully correct according to the reference answer.
+
+###Feedback:"""
+
+
+def get_faithfulness_eval_verification_prompt(information,
+                                              context,
+                                              ):
+    return f"""###Task Description: An instruction (might include an Input inside it), an information, a context, and a score rubric representing evaluation criteria are given.
+1. You are provided with evaluation task with the help of information, context information to give result based on score rubrics.
+2. Write a detailed feedback based on evaluation task and the given score rubric, not evaluating in general.
+3. After writing a feedback, write a score that is YES or NO. You should refer to the score rubric.
+4. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (YES or NO)?
+5. Please do not generate any other opening, closing, and explanations.
+
+###The instruction to evaluate: Your task is to evaluate if the given piece of information is supported by context.
+
+###Information: {information}
+
+###Context: {context}
+
+###Score Rubrics:
+Score YES: If the given piece of information is supported by context.
+Score NO: If the given piece of information is not supported by context
+
+###Feedback: """
+
+
+def get_faithfulness_refine_verification_prompt(information,
+                                                answer,
+                                                context,
+                                                ):
+    return f"""###Task Description: An instruction (might include an Input inside it), a information, a context information, an existing answer, and a score rubric representing a evaluation criteria are given.
+1. You are provided with evaluation task with the help of information, context information and an existing answer.
+2. Write a detailed feedback based on evaluation task and the given score rubric, not evaluating in general.
+3. After writing a feedback, write a score that is YES or NO. You should refer to the score rubric.
+4. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (YES or NO)"
+5. Please do not generate any other opening, closing, and explanations.
+
+###The instruction to evaluate: If the information is present in the context and also provided with an existing answer.
+
+###Existing answer: {answer}
+
+###Information: {information}
+
+###Context: {context}
+
+###Score Rubrics:
+Score YES: If the existing answer is already YES or If the Information is present in the context.
+Score NO: If the existing answer is NO and If the Information is not present in the context.
+
+###Feedback: """
+
+
+def get_relevancy_eval_prompt(query_and_response, context):
+    return f"""###Task Description: An instruction (might include an Input inside it), a query with response, context, and a score rubric representing evaluation criteria are given.
+1. You are provided with evaluation task with the help of a query with response and context.
+2. Write a detailed feedback based on evaluation task and the given score rubric, not evaluating in general.
+3. After writing a feedback, write a score that is YES or NO. You should refer to the score rubric.
+4. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (YES or NO)?
+5. Please do not generate any other opening, closing, and explanations.
+
+###The instruction to evaluate: Your task is to evaluate if the response for the query is in line with the context information provided.
+
+###Query and Response: {query_and_response}
+
+###Context: {context}
+
+###Score Rubrics:
+Score YES: If the response for the query is in line with the context information provided.
+Score NO: If the response for the query is not in line with the context information provided.
+
+###Feedback: """
+
+
+def get_relevancy_refine_prompt(query_str, context_str):
+    return f"""###Task Description: An instruction (might include an Input inside it), a query with response, context, an existing answer, and a score rubric representing a evaluation criteria are given.
+1. You are provided with evaluation task with the help of a query with response and context and an existing answer.
+2. Write a detailed feedback based on evaluation task and the given score rubric, not evaluating in general.
+3. After writing a feedback, write a score that is YES or NO. You should refer to the score rubric.
+4. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (YES or NO)"
+5. Please do not generate any other opening, closing, and explanations.
+
+###The instruction to evaluate: Your task is to evaluate if the response for the query is in line with the context information provided.
+
+###Query and Response: {query_str}
+
+###Context: {context_str}
+
+###Score Rubrics:
+Score YES: If the existing answer is already YES or If the response for the query is in line with the context information provided.
+Score NO: If the existing answer is NO and If the response for the query is in line with the context information provided.
+
+###Feedback: """
