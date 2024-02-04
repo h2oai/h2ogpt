@@ -26,6 +26,7 @@ peft==0.8.1
 transformers==4.37.2
 tokenizers==0.15.1
 APScheduler==3.10.1
+hf_transfer==0.1.5
 
 # optional for generate
 pynvml==11.5.0
