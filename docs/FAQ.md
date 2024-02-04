@@ -952,6 +952,7 @@ Related to transformers.  There are two independent ways to do this (choose one)
 * Ensure only using main GPU with most memory if have mixed GPUs (`CUDA_VISIBLE_DEVICES=0` or `--use_gpu_id=0`)
 * Ensure use all GPUs if have multiple GPUs (`--use_gpu_id=False`)
 * Limit the sequence length (`--max_seq_len=4096`)
+* For GGUF models limit number of model layers put onto GPU (`--n_gpu_layers=10`)
 
 If you can do 4-bit, then do:
 ```bash
