@@ -584,9 +584,8 @@ spec:
             - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
               mountPath: /workspace/.cache
               subPath: cache
-            - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
+            - name: shm
               mountPath: /dev/shm
-              subPath: shm
       volumes:
         - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
           {{- if not .Values.vllm.storage.useEphemeral }}
@@ -603,6 +602,10 @@ spec:
                     storage: {{ .Values.vllm.storage.size | quote }}
                 storageClassName: {{ .Values.vllm.storage.class }}
           {{- end }}
+        - emptyDir: 
+            medium: Memory
+            sizeLimit: 10.24Gi
+          name: shm          
 {{- end }}
 ---
 {{- if and (.Values.vllm.enabled) (not .Values.vllm.storage.useEphemeral) }}
