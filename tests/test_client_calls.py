@@ -2173,7 +2173,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
 
-    url = 'https://www.africau.edu/images/default/sample.pdf'
+    url = 'https://h2o-release.s3.amazonaws.com/h2ogpt/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
     res = client.predict(test_file1,
@@ -2390,7 +2390,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert res[3] == ''
 
     langchain_mode_my = LangChainMode.MY_DATA.value
-    url = 'https://www.africau.edu/images/default/sample.pdf'
+    url = 'https://h2o-release.s3.amazonaws.com/h2ogpt/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
     res = client.predict(test_file1, langchain_mode_my, True, 512, True,
@@ -2746,7 +2746,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
     # serialize=False would lead to returning dict for some objects or files for get_sources
     client = get_client(serialize=False)
 
-    url = 'https://www.africau.edu/images/default/sample.pdf'
+    url = 'https://h2o-release.s3.amazonaws.com/h2ogpt/sample.pdf'
     test_file1 = os.path.join('/tmp/', 'sample1.pdf')
     download_simple(url, dest=test_file1)
     loaders = tuple([None, None, None, None, None, None])
