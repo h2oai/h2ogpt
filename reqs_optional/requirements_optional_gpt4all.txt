@@ -1,10 +1,15 @@
+# WE START FROM FILE with CUDA12.1 uncommented, then make CUDA11.8, ROC, no AVX
+
 gpt4all==1.0.5
 
 # default if no matches
 llama-cpp-python==0.2.26; platform_system != "Linux" and platform_machine != "x86_64" and platform_system != "Windows" and platform_system != "Darwin"
 
-# Linux CUDA:
-https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+# LINUX
+# Linux CUDA 11.8:
+# https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+# Linux CUDA 12.1:
+https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CPU avx2 or AMD:
 https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CPU avx
@@ -13,10 +18,15 @@ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/
 # https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/rocm/llama_cpp_python_cuda-0.2.26+rocm5.5-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
 # https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/rocm/llama_cpp_python_cuda-0.2.26+rocm5.6.1-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
 
-# Windows CUDA:
-https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118avx-cp310-cp310-win_amd64.whl; platform_system == "Windows"
-# Windows CUDA no avx
+# WINDOWS (try no avx if any exceptions hit in llama.cpp)
+# Windows CUDA 11.8 avx:
+# https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118avx-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+# Windows CUDA 12.1 avx:
+https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121avx-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+# Windows CUDA 11.8 no avx
 # https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+# Windows CUDA 12.1 no avx
+# https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121-cp310-cp310-win_amd64.whl; platform_system == "Windows"
 # Windows CPU AVX2
 https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-win_amd64.whl; platform_system == "Windows"
 # No AMD ROC Windows yet for 0.2.26
