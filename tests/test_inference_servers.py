@@ -273,7 +273,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
-              '-v', '%s/.cache:/workspace/.cache' % home_dir,
+              '-v', '%s/.cache/huggingface/hub:/workspace/.cache/huggingface/hub' % home_dir,
               # '--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
@@ -321,7 +321,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
                         ] + gpus_cmd() + [
               '--shm-size', '1g',
               '-p', '%s:7860' % port,
-              '-v', '%s/.cache:/workspace/.cache/' % home_dir,
+              '-v', '%s/.cache/huggingface/hub:/workspace/.cache/huggingface/hub' % home_dir,
               '-v', '%s/save:/workspace/save' % home_dir,
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
