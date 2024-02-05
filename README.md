@@ -251,8 +251,7 @@ These are not part of normal installation instructions and are experimental.
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
 - To run h2oGPT tests:
     ```bash
-    pip install requirements-parser pytest-instafail pytest-random-order
-    pip install playsound==1.3.0
+    pip install requirements-parser pytest-instafail pytest-random-order playsound==1.3.0
     pytest --instafail -s -v tests
     # for client tests
     make -C client setup
