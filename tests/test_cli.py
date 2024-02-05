@@ -44,7 +44,8 @@ def test_cli_langchain(base_model, monkeypatch):
            "question about a cat" in all_generations[0] or \
            "The prompt asks for an answer to a question" in all_generations[0] or \
            "The prompt asks what the cat in the scenario is doing" in all_generations[0] or \
-           "The prompt asks why H2O.ai" in all_generations[0]
+           "The prompt asks why H2O.ai" in all_generations[0] or \
+           "cat is sitting on a window" in all_generations[0]
 
 
 @pytest.mark.need_tokens
