@@ -1398,7 +1398,15 @@ def go_gradio(**kwargs):
                 image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
                 with image_tab:
                     with gr.Row():
-                        image_control = gr.Image(type='filepath')
+                        image_control = gr.Image(label="Input Image", type='filepath')
+                        image_style = gr.Image(label="Style Image", type='filepath')
+                        image_output = gr.Image(label="Output Image", type='filepath')
+                    image_prompt = gr.Textbox(label="Prompt")
+                    with gr.Row():
+                        generate_btn = gr.Button("Generate by Prompt")
+                        change_btn = gr.Button("Change Image by Prompt")
+                        style_btn = gr.Button("Apply Style")
+                        # image_upload = # FIXME, go into db
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)
