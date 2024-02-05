@@ -1,10 +1,40 @@
 # Offline Mode:
 
-## Easy Way:
+## TL;DR
+
+To run offline, either do smart or manual way.
+
+* Smart Download
+    1) Run online with above command that downloads the model for you (i.e. using HF link name, not file name)
+    2) Go offline and run using the file directly or use UI to select the model
+E.g.
+```bash
+# online do:
+python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+# Then use h2oGPT as might normally for any tasks.
+# Once offline do:
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+```
+
+* Manual Download
+    1) Download the file yourself and place into llamacpp_path (i.e. downloading url to local file)
+    2) Go offline and run using the file directly or use UI to select the model
+
+```bash
+# online do:
+wget https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true -O llamacpp_path/zephyr-7b-beta.Q5_K_M.gguf
+# Then use normally for any tasks one expects to do offline.
+# Once offline do:
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+```
+
+NOTE: If set `--prepare_offline_level=2` for first online call, h2oGPT will get standard models for offline use, but that may be more than you require.  One can tune the code `../src/prepare_offline.py` to get only the models you require.
+
+### Easy Way:
 
 Run h2oGPT as would in offline mode, ensuring to use LLM and upload docs using same parsers as would want in offline mode.  The `~/.cache` folder will be filled, and one can use that in offline mode.
 
-## Moderately Easy Way:
+### Moderately Easy Way:
 
 If you can run on same (or better) system that will be like that in offline mode, you can run the below and collect all needed items in the `~/.cache/` and `~/nltk_data` folders, specifically:
 * `~/.cache/selenium/`
@@ -28,7 +58,7 @@ If you are only concerned with what h2oGPT needs, not any inference servers, you
 
 If you have a GGUF/GGML file, you should download it ahead of time and place it in some path you provide to `--llamacpp_dict` for its `model_path_llama` dict entry.
 
-## Hard Way:
+### Hard Way:
 
 Identify all models needed and download each.  The below list is not exhaustive because the models added changes frequently and each uses different approach for downloading.
 
@@ -86,7 +116,7 @@ If all data has been put into `~/.cache` by HF transformers and GGUF/GGML files 
     tokenizer.save_pretrained(model_name)
     ```
 
-## Run h2oGPT in offline mode
+### Run h2oGPT in offline mode
 
 ```bash
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model='h2oai/h2ogpt-oasst1-512-12b' --gradio_offline_level=2 --share=False
@@ -114,7 +144,7 @@ since the mapping from that name to get file etc. is not trivial and only possib
 
 It is good idea to also set `--prompt_type`, since the version of model name given may not be in the prompt dictionary lookup.
 
-### Run vLLM offline
+#### Run vLLM offline
 
 In order to use vLLM offline, use the absolute path to the model state, which can be locally obtained model or sitting in the `.cache` folder, e.g.:
 ```bash

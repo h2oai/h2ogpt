@@ -30,26 +30,25 @@ def go_prepare_offline(*args, **kwargs):
                kwargs['url_loaders_options'],
                kwargs['jq_schema0'],
                kwargs['extract_frames'],
+               kwargs['llava_prompt'],
                h2ogpt_key,
                ]
 
     for fileup_output in file_list:
-        inputs1 = [fileup_output]
-        add_file_kwargs = dict(fn=kwargs['update_db_func'],
-                               inputs=inputs1 + inputs2)
-        add_file_kwargs['fn'](*tuple(add_file_kwargs['inputs']))
-
         # ensure normal blip (not 2) obtained
         blip2 = 'CaptionBlip2'
         if blip2 in kwargs['image_audio_loaders_options']:
-            image_audio_loaders_options = kwargs['image_audio_loaders_options'].copy()
-            image_audio_loaders_options.remove(blip2)
+            kwargs['image_audio_loaders_options'].remove(blip2)
 
         # ensure normal asr (not asrlarge) obtained
         asrlarge = 'ASRLarge'
         if asrlarge in kwargs['image_audio_loaders_options']:
-            image_audio_loaders_options = kwargs['image_audio_loaders_options'].copy()
-            image_audio_loaders_options.remove(asrlarge)
+            kwargs['image_audio_loaders_options'].remove(asrlarge)
+
+        inputs1 = [fileup_output]
+        add_file_kwargs = dict(fn=kwargs['update_db_func'],
+                               inputs=inputs1 + inputs2)
+        add_file_kwargs['fn'](*tuple(add_file_kwargs['inputs']))
 
         inputs2[8] = kwargs['image_audio_loaders_options']
         add_file_kwargs = dict(fn=kwargs['update_db_func'],
