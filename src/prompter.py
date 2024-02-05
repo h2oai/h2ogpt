@@ -218,6 +218,13 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
+def is_vision_model(base_model):
+    return base_model.startswith('llava-') or \
+        base_model.startswith('liuhaotian/llava-') or \
+        base_model.startswith('Qwen-VL') or \
+        base_model.startswith('Qwen/Qwen-VL')
+
+
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
                system_prompt=None, histi=-1):
     prompt_dict_error = ''

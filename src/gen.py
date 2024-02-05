@@ -24,6 +24,7 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 
 try:
     from importlib.metadata import distribution, PackageNotFoundError
+
     assert distribution('hf_transfer') is not None
     have_hf_transfer = True
 except (PackageNotFoundError, AssertionError):
@@ -82,7 +83,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -1679,7 +1680,7 @@ def main(
 
     if use_openai_embedding:
         # makes later code simpler
-        hf_embedding_model=  ''
+        hf_embedding_model = ''
 
     if pre_load_embedding_model and \
             langchain_mode != LangChainMode.DISABLED.value and \
@@ -1895,7 +1896,6 @@ def main(
                                   llamacpp_dict['model_path_llama'],
                                   doc_json_mode)
 
-
     # get score model
     score_model_state0 = dict(model=None, tokenizer=None, device=None,
                               base_model=None, tokenizer_base_model='', lora_weights='',
@@ -1908,8 +1908,8 @@ def main(
                                                       **get_kwargs(get_score_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
         score_model_state0.update(dict(model=smodel, tokenizer=stokenizer, device=sdevice,
-                                  base_model=score_model,
-                                  reward_model=True))
+                                       base_model=score_model,
+                                       reward_model=True))
 
     # get verifier model, replaces score_model if exists
     if verifier_model:
@@ -1924,11 +1924,11 @@ def main(
                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
                                                                    **all_kwargs))
         score_model_state0.update(dict(model=smodel, tokenizer=stokenizer, device=sdevice,
-                                  base_model=verifier_model,
-                                  tokenizer_base_model=verifier_tokenizer_base_model,
-                                  inference_server=verifier_inference_server,
-                                  prompt_type='plain',
-                                  reward_model=False))
+                                       base_model=verifier_model,
+                                       tokenizer_base_model=verifier_tokenizer_base_model,
+                                       inference_server=verifier_inference_server,
+                                       prompt_type='plain',
+                                       reward_model=False))
 
     # get default model(s)
     model_states = []
@@ -2303,12 +2303,16 @@ def get_non_lora_model(base_model, model_loader, load_half,
 
 def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False):
     inference_server, headers = get_hf_server(inference_server)
-    # preload client since slow for gradio case especially
-    from gradio_utils.grclient import GradioClient
     gr_client = None
     hf_client = None
-    if headers is None:
+
+    if is_vision_model(base_model):
+        from gradio_client import Client
+        gr_client = Client(inference_server)
+    elif headers is None:
         try:
+            # preload client since slow for gradio case especially
+            from gradio_utils.grclient import GradioClient
             print("GR Client Begin: %s %s" % (inference_server, base_model), flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
@@ -2593,7 +2597,8 @@ def get_model(
         client = anthropic.Anthropic(**anthropic_kwargs)
         async_client = anthropic.AsyncAnthropic(**anthropic_kwargs)
         if not regenerate_clients:
-            model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url, api_key=api_key,
+            model = dict(client=client, async_client=async_client, inf_type='anthropic', base_url=base_url,
+                         api_key=api_key,
                          timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
@@ -4047,6 +4052,39 @@ def evaluate(
                             break
             else:
                 raise RuntimeError("No such OpenAI mode: %s" % inference_server)
+        elif inference_server.startswith('http') and is_vision_model(base_model):
+            where_from = "gr_client"
+            sources = []
+            inference_server, headers = get_hf_server(inference_server)
+            if isinstance(model, GradioClient):
+                gr_client = model.clone()
+            else:
+                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
+                                                                                          base_model=base_model)
+                assert gr_client is not None
+                assert hf_client is None
+            img_file = None  # FIXME
+            if not stream_output:
+                from src.vision.utils_vision import get_llava_response
+                response, _ = get_llava_response(img_file, llava_model,
+                                                 prompt=instruction,
+                                                 allow_prompt_auto=False,
+                                                 image_model=base_model, temperature=temperature,
+                                                 top_p=top_p, max_new_tokens=max_new_tokens)
+
+                yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                           response_no_refs=response, sources_str='', prompt_raw='')
+            else:
+                response = ''
+                from src.vision.utils_vision import get_llava_stream
+                for response in get_llava_stream(img_file, llava_model,
+                                                 prompt=instruction,
+                                                 allow_prompt_auto=False,
+                                                 image_model=base_model, temperature=temperature,
+                                                 top_p=top_p, max_new_tokens=max_new_tokens):
+                    yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                               response_no_refs=response, sources_str='', prompt_raw='')
+
         elif inference_server.startswith('http'):
             inference_server, headers = get_hf_server(inference_server)
             from text_generation import Client as HFClient
@@ -4185,94 +4223,18 @@ def evaluate(
                                                      sanitize_bot_response=sanitize_bot_response)
                 else:
                     new_stream = False  # hanging for many chatbots
+                    gr_stream_kwargs = dict(client_kwargs=client_kwargs,
+                                            api_name=api_name,
+                                            prompt=prompt, prompter=prompter,
+                                            sanitize_bot_response=sanitize_bot_response,
+                                            max_time=max_time,
+                                            is_public=is_public,
+                                            verbose=verbose)
                     if new_stream:
-                        res_dict = yield from gr_client.stream(client_kwargs,
-                                                               api_name=api_name,
-                                                               prompt=prompt, prompter=prompter,
-                                                               sanitize_bot_response=sanitize_bot_response,
-                                                               max_time=max_time,
-                                                               is_public=is_public,
-                                                               verbose=verbose)
-                        response = res_dict.get('response', '')
+                        res_dict = yield from gr_client.stream(**gr_stream_kwargs)
                     else:
-                        from gradio_utils.grclient import check_job
-                        job = gr_client.submit(str(dict(client_kwargs)), api_name=api_name)
-                        res_dict = dict(response=text, sources=sources, save_dict={}, llm_answers={},
-                                        response_no_refs=text, sources_str='', prompt_raw='')
-                        text0 = ''
-                        tgen0 = time.time()
-                        while not job.done():
-                            e = check_job(job, timeout=0, raise_exception=False)
-                            if e is not None:
-                                break
-                            outputs_list = job.outputs().copy()
-                            if outputs_list:
-                                res = outputs_list[-1]
-                                res_dict = ast.literal_eval(res)
-                                text = res_dict['response']
-                                if gr_prompt_type == 'plain':
-                                    # then gradio server passes back full prompt + text
-                                    prompt_and_text = text
-                                else:
-                                    prompt_and_text = prompt + text
-                                response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                                 sanitize_bot_response=sanitize_bot_response)
-                                text_chunk = response[len(text0):]
-                                if not text_chunk:
-                                    # just need some sleep for threads to switch
-                                    time.sleep(0.001)
-                                    continue
-                                # save old
-                                text0 = response
-                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                           response_no_refs=response, sources_str='', prompt_raw='')
-                                if time.time() - tgen0 > max_time:
-                                    if verbose:
-                                        print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
-                                    break
-                            time.sleep(0.01)
-                        # ensure get last output to avoid race
-                        res_all = job.outputs().copy()
-                        if len(res_all) > 0:
-                            # don't raise unless nochat API for now
-                            e = check_job(job, timeout=0.02, raise_exception=not chat)
-                            if e is not None:
-                                strex = ''.join(traceback.format_tb(e.__traceback__))
-
-                            res = res_all[-1]
-                            res_dict = ast.literal_eval(res)
-                            text = res_dict['response']
-                            sources = res_dict.get('sources')
-                            if sources is None:
-                                # then communication terminated, keep what have, but send error
-                                if is_public:
-                                    raise ValueError("Abrupt termination of communication")
-                                else:
-                                    raise ValueError("Abrupt termination of communication: %s" % strex)
-                        else:
-                            # if got no answer at all, probably something bad, always raise exception
-                            # UI will still put exception in Chat History under chat exceptions
-                            e = check_job(job, timeout=0.3, raise_exception=True)
-                            # go with old text if last call didn't work
-                            if e is not None:
-                                stre = str(e)
-                                strex = ''.join(traceback.format_tb(e.__traceback__))
-                            else:
-                                stre = ''
-                                strex = ''
-
-                            print("Bad final response: %s %s %s %s %s: %s %s" % (base_model, inference_server,
-                                                                                 res_all, prompt, text, stre, strex),
-                                  flush=True)
-                        if gr_prompt_type == 'plain':
-                            # then gradio server passes back full prompt + text
-                            prompt_and_text = text
-                        else:
-                            prompt_and_text = prompt + text
-                        response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                         sanitize_bot_response=sanitize_bot_response)
-                        yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
-                                   response_no_refs=response, sources_str='', prompt_raw='')
+                        res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
+                    response = res_dict.get('response', '')
             elif hf_client:
                 # quick sanity check to avoid long timeouts, just see if can reach server
                 requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))

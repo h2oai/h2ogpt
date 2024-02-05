@@ -30,6 +30,7 @@ try:
     assert distribution('gradio_client') is not None
     have_gradio_client = True
     from packaging import version
+
     client_version = distribution('gradio_client').version
     is_gradio_client_version7plus = version.parse(client_version) >= version.parse("0.7.0")
 except (PackageNotFoundError, AssertionError):
@@ -366,7 +367,7 @@ class GradioClient(Client):
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
 
-        if exception_handling: # for debugging if causes issues
+        if exception_handling:  # for debugging if causes issues
             # see if immediately failed
             e = check_job(job, timeout=0.01, raise_exception=False)
             if e is not None:
@@ -897,14 +898,97 @@ class GradioClient(Client):
             self.setup()
         return [x['base_model'] for x in ast.literal_eval(self.predict(api_name="/model_names"))]
 
+    def simple_stream(self,
+                      client_kwargs={},
+                      api_name='/submit_nochat_api',
+                      prompt='', prompter=None, sanitize_bot_response=False,
+                      max_time=None,
+                      is_public=False,
+                      raise_exception=True,
+                      verbose=False,
+                      ):
+        job = self.submit(str(dict(client_kwargs)), api_name=api_name)
+        sources = []
+        res_dict = dict(response='', sources=sources, save_dict={}, llm_answers={},
+                        response_no_refs='', sources_str='', prompt_raw='')
+        yield res_dict
+        text = ''
+        text0 = ''
+        strex = ''
+        tgen0 = time.time()
+        while not job.done():
+            e = check_job(job, timeout=0, raise_exception=False)
+            if e is not None:
+                break
+            outputs_list = job.outputs().copy()
+            if outputs_list:
+                res = outputs_list[-1]
+                res_dict = ast.literal_eval(res)
+                text = res_dict['response']
+                prompt_and_text = prompt + text
+                response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                                 sanitize_bot_response=sanitize_bot_response)
+                text_chunk = response[len(text0):]
+                if not text_chunk:
+                    # just need some sleep for threads to switch
+                    time.sleep(0.001)
+                    continue
+                # save old
+                text0 = response
+                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                           response_no_refs=response, sources_str='', prompt_raw='')
+                if time.time() - tgen0 > max_time:
+                    if verbose:
+                        print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                    break
+            time.sleep(0.01)
+        # ensure get last output to avoid race
+        res_all = job.outputs().copy()
+        if len(res_all) > 0:
+            # don't raise unless nochat API for now
+            e = check_job(job, timeout=0.02, raise_exception=True)
+            if e is not None:
+                strex = ''.join(traceback.format_tb(e.__traceback__))
+
+            res = res_all[-1]
+            res_dict = ast.literal_eval(res)
+            text = res_dict['response']
+            sources = res_dict.get('sources')
+            if sources is None:
+                # then communication terminated, keep what have, but send error
+                if is_public:
+                    raise ValueError("Abrupt termination of communication")
+                else:
+                    raise ValueError("Abrupt termination of communication: %s" % strex)
+        else:
+            # if got no answer at all, probably something bad, always raise exception
+            # UI will still put exception in Chat History under chat exceptions
+            e = check_job(job, timeout=0.3, raise_exception=True)
+            # go with old text if last call didn't work
+            if e is not None:
+                stre = str(e)
+                strex = ''.join(traceback.format_tb(e.__traceback__))
+            else:
+                stre = ''
+                strex = ''
+
+            print("Bad final response:%s %s %s: %s %s" % (res_all, prompt, text, stre, strex),
+                  flush=True)
+        prompt_and_text = prompt + text
+        response = prompter.get_response(prompt_and_text, prompt=prompt,
+                                         sanitize_bot_response=sanitize_bot_response)
+        yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
+                   response_no_refs=response, sources_str='', prompt_raw='')
+
     def stream(self,
-               client_kwargs,
+               client_kwargs={},
                api_name='/submit_nochat_api',
                prompt='', prompter=None, sanitize_bot_response=False,
                max_time=None,
                is_public=False,
                raise_exception=True,
-               verbose=False):
+               verbose=False,
+               ):
         strex = ''
         e = None
         res_dict = {}

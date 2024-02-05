@@ -62,6 +62,8 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
         bot_avatar = "anthropic.jpeg"
     elif 'gemini' in base_model.lower():
         bot_avatar = "google.png"
+    elif 'llava-' in base_model.lower():
+        bot_avatar = "llava.png"
     else:
         bot_avatar = "h2oai.png"
 
