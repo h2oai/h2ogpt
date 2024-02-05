@@ -79,6 +79,8 @@ If you encounter issues with `llama-cpp-python` or other packages that try to co
 
 We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) for 9GB+ GPU memory or larger models like [LLaMa-2-13B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-13b-chat.Q6_K.gguf) if you have 16GB+ GPU memory.
 
+See [Offline](docs/README_offline.md#tldr) for how to run h2oGPT offline.
+
 ---
 
 Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, Stable Diffusion, etc. download models at runtime that appear to delay operations in the UI. The progress appears in the console logs.
