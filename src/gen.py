@@ -19,6 +19,8 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
+from src.image_utils import get_image_types
+
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -1607,6 +1609,9 @@ def main(
     pdf_loaders = pdf_loaders_options0
     url_loaders = url_loaders_options0
 
+    image_file = None
+    image_control = None
+
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
         prompt_type, prompt_dict, \
@@ -1653,6 +1658,9 @@ def main(
                             speaker,
                             tts_language,
                             tts_speed,
+                            image_file,
+                            image_control,
+
                             verbose,
                             )
 
@@ -3291,6 +3299,9 @@ def evaluate(
         tts_language,
         tts_speed,
 
+        image_file,
+        image_control,
+
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
         caption_loader=None,
@@ -4063,7 +4074,14 @@ def evaluate(
                                                                                           base_model=base_model)
                 assert gr_client is not None
                 assert hf_client is None
-            img_file = None  # FIXME
+            if image_control is not None:
+                img_file = image_control
+            elif image_file is not None:
+                img_file = image_file
+            else:
+                image_types = get_image_types()
+                img_file = [x for x in document_choice if x.endswith('.' + image_types)] if document_choice else []
+                img_file = img_file[0] if img_file else None
             if not stream_output:
                 from src.vision.utils_vision import get_llava_response
                 response, _ = get_llava_response(img_file, llava_model,
@@ -4715,6 +4733,9 @@ def get_generate_params(model_lower,
                         speaker,
                         tts_language,
                         tts_speed,
+                        image_file,
+                        image_control,
+
                         verbose,
                         ):
     use_defaults = False
@@ -4924,6 +4945,8 @@ y = np.random.randint(0, 1, 100)
                     speaker,
                     tts_language,
                     tts_speed,
+                    image_file,
+                    image_control,
                     ]
         # adjust examples if non-chat mode
         if not chat:

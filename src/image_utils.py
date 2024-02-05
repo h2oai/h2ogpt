@@ -3,7 +3,7 @@ import os
 import numpy as np
 from scipy.stats import mode
 
-from src.utils import have_cv2
+from src.utils import have_cv2, have_pillow
 
 
 def largest_contour(contours):
@@ -223,3 +223,14 @@ def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
             file = pad_resize_image_file(file)
     return file
 
+
+def get_image_types():
+    if have_pillow:
+        from PIL import Image
+        exts = Image.registered_extensions()
+        image_types0 = {ex for ex, f in exts.items() if f in Image.OPEN}
+        image_types0 = sorted(image_types0)
+        image_types0 = [x[1:] if x.startswith('.') else x for x in image_types0]
+    else:
+        image_types0 = []
+    return image_types0

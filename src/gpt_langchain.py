@@ -48,7 +48,7 @@ from tqdm import tqdm
 
 from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
     set_userid_direct
-from src.image_utils import fix_image_file
+from src.image_utils import fix_image_file, get_image_types
 from src.output_parser import H2OPythonMRKLOutputParser
 from src.pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -2283,14 +2283,7 @@ def get_supported_types():
                     'FLV', 'SWF',
                     'AVCHD']
     video_types0 = [x.lower() for x in video_types0]
-    if have_pillow:
-        from PIL import Image
-        exts = Image.registered_extensions()
-        image_types0 = {ex for ex, f in exts.items() if f in Image.OPEN if ex not in video_types0 + non_image_types0}
-        image_types0 = sorted(image_types0)
-        image_types0 = [x[1:] if x.startswith('.') else x for x in image_types0]
-    else:
-        image_types0 = []
+    image_types0 = get_image_types()
     return non_image_types0, image_types0, video_types0
 
 

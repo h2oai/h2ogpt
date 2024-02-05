@@ -1,7 +1,9 @@
 import base64
 import os
 import time
+import uuid
 from io import BytesIO
+import numpy as np
 
 
 def png_to_base64(image_file):
@@ -86,6 +88,12 @@ def llava_prep(file, llava_model,
 
     image_process_mode = "Default"
     include_image = False
+    if isinstance(file, np.ndarray):
+        from PIL import Image
+        im = Image.fromarray(file)
+        file = "%s.jpeg" % str(uuid.uuid4())
+        im.save(file)
+
     if file and os.path.isfile(file):
         img_str = png_to_base64(file)
     else:
