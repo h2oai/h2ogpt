@@ -54,9 +54,9 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
   
 * Prepare to install dependencies:
    ```bash
-   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
    ```
-  Choose cu118+ for A100/H100+.  Or for CPU set
+  Choose cu121+ for A100/H100+.  Or for CPU set
    ```bash
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
    ```
