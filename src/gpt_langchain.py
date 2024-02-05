@@ -3917,7 +3917,7 @@ def check_update_chroma_embedding(db,
                                   langchain_mode, langchain_mode_paths, langchain_mode_types,
                                   n_jobs=-1):
     changed_db = False
-    embed_tuple = load_embed(db=db)
+    embed_tuple = load_embed(db=db, use_openai_embedding=use_openai_embedding)
 
     # expect string comparison, if dict then model object with name and get name not dict or model
     hf_embedding_model = get_hf_embedding_model_name(hf_embedding_model)
@@ -4027,7 +4027,8 @@ def get_existing_db(db, persist_directory,
         if db is None:
             if verbose:
                 print("DO Loading db: %s" % langchain_mode, flush=True)
-            got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory)
+            got_embedding, use_openai_embedding0, hf_embedding_model0 = load_embed(persist_directory=persist_directory,
+                                                                                   use_openai_embedding=use_openai_embedding)
             if got_embedding and hf_embedding_model and 'name' in hf_embedding_model and hf_embedding_model0 == \
                     hf_embedding_model['name']:
                 # already have
@@ -4089,7 +4090,8 @@ def get_existing_db(db, persist_directory,
         else:
             if not migrate_embedding_model:
                 # OVERRIDE embedding choices if could load embedding info when not migrating
-                got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db)
+                got_embedding, use_openai_embedding, hf_embedding_model = load_embed(db=db,
+                                                                                     use_openai_embedding=use_openai_embedding)
             if verbose:
                 print("USING already-loaded db: %s" % langchain_mode, flush=True)
         if check_embedding:
@@ -4185,7 +4187,7 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
     return use_openai_embedding, hf_embedding_model
 
 
-def load_embed(db=None, persist_directory=None):
+def load_embed(db=None, persist_directory=None, use_openai_embedding=False):
     if hasattr(db, 'embeddings') and hasattr(db.embeddings, 'model_name'):
         hf_embedding_model = db.embeddings.model_name if 'openai' not in db.embeddings.model_name.lower() else None
         use_openai_embedding = hf_embedding_model is None
@@ -4213,9 +4215,13 @@ def load_embed(db=None, persist_directory=None):
                         # unexpected in testing or normally
                         raise
     else:
-        # migration, assume defaults
-        use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
-        got_embedding = False
+        # migration or not set yet, assume defaults
+        if use_openai_embedding:
+            use_openai_embedding, hf_embedding_model = True, ''
+            got_embedding = False
+        else:
+            use_openai_embedding, hf_embedding_model = False, "sentence-transformers/all-MiniLM-L6-v2"
+            got_embedding = False
     assert isinstance(hf_embedding_model, str)
     return got_embedding, use_openai_embedding, hf_embedding_model
 

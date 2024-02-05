@@ -762,7 +762,7 @@ def go_gradio(**kwargs):
                                                                                 langchain_type=langchain_type3,
                                                                                 db1s=db1s, dbs=dbs1)
                     got_embedding3, use_openai_embedding3, hf_embedding_model3 = load_embed(
-                        persist_directory=persist_directory3)
+                        persist_directory=persist_directory3, use_openai_embedding=use_openai_embedding)
                     persist_directory_dict[langchain_mode3] = persist_directory3
                     embed_dict[langchain_mode3] = 'OpenAI' if not hf_embedding_model3 else hf_embedding_model3
 
@@ -780,7 +780,7 @@ def go_gradio(**kwargs):
                         if isinstance(hf_embedding_model, dict):
                             hf_embedding_model3 = hf_embedding_model['name']
                         else:
-                            hf_embedding_model3 = hf_embedding_model
+                            hf_embedding_model3 = 'OpenAI' if not hf_embedding_model else hf_embedding_model
                         assert isinstance(hf_embedding_model3, str)
                         embed_dict[langchain_mode3] = hf_embedding_model3  # will be
                     else:

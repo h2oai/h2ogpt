@@ -1677,6 +1677,10 @@ def main(
         print("Must install langchain for preloading embedding model, disabling", flush=True)
         pre_load_embedding_model = False
 
+    if use_openai_embedding:
+        # makes later code simpler
+        hf_embedding_model=  ''
+
     if pre_load_embedding_model and \
             langchain_mode != LangChainMode.DISABLED.value and \
             not use_openai_embedding:
