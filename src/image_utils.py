@@ -1,5 +1,9 @@
+import os
+
 import numpy as np
 from scipy.stats import mode
+
+from src.utils import have_cv2
 
 
 def largest_contour(contours):
@@ -202,4 +206,20 @@ def pad_resize_image(image, return_none_if_no_change=False):
     # cv2.imwrite('new1.png', image)
 
     return image
+
+
+def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
+    # always try to fix rotation/alignment since OCR better etc. in that case
+    if have_cv2:
+        if do_align:
+            aligned_image = align_image(file)
+            if aligned_image is not None and os.path.isfile(aligned_image):
+                file = aligned_image
+        if do_rotate:
+            derotated_image = correct_rotation(file)
+            if derotated_image is not None and os.path.isfile(derotated_image):
+                file = derotated_image
+        if do_pad:
+            file = pad_resize_image_file(file)
+    return file
 
