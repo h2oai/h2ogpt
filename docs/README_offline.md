@@ -5,7 +5,7 @@
 To run offline, either do smart or manual way.
 
 * Smart Download
-    1) Run online with above command that downloads the model for you (i.e. using HF link name, not file name)
+    1) Run online with command that downloads the model for you (i.e. using HF link name, not file name)
     2) Go offline and run using the file directly or use UI to select the model
 E.g.
 ```bash
@@ -13,11 +13,13 @@ E.g.
 python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
 # Then use h2oGPT as might normally for any tasks.
 # Once offline do:
-HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+# or if choosing in UI do (be sure to choose correct prompt_type too):
+TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
 ```
 
 * Manual Download
-    1) Download the file yourself and place into llamacpp_path (i.e. downloading url to local file)
+    1) Download the model file you want and place into llamacpp_path (i.e. downloading url to local file)
     2) Go offline and run using the file directly or use UI to select the model
 
 ```bash
@@ -25,7 +27,9 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zep
 wget https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true -O llamacpp_path/zephyr-7b-beta.Q5_K_M.gguf
 # Then use normally for any tasks one expects to do offline.
 # Once offline do:
-HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+# or if choosing in UI do (be sure to choose correct prompt_type too):
+TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
 ```
 
 NOTE: If set `--prepare_offline_level=2` for first online call, h2oGPT will get standard models for offline use, but that may be more than you require.  One can tune the code `../src/prepare_offline.py` to get only the models you require.
