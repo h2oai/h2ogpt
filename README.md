@@ -50,10 +50,11 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
    # for windows/mac use "set" or relevant environment setting mechanism
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
    ```
-* Linux/Windows CUDA:
+* Linux/Windows CPU/CUDA/ROC:
    ```bash
    # for windows/mac use "set" or relevant environment setting mechanism
-   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
+   # for cu118 use export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118 https://huggingface.github.io/autogptq-index/whl/cu118"
    ```
 Then run the following commands on any system:
    ```bash
@@ -61,7 +62,12 @@ Then run the following commands on any system:
    cd h2ogpt
    pip install -r requirements.txt
    pip install -r reqs_optional/requirements_optional_langchain.txt
+
+   # default uses cu121, for cu118, comment out cu121 and comment in similar cu118 wheels
+   # for no avx, comment-out avx wheels and choose ones without avx
+   # for AMD ROC, comment-out all except the correct ROC wheel
    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+
    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
    # GPL, only run next line if that is ok:
    # pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
@@ -245,8 +251,7 @@ These are not part of normal installation instructions and are experimental.
 - To fine-tune any LLM models on your data, follow the [fine-tuning instructions](docs/FINETUNE.md).
 - To run h2oGPT tests:
     ```bash
-    pip install requirements-parser pytest-instafail pytest-random-order
-    pip install playsound==1.3.0
+    pip install requirements-parser pytest-instafail pytest-random-order playsound==1.3.0
     pytest --instafail -s -v tests
     # for client tests
     make -C client setup

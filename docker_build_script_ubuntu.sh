@@ -6,7 +6,7 @@ export DEBIAN_FRONTEND=noninteractive
 export PATH=/h2ogpt_conda/bin:$PATH
 export HOME=/workspace
 export CUDA_HOME=/usr/local/cuda-12.1
-export PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu121
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
 
 # Install linux dependencies
 apt-get update && apt-get install -y \
@@ -32,8 +32,6 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.
     mkdir -p /h2ogpt_conda && \
     bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
     conda install python=3.10 pygobject weasyprint -c conda-forge -y
-
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu122"
 
 bash docs/linux_install.sh
 

@@ -109,12 +109,12 @@ sudo mv chromedriver /usr/bin/chromedriver
 sudo chown root:root /usr/bin/chromedriver
 sudo chmod +x /usr/bin/chromedriver
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
-pip uninstall -y auto-gptq ; pip install auto-gptq==0.6.0 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/ -c reqs_optional/reqs_constraints.txt
+pip uninstall -y auto-gptq ; pip install auto-gptq==0.6.0 -c reqs_optional/reqs_constraints.txt
 # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
 pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 #* GPU Optional: For AutoAWQ support on x86_64 linux
-pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8+cu118-cp310-cp310-linux_x86_64.whl -c reqs_optional/reqs_constraints.txt
+pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8-cp310-cp310-linux_x86_64.whl -c reqs_optional/reqs_constraints.txt
 # fix version since don't need lm-eval to have its version of 1.5.0
 pip install sacrebleu==2.3.1 --upgrade -c reqs_optional/reqs_constraints.txt
 #    If this has issues, you need to build:
@@ -125,9 +125,20 @@ then
     cd AutoAWQ
     pip install . -c reqs_optional/reqs_constraints.txt
 fi
-#* GPU Optional: For exllama support on x86_64 linux
-pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
-#    See [exllama](README_GPU.md#exllama) about running exllama models.
+
+# Check if the environment variable `MY_ENV_VAR` contains the substring "hello"
+if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
+  #* GPU Optional: For exllama support on x86_64 linux
+  pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
+  #    See [exllama](README_GPU.md#exllama) about running exllama models.
+  echo "The environment variable MY_ENV_VAR contains the substring 'hello'."
+else
+  #* GPU Optional: For exllama support on x86_64 linux
+  pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu121-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
+  #    See [exllama](README_GPU.md#exllama) about running exllama models.
+  echo "The environment variable MY_ENV_VAR does not contain the substring 'hello'."
+fi
+
 
 #  * If any issues with llama_cpp_python, then must compile llama-cpp-python with CUDA support:
 if [ 1 -eq 0 ]

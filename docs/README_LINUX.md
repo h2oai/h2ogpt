@@ -52,11 +52,15 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 
 * Place the `CUDA_HOME` export into your `~/.bashrc` or before starting h2oGPT for TTS's use of deepspeed to work.
   
-* Prepare to install dependencies:
+* Prepare to install dependencies for CUDA 12.1:
    ```bash
-   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
    ```
-  Choose cu118+ for A100/H100+.  Or for CPU set
+  or for CUDA 11.8:
+   ```bash
+   export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118 https://huggingface.github.io/autogptq-index/whl/cu118"
+   ```
+  Choose cu121+ for A100/H100+.  Or for CPU set
    ```bash
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
    ```
@@ -66,6 +70,8 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
     GPLOK=1 bash docs/linux_install.sh
     ```
 One can pick and choose different optional things to install instead by commenting them out in the shell script, or edit the script if any issues.  See script for notes about installation.
+
+Default install script uses cu121.  For cu118, edit `reqs_optional/requirements_optional_gpt4all.txt` and comment-out cu121 and comment-in otherwise-similar cu118 wheels.  For no AVX or ROC, do similar comment-in/out.
 
 ---
 
