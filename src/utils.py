@@ -1412,12 +1412,34 @@ def set_openai(inference_server, model_name=None):
         api_key = "EMPTY"
         inf_type = inference_server.split(':')[0].strip()
         ip_port_vllm = ':'.join(inference_server.split(':')[1:])
-        if ip_port_vllm.startswith('https://') or ip_port_vllm.startswith('http://'):
-            api_base = ip_port_vllm
+        if ip_port_vllm.startswith('https://'):
+            http_prefix = 'https://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+            auto_v1 = False
+        elif ip_port_vllm.startswith('http://'):
+            http_prefix = 'http://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+            auto_v1 = False
         else:
-            ip_vllm = inference_server.split(':')[1].strip()
-            port_vllm = inference_server.split(':')[2].strip()
-            api_base = f"http://{ip_vllm}:{port_vllm}/v1"
+            http_prefix = 'http://'
+            auto_v1 = True
+
+        address = ':'.join(ip_port_vllm.split(':')[0:1]).strip()
+        api_base = http_prefix + address
+        if len(ip_port_vllm.split(':')) >= 2:
+            port_vllm = ip_port_vllm.split(':')[1].strip()
+            if port_vllm not in [None, 'None']:
+                api_base += ':' + port_vllm
+        if len(ip_port_vllm.split(':')) >= 3:
+            # if not there, use EMPTY as default
+            url_path = ip_port_vllm.split(':')[2].strip()
+            if url_path not in [None, 'None']:
+                api_base += url_path  # assume includes prefix of / and /v1
+        if auto_v1 and not api_base.endswith('/v1'):
+            api_base += '/v1'
+        if len(ip_port_vllm.split(':')) >= 4:
+            # if not there, use EMPTY as default
+            api_key = ip_port_vllm.split(':')[3].strip()
 
         from openai import OpenAI, AsyncOpenAI
         client_args = dict(base_url=api_base, api_key=api_key)
@@ -1452,6 +1474,8 @@ def set_openai(inference_server, model_name=None):
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 # use this instead if exists
                 api_key = os.getenv("OPENAI_AZURE_KEY")
+        elif api_version in ['None', None]:
+            api_version = None
 
         if len(inference_server.split(':')) >= 5:
             api_key0 = inference_server.split(':')[4].strip()

@@ -545,6 +545,13 @@ def main(
                               Use: "vllm:https://IP/v1" for OpenAI-compliant vLLM endpoint
                               Use: "vllm_chat:https://IP/v1" for OpenAI-Chat-compliant vLLM endpoint
 
+                              For example, for non-standard URL and API key for vllm, one would do:
+                                 vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
+                                 where vllm.h2o.ai is the DNS name of the IP, None means no extra port, so will be dropped from base_url when using API, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
+                              Or for example:
+                                 vllm_chat:https://vllm.h2o.ai:5001:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
+                                 where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
+
                              Or Address can be replicate:
                              Use:
                               --inference_server=replicate:<model name string> will use a Replicate server, requiring a Replicate key.
