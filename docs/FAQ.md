@@ -104,6 +104,8 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 ```
 e.g. `<IP:port>=http://192.168.1.46:7861`.
 
+When launching LLaVa, if you want the server and worker to work with a remote gradio, then replace `localhost` with the IP of the server.
+
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
 To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
