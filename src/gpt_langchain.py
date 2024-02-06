@@ -572,7 +572,7 @@ class GradioInference(H2Oagenerate, LLM):
     visible_models: Any = None
     h2ogpt_key: Any = None
 
-    img_file: Any = None
+    image_file: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -686,6 +686,8 @@ class GradioInference(H2Oagenerate, LLM):
                              hyde_template=None,
                              hyde_show_only_final=None,
                              doc_json_mode=None,
+
+                             image_file=self.image_file,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -2140,9 +2142,20 @@ def get_llm(use_openai_model=False,
                 async_sem=async_sem,
                 verbose=verbose,
 
-                img_file=img_file,
+                image_file=img_file,  # we pass file name itself
             )
         elif gr_client:
+            # ensure image in correct format
+            img_file = get_image_file(image_file, image_control, document_choice)
+            if os.path.isfile(img_file):
+                from src.vision.utils_vision import img_to_base64
+                img_file = img_to_base64(img_file)
+            elif isinstance(img_file, str):
+                # assume already bytes
+                img_file = img_file
+            else:
+                img_file = None
+
             chat_client = False
             from src.vision.utils_vision import img_to_base64
             llm = GradioInference(
@@ -2182,7 +2195,7 @@ def get_llm(use_openai_model=False,
                 async_sem=async_sem,
                 verbose=verbose,
 
-                img_file=img_to_base64(img_file) if img_file else None,
+                img_file=img_file,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class

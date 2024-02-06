@@ -4170,6 +4170,18 @@ def evaluate(
                     gr_iinput = iinput
                     gr_prompt_type = prompt_type
                     gr_prompt_dict = prompt_dict
+
+                # ensure image in correct format
+                img_file = get_image_file(image_file, image_control, document_choice)
+                if os.path.isfile(img_file):
+                    from src.vision.utils_vision import img_to_base64
+                    img_file = img_to_base64(img_file)
+                elif isinstance(img_file, str):
+                    # assume already bytes
+                    img_file = img_file
+                else:
+                    img_file = None
+
                 client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
                                      iinput=gr_iinput,  # only for chat=True
                                      context=gr_context,
@@ -4231,6 +4243,8 @@ def evaluate(
                                      hyde_template=hyde_template,
                                      hyde_show_only_final=hyde_show_only_final,
                                      doc_json_mode=doc_json_mode,
+
+                                     image_file=img_file,
                                      )
                 assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
