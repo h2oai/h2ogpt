@@ -2128,7 +2128,8 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
-                visible_models=visible_models,
+                #visible_models=visible_models,
+                visible_models=model_name,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
                 max_input_tokens=max_input_tokens,
@@ -4954,8 +4955,8 @@ def run_qa_db(**kwargs):
     kwargs['gptq_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['sink_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['hf_model_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
-    kwargs['image_file'] = None
-    kwargs['image_control'] = None
+    kwargs['image_file'] = kwargs.get('image_file')
+    kwargs['image_control'] = kwargs.get('image_control')
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
