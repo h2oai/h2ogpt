@@ -1632,8 +1632,9 @@ class Prompter(object):
 
     @staticmethod
     def fix_text(prompt_type1, text1):
+        # NOTE: Risk that may sometimes actually end like these, but very unlikely
         if prompt_type1 == 'human_bot':
-            # hack bug in vLLM with stopping, stops right, but doesn't return last token
+            # hack bug in training human-bot models, no single token is stop token
             hfix = '<human'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
@@ -1641,8 +1642,13 @@ class Prompter(object):
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
         if prompt_type1 == 'docsgpt':
-            # hack bug in vLLM with stopping, stops right, but doesn't return last token
+            # hack bug in training docsgpt models, no single token is stop token
             hfix = '### Inst'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
+        if prompt_type1 == 'vicuna11':
+            # hack bug in NousResearch/Nous-Capybara-34B that used different tokenizer and training, so no single token is stop token
+            hfix = '</s'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
         return text1
