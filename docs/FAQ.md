@@ -93,14 +93,14 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --llava_model=<IP:port:model_name> \
 --enable_imagegen=True --enable_imagegen_high=True
 ```
-e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vicuna-13b`.
+e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vicuna-13b`.  The `:model_name` is not required, h2oGPT will use first model if any.
 
 Run h2oGPT with LLaVa and image (normal and high-quality) generation and run LLaVa model as normal LLM model:
 ```bash
-python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+python --score_model=None \
 --llava_model=<IP:port:model_name> \
 --enable_imagegen=True --enable_imagegen_high=True \
---model_lock="[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf','prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}]"
+--model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}]"
 ```
 e.g. `<IP:port>=http://192.168.1.46:7861`.
 
