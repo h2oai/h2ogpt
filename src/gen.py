@@ -4077,11 +4077,14 @@ def evaluate(
                                                                                           base_model=base_model)
                 assert gr_client is not None
                 assert hf_client is None
+
+            # NOTE: llava doesn't handle context or system prompt directly
             img_file = get_image_file(image_file, image_control, document_choice)
             llava_kwargs = dict(file=img_file,
                                 llava_model=inference_server,
                                 # prompt=instruction,
                                 prompt=prompt,  # prepared prompt with chat history etc.
+                                chat_conversation=chat_conversation,
                                 allow_prompt_auto=False,
                                 image_model=base_model, temperature=temperature,
                                 top_p=top_p, max_new_tokens=max_new_tokens,

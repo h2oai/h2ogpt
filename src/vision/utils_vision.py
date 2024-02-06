@@ -42,6 +42,7 @@ def png_to_base64(image_file):
 
 def llava_prep(file, llava_model,
                prompt=None,
+               chat_conversation=[],
                allow_prompt_auto=True,
                image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                top_p=0.7, max_new_tokens=512,
@@ -100,7 +101,7 @@ def llava_prep(file, llava_model,
         img_str = png_to_base64(file)
     else:
         img_str = None
-    res1 = client.predict(prompt, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
+    res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
 
     model_selector, temperature, top_p, max_output_tokens = image_model, temperature, top_p, max_new_tokens
 
@@ -110,6 +111,7 @@ def llava_prep(file, llava_model,
 def get_llava_response(file=None,
                        llava_model=None,
                        prompt=None,
+                       chat_conversation=[],
                        allow_prompt_auto=False,
                        image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                        top_p=0.7, max_new_tokens=512,
@@ -118,6 +120,7 @@ def get_llava_response(file=None,
     model_selector, max_output_tokens, include_image, client, image_model = \
         llava_prep(file, llava_model,
                    prompt=prompt,
+                   chat_conversation=chat_conversation,
                    allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
                    temperature=temperature,
@@ -133,6 +136,7 @@ def get_llava_response(file=None,
 
 def get_llava_stream(file, llava_model,
                      prompt=None,
+                     chat_conversation=[],
                      allow_prompt_auto=False,
                      image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                      top_p=0.7, max_new_tokens=512,
@@ -142,6 +146,7 @@ def get_llava_stream(file, llava_model,
     model_selector, max_output_tokens, include_image, client, image_model = \
         llava_prep(file, llava_model,
                    prompt=prompt,
+                   chat_conversation=chat_conversation,
                    allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
                    temperature=temperature,

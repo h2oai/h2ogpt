@@ -180,6 +180,21 @@ prompt_type_to_model_name = {
     # could be plain, but default is correct prompt_type for default TheBloke model ggml-wizardLM-7B.q4_2.bin
     "beacon": [],
     "beacon2": [],
+    # endpoint handles prompting, but we need chat history generation in some sensible way
+    "llava": ['liuhaotian/llava-v1.6-34b',
+              'liuhaotian/llava-v1.6-mistral-7b',
+              'liuhaotian/llava-v1.6-vicuna-13b',
+              'liuhaotian/llava-v1.6-vicuna-7b',
+              'liuhaotian/llava-v1.5-13b',
+              'liuhaotian/llava-v1.5-7b',
+              'liuhaotian/llava-v1.6-34b',
+              'liuhaotian/llava-v1.6-vicuna-13b',
+              'liuhaotian/llava-v1.6-vicuna-7b',
+              'liuhaotian/llava-v1.6-mistral-7b',
+              'liuhaotian/llava-v1.5-7b',
+              'liuhaotian/llava-v1.5-13b',
+              'NousResearch/Nous-Hermes-2-Vision',  # different worker, that handles prompting itself too
+              ]
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -261,10 +276,12 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
         humanstr = prompt_dict.get('humanstr', '')
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
-                         PromptType.plain.name]:
+                         PromptType.plain.name] or \
+            prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
+                         PromptType.llava.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
-        chat_turn_sep = chat_sep = ''
+        chat_turn_sep = chat_sep = '\n'
         # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
         humanstr = None
         botstr = None

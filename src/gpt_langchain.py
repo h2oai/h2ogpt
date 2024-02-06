@@ -921,15 +921,18 @@ class GradioLLaVaInference(GradioInference):
                              max_new_tokens=self.max_new_tokens,
                              min_new_tokens=self.min_new_tokens,
                              )
+        # NOTE: Don't handle self.context
+        if not self.add_chat_history_to_context:
+            self.chat_conversation = []
 
         self.count_input_tokens += self.get_num_tokens(prompt)
         self.prompts.append(prompt)
-        api_name = None
 
         llava_kwargs = dict(file=self.img_file,
                             llava_model=self.inference_server_url,
                             # prompt=instruction,
                             prompt=prompt,  # prepared prompt with chat history etc.
+                            chat_conversation=self.chat_conversation,
                             allow_prompt_auto=False,
                             image_model=self.visible_models,
                             temperature=client_kwargs['temperature'],
@@ -2075,7 +2078,7 @@ def get_llm(use_openai_model=False,
         from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
         if isinstance(model, Client) and not isinstance(model, GradioClient):
-            gradio_server = False
+            gradio_server = True  # so chat_history given
             gr_llava_client = model
             gr_client = None
             hf_client = None
