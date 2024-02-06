@@ -986,8 +986,10 @@ def go_gradio(**kwargs):
                                                 visible=False)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
 
-                with gr.Accordion("Image", open=False, visible=have_vision_models):
-                    image_file = gr.Image(label='Vision Q/A', type='filepath',
+                with gr.Accordion("Vision Models", open=False, visible=have_vision_models):
+                    image_file = gr.Image(label='Upload',
+                                          show_label=False,
+                                          type='filepath',
                                           elem_id="warning", elem_classes="feedback",
                                           )
 
