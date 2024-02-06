@@ -3462,9 +3462,9 @@ def evaluate(
         filename_image = sanitize_filename("image_%s_%s.png" % (instruction, str(uuid.uuid4())),
                                            file_length_limit=50)
         image_file_gen = make_image(instruction,
-                                filename=os.path.join('/tmp/gradio/', filename_image),
-                                pipe=pipe,
-                                )
+                                    filename=os.path.join('/tmp/gradio/', filename_image),
+                                    pipe=pipe,
+                                    )
         response = (image_file_gen,)
         # FIXME: Could run this through image model if was selected
         extra_dict = dict(t_generate=time.time() - t_generate,
@@ -3911,7 +3911,8 @@ def evaluate(
     # restrict instruction + , typically what has large input
     from gradio_utils.grclient import GradioClient
     from gradio_client import Client
-    gradio_server = inference_server.startswith('http') and (isinstance(model, GradioClient) or isinstance(model, Client))
+    gradio_server = inference_server.startswith('http') and (
+                isinstance(model, GradioClient) or isinstance(model, Client))
 
     prompt, \
         instruction, iinput, context, \
