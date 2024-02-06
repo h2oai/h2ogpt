@@ -444,6 +444,9 @@ def main(
         llava_model: str = None,
         llava_prompt: str = 'auto',
 
+        image_file: str = None,
+        image_control: str = None,
+
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
@@ -1069,6 +1072,9 @@ def main(
            None means no such LLaVa support
     :param llava_prompt: Prompt passed to LLaVa for querying the image
 
+    :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A
+    :param image_control: Initial image for UI Image Control
+
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
@@ -1608,9 +1614,6 @@ def main(
     image_audio_loaders = image_audio_loaders_options0
     pdf_loaders = pdf_loaders_options0
     url_loaders = url_loaders_options0
-
-    image_file = None
-    image_control = None
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
@@ -3458,11 +3461,12 @@ def evaluate(
             raise ValueError("No such langchain_action=%s" % langchain_action)
         filename_image = sanitize_filename("image_%s_%s.png" % (instruction, str(uuid.uuid4())),
                                            file_length_limit=50)
-        image_file = make_image(instruction,
+        image_file_gen = make_image(instruction,
                                 filename=os.path.join('/tmp/gradio/', filename_image),
                                 pipe=pipe,
                                 )
-        response = (image_file,)
+        response = (image_file_gen,)
+        # FIXME: Could run this through image model if was selected
         extra_dict = dict(t_generate=time.time() - t_generate,
                           instruction=instruction,
                           prompt_raw=instruction,

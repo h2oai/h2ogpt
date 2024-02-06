@@ -63,6 +63,8 @@ def run_cli(  # for local function:
         speaker=None,
         tts_language=None,
         tts_speed=None,
+        image_file=None,
+        image_control=None,
 
         # for evaluate kwargs
         captions_model=None,
