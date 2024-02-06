@@ -977,8 +977,10 @@ class GradioClient(Client):
         prompt_and_text = prompt + text
         response = prompter.get_response(prompt_and_text, prompt=prompt,
                                          sanitize_bot_response=sanitize_bot_response)
-        yield dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
+        res_dict = dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
                    response_no_refs=response, sources_str='', prompt_raw='')
+        yield res_dict
+        return res_dict
 
     def stream(self,
                client_kwargs={},
