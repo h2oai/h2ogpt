@@ -77,6 +77,9 @@ eval_func_param_names = ['instruction',
                          'speaker',
                          'tts_language',
                          'tts_speed',
+
+                         'image_file',
+                         'image_control',
                          ]
 
 # form evaluate defaults for submit_nochat_api

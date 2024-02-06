@@ -58,7 +58,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts
+    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
@@ -631,6 +631,12 @@ def go_gradio(**kwargs):
         queue_kwargs = dict(concurrency_count=kwargs['concurrency_count'])
         mic_sources_kwargs = dict(source='microphone')
 
+    if kwargs['model_lock']:
+        have_vision_models = any([x.get('inference_server', '').startswith('http') and \
+                              is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
+    else:
+        have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
+
     with demo:
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -976,6 +982,12 @@ def go_gradio(**kwargs):
                                                 value='{}',
                                                 visible=False)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
+
+                with gr.Accordion("Image", open=False, visible=have_vision_models):
+                    image_file = gr.Image(label='Image (For Vision Models)', type='filepath',
+                                          elem_id="warning", elem_classes="feedback",
+                                          )
+
             col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
                 if kwargs['chat_tables']:
@@ -1384,6 +1396,20 @@ def go_gradio(**kwargs):
                         doc_view6 = gr.HTML(visible=False)
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
+
+                #image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
+                image_tab = gr.Row(visible=False)
+                with image_tab:
+                    with gr.Row():
+                        image_control = gr.Image(label="Input Image", type='filepath')
+                        image_style = gr.Image(label="Style Image", type='filepath')
+                        image_output = gr.Image(label="Output Image", type='filepath')
+                    image_prompt = gr.Textbox(label="Prompt")
+                    with gr.Row():
+                        generate_btn = gr.Button("Generate by Prompt")
+                        change_btn = gr.Button("Change Image by Prompt")
+                        style_btn = gr.Button("Apply Style")
+                        # image_upload = # FIXME, go into db
 
                 chat_tab = gr.TabItem("Chat History") \
                     if kwargs['visible_chat_history_tab'] else gr.Row(visible=False)

@@ -3,7 +3,7 @@ import os
 import numpy as np
 from scipy.stats import mode
 
-from src.utils import have_cv2
+from src.utils import have_cv2, have_pillow
 
 
 def largest_contour(contours):
@@ -42,51 +42,75 @@ def is_contour_acceptable(contour, image, size_threshold=0.1, aspect_ratio_range
     return True
 
 
+def file_to_cv2(img_file):
+    import cv2
+    image = cv2.imread(img_file)
+    assert os.path.isfile(img_file), '%s not found' % img_file
+    if image is None:
+        # e.g. small BW gif gridnumbers.gif
+        from PIL import Image
+        import numpy as np
+        pil_image = Image.open(img_file).convert('RGB')
+        pil_image_file = img_file + '.pil.png'
+        pil_image.save(pil_image_file)
+        image = cv2.imread(pil_image_file)
+        #open_cv_image = np.array(pil_image, dtype=np.unit8)
+        ## Convert RGB to BGR
+        #image = open_cv_image[:, :, ::-1].copy()
+
+    # Check if image is loaded
+    if image is None:
+        raise ValueError("Error: Image for %s not made." % img_file)
+    return image
+
+
 def align_image(img_file):
     import cv2
     from imutils.perspective import four_point_transform
-    # Load the image
-    # img_file = '/home/jon/Downloads/fastfood.jpg'
-    # img_file = "/home/jon/Documents/reciept.jpg"
-    image = cv2.imread(img_file)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    try:
+        # Load the image
+        # img_file = '/home/jon/Downloads/fastfood.jpg'
+        # img_file = "/home/jon/Documents/reciept.jpg"
+        image = file_to_cv2(img_file)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # Edge detection
-    edges = cv2.Canny(blur, 50, 150, apertureSize=3)
+        # Edge detection
+        edges = cv2.Canny(blur, 50, 150, apertureSize=3)
 
-    # Find contours
-    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # Find contours
+        contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Find the largest contour
-    largest = largest_contour(contours)
+        # Find the largest contour
+        largest = largest_contour(contours)
 
-    if largest is not None and is_contour_acceptable(largest, image):
-        # Approximate the contour to a polygon
-        peri = cv2.arcLength(largest, True)
-        approx = cv2.approxPolyDP(largest, 0.02 * peri, True)
+        if largest is not None and is_contour_acceptable(largest, image):
+            # Approximate the contour to a polygon
+            peri = cv2.arcLength(largest, True)
+            approx = cv2.approxPolyDP(largest, 0.02 * peri, True)
 
-        # If the approximated contour has four points, assume it is a quadrilateral
-        if len(approx) == 4:
-            warped = four_point_transform(image, approx.reshape(4, 2))
-            out_file = img_file + "_aligned.jpg"
-            cv2.imwrite(out_file, warped)
-            return out_file
+            # If the approximated contour has four points, assume it is a quadrilateral
+            if len(approx) == 4:
+                warped = four_point_transform(image, approx.reshape(4, 2))
+                out_file = img_file + "_aligned.jpg"
+                cv2.imwrite(out_file, warped)
+                return out_file
+            else:
+                print("Contour is not a quadrilateral.")
+                return img_file
         else:
-            print("Contour is not a quadrilateral.")
-    else:
-        print("No acceptable contours found.")
+            print("No acceptable contours found.")
+            return img_file
+    except Exception as e:
+        print("Error in align_image:", e, flush=True)
+        return img_file
 
 
 def correct_rotation(img_file, border_size=50):
     import cv2
     # Function to rotate the image to the correct orientation
     # Load the image
-    image = cv2.imread(img_file)
-
-    # Check if image is loaded
-    if image is None:
-        raise ValueError("Error: Image not found.")
+    image = file_to_cv2(img_file)
 
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -96,6 +120,8 @@ def correct_rotation(img_file, border_size=50):
 
     # Detect points that form a line using HoughLinesP
     lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80, minLineLength=100, maxLineGap=10)
+    if not lines:
+        return img_file
 
     # Initialize list of angles
     angles = []
@@ -139,7 +165,7 @@ def correct_rotation(img_file, border_size=50):
 def pad_resize_image_file(img_file):
     import cv2
 
-    image = cv2.imread(img_file)
+    image = file_to_cv2(img_file)
     image = pad_resize_image(image, return_none_if_no_change=True)
     if image is None:
         new_file = img_file
@@ -223,3 +249,26 @@ def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
             file = pad_resize_image_file(file)
     return file
 
+
+def get_image_types():
+    if have_pillow:
+        from PIL import Image
+        exts = Image.registered_extensions()
+        image_types0 = {ex for ex, f in exts.items() if f in Image.OPEN}
+        image_types0 = sorted(image_types0)
+        image_types0 = [x[1:] if x.startswith('.') else x for x in image_types0]
+    else:
+        image_types0 = []
+    return image_types0
+
+
+def get_image_file(image_file, image_control, document_choice):
+    if image_control is not None:
+        img_file = image_control
+    elif image_file is not None:
+        img_file = image_file
+    else:
+        image_types = get_image_types()
+        img_file = [x for x in document_choice if any(x.endswith('.' + y) for y in image_types)] if document_choice else []
+        img_file = img_file[0] if img_file else None
+    return img_file

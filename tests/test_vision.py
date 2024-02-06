@@ -23,7 +23,7 @@ def test_llava_client():
     include_image = False
     res1 = client.predict(prompt, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
 
-    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.5-13b', 0.2, 0.7, 512
+    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.6-vicuna-13b', 0.2, 0.7, 512
     res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
                          api_name='/textbox_api_submit')
     res = res[-1][-1]
@@ -66,7 +66,7 @@ def test_llava_client_stream():
     res1 = client.predict(prompt, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
 
     #model_selector, temperature, top_p, max_output_tokens = 'Nous-Hermes-2-Vision', 0.2, 0.7, 512
-    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.5-13b', 0.2, 0.7, 512
+    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.6-vicuna-13b', 0.2, 0.7, 512
     job = client.submit(model_selector, temperature, top_p, max_output_tokens, include_image,
                         api_name='/textbox_api_submit')
 

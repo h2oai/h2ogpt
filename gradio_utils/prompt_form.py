@@ -28,6 +28,8 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
     human_avatar = "human.jpg"
     if 'h2ogpt-gm'.lower() in base_model.lower():
         bot_avatar = "h2oai.png"
+    elif 'llava-' in base_model.lower():
+        bot_avatar = "llava.png"
     elif 'mistralai'.lower() in base_model.lower() or \
             'mistral'.lower() in base_model.lower() or \
             'mixtral'.lower() in base_model.lower():

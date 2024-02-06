@@ -32,8 +32,8 @@ https://github.com/haotian-liu/LLaVA
 
 Use separate env for workers and server
 ```bash
-export CUDA_HOME=/usr/local/cuda-11.8
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118"
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
 
 conda create -n llava python=3.10 -y
 conda activate llava
@@ -57,10 +57,15 @@ python -m llava.serve.controller --host 0.0.0.0 --port $server_port
 Run a worker
 ```bash
 worker_port=40000
-python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path liuhaotian/llava-v1.5-13b
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path liuhaotian/llava-v1.6-vicuna-13b
+```
+and/or
+```bash
+worker_port=40001
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path liuhaotian/llava-v1.6-34b
 ```
 
-Can run multiple workers if put on different ports, e.g. for  more verbose output (but not necessarily technically better), run:
+Can also run Hermes LLaVa on another port, for more verbose output (but not necessarily technically better), run:
 ```bash
 git clone https://github.com/qnguyen3/hermes-llava.git
 cd hermes-llava
@@ -72,7 +77,7 @@ pip install -e ".[train]"
 pip install flash-attn --no-build-isolation
 pip install transformers==4.34.1
 
-worker_port=40001
+worker_port=40002
 python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path NousResearch/Nous-Hermes-2-Vision
 ````
 
@@ -84,9 +89,22 @@ python -m llava.serve.gradio_web_server --controller http://localhost:$server_po
 
 Run h2oGPT with LLaVa and image (normal and high-quality) generation:
 ```bash
-python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --llava_model=<IP:port:model_name> --enable_imagegen=True --enable_imagegen_high=True
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--llava_model=<IP:port:model_name> \
+--enable_imagegen=True --enable_imagegen_high=True
 ```
-e.g. `--llava_model=http://192.168.1.46:7861:llava-v1.5-13b`.
+e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vicuna-13b`.
+
+Run h2oGPT with LLaVa and image (normal and high-quality) generation and run LLaVa model as normal LLM model:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--llava_model=<IP:port:model_name> \
+--enable_imagegen=True --enable_imagegen_high=True \
+--model_lock="[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf','prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}]"
+```
+e.g. `<IP:port>=http://192.168.1.46:7861`.
+
+When launching LLaVa, if you want the server and worker to work with a remote gradio, then replace `localhost` with the IP of the server.
 
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
