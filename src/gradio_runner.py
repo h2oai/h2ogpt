@@ -1395,7 +1395,8 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
+                #image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
+                image_tab = gr.Row(visible=False)
                 with image_tab:
                     with gr.Row():
                         image_control = gr.Image(label="Input Image", type='filepath')
