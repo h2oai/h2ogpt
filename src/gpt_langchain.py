@@ -573,6 +573,7 @@ class GradioInference(H2Oagenerate, LLM):
     h2ogpt_key: Any = None
 
     image_file: Any = None
+    image_control: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -688,6 +689,7 @@ class GradioInference(H2Oagenerate, LLM):
                              doc_json_mode=None,
 
                              image_file=self.image_file,
+                             image_control=self.image_control,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         self.count_input_tokens += self.get_num_tokens(prompt)
@@ -2195,7 +2197,9 @@ def get_llm(use_openai_model=False,
                 async_sem=async_sem,
                 verbose=verbose,
 
-                img_file=img_file,
+                image_file=img_file,
+                image_control=None,  # already stuffed into image_file
+
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class

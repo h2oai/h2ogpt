@@ -2673,7 +2673,7 @@ def get_model(
             base_model in mistralai_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
-            if inference_server.startswith('openai'):
+            if inference_server.startswith('openai') and base_model in openai_gpts:
                 client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
                     set_openai(inference_server, model_name=base_model)
                 assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
@@ -2681,7 +2681,7 @@ def get_model(
             if base_model in model_token_mapping:
                 max_seq_len = model_token_mapping[base_model]
             else:
-                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+                print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (base_model, inference_server))
             if base_model in model_token_mapping_outputs:
                 max_output_len = model_token_mapping_outputs[base_model]
             else:
@@ -4179,7 +4179,7 @@ def evaluate(
 
                 # ensure image in correct format
                 img_file = get_image_file(image_file, image_control, document_choice)
-                if os.path.isfile(img_file):
+                if img_file is not None and os.path.isfile(img_file):
                     from src.vision.utils_vision import img_to_base64
                     img_file = img_to_base64(img_file)
                 elif isinstance(img_file, str):
@@ -4251,6 +4251,7 @@ def evaluate(
                                      doc_json_mode=doc_json_mode,
 
                                      image_file=img_file,
+                                     image_control=None,  # already stuffed into image_file
                                      )
                 assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                 api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
