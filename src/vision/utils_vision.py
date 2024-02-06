@@ -44,7 +44,8 @@ def llava_prep(file, llava_model,
                prompt=None,
                allow_prompt_auto=True,
                image_model='llava-v1.6-vicuna-13b', temperature=0.2,
-               top_p=0.7, max_new_tokens=512):
+               top_p=0.7, max_new_tokens=512,
+               client=None):
     if prompt in ['auto', None] and allow_prompt_auto:
         prompt = "Describe the image and what does the image say?"
         # prompt = "According to the image, describe the image in full details with a well-structured response."
@@ -74,8 +75,9 @@ def llava_prep(file, llava_model,
     # add back prefix
     llava_model = prefix + llava_model
 
-    from gradio_client import Client
-    client = Client(llava_model, serialize=False)
+    if client is None:
+        from gradio_client import Client
+        client = Client(llava_model, serialize=False)
     load_res = client.predict(api_name='/demo_load')
     model_options = [x[1] for x in load_res['choices']]
     assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
@@ -105,11 +107,14 @@ def llava_prep(file, llava_model,
     return model_selector, max_output_tokens, include_image, client, image_model
 
 
-def get_llava_response(file, llava_model,
+def get_llava_response(file=None,
+                       llava_model=None,
                        prompt=None,
                        allow_prompt_auto=False,
                        image_model='llava-v1.6-vicuna-13b', temperature=0.2,
-                       top_p=0.7, max_new_tokens=512):
+                       top_p=0.7, max_new_tokens=512,
+                       client=None,
+                       ):
     model_selector, max_output_tokens, include_image, client, image_model = \
         llava_prep(file, llava_model,
                    prompt=prompt,
@@ -117,7 +122,8 @@ def get_llava_response(file, llava_model,
                    image_model=image_model,
                    temperature=temperature,
                    top_p=top_p,
-                   max_new_tokens=max_new_tokens)
+                   max_new_tokens=max_new_tokens,
+                   client=client)
 
     res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
                          api_name='/textbox_api_submit')
@@ -129,7 +135,9 @@ def get_llava_stream(file, llava_model,
                      prompt=None,
                      allow_prompt_auto=False,
                      image_model='llava-v1.6-vicuna-13b', temperature=0.2,
-                     top_p=0.7, max_new_tokens=512):
+                     top_p=0.7, max_new_tokens=512,
+                     client=None,
+                     ):
     image_model = os.path.basename(image_model)  # in case passed HF link
     model_selector, max_output_tokens, include_image, client, image_model = \
         llava_prep(file, llava_model,
@@ -138,7 +146,8 @@ def get_llava_stream(file, llava_model,
                    image_model=image_model,
                    temperature=temperature,
                    top_p=top_p,
-                   max_new_tokens=max_new_tokens)
+                   max_new_tokens=max_new_tokens,
+                   client=client)
 
     verbose_level = 2
 

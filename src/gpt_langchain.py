@@ -48,7 +48,7 @@ from tqdm import tqdm
 
 from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
     set_userid_direct
-from src.image_utils import fix_image_file, get_image_types
+from src.image_utils import fix_image_file, get_image_types, get_image_file
 from src.output_parser import H2OPythonMRKLOutputParser
 from src.pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
@@ -572,6 +572,8 @@ class GradioInference(H2Oagenerate, LLM):
     visible_models: Any = None
     h2ogpt_key: Any = None
 
+    img_file: Any = None
+
     async_sem: Any = None
     count_input_tokens: Any = 0
     prompts: Any = []
@@ -812,6 +814,7 @@ class GradioInference(H2Oagenerate, LLM):
         client = self.client.clone()
         from gradio_utils.grclient import check_job
 
+        t_start = time.time()
         job = client.submit(str(dict(client_kwargs)), api_name=api_name)
         text0 = ''
         while not job.done():
@@ -838,6 +841,11 @@ class GradioInference(H2Oagenerate, LLM):
 
                 if text_callback:
                     await text_callback(text_chunk)
+
+            if self.max_time is not None and time.time() - t_start > self.max_time:
+                if self.verbose:
+                    print("Exceeded max_time=%s" % self.max_time, flush=True)
+                break
 
             await asyncio.sleep(0.01)
 
@@ -868,6 +876,173 @@ class GradioInference(H2Oagenerate, LLM):
         return self.tokenizer.encode(text)
         # avoid base method that is not aware of how to properly tokenize (uses GPT2)
         # return _get_token_ids_default_method(text)
+
+
+class GradioLLaVaInference(GradioInference):
+    """
+    Gradio/LLaVa generation inference API.
+    """
+    img_file: Any = None
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that python package exists in environment."""
+
+        try:
+            if values['client'] is None:
+                from gradio_client import Client
+                values["client"] = Client(
+                    values["inference_server_url"]
+                )
+        except ImportError:
+            raise ImportError(
+                "Could not import gradio_client python package. "
+                "Please install it with `pip install gradio_client`."
+            )
+        return values
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "gradio_llava_inference"
+
+    def setup_call(self, prompt):
+
+        stream_output = self.stream_output
+        client_kwargs = dict(instruction=prompt,
+                             stream_output=stream_output,
+                             prompt_type=self.prompter.prompt_type,
+                             prompt_dict='',
+
+                             temperature=self.temperature,
+                             top_p=self.top_p,
+                             top_k=self.top_k,
+                             penalty_alpha=self.penalty_alpha,
+                             max_new_tokens=self.max_new_tokens,
+                             min_new_tokens=self.min_new_tokens,
+                             )
+
+        self.count_input_tokens += self.get_num_tokens(prompt)
+        self.prompts.append(prompt)
+        api_name = None
+
+        llava_kwargs = dict(file=self.img_file,
+                            llava_model=self.inference_server_url,
+                            # prompt=instruction,
+                            prompt=prompt,  # prepared prompt with chat history etc.
+                            allow_prompt_auto=False,
+                            image_model=self.visible_models,
+                            temperature=client_kwargs['temperature'],
+                            top_p=client_kwargs['top_p'], max_new_tokens=client_kwargs['max_new_tokens'],
+                            client=self.client,
+                            )
+        max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
+                                                    max_new_tokens=self.max_new_tokens,
+                                                    max_new_tokens0=self.max_new_tokens0)
+        client_kwargs.update(dict(max_new_tokens=get_relaxed_max_new_tokens(max_new_tokens)))
+
+        return client_kwargs, llava_kwargs
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_call", flush=True)
+
+        _, llava_kwargs = self.setup_call(prompt)
+
+        if not self.stream_output:
+            from src.vision.utils_vision import get_llava_response
+            response, _ = get_llava_response(**llava_kwargs)
+            self.count_output_tokens += self.get_num_tokens(response)
+            if self.verbose:
+                print("end _call", flush=True)
+            return response
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+
+            t_start = time.time()
+            text0 = ''
+            text = ''
+            from src.vision.utils_vision import get_llava_stream
+            for text in get_llava_stream(**llava_kwargs):
+
+                # FIXME: derive chunk from full for now
+                text_chunk = text[len(text0):]
+                if not text_chunk:
+                    # just need some sleep for threads to switch
+                    time.sleep(0.001)
+                    continue
+                # save old
+                text0 = text
+                if text_callback:
+                    text_callback(text_chunk)
+                time.sleep(0.01)
+
+                if self.max_time is not None and time.time() - t_start > self.max_time:
+                    if self.verbose:
+                        print("Exceeded max_time=%s" % self.max_time, flush=True)
+                    break
+
+            self.count_output_tokens += self.get_num_tokens(text)
+            if self.verbose:
+                print("end _call", flush=True)
+            return text
+
+    # copy-paste of streaming part of _call() with asyncio.sleep instead
+    async def _acall(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_acall", flush=True)
+
+        _, llava_kwargs = self.setup_call(prompt)
+
+        text_callback = None
+        if run_manager:
+            text_callback = partial(
+                run_manager.on_llm_new_token, verbose=self.verbose
+            )
+
+        t_start = time.time()
+        text0 = ''
+        text = ''
+        from src.vision.utils_vision import get_llava_stream
+        for text in get_llava_stream(**llava_kwargs):
+
+            # FIXME: derive chunk from full for now
+            text_chunk = text[len(text0):]
+            if not text_chunk:
+                # just need some sleep for threads to switch
+                await asyncio.sleep(0.001)
+                continue
+            # save old
+            text0 = text
+            if text_callback:
+                await text_callback(text_chunk)
+
+            if self.max_time is not None and time.time() - t_start > self.max_time:
+                if self.verbose:
+                    print("Exceeded max_time=%s" % self.max_time, flush=True)
+                break
+            await asyncio.sleep(0.01)
+
+        self.count_output_tokens += self.get_num_tokens(text)
+        if self.verbose:
+            print("end _acall", flush=True)
+        return text
 
 
 class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
@@ -1578,6 +1753,10 @@ def get_llm(use_openai_model=False,
             llamacpp_dict=None,
             exllama_dict=None,
             verbose=False,
+
+            image_file=None,
+            image_control=None,
+            document_choice=None
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -1892,16 +2071,27 @@ def get_llm(use_openai_model=False,
         assert inference_server.startswith(
             'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
+        from gradio_client import Client
         from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
-        if isinstance(model, GradioClient):
+        if isinstance(model, Client) and not isinstance(model, GradioClient):
+            gradio_server = False
+            gr_llava_client = model
+            gr_client = None
+            hf_client = None
+            img_file = get_image_file(image_file, image_control, document_choice)
+        elif isinstance(model, GradioClient):
             gradio_server = True
+            gr_llava_client = None
             gr_client = model.clone()
             hf_client = None
+            img_file = None
         else:
+            gr_llava_client = None
             gr_client = None
             hf_client = model
             assert isinstance(hf_client, HFClient)
+            img_file = None
 
         inference_server, headers = get_hf_server(inference_server)
 
@@ -1910,7 +2100,45 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
-        if gr_client:
+
+        if gr_llava_client:
+            llm = GradioLLaVaInference(
+                inference_server_url=inference_server,
+
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                penalty_alpha=penalty_alpha,
+                num_beams=num_beams,
+                max_new_tokens=max_new_tokens,
+                min_new_tokens=min_new_tokens,
+                early_stopping=early_stopping,
+                max_time=max_time,
+                repetition_penalty=repetition_penalty,
+                num_return_sequences=num_return_sequences,
+                do_sample=do_sample,
+
+                callbacks=callbacks if stream_output else None,
+                stream_output=stream_output,
+
+                prompter=prompter,
+                context=context,
+                iinput=iinput,
+                client=gr_llava_client,
+                tokenizer=tokenizer,
+                system_prompt=system_prompt,
+                chat_conversation=chat_conversation,
+                visible_models=visible_models,
+                h2ogpt_key=h2ogpt_key,
+                min_max_new_tokens=min_max_new_tokens,
+                max_input_tokens=max_input_tokens,
+                max_total_input_tokens=max_total_input_tokens,
+                async_sem=async_sem,
+                verbose=verbose,
+
+                img_file=img_file,
+            )
+        elif gr_client:
             chat_client = False
             llm = GradioInference(
                 inference_server_url=inference_server,
@@ -1948,6 +2176,8 @@ def get_llm(use_openai_model=False,
                 max_total_input_tokens=max_total_input_tokens,
                 async_sem=async_sem,
                 verbose=verbose,
+
+                img_file=img_file,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -3046,7 +3276,8 @@ def file_to_doc(file,
                 add_meta(docs1c, file_llava, parser='LLaVa: %s' % llava_model)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file_llava)
-                [doci.metadata.update(source=file_llava, hashid=hash_of_file, llava_prompt=llava_prompt) for doci in docs1c]
+                [doci.metadata.update(source=file_llava, hashid=hash_of_file, llava_prompt=llava_prompt) for doci in
+                 docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("LLaVa: %s" % str(e0), flush=True)
@@ -4723,6 +4954,8 @@ def run_qa_db(**kwargs):
     kwargs['gptq_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['sink_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['hf_model_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
+    kwargs['image_file'] = None
+    kwargs['image_control'] = None
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -4868,6 +5101,9 @@ def _run_qa_db(query=None,
                auto_reduce_chunks=True,
                max_chunks=100,
                headsize=50,
+
+               image_file=None,
+               image_control=None,
                ):
     """
 
@@ -5036,6 +5272,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       sink_dict=sink_dict,
                       truncation_generation=truncation_generation,
                       langchain_agents=langchain_agents,
+
+                      image_file=image_file,
+                      image_control=image_control,
+                      document_choice=document_choice,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)

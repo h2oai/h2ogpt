@@ -19,7 +19,7 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
-from src.image_utils import get_image_types
+from src.image_utils import get_image_file
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -2316,7 +2316,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if is_vision_model(base_model):
         from gradio_client import Client
-        gr_client = Client(inference_server)
+        gr_client = Client(inference_server, serialize=False)
     elif headers is None:
         try:
             # preload client since slow for gradio case especially
@@ -3867,6 +3867,9 @@ def evaluate(
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
                 headsize=headsize,
+
+                image_file=image_file,
+                image_control=image_control,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
@@ -4074,34 +4077,34 @@ def evaluate(
                                                                                           base_model=base_model)
                 assert gr_client is not None
                 assert hf_client is None
-            if image_control is not None:
-                img_file = image_control
-            elif image_file is not None:
-                img_file = image_file
-            else:
-                image_types = get_image_types()
-                img_file = [x for x in document_choice if x.endswith('.' + image_types)] if document_choice else []
-                img_file = img_file[0] if img_file else None
+            img_file = get_image_file(image_file, image_control, document_choice)
+            llava_kwargs = dict(file=img_file,
+                                llava_model=inference_server,
+                                # prompt=instruction,
+                                prompt=prompt,  # prepared prompt with chat history etc.
+                                allow_prompt_auto=False,
+                                image_model=base_model, temperature=temperature,
+                                top_p=top_p, max_new_tokens=max_new_tokens,
+                                client=gr_client if not regenerate_clients else None,
+                                )
             if not stream_output:
                 from src.vision.utils_vision import get_llava_response
-                response, _ = get_llava_response(img_file, llava_model,
-                                                 prompt=instruction,
-                                                 allow_prompt_auto=False,
-                                                 image_model=base_model, temperature=temperature,
-                                                 top_p=top_p, max_new_tokens=max_new_tokens)
+                response, _ = get_llava_response(**llava_kwargs)
 
                 yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                            response_no_refs=response, sources_str='', prompt_raw='')
             else:
                 response = ''
+                tgen0 = time.time()
                 from src.vision.utils_vision import get_llava_stream
-                for response in get_llava_stream(img_file, llava_model,
-                                                 prompt=instruction,
-                                                 allow_prompt_auto=False,
-                                                 image_model=base_model, temperature=temperature,
-                                                 top_p=top_p, max_new_tokens=max_new_tokens):
+                for response in get_llava_stream(**llava_kwargs):
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
+
+                    if time.time() - tgen0 > max_time:
+                        if verbose:
+                            print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
+                        break
 
         elif inference_server.startswith('http'):
             inference_server, headers = get_hf_server(inference_server)
