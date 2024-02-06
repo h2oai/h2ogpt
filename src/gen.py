@@ -3906,7 +3906,8 @@ def evaluate(
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
     from gradio_utils.grclient import GradioClient
-    gradio_server = inference_server.startswith('http') and isinstance(model, GradioClient)
+    from gradio_client import Client
+    gradio_server = inference_server.startswith('http') and (isinstance(model, GradioClient) or isinstance(model, Client))
 
     prompt, \
         instruction, iinput, context, \
