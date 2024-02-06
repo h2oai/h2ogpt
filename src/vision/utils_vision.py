@@ -6,7 +6,7 @@ from io import BytesIO
 import numpy as np
 
 
-def png_to_base64(image_file):
+def img_to_base64(image_file):
     # assert image_file.lower().endswith('jpg') or image_file.lower().endswith('jpeg')
     from PIL import Image
 
@@ -38,6 +38,22 @@ def png_to_base64(image_file):
     img_str = str(bytes("data:image/%s;base64," % iformat.lower(), encoding='utf-8') + img_str)
 
     return img_str
+
+
+def base64_to_img(img_str, output_path):
+    # Split the string on "," to separate the metadata from the base64 data
+    meta, base64_data = img_str.split(",", 1)
+    # Extract the format from the metadata
+    img_format = meta.split(';')[0].split('/')[-1]
+    # Decode the base64 string to bytes
+    img_bytes = base64.b64decode(base64_data)
+    # Create output file path with the correct format extension
+    output_file = f"{output_path}.{img_format}"
+    # Write the bytes to a file
+    with open(output_file, "wb") as f:
+        f.write(img_bytes)
+    print(f"Image saved to {output_file} with format {img_format}")
+    return output_file
 
 
 def llava_prep(file, llava_model,
@@ -98,7 +114,7 @@ def llava_prep(file, llava_model,
         im.save(file)
 
     if file and os.path.isfile(file):
-        img_str = png_to_base64(file)
+        img_str = img_to_base64(file)
     else:
         img_str = None
     res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')

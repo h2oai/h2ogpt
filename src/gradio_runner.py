@@ -1,4 +1,5 @@
 import ast
+import base64
 import copy
 import functools
 import inspect
@@ -9,6 +10,7 @@ import pprint
 import random
 import shutil
 import sys
+import tempfile
 import time
 import traceback
 import uuid
@@ -22,6 +24,7 @@ from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct
 from src.tts_utils import combine_audios
+from src.vision.utils_vision import base64_to_img
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -3598,6 +3601,11 @@ def go_gradio(**kwargs):
             if 'show_link_in_sources' not in user_kwargs:
                 kwargs1['show_link_in_sources'] = False
             kwargs1['top_k_docs_max_show'] = 30
+
+            if 'image_file' in user_kwargs and user_kwargs['image_file']:
+                img_file = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
+                # assume is bytes
+                user_kwargs['image_file'] = base64_to_img(user_kwargs['image_file'], img_file)
 
             # only used for submit_nochat_api
             user_kwargs['chat'] = False

@@ -2144,6 +2144,7 @@ def get_llm(use_openai_model=False,
             )
         elif gr_client:
             chat_client = False
+            from src.vision.utils_vision import img_to_base64
             llm = GradioInference(
                 inference_server_url=inference_server,
                 return_full_text=False,
@@ -2181,7 +2182,7 @@ def get_llm(use_openai_model=False,
                 async_sem=async_sem,
                 verbose=verbose,
 
-                img_file=img_file,
+                img_file=img_to_base64(img_file) if img_file else None,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class

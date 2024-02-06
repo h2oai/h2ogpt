@@ -10,8 +10,8 @@ def test_llava_client():
     # prompt = "According to the image, describe the image in full details with a well-structured response."
     prompt = "Describe the image"
 
-    from src.vision.utils_vision import png_to_base64
-    img_str = png_to_base64(file)
+    from src.vision.utils_vision import img_to_base64
+    img_str = img_to_base64(file)
 
     from gradio_client import Client
     client = Client(llava_model, serialize=False)
@@ -50,8 +50,8 @@ def test_llava_client2():
 
 @wrap_test_forked
 def test_llava_client_stream():
-    from src.vision.utils_vision import png_to_base64
-    img_str = png_to_base64("models/wizard.jpg")
+    from src.vision.utils_vision import img_to_base64
+    img_str = img_to_base64("models/wizard.jpg")
 
     from gradio_client import Client
     client = Client(os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'), serialize=False)

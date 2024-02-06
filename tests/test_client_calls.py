@@ -84,7 +84,7 @@ def test_client1_context(base_model):
     sys.modules.pop('langchain', None)
 
     from src.gen import main
-    main(base_model=base_model, prompt_type='prompt_answer', chat=False,
+    main(base_model=base_model, chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     from gradio_client import Client
@@ -4349,3 +4349,38 @@ def test_client_upload_to_user_or_my_not_allowed():
             pass
         else:
             raise
+
+
+@wrap_test_forked
+def test_client1_image_qa():
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
+    from src.gen import main
+    assert os.getenv('H2OGPT_LLAVA_MODEL'), "Missing env"
+    llava_model = os.getenv('H2OGPT_LLAVA_MODEL')
+    main(
+        model_lock=[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf','prompt_type': 'zephyr'},
+                    {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': llava_model, 'prompt_type': 'plain'},
+                    {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': llava_model, 'prompt_type': 'plain'}],
+         llava_model=llava_model,
+         gradio=True, num_beams=1, block_gradio_exit=False,
+    )
+
+    from gradio_client import Client
+    client = Client(get_inf_server())
+
+    # string of dict for input
+    prompt = 'What do you see?'
+    image_file = 'tests/driverslicense.jpeg'
+    from src.vision.utils_vision import img_to_base64
+    image_file = img_to_base64(image_file)
+    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models='liuhaotian/llava-v1.6-vicuna-13b',
+                  stream_output=False)
+    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+
+    # string of dict for output
+    response = ast.literal_eval(res)['response']
+    print(response)
+    assert 'license' in response
