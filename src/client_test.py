@@ -164,6 +164,9 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          speaker='None',
                          tts_language='autodetect',
                          tts_speed=1.0,
+
+                         image_file=None,
+                         image_control=None,
                          )
     diff = 0
     if version is None:
