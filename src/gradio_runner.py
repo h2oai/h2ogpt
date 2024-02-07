@@ -182,6 +182,153 @@ def get_prompt_type2(is_public, **kwargs):
     return prompt_type2
 
 
+def ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs, mic_kwargs, noqueue_kwargs2,
+              submit_kwargs, stop_kwargs):
+    with gr.Row():
+        with gr.Column(scale=50):
+            with gr.Row(elem_id="prompt-form-row"):
+                label_instruction = 'Ask anything or Ingest'
+                instruction = gr.Textbox(
+                    lines=kwargs['input_lines'],
+                    label=label_instruction,
+                    info=instruction_label,
+                    # info=None,
+                    elem_id='prompt-form',
+                    container=True,
+                )
+                mw0 = 20
+                mic_button = gr.Button(
+                    elem_id="microphone-button" if kwargs['enable_stt'] else None,
+                    value="🔴",
+                    size="sm",
+                    min_width=mw0,
+                    visible=kwargs['enable_stt'])
+                attach_button = gr.UploadButton(
+                    elem_id="attach-button" if visible_upload else None,
+                    value=None,
+                    label="Upload",
+                    size="sm",
+                    min_width=mw0,
+                    file_types=['.' + x for x in file_types],
+                    file_count="multiple",
+                    visible=visible_upload)
+                add_button = gr.Button(
+                    elem_id="add-button" if visible_upload and not kwargs[
+                        'actions_in_sidebar'] else None,
+                    value="Ingest",
+                    size="sm",
+                    min_width=mw0,
+                    visible=visible_upload and not kwargs['actions_in_sidebar'])
+
+            # AUDIO
+            if kwargs['enable_stt']:
+                def action(btn, instruction1, audio_state1, stt_continue_mode=1):
+                    # print("B0: %s %s" % (audio_state1[0], instruction1), flush=True)
+                    """Changes button text on click"""
+                    if btn == '🔴':
+                        audio_state1[3] = 'on'
+                        # print("A: %s %s" % (audio_state1[0], instruction1), flush=True)
+                        if stt_continue_mode == 1:
+                            audio_state1[0] = instruction1
+                            audio_state1[1] = instruction1
+                            audio_state1[2] = None
+                        return '⭕', instruction1, audio_state1
+                    else:
+                        audio_state1[3] = 'off'
+                        if stt_continue_mode == 1:
+                            audio_state1[0] = None  # indicates done for race case
+                            instruction1 = audio_state1[1]
+                            audio_state1[2] = []
+                        # print("B1: %s %s" % (audio_state1[0], instruction1), flush=True)
+                        return '🔴', instruction1, audio_state1
+
+                # while audio state used, entries are pre_text, instruction source, and audio chunks, condition
+                audio_state0 = [None, None, None, 'off']
+                audio_state = gr.State(value=audio_state0)
+                audio_output = gr.HTML(visible=False)
+                audio = gr.Audio(**mic_sources_kwargs, streaming=True, visible=False,
+                                 # max_length=30 if is_public else None,
+                                 elem_id='audio',
+                                 # waveform_options=dict(show_controls=True),
+                                 )
+                mic_button_kwargs = dict(fn=functools.partial(action,
+                                                              stt_continue_mode=kwargs[
+                                                                  'stt_continue_mode']),
+                                         inputs=[mic_button, instruction,
+                                                 audio_state],
+                                         outputs=[mic_button, instruction,
+                                                  audio_state],
+                                         api_name=None,
+                                         show_progress='hidden')
+                # JS first, then python, but all in one click instead of using .then() that will delay
+                mic_button.click(fn=lambda: None, **mic_kwargs, **noqueue_kwargs2) \
+                    .then(**mic_button_kwargs)
+                audio.stream(fn=kwargs['transcriber_func'],
+                             inputs=[audio_state, audio],
+                             outputs=[audio_state, instruction],
+                             show_progress='hidden')
+
+        submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
+        with submit_buttons:
+            mw1 = 50
+            mw2 = 50
+            with gr.Column(min_width=mw1):
+                submit = gr.Button(value='Submit', variant='primary', size='sm',
+                                   min_width=mw1, elem_id="submit")
+                stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
+                                     min_width=mw1, elem_id='stop')
+                save_chat_btn = gr.Button("Save", size='sm', min_width=mw1)
+            with gr.Column(min_width=mw2):
+                retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
+                undo = gr.Button("Undo", size='sm', min_width=mw2)
+                clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
+
+            if kwargs['enable_stt'] and (
+                    kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']):
+                def detect_words(action_text1, stop_text1, text):
+                    got_action_word = False
+                    action_words = kwargs['tts_action_phrases']
+                    if action_words:
+                        for action_word in action_words:
+                            if action_word.lower() in text.lower():
+                                text = text[:text.lower().index(action_word.lower())]
+                                print("Got action: %s %s" % (action_text1, text), flush=True)
+                                got_action_word = True
+                    if got_action_word:
+                        action_text1 = action_text1 + '.'
+
+                    got_stop_word = False
+                    stop_words = kwargs['tts_stop_phrases']
+                    if stop_words:
+                        for stop_word in stop_words:
+                            if stop_word.lower() in text.lower():
+                                text = text[:text.lower().index(stop_word.lower())]
+                                print("Got stop: %s %s" % (stop_text1, text), flush=True)
+                                got_stop_word = True
+
+                    if got_stop_word:
+                        stop_text1 = stop_text1 + '.'
+
+                    return action_text1, stop_text1, text
+
+                action_text = gr.Textbox(value='', visible=False)
+                stop_text = gr.Textbox(value='', visible=False)
+
+                # avoid if no action word, may take extra time
+                instruction.change(fn=detect_words,
+                                   inputs=[action_text, stop_text, instruction],
+                                   outputs=[action_text, stop_text, instruction])
+
+                def clear_audio_state():
+                    return audio_state0
+
+                action_text.change(fn=clear_audio_state, outputs=audio_state) \
+                    .then(fn=lambda: None, **submit_kwargs)
+                stop_text.change(fn=clear_audio_state, outputs=audio_state) \
+                    .then(fn=lambda: None, **stop_kwargs)
+    return attach_button, add_button, submit_buttons, instruction, submit, retry_btn, undo, clear_chat_btn, save_chat_btn, stop_btn
+
+
 def go_gradio(**kwargs):
     page_title = kwargs['page_title']
     allow_api = kwargs['allow_api']
@@ -1044,149 +1191,9 @@ def go_gradio(**kwargs):
                         # CHAT
                         col_chat = gr.Column(visible=kwargs['chat'])
                         with col_chat:
-                            with gr.Row():
-                                with gr.Column(scale=50):
-                                    with gr.Row(elem_id="prompt-form-row"):
-                                        label_instruction = 'Ask anything or Ingest'
-                                        instruction = gr.Textbox(
-                                            lines=kwargs['input_lines'],
-                                            label=label_instruction,
-                                            info=instruction_label,
-                                            # info=None,
-                                            elem_id='prompt-form',
-                                            container=True,
-                                        )
-                                        mw0 = 20
-                                        mic_button = gr.Button(
-                                            elem_id="microphone-button" if kwargs['enable_stt'] else None,
-                                            value="🔴",
-                                            size="sm",
-                                            min_width=mw0,
-                                            visible=kwargs['enable_stt'])
-                                        attach_button = gr.UploadButton(
-                                            elem_id="attach-button" if visible_upload else None,
-                                            value=None,
-                                            label="Upload",
-                                            size="sm",
-                                            min_width=mw0,
-                                            file_types=['.' + x for x in file_types],
-                                            file_count="multiple",
-                                            visible=visible_upload)
-                                        add_button = gr.Button(
-                                            elem_id="add-button" if visible_upload and not kwargs[
-                                                'actions_in_sidebar'] else None,
-                                            value="Ingest",
-                                            size="sm",
-                                            min_width=mw0,
-                                            visible=visible_upload and not kwargs['actions_in_sidebar'])
-
-                                    # AUDIO
-                                    if kwargs['enable_stt']:
-                                        def action(btn, instruction1, audio_state1, stt_continue_mode=1):
-                                            # print("B0: %s %s" % (audio_state1[0], instruction1), flush=True)
-                                            """Changes button text on click"""
-                                            if btn == '🔴':
-                                                audio_state1[3] = 'on'
-                                                # print("A: %s %s" % (audio_state1[0], instruction1), flush=True)
-                                                if stt_continue_mode == 1:
-                                                    audio_state1[0] = instruction1
-                                                    audio_state1[1] = instruction1
-                                                    audio_state1[2] = None
-                                                return '⭕', instruction1, audio_state1
-                                            else:
-                                                audio_state1[3] = 'off'
-                                                if stt_continue_mode == 1:
-                                                    audio_state1[0] = None  # indicates done for race case
-                                                    instruction1 = audio_state1[1]
-                                                    audio_state1[2] = []
-                                                # print("B1: %s %s" % (audio_state1[0], instruction1), flush=True)
-                                                return '🔴', instruction1, audio_state1
-
-                                        # while audio state used, entries are pre_text, instruction source, and audio chunks, condition
-                                        audio_state0 = [None, None, None, 'off']
-                                        audio_state = gr.State(value=audio_state0)
-                                        audio_output = gr.HTML(visible=False)
-                                        audio = gr.Audio(**mic_sources_kwargs, streaming=True, visible=False,
-                                                         # max_length=30 if is_public else None,
-                                                         elem_id='audio',
-                                                         # waveform_options=dict(show_controls=True),
-                                                         )
-                                        mic_button_kwargs = dict(fn=functools.partial(action,
-                                                                                      stt_continue_mode=kwargs[
-                                                                                          'stt_continue_mode']),
-                                                                 inputs=[mic_button, instruction,
-                                                                         audio_state],
-                                                                 outputs=[mic_button, instruction,
-                                                                          audio_state],
-                                                                 api_name=None,
-                                                                 show_progress='hidden')
-                                        # JS first, then python, but all in one click instead of using .then() that will delay
-                                        mic_button.click(fn=lambda: None, **mic_kwargs, **noqueue_kwargs2) \
-                                            .then(**mic_button_kwargs)
-                                        audio.stream(fn=kwargs['transcriber_func'],
-                                                     inputs=[audio_state, audio],
-                                                     outputs=[audio_state, instruction],
-                                                     show_progress='hidden')
-
-                                submit_buttons = gr.Row(equal_height=False, visible=kwargs['visible_submit_buttons'])
-                                with submit_buttons:
-                                    mw1 = 50
-                                    mw2 = 50
-                                    with gr.Column(min_width=mw1):
-                                        submit = gr.Button(value='Submit', variant='primary', size='sm',
-                                                           min_width=mw1, elem_id="submit")
-                                        stop_btn = gr.Button(value="Stop", variant='secondary', size='sm',
-                                                             min_width=mw1, elem_id='stop')
-                                        save_chat_btn = gr.Button("Save", size='sm', min_width=mw1)
-                                    with gr.Column(min_width=mw2):
-                                        retry_btn = gr.Button("Redo", size='sm', min_width=mw2)
-                                        undo = gr.Button("Undo", size='sm', min_width=mw2)
-                                        clear_chat_btn = gr.Button(value="Clear", size='sm', min_width=mw2)
-
-                                    if kwargs['enable_stt'] and (
-                                            kwargs['tts_action_phrases'] or kwargs['tts_stop_phrases']):
-                                        def detect_words(action_text1, stop_text1, text):
-                                            got_action_word = False
-                                            action_words = kwargs['tts_action_phrases']
-                                            if action_words:
-                                                for action_word in action_words:
-                                                    if action_word.lower() in text.lower():
-                                                        text = text[:text.lower().index(action_word.lower())]
-                                                        print("Got action: %s %s" % (action_text1, text), flush=True)
-                                                        got_action_word = True
-                                            if got_action_word:
-                                                action_text1 = action_text1 + '.'
-
-                                            got_stop_word = False
-                                            stop_words = kwargs['tts_stop_phrases']
-                                            if stop_words:
-                                                for stop_word in stop_words:
-                                                    if stop_word.lower() in text.lower():
-                                                        text = text[:text.lower().index(stop_word.lower())]
-                                                        print("Got stop: %s %s" % (stop_text1, text), flush=True)
-                                                        got_stop_word = True
-
-                                            if got_stop_word:
-                                                stop_text1 = stop_text1 + '.'
-
-                                            return action_text1, stop_text1, text
-
-                                        action_text = gr.Textbox(value='', visible=False)
-                                        stop_text = gr.Textbox(value='', visible=False)
-
-                                        # avoid if no action word, may take extra time
-                                        instruction.change(fn=detect_words,
-                                                           inputs=[action_text, stop_text, instruction],
-                                                           outputs=[action_text, stop_text, instruction])
-
-                                        def clear_audio_state():
-                                            return audio_state0
-
-                                        action_text.change(fn=clear_audio_state, outputs=audio_state) \
-                                            .then(fn=lambda: None, **submit_kwargs)
-                                        stop_text.change(fn=clear_audio_state, outputs=audio_state) \
-                                            .then(fn=lambda: None, **stop_kwargs)
-
+                            if kwargs['visible_ask_anything_high']:
+                                attach_button, add_button, submit_buttons, instruction, submit, retry_btn, undo, clear_chat_btn, save_chat_btn, stop_btn = \
+                                    ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs, mic_kwargs, noqueue_kwargs2, submit_kwargs, stop_kwargs)
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
@@ -1215,6 +1222,9 @@ def go_gradio(**kwargs):
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
                                                                                     **kwargs)
 
+                            if not kwargs['visible_ask_anything_high']:
+                                attach_button, add_button, submit_buttons, instruction, submit, retry_btn, undo, clear_chat_btn, save_chat_btn, stop_btn = \
+                                    ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs, mic_kwargs, noqueue_kwargs2, submit_kwargs, stop_kwargs)
                             with gr.Row():
                                 with gr.Column(visible=kwargs['score_model']):
                                     score_text = gr.Textbox(res_value,

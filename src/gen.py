@@ -286,6 +286,7 @@ def main(
         visible_models: list = None,
         max_visible_models: int = None,
 
+        visible_ask_anything_high : bool = True,
         visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
@@ -826,8 +827,9 @@ def main(
            Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
               and the value is not used to access the inference server.
               If need a visible_models for an inference server, then use --model_lock and group together.
-    :para max_visible_models: maximum visible models to allow to select in UI
+    :param max_visible_models: maximum visible models to allow to select in UI
 
+    :param visible_ask_anything_high: Whether ask anything block goes near top or near bottom of UI Chat
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
