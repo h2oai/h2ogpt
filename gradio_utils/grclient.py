@@ -228,55 +228,65 @@ class GradioClient(Client):
             self._info = None
         self.session_hash = str(uuid.uuid4())
 
-        if is_gradio_client_version7plus:
-            from gradio_client.client import EndpointV3Compatibility
-            endpoint_class = (
-                Endpoint if self.protocol.startswith("sse") else EndpointV3Compatibility
-            )
-        else:
-            endpoint_class = Endpoint
-
-        if is_gradio_client_version7plus:
-            self.endpoints = [
-                endpoint_class(self, fn_index, dependency, self.protocol)
-                for fn_index, dependency in enumerate(self.config["dependencies"])
-            ]
-        else:
-            self.endpoints = [
-                endpoint_class(self, fn_index, dependency)
-                for fn_index, dependency in enumerate(self.config["dependencies"])
-            ]
-
-        # Create a pool of threads to handle the requests
-        self.executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=self.max_workers
-        )
+        self.get_endpoints(self)
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
         # threading.Thread(target=self._telemetry_thread).start()
 
         self.server_hash = self.get_server_hash()
 
-        if is_gradio_client_version7plus:
-            self.stream_open = False
-            self.streaming_future: Future | None = None
-            from gradio_client.utils import Message
-            self.pending_messages_per_event: dict[str, list[Message | None]] = {}
-            self.pending_event_ids: set[str] = set()
-
         return self
 
+    @staticmethod
+    def get_endpoints(client, verbose=False):
+        t0 = time.time()
+        # Create a pool of threads to handle the requests
+        client.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=client.max_workers
+        )
+        if is_gradio_client_version7plus:
+            from gradio_client.client import EndpointV3Compatibility
+            endpoint_class = (
+                Endpoint if client.protocol.startswith("sse") else EndpointV3Compatibility
+            )
+        else:
+            endpoint_class = Endpoint
+
+        if is_gradio_client_version7plus:
+            client.endpoints = [
+                endpoint_class(client, fn_index, dependency, client.protocol)
+                for fn_index, dependency in enumerate(client.config["dependencies"])
+            ]
+        else:
+            client.endpoints = [
+                endpoint_class(client, fn_index, dependency)
+                for fn_index, dependency in enumerate(client.config["dependencies"])
+            ]
+        if is_gradio_client_version7plus:
+            client.stream_open = False
+            client.streaming_future = None
+            from gradio_client.utils import Message
+            client.pending_messages_per_event = {}
+            client.pending_event_ids = set()
+        if verbose:
+            print("duration endpoints: %s" % (time.time() - t0), flush=True)
+
     def get_server_hash(self):
+        t0 = time.time()
         if self.config is None:
             self.setup()
         """
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
-        if self.check_hash:
-            return super().submit(api_name="/system_hash").result()
-        else:
-            return "GET_GITHASH"
+        try:
+            if self.check_hash:
+                return super().submit(api_name="/system_hash").result()
+            else:
+                return "GET_GITHASH"
+        finally:
+            if self.verbose:
+                print("duration server_hash: %s" % (time.time() - t0), flush=True)
 
     def refresh_client_if_should(self):
         if self.config is None:
@@ -343,13 +353,9 @@ class GradioClient(Client):
         for k, v in self.__dict__.items():
             setattr(client, k, v)
         client.reset_session()
-        client.executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=self.max_workers
-        )
-        client.endpoints = [
-            Endpoint(client, fn_index, dependency)
-            for fn_index, dependency in enumerate(client.config["dependencies"])
-        ]
+
+        self.get_endpoints(client)
+
         # transfer internals in case used
         client.server_hash = self.server_hash
         client.chat_conversation = self.chat_conversation
