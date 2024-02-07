@@ -39,6 +39,8 @@ from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
+from langchain_core.messages import BaseMessage
+from langchain_core.outputs import ChatResult
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -1573,11 +1575,18 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
 class H2OChatAnthropicSys(H2OChatAnthropic):
     pass
 
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.language_models.chat_models import (
+    BaseChatModel,
+    agenerate_from_stream,
+    generate_from_stream
+)
 
 class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
+    streaming: Any = False
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1590,6 +1599,8 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
     ) -> LLMResult:
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
+        if 'streaming' not in kwargs:
+            kwargs['streaming'] = self.streaming
         # prompt_messages = [p.to_messages() for p in prompts]
         return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
@@ -1603,9 +1614,45 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
+        if 'streaming' not in kwargs:
+            kwargs['streaming'] = self.streaming
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        stream: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        should_stream = stream if stream is not None else self.streaming
+        if should_stream:
+            stream_iter = self._stream(
+                messages, stop=stop, run_manager=run_manager, **kwargs
+            )
+            return generate_from_stream(stream_iter)
+        else:
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _agenerate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+        stream: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        should_stream = stream if stream is not None else self.streaming
+        if should_stream:
+            stream_iter = self._astream(
+                messages, stop=stop, run_manager=run_manager, **kwargs
+            )
+            return await agenerate_from_stream(stream_iter)
+        else:
+            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
 
 class H2OChatMistralAI(ChatMistralAI, ExtraChat):
