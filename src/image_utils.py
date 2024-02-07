@@ -120,7 +120,7 @@ def correct_rotation(img_file, border_size=50):
 
     # Detect points that form a line using HoughLinesP
     lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80, minLineLength=100, maxLineGap=10)
-    if not lines:
+    if lines is None or len(lines) == 0:
         return img_file
 
     # Initialize list of angles
