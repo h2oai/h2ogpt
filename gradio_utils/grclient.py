@@ -109,7 +109,7 @@ class GradioClient(Client):
                      This allows the scratch MyData to be reused, etc.
                      This also maintains the chat_conversation history
             check_hash: whether to check git hash for consistency between server and client to ensure API always up to date
-            check_model_name: whether to check the model name here (adds delays), or just let server fail (fater)
+            check_model_name: whether to check the model name here (adds delays), or just let server fail (faster)
         """
         if serialize is None:
             # else converts inputs arbitrarily and outputs mutate
@@ -176,6 +176,8 @@ class GradioClient(Client):
         )
         if headers0:
             self.headers.update(headers0)
+        if self.headers['authorization'] == 'Bearer ':
+            self.headers['authorization'] = 'Bearer hf_xx'
         if src.startswith("http://") or src.startswith("https://"):
             _src = src if src.endswith("/") else src + "/"
         else:
