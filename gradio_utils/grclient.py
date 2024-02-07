@@ -93,6 +93,8 @@ class GradioClient(Client):
             output_dir: str | Path | None = DEFAULT_TEMP_DIR,
             verbose: bool = False,
             auth: tuple[str, str] | None = None,
+            headers: dict[str, str] | None = None,
+
             h2ogpt_key: str = None,
             persist: bool = False,
             check_hash: bool = True,
@@ -100,13 +102,8 @@ class GradioClient(Client):
     ):
         """
         Parameters:
-            src: Either the name of the Hugging Face Space to load, (e.g. "abidlabs/whisper-large-v2") or the full URL (including "http" or "https") of the hosted Gradio app to load (e.g. "http://mydomain.com/app" or "https://bec81a83-5b5c-471e.gradio.live/").
-            hf_token: The Hugging Face token to use to access private Spaces. Automatically fetched if you are logged in via the Hugging Face Hub CLI. Obtain from: https://huggingface.co/settings/token
-            max_workers: The maximum number of thread workers that can be used to make requests to the remote Gradio app simultaneously.
-            serialize: Whether the client should serialize the inputs and deserialize the outputs of the remote API. If set to False, the client will pass the inputs and outputs as-is, without serializing/deserializing them. E.g. you if you set this to False, you'd submit an image in base64 format instead of a filepath, and you'd get back an image in base64 format from the remote API instead of a filepath.
-            output_dir: The directory to save files that are downloaded from the remote API. If None, reads from the GRADIO_TEMP_DIR environment variable. Defaults to a temporary directory on your machine.
-            verbose: Whether the client should print statements to the console.
-
+            Base Class parameters
+            +
             h2ogpt_key: h2oGPT key to gain access to the server
             persist: whether to persist the state, so repeated calls are aware of the prior user session
                      This allows the scratch MyData to be reused, etc.
@@ -147,6 +144,8 @@ class GradioClient(Client):
         self.max_workers = max_workers
         self.src = src
         self.auth = auth
+        self.headers = headers
+
         self.config = None
         self.h2ogpt_key = h2ogpt_key
         self.persist = persist
@@ -169,12 +168,14 @@ class GradioClient(Client):
     def setup(self):
         src = self.src
 
+        headers0 = self.headers
         self.headers = build_hf_headers(
             token=self.hf_token,
             library_name="gradio_client",
             library_version=utils.__version__,
         )
-        # self.headers.pop('authorization', None)  # else get illegal Bearer for old servers
+        if headers0:
+            self.headers.update(headers0)
         if src.startswith("http://") or src.startswith("https://"):
             _src = src if src.endswith("/") else src + "/"
         else:
@@ -204,20 +205,25 @@ class GradioClient(Client):
             if self.auth is not None:
                 self._login(self.auth)
 
+        self.config = self._get_config()
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
         if is_gradio_client_version7plus:
-            self.sse_url = urllib.parse.urljoin(self.src, utils.SSE_URL)
-            self.sse_data_url = urllib.parse.urljoin(self.src, utils.SSE_DATA_URL)
+            self.protocol: str = self.config.get("protocol", "ws")
+            self.sse_url = urllib.parse.urljoin(
+                self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
+            )
+            self.sse_data_url = urllib.parse.urljoin(
+                self.src,
+                utils.SSE_DATA_URL_V0 if self.protocol == "sse" else utils.SSE_DATA_URL,
+            )
         self.ws_url = urllib.parse.urljoin(
             self.src.replace("http", "ws", 1), utils.WS_URL
         )
         self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
         self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
-        self.config = self._get_config()
         if is_gradio_client_version7plus:
-            self.protocol: str = self.config.get("protocol", "ws")
             self.app_version = version.parse(self.config.get("version", "2.0"))
-            self._info = self._get_api_info()
+            self._info = None
         self.session_hash = str(uuid.uuid4())
 
         if is_gradio_client_version7plus:
