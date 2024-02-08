@@ -131,12 +131,21 @@ if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
   #* GPU Optional: For exllama support on x86_64 linux
   pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
   #    See [exllama](README_GPU.md#exllama) about running exllama models.
-  echo "The environment variable MY_ENV_VAR contains the substring 'hello'."
+  echo "cuda118 for exllama"
+  # https://github.com/casper-hansen/AutoAWQ_kernels
+  git clone https://github.com/casper-hansen/AutoAWQ_kernels
+  cd AutoAWQ_kernels
+  pip install -e . -c reqs_optional/reqs_constraints.txt
+  cd ..
+  echo "cuda118 for awq, see: https://github.com/casper-hansen/AutoAWQ_kernels/releases/"
+
 else
   #* GPU Optional: For exllama support on x86_64 linux
   pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu121-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
   #    See [exllama](README_GPU.md#exllama) about running exllama models.
-  echo "The environment variable MY_ENV_VAR does not contain the substring 'hello'."
+  echo "cuda121 for exllama"
+  pip install autoawq-kernels -c reqs_optional/reqs_constraints.txt
+  echo "cuda121 for awq"
 fi
 
 
