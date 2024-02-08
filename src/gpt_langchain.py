@@ -3118,7 +3118,7 @@ def file_to_doc(file,
         base_path = "user_paste"
         base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
         source_file = os.path.join(base_path, "_%s.txt" % str(uuid.uuid4())[:10])
-        with open(source_file, "wt") as f:
+        with open(source_file, "wt", encoding="utf-8") as f:
             f.write(file)
         metadata = dict(source=source_file, date=str(datetime.now()), input_type='pasted txt')
         doc1 = Document(page_content=str(file), metadata=metadata)
@@ -7478,7 +7478,7 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     sources_dir = "sources_dir"
     sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
     sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
-    with open(sources_file, "wt") as f:
+    with open(sources_file, "wt", encoding="utf-8") as f:
         f.write(source_files_added)
     source_list = docs_state0 + source_list
     if DocumentChoice.ALL.value in source_list:
