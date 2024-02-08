@@ -569,6 +569,7 @@ class GradioInference(H2Oagenerate, LLM):
     tokenizer: Any = None
 
     chat_conversation: Any = []
+    add_chat_history_to_context: bool = True
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -615,7 +616,7 @@ class GradioInference(H2Oagenerate, LLM):
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
         client_langchain_mode = 'Disabled'
-        client_add_chat_history_to_context = True
+        client_add_chat_history_to_context = self.add_chat_history_to_context
         client_add_search_to_context = False
         client_chat_conversation = self.chat_conversation
         client_langchain_action = LangChainAction.QUERY.value
@@ -1791,6 +1792,7 @@ def get_llm(use_openai_model=False,
             context=None,
             iinput=None,
             chat_conversation=None,
+            add_chat_history_to_context=True,
             sanitize_bot_response=False,
             system_prompt='',
             allow_chat_system_prompt=True,
@@ -2186,6 +2188,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
+                add_chat_history_to_context=add_chat_history_to_context,
                 #visible_models=visible_models,
                 visible_models=model_name,
                 h2ogpt_key=h2ogpt_key,
@@ -2240,6 +2243,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
+                add_chat_history_to_context=add_chat_history_to_context,
                 visible_models=visible_models,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
@@ -5329,6 +5333,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       sanitize_bot_response=sanitize_bot_response,
                       system_prompt=system_prompt,
                       chat_conversation=chat_conversation if not query_action else [],
+                      add_chat_history_to_context=add_chat_history_to_context,
                       # FIXME: sum/extra handle long chat_conversation
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
