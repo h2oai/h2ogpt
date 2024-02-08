@@ -845,9 +845,10 @@ class GradioClient(Client):
 
                     # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
                     res_all = job.outputs().copy()
+                    success = job.communicator.job.latest_status.success
+                    timeout = 0.1 if success else 10
                     if len(res_all) > 0:
-                        # 0.1 slightly longer than 0.02 in open source
-                        check_job(job, timeout=0.1, raise_exception=True)
+                        check_job(job, timeout=timeout, raise_exception=True)
 
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
@@ -857,8 +858,7 @@ class GradioClient(Client):
                         yield response[len(text0):], texts_out
                         self.chat_conversation[-1] = (instruction, response[len(text0):])
                     else:
-                        # 1.0 slightly longer than 0.3 in open source
-                        check_job(job, timeout=1.0, raise_exception=True)
+                        check_job(job, timeout=2.0*timeout, raise_exception=True)
                         yield response[len(text0):], texts_out
                         self.chat_conversation[-1] = (instruction, response[len(text0):])
                 break
@@ -958,9 +958,11 @@ class GradioClient(Client):
             time.sleep(0.01)
         # ensure get last output to avoid race
         res_all = job.outputs().copy()
+        success = job.communicator.job.latest_status.success
+        timeout = 0.1 if success else 10
         if len(res_all) > 0:
             # don't raise unless nochat API for now
-            e = check_job(job, timeout=0.02, raise_exception=True)
+            e = check_job(job, timeout=timeout, raise_exception=True)
             if e is not None:
                 strex = ''.join(traceback.format_tb(e.__traceback__))
 
@@ -977,7 +979,7 @@ class GradioClient(Client):
         else:
             # if got no answer at all, probably something bad, always raise exception
             # UI will still put exception in Chat History under chat exceptions
-            e = check_job(job, timeout=0.3, raise_exception=True)
+            e = check_job(job, timeout=2.0*timeout, raise_exception=True)
             # go with old text if last call didn't work
             if e is not None:
                 stre = str(e)

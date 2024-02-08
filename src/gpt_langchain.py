@@ -773,7 +773,7 @@ class GradioInference(H2Oagenerate, LLM):
             # ensure get last output to avoid race
             res_all = job.outputs().copy()
             success = job.communicator.job.latest_status.success
-            timeout = 0.02 if success else 10
+            timeout = 0.1 if success else 10
             if len(res_all) > 0:
                 # don't raise unless nochat API for now
                 # set below to True for now, not self.chat_client, since not handling exception otherwise
@@ -860,7 +860,7 @@ class GradioInference(H2Oagenerate, LLM):
         # ensure get last output to avoid race
         res_all = job.outputs().copy()
         success = job.communicator.job.latest_status.success
-        timeout = 0.02 if success else 10
+        timeout = 0.1 if success else 10
         if len(res_all) > 0:
             res = res_all[-1]
             res_dict = ast.literal_eval(res)
