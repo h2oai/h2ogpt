@@ -772,11 +772,13 @@ class GradioInference(H2Oagenerate, LLM):
 
             # ensure get last output to avoid race
             res_all = job.outputs().copy()
+            success = job.communicator.job.latest_status.success
+            timeout = 0.02 if success else 10
             if len(res_all) > 0:
                 # don't raise unless nochat API for now
                 # set below to True for now, not self.chat_client, since not handling exception otherwise
                 # in some return of strex
-                check_job(job, timeout=0.02, raise_exception=True)
+                check_job(job, timeout=timeout, raise_exception=True)
 
                 res = res_all[-1]
                 res_dict = ast.literal_eval(res)
@@ -785,7 +787,7 @@ class GradioInference(H2Oagenerate, LLM):
             else:
                 # if got no answer at all, probably something bad, always raise exception
                 # UI will still put exception in Chat History under chat exceptions
-                check_job(job, timeout=0.3, raise_exception=True)
+                check_job(job, timeout=timeout, raise_exception=True)
                 # go with old if failure
                 text = text0
             text_chunk = text[len(text0):]
@@ -857,16 +859,18 @@ class GradioInference(H2Oagenerate, LLM):
 
         # ensure get last output to avoid race
         res_all = job.outputs().copy()
+        success = job.communicator.job.latest_status.success
+        timeout = 0.02 if success else 10
         if len(res_all) > 0:
             res = res_all[-1]
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             # FIXME: derive chunk from full for now
-            check_job(job, timeout=0.02, raise_exception=True)
+            check_job(job, timeout=timeout, raise_exception=True)
         else:
             # go with old if failure
             text = text0
-            check_job(job, timeout=0.3, raise_exception=True)
+            check_job(job, timeout=timeout, raise_exception=True)
 
         text_chunk = text[len(text0):]
         if text_callback:
