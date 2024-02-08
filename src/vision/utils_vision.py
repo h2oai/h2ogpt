@@ -94,7 +94,10 @@ def llava_prep(file, llava_model,
 
     if client is None:
         from gradio_client import Client
-        client = Client(llava_model, serialize=False)
+        if False:
+            client = Client(llava_model, serialize=False)
+        else:
+            client = Client(llava_model)
     load_res = client.predict(api_name='/demo_load')
     model_options = [x[1] for x in load_res['choices']]
     assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
@@ -113,11 +116,14 @@ def llava_prep(file, llava_model,
         file = "%s.jpeg" % str(uuid.uuid4())
         im.save(file)
 
-    if file and os.path.isfile(file):
-        img_str = img_to_base64(file)
+    if False:
+        if file and os.path.isfile(file):
+            img_str = img_to_base64(file)
+        else:
+            img_str = None
+        res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
     else:
-        img_str = None
-    res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
+        res1 = client.predict(prompt, chat_conversation, file, image_process_mode, include_image, api_name='/textbox_api_btn')  # FIXME: Gradio 4 issue, can't send string as image bytes
 
     model_selector, temperature, top_p, max_output_tokens = image_model, temperature, top_p, max_new_tokens
 

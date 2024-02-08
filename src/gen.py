@@ -2328,7 +2328,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if is_vision_model(base_model):
         from gradio_client import Client
-        gr_client = Client(inference_server, serialize=False)
+        gr_client = Client(inference_server)#, serialize=False)  # FIXME: Gradio 4 issue, can't send string as image bytes
     elif headers is None:
         try:
             # preload client since slow for gradio case especially

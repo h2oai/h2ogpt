@@ -45,7 +45,8 @@ cd h2oai_llava
 
 pip install -e .
 pip install -e ".[train]"
-pip install flash-attn --no-build-isolation
+pip install torch==2.1.2 torchvision==0.16.2 triton==2.1.0 accelerate==0.26.1 deepspeed==0.13.1 pynvml==11.5.0 --upgrade
+pip install flash-attn==2.5.2 --no-build-isolation
 ```
 
 Run controller:
