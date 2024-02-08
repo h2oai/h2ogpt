@@ -461,6 +461,7 @@ Current Time: {}
         chat_turn_sep = eos
     elif prompt_type in [PromptType.danube.value, str(PromptType.danube.value),
                          PromptType.danube.name]:
+        can_handle_system_prompt = True  # so not part of pre-conversation
         prompt_tokens = "<|prompt|>"
         answer_tokens = "<|answer|>"
         if system_prompt in [None, 'None', 'auto']:
