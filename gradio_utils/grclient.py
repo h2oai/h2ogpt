@@ -858,7 +858,7 @@ class GradioClient(Client):
                         yield response[len(text0):], texts_out
                         self.chat_conversation[-1] = (instruction, response[len(text0):])
                     else:
-                        check_job(job, timeout=2.0*timeout, raise_exception=True)
+                        check_job(job, timeout=2.0 * timeout, raise_exception=True)
                         yield response[len(text0):], texts_out
                         self.chat_conversation[-1] = (instruction, response[len(text0):])
                 break
@@ -979,7 +979,7 @@ class GradioClient(Client):
         else:
             # if got no answer at all, probably something bad, always raise exception
             # UI will still put exception in Chat History under chat exceptions
-            e = check_job(job, timeout=2.0*timeout, raise_exception=True)
+            e = check_job(job, timeout=2.0 * timeout, raise_exception=True)
             # go with old text if last call didn't work
             if e is not None:
                 stre = str(e)
@@ -994,7 +994,7 @@ class GradioClient(Client):
         response = prompter.get_response(prompt_and_text, prompt=prompt,
                                          sanitize_bot_response=sanitize_bot_response)
         res_dict = dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
-                   response_no_refs=response, sources_str='', prompt_raw='')
+                        response_no_refs=response, sources_str='', prompt_raw='')
         yield res_dict
         return res_dict
 
