@@ -133,10 +133,7 @@ if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
   #    See [exllama](README_GPU.md#exllama) about running exllama models.
   echo "cuda118 for exllama"
   # https://github.com/casper-hansen/AutoAWQ_kernels
-  git clone https://github.com/casper-hansen/AutoAWQ_kernels
-  cd AutoAWQ_kernels
-  pip install -e . -c reqs_optional/reqs_constraints.txt
-  cd ..
+  pip install https://github.com/casper-hansen/AutoAWQ_kernels/releases/download/v0.0.3/autoawq_kernels-0.0.3+cu118-cp310-cp310-linux_x86_64.whl
   echo "cuda118 for awq, see: https://github.com/casper-hansen/AutoAWQ_kernels/releases/"
 
 else

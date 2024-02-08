@@ -92,8 +92,9 @@ REM     # in-transformers support of AutoGPTQ, requires also auto-gptq above to 
 CALL pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 
 REM * AutoAWQ support:
-CALL pip uninstall -y autoawq
-CALL pip install autoawq==0.1.8 -c reqs_optional/reqs_constraints.txt
+CALL pip uninstall -y autoawq autoawq_kernels
+CALL pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8+cu118-cp310-cp310-win_amd64.whl -c reqs_optional/reqs_constraints.txt
+CALL pip install https://github.com/casper-hansen/AutoAWQ_kernels/releases/download/v0.0.3/autoawq_kernels-0.0.3+cu118-cp310-cp310-win_amd64.whl -c reqs_optional/reqs_constraints.txt
 
 REM  Exllama support (GPU only):
 CALL pip uninstall -y exllama
