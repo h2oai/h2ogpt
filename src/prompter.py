@@ -195,7 +195,8 @@ prompt_type_to_model_name = {
               'liuhaotian/llava-v1.5-7b',
               'liuhaotian/llava-v1.5-13b',
               'NousResearch/Nous-Hermes-2-Vision',  # different worker, that handles prompting itself too
-              ]
+              ],
+    "danube": ['h2oai/h2o-danube-1.8b-chat'],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -449,6 +450,22 @@ Current Time: {}
         answer_tokens = "<|answer|>"
         start = ''
         promptB = promptA = '%s%s' % (preprompt, start)
+        PreInstruct = prompt_tokens
+        PreInput = None
+        PreResponse = answer_tokens
+        eos = '</s>'  # llama eos
+        humanstr = prompt_tokens
+        botstr = answer_tokens
+        terminate_response = [humanstr, PreResponse, eos]
+        chat_sep = eos
+        chat_turn_sep = eos
+    elif prompt_type in [PromptType.danube.value, str(PromptType.danube.value),
+                         PromptType.danube.name]:
+        prompt_tokens = "<|prompt|>"
+        answer_tokens = "<|answer|>"
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "I am H2O-Danube, a conversational chat assistant developed by H2O.ai."
+        promptA = promptB = system_prompt if not reduced else ''
         PreInstruct = prompt_tokens
         PreInput = None
         PreResponse = answer_tokens
