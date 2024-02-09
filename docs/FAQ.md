@@ -992,8 +992,8 @@ Related to transformers.  There are two independent ways to do this (choose one)
 ### Low-memory mode
 
 * Use quantized models like GGUF, AWQ, GPTQ, or bitsandbytes 4-bit
-* Use CPU for embedding model
-* Use smaller embedding model
+* Use CPU for embedding model (`--pre_load_embedding_model=True --embedding_gpu_id=cpu`)
+* Use smaller embedding model (`--cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5`)
 * Disable score model (`--score_model=None`)
 * Disable TTS and STT and ASR (`--enable_tts=False --enable_stt=False --enable_transcriptions=False`)
 * Ensure only using main GPU with most memory if have mixed GPUs (`CUDA_VISIBLE_DEVICES=0` or `--use_gpu_id=0`)
