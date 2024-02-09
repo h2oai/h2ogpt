@@ -775,6 +775,7 @@ def go_gradio(**kwargs):
     else:
         noqueue_kwargs = dict(queue=False)
         noqueue_kwargs2 = dict()
+        noqueue_kwargs_curl = dict(queue=False)
         mic_kwargs = dict(_js=click_js())
         submit_kwargs = dict(_js=click_submit())
         stop_kwargs = dict(_js=click_stop())
