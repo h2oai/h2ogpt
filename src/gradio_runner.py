@@ -764,6 +764,7 @@ def go_gradio(**kwargs):
     if is_gradio_version4:
         noqueue_kwargs = dict(concurrency_limit=None)
         noqueue_kwargs2 = dict(concurrency_limit=None)
+        noqueue_kwargs_curl = dict(queue=False)
         mic_kwargs = dict(js=click_js())
         submit_kwargs = dict(js=click_submit())
         stop_kwargs = dict(js=click_stop())
@@ -5281,7 +5282,7 @@ def go_gradio(**kwargs):
         submit_event_nochat_api_plain = submit_nochat_api_plain.click(fun_with_dict_str_plain,
                                                                       inputs=inputs_dict_str,
                                                                       outputs=text_output_nochat_api,
-                                                                      **noqueue_kwargs,
+                                                                      **noqueue_kwargs_curl,
                                                                       api_name='submit_nochat_plain_api' if allow_api else None)
 
         submit_event_verifier = submit_verifier.click(fun_with_dict_verifier,
@@ -5939,7 +5940,7 @@ def go_gradio(**kwargs):
                                                                        inputs=speak_inputs_dict_str,
                                                                        outputs=text_speech_out,
                                                                        api_name='speak_text_plain_api' if allow_api else None,
-                                                                       **noqueue_kwargs,
+                                                                       **noqueue_kwargs_curl,
                                                                        )
 
         def stop_audio_func():
