@@ -177,7 +177,7 @@ def get_llava_stream(file, llava_model,
                    max_new_tokens=max_new_tokens,
                    client=client)
 
-    verbose_level = 2
+    verbose_level = 0
 
     if verbose_level == 2:
         print("llava_prep time", time.time() - t0, flush=True)

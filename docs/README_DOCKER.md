@@ -66,11 +66,13 @@ mkdir -p ~/llamacpp_path
 mkdir -p ~/h2ogpt_auth
 echo '["key1","key2"]' > ~/h2ogpt_auth/h2ogpt_api_keys.json
 export GRADIO_SERVER_PORT=7860
+export OPENAI_SERVER_PORT=5000
 docker run \
        --gpus all \
        --runtime=nvidia \
        --shm-size=2g \
        -p $GRADIO_SERVER_PORT:$GRADIO_SERVER_PORT \
+       -p $OPENAI_SERVER_PORT:$OPENAI_SERVER_PORT \
        --rm --init \
        --network host \
        -v /etc/passwd:/etc/passwd:ro \
@@ -84,6 +86,7 @@ docker run \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        -v "${HOME}"/h2ogpt_auth:/workspace/h2ogpt_auth \
+       -e GRADIO_SERVER_PORT=$GRADIO_SERVER_PORT \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
           --base_model=HuggingFaceH4/zephyr-7b-beta \
           --use_safetensors=True \
@@ -98,7 +101,8 @@ docker run \
           --score_model=None \
           --max_max_new_tokens=2048 \
           --max_new_tokens=1024 \
-          --use_auth_token="${HUGGING_FACE_HUB_TOKEN}"
+          --use_auth_token="${HUGGING_FACE_HUB_TOKEN}" \
+          --openai_port=$OPENAI_SERVER_PORT
 ```
 Use `docker run -d` to run in detached background. Then go to http://localhost:7860/ or http://127.0.0.1:7860/.  For authentication, if use `--auth=/workspace/h2ogpt_auth/auth.json` instead, then do not need to use `--auth_filename`.  For keyed access, change key1 and key2 for `h2ogpt_api_keys` or for open-access remove `--h2ogpt_api_keys` line.
 
