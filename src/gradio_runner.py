@@ -1681,7 +1681,7 @@ def go_gradio(**kwargs):
                             minimum=-1 if not is_public else kwargs['max_input_tokens'],
                             maximum=128 * 1024 if not is_public else kwargs['max_input_tokens'],
                             step=1,
-                            value=-1 if not is_public else kwargs['max_input_tokens'],
+                            value=kwargs.get('max_input_tokens', -1),
                             label="Max input length (treat as if model has more limited context, e.g. for context-filling when top_k_docs=-1)",
                             visible=not is_public,
                         )
@@ -1689,7 +1689,7 @@ def go_gradio(**kwargs):
                             minimum=-1 if not is_public else kwargs['max_total_input_tokens'],
                             maximum=128 * 1024 if not is_public else kwargs['max_total_input_tokens'],
                             step=1,
-                            value=-1 if not is_public else kwargs['max_total_input_tokens'],
+                            value=kwargs.get('max_total_input_tokens', -1),
                             label="Max input length across all LLM calls when doing summarization/extraction",
                             visible=not is_public,
                         )

@@ -5779,16 +5779,16 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             # see if need to split
             # account for joiner tokens
             joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
-            chunk_size = max_input_tokens - joiner_tokens * len(docs_with_score)
+            doc_chunk_size = min(max_input_tokens, max(64, max_input_tokens - joiner_tokens * len(docs_with_score)))
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-                tokenizer, chunk_size=chunk_size, chunk_overlap=0
+                tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0
             )
             [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in
              enumerate(docs_with_score)]
             docs = [x[0] for x in docs_with_score]
             # only split those that need to be split, else recursive splitter goes too nuts and takes too long
-            docs_to_split = [x for x in docs if x.metadata['ntokens'] > chunk_size]
-            docs_to_not_split = [x for x in docs if x.metadata['ntokens'] <= chunk_size]
+            docs_to_split = [x for x in docs if x.metadata['ntokens'] > doc_chunk_size]
+            docs_to_not_split = [x for x in docs if x.metadata['ntokens'] <= doc_chunk_size]
             docs_split_new = flatten_list([text_splitter.split_documents([x]) for x in docs_to_split])
             docs_new = docs_to_not_split + docs_split_new
             doci_new = [x.metadata['doci'] for x in docs_new]
