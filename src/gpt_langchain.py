@@ -2203,7 +2203,7 @@ def get_llm(use_openai_model=False,
         elif gr_client:
             # ensure image in correct format
             img_file = get_image_file(image_file, image_control, document_choice)
-            if os.path.isfile(img_file):
+            if img_file is not None and os.path.isfile(img_file):
                 from src.vision.utils_vision import img_to_base64
                 img_file = img_to_base64(img_file)
             elif isinstance(img_file, str):
