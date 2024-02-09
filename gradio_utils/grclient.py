@@ -176,7 +176,7 @@ class GradioClient(Client):
         )
         if headers0:
             self.headers.update(headers0)
-        if self.headers['authorization'] == 'Bearer ':
+        if 'authorization' in self.headers and self.headers['authorization'] == 'Bearer ':
             self.headers['authorization'] = 'Bearer hf_xx'
         if src.startswith("http://") or src.startswith("https://"):
             _src = src if src.endswith("/") else src + "/"
