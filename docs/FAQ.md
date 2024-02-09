@@ -1,5 +1,19 @@
 ## Frequently asked questions
 
+### use h2oGPT just for LLM control
+
+For just LLM control, and any document QA via `text_context_list` that does not use any embedding or database, one can launch with:
+```bash
+python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriiptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
+```
+and to be sure no GPUs are used, one can add `CUDA_VISIBLE_DEVICES=` to start of command line or exported to environment, e.g.
+```bash
+CUDA_VISIBLE_DEVICES= python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriiptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
+```
+Or if in docker, specify `docker run --gpus none <options> <image>`.
+
+This is useful when using h2oGPT as pass-through for some other top-level document QA system like h2oGPTe (Enterprise h2oGPT), while h2oGPT (OSS) manages all LLM related tasks like how many chunks can fit, while preserving original order.  h2oGPT will handle truncation of tokens per LLM and async summarization, multiple LLMs, etc.
+
 ### Control location of files
 
 * HUGGINGFACE_HUB_CACHE : else set by HF transformers package to be `~/.cache/huggingface/hub` in linux or in windows `C:\Users\username\.cache\huggingface\hub`.
@@ -46,6 +60,7 @@ cd h2oai_llava
 pip install -e .
 pip install -e ".[train]"
 pip install torch==2.1.2 torchvision==0.16.2 triton==2.1.0 accelerate==0.26.1 deepspeed==0.13.1 pynvml==11.5.0 --upgrade
+pip install "sglang[all]"
 pip install flash-attn==2.5.2 --no-build-isolation
 ```
 
