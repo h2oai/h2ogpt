@@ -187,7 +187,7 @@ def ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources
     with gr.Row():
         with gr.Column(scale=50):
             with gr.Row(elem_id="prompt-form-row"):
-                label_instruction = 'Ask anything or Ingest'
+                label_instruction = 'Ask or Ingest'
                 instruction = gr.Textbox(
                     lines=kwargs['input_lines'],
                     label=label_instruction,
@@ -2812,7 +2812,7 @@ def go_gradio(**kwargs):
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             if success1:
                 requests_state1['username'] = username1
-            label_instruction1 = 'Ask anything, %s' % requests_state1['username']
+            label_instruction1 = 'Ask or Ingest, %s' % requests_state1['username']
             return db1s, selection_docs_state1, requests_state1, roles_state1, \
                 model_options_state1, lora_options_state1, server_options_state1, \
                 chat_state1, \
