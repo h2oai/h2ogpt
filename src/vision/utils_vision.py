@@ -164,6 +164,7 @@ def get_llava_stream(file, llava_model,
                      top_p=0.7, max_new_tokens=512,
                      client=None,
                      ):
+    t0 = time.time()
     image_model = os.path.basename(image_model)  # in case passed HF link
     model_selector, max_output_tokens, include_image, client, image_model = \
         llava_prep(file, llava_model,
@@ -176,7 +177,11 @@ def get_llava_stream(file, llava_model,
                    max_new_tokens=max_new_tokens,
                    client=client)
 
-    verbose_level = 0
+    verbose_level = 2
+
+    if verbose_level == 2:
+        print("llava_prep time", time.time() - t0, flush=True)
+        t0 = time.time()
 
     if verbose_level == 2:
         print("Get job", flush=True)
@@ -186,8 +191,13 @@ def get_llava_stream(file, llava_model,
     if verbose_level == 2:
         print("Got job", flush=True)
 
+        print("Got job", time.time() - t0, flush=True)
+        t0 = time.time()
+
     job_outputs_num = 0
     while not job.done():
+        if verbose_level == 2:
+            print("Inside", time.time() - t0, flush=True)
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):

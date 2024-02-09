@@ -4,11 +4,11 @@
 
 For just LLM control, and any document QA via `text_context_list` that does not use any embedding or database, one can launch with:
 ```bash
-python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriiptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
+python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
 ```
 and to be sure no GPUs are used, one can add `CUDA_VISIBLE_DEVICES=` to start of command line or exported to environment, e.g.
 ```bash
-CUDA_VISIBLE_DEVICES= python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriiptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
+CUDA_VISIBLE_DEVICES= python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
 ```
 Or if in docker, specify `docker run --gpus none <options> <image>`.
 
