@@ -5364,7 +5364,7 @@ def go_gradio(**kwargs):
                 del model_state_old['tokenizer']
                 model_state_old['tokenizer'] = None
 
-            clear_torch_cache(allow_skip=True)
+            clear_torch_cache(allow_skip=False)
             if kwargs['debug']:
                 print("Pre-switch post-del GPU memory: %s" % get_torch_allocated(), flush=True)
             if not model_name:
