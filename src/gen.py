@@ -164,6 +164,7 @@ def main(
         use_cache: bool = None,
         inference_server: str = "",
         regenerate_clients: bool = True,
+        regenerate_gradio_clients: bool = False,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -286,7 +287,7 @@ def main(
         visible_models: list = None,
         max_visible_models: int = None,
 
-        visible_ask_anything_high : bool = True,
+        visible_ask_anything_high: bool = True,
         visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
@@ -577,6 +578,8 @@ def main(
     :param regenerate_clients: Whether to regenerate client every LLM call or use start-up version
            Benefit of doing each LLM call is timeout can be controlled to max_time in expert settings, else we use default of 600s.
            Maybe risky, some lack of thread safety: https://github.com/encode/httpx/discussions/3043, so disabled
+           Because gradio clients take long time to start-up, we don't ever regenerate them each time (including llava models)
+    :param regenerate_gradio_clients: Whether to also regenerate gradio clients (slow)
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -2328,7 +2331,8 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if is_vision_model(base_model):
         from gradio_client import Client
-        gr_client = Client(inference_server)#, serialize=False)  # FIXME: Gradio 4 issue, can't send string as image bytes
+        gr_client = Client(
+            inference_server)  # , serialize=False)  # FIXME: Gradio 4 issue, can't send string as image bytes
     elif headers is None:
         try:
             # preload client since slow for gradio case especially
@@ -2413,6 +2417,7 @@ def get_model(
         base_model: str = '',
         inference_server: str = "",
         regenerate_clients: bool = True,
+        regenerate_gradio_clients: bool = False,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -2643,7 +2648,7 @@ def get_model(
         client = genai.GenerativeModel(base_model)
         async_client = genai.GenerativeModel(base_model)
         timeout = 600
-        if regenerate_clients:
+        if not regenerate_clients:
             model = dict(client=client, async_client=async_client, inf_type='google', base_url=None, api_key=api_key,
                          timeout=timeout)
         if verbose:
@@ -2690,7 +2695,8 @@ def get_model(
             if base_model in model_token_mapping:
                 max_seq_len = model_token_mapping[base_model]
             else:
-                print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (base_model, inference_server))
+                print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
+                base_model, inference_server))
             if base_model in model_token_mapping_outputs:
                 max_output_len = model_token_mapping_outputs[base_model]
             else:
@@ -3208,6 +3214,7 @@ def get_score_model(score_model: str = None,
         lora_weights = ''
         inference_server = ''
         regenerate_clients = True
+        regenerate_gradio_clients = False
         llama_type = False
         max_seq_len = None
         rope_scaling = {}
@@ -3342,6 +3349,7 @@ def evaluate(
         is_public=None,
         from_ui=True,
         regenerate_clients=None,
+        regenerate_gradio_clients=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
         lora_weights=None,
@@ -3781,6 +3789,7 @@ def evaluate(
         for r in run_qa_db(
                 inference_server=inference_server,
                 regenerate_clients=regenerate_clients,
+                regenerate_gradio_clients=regenerate_gradio_clients,
                 model_name=base_model, model=model, tokenizer=tokenizer,
                 langchain_only_model=langchain_only_model,
                 async_output=async_output,
@@ -3921,7 +3930,7 @@ def evaluate(
     from gradio_utils.grclient import GradioClient
     from gradio_client import Client
     gradio_server = inference_server.startswith('http') and (
-                isinstance(model, GradioClient) or isinstance(model, Client))
+            isinstance(model, GradioClient) or isinstance(model, Client))
 
     prompt, \
         instruction, iinput, context, \
@@ -4103,7 +4112,7 @@ def evaluate(
                                 allow_prompt_auto=False,
                                 image_model=base_model, temperature=temperature,
                                 top_p=top_p, max_new_tokens=max_new_tokens,
-                                client=gr_client if not regenerate_clients else None,
+                                client=gr_client if not regenerate_gradio_clients else None,
                                 )
             if not stream_output:
                 from src.vision.utils_vision import get_llava_response
@@ -4127,10 +4136,10 @@ def evaluate(
         elif inference_server.startswith('http'):
             inference_server, headers = get_hf_server(inference_server)
             from text_generation import Client as HFClient
-            if isinstance(model, GradioClient):
+            if isinstance(model, GradioClient) and not regenerate_gradio_clients:
                 gr_client = model.clone()
                 hf_client = None
-            elif isinstance(model, HFClient):
+            elif isinstance(model, HFClient) and not regenerate_gradio_clients:
                 gr_client = None
                 hf_client = model
             else:

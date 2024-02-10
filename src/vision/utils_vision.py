@@ -63,6 +63,7 @@ def llava_prep(file, llava_model,
                image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                top_p=0.7, max_new_tokens=512,
                client=None):
+    t0 = time.time()
     if prompt in ['auto', None] and allow_prompt_auto:
         prompt = "Describe the image and what does the image say?"
         # prompt = "According to the image, describe the image in full details with a well-structured response."
@@ -98,9 +99,16 @@ def llava_prep(file, llava_model,
             client = Client(llava_model, serialize=False)
         else:
             client = Client(llava_model)
+
+    print("llava_prep client time", time.time() - t0, flush=True)
+    t0 = time.time()
+
     load_res = client.predict(api_name='/demo_load')
     model_options = [x[1] for x in load_res['choices']]
     assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
+
+    print("llava_prep demo_load time", time.time() - t0, flush=True)
+    t0 = time.time()
 
     # if no default choice or default choice not there, choose first
     if not image_model or image_model not in model_options:
@@ -121,9 +129,14 @@ def llava_prep(file, llava_model,
             img_str = img_to_base64(file)
         else:
             img_str = None
-        res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
+        res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image,
+                              api_name='/textbox_api_btn')
     else:
-        res1 = client.predict(prompt, chat_conversation, file, image_process_mode, include_image, api_name='/textbox_api_btn')  # FIXME: Gradio 4 issue, can't send string as image bytes
+        res1 = client.predict(prompt, chat_conversation, file, image_process_mode, include_image,
+                              api_name='/textbox_api_btn')  # FIXME: Gradio 4 issue, can't send string as image bytes
+
+    print("llava_prep textbox_api_btn time", time.time() - t0, flush=True)
+    t0 = time.time()
 
     model_selector, temperature, top_p, max_output_tokens = image_model, temperature, top_p, max_new_tokens
 
@@ -177,7 +190,7 @@ def get_llava_stream(file, llava_model,
                    max_new_tokens=max_new_tokens,
                    client=client)
 
-    verbose_level = 0
+    verbose_level = 2
 
     if verbose_level == 2:
         print("llava_prep time", time.time() - t0, flush=True)
