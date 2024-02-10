@@ -99,8 +99,8 @@ python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:
 
 Run server:
 ```bash
-pip install gradio==3.50.2
-python -m llava.serve.gradio_web_server --controller http://localhost:$server_port --model-list-mode reload
+pip install gradio==4.17.0
+python -m llava.serve.gradio_web_server --controller http://localhost:$server_port --model-list-mode once
 ```
 
 Run h2oGPT with LLaVa and image (normal and high-quality) generation:

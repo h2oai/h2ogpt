@@ -104,8 +104,6 @@ def llava_prep(file,
         file = "%s.jpeg" % str(uuid.uuid4())
         im.save(file)
 
-    print("llava_prep textbox_api_btn time", time.time() - t0, flush=True)
-
     return image_model, client, file
 
 
