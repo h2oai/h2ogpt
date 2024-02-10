@@ -69,7 +69,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
-from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary
+from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
+    is_vision_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain
@@ -902,9 +903,9 @@ class GradioLLaVaInference(GradioInference):
 
         try:
             if values['client'] is None:
-                from gradio_client import Client
-                values["client"] = Client(
-                    values["inference_server_url"]
+                from gradio_utils.grclient import GradioClient
+                values["client"] = GradioClient(
+                    values["inference_server_url"], check_hash=False, serialize=True,
                 )
         except ImportError:
             raise ImportError(
@@ -2135,39 +2136,36 @@ def get_llm(use_openai_model=False,
         assert inference_server.startswith(
             'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
+        if is_vision_model(model_name):
+            img_file = get_image_file(image_file, image_control, document_choice)
+        else:
+            img_file = None
+
         from gradio_client import Client
         from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
-        if isinstance(model, Client) and not isinstance(model, GradioClient):
-            gradio_server = True  # so chat_history given
-            gr_llava_client = model
-            gr_client = None
+        if isinstance(model, Client):
+            gradio_server = True
+            gr_client = model
             hf_client = None
-            img_file = get_image_file(image_file, image_control, document_choice)
         elif isinstance(model, GradioClient):
             gradio_server = True
-            gr_llava_client = None
             gr_client = model.clone()
             hf_client = None
-            img_file = None
         elif not regenerate_gradio_clients:
-            gr_llava_client = None
             gr_client = None
             hf_client = model
             assert isinstance(hf_client, HFClient)
             img_file = None
         else:
-            gr_llava_client = None
             gr_client = None
             hf_client = None
             img_file = None
 
-        if not regenerate_gradio_clients:
+        if not regenerate_gradio_clients and gr_client:
             # regenerate or leave None for llava so created inside
-            gr_llava_client = None
             inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                       base_model=model_name)
-
         inference_server, headers = get_hf_server(inference_server)
 
         # quick sanity check to avoid long timeouts, just see if can reach server
@@ -2176,7 +2174,7 @@ def get_llm(use_openai_model=False,
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
 
-        if gr_llava_client:
+        if gr_client and is_vision_model(model_name):
             llm = GradioLLaVaInference(
                 inference_server_url=inference_server,
 
@@ -2199,7 +2197,7 @@ def get_llm(use_openai_model=False,
                 prompter=prompter,
                 context=context,
                 iinput=iinput,
-                client=gr_llava_client,
+                client=gr_client,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,

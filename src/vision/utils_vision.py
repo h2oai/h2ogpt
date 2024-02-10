@@ -92,8 +92,9 @@ def llava_prep(file,
     llava_model = prefix + llava_model
 
     if client is None:
-        from gradio_client import Client
-        client = Client(llava_model)
+        from grclient import GradioClient
+        client = GradioClient(llava_model)
+        client.setup()
 
     assert image_model, "No image model specified"
 
