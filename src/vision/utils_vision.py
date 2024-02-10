@@ -147,7 +147,7 @@ def get_llava_stream(file, llava_model,
                      image_process_mode="Default",
                      include_image=False,
                      client=None,
-                     verbose_level=2,
+                     verbose_level=0,
                      ):
     image_model = os.path.basename(image_model)  # in case passed HF link
     image_model, client, file, prompt = \
