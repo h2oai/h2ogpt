@@ -103,16 +103,19 @@ def llava_prep(file, llava_model,
     print("llava_prep client time", time.time() - t0, flush=True)
     t0 = time.time()
 
-    load_res = client.predict(api_name='/demo_load')
-    model_options = [x[1] for x in load_res['choices']]
-    assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
+    if False:
+        load_res = client.predict(api_name='/demo_load')
+        model_options = [x[1] for x in load_res['choices']]
+        assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
+        # if no default choice or default choice not there, choose first
+        if not image_model or image_model not in model_options:
+            image_model = model_options[0]
+    else:
+        assert image_model, "No image model specified"
 
     print("llava_prep demo_load time", time.time() - t0, flush=True)
     t0 = time.time()
 
-    # if no default choice or default choice not there, choose first
-    if not image_model or image_model not in model_options:
-        image_model = model_options[0]
 
     # test_file_local, test_file_server = client.predict(file_to_upload, api_name='/upload_api')
 
