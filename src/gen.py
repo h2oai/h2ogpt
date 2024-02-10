@@ -2330,9 +2330,9 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
     hf_client = None
 
     if is_vision_model(base_model):
-        from gradio_client import Client
-        gr_client = Client(
-            inference_server)  # , serialize=False)  # FIXME: Gradio 4 issue, can't send string as image bytes
+        from gradio_utils.grclient import GradioClient
+        gr_client = GradioClient(inference_server, check_hash=False, serialize=True)
+        gr_client.setup()
     elif headers is None:
         try:
             # preload client since slow for gradio case especially
@@ -4091,7 +4091,7 @@ def evaluate(
             else:
                 raise RuntimeError("No such OpenAI mode: %s" % inference_server)
         elif inference_server.startswith('http') and is_vision_model(base_model):
-            where_from = "gr_client"
+            where_from = "gr_client for llava"
             sources = []
             inference_server, headers = get_hf_server(inference_server)
             if isinstance(model, GradioClient) and not regenerate_gradio_clients:
