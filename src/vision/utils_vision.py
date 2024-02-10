@@ -62,7 +62,6 @@ def llava_prep(file,
                allow_prompt_auto=True,
                image_model='llava-v1.6-vicuna-13b',
                client=None):
-    t0 = time.time()
     if prompt in ['auto', None] and allow_prompt_auto:
         prompt = "Describe the image and what does the image say?"
         # prompt = "According to the image, describe the image in full details with a well-structured response."
@@ -104,7 +103,7 @@ def llava_prep(file,
         file = "%s.jpeg" % str(uuid.uuid4())
         im.save(file)
 
-    return image_model, client, file
+    return image_model, client, file, prompt
 
 
 def get_llava_response(file=None,
@@ -118,7 +117,7 @@ def get_llava_response(file=None,
                        include_image=False,
                        client=None,
                        ):
-    image_model, client, file = \
+    image_model, client, file, prompt = \
         llava_prep(file, llava_model,
                    prompt=prompt,
                    allow_prompt_auto=allow_prompt_auto,
@@ -148,24 +147,15 @@ def get_llava_stream(file, llava_model,
                      image_process_mode="Default",
                      include_image=False,
                      client=None,
+                     verbose_level=2,
                      ):
-    t0 = time.time()
     image_model = os.path.basename(image_model)  # in case passed HF link
-    image_model, client, file = \
+    image_model, client, file, prompt = \
         llava_prep(file, llava_model,
                    prompt=prompt,
                    allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
                    client=client)
-
-    verbose_level = 2
-
-    if verbose_level == 2:
-        print("llava_prep time", time.time() - t0, flush=True)
-        t0 = time.time()
-
-    if verbose_level == 2:
-        print("Get job", flush=True)
 
     job = client.submit(prompt,
                         chat_conversation,
@@ -177,16 +167,12 @@ def get_llava_stream(file, llava_model,
                         top_p,
                         max_new_tokens,
                         api_name='/textbox_api_submit')
-    if verbose_level == 2:
-        print("Got job", flush=True)
 
-        print("Got job", time.time() - t0, flush=True)
-        t0 = time.time()
-
+    t0 = time.time()
     job_outputs_num = 0
     while not job.done():
         if verbose_level == 2:
-            print("Inside", time.time() - t0, flush=True)
+            print("Inside: %s" % llava_model, time.time() - t0, flush=True)
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
