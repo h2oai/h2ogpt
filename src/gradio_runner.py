@@ -111,7 +111,12 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_a
         for parti, part in enumerate(ts):
             inside = parti % 2 == 1
             if not inside:
-                ts[parti] = ts[parti].replace('<', '\<').replace('>', '\>')
+                if '<a href' not in ts[parti] and \
+                        '<img src=' not in ts[parti] and \
+                        '<div ' not in ts[parti] and \
+                        '</div>' not in ts[parti]:
+                    # try to avoid html best one can
+                    ts[parti] = ts[parti].replace('<', '\<').replace('>', '\>')
         text = '```'.join(ts)
     return text
 
@@ -793,7 +798,7 @@ def go_gradio(**kwargs):
 
     if kwargs['model_lock']:
         have_vision_models = any([x.get('inference_server', '').startswith('http') and \
-                              is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
+                                  is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
     else:
         have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
 
@@ -1203,7 +1208,8 @@ def go_gradio(**kwargs):
                         with col_chat:
                             if kwargs['visible_ask_anything_high']:
                                 attach_button, add_button, submit_buttons, instruction, submit, retry_btn, undo, clear_chat_btn, save_chat_btn, stop_btn = \
-                                    ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs, mic_kwargs, noqueue_kwargs2, submit_kwargs, stop_kwargs)
+                                    ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs,
+                                              mic_kwargs, noqueue_kwargs2, submit_kwargs, stop_kwargs)
                             visible_model_choice = bool(kwargs['model_lock']) and \
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
@@ -1234,7 +1240,8 @@ def go_gradio(**kwargs):
 
                             if not kwargs['visible_ask_anything_high']:
                                 attach_button, add_button, submit_buttons, instruction, submit, retry_btn, undo, clear_chat_btn, save_chat_btn, stop_btn = \
-                                    ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs, mic_kwargs, noqueue_kwargs2, submit_kwargs, stop_kwargs)
+                                    ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources_kwargs,
+                                              mic_kwargs, noqueue_kwargs2, submit_kwargs, stop_kwargs)
                             with gr.Row():
                                 with gr.Column(visible=kwargs['score_model']):
                                     score_text = gr.Textbox(res_value,
@@ -1423,7 +1430,7 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                #image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
+                # image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
                 image_tab = gr.Row(visible=False)
                 with image_tab:
                     with gr.Row():
@@ -3808,9 +3815,11 @@ def go_gradio(**kwargs):
                                 res_dict_yield.pop(key)
                         ret = res_dict_yield
                     elif kwargs['langchain_mode'] == 'Disabled':
-                        ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False, fix_angle_brackets=False)
+                        ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False,
+                                                  fix_angle_brackets=False)
                     else:
-                        ret = '<br>' + fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False, fix_angle_brackets=False)
+                        ret = '<br>' + fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False,
+                                                           fix_angle_brackets=False)
 
                     do_yield = False
                     could_yield = ret != ret_old
