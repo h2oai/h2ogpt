@@ -56,12 +56,11 @@ def base64_to_img(img_str, output_path):
     return output_file
 
 
-def llava_prep(file, llava_model,
+def llava_prep(file,
+               llava_model,
                prompt=None,
-               chat_conversation=[],
                allow_prompt_auto=True,
-               image_model='llava-v1.6-vicuna-13b', temperature=0.2,
-               top_p=0.7, max_new_tokens=512,
+               image_model='llava-v1.6-vicuna-13b',
                client=None):
     t0 = time.time()
     if prompt in ['auto', None] and allow_prompt_auto:
@@ -95,55 +94,19 @@ def llava_prep(file, llava_model,
 
     if client is None:
         from gradio_client import Client
-        if False:
-            client = Client(llava_model, serialize=False)
-        else:
-            client = Client(llava_model)
+        client = Client(llava_model)
 
-    print("llava_prep client time", time.time() - t0, flush=True)
-    t0 = time.time()
+    assert image_model, "No image model specified"
 
-    if False:
-        load_res = client.predict(api_name='/demo_load')
-        model_options = [x[1] for x in load_res['choices']]
-        assert len(model_options), "LLaVa endpoint has no models: %s" % str(load_res)
-        # if no default choice or default choice not there, choose first
-        if not image_model or image_model not in model_options:
-            image_model = model_options[0]
-    else:
-        assert image_model, "No image model specified"
-
-    print("llava_prep demo_load time", time.time() - t0, flush=True)
-    t0 = time.time()
-
-
-    # test_file_local, test_file_server = client.predict(file_to_upload, api_name='/upload_api')
-
-    image_process_mode = "Default"
-    include_image = False
     if isinstance(file, np.ndarray):
         from PIL import Image
         im = Image.fromarray(file)
         file = "%s.jpeg" % str(uuid.uuid4())
         im.save(file)
 
-    if False:
-        if file and os.path.isfile(file):
-            img_str = img_to_base64(file)
-        else:
-            img_str = None
-        res1 = client.predict(prompt, chat_conversation, img_str, image_process_mode, include_image,
-                              api_name='/textbox_api_btn')
-    else:
-        res1 = client.predict(prompt, chat_conversation, file, image_process_mode, include_image,
-                              api_name='/textbox_api_btn')  # FIXME: Gradio 4 issue, can't send string as image bytes
-
     print("llava_prep textbox_api_btn time", time.time() - t0, flush=True)
-    t0 = time.time()
 
-    model_selector, temperature, top_p, max_output_tokens = image_model, temperature, top_p, max_new_tokens
-
-    return model_selector, max_output_tokens, include_image, client, image_model
+    return image_model, client, file
 
 
 def get_llava_response(file=None,
@@ -153,20 +116,26 @@ def get_llava_response(file=None,
                        allow_prompt_auto=False,
                        image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                        top_p=0.7, max_new_tokens=512,
+                       image_process_mode="Default",
+                       include_image=False,
                        client=None,
                        ):
-    model_selector, max_output_tokens, include_image, client, image_model = \
+    image_model, client, file = \
         llava_prep(file, llava_model,
                    prompt=prompt,
-                   chat_conversation=chat_conversation,
                    allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
-                   temperature=temperature,
-                   top_p=top_p,
-                   max_new_tokens=max_new_tokens,
                    client=client)
 
-    res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
+    res = client.predict(prompt,
+                         chat_conversation,
+                         file,
+                         image_process_mode,
+                         include_image,
+                         image_model,
+                         temperature,
+                         top_p,
+                         max_new_tokens,
                          api_name='/textbox_api_submit')
     res = res[-1][-1]
     return res, prompt
@@ -178,19 +147,17 @@ def get_llava_stream(file, llava_model,
                      allow_prompt_auto=False,
                      image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                      top_p=0.7, max_new_tokens=512,
+                     image_process_mode="Default",
+                     include_image=False,
                      client=None,
                      ):
     t0 = time.time()
     image_model = os.path.basename(image_model)  # in case passed HF link
-    model_selector, max_output_tokens, include_image, client, image_model = \
+    image_model, client, file = \
         llava_prep(file, llava_model,
                    prompt=prompt,
-                   chat_conversation=chat_conversation,
                    allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
-                   temperature=temperature,
-                   top_p=top_p,
-                   max_new_tokens=max_new_tokens,
                    client=client)
 
     verbose_level = 2
@@ -202,7 +169,15 @@ def get_llava_stream(file, llava_model,
     if verbose_level == 2:
         print("Get job", flush=True)
 
-    job = client.submit(model_selector, temperature, top_p, max_output_tokens, include_image,
+    job = client.submit(prompt,
+                        chat_conversation,
+                        file,
+                        image_process_mode,
+                        include_image,
+                        image_model,
+                        temperature,
+                        top_p,
+                        max_new_tokens,
                         api_name='/textbox_api_submit')
     if verbose_level == 2:
         print("Got job", flush=True)
