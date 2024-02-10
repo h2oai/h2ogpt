@@ -4094,8 +4094,10 @@ def evaluate(
             where_from = "gr_client"
             sources = []
             inference_server, headers = get_hf_server(inference_server)
-            if isinstance(model, GradioClient):
+            if isinstance(model, GradioClient) and not regenerate_gradio_clients:
                 gr_client = model.clone()
+            elif isinstance(model, Client) and not regenerate_gradio_clients:
+                gr_client = model
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                           base_model=base_model)
