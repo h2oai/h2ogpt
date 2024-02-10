@@ -77,7 +77,7 @@ from evaluate_params import eval_func_param_names, no_default_param_names, eval_
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
-def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
+def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_angle_brackets=True):
     if isinstance(text, tuple):
         # images, audio, etc.
         return text
@@ -104,6 +104,14 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True):
             inside = parti % 2 == 1
             if not inside:
                 ts[parti] = ts[parti].replace('\n', '<br>')
+        text = '```'.join(ts)
+    if fix_angle_brackets:
+        # handle code blocks
+        ts = text.split('```')
+        for parti, part in enumerate(ts):
+            inside = parti % 2 == 1
+            if not inside:
+                ts[parti] = ts[parti].replace('<', '\<').replace('>', '\>')
         text = '```'.join(ts)
     return text
 
@@ -3800,9 +3808,9 @@ def go_gradio(**kwargs):
                                 res_dict_yield.pop(key)
                         ret = res_dict_yield
                     elif kwargs['langchain_mode'] == 'Disabled':
-                        ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
+                        ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False, fix_angle_brackets=False)
                     else:
-                        ret = '<br>' + fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False)
+                        ret = '<br>' + fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False, fix_angle_brackets=False)
 
                     do_yield = False
                     could_yield = ret != ret_old
@@ -4361,7 +4369,7 @@ def go_gradio(**kwargs):
                     save_dict = output_fun.get('save_dict', {})
                     save_dict_iter = {}
                     # ensure good visually, else markdown ignores multiple \n
-                    bot_message = fix_text_for_gradio(output, fix_latex_dollars=not api)
+                    bot_message = fix_text_for_gradio(output, fix_latex_dollars=not api, fix_angle_brackets=not api)
                     history[-1][1] = bot_message
 
                     if generate_speech_func_func is not None:
