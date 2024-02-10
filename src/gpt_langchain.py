@@ -67,7 +67,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt, does_support_json_mode
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm
+from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
+    get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
@@ -1580,12 +1581,14 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
 class H2OChatAnthropicSys(H2OChatAnthropic):
     pass
 
+
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.language_models.chat_models import (
     BaseChatModel,
     agenerate_from_stream,
     generate_from_stream
 )
+
 
 class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
     system_prompt: Any = None
@@ -1626,12 +1629,12 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
         )
 
     def _generate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        stream: Optional[bool] = None,
-        **kwargs: Any,
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            stream: Optional[bool] = None,
+            **kwargs: Any,
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         if should_stream:
@@ -1643,12 +1646,12 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
             return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
     async def _agenerate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-        stream: Optional[bool] = None,
-        **kwargs: Any,
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            stream: Optional[bool] = None,
+            **kwargs: Any,
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         if should_stream:
@@ -1769,6 +1772,7 @@ def get_llm(use_openai_model=False,
             tokenizer=None,
             inference_server=None,
             regenerate_clients=None,
+            regenerate_gradio_clients=None,
             langchain_only_model=None,
             stream_output=False,
             async_output=True,
@@ -2146,12 +2150,23 @@ def get_llm(use_openai_model=False,
             gr_client = model.clone()
             hf_client = None
             img_file = None
-        else:
+        elif not regenerate_gradio_clients:
             gr_llava_client = None
             gr_client = None
             hf_client = model
             assert isinstance(hf_client, HFClient)
             img_file = None
+        else:
+            gr_llava_client = None
+            gr_client = None
+            hf_client = None
+            img_file = None
+
+        if not regenerate_gradio_clients:
+            # regenerate or leave None for llava so created inside
+            gr_llava_client = None
+            inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
+                                                                                      base_model=model_name)
 
         inference_server, headers = get_hf_server(inference_server)
 
@@ -2189,7 +2204,7 @@ def get_llm(use_openai_model=False,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
                 add_chat_history_to_context=add_chat_history_to_context,
-                #visible_models=visible_models,
+                # visible_models=visible_models,
                 visible_models=model_name,
                 h2ogpt_key=h2ogpt_key,
                 min_max_new_tokens=min_max_new_tokens,
@@ -5135,6 +5150,7 @@ def _run_qa_db(query=None,
                truncation_generation=False,
                early_stopping=False,
                regenerate_clients=None,
+               regenerate_gradio_clients=None,
                max_time=180,
                repetition_penalty=1.0,
                num_return_sequences=1,
@@ -5323,6 +5339,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       early_stopping=early_stopping,
                       max_time=max_time,
                       regenerate_clients=regenerate_clients,
+                      regenerate_gradio_clients=regenerate_gradio_clients,
                       repetition_penalty=repetition_penalty,
                       num_return_sequences=num_return_sequences,
                       prompt_type=prompt_type,
