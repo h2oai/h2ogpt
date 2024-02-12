@@ -276,7 +276,7 @@ def main(
         gradio_size: str = None,
         show_copy_button: bool = True,
         large_file_count_mode: bool = False,
-        gradio_ui_stream_chunk_size: int = 20,
+        gradio_ui_stream_chunk_size: int = None,
         gradio_ui_stream_chunk_min_seconds: float = 0.2,
         gradio_ui_stream_chunk_seconds: float = 2.0,
         gradio_api_use_same_stream_limits: bool = True,
@@ -774,7 +774,8 @@ def main(
     :param show_copy_button: Whether to show copy button for chatbots
     :param large_file_count_mode: Whether to force manual update to UI of drop-downs, good idea if millions of chunks or documents
     :param gradio_ui_stream_chunk_size: Number of characters to wait before pushing text to ui.
-           20 is reasonable value for fast models and fast systems
+           None is default, which is 0 when not doing model lock.  Else 20 by default.
+           20 is reasonable value for fast models and fast systems when handling several models at once
            Choose 0 to disable (this disables use of gradio_ui_stream_chunk_min_seconds and gradio_ui_stream_chunk_seconds too)
            Work around for these bugs that lead to UI being overwhelmed under various cases
            https://github.com/gradio-app/gradio/issues/5914
@@ -1302,6 +1303,13 @@ def main(
         assert not inference_server, "Don't specify model_lock and inference_server"
         # assert not prompt_type, "Don't specify model_lock and prompt_type"
         # assert not prompt_dict, "Don't specify model_lock and prompt_dict"
+
+        if gradio_ui_stream_chunk_size is None:
+            gradio_ui_stream_chunk_size = 20
+    else:
+        # for faster default feel of speed
+        if gradio_ui_stream_chunk_size is None:
+            gradio_ui_stream_chunk_size = 0
 
     n_jobs = int(os.getenv('n_jobs', str(n_jobs)))
     is_hf = bool(int(os.getenv("HUGGINGFACE_SPACES", '0')))
