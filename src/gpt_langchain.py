@@ -6824,7 +6824,8 @@ def get_chain(query=None,
     if metadata_in_context == 'all':
         metadata_in_context_set = FullSet()
     elif metadata_in_context == 'auto':
-        metadata_in_context_set = set(['date', 'file_path', 'input_type', 'keywords', 'chunk_id', 'page', 'source', 'title', 'total_pages'])
+        metadata_in_context_set = set(
+            ['date', 'file_path', 'input_type', 'keywords', 'chunk_id', 'page', 'source', 'title', 'total_pages'])
     else:
         assert isinstance(metadata_in_context, list)
         metadata_in_context_set = set(metadata_in_context)
@@ -6847,12 +6848,13 @@ def get_chain(query=None,
         if metadata_in_context and not doc_json_mode:
             docs_with_score = [Document(page_content='Begin Document:\n\n' +
                                                      'Metadata:\n' +
-                                                     '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if v and k in metadata_in_context_set]) +
+                                                     '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
+                                                                v and k in metadata_in_context_set]) +
                                                      '\n\nDocument Contents:\n"""\n' +
                                                      x.page_content +
                                                      '\n"""\nEnd Document\n',
-                         metadata=copy.deepcopy(x.metadata) or {})
-                for x, score in docs_with_score]
+                                        metadata=copy.deepcopy(x.metadata) or {})
+                               for x, score in docs_with_score]
 
         # first docs_with_score are most important with highest score
         estimated_full_prompt, \
@@ -7029,7 +7031,9 @@ def get_chain(query=None,
 
         # make copy so don't change originals
         if metadata_in_context:
-            docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content), {k: v for k, v in x.metadata.items() if v and k in metadata_in_context_set})),
+            docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content),
+                                                                {k: v for k, v in x.metadata.items() if
+                                                                 v and k in metadata_in_context_set})),
                              metadata=copy.deepcopy(x.metadata) or {})
                     for xi, x in enumerate(docs)]
         else:

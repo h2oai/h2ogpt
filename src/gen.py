@@ -2728,7 +2728,7 @@ def get_model(
                 max_seq_len = model_token_mapping[base_model]
             else:
                 print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
-                base_model, inference_server))
+                    base_model, inference_server))
             if base_model in model_token_mapping_outputs:
                 max_output_len = model_token_mapping_outputs[base_model]
             else:
