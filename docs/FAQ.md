@@ -1,5 +1,11 @@
 ## Frequently asked questions
 
+### nginx and k8 multi-pod support
+
+Gradio 4.18.0 fails to support nginx or other proxies, so we use 4.17.0 for now.  See: https://github.com/gradio-app/gradio/issues/7391.
+
+Gradio 4.x.y fails to support k8 multi-pod use, so for that case please use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in requirements.txt, reqs_optional/reqs_constraints.txt, and comment-out gradio_pdf in reqs_optional/requirements_optional_langchain.txt.  See: https://github.com/gradio-app/gradio/issues/6920.
+
 ### use h2oGPT just for LLM control
 
 For just LLM control, and any document QA via `text_context_list` that does not use any embedding or database, one can launch with:
