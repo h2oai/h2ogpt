@@ -141,6 +141,7 @@ class GradioClient(Client):
                 "The `serialize` parameter is deprecated and will be removed. Please use the equivalent `upload_files` parameter instead."
             )
             upload_files = serialize
+        self.serialize = serialize
         self.upload_files = upload_files
         self.download_files = download_files
         self.space_id = None
