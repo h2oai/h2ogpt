@@ -115,6 +115,23 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa,
                 base_model = base_model0
         model_path_llama = base_model
         base_model = 'llama'
+    elif (base_model.lower().startswith('https://huggingface.co/TheBloke'.lower()) or
+          base_model.lower().startswith('http://huggingface.co/TheBloke'.lower())) \
+            and (is_gguf or is_ggml) and len(model_split) == 2:
+        # auto-switch-a-roo to support GGUF/GGML put into base model in UI
+        just_model_split = model_split[1].split(postfix)
+        if postfix.lower() in base_model.lower() and \
+                file_postfix not in base_model and \
+                len(just_model_split) == 2:
+            just_model = just_model_split[0]
+            lower_model = just_model.lower()
+            download_postfix = '?download=true'
+            base_model0 = '%s/resolve/main/%s.Q5_K_M%s%s' % (
+                base_model, lower_model, file_postfix, download_postfix)
+            if url_alive(base_model0):
+                base_model = base_model0
+        model_path_llama = base_model
+        base_model = 'llama'
     elif base_model.endswith('.gguf') or base_model.endswith('.ggml') or base_model.endswith(
             '.gguf?download=true') or base_model.endswith('.ggml?download=true'):
         # from resolved url
