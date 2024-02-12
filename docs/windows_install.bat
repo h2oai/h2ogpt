@@ -107,6 +107,3 @@ REM   For more info see [SERP Docs](README_SerpAPI.md).
 REM * For supporting Word and Excel documents, if you don't have Word/Excel already, then download and install libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 REM * To support OCR, download and install [tesseract](https://github.com/UB-Mannheim/tesseract/wiki), see also: [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html).  Please add the installation directories to your PATH.
 
-REM * PDF Viewer support (only if using gradio4):
-REM pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl -c reqs_optional/reqs_constraints.txt
-

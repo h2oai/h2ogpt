@@ -196,10 +196,6 @@ sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends
 # https://github.com/gradio-app/gradio/issues/7086
 sed -i 's/while True:/while True:\n            time.sleep(0.001)\n/g' $sp/gradio_client/client.py
 
-#* PDF View support
-# only if using gradio4
-#pip install https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_pdf-0.0.3-py3-none-any.whl -c reqs_optional/reqs_constraints.txt
-
 
 ### Compile Install Issues
 #  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
