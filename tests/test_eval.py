@@ -158,6 +158,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'hyde_template': None,
                  'hyde_show_only_final': False,
                  'doc_json_mode': False,
+                 'metadata_in_context': [],
                  'chatbot_role': 'None',
                  'speaker': 'None',
                  'tts_language': 'autodetect',

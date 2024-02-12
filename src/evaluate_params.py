@@ -72,6 +72,7 @@ eval_func_param_names = ['instruction',
                          'hyde_template',
                          'hyde_show_only_final',
                          'doc_json_mode',
+                         'metadata_in_context',
 
                          'chatbot_role',
                          'speaker',

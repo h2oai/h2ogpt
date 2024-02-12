@@ -405,6 +405,7 @@ def main(
         hyde_show_only_final: bool = False,
         hyde_show_intermediate_in_accordion: bool = True,
         doc_json_mode: bool = False,
+        metadata_in_context: Union[str, list] = 'auto',
 
         auto_reduce_chunks: bool = True,
         max_chunks: int = 100,
@@ -1000,6 +1001,36 @@ def main(
 
     :param hyde_llm_prompt: hyde prompt for first step when using LLM
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
+    :param metadata_in_context: Keys of metadata to include in LLM context for Query
+           'all': Include all metadata
+           'auto': Includes these keys: ['date', 'file_path', 'input_type', 'keywords', 'chunk_id', 'page', 'source', 'title', 'total_pages']
+           ['key1', 'key2', ...]: Include only these keys
+            NOTE: not all parsers have all keys, only keys that exist are added to each document chunk.
+           Example key-values that some PDF parsers make:
+                author = Zane Durante, Bidipta Sarkar, Ran Gong, Rohan Taori, Yusuke Noda, Paul Tang, Ehsan Adeli, Shrinidhi Kowshika Lakshmikanth, Kevin Schulman, Arnold Milstein, Demetri Terzopoulos, Ade Famoti, Noboru Kuno, Ashley Llorens, Hoi Vo, Katsu Ikeuchi, Li Fei-Fei, Jianfeng Gao, Naoki Wake, Qiuyuan Huang
+                chunk_id = 21
+                creationDate = D:20240209020045Z
+                creator = LaTeX with hyperref
+                date = 2024-02-11 23:58:11.929155
+                doc_hash = 5db1d548-7
+                file_path = /tmp/gradio/15ac25af8610f21b9ab55252f1944841727ba157/2402.05929.pdf
+                format = PDF 1.5
+                hashid = 3cfb31cea127c745c72554f4714105dd
+                head = An Interactive Agent Foundation Model
+                Figure 2. We
+                input_type = .pdf
+                keywords = Machine Learning, ICML
+                modDate = D:20240209020045Z
+                order_id = 2
+                page = 2
+                parser = PyMuPDFLoader
+                producer = pdfTeX-1.40.25
+                source = /tmp/gradio/15ac25af8610f21b9ab55252f1944841727ba157/2402.05929.pdf
+                subject = Proceedings of the International Conference on Machine Learning 2024
+                time = 1707724691.929157
+                title = An Interactive Agent Foundation Model
+                total_pages = 22
+
     :param add_chat_history_to_context: Include chat context when performing action
            Not supported when using CLI mode
     :param add_search_to_context: Include web search in context as augmented prompt
@@ -1669,6 +1700,7 @@ def main(
                             hyde_template,
                             hyde_show_only_final,
                             doc_json_mode,
+                            metadata_in_context,
                             chatbot_role,
                             speaker,
                             tts_language,
@@ -3312,6 +3344,7 @@ def evaluate(
         hyde_template,
         hyde_show_only_final,
         doc_json_mode,
+        metadata_in_context,
 
         chatbot_role,
         speaker,
@@ -3867,6 +3900,7 @@ def evaluate(
                 hyde_template=hyde_template,
                 hyde_show_only_final=hyde_show_only_final,
                 doc_json_mode=doc_json_mode,
+                metadata_in_context=metadata_in_context,
 
                 **gen_hyper_dict,
 
@@ -4269,6 +4303,7 @@ def evaluate(
                                      hyde_template=hyde_template,
                                      hyde_show_only_final=hyde_show_only_final,
                                      doc_json_mode=doc_json_mode,
+                                     metadata_in_context=metadata_in_context,
 
                                      image_file=img_file,
                                      image_control=None,  # already stuffed into image_file
@@ -4776,6 +4811,8 @@ def get_generate_params(model_lower,
                         hyde_template,
                         hyde_show_only_final,
                         doc_json_mode,
+                        metadata_in_context,
+
                         chatbot_role,
                         speaker,
                         tts_language,
@@ -4987,6 +5024,7 @@ y = np.random.randint(0, 1, 100)
                     hyde_template,
                     hyde_show_only_final,
                     doc_json_mode,
+                    metadata_in_context,
 
                     chatbot_role,
                     speaker,

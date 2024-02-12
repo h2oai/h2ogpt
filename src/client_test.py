@@ -159,6 +159,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          hyde_template=None,
                          hyde_show_only_final=False,
                          doc_json_mode=False,
+                         metadata_in_context=[],
 
                          chatbot_role='None',
                          speaker='None',

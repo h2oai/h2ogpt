@@ -559,6 +559,7 @@ class GradioClient(Client):
                                       hyde_template: str = None,
                                       hyde_show_only_final: bool = True,
                                       doc_json_mode: bool = False,
+                                      metadata_in_context: list = [],
 
                                       asserts: bool = False,
                                       ) -> Generator[tuple[str | list[str], list[str]], None, None]:
@@ -663,6 +664,7 @@ class GradioClient(Client):
             hyde_template: see src/gen.py
             hyde_show_only_final: see src/gen.py
             doc_json_mode: see src/gen.py
+            metadata_in_context: see src/gen.py
 
             asserts: whether to do asserts to ensure handling is correct
 
@@ -793,6 +795,7 @@ class GradioClient(Client):
             hyde_template=hyde_template,
             hyde_show_only_final=hyde_show_only_final,
             doc_json_mode=doc_json_mode,
+            metadata_in_context=metadata_in_context,
         )
 
         # in case server changed, update in case clone()

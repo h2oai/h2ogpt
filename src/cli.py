@@ -59,6 +59,7 @@ def run_cli(  # for local function:
         hyde_show_only_final=None,
         hyde_show_intermediate_in_accordion=None,
         doc_json_mode=None,
+        metadata_in_context=None,
         chatbot_role=None,
         speaker=None,
         tts_language=None,
