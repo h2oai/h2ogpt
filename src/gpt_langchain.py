@@ -5658,6 +5658,10 @@ def run_target(query='',
                                 answer = answer['output']
                             elif 'resolution' in answer:
                                 answer = answer['resolution']
+                        # ensure any changes to text are done
+                        answer = prompter.get_response(answer, prompt=None,
+                                                       only_new_text=only_new_text,
+                                                       sanitize_bot_response=sanitize_bot_response)
                 # in case raise StopIteration or broke queue loop in streamer, but still have exception
                 if thread.exc:
                     raise thread.exc
