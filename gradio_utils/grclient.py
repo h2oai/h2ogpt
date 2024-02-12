@@ -131,7 +131,8 @@ class GradioClient(Client):
             check_model_name=check_model_name,
         )
         if is_gradio_client_version7plus:
-            self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
+            #self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
+            self.kwargs.update(dict(auth=auth))
 
         self.verbose = verbose
         self.hf_token = hf_token
