@@ -59,7 +59,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2
+    get_accordion_named, hyde_titles, have_cv2, FullSet
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -692,6 +692,7 @@ class GradioInference(H2Oagenerate, LLM):
                              hyde_template=None,
                              hyde_show_only_final=None,
                              doc_json_mode=None,
+                             metadata_in_context=None,
 
                              image_file=self.image_file,
                              image_control=self.image_control,
@@ -5180,6 +5181,7 @@ def _run_qa_db(query=None,
                hyde_template=None,
                hyde_show_only_final=None,
                doc_json_mode=False,
+               metadata_in_context=[],
 
                n_jobs=-1,
                llamacpp_path=None,
@@ -6106,6 +6108,7 @@ def get_chain(query=None,
               docs_token_handling=None,
               docs_joiner=None,
               doc_json_mode=False,
+              metadata_in_context=[],
 
               stream_output=True,
               async_output=True,
@@ -6815,6 +6818,17 @@ def get_chain(query=None,
                     docs_with_score = [x for x in docs_with_score if
                                        all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
+    if isinstance(metadata_in_context, str) and metadata_in_context not in ['all', 'auto']:
+        metadata_in_context = ast.literal_eval(metadata_in_context)
+        assert isinstance(metadata_in_context, list)
+    if metadata_in_context == 'all':
+        metadata_in_context_set = FullSet()
+    elif metadata_in_context == 'auto':
+        metadata_in_context_set = set(['date', 'file_path', 'input_type', 'keywords', 'chunk_id', 'page', 'source', 'title', 'total_pages'])
+    else:
+        assert isinstance(metadata_in_context, list)
+        metadata_in_context_set = set(metadata_in_context)
+
     # SELECT PROMPT + DOCS
 
     tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -6828,7 +6842,17 @@ def get_chain(query=None,
             estimated_prompt_no_docs = template.format(context='', question=query)
         else:
             estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
-        chat = True  # FIXME?
+
+        # add metadata to documents and make new copy of docs with them to not contaminate originals
+        if metadata_in_context and not doc_json_mode:
+            docs_with_score = [Document(page_content='Begin Document:\n\n' +
+                                                     'Metadata:\n' +
+                                                     '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if v and k in metadata_in_context_set]) +
+                                                     '\n\nDocument Contents:\n"""\n' +
+                                                     x.page_content +
+                                                     '\n"""\nEnd Document\n',
+                         metadata=copy.deepcopy(x.metadata) or {})
+                for x, score in docs_with_score]
 
         # first docs_with_score are most important with highest score
         estimated_full_prompt, \
@@ -7000,10 +7024,18 @@ def get_chain(query=None,
                      prompter=prompter)
 
     if doc_json_mode:
+        def merge_dict(dict1, dict2):
+            return dict2.update(dict1)
+
         # make copy so don't change originals
-        docs = [Document(page_content=json.dumps(dict(ID=xi, content=x.page_content)),
-                         metadata=copy.deepcopy(x.metadata) or {})
-                for xi, x in enumerate(docs)]
+        if metadata_in_context:
+            docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content), {k: v for k, v in x.metadata.items() if v and k in metadata_in_context_set})),
+                             metadata=copy.deepcopy(x.metadata) or {})
+                    for xi, x in enumerate(docs)]
+        else:
+            docs = [Document(page_content=json.dumps(dict(ID=xi, content=x.page_content)),
+                             metadata=copy.deepcopy(x.metadata) or {})
+                    for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
         if use_template:
