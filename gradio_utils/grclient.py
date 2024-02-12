@@ -123,8 +123,6 @@ class GradioClient(Client):
             hf_token=hf_token,
             max_workers=max_workers,
             serialize=serialize,
-            upload_files=upload_files,
-            download_files=download_files,
             output_dir=output_dir,
             verbose=verbose,
             h2ogpt_key=h2ogpt_key,
@@ -133,7 +131,7 @@ class GradioClient(Client):
             check_model_name=check_model_name,
         )
         if is_gradio_client_version7plus:
-            self.kwargs.update(dict(auth=auth))
+            self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
 
         self.verbose = verbose
         self.hf_token = hf_token
