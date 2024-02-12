@@ -1,3 +1,5 @@
+import traceback
+
 import numpy as np
 from src.utils import get_device
 
@@ -37,7 +39,7 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
     else:
         # stereo to mono if needed
         if len(y.shape) > 1:
-            y = np.mean(y, dim=0)
+            y = np.mean(y, axis=0)
         avg = np.average(np.abs(y))
     if not np.isfinite(avg):
         avg = 0.0
@@ -59,7 +61,8 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
         if audio_state1[2]:
             try:
                 stream0 = np.concatenate(audio_state1[2])
-            except:
+            except Exception as e:
+                print("Exception: %s %s" % (str(e), traceback.format_exc()), flush=True)
                 raise
             stream0 = stream0.astype(np.float32)
             max_stream0 = np.max(np.abs(stream0) + 1E-7)
@@ -74,7 +77,8 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
         if reject_no_new_text and (text == text_y):
             if debug:
                 print("Rejected non-textual chunk: %s" % avg, flush=True)
-            # if didn't generate text, reject the chunk.  E.g. when typing on keyboard that ends up being loud enough but is definitely not words.
+                # if didn't generate text, reject the chunk.
+                # E.g. when typing on keyboard that ends up being loud enough but is definitely not words.
         else:
             audio_state1[2] = chunks_new
     else:
