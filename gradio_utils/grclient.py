@@ -7,6 +7,7 @@ import concurrent.futures
 import time
 import urllib.parse
 import uuid
+import warnings
 from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
@@ -89,11 +90,13 @@ class GradioClient(Client):
             src: str,
             hf_token: str | None = None,
             max_workers: int = 40,
-            serialize: bool = None,
+            serialize: bool | None = None,
             output_dir: str | Path | None = DEFAULT_TEMP_DIR,
             verbose: bool = False,
             auth: tuple[str, str] | None = None,
             headers: dict[str, str] | None = None,
+            upload_files: bool = True,
+            download_files: bool = True,
 
             h2ogpt_key: str = None,
             persist: bool = False,
@@ -120,6 +123,8 @@ class GradioClient(Client):
             hf_token=hf_token,
             max_workers=max_workers,
             serialize=serialize,
+            upload_files=upload_files,
+            download_files=download_files,
             output_dir=output_dir,
             verbose=verbose,
             h2ogpt_key=h2ogpt_key,
@@ -132,7 +137,13 @@ class GradioClient(Client):
 
         self.verbose = verbose
         self.hf_token = hf_token
-        self.serialize = serialize
+        if serialize is not None:
+            warnings.warn(
+                "The `serialize` parameter is deprecated and will be removed. Please use the equivalent `upload_files` parameter instead."
+            )
+            upload_files = serialize
+        self.upload_files = upload_files
+        self.download_files = download_files
         self.space_id = None
         self.cookies: dict[str, str] = {}
         if is_gradio_client_version7plus:
