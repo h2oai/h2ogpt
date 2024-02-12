@@ -1,7 +1,7 @@
 # for generate (gradio server) and finetune
 datasets==2.16.1
 sentencepiece==0.1.99
-gradio==4.17.0
+gradio==4.18.0
 sse_starlette==1.8.2
 huggingface_hub==0.19.4
 appdirs==1.4.4
