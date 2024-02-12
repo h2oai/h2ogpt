@@ -4385,3 +4385,38 @@ def test_client1_image_qa():
     response = ast.literal_eval(res)['response']
     print(response)
     assert 'license' in response
+
+
+@pytest.mark.parametrize("metadata_in_context", [[], 'all', 'auto'])
+@wrap_test_forked
+def test_client_chat_stream_langchain_metadata(metadata_in_context):
+    os.environ['VERBOSE_PIPELINE'] = '1'
+    user_path = make_user_path_test()
+
+    stream_output = True
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'  # 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
+    prompt_type = 'llama2'  # 'human_bot'
+    langchain_mode = 'UserData'
+    langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled', 'LLM']
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         langchain_mode=langchain_mode, user_path=user_path,
+         langchain_modes=langchain_modes,
+         docs_ordering_type=None,  # for 6_9
+         metadata_in_context=metadata_in_context,
+         )
+
+    from src.client_test import get_client, get_args, run_client
+    client = get_client(serialize=False)
+
+    # QUERY1
+    prompt = "What is Whisper?"
+    langchain_mode = 'UserData'
+    kwargs, args = get_args(prompt, prompt_type, chat=True, stream_output=stream_output,
+                            langchain_mode=langchain_mode,
+                            metadata_in_context=metadata_in_context)
+
+    res_dict, client = run_client(client, prompt, args, kwargs)
+    assert 'Automatic Speech Recognition' in res_dict['response']

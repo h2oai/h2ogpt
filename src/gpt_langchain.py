@@ -6818,7 +6818,9 @@ def get_chain(query=None,
                     docs_with_score = [x for x in docs_with_score if
                                        all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
-    if isinstance(metadata_in_context, str) and metadata_in_context not in ['all', 'auto']:
+    if not metadata_in_context:
+        metadata_in_context = []
+    elif isinstance(metadata_in_context, str) and metadata_in_context not in ['all', 'auto']:
         metadata_in_context = ast.literal_eval(metadata_in_context)
         assert isinstance(metadata_in_context, list)
     if metadata_in_context == 'all':
@@ -6846,14 +6848,14 @@ def get_chain(query=None,
 
         # add metadata to documents and make new copy of docs with them to not contaminate originals
         if metadata_in_context and not doc_json_mode:
-            docs_with_score = [Document(page_content='Begin Document:\n\n' +
-                                                     'Metadata:\n' +
-                                                     '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
-                                                                v and k in metadata_in_context_set]) +
-                                                     '\n\nDocument Contents:\n"""\n' +
-                                                     x.page_content +
-                                                     '\n"""\nEnd Document\n',
-                                        metadata=copy.deepcopy(x.metadata) or {})
+            docs_with_score = [(Document(page_content='Begin Document:\n\n' +
+                                                      'Metadata:\n' +
+                                                      '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
+                                                                 v and k in metadata_in_context_set]) +
+                                                      '\n\nDocument Contents:\n"""\n' +
+                                                      x.page_content +
+                                                      '\n"""\nEnd Document\n',
+                                         metadata=copy.deepcopy(x.metadata) or {}), score)
                                for x, score in docs_with_score]
 
         # first docs_with_score are most important with highest score

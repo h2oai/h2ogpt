@@ -94,6 +94,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              max_time=20,
              repetition_penalty=1.0,
              do_sample=True,
+             metadata_in_context=[],
              ):
     from collections import OrderedDict
     kwargs = OrderedDict(instruction=prompt if chat else '',  # only for chat=True
@@ -150,6 +151,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          chat_conversation=chat_conversation,
                          text_context_list=text_context_list,
                          docs_ordering_type=None,
+                         metadata_in_context=metadata_in_context,
                          min_max_new_tokens=None,
                          max_input_tokens=None,
                          max_total_input_tokens=None,
@@ -159,7 +161,6 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          hyde_template=None,
                          hyde_show_only_final=False,
                          doc_json_mode=False,
-                         metadata_in_context=[],
 
                          chatbot_role='None',
                          speaker='None',
