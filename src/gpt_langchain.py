@@ -59,7 +59,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -4571,7 +4571,22 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
              db1s is not None and langchain_mode in db1s or
              langchain_type == LangChainTypes.PERSONAL.value):
         langchain_type = LangChainTypes.PERSONAL.value
-        persist_directory = makedirs(persist_directory, use_base=True)
+        if userid:
+            # then maybe logged in after added docs as non-logged-in user, try to preserve
+            persist_directory0 = os.path.join(user_base_dir, userid, 'db_dir_%s' % langchain_mode)
+            if userid != dirid and os.path.isdir(persist_directory0):
+                # link new directory instead of making new directory
+                try:
+                    persist_directory1 = os.path.join(user_base_dir, dirid, 'db_dir_%s' % langchain_mode)
+                    create_relative_symlink(persist_directory0, persist_directory1)
+                except Exception as e:
+                    print("Failed to soft link: %s %s :%s" % (userid, dirid, str(e)), flush=True)
+                    persist_directory = makedirs(persist_directory, use_base=True)
+                assert os.path.isdir(persist_directory)
+            else:
+                persist_directory = makedirs(persist_directory, use_base=True)
+        else:
+            persist_directory = makedirs(persist_directory, use_base=True)
         check_persist_directory(persist_directory)
         return persist_directory, langchain_type
 

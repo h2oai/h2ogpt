@@ -22,7 +22,7 @@ from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
-from src.db_utils import set_userid, get_username_direct
+from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import base64_to_img
 
@@ -601,6 +601,7 @@ def go_gradio(**kwargs):
                   guest_name=None,
                   selection_docs_state1=None,
                   selection_docs_state00=None,
+                  id0=None,
                   **kwargs):
         assert auth_freeze is not None
         if selection_docs_state1 is None:
@@ -641,7 +642,7 @@ def go_gradio(**kwargs):
                     return False
             elif username1 in auth_pairs:
                 # copy over CLI auth to file so only one state to manage
-                auth_dict[username1] = dict(password=auth_pairs[username1], userid=str(uuid.uuid4()))
+                auth_dict[username1] = dict(password=auth_pairs[username1], userid=id0 or str(uuid.uuid4()))
                 auth_user = auth_dict[username1]
                 update_auth_selection(auth_user, selection_docs_state1)
                 save_auth_dict(auth_dict, auth_filename)
@@ -650,7 +651,7 @@ def go_gradio(**kwargs):
                 if auth_access == 'closed':
                     return False
                 # open access
-                auth_dict[username1] = dict(password=password1, userid=str(uuid.uuid4()))
+                auth_dict[username1] = dict(password=password1, userid=id0 or str(uuid.uuid4()))
                 auth_user = auth_dict[username1]
                 update_auth_selection(auth_user, selection_docs_state1)
                 save_auth_dict(auth_dict, auth_filename)
@@ -929,6 +930,7 @@ def go_gradio(**kwargs):
                 chroma_version_dict = {}
                 for langchain_mode3 in langchain_mode_types:
                     langchain_type3 = langchain_mode_types.get(langchain_mode3, LangChainTypes.EITHER.value)
+                    # this also makes a directory, but may not use it later
                     persist_directory3, langchain_type3 = get_persist_directory(langchain_mode3,
                                                                                 langchain_type=langchain_type3,
                                                                                 db1s=db1s, dbs=dbs1)
@@ -2808,7 +2810,8 @@ def go_gradio(**kwargs):
                 password1 = None
                 authorized1 = True
             else:
-                authorized1 = authf(username1, password1, selection_docs_state1=selection_docs_state1)
+                authorized1 = authf(username1, password1, selection_docs_state1=selection_docs_state1,
+                                    id0=get_userid_direct(db1s))
             if authorized1:
                 if not isinstance(requests_state1, dict):
                     requests_state1 = {}
@@ -6000,7 +6003,11 @@ def go_gradio(**kwargs):
             load_outputs = [my_db_state, requests_state, login_btn]
         else:
             auth = None
-            load_func, load_inputs, load_outputs = None, None, None
+            load_func = user_state_setup
+            load_inputs = [my_db_state, requests_state, login_btn, login_btn]
+            load_outputs = [my_db_state, requests_state, login_btn]
+            #auth = None
+            #load_func, load_inputs, load_outputs = None, None, None
 
         app_js = wrap_js_to_lambda(
             len(load_inputs) if load_inputs else 0,

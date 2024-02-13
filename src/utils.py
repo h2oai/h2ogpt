@@ -1971,3 +1971,40 @@ def get_test_name_core():
 class FullSet(set):
     def __contains__(self, item):
         return True
+
+
+import os
+
+def create_relative_symlink(target, link_name):
+    """
+    Creates a relative symlink to a target from a link location, ensuring parent directories exist.
+    The target can be either a file or a directory.
+
+    Parameters:
+    - target: The path to the target file or directory. This can be an absolute or a relative path.
+    - link_name: The path where the symlink will be created. This should include the name of the symlink itself.
+
+    Raises:
+    - ValueError: If the target does not exist.
+    """
+    # Ensure the target exists
+    if not os.path.exists(target):
+        raise ValueError("Target does not exist: " + target)
+
+    # Calculate the absolute paths
+    target_abs = os.path.abspath(target)
+    link_dir = os.path.dirname(os.path.abspath(link_name))
+
+    # Ensure the parent directory of the link exists
+    os.makedirs(link_dir, exist_ok=True)
+
+    # Calculate the relative path for the symlink
+    relative_path = os.path.relpath(target_abs, link_dir)
+
+    # Remove the link if it already exists
+    if os.path.exists(link_name) or os.path.islink(link_name):
+        os.remove(link_name)
+
+    # Create the symlink
+    os.symlink(relative_path, link_name)
+    print(f"Symlink created: {link_name} -> {relative_path}")

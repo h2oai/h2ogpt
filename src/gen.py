@@ -65,7 +65,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
-    generic_postfix, mistralai_mapping, mistralai_mapping_outputs
+    generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -1894,6 +1894,9 @@ def main(
             get_some_dbs_from_hf()
         dbs = {}
         for langchain_mode1 in langchain_modes:
+            if langchain_mode1 in langchain_modes_intrinsic:
+                # don't store intrinsic dbs in dbs if db, and don't worry about LLM/Disabled
+                continue
             langchain_type = langchain_mode_types.get(langchain_mode1, LangChainTypes.EITHER.value)
             if langchain_type == LangChainTypes.PERSONAL.value:
                 # shouldn't prepare per-user databases here
