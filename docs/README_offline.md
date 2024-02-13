@@ -64,7 +64,7 @@ If you have a GGUF/GGML file, you should download it ahead of time and place it 
 
 ### Hard Way:
 
-Identify and download all needed models. Note that the following list is not exhaustive, as new models are frequently added, and each model uses a different approach for downloading.
+Identify and download all needed models. Note that the following list is not exhaustive because the models added change frequently and each uses a different approach for downloading.
 
 Note that when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 
