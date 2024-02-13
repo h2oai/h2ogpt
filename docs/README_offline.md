@@ -32,7 +32,7 @@ TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.ggu
 TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
 ```
 
-NOTE: If set `--prepare_offline_level=2` for first online call, h2oGPT will get standard models for offline use, but that may be more than you require.  One can tune the code `../src/prepare_offline.py` to get only the models you require.
+NOTE: If set `--prepare_offline_level=2` for first online call, h2oGPT will get standard models for offline use, but that may be more than you require.  You can tune the code `../src/prepare_offline.py` to get only the models you require.
 
 ### Easy Way:
 
@@ -40,7 +40,7 @@ Run h2oGPT as would in offline mode, ensuring to use LLM and upload docs using s
 
 ### Moderately Easy Way:
 
-If you can run on same (or better) system that will be like that in offline mode, you can run the below and collect all needed items in the `~/.cache/` and `~/nltk_data` folders, specifically:
+If you can run on same (or better) system that will be like that in offline mode, you can run the following and collect all needed items in the `~/.cache/` and `~/nltk_data` folders, specifically:
 * `~/.cache/selenium/`
 * `~/.cache/huggingface/`
 * `~/.cache/torch/`
@@ -50,13 +50,13 @@ If you can run on same (or better) system that will be like that in offline mode
 * `~/.cache/ms-playwright/`
 * `~/.cache/selenium/`
 * `~/nltk_data/`
-```
+```bash
 python generate.py --score_model=None --gradio_size=small --model_lock="[{'base_model': 'h2oai/h2ogpt-4096-llama2-7b-chat'}]" --save_dir=save_fastup_chat --prepare_offline_level=2
 # below are already in docker
 python -m nltk.downloader all
 playwright install --with-deps
 ```
-Some of these locations can be controlled, but others not, so best to make local version of ~/.cache (e.g. move original out of way), run the above, archive it for offline system, restore old ~/.cache, then use offline.  If same system, then those steps aren't required, one can just go fully offline.
+Some of these locations can be controlled, but others not, so it's best to make a local version of `~/.cache` (e.g. move original out of way), run the preceding command, archive it for offline system, restore old `~/.cache`, and then use offline.  If same system, then those steps aren't required, one can just go fully offline.
 
 If you are only concerned with what h2oGPT needs, not any inference servers, you can run with `--prepare_offline_level=1` that will not obtain models associated with inference severs (e.g. vLLM or TGI).
 
@@ -64,9 +64,9 @@ If you have a GGUF/GGML file, you should download it ahead of time and place it 
 
 ### Hard Way:
 
-Identify all models needed and download each.  The below list is not exhaustive because the models added changes frequently and each uses different approach for downloading.
+Identify and download all needed models. Note that the following list is not exhaustive, as new models are frequently added, and each model uses a different approach for downloading.
 
-Note, when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
+Note that when running `generate.py` and asking your first question, it will download the model(s), which for the 6.9B model takes about 15 minutes per 3 pytorch bin files if have 10MB/s download.
 
 If all data has been put into `~/.cache` by HF transformers and GGUF/GGML files downloaded already and one points to them (e.g. with `--model_path_llama=llama-2-7b-chat.Q6_K.gguf` from pre-downloaded `https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf`), then these following steps (those related to downloading HF models) are not required.
 

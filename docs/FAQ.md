@@ -2,23 +2,23 @@
 
 ### nginx and k8 multi-pod support
 
-Gradio 4.18.0 fails to support nginx or other proxies, so we use 4.17.0 for now.  See: https://github.com/gradio-app/gradio/issues/7391.
+Gradio 4.18.0 fails to support nginx or other proxies, so we use 4.17.0 for now. For more information, see: https://github.com/gradio-app/gradio/issues/7391.
 
-Gradio 4.x.y fails to support k8 multi-pod use, so for that case please use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in requirements.txt, reqs_optional/reqs_constraints.txt, and comment-out gradio_pdf in reqs_optional/requirements_optional_langchain.txt.  See: https://github.com/gradio-app/gradio/issues/6920.
+Gradio 4.x.y fails to support k8 multi-pod use, so for that case please use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`. For more information, see: https://github.com/gradio-app/gradio/issues/6920.
 
-### use h2oGPT just for LLM control
+### Use h2oGPT just for LLM control
 
-For just LLM control, and any document QA via `text_context_list` that does not use any embedding or database, one can launch with:
+For just LLM control and any document QA via `text_context_list` that does not use any embedding or database, you can launch with the following command:
 ```bash
 python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
 ```
-and to be sure no GPUs are used, one can add `CUDA_VISIBLE_DEVICES=` to start of command line or exported to environment, e.g.
+and to be sure no GPUs are used, you can add `CUDA_VISIBLE_DEVICES=` to start of command line or exported to environment, e.g.
 ```bash
 CUDA_VISIBLE_DEVICES= python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
 ```
 Or if in docker, specify `docker run --gpus none <options> <image>`.
 
-This is useful when using h2oGPT as pass-through for some other top-level document QA system like h2oGPTe (Enterprise h2oGPT), while h2oGPT (OSS) manages all LLM related tasks like how many chunks can fit, while preserving original order.  h2oGPT will handle truncation of tokens per LLM and async summarization, multiple LLMs, etc.
+This is useful when using h2oGPT as pass-through for some other top-level document QA system like [h2oGPTe](https://docs.h2o.ai/h2ogpte-docs/) (Enterprise h2oGPT), while h2oGPT (OSS) manages all LLM related tasks like how many chunks can fit, while preserving original order.  h2oGPT will handle truncation of tokens per LLM and async summarization, multiple LLMs, etc.
 
 ### Control location of files
 

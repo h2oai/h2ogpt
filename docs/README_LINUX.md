@@ -77,7 +77,7 @@ Default install script uses cu121.  For cu118, edit `reqs_optional/requirements_
 
 ## Run
 
-See [Offline](README_offline.md#tldr) for how to run h2oGPT offline.
+For information on how to run h2oGPT offline, see [Offline](README_offline.md#tldr).
 
 See the [FAQ](FAQ.md#adding-models) for many ways to run models.  The following are some other examples.
 
