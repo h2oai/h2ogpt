@@ -670,8 +670,8 @@ def go_gradio(**kwargs):
 
     def get_userid_auth_func(requests_state1, auth_filename=None, auth_access=None, guest_name=None, id0=None,
                              **kwargs):
+        username1 = get_username(requests_state1)
         if auth_filename and isinstance(auth_filename, str):
-            username1 = get_username(requests_state1)
             if username1:
                 if username1 == guest_name:
                     return str(uuid.uuid4())
@@ -683,7 +683,7 @@ def go_gradio(**kwargs):
                             return auth_dict[username1]['userid']
         # if here, then not persistently associated with username1,
         # but should only be one-time asked if going to persist within a single session!
-        return id0 or str(uuid.uuid4())
+        return id0 or username1 or str(uuid.uuid4())
 
     get_userid_auth = functools.partial(get_userid_auth_func,
                                         auth_filename=kwargs['auth_filename'],
