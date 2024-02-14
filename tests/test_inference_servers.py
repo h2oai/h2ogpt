@@ -274,6 +274,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '/etc/group:/etc/group:ro',
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
               '-v', '%s/.cache/huggingface/hub:/workspace/.cache/huggingface/hub' % home_dir,
+              '-v', '%s/.cache/huggingface/modules:/workspace/.cache/huggingface/modules' % home_dir,
               # '--network', 'host',
               'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
@@ -322,6 +323,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
               '--shm-size', '1g',
               '-p', '%s:7860' % port,
               '-v', '%s/.cache/huggingface/hub:/workspace/.cache/huggingface/hub' % home_dir,
+              '-v', '%s/.cache/huggingface/modules:/workspace/.cache/huggingface/modules' % home_dir,
               '-v', '%s/save:/workspace/save' % home_dir,
               '-v', '/etc/passwd:/etc/passwd:ro',
               '-v', '/etc/group:/etc/group:ro',
@@ -357,7 +359,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
 @pytest.mark.parametrize("base_model",
                          # FIXME: Can't get 6.9 or 12b (quantized or not) to work on home system, so do falcon only for now
                          # ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
-                         ['h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2']
+                         ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-rag-v1']
                          )
 @pytest.mark.parametrize("force_langchain_evaluate", [False, True])
 @pytest.mark.parametrize("do_langchain", [False, True])
@@ -605,7 +607,7 @@ def test_gradio_tgi_docker(base_model):
 
     # h2oGPT server
     docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server)
-    time.sleep(30)  # assumes image already downloaded, else need more time
+    time.sleep(90)  # assumes image already downloaded, else need more time
     os.system('docker logs %s | tail -10' % docker_hash2)
 
     # test this version for now, until docker updated
@@ -675,7 +677,7 @@ def test_gradio_vllm_docker(base_model):
 
     # h2oGPT server
     docker_hash2 = run_h2ogpt_docker(gradio_port, base_model, inference_server=inference_server)
-    time.sleep(30)  # assumes image already downloaded, else need more time
+    time.sleep(90)  # assumes image already downloaded, else need more time
     os.system('docker logs %s | tail -10' % docker_hash2)
 
     # test this version for now, until docker updated

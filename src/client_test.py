@@ -151,7 +151,6 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          chat_conversation=chat_conversation,
                          text_context_list=text_context_list,
                          docs_ordering_type=None,
-                         metadata_in_context=metadata_in_context,
                          min_max_new_tokens=None,
                          max_input_tokens=None,
                          max_total_input_tokens=None,
@@ -161,6 +160,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          hyde_template=None,
                          hyde_show_only_final=False,
                          doc_json_mode=False,
+                         metadata_in_context=metadata_in_context,
 
                          chatbot_role='None',
                          speaker='None',
@@ -171,22 +171,13 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          image_control=None,
                          )
     diff = 0
-    if version is None:
-        # latest
-        version = 1
-    if version == 0:
-        diff = 1
-    if version >= 1:
-        kwargs.update(dict(system_prompt=system_prompt))
-        diff = 0
-
     from evaluate_params import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == diff
     if chat:
         # add chatbot output on end.  Assumes serialize=False
         kwargs.update(dict(chatbot=[]))
 
-    return kwargs, list(kwargs.values())
+    return kwargs, list(dict(kwargs).values())
 
 
 @pytest.mark.skip(reason="For manual use against some server, no server launched")
