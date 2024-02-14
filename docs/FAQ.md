@@ -106,11 +106,13 @@ python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:
 Run server:
 ```bash
 pip install gradio==4.17.0
+export GRADIO_SERVER_PORT=7861
 python -m llava.serve.gradio_web_server --controller http://localhost:$server_port --model-list-mode once
 ```
 
 Run h2oGPT with LLaVa and image (normal and high-quality) generation:
 ```bash
+export GRADIO_SERVER_PORT=7860
 python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --llava_model=<IP:port:model_name> \
 --enable_imagegen=True --enable_imagegen_high=True
@@ -119,6 +121,7 @@ e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vic
 
 Run h2oGPT with LLaVa and image (normal and high-quality) generation and run LLaVa model as normal LLM model:
 ```bash
+export GRADIO_SERVER_PORT=7860
 python --score_model=None \
 --llava_model=<IP:port:model_name> \
 --enable_imagegen=True --enable_imagegen_high=True \
