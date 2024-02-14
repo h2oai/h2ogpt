@@ -1,6 +1,6 @@
 # ensure doesn't drift, e.g. https://github.com/h2oai/h2ogpt/issues/1348
 torch==2.1.2
-gradio==4.17.0
-gradio_client==0.9.0
+gradio==4.18.0
+gradio_client==0.10.0
 #gradio==3.50.2
 #gradio_client==0.6.1
