@@ -64,7 +64,7 @@ See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README
 
 ## Run 
 
-See [Offline](README_offline.md#tldr) for how to run h2oGPT offline.
+For information on how to run h2oGPT offline, see [Offline](README_offline.md#tldr).
 
 In your terminal, run:
 ```bash
