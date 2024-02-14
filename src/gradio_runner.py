@@ -2835,7 +2835,11 @@ def go_gradio(**kwargs):
             df_langchain_mode_paths1 = get_df_langchain_mode_paths(selection_docs_state1, db1s, dbs1=dbs)
             if success1:
                 requests_state1['username'] = username1
-            label_instruction1 = 'Ask or Ingest, %s' % requests_state1['username']
+            if requests_state1['username'] == get_userid_direct(db1s):
+                # still pre-login
+                label_instruction1 = 'Ask or Ingest'
+            else:
+                label_instruction1 = 'Ask or Ingest, %s' % requests_state1['username']
             return db1s, selection_docs_state1, requests_state1, roles_state1, \
                 model_options_state1, lora_options_state1, server_options_state1, \
                 chat_state1, \
@@ -6021,6 +6025,7 @@ def go_gradio(**kwargs):
             load_event2 = load_event.then(load_login_func,
                                           inputs=login_inputs,
                                           outputs=login_outputs)
+        if load_func and auth:
             if not kwargs['large_file_count_mode']:
                 load_event3 = load_event2.then(**get_sources_kwargs)
                 load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
