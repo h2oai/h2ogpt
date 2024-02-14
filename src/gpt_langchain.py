@@ -3360,7 +3360,8 @@ def file_to_doc(file,
                 print("BEGIN: LLaVa", flush=True)
             try:
                 from src.vision.utils_vision import get_llava_response
-                res, llava_prompt = get_llava_response(file_llava, llava_model, prompt=llava_prompt)
+                res, llava_prompt = get_llava_response(file_llava, llava_model,
+                                                       prompt=llava_prompt, allow_prompt_auto=True)
                 metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
                 docs1c = [Document(page_content=res, metadata=metadata)]
                 docs1c = [x for x in docs1c if x.page_content]
@@ -3371,7 +3372,7 @@ def file_to_doc(file,
                  docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
-                print("LLaVa: %s" % str(e0), flush=True)
+                print("LLaVa: %s: %s" % (str(e0), traceback.print_exception(e0)), flush=True)
                 e = e0
             handled |= len(docs1) > 0
             if verbose:

@@ -1480,7 +1480,7 @@ def test_llava_add(image_file, db_type):
             if 'anthropic' in image_file:
                 docs = db.similarity_search("circle")
                 assert len(docs) == 2 if db_type == 'chroma' else 1
-                assert 'letter "A"' in docs[0].page_content
+                assert 'AI' in docs[0].page_content
             else:
                 docs = db.similarity_search("cat")
                 assert len(docs) == 2 if db_type == 'chroma' else 1

@@ -69,6 +69,12 @@ def llava_prep(file,
             # let model handle if no prompt and no file
             prompt = ''
     # allow prompt = '', will describe image by default
+    if prompt is None:
+        if os.environ.get('HARD_ASSERTS'):
+            raise ValueError('prompt is None')
+        else:
+            prompt = ''
+
 
     prefix = ''
     if llava_model.startswith('http://'):
