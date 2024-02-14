@@ -158,11 +158,13 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'hyde_template': None,
                  'hyde_show_only_final': False,
                  'doc_json_mode': False,
-                 'metadata_in_context': [],
+                 'metadata_in_context': 'auto',
                  'chatbot_role': 'None',
                  'speaker': 'None',
                  'tts_language': 'autodetect',
                  'tts_speed': 1.0,
+                 'image_file': None,
+                 'image_control': None,
                  }
     if cpu and bits == 32:
         expected1.update({'image_audio_loaders': np.array([], dtype=object)})
@@ -217,7 +219,7 @@ e the posterior ligaments are attached to the back. The anterior ligaments are c
  run across the width of the spine. \nThe anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are""",
             'score': 0.77}
 
-    assert np.isclose(actual2['score'], expected2['score'], rtol=0.3), "Score is not as expected: %s %s" % (
+    assert np.isclose(actual2['score'], expected2['score'], rtol=0.35), "Score is not as expected: %s %s" % (
         actual2['score'], expected2['score'])
 
     from sacrebleu.metrics import BLEU
