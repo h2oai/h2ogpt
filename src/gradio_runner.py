@@ -804,19 +804,29 @@ def go_gradio(**kwargs):
         have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
 
     with demo:
+        support_state_callbacks = hasattr(gr.State(), 'callback')
+
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
+        def model_state_done(state):
+            if isinstance(state, dict) and 'model' in state and hasattr(state['model'], 'cpu'):
+                state['model'].cpu()
+                state['model'] = None
+                clear_torch_cache()
+
+        model_state_cb = dict(callback=model_state_done) if support_state_callbacks else {}
         model_state = gr.State(
-            dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
-                 base_model=kwargs['base_model'],
-                 tokenizer_base_model=kwargs['tokenizer_base_model'],
-                 lora_weights=kwargs['lora_weights'],
-                 inference_server=kwargs['inference_server'],
-                 prompt_type=kwargs['prompt_type'],
-                 prompt_dict=kwargs['prompt_dict'],
-                 visible_models=visible_models_to_model_choice(kwargs['visible_models']),
-                 h2ogpt_key=None,  # only apply at runtime when doing API call with gradio inference server
-                 )
+            value=dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
+                       base_model=kwargs['base_model'],
+                       tokenizer_base_model=kwargs['tokenizer_base_model'],
+                       lora_weights=kwargs['lora_weights'],
+                       inference_server=kwargs['inference_server'],
+                       prompt_type=kwargs['prompt_type'],
+                       prompt_dict=kwargs['prompt_dict'],
+                       visible_models=visible_models_to_model_choice(kwargs['visible_models']),
+                       h2ogpt_key=None,  # only apply at runtime when doing API call with gradio inference server
+                       ),
+            **model_state_cb,
         )
 
         def update_langchain_mode_paths(selection_docs_state1):
@@ -831,11 +841,25 @@ def go_gradio(**kwargs):
             return selection_docs_state1
 
         # Setup some gradio states for per-user dynamic state
+        def my_db_state_done(state):
+            if isinstance(state, dict):
+                for langchain_mode_db, db_state in state.items():
+                    scratch_data = state[langchain_mode_db]
+                    if langchain_mode_db in langchain_modes_intrinsic:
+                        if len(scratch_data) == length_db1() and hasattr(scratch_data[0], 'delete_collection') and scratch_data[1] == scratch_data[2]:
+                            # scratch if not logged in
+                            scratch_data[0].delete_collection()
+                    # try to free from memory
+                    scratch_data[0] = None
+                    del scratch_data[0]
+
+        my_db_state_cb = dict(callback=my_db_state_done) if support_state_callbacks else {}
+
         model_state2 = gr.State(kwargs['model_state_none'].copy())
-        model_options_state = gr.State([model_options0])
+        model_options_state = gr.State([model_options0], **model_state_cb)
         lora_options_state = gr.State([lora_options])
         server_options_state = gr.State([server_options])
-        my_db_state = gr.State(my_db_state0)
+        my_db_state = gr.State(my_db_state0, **my_db_state_cb)
         chat_state = gr.State({})
         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
             from src.tts_coqui import get_role_to_wave_map
@@ -1629,8 +1653,8 @@ def go_gradio(**kwargs):
                                                                info="Whether to pass JSON to and get JSON back from LLM",
                                                                visible=True)
                         metadata_in_context = gr.components.Textbox(value='[]',
-                                                              label="Metadata keys to include in LLM context (all, auto, or [key1, key2, ...] where strings are quoted)",
-                                                              visible=True)
+                                                                    label="Metadata keys to include in LLM context (all, auto, or [key1, key2, ...] where strings are quoted)",
+                                                                    visible=True)
 
                         embed = gr.components.Checkbox(value=True,
                                                        label="Embed text",
@@ -6010,8 +6034,8 @@ def go_gradio(**kwargs):
             load_func = user_state_setup
             load_inputs = [my_db_state, requests_state, login_btn, login_btn]
             load_outputs = [my_db_state, requests_state, login_btn]
-            #auth = None
-            #load_func, load_inputs, load_outputs = None, None, None
+            # auth = None
+            # load_func, load_inputs, load_outputs = None, None, None
 
         app_js = wrap_js_to_lambda(
             len(load_inputs) if load_inputs else 0,

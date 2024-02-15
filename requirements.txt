@@ -1,7 +1,10 @@
 # for generate (gradio server) and finetune
 datasets==2.16.1
 sentencepiece==0.1.99
-https://gradio-builds.s3.amazonaws.com/9b8810ff9af4d9a50032752af09cefcf2ef7a7ac/gradio-4.18.0-py3-none-any.whl
+# no websockets, more cloud friendly
+#gradio==4.19.0
+# able to make gradio clean-up states
+https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.0-py3-none-any.whl
 #gradio==3.50.2
 sse_starlette==1.8.2
 huggingface_hub==0.19.4
