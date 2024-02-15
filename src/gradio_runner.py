@@ -114,7 +114,8 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_a
                 if '<a href' not in ts[parti] and \
                         '<img src=' not in ts[parti] and \
                         '<div ' not in ts[parti] and \
-                        '</div>' not in ts[parti]:
+                        '</div>' not in ts[parti] and \
+                        '<details><summary>' not in ts[parti]:
                     # try to avoid html best one can
                     ts[parti] = ts[parti].replace('<', '\<').replace('>', '\>')
         text = '```'.join(ts)
