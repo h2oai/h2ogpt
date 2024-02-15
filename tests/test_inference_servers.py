@@ -480,8 +480,8 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                    'woman from the United States' in ret4['response']
             assert 'I am a language model trained' in ret5['response'] or 'I am a helpful assistant' in \
                    ret5['response'] or 'a chat-based assistant' in ret5['response'] or 'am a student' in ret5[
-                       'response'] or 'I am an AI language model' in ret5 or \
-                   'woman from the United States' in ret5['response']['response']
+                       'response'] or 'I am an AI language model' in ret5['response'] or \
+                   'woman from the United States' in ret5['response']
             assert 'I am a language model trained' in ret6['response'] or 'I am a helpful assistant' in \
                    ret6['response'] or 'a chat-based assistant' in ret6['response'] or 'am a student' in ret6[
                        'response'] or 'I am an AI language model' in ret6['response'] or \
