@@ -141,7 +141,7 @@ def add_parser(docs1, parser):
     [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
 
 
-def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
+def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet', file_as_source=False):
     if os.path.isfile(file):
         file_extension = pathlib.Path(file).suffix
         hashid = hash_file(file)
@@ -160,6 +160,8 @@ def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
                             doc_hash=doc_hash,
                             file_id=filei,
                             head=x.page_content[:headsize].strip())) for order_id, x in enumerate(docs1)]
+    if file_as_source:
+        [x.metadata.update(dict(source=file)) for order_id, x in enumerate(docs1)]
 
 
 def fix_json_meta(docs1):
