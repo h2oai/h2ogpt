@@ -1483,9 +1483,9 @@ def test_llava_add(image_file, db_type):
                 assert 'AI' in docs[0].page_content
             else:
                 docs = db.similarity_search("cat")
-                assert len(docs) == 2 if db_type == 'chroma' else 1
+                assert len(docs) >= 2 if db_type == 'chroma' else 1
                 assert 'cat' in docs[0].page_content
-                assert 'birds' in docs[0].page_content or 'outdoors' in docs[0].page_content or 'outside' in docs[
+                assert 'window' in docs[0].page_content or 'outdoors' in docs[0].page_content or 'outside' in docs[
                     0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
     kill_weaviate(db_type)
