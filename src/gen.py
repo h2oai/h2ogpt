@@ -1645,6 +1645,8 @@ def main(
             raise RuntimeError("STT packages (soundfile, librosa, wavio) not installed")
     elif enable_stt == 'auto':
         enable_stt = True
+    if n_gpus != 0 and enable_stt:
+        print("STT enabled, may use more GPU, set --enable_stt=False for low-memory systems", flush=True)
 
     if not (have_soundfile and have_librosa and have_wavio):
         if enable_tts == 'auto':
@@ -1660,6 +1662,8 @@ def main(
     if not (have_soundfile and have_librosa and have_wavio) and enable_tts:
         enable_tts = False
         print("soundfile, librosa, and wavio not installed, disabling TTS", flush=True)
+    if n_gpus != 0 and enable_tts:
+        print("TTS enabled, may use more GPU, set --enable_tts=False for low-memory systems", flush=True)
     if n_gpus == 0:
         tts_gpu = False
         stt_gpu = False
