@@ -57,6 +57,7 @@ eval_func_param_names = ['instruction',
                          ] + \
                         reader_names + \
                         ['visible_models',
+                         'visible_image_models',
                          'h2ogpt_key',
                          'add_search_to_context',
 

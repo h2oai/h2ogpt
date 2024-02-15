@@ -26,7 +26,8 @@ def run_eval(  # for local function:
         use_pypdf=None,
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
-        enable_imagegen_high_sd=None,
+        enable_image=None,
+
         try_pdf_as_html=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
         temperature=None,
@@ -91,9 +92,7 @@ def run_eval(  # for local function:
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
-        image_gen_loader=None,
-        image_gen_loader_high=None,
-        image_change_loader=None,
+        imagegen_model_dict=None,
 
         asr_model=None,
         asr_loader=None,

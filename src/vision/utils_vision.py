@@ -5,6 +5,8 @@ import uuid
 from io import BytesIO
 import numpy as np
 
+from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models
+
 
 def img_to_base64(image_file):
     # assert image_file.lower().endswith('jpg') or image_file.lower().endswith('jpeg')
@@ -74,7 +76,6 @@ def llava_prep(file,
             raise ValueError('prompt is None')
         else:
             prompt = ''
-
 
     prefix = ''
     if llava_model.startswith('http://'):
@@ -206,3 +207,38 @@ def get_llava_stream(file, llava_model,
     job_outputs_num += job_outputs_num_new
     if verbose_level == 1:
         print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+
+
+def get_image_model_dict(enable_image,
+                         image_models,
+                         image_gpu_ids,
+                         ):
+    image_dict = {}
+    if not enable_image:
+        return image_dict
+
+    if enable_image and len(set(image_models).difference(valid_imagegen_models)) == 0:
+        raise ValueError("Enabled imagegen, but invalid image_models=%s out of valid_imagegen_models=%s" % (
+            image_models, valid_imagegen_models))
+
+    if image_gpu_ids is None:
+        image_gpu_ids = ['auto'] * len(image_models)
+
+    for image_model_name in valid_imagegen_models + valid_imagechange_models + valid_imagestyle_models:
+        if image_model_name in image_models:
+            imagegen_index = image_models.index(image_model_name)
+            if image_model_name == 'sdxl_turbo':
+                from src.vision.sdxl import get_pipe_make_image, make_image
+            elif image_model_name == 'playv2':
+                from src.vision.playv2 import get_pipe_make_image, make_image
+            elif image_model_name == 'sdxl':
+                from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+            elif image_model_name == 'sdxl_change':
+                from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
+                make_image = change_image
+            # FIXME: style
+            else:
+                raise ValueError("Invalid image_model_name=%s" % image_model_name)
+            pipe = get_pipe_make_image(gpu_id=image_gpu_ids[imagegen_index])
+            image_dict[image_model_name] = dict(pipe=pipe, make_image=make_image)
+    return image_dict

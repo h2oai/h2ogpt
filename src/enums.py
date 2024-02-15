@@ -127,16 +127,19 @@ class LangChainAction(Enum):
     SUMMARIZE_REFINE = "Summarize_refine"
     EXTRACT = "Extract"
     IMAGE_GENERATE = "ImageGen"
-    IMAGE_GENERATE_HIGH = "ImageGenHigh"
     IMAGE_CHANGE = "ImageChange"
     IMAGE_QUERY = "ImageQuery"
+    IMAGE_STYLE = "ImageStyle"
 
+
+valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'playv2']
+valid_imagechange_models = ['sdxl_change']
+valid_imagestyle_models = ['sdxl_style']
 
 # rest are not implemented fully
 base_langchain_actions = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
                           LangChainAction.EXTRACT.value,
                           LangChainAction.IMAGE_GENERATE.value,
-                          LangChainAction.IMAGE_GENERATE_HIGH.value,
                           LangChainAction.IMAGE_CHANGE.value,
                           LangChainAction.IMAGE_QUERY.value,
                           ]

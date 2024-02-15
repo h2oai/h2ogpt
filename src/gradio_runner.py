@@ -382,6 +382,7 @@ def go_gradio(**kwargs):
     my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
     visible_models_state0 = kwargs['visible_models_state0']
+    visible_image_models_state0 = kwargs['visible_image_models_state0']
     roles_state0 = kwargs['roles_state0']
     # For Heap analytics
     is_heap_analytics_enabled = kwargs['enable_heap_analytics']
@@ -749,7 +750,7 @@ def go_gradio(**kwargs):
                                            LangChainAction.IMAGE_QUERY.value,
                                            LangChainAction.IMAGE_CHANGE.value,
                                            LangChainAction.IMAGE_GENERATE.value,
-                                           LangChainAction.IMAGE_GENERATE_HIGH.value,
+                                           LangChainAction.IMAGE_STYLE.value,
                                            ]
         allow |= document_subset1 in [DocumentSubset.TopKSources.name]
         if langchain_mode1 in [LangChainMode.LLM.value]:
@@ -847,7 +848,8 @@ def go_gradio(**kwargs):
                 for langchain_mode_db, db_state in state.items():
                     scratch_data = state[langchain_mode_db]
                     if langchain_mode_db in langchain_modes_intrinsic:
-                        if len(scratch_data) == length_db1() and hasattr(scratch_data[0], 'delete_collection') and scratch_data[1] == scratch_data[2]:
+                        if len(scratch_data) == length_db1() and hasattr(scratch_data[0], 'delete_collection') and \
+                                scratch_data[1] == scratch_data[2]:
                             # scratch if not logged in
                             scratch_data[0].delete_collection()
                     # try to free from memory
@@ -1457,16 +1459,29 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                image_gen_visible = kwargs['image_gen_loader'] is not None or \
-                                    kwargs['enable_imagegen_high'] is not None
-                image_change_visible = kwargs['image_change_loader'] is not None
+                image_gen_visible = kwargs['enable_imagegen']
+                image_change_visible = kwargs['enable_imagechange']
                 image_tab_visible = image_gen_visible or image_change_visible
-                image_tab = gr.Row(visible=image_tab_visible)
+                image_tab = gr.TabItem("Image Control", visible=image_tab_visible) if image_tab_visible else gr.Row(
+                    visible=False)
                 with image_tab:
+                    visible_image_models = gr.Dropdown(visible_image_models_state0,
+                                                       label="Visible Image Models",
+                                                       value=visible_image_models_state0[
+                                                           0] if visible_image_models_state0 else None,
+                                                       interactive=True,
+                                                       multiselect=False,
+                                                       visible=True,
+                                                       filterable=False,
+                                                       max_choices=None,
+                                                       )
                     with gr.Row():
-                        image_control = gr.Image(label="Input Image", type='filepath')
-                        image_style = gr.Image(label="Style Image", type='filepath')
-                        image_output = gr.Image(label="Output Image", type='filepath')
+                        image_control = gr.Image(label="Input Image", type='filepath', elem_id="warning",
+                                                 elem_classes="feedback")
+                        image_style = gr.Image(label="Style Image", type='filepath', elem_id="warning",
+                                               elem_classes="feedback")
+                        image_output = gr.Image(label="Output Image", type='filepath', elem_id="warning",
+                                                elem_classes="feedback")
                     image_prompt = gr.Textbox(label="Prompt")
                     with gr.Row():
                         generate_btn = gr.Button("Generate by Prompt", visible=image_gen_visible)
