@@ -206,8 +206,9 @@ def run_docker(inf_port, base_model, low_mem_mode=False, do_shared=True):
               '-p', '%s:80' % inf_port,
               '-v', '%s/.cache/huggingface/hub/:/data' % home_dir,
               '-v', '%s:/data' % data_dir,
-              'ghcr.io/huggingface/text-generation-inference:0.9.3',
+              'ghcr.io/huggingface/text-generation-inference:1.4',
               '--model-id', base_model,
+              '--cuda-memory-fraction', '0.8',
               '--max-stop-sequences', '6',
               '--sharded', 'false' if n_gpus == 1 or not do_shared else 'true'
           ]
@@ -469,21 +470,26 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         else:
             assert 'I am a language model trained' in ret1['response'] or 'I am a helpful assistant' in \
                    ret1['response'] or 'a chat-based assistant' in ret1['response'] or 'am a student' in ret1[
-                       'response'] or 'I am an AI language model' in ret1['response']
+                       'response'] or 'I am an AI language model' in ret1['response'] or \
+                   'woman from the United States' in ret1['response']
             assert 'Once upon a time' in ret2['response']
             assert 'Once upon a time' in ret3['response']
             assert 'I am a language model trained' in ret4['response'] or 'I am a helpful assistant' in \
                    ret4['response'] or 'a chat-based assistant' in ret4['response'] or 'am a student' in ret4[
-                       'response'] or 'I am an AI language model' in ret4['response']
+                       'response'] or 'I am an AI language model' in ret4['response'] or \
+                   'woman from the United States' in ret4['response']
             assert 'I am a language model trained' in ret5['response'] or 'I am a helpful assistant' in \
                    ret5['response'] or 'a chat-based assistant' in ret5['response'] or 'am a student' in ret5[
-                       'response'] or 'I am an AI language model' in ret5['response']
+                       'response'] or 'I am an AI language model' in ret5 or \
+                   'woman from the United States' in ret5['response']['response']
             assert 'I am a language model trained' in ret6['response'] or 'I am a helpful assistant' in \
                    ret6['response'] or 'a chat-based assistant' in ret6['response'] or 'am a student' in ret6[
-                       'response'] or 'I am an AI language model' in ret6['response']
+                       'response'] or 'I am an AI language model' in ret6['response'] or \
+                   'woman from the United States' in ret6['response']
             assert 'I am a language model trained' in ret7['response'] or 'I am a helpful assistant' in \
                    ret7['response'] or 'a chat-based assistant' in ret7['response'] or 'am a student' in ret7[
-                       'response'] or 'I am an AI language model' in ret7['response']
+                       'response'] or 'I am an AI language model' in ret7['response'] or \
+                   'woman from the United States' in ret7['response']
         print("DONE", flush=True)
     finally:
         os.system("docker stop %s" % docker_hash)
@@ -759,7 +765,7 @@ def test_replicate_inference_server(force_langchain_evaluate,
     # server that consumes inference server
     from src.gen import main
     # https://replicate.com/lucataco/llama-2-7b-chat
-    #model_string = "lucataco/llama-2-7b-chat:6ab580ab4eef2c2b440f2441ec0fc0ace5470edaf2cbea50b8550aec0b3fbd38"
+    # model_string = "lucataco/llama-2-7b-chat:6ab580ab4eef2c2b440f2441ec0fc0ace5470edaf2cbea50b8550aec0b3fbd38"
     model_string = "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e"
     main(**main_kwargs, inference_server='replicate:%s' % model_string)
 
@@ -808,8 +814,12 @@ def test_replicate_inference_server(force_langchain_evaluate,
     assert who in ret1['response'] or who2 in ret1['response']
     assert 'Once upon a time, in a far-off land,' in ret2['response'] or 'Once upon a time' in ret2['response']
     assert 'Once upon a time, in a far-off land,' in ret3['response'] or 'Once upon a time' in ret3['response']
-    assert who in ret4['response'] or 'I am a helpful assistant designed' in ret4['response'] or who2 in ret4['response']
-    assert who in ret5['response'] or 'I am a helpful assistant designed' in ret5['response'] or who2 in ret5['response']
-    assert who in ret6['response'] or 'I am a helpful assistant designed' in ret6['response'] or who2 in ret6['response']
-    assert who in ret7['response'] or 'I am a helpful assistant designed' in ret7['response'] or who2 in ret7['response']
+    assert who in ret4['response'] or 'I am a helpful assistant designed' in ret4['response'] or who2 in ret4[
+        'response']
+    assert who in ret5['response'] or 'I am a helpful assistant designed' in ret5['response'] or who2 in ret5[
+        'response']
+    assert who in ret6['response'] or 'I am a helpful assistant designed' in ret6['response'] or who2 in ret6[
+        'response']
+    assert who in ret7['response'] or 'I am a helpful assistant designed' in ret7['response'] or who2 in ret7[
+        'response']
     print("DONE", flush=True)
