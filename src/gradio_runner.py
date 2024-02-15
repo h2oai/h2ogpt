@@ -804,7 +804,7 @@ def go_gradio(**kwargs):
     else:
         have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
 
-    with demo:
+    with (demo):
         support_state_callbacks = hasattr(gr.State(), 'callback')
 
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -1457,8 +1457,11 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                # image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
-                image_tab = gr.Row(visible=False)
+                image_gen_visible = kwargs['image_gen_loader'] is not None or \
+                                    kwargs['enable_imagegen_high'] is not None
+                image_change_visible = kwargs['image_change_loader'] is not None
+                image_tab_visible = image_gen_visible or image_change_visible
+                image_tab = gr.Row(visible=image_tab_visible)
                 with image_tab:
                     with gr.Row():
                         image_control = gr.Image(label="Input Image", type='filepath')
@@ -1466,9 +1469,9 @@ def go_gradio(**kwargs):
                         image_output = gr.Image(label="Output Image", type='filepath')
                     image_prompt = gr.Textbox(label="Prompt")
                     with gr.Row():
-                        generate_btn = gr.Button("Generate by Prompt")
-                        change_btn = gr.Button("Change Image by Prompt")
-                        style_btn = gr.Button("Apply Style")
+                        generate_btn = gr.Button("Generate by Prompt", visible=image_gen_visible)
+                        change_btn = gr.Button("Change Image by Prompt", visible=image_change_visible)
+                        style_btn = gr.Button("Apply Style", visible=False)
                         # image_upload = # FIXME, go into db
 
                 chat_tab = gr.TabItem("Chat History") \
