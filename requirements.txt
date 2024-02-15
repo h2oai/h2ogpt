@@ -2,9 +2,9 @@
 datasets==2.16.1
 sentencepiece==0.1.99
 # no websockets, more cloud friendly
-gradio==4.19.0
+#gradio==4.19.0
 # able to make gradio clean-up states
-# https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.0-py3-none-any.whl
+https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.0-py3-none-any.whl
 #gradio==3.50.2
 sse_starlette==1.8.2
 huggingface_hub==0.19.4
