@@ -952,6 +952,7 @@ class GradioLLaVaInference(GradioInference):
                             temperature=client_kwargs['temperature'],
                             top_p=client_kwargs['top_p'], max_new_tokens=client_kwargs['max_new_tokens'],
                             client=self.client,
+                            max_time=self.max_time,
                             )
         max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
                                                     max_new_tokens=self.max_new_tokens,
@@ -3361,7 +3362,10 @@ def file_to_doc(file,
             try:
                 from src.vision.utils_vision import get_llava_response
                 res, llava_prompt = get_llava_response(file_llava, llava_model,
-                                                       prompt=llava_prompt, allow_prompt_auto=True)
+                                                       prompt=llava_prompt,
+                                                       allow_prompt_auto=True,
+                                                       max_time=60,  # not too much time for docQA
+                                                       )
                 metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
                 docs1c = [Document(page_content=res, metadata=metadata)]
                 docs1c = [x for x in docs1c if x.page_content]
