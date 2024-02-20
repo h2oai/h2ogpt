@@ -3257,6 +3257,7 @@ def file_to_doc(file,
                 # docs1a = UnstructuredImageLoader(file, strategy='hi_res').load()
                 docs1a = [x for x in docs1a if x.page_content]
                 add_meta(docs1a, file, parser='UnstructuredImageLoader', file_as_source=True)
+                [doci.metadata.update(source_true=file_ocr) for doci in docs1a]
                 docs1.extend(docs1a)
             except BaseException as e0:
                 print("UnstructuredImageLoader: %s" % str(e0), flush=True)
@@ -3284,7 +3285,7 @@ def file_to_doc(file,
                 add_meta(docs1c, file, parser='H2OOCRLoader: %s' % 'DocTR', file_as_source=True)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, source_true=file_doctr, hashid=hash_of_file) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("H2OOCRLoader: %s" % str(e0), flush=True)
@@ -3316,7 +3317,7 @@ def file_to_doc(file,
                 add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model, file_as_source=True)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, source_true=file_blip, hashid=hash_of_file) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("H2OImageCaptionLoader: %s" % str(e0), flush=True)
@@ -3343,10 +3344,11 @@ def file_to_doc(file,
                 model_loaders['pix2struct'].set_image_paths([file_pix])
                 docs1c = model_loaders['pix2struct'].load()
                 docs1c = [x for x in docs1c if x.page_content]
-                add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'], file_as_source=True)
+                add_meta(docs1c, file, parser='H2OPix2StructLoader: %s' % model_loaders['pix2struct'],
+                         file_as_source=True)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, source_true=file_pix, hashid=hash_of_file) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("H2OPix2StructLoader: %s" % str(e0), flush=True)
@@ -3372,7 +3374,8 @@ def file_to_doc(file,
                 add_meta(docs1c, file, parser='LLaVa: %s' % llava_model, file_as_source=True)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, hashid=hash_of_file, llava_prompt=llava_prompt) for doci in
+                [doci.metadata.update(source=file, source_true=file_llava, hashid=hash_of_file,
+                                      llava_prompt=llava_prompt) for doci in
                  docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
