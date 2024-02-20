@@ -1241,13 +1241,14 @@ def go_gradio(**kwargs):
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
                             with gr.Row(visible=not kwargs['actions_in_sidebar'] or visible_model_choice):
+                                is_gradio_h2oai = gr.__h2oai__
                                 visible_models = gr.Dropdown(kwargs['all_possible_visible_models'],
                                                              label="Visible Models",
                                                              value=visible_models_state0,
                                                              interactive=True,
                                                              multiselect=True,
                                                              visible=visible_model_choice,
-                                                             elem_id="multi-selection",
+                                                             elem_id="multi-selection" if kwargs['max_visible_models'] is None or is_gradio_h2oai else None,
                                                              filterable=False,
                                                              max_choices=kwargs['max_visible_models'],
                                                              )

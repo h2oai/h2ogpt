@@ -1319,8 +1319,10 @@ def main(
         # nominally allow UI access public or not
         enforce_h2ogpt_ui_key = False
     if is_public:
-        if max_visible_models is None:
-            max_visible_models = None  # FIXME https://github.com/gradio-app/gradio/issues/7379
+        if max_visible_models is None and gradio:
+            import gradio as gr
+            is_gradio_h2oai = gr.__h2oai__
+            max_visible_models = 4 if is_gradio_h2oai else None
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = True

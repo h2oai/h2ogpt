@@ -177,3 +177,9 @@ def test_reverse_ucurve():
     for a, b in ab:
         assert reverse_ucurve_list(a) == b
         assert undo_reverse_ucurve_list(b) == a
+
+
+@wrap_test_forked
+def check_gradio():
+    import gradio as gr
+    assert gr.__h2oai__
