@@ -2008,3 +2008,10 @@ def create_relative_symlink(target, link_name):
     # Create the symlink
     os.symlink(relative_path, link_name)
     print(f"Symlink created: {link_name} -> {relative_path}")
+
+
+def get_gradio_tmp():
+    gradio_tmp = '/tmp/gradio'
+    makedirs(gradio_tmp, exist_ok=True)  # won't hurt if soft link if exists
+    gradio_tmp = os.path.realpath(gradio_tmp)
+    return gradio_tmp

@@ -71,7 +71,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename
+    have_diffusers, sanitize_filename, get_gradio_tmp
 
 start_faulthandler()
 import_matplotlib()
@@ -3543,8 +3543,9 @@ def evaluate(
             raise ValueError("No such langchain_action=%s" % langchain_action)
         filename_image = sanitize_filename("image_%s_%s.png" % (instruction, str(uuid.uuid4())),
                                            file_length_limit=50)
+        gradio_tmp = get_gradio_tmp()
         image_file_gen = make_image(instruction,
-                                    filename=os.path.join('/tmp/gradio/', filename_image),
+                                    filename=os.path.join(gradio_tmp, filename_image),
                                     pipe=pipe,
                                     )
         response = (image_file_gen,)
@@ -5283,13 +5284,16 @@ def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradi
 
 
 def gradio_to_llm(x, bot=False):
+    gradio_tmp = get_gradio_tmp()
     # handle if gradio tuples in messages
     if x is None:
         x = ''
     if isinstance(x, (tuple, list)) and len(x) > 0:
         x = list(x)
         for insti, inst in enumerate(x):
-            if isinstance(inst, str) and inst.startswith('/tmp/gradio') and os.path.isfile(inst):
+            if isinstance(inst, str) and \
+                    (inst.startswith('/tmp/gradio') or inst.startswith(gradio_tmp)) and \
+                    os.path.isfile(inst):
                 # below so if put into context gets rendered not as broken file
                 if bot:
                     x[
