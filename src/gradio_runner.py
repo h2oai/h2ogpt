@@ -66,7 +66,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens, get_accordion_named
+    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -1241,7 +1241,7 @@ def go_gradio(**kwargs):
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
                             with gr.Row(visible=not kwargs['actions_in_sidebar'] or visible_model_choice):
-                                is_gradio_h2oai = gr.__h2oai__
+                                is_gradio_h2oai = get_is_gradio_h2oai()
                                 visible_models = gr.Dropdown(kwargs['all_possible_visible_models'],
                                                              label="Visible Models",
                                                              value=visible_models_state0,

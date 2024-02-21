@@ -2015,3 +2015,11 @@ def get_gradio_tmp():
     makedirs(gradio_tmp, exist_ok=True)  # won't hurt if soft link if exists
     gradio_tmp = os.path.realpath(gradio_tmp)
     return gradio_tmp
+
+
+def get_is_gradio_h2oai():
+    try:
+        import gradio as gr
+        return gr.__h2oai__
+    except:
+        return False

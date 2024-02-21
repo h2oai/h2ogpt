@@ -71,7 +71,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai
 
 start_faulthandler()
 import_matplotlib()
@@ -1320,8 +1320,7 @@ def main(
         enforce_h2ogpt_ui_key = False
     if is_public:
         if max_visible_models is None and gradio:
-            import gradio as gr
-            is_gradio_h2oai = gr.__h2oai__
+            is_gradio_h2oai = get_is_gradio_h2oai()
             max_visible_models = 4 if is_gradio_h2oai else None
         visible_tos_tab = visible_hosts_tab = True
         if enforce_h2ogpt_api_key is None:
