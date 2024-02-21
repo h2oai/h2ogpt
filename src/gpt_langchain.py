@@ -2163,6 +2163,16 @@ def get_llm(use_openai_model=False,
             gr_client = None
             hf_client = None
             img_file = None
+        if int(time.time()) % 100 == 0:
+            from guppy import hpy
+            h = hpy()
+            h.heap()
+
+            from pympler import muppy
+            from pympler import summary
+            all_objects = muppy.get_objects()
+            sum1 = summary.summarize(all_objects)
+            summary.print_(sum1)
 
         if regenerate_gradio_clients and gr_client:
             # regenerate or leave None for llava so created inside
