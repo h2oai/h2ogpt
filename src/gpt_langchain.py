@@ -2164,7 +2164,7 @@ def get_llm(use_openai_model=False,
             hf_client = None
             img_file = None
 
-        if not regenerate_gradio_clients and gr_client:
+        if regenerate_gradio_clients and gr_client:
             # regenerate or leave None for llava so created inside
             inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                       base_model=model_name)
