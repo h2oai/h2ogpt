@@ -4053,7 +4053,7 @@ def evaluate(
             stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
             max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
-            gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
+            gen_server_kwargs = dict(temperature=temperature if do_sample else 0.001,
                                      max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
                                      frequency_penalty=0,
