@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 import types
 import uuid
@@ -15,6 +16,7 @@ from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.summarize import map_reduce_prompt, LoadingCallable, _load_stuff_chain, _load_map_reduce_chain, \
     _load_refine_chain
 from langchain.schema.language_model import BaseLanguageModel
+from langchain_community.embeddings import HuggingFaceHubEmbeddings
 
 from src.utils import hash_file, get_sha
 
@@ -421,3 +423,22 @@ class H2OSemanticScholarAPIWrapper(BaseModel):
             return "\n\n".join(documents)[: self.doc_content_chars_max]
         else:
             return "No results found."
+
+
+class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Call out to HuggingFaceHub's embedding endpoint for embedding search docs.
+
+        Args:
+            texts: The list of texts to embed.
+
+        Returns:
+            List of embeddings, one for each text.
+        """
+        # replace newlines, which can negatively affect performance.
+        texts = [text.replace("\n", " ") for text in texts]
+        _model_kwargs = self.model_kwargs or {}
+        responses = self.client.post(
+            json={"inputs": texts, "truncate": True, "parameters": _model_kwargs}, task=self.task
+        )
+        return json.loads(responses.decode())
