@@ -436,16 +436,27 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
             List of embeddings, one for each text.
         """
         # replace newlines, which can negatively affect performance.
-        texts = [text.replace("\n", " ") for text in texts]
+        max_tokens=512
+        # should be less than --max-client-batch-size=4096 for launching TEI
+        # shoudl also be that max_tokens * 4 * max_batch_size <= 2MB
+        max_batch_size = 1024
+        verbose = False
+
+        texts = [text.replace("\n", " ")[:4*max_tokens] for text in texts]
         _model_kwargs = self.model_kwargs or {}
 
-        max_batch_size = 4096  # should match --max-client-batch-size=4096 for launching TEI
 
         texts_batches = split_list(texts, max_batch_size)
         rets = []
-        for text_batch in texts_batches:
+        batchii = 0
+        for ii, text_batch in enumerate(texts_batches):
+            if verbose:
+                print("begin batch %s for texts %s of batch size %s" % (ii, len(texts), len(text_batch)), flush=True)
             responses = self.client.post(
                 json={"inputs": text_batch, "truncate": True, "parameters": _model_kwargs}, task=self.task
             )
             rets.extend(json.loads(responses.decode()))
+            batchii += len(text_batch)
+            if verbose:
+                print("done batch %s %s %s" % (ii, len(text_batch), batchii), flush=True)
         return rets
