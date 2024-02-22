@@ -16,6 +16,41 @@ or whatever address is required.
 
 This leads to much faster embedding generation as well as better memory leak avoidance due to [multi-threading and torch](https://github.com/pytorch/pytorch/issues/64412).
 
+To use the TEI directly, do the following for synchronous calls. Asynchronous calls also can be done.
+```python
+import json
+from huggingface_hub import InferenceClient
+
+
+def split_list(input_list, split_size):
+    for i in range(0, len(input_list), split_size):
+        yield input_list[i:i + split_size]
+
+
+def get_embeddings(texts):
+    model = "https://api.embed-internal.h2o.ai"
+    client = InferenceClient(
+        model=model,
+    )
+
+    max_tokens = 512  # to avoid sending long untokenized text for requests limit
+    max_batch_size = 1024  # for 2M request barrier
+
+    texts = [text.replace("\n", " ")[:4 * max_tokens] for text in texts]
+    texts_batches = split_list(texts, max_batch_size)
+    embedddings = []
+    for text_batch in texts_batches:
+        responses = client.post(json={"inputs": text_batch, "truncate": True, }, task="feature-extraction")
+        embedddings.extend(json.loads(responses.decode()))
+    return embedddings
+
+
+if __name__ == '__main__':
+    texts = ["Who are you?", "I am Dad"]
+
+    print(get_embeddings(texts))
+```
+
 ### Gradio clean-up of states
 
 While Streamlit handles [callbacks to state clean-up)[https://github.com/streamlit/streamlit/issues/6166], Gradio does [not](https://github.com/gradio-app/gradio/issues/4016) without h2oGPT-driven changes.  So if you want browser/tab closure to trigger clean-up, `https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.1-py3-none-any.whl` is required instead of PyPi version.  This also helps if have many users using your app and want to ensure databases are cleaned up.
