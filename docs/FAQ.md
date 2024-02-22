@@ -10,7 +10,7 @@ where passing `--hf-api-token=$HUGGINGFACE_API_TOKEN` is only required if the mo
 
 Then for h2oGPT ensure pass:
 ```bash
---hf_embedding_model=tei:http://localhost:5555
+--hf_embedding_model=tei:http://localhost:5555 --cut_distance=10000
 ```
 or whatever address is required.
 
