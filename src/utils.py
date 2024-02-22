@@ -37,6 +37,10 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
+from src.utils_procs import reulimit
+
+reulimit()
+
 
 def H2O_Fire(component=None):
     config_prefix = "H2OGPT_"
