@@ -73,7 +73,7 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
     is_vision_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
-    load_general_summarization_chain
+    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
 
 import_matplotlib()
 
@@ -451,7 +451,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
         if hf_embedding_model.startswith('tei:'):
             from langchain_community.embeddings import HuggingFaceHubEmbeddings
             name = 'tei:'.join(hf_embedding_model.split('tei:')[1:])
-            embedding = HuggingFaceHubEmbeddings(model=name,
+            embedding = H2OHuggingFaceHubEmbeddings(model=name,
                                                  huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
                                                  model_kwargs={"truncate": True})
         else:
