@@ -4066,103 +4066,111 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
-            if inf_type == 'vllm' or inf_type == 'openai':
-                if inf_type == 'vllm':
-                    vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                          # repetition_penalty=repetition_penalty,  # could pass
-                                                          )
+            try:
+                if inf_type == 'vllm' or inf_type == 'openai':
+                    if inf_type == 'vllm':
+                        vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
+                                                              # repetition_penalty=repetition_penalty,  # could pass
+                                                              )
+                        other_dict = dict(timeout=max_time)
+                    else:
+                        vllm_extra_dict = {}
+                        other_dict = dict(timeout=max_time)
+                    responses = openai_client.completions.create(
+                        model=base_model,
+                        prompt=prompt,
+                        **gen_server_kwargs,
+                        stop=stop_sequences,
+                        **vllm_extra_dict,
+                        stream=stream_output,
+                        **other_dict,
+                    )
+                    text = ''
+                    sources = []
+                    response = ''
+                    if not stream_output:
+                        text = responses.choices[0].text
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        collected_events = []
+                        tgen0 = time.time()
+                        for event in responses:
+                            collected_events.append(event)  # save the event response
+                            delta = event.choices[0].text  # extract the text
+                            text += delta  # append the text
+                            if delta:
+                                response = prompter.get_response(prompt + text, prompt=prompt,
+                                                                 sanitize_bot_response=sanitize_bot_response)
+                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                           response_no_refs=response, sources_str='', prompt_raw='')
+                            if time.time() - tgen0 > max_time:
+                                if verbose:
+                                    print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
+                                break
+                            time.sleep(0.01)
+                elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
                     other_dict = dict(timeout=max_time)
+                    if system_prompt in [None, 'None', 'auto']:
+                        openai_system_prompt = "You are a helpful assistant."
+                    else:
+                        openai_system_prompt = system_prompt
+                    messages0 = []
+                    if openai_system_prompt:
+                        messages0.append({"role": "system", "content": openai_system_prompt})
+                    if chat_conversation and add_chat_history_to_context:
+                        assert external_handle_chat_conversation, "Should be handling only externally"
+                        # history_to_use_final handles token counting issues
+                        for message1 in history_to_use_final:
+                            if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+                                # then not really part of LLM, internal, so avoid
+                                continue
+                            if len(message1) == 2:
+                                if message1[0]:
+                                    messages0.append(
+                                        {'role': 'user', 'content': gradio_to_llm(message1[0], bot=False)})
+                                if message1[1]:
+                                    messages0.append(
+                                        {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
+                    if prompt:
+                        messages0.append({'role': 'user', 'content': prompt})
+                    responses = openai_client.chat.completions.create(
+                        model=base_model,
+                        messages=messages0,
+                        stream=stream_output,
+                        **gen_server_kwargs,
+                        **other_dict,
+                    )
+                    text = ""
+                    sources = []
+                    response = ""
+                    if not stream_output:
+                        text = responses.choices[0].message.content
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        tgen0 = time.time()
+                        for chunk in responses:
+                            delta = chunk.choices[0].delta.content
+                            if delta:
+                                text += delta
+                                response = prompter.get_response(prompt + text, prompt=prompt,
+                                                                 sanitize_bot_response=sanitize_bot_response)
+                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                           response_no_refs=response, sources_str='', prompt_raw='')
+                            if time.time() - tgen0 > max_time:
+                                if verbose:
+                                    print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
+                                break
                 else:
-                    vllm_extra_dict = {}
-                    other_dict = dict(timeout=max_time)
-                responses = openai_client.create(
-                    model=base_model,
-                    prompt=prompt,
-                    **gen_server_kwargs,
-                    stop=stop_sequences,
-                    **vllm_extra_dict,
-                    stream=stream_output,
-                    **other_dict,
-                )
-                text = ''
-                sources = []
-                response = ''
-                if not stream_output:
-                    text = responses.choices[0].text
-                    response = prompter.get_response(prompt + text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
-                else:
-                    collected_events = []
-                    tgen0 = time.time()
-                    for event in responses:
-                        collected_events.append(event)  # save the event response
-                        delta = event.choices[0].text  # extract the text
-                        text += delta  # append the text
-                        if delta:
-                            response = prompter.get_response(prompt + text, prompt=prompt,
-                                                             sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                       response_no_refs=response, sources_str='', prompt_raw='')
-                        if time.time() - tgen0 > max_time:
-                            if verbose:
-                                print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
-                            break
-                        time.sleep(0.01)
-            elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
-                other_dict = dict(timeout=max_time)
-                if system_prompt in [None, 'None', 'auto']:
-                    openai_system_prompt = "You are a helpful assistant."
-                else:
-                    openai_system_prompt = system_prompt
-                messages0 = []
-                if openai_system_prompt:
-                    messages0.append({"role": "system", "content": openai_system_prompt})
-                if chat_conversation and add_chat_history_to_context:
-                    assert external_handle_chat_conversation, "Should be handling only externally"
-                    # history_to_use_final handles token counting issues
-                    for message1 in history_to_use_final:
-                        if len(message1) == 2 and (message1[0] is None or message1[1] is None):
-                            # then not really part of LLM, internal, so avoid
-                            continue
-                        if len(message1) == 2:
-                            if message1[0]:
-                                messages0.append(
-                                    {'role': 'user', 'content': gradio_to_llm(message1[0], bot=False)})
-                            if message1[1]:
-                                messages0.append(
-                                    {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
-                if prompt:
-                    messages0.append({'role': 'user', 'content': prompt})
-                responses = openai_client.create(
-                    model=base_model,
-                    messages=messages0,
-                    stream=stream_output,
-                    **gen_server_kwargs,
-                    **other_dict,
-                )
-                text = ""
-                sources = []
-                response = ""
-                if not stream_output:
-                    text = responses.choices[0].message.content
-                    response = prompter.get_response(prompt + text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
-                else:
-                    tgen0 = time.time()
-                    for chunk in responses:
-                        delta = chunk.choices[0].delta.content
-                        if delta:
-                            text += delta
-                            response = prompter.get_response(prompt + text, prompt=prompt,
-                                                             sanitize_bot_response=sanitize_bot_response)
-                            yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                       response_no_refs=response, sources_str='', prompt_raw='')
-                        if time.time() - tgen0 > max_time:
-                            if verbose:
-                                print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
-                            break
-            else:
-                raise RuntimeError("No such OpenAI mode: %s" % inference_server)
+                    raise RuntimeError("No such OpenAI mode: %s" % inference_server)
+            finally:
+                if openai_client is not None:
+                    try:
+                        openai_client.close()
+                    except Exception as e:
+                        print("Failed to close port: %s" % str(e), flush=True)
+
         elif inference_server.startswith('http') and is_vision_model(base_model):
             where_from = "gr_client for llava"
             sources = []

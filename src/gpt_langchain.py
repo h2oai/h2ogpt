@@ -1928,6 +1928,13 @@ def get_llm(use_openai_model=False,
                 inf_type, deployment_type, base_url, api_version, api_key = \
                 set_openai(inference_server, model_name=model_name)
 
+        if inf_type in ['vllm_chat']:
+            openai_client_completions = openai_client.chat.completions
+            openai_async_client_completions = openai_async_client.chat.completions
+        else:
+            openai_client_completions = openai_client.completions
+            openai_async_client_completions = openai_async_client.completions
+
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict(top_p=top_p if do_sample else 1,
                             frequency_penalty=0,
@@ -1959,8 +1966,8 @@ def get_llm(use_openai_model=False,
                 kwargs_extra.update(dict(tokenizer=tokenizer,
                                          openai_api_key=api_key,
                                          # batch_size=1,
-                                         client=openai_client,
-                                         async_client=openai_async_client,
+                                         client=openai_client_completions,
+                                         async_client=openai_async_client_completions,
                                          # async_sem=async_sem,
                                          ))
         elif inf_type == 'openai_azure_chat':
@@ -1996,8 +2003,8 @@ def get_llm(use_openai_model=False,
                                          openai_api_base=base_url,
                                          openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
-                                         client=openai_client,
-                                         async_client=openai_async_client,
+                                         client=openai_client_completions,
+                                         async_client=openai_async_client_completions,
                                          async_sem=async_sem,
                                          max_new_tokens0=max_new_tokens0,
                                          ))
@@ -5568,6 +5575,11 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     else:
         prompt = prompt_basic
     num_prompt_tokens = get_token_count(prompt, tokenizer)
+
+    # ensure to close client
+    # https://github.com/langchain-ai/langchain/issues/13509
+    if hasattr(llm, 'client') and hasattr(llm.client, '_client') and hasattr(llm.client._client, 'close'):
+        llm.client._client.close()
 
     if len(docs) == 0:
         # if no docs, then no sources to cite

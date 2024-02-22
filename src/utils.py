@@ -1449,12 +1449,6 @@ def set_openai(inference_server, model_name=None):
         client_args = dict(base_url=api_base, api_key=api_key)
         client = OpenAI(**client_args)
         async_client = AsyncOpenAI(**client_args)
-        if inf_type in ['vllm_chat']:
-            client = client.chat.completions
-            async_client = async_client.chat.completions
-        else:
-            client = client.completions
-            async_client = async_client.completions
 
         return client, async_client, inf_type, None, api_base, None, api_key
     else:
