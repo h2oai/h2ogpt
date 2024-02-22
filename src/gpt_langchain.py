@@ -59,7 +59,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -103,11 +103,6 @@ def get_context_cast():
     # chroma not autocasting right internally
     # return torch.autocast('cuda') if torch.cuda.is_available() else NullContext()
     return NullContext()
-
-
-def split_list(input_list, split_size):
-    for i in range(0, len(input_list), split_size):
-        yield input_list[i:i + split_size]
 
 
 def get_db(sources, use_openai_embedding=False, db_type='faiss',

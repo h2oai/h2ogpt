@@ -2023,3 +2023,8 @@ def get_is_gradio_h2oai():
         return gr.__h2oai__
     except:
         return False
+
+
+def split_list(input_list, split_size):
+    for i in range(0, len(input_list), split_size):
+        yield input_list[i:i + split_size]

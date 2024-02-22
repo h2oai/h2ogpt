@@ -18,7 +18,7 @@ from langchain.chains.summarize import map_reduce_prompt, LoadingCallable, _load
 from langchain.schema.language_model import BaseLanguageModel
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 
-from src.utils import hash_file, get_sha
+from src.utils import hash_file, get_sha, split_list
 
 from langchain.callbacks.base import BaseCallbackHandler, Callbacks
 from langchain.schema import LLMResult
@@ -438,7 +438,14 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
         # replace newlines, which can negatively affect performance.
         texts = [text.replace("\n", " ") for text in texts]
         _model_kwargs = self.model_kwargs or {}
-        responses = self.client.post(
-            json={"inputs": texts, "truncate": True, "parameters": _model_kwargs}, task=self.task
-        )
-        return json.loads(responses.decode())
+
+        max_batch_size = 4096  # should match --max-client-batch-size=4096 for launching TEI
+
+        texts_batches = split_list(texts, max_batch_size)
+        rets = []
+        for text_batch in texts_batches:
+            responses = self.client.post(
+                json={"inputs": text_batch, "truncate": True, "parameters": _model_kwargs}, task=self.task
+            )
+            rets.extend(json.loads(responses.decode()))
+        return rets
