@@ -1,5 +1,21 @@
 ## Frequently asked questions
 
+### Text Embedding Inference Server
+
+Using docker for [TEI](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker):
+```
+docker run -d --gpus '"device=0"' --shm-size 3g -v $HOME/.cache/huggingface/hub/:/data -p 5555:80 --pull always ghcr.io/huggingface/text-embeddings-inference:0.6 --model-id BAAI/bge-large-en-v1.5 --revision refs/pr/5 --hf-api-token=$HUGGINGFACE_API_TOKEN
+```
+where passing `--hf-api-token=$HUGGINGFACE_API_TOKEN` is only required if the model is private.
+
+Then for h2oGPT ensure pass:
+```bash
+--hf_embedding_model=tei:http://localhost:5555
+```
+or whatever address is required.
+
+This leads to much faster embedding generation as well as better memory leak avoidance due to [multi-threading and torch](https://github.com/pytorch/pytorch/issues/64412).
+
 ### Gradio clean-up of states
 
 While Streamlit handles [callbacks to state clean-up)[https://github.com/streamlit/streamlit/issues/6166], Gradio does [not](https://github.com/gradio-app/gradio/issues/4016) without h2oGPT-driven changes.  So if you want browser/tab closure to trigger clean-up, `https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.1-py3-none-any.whl` is required instead of PyPi version.  This also helps if have many users using your app and want to ensure databases are cleaned up.

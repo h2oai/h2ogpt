@@ -447,33 +447,41 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
         else:
             # object
             return hf_embedding_model
-        # to ensure can fork without deadlock
-        from langchain.embeddings import HuggingFaceEmbeddings
 
-        if isinstance(gpu_id, int) or gpu_id == 'auto':
-            device, torch_dtype, context_class = get_device_dtype()
-            model_kwargs = dict(device=device)
+        if hf_embedding_model.startswith('tei:'):
+            from langchain_community.embeddings import HuggingFaceHubEmbeddings
+            name = 'tei:'.join(hf_embedding_model.split('tei:')[1:])
+            embedding = HuggingFaceHubEmbeddings(model=name,
+                                                 huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
+                                                 model_kwargs={"truncate": True})
         else:
-            # use gpu_id as device name
-            model_kwargs = dict(device=gpu_id)
-        if 'instructor' in hf_embedding_model:
-            encode_kwargs = {'normalize_embeddings': True}
-            embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
-                                                      model_kwargs=model_kwargs,
-                                                      encode_kwargs=encode_kwargs)
-            embedding.client.eval()
-        else:
-            embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
-            embedding.client.eval()
-        if gpu_id == 'auto':
-            gpu_id = 0
-        if preload and \
-                isinstance(gpu_id, int) and \
-                gpu_id >= 0 and \
-                hasattr(embedding.client, 'to') and \
-                get_device() == 'cuda':
-            embedding.client = embedding.client.to('cuda:%d' % gpu_id)
-        embedding.client.preload = preload
+            # to ensure can fork without deadlock
+            from langchain.embeddings import HuggingFaceEmbeddings
+
+            if isinstance(gpu_id, int) or gpu_id == 'auto':
+                device, torch_dtype, context_class = get_device_dtype()
+                model_kwargs = dict(device=device)
+            else:
+                # use gpu_id as device name
+                model_kwargs = dict(device=gpu_id)
+            if 'instructor' in hf_embedding_model:
+                encode_kwargs = {'normalize_embeddings': True}
+                embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
+                                                          model_kwargs=model_kwargs,
+                                                          encode_kwargs=encode_kwargs)
+                embedding.client.eval()
+            else:
+                embedding = HuggingFaceEmbeddings(model_name=hf_embedding_model, model_kwargs=model_kwargs)
+                embedding.client.eval()
+            if gpu_id == 'auto':
+                gpu_id = 0
+            if preload and \
+                    isinstance(gpu_id, int) and \
+                    gpu_id >= 0 and \
+                    hasattr(embedding.client, 'to') and \
+                    get_device() == 'cuda':
+                embedding.client = embedding.client.to('cuda:%d' % gpu_id)
+            embedding.client.preload = preload
     return embedding
 
 
