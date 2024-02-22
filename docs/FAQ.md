@@ -4,9 +4,9 @@
 
 Using docker for [TEI](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker):
 ```
-docker run -d --gpus '"device=0"' --shm-size 3g -v $HOME/.cache/huggingface/hub/:/data -p 5555:80 --pull always ghcr.io/huggingface/text-embeddings-inference:0.6 --model-id BAAI/bge-large-en-v1.5 --revision refs/pr/5 --hf-api-token=$HUGGINGFACE_API_TOKEN --max-client-batch-size=4096 --max-batch-tokens=262144
+docker run -d --gpus '"device=0"' --shm-size 3g -v $HOME/.cache/huggingface/hub/:/data -p 5555:80 --pull always ghcr.io/huggingface/text-embeddings-inference:0.6 --model-id BAAI/bge-large-en-v1.5 --revision refs/pr/5 --hf-api-token=$HUGGINGFACE_API_TOKEN --max-client-batch-size=4096 --max-batch-tokens=2097152
 ```
-where passing `--hf-api-token=$HUGGINGFACE_API_TOKEN` is only required if the model is private. Use [different tags](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker-images) for Turing, H100, or CPU etc.  Adjust `--max-batch-tokens` to smaller for smaller GPUs (e.g. back to default of 16384).
+where passing `--hf-api-token=$HUGGINGFACE_API_TOKEN` is only required if the model is private. Use [different tags](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker-images) for Turing, H100, or CPU etc.  Adjust `--max-batch-tokens` to smaller for smaller GPUs (e.g. back to default of 16384).  Note that client batch size times 512 must be smaller or equal to max batch tokens.
 
 Then for h2oGPT ensure pass:
 ```bash
