@@ -1928,7 +1928,7 @@ def get_llm(use_openai_model=False,
                 inf_type, deployment_type, base_url, api_version, api_key = \
                 set_openai(inference_server, model_name=model_name)
 
-        if inf_type in ['vllm_chat']:
+        if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:
             openai_client_completions = openai_client.chat.completions
             openai_async_client_completions = openai_async_client.chat.completions
         else:
