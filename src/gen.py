@@ -4052,6 +4052,7 @@ def evaluate(
                 openai_client, openai_async_client, \
                     inf_type, _, _, _, _ = set_openai(inference_server, model_name=base_model)
             where_from = inf_type
+            responses = None
 
             terminate_response = prompter.terminate_response or []
             stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
@@ -4165,11 +4166,16 @@ def evaluate(
                 else:
                     raise RuntimeError("No such OpenAI mode: %s" % inference_server)
             finally:
+                if responses is not None:
+                    try:
+                        responses.close()
+                    except Exception as e:
+                        print("Failed to close OpenAI response: %s" % str(e), flush=True)
                 if regenerate_clients and openai_client is not None:
                     try:
                         openai_client.close()
                     except Exception as e:
-                        print("Failed to close port: %s" % str(e), flush=True)
+                        print("Failed to close OpenAI client: %s" % str(e), flush=True)
 
         elif inference_server.startswith('http') and is_vision_model(base_model):
             where_from = "gr_client for llava"
