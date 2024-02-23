@@ -4165,7 +4165,7 @@ def evaluate(
                 else:
                     raise RuntimeError("No such OpenAI mode: %s" % inference_server)
             finally:
-                if openai_client is not None:
+                if regenerate_clients and openai_client is not None:
                     try:
                         openai_client.close()
                     except Exception as e:

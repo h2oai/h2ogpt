@@ -447,8 +447,8 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             from langchain_community.embeddings import HuggingFaceHubEmbeddings
             name = 'tei:'.join(hf_embedding_model.split('tei:')[1:])
             embedding = H2OHuggingFaceHubEmbeddings(model=name,
-                                                 huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
-                                                 model_kwargs={"truncate": True})
+                                                    huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
+                                                    model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
             from langchain.embeddings import HuggingFaceEmbeddings
@@ -5578,7 +5578,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     # ensure to close client
     # https://github.com/langchain-ai/langchain/issues/13509
-    if hasattr(llm, 'client') and hasattr(llm.client, '_client') and hasattr(llm.client._client, 'close'):
+    if regenerate_clients and \
+            hasattr(llm, 'client') and \
+            hasattr(llm.client, '_client') and \
+            hasattr(llm.client._client, 'close'):
         llm.client._client.close()
 
     if len(docs) == 0:
