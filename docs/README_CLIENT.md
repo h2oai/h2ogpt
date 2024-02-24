@@ -270,7 +270,7 @@ openai_client = OpenAI(**client_args)
 
 messages = [{'role': 'user', 'content': 'Who are you?'}]
 stream = False
-client_kwargs = dict(model=' gemini-pro', max_tokens=200, stream=stream, messages=messages, user='username:password')
+client_kwargs = dict(model='<model name>', max_tokens=200, stream=stream, messages=messages, user='username:password')
 client = openai_client.chat.completions
 
 responses = client.create(**client_kwargs)
