@@ -25,9 +25,9 @@ pandas==2.0.2
 matplotlib==3.7.1
 loralib==0.1.1
 bitsandbytes==0.42.0
-accelerate==0.26.1
-peft==0.8.1
-transformers==4.37.2
+accelerate==0.27.2
+peft==0.8.2
+transformers==4.38.1
 tokenizers==0.15.1
 APScheduler==3.10.1
 hf_transfer==0.1.5
