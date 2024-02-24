@@ -2854,7 +2854,8 @@ def go_gradio(**kwargs):
                               server_options_state1=server_options_state1,
                               chat_state1=chat_state1, langchain_mode1=langchain_mode1,
                               text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
-                              username_override=username1, password_to_check=password1)
+                              username_override=username1, password_to_check=password1,
+                              num_model_lock=num_model_lock)
             else:
                 success1 = False
                 text_result = "Wrong password for user %s" % username1
@@ -2920,7 +2921,8 @@ def go_gradio(**kwargs):
                       server_options_state1=None,
                       chat_state1=None, langchain_mode1=None,
                       text_output1=None, text_output21=None, text_outputs1=None,
-                      username_override=None, password_to_check=None):
+                      username_override=None, password_to_check=None,
+                      num_model_lock=None):
             # in-place assignment
             if not auth_filename:
                 return False, "No auth file", text_output1, text_output21, text_outputs1
@@ -2983,6 +2985,13 @@ def go_gradio(**kwargs):
                             text_result = "No user %s" % username1
                 else:
                     text_result = "No auth file"
+            if num_model_lock is not None:
+                if len(text_outputs1) > num_model_lock:
+                    text_outputs1 = text_outputs1[:num_model_lock]
+                elif len(text_outputs1) < num_model_lock:
+                    text_outputs1 = text_outputs1 + [[]] * (num_model_lock - len(text_outputs1))
+            else:
+                text_outputs1 = tuple([])
             return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1
 
         def save_auth_dict(auth_dict, auth_filename):
