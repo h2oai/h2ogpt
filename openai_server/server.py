@@ -229,6 +229,9 @@ def run_server(host='0.0.0.0',
                gradio_host=None,
                gradio_port=None,
                h2ogpt_key=None,
+               auth=None,
+               auth_access='open',
+               guest_name='',
                ):
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
@@ -238,6 +241,10 @@ def run_server(host='0.0.0.0',
     # but OpenAI key cannot be '', so dummy value is EMPTY and if EMPTY we ignore the key in authorization
     server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', os.environ['GRADIO_H2OGPT_H2OGPT_KEY']) or 'EMPTY'
     os.environ['H2OGPT_OPENAI_API_KEY'] = server_api_key
+
+    os.environ['GRADIO_AUTH'] = str(auth)
+    os.environ['GRADIO_AUTH_ACCESS'] = auth_access
+    os.environ['GRADIO_GUEST_NAME'] = guest_name
 
     port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
     ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)

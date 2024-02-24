@@ -1362,6 +1362,10 @@ def main(
         auth_filename = "auth.json"
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
+    if auth_access == 'closed':
+        # ensure, but should be protected inside anyways
+        guest_name = ''
+
     h2ogpt_pid = os.getpid() if close_button and not is_public else None
 
     # allow set token directly
@@ -1547,7 +1551,7 @@ def main(
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
-    if openai_server and (not allow_api or auth_access == 'closed'):
+    if openai_server and not allow_api:
         print("Cannot enable OpenAI server when allow_api=False or auth is closed")
         openai_server = False
 

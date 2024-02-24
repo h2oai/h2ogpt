@@ -537,14 +537,19 @@ Example auth accesses are OPEN with guest allowed
 ```
 python generate.py --auth_access=open --guest_name=guest --auth=auth.json
 ```
-CLOSED:
+OPEN with no guest allowed:
 ```
-python generate.py --auth_access=closed --auth=auth.json
+python generate.py --auth_access=open --guest_name=guest --auth=auth.json --guest_name=''
+```
+CLOSED with no guest allowed
+```
+python generate.py --auth_access=closed --auth=auth.json --guest_name=''
 ```
 No landing page authentication, but login possible inside app for Login tab:
 ```
 python generate.py --auth_filename=auth.json
 ```
+
 
 The file format for `auth.json` in basic form is:
 ```json

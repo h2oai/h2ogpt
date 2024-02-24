@@ -259,3 +259,22 @@ curl http://localhost:5000/v1/chat/completions \
 which results in chunks of choices of delta like given in the OpenAI Python API.
 
 The strings `prompt` and `max_tokens` are taken as OpenAI type names that are converted to `instruction` and `max_new_tokens`.  In either case, any additional parameters are passed along to the Gradio `submit_nochat_api` API.  Either `http` or `https` works if using ngrok or some proxy service, or setup directly in the OpenAI proxy server.  Replace 'localhost' with the http or https proxy (or direct SSL) server name or IP.  Replace 5000 with the assigned port.
+
+If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the `username:password` as a string to access.  E.g.:
+```python
+from openai import OpenAI
+base_url = 'http://localhost:5000/v1'
+api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+messages = [{'role': 'user', 'content': 'Who are you?'}]
+stream = False
+client_kwargs = dict(model=' gemini-pro', max_tokens=200, stream=stream, messages=messages, user='username:password')
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```
+This is only required if `--auth_access=closed` was used, else for `--auth_access=open` we use guest access if that is allowed, else random uuid if no guest access.  Note that if access is closed, one cannot get model names or info.

@@ -6162,7 +6162,11 @@ def go_gradio(**kwargs):
             gradio_prefix=gradio_prefix,
             gradio_host=gradio_host,
             gradio_port=gradio_port,
-            h2ogpt_key=h2ogpt_key1)
+            h2ogpt_key=h2ogpt_key1,
+            auth=kwargs['auth'],
+            auth_access=kwargs['auth_access'],
+            guest_name=kwargs['guest_name'],
+            )
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()
