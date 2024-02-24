@@ -695,8 +695,8 @@ def go_gradio(**kwargs):
     if kwargs['auth_access'] == 'closed':
         auth_message1 = "Closed access"
     else:
-        auth_message1 = "WELCOME!  Open access" \
-                        " (%s/%s or any unique user/pass)" % (kwargs['guest_name'], kwargs['guest_name'])
+        auth_message1 = "WELCOME to %s!  Open access" \
+                        " (%s/%s or any unique user/pass)" % (title, kwargs['guest_name'], kwargs['guest_name'])
 
     if kwargs['auth_message'] is not None:
         auth_message = kwargs['auth_message']
