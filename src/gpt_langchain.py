@@ -1280,9 +1280,9 @@ class H2OOpenAI(OpenAI):
         # like super() OpenAI version but added limit
         num_tokens = self.get_num_tokens(prompt)
         if self.max_new_tokens0 is not None:
-            return min(self.max_new_tokens0, self.tokenizer.model_max_length - num_tokens)
+            return max(128, min(self.max_new_tokens0, self.tokenizer.model_max_length - num_tokens))
         else:
-            return self.max_context_size - num_tokens
+            return max(128, self.max_context_size - num_tokens)
 
     def count_out_tokens(self, rets):
         try:
