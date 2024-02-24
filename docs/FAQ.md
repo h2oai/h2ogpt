@@ -533,6 +533,19 @@ As listed in the `src/gen.py` file, there are many ways to control authorization
 *   :param guest_name: guess name if using auth and have open access.
     * If '', then no guest allowed even if open access, then all databases for each user always persisted
 
+Example auth accesses are OPEN with guest allowed
+```
+python generate.py --auth_access=open --guest_name=guest --auth=auth.json
+```
+CLOSED:
+```
+python generate.py --auth_access=closed --auth=auth.json
+```
+No landing page authentication, but login possible inside app for Login tab:
+```
+python generate.py --auth_filename=auth.json
+```
+
 The file format for `auth.json` in basic form is:
 ```json
 {
@@ -596,6 +609,22 @@ while more generally it is updated by h2oGPT to contain other entries, for examp
     ]
   }
 ```
+
+Since Gradio 4.x, API access is possible when auth protected, e.g.
+```python
+from gradio_client import Client
+client = Client('http://localhost:7860', auth=('username', 'password'))
+```
+then use client as normal.
+
+If both auth and key is enabled, then do:
+```python
+from gradio_client import Client
+client = Client('http://localhost:7860', auth=('username', 'password'))
+res = client.predict(str(dict(instruction="Who are you?", h2ogpt_key='<h2ogpt_key')), api_name='/submit_nochat_plain_api')
+print(res)
+```
+or other API endpoints.
 
 ### HTTPS access for server and client
 
