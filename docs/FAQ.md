@@ -1,5 +1,13 @@
 ## Frequently asked questions
 
+### Google Gemma
+
+```bash
+export HUGGING_FACE_HUB_TOKEN=<token so can access gemma after you have been approved>
+python generate.py --base_model=google/gemma-7b-it
+```
+If issues, try logging in via `huggingface-cli login` (run `git config --global credential.helper store` if in git repo).
+
 ### Text Embedding Inference Server
 
 Using docker for [TEI](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker):
