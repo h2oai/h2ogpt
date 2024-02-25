@@ -443,6 +443,8 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
         verbose = False
 
         texts = [text.replace("\n", " ")[:4 * max_tokens] for text in texts]
+        # don't leave empty
+        texts = [text or ' ' for text in texts]
         _model_kwargs = self.model_kwargs or {}
 
         texts_batches = split_list(texts, max_batch_size)
