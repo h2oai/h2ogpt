@@ -15,6 +15,7 @@ def set_userid(db1s, requests_state1, get_userid_auth, guest_name=''):
             username1 = requests_state1['username']
             if username1 == guest_name:
                 username1 += ':' + str(uuid.uuid4())
+                requests_state1['username'] = username1
         db1[2] = username1
 
 
