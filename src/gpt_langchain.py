@@ -4583,6 +4583,7 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
 
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
+    makedirs(user_base_dir)
     persist_directory = os.path.join(user_base_dir, dirid, 'db_dir_%s' % langchain_mode)
     if userid and \
             (os.path.isdir(persist_directory) or
