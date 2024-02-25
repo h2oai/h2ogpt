@@ -610,7 +610,7 @@ def go_gradio(**kwargs):
         assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
-        if auth_access == 'open' and username1 == guest_name:
+        if auth_access == 'open' and username1.startswith(guest_name):
             return True
         if username1 == '':
             # some issue with login
@@ -675,7 +675,7 @@ def go_gradio(**kwargs):
         username1 = get_username(requests_state1)
         if auth_filename and isinstance(auth_filename, str):
             if username1:
-                if username1 == guest_name:
+                if username1.startswith(guest_name):
                     return str(uuid.uuid4())
                 with filelock.FileLock(auth_filename + '.lock'):
                     if os.path.isfile(auth_filename):
@@ -735,9 +735,9 @@ def go_gradio(**kwargs):
         requests_state1 = {str(k): str(v) for k, v in requests_state1.items()}
         return requests_state1
 
-    def user_state_setup(db1s, requests_state1, request: gr.Request, *args):
+    def user_state_setup(db1s, requests_state1, guest_name1, request: gr.Request, *args):
         requests_state1 = get_request_state(requests_state1, request, db1s)
-        set_userid(db1s, requests_state1, get_userid_auth)
+        set_userid(db1s, requests_state1, get_userid_auth, guest_name=guest_name1)
         args_list = [db1s, requests_state1] + list(args)
         return tuple(args_list)
 
@@ -2818,8 +2818,10 @@ def go_gradio(**kwargs):
         def close_admin(x):
             return gr.update(visible=not (x == admin_pass))
 
+        guest_name = gr.Textbox(value=kwargs['guest_name'], visible=False)
+
         eventdb_logina = login_btn.click(user_state_setup,
-                                         inputs=[my_db_state, requests_state, login_btn, login_btn],
+                                         inputs=[my_db_state, requests_state, guest_name, login_btn, login_btn],
                                          outputs=[my_db_state, requests_state, login_btn],
                                          show_progress='minimal', **noqueue_kwargs2)
 
@@ -3122,7 +3124,7 @@ def go_gradio(**kwargs):
                         textbox = "Invalid type %s" % langchain_mode_type
                         valid = False
                         langchain_mode2 = langchain_mode1
-                    elif langchain_mode_type == LangChainTypes.SHARED.value and username1 == guest_name:
+                    elif langchain_mode_type == LangChainTypes.SHARED.value and username1.startswith(guest_name):
                         textbox = "Guests cannot add shared collections"
                         valid = False
                         langchain_mode2 = langchain_mode1
@@ -3130,7 +3132,7 @@ def go_gradio(**kwargs):
                         textbox = "Do not pass user_path for personal/scratch types"
                         valid = False
                         langchain_mode2 = langchain_mode1
-                    elif user_path is not None and username1 == guest_name:
+                    elif user_path is not None and username1.startswith(guest_name):
                         textbox = "Guests cannot add collections with path"
                         valid = False
                         langchain_mode2 = langchain_mode1
