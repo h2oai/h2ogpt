@@ -2218,7 +2218,8 @@ def get_config(base_model,
             if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + non_hf_types:
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
-                    e) or '404 Client Error' in str(e) or "couldn't connect" in str(e):
+                    e) or '404 Client Error' in str(e) or "couldn't connect" in str(e) or \
+                    'OSError: You are trying to access a gated repo.' in str(e):
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
