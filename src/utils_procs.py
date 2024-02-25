@@ -3,21 +3,8 @@ from functools import wraps
 
 import psutil
 
-rlims = [#psutil.RLIM_INFINITY,
-         psutil.RLIMIT_AS, psutil.RLIMIT_CORE, psutil.RLIMIT_CPU, psutil.RLIMIT_DATA,
-         psutil.RLIMIT_FSIZE, psutil.RLIMIT_LOCKS, psutil.RLIMIT_MEMLOCK, psutil.RLIMIT_MSGQUEUE,
-         psutil.RLIMIT_NICE, psutil.RLIMIT_NOFILE, psutil.RLIMIT_NPROC, psutil.RLIMIT_RSS, psutil.RLIMIT_RTPRIO,
-         psutil.RLIMIT_SIGPENDING, psutil.RLIMIT_STACK]
-# psutil.RLIMIT_RTTIME]
-rlims_str = [
-#"RLIM_INFINITY",
-     "RLIMIT_AS", "RLIMIT_CORE", "RLIMIT_CPU",
-             "RLIMIT_DATA", "RLIMIT_FSIZE", "RLIMIT_LOCKS", "RLIMIT_MEMLOCK",
-             "RLIMIT_MSGQUEUE", "RLIMIT_NICE", "RLIMIT_NOFILE", "RLIMIT_NPROC",
-             "RLIMIT_RSS", "RLIMIT_RTPRIO", "RLIMIT_SIGPENDING", "RLIMIT_STACK"]
-
-
-# , "RLIMIT_RTTIME"]
+rlims = [psutil.RLIMIT_NOFILE if hasattr(psutil, 'RLIMIT_NOFILE') else None, psutil.RLIMIT_NPROC if hasattr(psutil, 'RLIMIT_NPROC') else None]
+rlims_str = ["RLIMIT_NOFILE", "RLIMIT_NPROC"]
 
 
 def rlimitproc(pp, rlim):
@@ -44,6 +31,8 @@ def get_all_rlimit(pid=None):
     ps = psfunc(psutil.Process, pid)
     result = {}
     for rlim_str, rlim in zip(rlims_str, rlims):
+        if rlims is None:
+            continue
         result[(rlim_str, rlim)] = rlimitproc(ps, rlim)
     return result
 
