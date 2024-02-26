@@ -31,7 +31,7 @@ langchain_mistralai==0.0.2
 mistralai==0.0.8
 
 # local vector db
-chromadb==0.4.22
+chromadb==0.4.23
 
 # chroma migration
 chroma-migrate==0.0.7
