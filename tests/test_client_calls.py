@@ -4491,7 +4491,7 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     responses = client.create(**client_kwargs)
     text = responses.choices[0].message.content
     print(text)
-    assert 'Whisper' in text or 'natural language' in text
+    assert 'h2oGPT project' in text or 'natural language' in text
 
     # MyData
     # get file for client to upload
