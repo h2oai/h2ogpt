@@ -3156,9 +3156,9 @@ def get_hf_model(load_8bit: bool = False,
                                 safetensors=use_safetensors,
                                 **model_kwargs,
                             )
-                            if hasattr(model, 'model'):
-                                # e.g. AutoAWQForCausalLM
-                                model = model.model
+                            #if hasattr(model, 'model'):
+                            #    # e.g. AutoAWQForCausalLM
+                            #    model = model.model
                         else:
                             model = model_loader(
                                 base_model,

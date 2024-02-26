@@ -2450,9 +2450,11 @@ def get_llm(use_openai_model=False,
             streamer = None
 
         from h2oai_pipeline import H2OTextGenerationPipeline
-        #if load_awq and hasattr(model, 'model'):
-        #    # e.g. AutoAWQForCausalLM
-        #    model = model.model
+
+        if load_awq and hasattr(model, 'model'):
+            # need this else get device on multiple devices cuda and cpu
+            # e.g. AutoAWQForCausalLM
+            model = model.model
         pipe = H2OTextGenerationPipeline(model=model,
                                          use_prompter=True,
                                          prompter=prompter,

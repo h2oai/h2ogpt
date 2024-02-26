@@ -1743,13 +1743,14 @@ def test_autogptq(base_model):
 
 @wrap_test_forked
 def test_autoawq():
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     prompt = 'Who are you?'
     stream_output = False
     max_new_tokens = 256
-    base_model = 'TheBloke/Llama-2-13B-chat-AWQ'
+    base_model = 'TheBloke/Mistral-7B-Instruct-v0.2-AWQ'
     load_awq = 'model'
     use_safetensors = True
-    prompt_type = 'llama2'
+    prompt_type = 'mistral'
     langchain_mode = 'Disabled'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -1766,6 +1767,7 @@ def test_autoawq():
          langchain_modes=langchain_modes,
          docs_ordering_type=docs_ordering_type,
          add_disk_models_to_ui=False,
+         max_seq_len=2048,
          )
 
     from src.client_test import run_client_chat
@@ -1774,8 +1776,7 @@ def test_autoawq():
                                        langchain_action=langchain_action, langchain_agents=langchain_agents)
     assert res_dict['prompt'] == prompt
     assert res_dict['iinput'] == ''
-    assert "am a virtual assistant" in res_dict['response'] or \
-           "Hello! My name is LLaMA, I'm a large language model trained by a team" in res_dict['response']
+    assert "I am an artificial intelligence designed to assist" in res_dict['response']
 
     check_langchain()
 
