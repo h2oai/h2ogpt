@@ -6126,7 +6126,7 @@ def go_gradio(**kwargs):
     allowed_paths = []
     if not is_public:
         allowed_paths += [os.path.abspath('.')]
-    allowed_paths += [os.path.abspath(v) for k, v in kwargs['langchain_mode_paths'].items()]
+    allowed_paths += [os.path.abspath(v) for k, v in kwargs['langchain_mode_paths'].items() if v]
 
     demo.launch(share=kwargs['share'],
                 server_name=kwargs['server_name'],
