@@ -6122,6 +6122,12 @@ def go_gradio(**kwargs):
     if server_port is not None:
         server_port = int(server_port)
 
+    # NOTE: Dynamically added paths won't work unless relative to root and not public
+    allowed_paths = []
+    if not is_public:
+        allowed_paths += [os.path.abspath('.')]
+    allowed_paths += [os.path.abspath(v) for k, v in kwargs['langchain_mode_paths'].items()]
+
     demo.launch(share=kwargs['share'],
                 server_name=kwargs['server_name'],
                 show_error=True,
@@ -6137,6 +6143,7 @@ def go_gradio(**kwargs):
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                 max_threads=max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
                                                                                     int) else 128,
+                allowed_paths=allowed_paths if allowed_paths else None,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
