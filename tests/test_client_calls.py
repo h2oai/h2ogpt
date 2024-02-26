@@ -4498,7 +4498,7 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
 
     # upload file(s).  Can be list or single file
     from gradio_client import Client
-    gr_client = Client(get_inf_server(), auth=(username, password) if auth_access == 'closed' else None)
+    gr_client = Client(get_inf_server(), auth=(username, password) if do_auth else None)
     test_file_local, test_file_server = gr_client.predict('tests/screenshot.png', api_name='/upload_api')
 
     chunk = True
