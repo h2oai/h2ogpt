@@ -230,6 +230,7 @@ def main(
         trust_remote_code: Union[str, bool] = True,
         rope_scaling: dict = None,
         max_seq_len: int = None,
+        max_output_seq_len: int = None,
         offload_folder: str = "offline_folder",
 
         src_lang: str = "English",
@@ -709,6 +710,7 @@ def main(
             e.g. python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lmsys/vicuna-13b-v1.5-16k --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --load_8bit=True --langchain_mode=UserData --user_path=user_path --prompt_type=vicuna11 --h2ocolors=False
            For exllama model: --rope_scaling="{'alpha_value':4}" .  This automatically scales max_seq_len for exllama
     :param max_seq_len: Manually set maximum sequence length for the LLM
+    :param max_output_seq_len: Manually set maximum output length for the LLM
     :param offload_folder: path for spilling model onto disk
     :param src_lang: source languages to include if doing translation (None = all)
     :param tgt_lang: target languages to include if doing translation (None = all)
@@ -1964,6 +1966,7 @@ def main(
                                       llamacpp_dict=llamacpp_dict,
                                       rope_scaling=rope_scaling,
                                       max_seq_len=max_seq_len,
+                                      max_output_seq_len=max_output_seq_len,
                                       exllama_dict=exllama_dict,
                                       gptq_dict=gptq_dict,
                                       attention_sinks=attention_sinks,
@@ -2507,6 +2510,7 @@ def get_model(
         offload_folder: str = None,
         rope_scaling: dict = None,
         max_seq_len: int = None,
+        max_output_seq_len: int = None,
         compile_model: bool = False,
         llamacpp_path=None,
         llamacpp_dict=None,
@@ -2546,7 +2550,7 @@ def get_model(
     :param offload_folder: offload folder
     :param rope_scaling: scaling for rope-based models, e.g. "{'type':'dynamic', 'factor':4}"
     :param max_seq_len: override for maximum sequence length for model
-    :param max_seq_len: if set, use as max_seq_len for model
+    :param max_output_seq_len:
     :param compile_model: whether to compile torch model
     :param llamacpp_path: Path to download llama.cpp and GPT4All models to
     :param llamacpp_dict: dict of llama.cpp and GPT4All model options
@@ -2714,6 +2718,10 @@ def get_model(
                 if len(name_split) >= 2:
                     name = name_split[1]
                     models.append(name)
+                    if name not in google_mapping:
+                        if os.getenv('HARD_ASSERTS'):
+                            raise ValueError("%s not in google_mapping" % name)
+                        google_mapping[name] = 8192 # estimate
                     see_model |= base_model == name
         assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
 
@@ -2744,6 +2752,10 @@ def get_model(
         list_models = [x.id for x in dict(list_models_response)['data']]
         for name in list_models:
             see_model |= base_model == name
+            if name not in mistralai_mapping:
+                if os.getenv('HARD_ASSERTS'):
+                    raise ValueError("%s not in mistralai_mapping" % name)
+                mistralai_mapping[name] = 31768  # estimate
         assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
 
         async_client = MistralAsyncClient(api_key=api_key)
@@ -2756,9 +2768,13 @@ def get_model(
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
     if inf_server_for_max_seq_len_handling or \
+            inference_server.startswith('openai') or \
             base_model in openai_gpts or \
+            inference_server.startswith('anthropic') or \
             base_model in anthropic_gpts or \
+            inference_server.startswith('google') or \
             base_model in google_gpts or \
+            inference_server.startswith('mistralai') or \
             base_model in mistralai_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
@@ -2775,7 +2791,11 @@ def get_model(
             if base_model in model_token_mapping_outputs:
                 max_output_len = model_token_mapping_outputs[base_model]
             else:
-                max_output_len = None
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_output_seq_len is not None, "Must set max_output_seq_len"
+                else:
+                    max_output_seq_len = 8192  # estimate
+                max_output_len = max_output_seq_len
         if inference_server.startswith('anthropic') or base_model in anthropic_gpts:
             if inference_server.startswith('anthropic'):
                 assert os.getenv('ANTHROPIC_API_KEY'), "Set environment for ANTHROPIC_API_KEY"
@@ -2788,7 +2808,11 @@ def get_model(
             if base_model in anthropic_mapping_outputs:
                 max_output_len = anthropic_mapping_outputs[base_model]
             else:
-                max_output_len = None
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_output_seq_len is not None, "Must set max_output_seq_len"
+                else:
+                    max_output_seq_len = 4096  # estimate
+                max_output_len = max_output_seq_len
         if inference_server.startswith('google') or base_model in google_gpts:
             if inference_server.startswith('google'):
                 assert os.getenv('GOOGLE_API_KEY'), "Set environment for GOOGLE_API_KEY"
@@ -2801,7 +2825,11 @@ def get_model(
             if base_model in google_mapping_outputs:
                 max_output_len = google_mapping_outputs[base_model]
             else:
-                max_output_len = None
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_output_seq_len is not None, "Must set max_output_seq_len"
+                else:
+                    max_output_seq_len = 8192  # estimate
+                max_output_len = max_output_seq_len
         if inference_server.startswith('mistralai') or base_model in mistralai_gpts:
             if inference_server.startswith('mistralai'):
                 assert os.getenv('MISTRAL_API_KEY'), "Set environment for MISTRAL_API_KEY"
@@ -2814,7 +2842,11 @@ def get_model(
             if base_model in mistralai_mapping_outputs:
                 max_output_len = mistralai_mapping_outputs[base_model]
             else:
-                max_output_len = None
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_output_seq_len is not None, "Must set max_output_seq_len"
+                else:
+                    max_output_seq_len = 31768  # estimate
+                max_output_len = max_output_seq_len
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2859,6 +2891,9 @@ def get_model(
             model = inference_server
 
         return model, tokenizer, inference_server
+
+    if max_output_seq_len is not None:
+        tokenizer.max_output_len = max_output_seq_len
 
     if inference_server and base_model in non_hf_types and tokenizer is None:
         assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for non-HF model %s" % base_model
