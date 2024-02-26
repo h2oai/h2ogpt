@@ -7,14 +7,14 @@ import json
 from threading import Thread
 import time
 from traceback import print_exception
-from typing import List
+from typing import List, Dict
 from pydantic import BaseModel, Field
 
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
 
@@ -32,12 +32,78 @@ class Generation(BaseModel):
     # put here things not supported by OpenAI but are by torch or vLLM
     # https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
     top_k: int | None = 1
-    repetition_penalty: float | None = 1
     min_p: float | None = 0.0
+
+
+class H2oGPTParams(BaseModel):
+    # keep in sync with evaluate()
+    # handled by extra_body passed to OpenAI API
+    prompt_type: str | None = None
+    prompt_dict: Dict | str | None = None
+    penalty_alpha: float | None = 0.0
+    num_beams: int | None = 1
+    min_new_tokens: int | None = 1
+    early_stopping: bool | None = False
     max_time: float | None = 360
+    repetition_penalty: float | None = 1
+    num_return_sequences: int | None = 1
+    do_sample: bool | None = None
+    chat: bool | None = True
+    langchain_mode: str | None = 'LLM'
+    add_chat_history_to_context: bool | None = True
+    langchain_action: str | None = 'Query'
+    langchain_agents: List | None = []
+    top_k_docs: int | None = 10
+    chunk: bool | None = True
+    chunk_size: int | None = 512
+    document_subset: str | None = 'Relevant'
+    document_choice: str | None = 'All'
+    document_source_substrings: List | None = []
+    document_source_substrings_op: str | None = 'and'
+    document_content_substrings: List | None = []
+    document_content_substrings_op: str | None = 'and'
+
+    pre_prompt_query: str | None = None
+    prompt_query: str | None = None
+    pre_prompt_summary: str | None = None
+    prompt_summary: str | None = None
+    hyde_llm_prompt: str | None = None
+    system_prompt: str | None = 'auto'
+
+    image_audio_loaders: List | None = None
+    pdf_loaders: List | None = None
+    url_loaders: List | None = None
+    jq_schema: List | None = None
+    extract_frames: int | None = 10
+    llava_prompt: str | None = 'auto'
+    #visible_models
+    #h2ogpt_key,
+    add_search_to_context: bool | None = False
+
+    chat_conversation: List | None = []
+    text_context_list: List | None = []
+    docs_ordering_type: str | None = None
+    min_max_new_tokens: int | None = 512
+    max_input_tokens: int | None = -1
+    max_total_input_tokens: int | None = -1
+    docs_token_handling: str | None = None
+    docs_joiner: str | None = None
+    hyde_level: int | None = 0
+    hyde_template: str | None = 'auto'
+    hyde_show_only_final: bool | None = False
+    doc_json_mode: bool | None = False
+    metadata_in_context: str | None = 'auto'
+
+    chatbot_role: str | None = 'None'
+    speaker: str | None = 'None'
+    tts_language: str | None = 'autodetect'
+    tts_speed: float | None = 1.0
+
+    image_file: str | None = None
+    image_control: str | None = None
 
 
-class Params(BaseModel):
+class Params(H2oGPTParams):
     # https://platform.openai.com/docs/api-reference/completions/create
     user: str | None = Field(default=None, description="Track user")
     model: str | None = Field(default=None, description="Choose model")
@@ -126,6 +192,12 @@ app.add_middleware(
 
 class InvalidRequestError(Exception):
     pass
+
+
+@app.get("/health")
+async def health() -> Response:
+    """Health check."""
+    return Response(status_code=200)
 
 
 @app.exception_handler(Exception)

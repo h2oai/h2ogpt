@@ -1797,6 +1797,7 @@ def get_llm(use_openai_model=False,
             regenerate_clients=None,
             regenerate_gradio_clients=None,
             langchain_only_model=None,
+            load_awq='',
             stream_output=False,
             async_output=True,
             num_async=3,
@@ -2449,9 +2450,9 @@ def get_llm(use_openai_model=False,
             streamer = None
 
         from h2oai_pipeline import H2OTextGenerationPipeline
-        if 'AWQ' in str(model) and hasattr(model, 'model'):
-            # e.g. AutoAWQForCausalLM
-            model = model.model
+        #if load_awq and hasattr(model, 'model'):
+        #    # e.g. AutoAWQForCausalLM
+        #    model = model.model
         pipe = H2OTextGenerationPipeline(model=model,
                                          use_prompter=True,
                                          prompter=prompter,
@@ -5101,6 +5102,7 @@ def run_qa_db(**kwargs):
     kwargs['hf_model_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
+    kwargs['load_awq'] = kwargs.get('load_awq', '')
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -5160,6 +5162,7 @@ def _run_qa_db(query=None,
                db_type=None,
                model_name=None, model=None, tokenizer=None, inference_server=None,
                langchain_only_model=False,
+               load_awq='',
                hf_embedding_model=None,
                migrate_embedding_model=False,
                auto_migrate_db=False,
@@ -5378,6 +5381,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       tokenizer=tokenizer,
                       inference_server=inference_server,
                       langchain_only_model=langchain_only_model,
+                      load_awq=load_awq,
                       stream_output=stream_output,
                       async_output=async_output,
                       num_async=num_async,

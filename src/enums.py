@@ -391,7 +391,7 @@ docs_ordering_types = ['best_first', 'best_near_prompt', 'reverse_ucurve_sort']
 
 docs_token_handlings = ['chunk', 'split_or_merge']
 
-docs_ordering_types_default = 'reverse_ucurve_sort'
+docs_ordering_types_default = 'best_near_prompt'
 docs_token_handling_default = 'split_or_merge'
 docs_joiner_default = '\n\n'
 

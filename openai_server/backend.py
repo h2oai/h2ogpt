@@ -82,9 +82,13 @@ gradio_client = get_gradio_client()
 
 def get_client(user=None):
     # concurrent gradio client
-    if gradio_client is None:
+    if gradio_client is None or user is not None:
         assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
+        if client.auth and client.auth[0]:
+            num_model_lock = client.predict(api_name='/num_model_lock')
+            chatbots = [None] * (2 + num_model_lock)
+            client.predict(None, client.auth[0], client.auth[1], *tuple(chatbots), api_name='/login')
     elif hasattr(gradio_client, 'clone'):
         client = gradio_client.clone()
     else:
@@ -102,8 +106,10 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     # max_tokens=16 for text completion by default
     gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
     gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
-    # be more like OpenAI, only temperature, not do_sample, to control
-    gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
+
+    if gen_kwargs.get('do_sample') in [False, None]:
+        # be more like OpenAI, only temperature, not do_sample, to control
+        gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
     # https://platform.openai.com/docs/api-reference/chat/create
     if gen_kwargs['temperature'] > 0.0:
         # let temperature control sampling
