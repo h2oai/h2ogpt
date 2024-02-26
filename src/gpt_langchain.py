@@ -114,7 +114,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
            hf_embedding_model=None,
            migrate_embedding_model=False,
            auto_migrate_db=False,
-           n_jobs=-1):
+           n_jobs=-1,
+           verbose=False):
     if not sources:
         return None
     user_path = langchain_mode_paths.get(langchain_mode)
@@ -207,7 +208,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             # doesn't check or change embedding, just saves it in case not saved yet, after persisting
             db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
                                                                   use_openai_embedding=use_openai_embedding,
-                                                                  hf_embedding_model=hf_embedding_model)
+                                                                  hf_embedding_model=hf_embedding_model,
+                                                                  verbose=verbose)
     else:
         raise RuntimeError("No such db_type=%s" % db_type)
 
@@ -231,7 +233,7 @@ def _get_unique_sources_in_weaviate(db):
 
 def del_from_db(db, sources, db_type=None):
     if hasattr(db, '_persist_directory'):
-        print("Existing db, adding to %s" % db._persist_directory, flush=True)
+        print("Existing db, using %s" % db._persist_directory, flush=True)
         # chroma only
         lock_file = get_db_lock_file(db)
         context = filelock.FileLock
@@ -269,13 +271,20 @@ def add_to_db(db, sources, db_type='faiss',
               avoid_dup_by_file=False,
               avoid_dup_by_content=True,
               use_openai_embedding=False,
-              hf_embedding_model=None):
+              hf_embedding_model=None,
+              verbose=False):
     assert hf_embedding_model is not None
     num_new_sources = len(sources)
     if not sources:
         return db, num_new_sources, []
+
+    # don't do too large a batch so uses reasonable amount of memory
+    max_max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '4096'))
+
     if db_type == 'faiss':
-        db.add_documents(sources)
+        sources_batches = split_list(sources, max_max_batch_size)
+        for sources_batch in sources_batches:
+            db.add_documents(documents=sources_batch)
     elif db_type == 'weaviate':
         # FIXME: only control by file name, not hash yet
         if avoid_dup_by_file or avoid_dup_by_content:
@@ -284,7 +293,9 @@ def add_to_db(db, sources, db_type='faiss',
         num_new_sources = len(sources)
         if num_new_sources == 0:
             return db, num_new_sources, []
-        db.add_documents(documents=sources)
+        sources_batches = split_list(sources, max_max_batch_size)
+        for sources_batch in sources_batches:
+            db.add_documents(documents=sources_batch)
     elif db_type in ['chroma', 'chroma_old']:
         collection = get_documents(db)
         # files we already have:
@@ -336,7 +347,11 @@ def add_to_db(db, sources, db_type='faiss',
             elif hasattr(api, '_producer') and hasattr(api._producer, 'max_batch_size'):
                 max_batch_size = api._producer.max_batch_size
             else:
+                # be conservative if not set
                 max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+            max_batch_size = min(max_batch_size, max_max_batch_size)
+            if verbose:
+                print("max_batch_size=%s" % max_batch_size, flush=True)
             sources_batches = split_list(sources, max_batch_size)
             for sources_batch in sources_batches:
                 db.add_documents(documents=sources_batch)
@@ -400,7 +415,9 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
                 auto_migrate_db=auto_migrate_db,
-                n_jobs=n_jobs)
+                n_jobs=n_jobs,
+                verbose=verbose,
+                )
 
     return db
 
@@ -4273,6 +4290,7 @@ def check_update_chroma_embedding(db,
                     migrate_embedding_model=migrate_embedding_model,
                     auto_migrate_db=auto_migrate_db,
                     n_jobs=n_jobs,
+                    verbose=verbose,
                     )
         changed_db = True
         print("Done updating db for new embedding: %s" % langchain_mode, flush=True)
@@ -4826,7 +4844,8 @@ def _make_db(use_openai_embedding=False,
                         hf_embedding_model=hf_embedding_model,
                         migrate_embedding_model=migrate_embedding_model,
                         auto_migrate_db=auto_migrate_db,
-                        n_jobs=n_jobs)
+                        n_jobs=n_jobs,
+                        verbose=verbose)
             if verbose:
                 print("Generated db", flush=True)
         elif langchain_mode not in langchain_modes_intrinsic:
@@ -4836,7 +4855,8 @@ def _make_db(use_openai_embedding=False,
         print("Existing db, potentially adding %s sources from user_path=%s" % (len(sources), user_path), flush=True)
         db, num_new_sources, new_sources_metadata = add_to_db(db, sources, db_type=db_type,
                                                               use_openai_embedding=use_openai_embedding,
-                                                              hf_embedding_model=hf_embedding_model)
+                                                              hf_embedding_model=hf_embedding_model,
+                                                              verbose=verbose)
         print("Existing db, added %s new sources from user_path=%s" % (num_new_sources, user_path), flush=True)
     else:
         new_sources_metadata = [x.metadata for x in sources]
@@ -7862,7 +7882,8 @@ def _update_user_db(file,
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(db1[0], sources, db_type=db_type,
                                                                       use_openai_embedding=use_openai_embedding,
-                                                                      hf_embedding_model=hf_embedding_model)
+                                                                      hf_embedding_model=hf_embedding_model,
+                                                                      verbose=verbose)
             else:
                 # in testing expect:
                 # assert len(db1) == length_db1() and db1[1] is None, "Bad MyData db: %s" % db1
@@ -7884,7 +7905,8 @@ def _update_user_db(file,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model,
                             auto_migrate_db=auto_migrate_db,
-                            n_jobs=n_jobs)
+                            n_jobs=n_jobs,
+                            verbose=verbose)
             if db is not None:
                 db1[0] = db
             source_files_added = get_source_files(db=db1[0], exceptions=exceptions)
@@ -7905,7 +7927,8 @@ def _update_user_db(file,
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
                                                                       use_openai_embedding=use_openai_embedding,
-                                                                      hf_embedding_model=hf_embedding_model)
+                                                                      hf_embedding_model=hf_embedding_model,
+                                                                      verbose=verbose)
             else:
                 # then create.  Or might just be that dbs is unfilled, then it will fill, then add
                 db = get_db(sources, use_openai_embedding=use_openai_embedding,
@@ -7917,7 +7940,8 @@ def _update_user_db(file,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model,
                             auto_migrate_db=auto_migrate_db,
-                            n_jobs=n_jobs)
+                            n_jobs=n_jobs,
+                            verbose=verbose)
             dbs[langchain_mode] = db
             # NOTE we do not return db, because function call always same code path
             # return dbs[langchain_mode]
