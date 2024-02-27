@@ -4454,6 +4454,7 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
 
     auth_filename = 'auth_test.json'
     remove(auth_filename)
+    remove('users/doo/db_dir_MyData')
 
     from src.gen import main
     main(base_model=base_model, prompt_type=prompt_type, chat=True,
@@ -4499,13 +4500,20 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     # upload file(s).  Can be list or single file
     from gradio_client import Client
     gr_client = Client(get_inf_server(), auth=(username, password) if do_auth else None)
+
+    # login regardless of auth, so can access collection
+    num_model_lock = gr_client.predict(api_name='/num_model_lock')
+    chatbots = [None] * (2 + num_model_lock)
+    gr_client.predict(None, username, password, *tuple(chatbots), api_name='/login')
+
+    # now can upload file to collection MyData
     test_file_local, test_file_server = gr_client.predict('tests/screenshot.png', api_name='/upload_api')
 
     chunk = True
     chunk_size = 512
     langchain_mode = 'MyData'
     loaders = tuple([None, None, None, None, None, None])
-    h2ogpt_key = ''
+    h2ogpt_key = api_key
     res = gr_client.predict(test_file_server,
                             langchain_mode, chunk, chunk_size, True,
                             *loaders,

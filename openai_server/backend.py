@@ -85,16 +85,22 @@ def get_client(user=None):
     if gradio_client is None or user is not None:
         assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
-        if client.auth and client.auth[0]:
-            num_model_lock = client.predict(api_name='/num_model_lock')
-            chatbots = [None] * (2 + num_model_lock)
-            client.predict(None, client.auth[0], client.auth[1], *tuple(chatbots), api_name='/login')
     elif hasattr(gradio_client, 'clone'):
         client = gradio_client.clone()
     else:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.")
         client = get_gradio_client(user=user)
+
+    # even if not auth, want to login
+    if user:
+        user_split = user.split(':')
+        username = user_split[0]
+        password = ':'.join(user_split[1:])
+        num_model_lock = client.predict(api_name='/num_model_lock')
+        chatbots = [None] * (2 + num_model_lock)
+        client.predict(None, username, password, *tuple(chatbots), api_name='/login')
+
     return client
 
 

@@ -2848,7 +2848,7 @@ def go_gradio(**kwargs):
                   auth_filename=None, num_model_lock=0, pre_authorized=False):
             # use full auth login to allow new users if open access etc.
             if pre_authorized:
-                username1 = requests_state1['username']
+                username1 = requests_state1.get('username')
                 password1 = None
                 authorized1 = True
             else:
