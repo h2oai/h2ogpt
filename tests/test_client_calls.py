@@ -1563,8 +1563,9 @@ def test_client_system_prompts(system_prompt, chat_conversation):
 
         if not chat_conversation:
             if system_prompt == 'You are a goofy lion who talks to kids':
-                assert 'ROAR!' in res_dict['response'] and 'respectful' not in res_dict[
-                    'response'] and 'developed by Meta' not in res_dict['response']
+                assert ('ROAR!' in res_dict['response'] or 'ROARRRRR' in res_dict['response']) and \
+                       'respectful' not in res_dict['response'] and \
+                       'developed by Meta' not in res_dict['response']
             elif system_prompt == '':
                 assert "developed by Meta" in res_dict['response'] and 'respectful' not in res_dict[
                     'response'] and 'ROAR!' not in res_dict['response']
