@@ -3018,6 +3018,7 @@ def go_gradio(**kwargs):
             try:
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
+                remove(backup_file)
             except BaseException as e:
                 print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
                       flush=True)
