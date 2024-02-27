@@ -2279,7 +2279,7 @@ def go_gradio(**kwargs):
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False)
 
-                login_tab = gr.TabItem("Log-in/out") \
+                login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
                     extra_login = "\nDaily maintenance at midnight PST will not allow reconnection to state otherwise." if is_public else ""

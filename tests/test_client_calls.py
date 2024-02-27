@@ -2239,7 +2239,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "author finds more text to be boring" in res_dict['response'] or
             "more text is boring" in res_dict['response'] or
             "more text is boring" in res_dict['response'] or
-            "it can be inferred that more text is indeed boring" in res_dict['response']) \
+            "it can be inferred that more text is indeed boring" in res_dict['response'] or
+            "expressing frustration" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"

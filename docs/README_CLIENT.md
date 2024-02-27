@@ -265,12 +265,14 @@ If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the 
 from openai import OpenAI
 base_url = 'http://localhost:5000/v1'
 api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+model = '<model name>'
+
 client_args = dict(base_url=base_url, api_key=api_key)
 openai_client = OpenAI(**client_args)
 
 messages = [{'role': 'user', 'content': 'Who are you?'}]
 stream = False
-client_kwargs = dict(model='<model name>', max_tokens=200, stream=stream, messages=messages,
+client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages,
                      user='username:password')
 client = openai_client.chat.completions
 
@@ -284,14 +286,17 @@ This is only required if `--auth_access=closed` was used, else for `--auth_acces
 In order to control other parameters not normally part of OpenAI API, one can use `extra_body`, e.g.
 ```python
 from openai import OpenAI
+
 base_url = 'http://localhost:5000/v1'
 api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+model = '<model name>'
+
 client_args = dict(base_url=base_url, api_key=api_key)
 openai_client = OpenAI(**client_args)
 
 messages = [{'role': 'user', 'content': 'Who are you?'}]
 stream = False
-client_kwargs = dict(model='<model name>', max_tokens=200, stream=stream, messages=messages,
+client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages,
                      user='username:password',
                      extra_body=dict(langchain_mode='UserData'))
 client = openai_client.chat.completions
@@ -300,4 +305,6 @@ responses = client.create(**client_kwargs)
 text = responses.choices[0].message.content
 print(text)
 ```
+The OpenAI client does a login to the Gradio server as well, so one can access personal collections like `MyData` as well.
+
 Any parameters normally passed to gradio client can be passed this way. See [H2oGPTParams](../openai_server/server.py) for complete list.

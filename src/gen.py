@@ -2386,9 +2386,6 @@ def get_non_lora_model(base_model, model_loader, load_half,
             safetensors=use_safetensors,
             **model_kwargs,
         )
-        #if hasattr(model, 'model'):
-        #    # e.g. AutoAWQForCausalLM
-        #    model = model.model
     elif load_in_8bit or load_in_4bit or not load_half:
         model = model_loader(
             base_model,
@@ -3156,9 +3153,6 @@ def get_hf_model(load_8bit: bool = False,
                                 safetensors=use_safetensors,
                                 **model_kwargs,
                             )
-                            #if hasattr(model, 'model'):
-                            #    # e.g. AutoAWQForCausalLM
-                            #    model = model.model
                         else:
                             model = model_loader(
                                 base_model,
