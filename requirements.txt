@@ -43,7 +43,7 @@ tensorboard==2.13.0
 neptune==1.2.0
 
 # for gradio client
-gradio_client==0.10.0
+gradio_client==0.10.1
 #gradio_client==0.6.1
 beautifulsoup4==4.12.2
 markdown==3.4.3
