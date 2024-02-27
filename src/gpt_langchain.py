@@ -4263,7 +4263,8 @@ def check_update_chroma_embedding(db,
                                   use_openai_embedding,
                                   hf_embedding_model, migrate_embedding_model, auto_migrate_db,
                                   langchain_mode, langchain_mode_paths, langchain_mode_types,
-                                  n_jobs=-1):
+                                  n_jobs=-1,
+                                  verbose=False):
     changed_db = False
     embed_tuple = load_embed(db=db, use_openai_embedding=use_openai_embedding)
 
@@ -4454,7 +4455,8 @@ def get_existing_db(db, persist_directory,
                                                                  langchain_mode,
                                                                  langchain_mode_paths,
                                                                  langchain_mode_types,
-                                                                 n_jobs=n_jobs)
+                                                                 n_jobs=n_jobs,
+                                                                 verbose=verbose)
             if changed_db:
                 db = db_trial
                 # only call persist if really changed db, else takes too long for large db
