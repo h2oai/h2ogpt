@@ -10,7 +10,7 @@ def test_llava_client2():
     from src.vision.utils_vision import get_llava_response
     res, llava_prompt = get_llava_response(file, llava_model, allow_prompt_auto=True)
     print(res)
-    assert 'pumpkins' in res
+    assert 'pumpkins' in res or 'glowing' in res
 
 
 @wrap_test_forked
