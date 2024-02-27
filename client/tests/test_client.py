@@ -2,13 +2,14 @@ import platform
 
 import pytest
 
-from h2ogpt_client import Client
 
 platform.python_version()
 
 
 @pytest.fixture
-def client(server_url, h2ogpt_key) -> Client:
+def client(server_url, h2ogpt_key):
+    from h2ogpt_client import Client
+
     return Client(server_url, h2ogpt_key=h2ogpt_key)
 
 

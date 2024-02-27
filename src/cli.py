@@ -23,6 +23,7 @@ def run_cli(  # for local function:
         enable_imagegen_high_sd=None,
         try_pdf_as_html=None,
         # for some evaluate args
+        load_awq='',
         stream_output=None, async_output=None, num_async=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
         temperature=None, top_p=None, top_k=None, penalty_alpha=None, num_beams=None,
@@ -42,6 +43,7 @@ def run_cli(  # for local function:
         url_loaders=None,
         jq_schema=None,
         extract_frames=None,
+        extract_frames0=None,
         llava_prompt=None,
         visible_models=None,
         h2ogpt_key=None,

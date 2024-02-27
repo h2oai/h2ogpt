@@ -29,6 +29,7 @@ def run_eval(  # for local function:
         enable_imagegen_high_sd=None,
         try_pdf_as_html=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created
+        load_awq='',
         temperature=None,
         top_p=None,
         top_k=None,
@@ -60,6 +61,7 @@ def run_eval(  # for local function:
         url_loaders=None,
         jq_schema=None,
         extract_frames=None,
+        extract_frames0=None,
         llava_prompt=None,
         visible_models=None,
         h2ogpt_key=None,
