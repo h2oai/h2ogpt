@@ -2387,6 +2387,9 @@ def get_non_lora_model(base_model, model_loader, load_half,
             **model_kwargs,
         )
     elif load_in_8bit or load_in_4bit or not load_half:
+        if model_kwargs.get('quantization_config'):
+            model_kwargs.pop('load_in_8bit', None)
+            model_kwargs.pop('load_in_4bit', None)
         model = model_loader(
             base_model,
             config=config,
@@ -3072,7 +3075,13 @@ def get_hf_model(load_8bit: bool = False,
         n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
         n_gpus, gpu_ids = cuda_vis_check(n_gpus)
         if n_gpus != 0 and not load_gptq:
-            if low_bit_mode == 1:
+            if load_8bit:
+                from transformers import BitsAndBytesConfig
+                model_kwargs['quantization_config'] = BitsAndBytesConfig(
+                                                                         load_in_8bit=load_8bit,
+                                                                         )
+
+            elif low_bit_mode == 1:
                 from transformers import BitsAndBytesConfig
                 model_kwargs['quantization_config'] = BitsAndBytesConfig(bnb_4bit_compute_dtype=torch.bfloat16,
                                                                          load_in_4bit=load_4bit,
@@ -3097,6 +3106,9 @@ def get_hf_model(load_8bit: bool = False,
                                                                          load_in_4bit=load_4bit,
                                                                          load_in_8bit=load_8bit,
                                                                          )
+        if model_kwargs.get('quantization_config'):
+            model_kwargs.pop('load_in_8bit', None)
+            model_kwargs.pop('load_in_4bit', None)
 
         if not lora_weights:
             # torch.device context uses twice memory for AutoGPTQ
