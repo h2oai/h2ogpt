@@ -66,7 +66,7 @@ def test_fastfood():
     from src.image_utils import align_image
     assert os.path.isfile(align_image("tests/fastfood.jpg"))
     # can't find box for receipt
-    assert align_image("tests/receipt.jpg") is None
+    assert align_image("tests/receipt.jpg") == "tests/receipt.jpg"
     assert os.path.isfile(align_image("tests/rotate-ex2.png"))
 
     from src.image_utils import correct_rotation
@@ -75,9 +75,9 @@ def test_fastfood():
     assert os.path.isfile(correct_rotation("tests/rotate-ex2.png"))
 
     # new
-    assert align_image("tests/revenue.png") is None
-    assert align_image("tests/dental.png") is None
-    assert align_image("tests/jon.png") is None
+    assert align_image("tests/revenue.png") == "tests/revenue.png"
+    assert align_image("tests/dental.png") == "tests/dental.png"
+    assert align_image("tests/jon.png") == "tests/jon.png"
 
     assert os.path.isfile(correct_rotation("tests/revenue.png"))
     assert os.path.isfile(correct_rotation("tests/dental.png"))
