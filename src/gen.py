@@ -1694,6 +1694,7 @@ def main(
         pdf_loaders_options0, pdf_loaders_options, \
         url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
     jq_schema0 = jq_schema
+    extract_frames0 = extract_frames
     # transcribe
     image_audio_loaders = image_audio_loaders_options0
     pdf_loaders = pdf_loaders_options0
@@ -3327,6 +3328,7 @@ def get_score_model(score_model: str = None,
         regenerate_gradio_clients = False
         llama_type = False
         max_seq_len = None
+        max_output_seq_len = None
         rope_scaling = {}
         compile_model = False
         llamacpp_path = None
@@ -3351,12 +3353,14 @@ def evaluate_fake(*args, **kwargs):
     return
 
 
+# keep in sync with H2oGPTParams
 def evaluate(
         model_state,
         my_db_state,
         selection_docs_state,
         requests_state,
         roles_state,
+
         # START NOTE: Examples must have same order of parameters
         instruction,
         iinput,
@@ -3511,6 +3515,7 @@ def evaluate(
         pdf_loaders_options0=None,
         url_loaders_options0=None,
         jq_schema0=None,
+        extract_frames0=None,
         keep_sources_in_context=None,
         gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
@@ -3522,6 +3527,8 @@ def evaluate(
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
         try_pdf_as_html=None,
+
+        load_awq=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -3550,6 +3557,9 @@ def evaluate(
         url_loaders = url_loaders_options0
     if jq_schema is None:
         jq_schema = jq_schema0
+    if extract_frames is None:
+        extract_frames = extract_frames0
+
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
             # already list, but as string
@@ -3904,6 +3914,7 @@ def evaluate(
                 regenerate_gradio_clients=regenerate_gradio_clients,
                 model_name=base_model, model=model, tokenizer=tokenizer,
                 langchain_only_model=langchain_only_model,
+                load_awq=load_awq,
                 async_output=async_output,
                 num_async=num_async,
                 prompter=prompter,
