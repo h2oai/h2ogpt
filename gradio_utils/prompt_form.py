@@ -1,8 +1,8 @@
 import os
 import math
-
+import csv
+import datetime
 import gradio as gr
-
 
 def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=False):
     if not debug:
@@ -75,6 +75,44 @@ def get_avatars(base_model, model_path_llama, inference_server=''):
     return human_avatar, bot_avatar
 
 
+        
+def ratingfn1():
+    return 1
+def ratingfn2():
+    return 2
+def ratingfn3():
+    return 3
+def ratingfn4():
+    return 4
+def ratingfn5():
+    return 5
+
+def submit_review(review_text,rating_textbox,text_output,text_output2): 
+
+    if(len(text_output)<1):
+        raise Exception("Rating can be submitted corresponding to a response only")
+    try:
+        rating_textbox = int(rating_textbox)
+    except:
+        raise Exception("Rating is mandatory,Please enter a number ranging 1-10")
+    
+    if rating_textbox > 10 or rating_textbox < 0:
+        raise Exception("Please enter a number ranging 1-10")
+    else:
+        now = datetime.datetime.now()
+        # if review_text: 
+        with open('reviews.csv', 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            if(len(text_output2)>0):
+                writer.writerow([review_text,rating_textbox,text_output[-1],text_output2[-1],now])
+            else:
+                writer.writerow([review_text,rating_textbox,text_output[-1],"text_output2",now])
+            gr.Info('Review submitted!')
+        return "Review submitted!" 
+        # else: 
+        #     return "Please enter a review before submitting."
+        
+    
 def make_chatbots(output_label0, output_label0_model2, **kwargs):
     visible_models = kwargs['visible_models']
     all_models = kwargs['all_possible_visible_models']
@@ -105,6 +143,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                                                   model_state_locki in visible_models or
                                                                   all_models[model_state_locki] in visible_models
                                                                   )))
+    
 
     # base view on initial visible choice
     if visible_models and kwargs['model_lock_layout_based_upon_initial_visible']:
@@ -162,8 +201,148 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         text_output = gr.Chatbot(label=output_label0,
                                  visible=not kwargs['model_lock'],
                                  **no_model_lock_chat_kwargs,
+                                 likeable=True,
                                  )
         text_output2 = gr.Chatbot(label=output_label0_model2,
                                   visible=False and not kwargs['model_lock'],
-                                  **no_model_lock_chat_kwargs)
+                                  **no_model_lock_chat_kwargs,
+                                  likeable=True,)
+
+    with gr.Row():
+        review_textbox = gr.Textbox(visible=True, label="Review", placeholder="Type your review...", scale=4)
+        rating_textbox = gr.Textbox(visible=False, label="Ratings", 
+                                    placeholder="Please rate this response out of 10...", scale=1)
+        rating_text_output = gr.Textbox(elem_id="text_output",visible=False)
+        with gr.Column():
+            with gr.Row():
+                rating1 = gr.Button(value='⭑', variant='outline-primary', scale=1, elem_id="rating1",size="sm")
+                rating2 = gr.Button(value='⭑', variant='outline-primary', scale=1, elem_id="rating2",size="sm")
+                rating3 = gr.Button(value='⭑', variant='outline-primary', scale=1, elem_id="rating3",size="sm")
+                rating4 = gr.Button(value='⭑', variant='outline-primary', scale=1, elem_id="rating4",size="sm")
+                rating5 = gr.Button(value='⭑', variant='outline-primary', scale=1, elem_id="rating5",size="sm")
+
+            review_js1 = """
+            function highlightButtons() {
+                var element = document.getElementById("rating1");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating2");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+
+                var element = document.getElementById("rating3");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+
+                var element = document.getElementById("rating4");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+
+                var element = document.getElementById("rating5");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+            }
+            """
+
+            review_js2 = """
+            function highlightButtons() {
+                var element = document.getElementById("rating1");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating2");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating3");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+
+                var element = document.getElementById("rating4");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+
+                var element = document.getElementById("rating5");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+            }
+            """
+            review_js3 = """
+            function highlightButtons() {
+                var element = document.getElementById("rating1");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating2");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating3");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating4");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+
+                var element = document.getElementById("rating5");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+            }
+            """
+            review_js4 = """
+            function highlightButtons() {
+                var element = document.getElementById("rating1");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating2");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating3");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating4");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating5");
+                // element.style.backgroundColor = "rgba(173, 181, 189, 0.5)"; 
+                element.style.color = "rgba(173, 181, 189, 0.5)"; 
+            }
+            """
+            review_js5 = """
+            function highlightButtons() {
+                var element = document.getElementById("rating1");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating2");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating3");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating4");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+
+                var element = document.getElementById("rating5");
+                // element.style.backgroundColor = "#ffa41c"; 
+                element.style.color = "#ffa41c"; 
+            }
+            """
+            rating1.click(ratingfn1, outputs=rating_text_output, js=review_js1)         
+            rating2.click(ratingfn2, outputs=rating_text_output, js=review_js2)
+            rating3.click(ratingfn3, outputs=rating_text_output, js=review_js3)
+            rating4.click(ratingfn4, outputs=rating_text_output, js=review_js4)
+            rating5.click(ratingfn5, outputs=rating_text_output, js=review_js5)
+
+            submit_review_btn = gr.Button("Submit Review", scale=1)
+            submit_review_btn.click(submit_review, inputs=[review_textbox, rating_text_output, text_output, text_output2])
     return text_output, text_output2, text_outputs

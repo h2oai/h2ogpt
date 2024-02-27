@@ -195,4 +195,20 @@ def make_css_base() -> str:
         padding: 0 4px;
         margin-right: 2px;
     }
+
+ 
+
+#rating1, #rating2, #rating3, #rating4, #rating5 { /* Target all star buttons */ 
+    all:unset ;
+    font-size:2rem;
+    display:flex ;
+      width: 15px !important;      /* Set your desired width */
+    padding-bottom: 15px !important; /* Set your desired
+
+  transition: background-color 0.3s ease-in !important; 
+  transition: color 0.3s ease-in !important; 
+background-color: rgba(173, 181, 189, 0.5) !important;
+clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
     """
