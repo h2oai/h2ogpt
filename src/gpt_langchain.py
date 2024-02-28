@@ -5870,7 +5870,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             # see if need to split
             # account for joiner tokens
             joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
-            doc_chunk_size = min(max_input_tokens, max(64, max_input_tokens - joiner_tokens * len(docs_with_score)))
+            doc_chunk_size = max(64, min(max_input_tokens, max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
                 tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0
             )
