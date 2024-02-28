@@ -336,6 +336,7 @@ def main(
         add_disk_models_to_ui: bool = True,
         page_title: str = "h2oGPT",
         favicon_path: str = None,
+        visible_ratings: bool = False,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -891,6 +892,7 @@ def main(
     :param add_disk_models_to_ui: Whether to add HF cache models and llama.cpp models to UI
     :param page_title: Title of the web page, default is h2oGPT
     :param favicon_path: Path to favicon, default is h2oGPT favicon
+    :param visible_ratings: Whether full review is visible, else just likable chatbots
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:
