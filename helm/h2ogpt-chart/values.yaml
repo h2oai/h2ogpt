@@ -17,6 +17,11 @@ h2ogpt:
     repository:
     tag:
     pullPolicy:
+  
+  podAffinity:
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+  # hostname:
+  # zone:
 
   storage:
     size: 128Gi
@@ -95,6 +100,11 @@ tgi:
     tag: 0.9.3
     pullPolicy: IfNotPresent
 
+  podAffinity:
+    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+    # hostname:
+    # zone:
+
   storage:
     size: 512Gi
     class: 
@@ -132,6 +142,11 @@ vllm:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
     tag:
     pullPolicy: IfNotPresent
+
+  podAffinity:
+    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+    # hostname:
+    # zone:
 
   imagePullSecrets:
 

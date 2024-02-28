@@ -48,7 +48,19 @@ spec:
       securityContext:
         {{- toYaml .Values.h2ogpt.podSecurityContext | nindent 8 }}
       affinity:
+        {{- if .Values.h2ogpt.podAffinity }}
         podAntiAffinity:
+          {{- if .Values.h2ogpt.podAffinity.hostname }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - {{ include "h2ogpt.fullname" . }}
+              topologyKey: kubernetes.io/hostname
+          {{- end }}
+          {{- if .Values.h2ogpt.podAffinity.zone }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -59,6 +71,11 @@ spec:
                       values:
                         - {{ include "h2ogpt.fullname" . }}
                 topologyKey: failure-domain.beta.kubernetes.io/zone
+          {{- end }}
+        {{- end }}
+      {{- with .Values.h2ogpt.extraAffinity }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- if and (.Values.tgi.enabled) (not .Values.h2ogpt.stack.enabled ) }}
       initContainers:
         - name: tgi-check
@@ -354,7 +371,19 @@ spec:
       securityContext:
         {{- toYaml .Values.tgi.podSecurityContext | nindent 8 }}
       affinity:
+        {{- if .Values.tgi.podAffinity }}
         podAntiAffinity:
+          {{- if .Values.tgi.podAffinity.hostname }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - {{ include "h2ogpt.fullname" . }}
+              topologyKey: kubernetes.io/hostname
+          {{- end }}
+          {{- if .Values.tgi.podAffinity.zone }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -365,6 +394,11 @@ spec:
                       values:
                         - {{ include "h2ogpt.fullname" . }}
                 topologyKey: failure-domain.beta.kubernetes.io/zone
+          {{- end }}
+        {{- end }}
+      {{- with .Values.tgi.extraAffinity }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.tgi.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -514,7 +548,19 @@ spec:
       securityContext:
         {{- toYaml .Values.vllm.podSecurityContext | nindent 8 }}
       affinity:
+        {{- if .Values.vllm.podAffinity }}
         podAntiAffinity:
+          {{- if .Values.vllm.podAffinity.hostname }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - {{ include "h2ogpt.fullname" . }}
+              topologyKey: kubernetes.io/hostname
+          {{- end }}
+          {{- if .Values.vllm.podAffinity.zone }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -525,6 +571,11 @@ spec:
                       values:
                         - {{ include "h2ogpt.fullname" . }}
                 topologyKey: failure-domain.beta.kubernetes.io/zone
+          {{- end }}
+        {{- end }}
+      {{- with .Values.vllm.extraAffinity }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.vllm.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
