@@ -328,7 +328,7 @@ def main(
         visible_all_prompter_models: bool = False,
         visible_curated_models: bool = True,
         actions_in_sidebar: bool = False,
-        document_choice_in_sidebar: bool = False,
+        document_choice_in_sidebar: bool = True,
         enable_add_models_to_list_ui: bool = False,
         max_raw_chunks: int = None,
         pdf_height: int = 800,
