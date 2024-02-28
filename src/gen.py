@@ -337,6 +337,7 @@ def main(
         page_title: str = "h2oGPT",
         favicon_path: str = None,
         visible_ratings: bool = False,
+        reviews_file: str = None,
 
         sanitize_user_prompt: bool = False,
         sanitize_bot_response: bool = False,
@@ -893,6 +894,7 @@ def main(
     :param page_title: Title of the web page, default is h2oGPT
     :param favicon_path: Path to favicon, default is h2oGPT favicon
     :param visible_ratings: Whether full review is visible, else just likable chatbots
+    :param reviews_file: File to store reviews, set to `reviews.csv` if visible_ratings=True if this isn't set
 
     :param sanitize_user_prompt: whether to remove profanity from user input (slows down input processing)
       Requires optional packages:

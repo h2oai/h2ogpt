@@ -2829,7 +2829,7 @@ def go_gradio(**kwargs):
         def close_admin(x):
             return gr.update(visible=not (x == admin_pass))
 
-        def get_num_model_lock_value(x):
+        def get_num_model_lock_value():
             return len(text_outputs)
 
         num_lock_button.click(get_num_model_lock_value, inputs=None, outputs=num_model_lock_value_output,

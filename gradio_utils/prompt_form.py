@@ -1,7 +1,10 @@
+import functools
 import os
 import math
 import csv
 import datetime
+
+import filelock
 import gradio as gr
 
 
@@ -96,35 +99,32 @@ def ratingfn5():
     return 5
 
 
-def submit_review(review_text, rating_textbox, text_output, text_output2):
-    if len(text_output) < 1:
-        raise Exception("Rating can be submitted corresponding to a response only")
-    try:
-        rating_textbox = int(rating_textbox)
-    except:
-        raise Exception("Rating is mandatory,Please enter a number ranging 1-10")
+def submit_review(review_text, text_output, text_output2, *text_outputs1, reviews_file=None, num_model_lock=None,
+                  do_info=True):
+    if reviews_file is None:
+        gr.Info('No review file')
+        return ''
 
-    if rating_textbox > 10 or rating_textbox < 0:
-        raise Exception("Please enter a number ranging 1-10")
-    else:
-        now = datetime.datetime.now()
-        # if review_text: 
-        with open('reviews.csv', 'a', newline='') as csvfile:
+    chatbots = [text_output, text_output2] + list(text_outputs1)
+    last_chatbots = [x[-1] for x in chatbots if x]
+
+    now = datetime.datetime.now()
+    with filelock.FileLock(reviews_file + '.lock'):
+        with open(reviews_file, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            if (len(text_output2) > 0):
-                writer.writerow([review_text, rating_textbox, text_output[-1], text_output2[-1], now])
-            else:
-                writer.writerow([review_text, rating_textbox, text_output[-1], "text_output2", now])
-            gr.Info('Review submitted!')
-        return "Review submitted!"
-        # else: 
-        #     return "Please enter a review before submitting."
+            writer.writerow([review_text, *last_chatbots, now])
+            if do_info:
+                gr.Info('Review submitted!')
+    return ''
 
 
 def make_chatbots(output_label0, output_label0_model2, **kwargs):
     visible_models = kwargs['visible_models']
     all_models = kwargs['all_possible_visible_models']
     visible_ratings = kwargs['visible_ratings']
+    reviews_file = kwargs['reviews_file']
+    if visible_ratings and not reviews_file:
+        reviews_file = 'reviews.csv'
 
     text_outputs = []
     chat_kwargs = []
@@ -147,6 +147,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                 height=kwargs['height'] or 400,
                                 min_width=min_width,
                                 avatar_images=avatar_images,
+                                likeable=True,
+                                layout='panel',
                                 show_copy_button=kwargs['show_copy_button'],
                                 visible=kwargs['model_lock'] and (visible_models is None or
                                                                   model_state_locki in visible_models or
@@ -214,12 +216,13 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         text_output2 = gr.Chatbot(label=output_label0_model2,
                                   visible=False and not kwargs['model_lock'],
                                   **no_model_lock_chat_kwargs,
-                                  likeable=True, )
+                                  likeable=True,
+                                  )
+
+    chatbots = [text_output, text_output2] + text_outputs
 
     with gr.Row(visible=visible_ratings):
         review_textbox = gr.Textbox(visible=True, label="Review", placeholder="Type your review...", scale=4)
-        rating_textbox = gr.Textbox(visible=False, label="Ratings",
-                                    placeholder="Please rate this response out of 10...", scale=1)
         rating_text_output = gr.Textbox(elem_id="text_output", visible=False)
         with gr.Column():
             with gr.Row():
@@ -352,6 +355,19 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
             rating5.click(ratingfn5, outputs=rating_text_output, js=review_js5)
 
             submit_review_btn = gr.Button("Submit Review", scale=1)
-            submit_review_btn.click(submit_review,
-                                    inputs=[review_textbox, rating_text_output, text_output, text_output2])
+            submit_review_func = functools.partial(submit_review, reviews_file=reviews_file,
+                                                   num_model_lock=len(chatbots))
+            submit_review_btn.click(submit_review_func,
+                                    inputs=[review_textbox, rating_text_output,
+                                            text_output, text_output2] + text_outputs,
+                                    outputs=review_textbox)
+
+    # set likeable method
+    def on_like(like_data: gr.LikeData):
+        submit_review(str(like_data.liked) + "," + str(like_data.target.label), *tuple([['', like_data.value], []]),
+                      reviews_file=reviews_file, num_model_lock=len(chatbots), do_info=False)
+
+    for chatbot in chatbots:
+        chatbot.like(on_like)
+
     return text_output, text_output2, text_outputs
