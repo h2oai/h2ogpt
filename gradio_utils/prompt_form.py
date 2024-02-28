@@ -147,7 +147,6 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                 min_width=min_width,
                                 avatar_images=avatar_images,
                                 likeable=True,
-                                layout='panel',
                                 show_copy_button=kwargs['show_copy_button'],
                                 visible=kwargs['model_lock'] and (visible_models is None or
                                                                   model_state_locki in visible_models or
