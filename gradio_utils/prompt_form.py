@@ -102,7 +102,8 @@ def ratingfn5():
 def submit_review(review_text, text_output, text_output2, *text_outputs1, reviews_file=None, num_model_lock=None,
                   do_info=True):
     if reviews_file is None:
-        gr.Info('No review file')
+        if do_info:
+            gr.Info('No review file')
         return ''
 
     chatbots = [text_output, text_output2] + list(text_outputs1)
@@ -122,9 +123,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     visible_models = kwargs['visible_models']
     all_models = kwargs['all_possible_visible_models']
     visible_ratings = kwargs['visible_ratings']
-    reviews_file = kwargs['reviews_file']
-    if visible_ratings and not reviews_file:
-        reviews_file = 'reviews.csv'
+    reviews_file = kwargs['reviews_file'] or 'reviews.csv'
 
     text_outputs = []
     chat_kwargs = []
@@ -355,7 +354,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
             rating5.click(ratingfn5, outputs=rating_text_output, js=review_js5)
 
             submit_review_btn = gr.Button("Submit Review", scale=1)
-            submit_review_func = functools.partial(submit_review, reviews_file=reviews_file,
+            submit_review_func = functools.partial(submit_review,
+                                                   reviews_file=reviews_file if reviews_file else None,
                                                    num_model_lock=len(chatbots))
             submit_review_btn.click(submit_review_func,
                                     inputs=[review_textbox, rating_text_output,
