@@ -41,7 +41,7 @@ limit_nofile = 131071
 limit_nproc = 16384
 
 
-def reulimit(pid=None):
+def reulimit(pid=None, verbose=False):
     from sys import platform
     if not (platform == "linux" or platform == "linux2"):
         return
@@ -52,7 +52,8 @@ def reulimit(pid=None):
     for k, v in zip(ulimits_dict.keys(), ulimits_dict.values()):
         if k[1] == psutil.RLIMIT_CORE:
             continue
-        print("rlimit %s of %s" % (str(k[0]), str(v[0])))
+        if verbose:
+            print("rlimit %s of %s" % (str(k[0]), str(v[0])))
         if isinstance(v, tuple) and len(v) == 2:
             newlimits = list(v)
             # set soft to hard limit
@@ -67,7 +68,8 @@ def reulimit(pid=None):
                     newlimits[0] = newlimits[1]
                 try:
                     ps.rlimit(k[1], limits=tuple(newlimits))
-                    print("Set rlimit %s of %s -> %s" % (str(k[0]), str(v[0]), str(newlimits[0])))
+                    if verbose:
+                        print("Set rlimit %s of %s -> %s" % (str(k[0]), str(v[0]), str(newlimits[0])))
                 except (TypeError, AttributeError, psutil.AccessDenied):
                     print("Could not set desired rlimit %s of %s -> %s" % (
                         str(k[0]), str(v[0]), str(newlimits[0])))
