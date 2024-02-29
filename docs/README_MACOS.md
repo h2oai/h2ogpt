@@ -122,3 +122,11 @@ and run `sh run.sh` from the terminal placed in the parent folder of `run.sh`
       ```
 
 * If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
+* If you see the error `TypeError: Trying to convert BFloat16 to the MPS backend but it does not have support for that dtype.`:
+  ```bash
+  pip install -U torch==2.3.0.dev20240229 --extra-index https://download.pytorch.org/whl/nightly/cpu --pre
+  pip install -U torchvision==0.18.0.dev20240229 --extra-index https://download.pytorch.org/whl/nightly/cpu --pre
+  ```
+  * Support for BFloat16 is added to MacOS from Sonama (14.0)
+  * Based on that a fix is added to torch with PR https://github.com/pytorch/pytorch/pull/119641 and it is still only available in nighlty. Expecting the feature with release `torch-2.3.0`
+  * **Note:** Updating torch to nighlty is experimental and it might break features in h2ogpt
