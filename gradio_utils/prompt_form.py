@@ -7,6 +7,8 @@ import datetime
 import filelock
 import gradio as gr
 
+from src.utils import is_gradio_version4
+
 
 def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=False):
     if not debug:
@@ -346,11 +348,18 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                 element.style.color = "#ffa41c"; 
             }
             """
-            rating1.click(ratingfn1, outputs=rating_text_output, js=review_js1)
-            rating2.click(ratingfn2, outputs=rating_text_output, js=review_js2)
-            rating3.click(ratingfn3, outputs=rating_text_output, js=review_js3)
-            rating4.click(ratingfn4, outputs=rating_text_output, js=review_js4)
-            rating5.click(ratingfn5, outputs=rating_text_output, js=review_js5)
+            if is_gradio_version4:
+                rating1.click(ratingfn1, outputs=rating_text_output, js=review_js1)
+                rating2.click(ratingfn2, outputs=rating_text_output, js=review_js2)
+                rating3.click(ratingfn3, outputs=rating_text_output, js=review_js3)
+                rating4.click(ratingfn4, outputs=rating_text_output, js=review_js4)
+                rating5.click(ratingfn5, outputs=rating_text_output, js=review_js5)
+            else:
+                rating1.click(ratingfn1, outputs=rating_text_output, _js=review_js1)
+                rating2.click(ratingfn2, outputs=rating_text_output, _js=review_js2)
+                rating3.click(ratingfn3, outputs=rating_text_output, _js=review_js3)
+                rating4.click(ratingfn4, outputs=rating_text_output, _js=review_js4)
+                rating5.click(ratingfn5, outputs=rating_text_output, _js=review_js5)
 
             submit_review_btn = gr.Button("Submit Review", scale=1)
             submit_review_func = functools.partial(submit_review,
