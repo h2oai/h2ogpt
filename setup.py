@@ -34,9 +34,6 @@ for req_file in req_files:
 
 dependency_links.append('https://download.pytorch.org/whl/cu118')
 
-# FLASH
-install_flashattention = parse_requirements('reqs_optional/requirements_optional_flashattention.txt')
-
 # FAISS_CPU
 install_faiss_cpu = parse_requirements('reqs_optional/requirements_optional_faiss_cpu.txt')
 
@@ -91,7 +88,6 @@ setuptools.setup(
     keywords=['LLM', 'AI'],
     install_requires=install_requires,
     extras_require={
-        'FLASH': install_flashattention,
         'FAISS_CPU': install_faiss_cpu,
         'FAISS': install_faiss,
         'TRAINING': install_extra_training,

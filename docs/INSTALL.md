@@ -106,21 +106,3 @@ tensorboard --logdir=runs/
 ```
 
 For more information, see [TensorBoard usage](https://github.com/tensorflow/tensorboard/blob/master/README.md#usage).
-
-### Flash Attention
-
-**Update:** Flash attention specifics are no longer needed. For more information, see https://github.com/h2oai/h2ogpt/issues/128.
-
-To use flash attention with LLaMa, need cuda 11.7 so flash attention module compiles against torch.
-
-E.g. for Ubuntu, one goes to [cuda toolkit](https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local), then:
-```bash
-wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda_11.7.0_515.43.04_linux.run
-sudo bash ./cuda_11.7.0_515.43.04_linux.run
-```
-Then No for symlink change, say continue (not abort), accept license, keep only toolkit selected, select install.
-
-If cuda 11.7 is not your base installation, then when doing pip install -r requirements.txt do instead:
-```bash
-CUDA_HOME=/usr/local/cuda-11.8 pip install -r reqs_optional/requirements_optional_flashattention.txt
-```
