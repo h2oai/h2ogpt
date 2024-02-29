@@ -64,6 +64,7 @@ def evaluate_marker(marker: str) -> bool:
         print(f"Error evaluating marker '{marker}': {e}")
         return False
 
+
 install_requires = parse_requirements('requirements.txt')
 
 req_files = [
@@ -100,7 +101,7 @@ with open(os.path.join(current_directory, 'version.txt'), encoding='utf-8') as f
     version = f.read().strip()
 
 # Data to include
-packages = [p + '/**' for p in find_packages(include='*',exclude=['tests'])]
+packages = [p + '/**' for p in find_packages(include='*', exclude=['tests'])]
 
 setuptools.setup(
     name='h2ogpt',
@@ -110,8 +111,8 @@ setuptools.setup(
     },
     package_data={
         'h2ogpt': list(set([
-            'spaces/**',
-        ] + packages)),
+                               'spaces/**',
+                           ] + packages)),
     },
     exclude_package_data={
         'h2ogpt': [
@@ -137,6 +138,7 @@ setuptools.setup(
         'FAISS': install_faiss,
         'TRAINING': install_extra_training,
         'WIKI_EXTRA': install_wiki_extra,
+        'local-inference': ['unstructured[local-inference]>=0.12.5,<0.13'],
     },
     classifiers=[],
     python_requires='>=3.10',

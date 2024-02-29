@@ -1,1 +1,4 @@
 #xformers==0.0.20
+# optional for finetune
+tensorboard>=2.13.0
+neptune>=1.2.0
