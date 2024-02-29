@@ -24,9 +24,8 @@ install_requires, dependency_links = parse_requirements('requirements.txt')
 req_files = [
     'reqs_optional/requirements_optional_langchain.txt',
     'reqs_optional/requirements_optional_gpt4all.txt',
-    'reqs_optional/requirements_optional_langchain.gpllike.txt'
+    'reqs_optional/requirements_optional_langchain.gpllike.txt',
     'reqs_optional/requirements_optional_agents.txt',
-    'reqs_optional/requirements_optional_doctr.txt',
     'reqs_optional/requirements_optional_langchain.urls.txt',
 ]
 
