@@ -19,7 +19,7 @@ pypdf>=3.17.1
 pypdfium2>=4.24.0
 
 # for HF embeddings
-sentence_transformers>=2.2.2
+sentence_transformers>=2.2.2,<2.3.0
 
 # optional: for OpenAI endpoint or embeddings (requires key)
 replicate==0.20.0

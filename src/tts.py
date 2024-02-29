@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
-import io
+from pkg_resources import resource_filename
+import os
 import time
 from io import BytesIO
 import numpy as np
@@ -14,11 +15,11 @@ from src.tts_sentence_parsing import init_sentence_state, get_sentence
 from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
 
 speaker_embeddings = {
-    "BDL": "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy",
-    "CLB": "spkemb/cmu_us_clb_arctic-wav-arctic_a0144.npy",
-    "KSP": "spkemb/cmu_us_ksp_arctic-wav-arctic_b0087.npy",
-    "RMS": "spkemb/cmu_us_rms_arctic-wav-arctic_b0353.npy",
-    "SLT": "spkemb/cmu_us_slt_arctic-wav-arctic_a0508.npy",
+    "BDL": resource_filename('h2ogpt', "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy"),
+    "CLB": resource_filename('h2ogpt', "spkemb/cmu_us_clb_arctic-wav-arctic_a0144.npy"),
+    "KSP": resource_filename('h2ogpt', "spkemb/cmu_us_ksp_arctic-wav-arctic_b0087.npy"),
+    "RMS": resource_filename('h2ogpt', "spkemb/cmu_us_rms_arctic-wav-arctic_b0353.npy"),
+    "SLT": resource_filename('h2ogpt', "spkemb/cmu_us_slt_arctic-wav-arctic_a0508.npy"),
 }
 
 

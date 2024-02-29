@@ -145,6 +145,19 @@ Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, St
   ```
 * [macOS Manual Install and Run Docs](docs/README_MACOS.md)
 
+### Building wheel for your platform
+
+```bash
+git clone https://github.com/h2oai/h2ogpt.git
+cd h2ogpt
+python setup.py bdist_wheel
+```
+Note that Coqui TTS is not installed due to issues with librosa.  Use one-click, docker, or manual install scripts to get Coqui TTS.
+Then that wheel can be installed in fresh env, and run like:
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m h2ogpt.generate --base_model=llama
+```
+
 ---
 
 #### Example Models

@@ -17,6 +17,9 @@ def parse_requirements(file_name: str) -> List[str]:
 
     requirements = []
     for line in lines:
+        if 'chromamigdb' in line:
+            # hnsw issue
+            continue
         # Separate and evaluate environment markers if present
         if ";" in line:
             line, marker = line.split(";", 1)
@@ -74,6 +77,8 @@ req_files = [
     'reqs_optional/requirements_optional_agents.txt',
     'reqs_optional/requirements_optional_langchain.urls.txt',
     'reqs_optional/requirements_optional_doctr.txt',
+    'reqs_optional/requirements_optional_audio.txt',
+    'reqs_optional/requirements_optional_image.txt',
 ]
 
 for req_file in req_files:
@@ -106,6 +111,13 @@ packages = find_packages(include=['h2ogpt', 'h2ogpt.*'], exclude=['tests'])
 setuptools.setup(
     name='h2ogpt',
     packages=packages,
+    package_data={
+        # If 'h2ogpt' is your package directory and 'spkemb' is directly inside it
+        'h2ogpt': ['spkemb/*.npy'],
+        # If 'spkemb' is inside 'src' which is inside 'h2ogpt'
+        # Adjust the string according to your actual package structure
+        'h2ogpt.src': ['spkemb/*.npy'],
+    },
     exclude_package_data={
         'h2ogpt': [
             '**/__pycache__/**',
