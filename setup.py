@@ -101,24 +101,14 @@ with open(os.path.join(current_directory, 'version.txt'), encoding='utf-8') as f
     version = f.read().strip()
 
 # Data to include
-packages = [p + '/**' for p in find_packages(include='*', exclude=['tests'])]
+packages = find_packages(include=['h2ogpt', 'h2ogpt.*'], exclude=['tests'])
 
 setuptools.setup(
     name='h2ogpt',
-    packages=['h2ogpt'],
-    package_dir={
-        'h2ogpt': '',
-    },
-    package_data={
-        'h2ogpt': list(set([
-                               'spaces/**',
-                           ] + packages)),
-    },
+    packages=packages,
     exclude_package_data={
         'h2ogpt': [
             '**/__pycache__/**',
-            'models/modelling_RW_falcon40b.py',
-            'models/modelling_RW_falcon7b.py',
             'models/README-template.md'
         ],
     },
