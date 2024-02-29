@@ -158,6 +158,7 @@ Install in fresh env, avoiding being inside h2ogpt directory or a directory wher
 ```bash
 pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl
 ```
+where `<h2ogpt_path>` is the relative path to the h2ogpt repo where the wheel was built.
 Then run, e.g.:
 ```bash
 CUDA_VISIBLE_DEVICES=0 python -m h2ogpt.generate --base_model=llama
