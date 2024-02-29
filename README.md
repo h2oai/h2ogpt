@@ -153,7 +153,12 @@ cd h2ogpt
 python setup.py bdist_wheel
 ```
 Note that Coqui TTS is not installed due to issues with librosa.  Use one-click, docker, or manual install scripts to get Coqui TTS.
-Then that wheel can be installed in fresh env, and run like:
+
+Install in fresh env, avoiding being inside h2ogpt directory or a directory where it is a sub directory:
+```bash
+pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl
+```
+Then run, e.g.:
 ```bash
 CUDA_VISIBLE_DEVICES=0 python -m h2ogpt.generate --base_model=llama
 ```
