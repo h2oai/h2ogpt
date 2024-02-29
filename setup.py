@@ -1,25 +1,70 @@
 import os
+import platform
 import re
+import sys
+
 import setuptools
 from typing import List
 from setuptools import find_packages
 
 
-def parse_requirements(file_name: str) -> tuple[List[str], List[str]]:
+def parse_requirements(file_name: str) -> List[str]:
     with open(file_name) as f:
-        required = f.read().splitlines()
-    required = [x for x in required if not x.strip().startswith("#")]
-    required = [x if 'git+http' not in x else re.search(r"/([^/]+?)\.git", x).group(1) + ' @ ' + x for x in required]
-    required = [x for x in required if x]
+        lines = f.read().splitlines()
 
-    # filter links
-    dependency_links = [x for x in required if x.startswith("https://") or x.startswith("http://")]
-    [required.remove(x) for x in dependency_links]
-    [required.append(os.path.basename(x).split("-")[0]) for x in dependency_links]
-    return required, dependency_links
+    # Filter out comments and empty lines
+    lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
+
+    requirements = []
+    for line in lines:
+        # Separate and evaluate environment markers if present
+        if ";" in line:
+            line, marker = line.split(";", 1)
+            include_req = evaluate_marker(marker.strip())
+            if not include_req:
+                continue  # Skip this requirement if the marker conditions are not met
+
+        # Handle Git URLs
+        if 'git+http' in line or 'git+https' in line:
+            pkg_name_match = re.search(r"/([^/]+?)\.git", line)
+            if pkg_name_match and '@' not in line:
+                pkg_name = pkg_name_match.group(1)
+                requirements.append(pkg_name + ' @ ' + line)
+            else:
+                requirements.append(line)
+        elif line.startswith("http://") or line.startswith("https://"):
+            # Directly append http(s) links, assuming they're already in PEP 508 format
+            requirements.append(line)
+        else:
+            # Regular PyPI packages
+            requirements.append(line)
+
+    return requirements
 
 
-install_requires, dependency_links = parse_requirements('requirements.txt')
+def evaluate_marker(marker: str) -> bool:
+    """Evaluate an environment marker. Return True if the marker conditions are met, else False."""
+    # This is a simplified evaluator and might need adjustment for complex markers
+    environment = {
+        'os_name': os.name,
+        'sys_platform': sys.platform,
+        'platform_system': platform.system(),
+        'platform_machine': platform.machine(),
+        'python_version': platform.python_version(),
+        'python_full_version': platform.python_version(),
+        'platform_python_implementation': platform.python_implementation(),
+        'implementation_name': platform.python_implementation().lower(),
+        'python_version_major': str(sys.version_info[0]),
+        'python_version_minor': str(sys.version_info[1]),
+        'python_version_patch': str(sys.version_info[2]),
+    }
+    try:
+        return eval(marker, environment)
+    except Exception as e:
+        print(f"Error evaluating marker '{marker}': {e}")
+        return False
+
+install_requires = parse_requirements('requirements.txt')
 
 req_files = [
     'reqs_optional/requirements_optional_langchain.txt',
@@ -27,14 +72,12 @@ req_files = [
     'reqs_optional/requirements_optional_langchain.gpllike.txt',
     'reqs_optional/requirements_optional_agents.txt',
     'reqs_optional/requirements_optional_langchain.urls.txt',
+    'reqs_optional/requirements_optional_doctr.txt',
 ]
 
 for req_file in req_files:
-    x, y = parse_requirements(req_file)
+    x = parse_requirements(req_file)
     install_requires.extend(x)
-    dependency_links.extend(y)
-
-dependency_links.append('https://download.pytorch.org/whl/cu118')
 
 # FAISS_CPU
 install_faiss_cpu = parse_requirements('reqs_optional/requirements_optional_faiss_cpu.txt')
@@ -95,7 +138,6 @@ setuptools.setup(
         'TRAINING': install_extra_training,
         'WIKI_EXTRA': install_wiki_extra,
     },
-    dependency_links=dependency_links,
     classifiers=[],
     python_requires='>=3.10',
     entry_points={
