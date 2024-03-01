@@ -20,52 +20,10 @@ def parse_requirements(file_name: str) -> List[str]:
         if 'chromamigdb' in line:
             # hnsw issue
             continue
-        # Separate and evaluate environment markers if present
-        if ";" in line:
-            line, marker = line.split(";", 1)
-            include_req = evaluate_marker(marker.strip())
-            if not include_req:
-                continue  # Skip this requirement if the marker conditions are not met
-
-        # Handle Git URLs
-        if 'git+http' in line or 'git+https' in line:
-            pkg_name_match = re.search(r"/([^/]+?)\.git", line)
-            if pkg_name_match and '@' not in line:
-                pkg_name = pkg_name_match.group(1)
-                requirements.append(pkg_name + ' @ ' + line)
-            else:
-                requirements.append(line)
-        elif line.startswith("http://") or line.startswith("https://"):
-            # Directly append http(s) links, assuming they're already in PEP 508 format
-            requirements.append(line)
-        else:
-            # Regular PyPI packages
-            requirements.append(line)
+        # assume all requirements files are in PEP 508 format with name @ <url> or name @ git+http/git+https
+        requirements.append(line)
 
     return requirements
-
-
-def evaluate_marker(marker: str) -> bool:
-    """Evaluate an environment marker. Return True if the marker conditions are met, else False."""
-    # This is a simplified evaluator and might need adjustment for complex markers
-    environment = {
-        'os_name': os.name,
-        'sys_platform': sys.platform,
-        'platform_system': platform.system(),
-        'platform_machine': platform.machine(),
-        'python_version': platform.python_version(),
-        'python_full_version': platform.python_version(),
-        'platform_python_implementation': platform.python_implementation(),
-        'implementation_name': platform.python_implementation().lower(),
-        'python_version_major': str(sys.version_info[0]),
-        'python_version_minor': str(sys.version_info[1]),
-        'python_version_patch': str(sys.version_info[2]),
-    }
-    try:
-        return eval(marker, environment)
-    except Exception as e:
-        print(f"Error evaluating marker '{marker}': {e}")
-        return False
 
 
 install_requires = parse_requirements('requirements.txt')

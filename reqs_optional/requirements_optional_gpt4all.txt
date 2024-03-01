@@ -7,31 +7,31 @@ llama-cpp-python==0.2.26; platform_system != "Linux" and platform_machine != "x8
 
 # LINUX
 # Linux CUDA 11.8:
-# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-manylinux_2_31_x86_64.whl ; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CUDA 12.1:
-llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121-cp310-cp310-manylinux_2_31_x86_64.whl ; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CPU avx2 or AMD:
-llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-manylinux_2_31_x86_64.whl ; platform_system == "Linux" and platform_machine == "x86_64"
 # Linux CPU avx
-# llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+# llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx-cp310-cp310-manylinux_2_31_x86_64.whl ; platform_system == "Linux" and platform_machine == "x86_64"
 # AMC ROC:
-# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/rocm/llama_cpp_python_cuda-0.2.26+rocm5.5-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
-# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/rocm/llama_cpp_python_cuda-0.2.26+rocm5.6.1-cp310-cp310-manylinux_2_31_x86_64.whl; platform_system == "Linux" and platform_machine == "x86_64"
+# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/rocm/llama_cpp_python_cuda-0.2.26+rocm5.5-cp310-cp310-manylinux_2_31_x86_64.whl ; platform_system == "Linux" and platform_machine == "x86_64"
+# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/rocm/llama_cpp_python_cuda-0.2.26+rocm5.6.1-cp310-cp310-manylinux_2_31_x86_64.whl ; platform_system == "Linux" and platform_machine == "x86_64"
 
 # WINDOWS (try no avx if any exceptions hit in llama.cpp)
 # Windows CUDA 11.8 avx:
-# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118avx-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118avx-cp310-cp310-win_amd64.whl ; platform_system == "Windows"
 # Windows CUDA 12.1 avx:
-llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121avx-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121avx-cp310-cp310-win_amd64.whl ; platform_system == "Windows"
 # Windows CUDA 11.8 no avx
-# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu118-cp310-cp310-win_amd64.whl ; platform_system == "Windows"
 # Windows CUDA 12.1 no avx
-# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+# llama_cpp_python_cuda @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/textgen-webui/llama_cpp_python_cuda-0.2.26+cu121-cp310-cp310-win_amd64.whl ; platform_system == "Windows"
 # Windows CPU AVX2
-llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-win_amd64.whl; platform_system == "Windows"
+llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/cpu/llama_cpp_python-0.2.26+cpuavx2-cp310-cp310-win_amd64.whl ; platform_system == "Windows"
 # No AMD ROC Windows yet for 0.2.26
 
 # MAC Intel:
-llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.26-cp310-cp310-macosx_12_0_x86_64.whl; platform_system == "Darwin" and platform_release >= "21.0.0" and platform_release < "22.0.0" and platform_machine != "arm64"
+llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.26-cp310-cp310-macosx_12_0_x86_64.whl ; platform_system == "Darwin" and platform_release >= "21.0.0" and platform_release < "22.0.0" and platform_machine != "arm64"
 # MAC Silicon
-llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.26-cp310-cp310-macosx_12_0_arm64.whl; platform_system == "Darwin" and platform_release >= "21.0.0" and platform_release < "22.0.0" and platform_machine == "arm64"
+llama_cpp_python @ https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.26-cp310-cp310-macosx_12_0_arm64.whl ; platform_system == "Darwin" and platform_release >= "21.0.0" and platform_release < "22.0.0" and platform_machine == "arm64"
