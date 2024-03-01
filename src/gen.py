@@ -298,6 +298,8 @@ def main(
         enforce_h2ogpt_ui_key: bool = None,
         h2ogpt_api_keys: Union[list, str] = [],
         h2ogpt_key: str = None,
+        extra_allowed_paths: list = [],
+        blocked_paths: list = [],
 
         max_max_time=None,
         max_max_new_tokens=None,
@@ -823,6 +825,9 @@ def main(
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
     :param h2ogpt_key: E.g. can be set when accessing gradio h2oGPT server from local gradio h2oGPT server that acts as client to that inference server
                        Only applied for API at runtime when API accesses using gradio inference_server are made
+    :param extra_allowed_paths: List of strings for extra allowed paths users could access for file viewing/downloading.  '.' can be used but be careful what that exposes.
+           Note by default all paths in langchain_mode_paths given at startup are allowed
+    :param blocked_paths: Any blocked paths to add for gradio access for file viewing/downloading.
 
     :param max_max_time: Maximum max_time for gradio slider
     :param max_max_new_tokens: Maximum max_new_tokens for gradio slider
@@ -1341,6 +1346,8 @@ def main(
             enforce_h2ogpt_api_key = False
     if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
         h2ogpt_api_keys = str_to_list(h2ogpt_api_keys)
+    if isinstance(extra_allowed_paths, str):
+        extra_allowed_paths = str_to_list(extra_allowed_paths)
     if memory_restriction_level is None:
         memory_restriction_level = 2 if is_hf else 0  # 2 assumes run on 24GB consumer GPU
     else:

@@ -2,7 +2,7 @@
 
 ### Deploying like gpt.h2o.ai
 
-As of March 1, 2024, https://gpt.h2o.ai uses nginx proxy on some private system and run with these two scripts (with host IPs/ports redacated), with `restart_any_163.sh`:
+As of March 1, 2024, https://gpt.h2o.ai uses nginx proxy on some private system (`xxx.xxx.xxx.144` IP below), and run with these two scripts (with host IPs/ports redacated), with `restart_any_163.sh`:
 ```bash
 pkill -f "$SAVE_DIR" --signal 15
 pkill -f "$SAVE_DIR" --signal 9
@@ -400,7 +400,7 @@ docker run -d \
     -p 5014:5014 \
     --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
-    -e HUGGING_FACE_HUB_TOKEN=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 \
+    -e HUGGING_FACE_HUB_TOKEN=aaa \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \

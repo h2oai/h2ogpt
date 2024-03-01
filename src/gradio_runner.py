@@ -6144,9 +6144,9 @@ def go_gradio(**kwargs):
 
     # NOTE: Dynamically added paths won't work unless relative to root and not public
     allowed_paths = []
-    if not is_public:
-        allowed_paths += [os.path.abspath('.')]
     allowed_paths += [os.path.abspath(v) for k, v in kwargs['langchain_mode_paths'].items() if v]
+    allowed_paths += [os.path.abspath(x) for x in kwargs['extra_allowed_paths']]
+    blocked_paths = [os.path.abspath(x) for x in kwargs['blocked_paths']]
 
     demo.launch(share=kwargs['share'],
                 server_name=kwargs['server_name'],
@@ -6164,6 +6164,7 @@ def go_gradio(**kwargs):
                 max_threads=max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
                                                                                     int) else 128,
                 allowed_paths=allowed_paths if allowed_paths else None,
+                blocked_paths=blocked_paths if blocked_paths else None,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
