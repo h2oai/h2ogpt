@@ -1,4 +1,4 @@
-# ensure doesn't drift, e.g. https://github.com/h2oai/h2ogpt/issues/1348
+# ensure doesn't drift, e.g. Issue #1348
 torch==2.1.2
 gradio==4.19.2
 gradio_client==0.10.1

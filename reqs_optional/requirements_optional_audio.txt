@@ -5,11 +5,11 @@ yt_dlp>=2023.10.13
 wavio>=0.0.8
 # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
 # pyrubberband>=0.3.0
-# https://stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
+# stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
 # pip uninstall -y pysoundfile soundfile
 soundfile==0.12.1
 # Optional: Only for testing for now
-# playsound==1.3.0 -c reqs_optional/reqs_constraints.txt
+# playsound==1.3.0
 # STT from microphone (may not be required if ffmpeg installed above)
 # for any TTS:
 torchaudio
@@ -31,12 +31,4 @@ g2pkk>=0.1.2
 jamo>=0.4.1
 gruut[de,es,fr]>=2.2.3
 jieba>=0.42.1
-# For faster whisper:
-# git+https://github.com/SYSTRAN/faster-whisper.git -c reqs_optional/reqs_constraints.txt
-# needed for librosa/soundfile to work, but violates TTS, but that's probably just too strict as we have seen before)
-# numpy==1.23.0 --no-deps --upgrade -c reqs_optional/reqs_constraints.txt
-# TTS or other deps load old librosa, fix:
 # librosa==0.10.1
-#* STT and TTS Notes:
-#  * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
-#  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.

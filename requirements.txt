@@ -21,7 +21,7 @@ scikit-learn==1.2.2
 # alt-profanity-check==1.2.2
 # better-profanity==0.7.0
 numpy>=1.23.4,<2.0
-pandas==2.0.2,<2.1.0
+pandas==2.0.2
 matplotlib>=3.7.1
 loralib>=0.1.1
 bitsandbytes>=0.41.0
