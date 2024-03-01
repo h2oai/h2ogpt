@@ -1,5 +1,490 @@
 ## Frequently asked questions
 
+### Deploying like gpt.h2o.ai
+
+As of March 1, 2024, https://gpt.h2o.ai uses nginx proxy on some private system and run with these two scripts (with host IPs/ports redacated), with `restart_any_163.sh`:
+```bash
+pkill -f "$SAVE_DIR" --signal 15
+pkill -f "$SAVE_DIR" --signal 9
+sleep 5
+pkill -f "$SAVE_DIR" --signal 15
+pkill -f "$SAVE_DIR" --signal 9
+sleep 5
+
+
+export MODEL=h2oai/h2ogpt-4096-llama2-70b-chat
+export MODEL_NAME=`echo $MODEL | sed 's@/@_@g'`
+export MODEL_LOCK="["
+export MODEL_LOCK=$MODEL_LOCK"{'inference_server':'vllm:xxx.xxx.xxx.12:5000', 'base_model':'$MODEL'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'http://xxx.xxx.xxx.28:5002', 'base_model':'mistralai/Mixtral-8x7B-Instruct-v0.1', 'max_seq_len': 31744}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.12:5002', 'base_model':'HuggingFaceH4/zephyr-7b-beta', 'max_seq_len': 4096}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'openai_azure_chat:deployment_name:endpoint.openai.azure.com/:None:apikey', 'base_model':'gpt-3.5-turbo-0613'}"
+
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.28:5005', 'base_model':'openchat/openchat-3.5-1210'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.12:5004', 'base_model':'mistralai/Mistral-7B-Instruct-v0.2'}"
+
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server': 'vllm:xxx.xxx.xxx.12:5003', 'base_model': 'h2oai/h2ogpt-32k-codellama-34b-instruct'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.22:5000', 'base_model':'NousResearch/Nous-Capybara-34B'}"
+
+if [ "$visionmodels" -eq "1" ]
+then
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'plain'}"
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'plain'}"
+fi
+
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.199:5014', 'base_model':'h2oai/h2o-danube-1.8b-chat', 'prompt_type': 'danube'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.144:5016', 'base_model':'google/gemma-7b-it', 'prompt_type':'gemma'}"
+
+export MODEL_LOCK=$MODEL_LOCK"]"
+echo $MODEL_LOCK
+
+export vis="['h2oai/h2ogpt-4096-llama2-70b-chat','mistralai/Mixtral-8x7B-Instruct-v0.1','HuggingFaceH4/zephyr-7b-beta','gpt-3.5-turbo-0613']"
+python generate.py --save_dir=$SAVE_DIR --model_lock="$MODEL_LOCK" \
+                   --hf_embedding_model=$hf_embedding_model --cut_distance=$cut_distance \
+                   --pre_load_embedding_model=True --pre_load_image_audio_models=True \
+                   --caption_gpu_id=$caption_gpu_id --doctr_gpu_id=$doctr_gpu_id \
+                   --embedding_gpu_id=$embedding_gpu_id --asr_gpu_id=$asr_gpu_id \
+                   --asr_model=$asr_model \
+		   --tts_model=$tts_model \
+		   --enable_stt=True \
+		   --enable_tts=True \
+		   --openai_server=$openai_server \
+		   --openai_port=$openai_port \
+                   --imagegen_gpu_id=$imagegen_gpu_id \
+		   --enable_imagegen=$enable_imagegen --enable_imagegen_high=$enable_imagegen_high --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
+		   --llava_model=$llava_model \
+                   --model_lock_columns=$model_lock_columns \
+		   --auth_filename=$auth_filename --auth_access=open --guest_name=guest --auth=$auth_filename \
+		   --gradio_size=small --height=400 \
+		               --top_k_docs=$top_k_docs --visible_models="$vis" \
+			       --score_model=None \
+			       --verbose=True \
+                   --share=False --enforce_h2ogpt_api_key=True --enforce_h2ogpt_ui_key=$enforce_h2ogpt_ui_key \
+                   --max_max_new_tokens=$max_max_new_tokens --max_new_tokens=$max_new_tokens \
+                   --max_input_tokens=$max_input_tokens --max_total_input_tokens=$max_total_input_tokens \
+                   --heap_app_id=1090178399 &>> logs.$SAVE_DIR.gradio_chat.txt &
+
+sleep 5
+
+echo "done inner $SAVE_DIR"
+```
+where the deployment_name, endpoint, and api_key for OpenAI Azure have been redacted.
+
+The script to run is `restart_163.sh` with:
+```bash
+# run as: (nohup bash ./restart_163.sh &> runrestart_163.txt &)
+
+export SAVE_DIR=saveall_gpt
+export GRADIO_SERVER_PORT=xxxxx
+export CUDA_VISIBLE_DEVICES=0,1  # public GPU
+export embedding_gpu_id=0
+export caption_gpu_id=1
+export doctr_gpu_id=0
+export asr_gpu_id=1
+export model_lock_columns=2
+export othermore=0
+export gptmore=0
+export visionmodels=1
+export enforce_h2ogpt_ui_key=False
+export top_k_docs=10
+export asr_model="distil-whisper/distil-large-v2"   #"openai/whisper-large-v3"
+export tts_model='microsoft/speecht5_tts'
+#export tts_model=''
+export max_max_new_tokens=8192
+export max_new_tokens=2048
+export enable_imagegen=False
+export enable_imagegen_high=False
+export gradio_upload_to_chatbot=False
+export openai_server=True
+export openai_port=5000
+export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
+#export hf_embedding_model=tei:http://localhost:5555
+export hf_embedding_model=hkunlp/instructor-large
+export cut_distance=1.64
+export auth_filename=all_auth.json
+export max_input_tokens=8192
+export max_total_input_tokens=16384
+
+source gr_exports.sh
+
+bash ./restart_any_163.sh
+
+sleep 5
+
+ngrok http --domain=gpt.h2o.ai $GRADIO_SERVER_PORT &
+
+echo "done $SAVE_DIR"
+```
+and the gradio port is redacted as xxxxx.
+
+The file `gr_exports.sh` contains any required envs for API keys or h2oGPT envs with keys if required, e.g. `gr_exports.sh` can contain:
+```bash
+export GPT_H2O_AI=1
+export ADMIN_PASS=<fill me>
+export CONCURRENCY_COUNT=100
+export ALLOW_API=1
+export HUGGING_FACE_HUB_TOKEN=<fill me>  # for Gemma for example
+export H2OGPT_H2OGPT_API_KEYS="/secret_location/h2ogpt_api_keys.json"  # add file and fill in as described in docs
+export SERPAPI_API_KEY=<fill me>
+ulimit -n 1048576
+
+export H2OGPT_LLAVA_MODEL=http://xxx.xxx.xxx.144:7860/
+```
+Be careful with gradio and secret files.  h2oGPT sets `allowed_paths` to include `.`, unless public instance when `GPT_H2O_AI=1` is set.  So if you put your key file in `.` and didn't set to be public instance, it'll be possible to access your key file even if have a soft link to secret location.
+
+Then running:
+```
+(nohup bash ./restart_163.sh &> runrestart_163.txt &)
+```
+
+An alternate setup with more open permissions is:
+```bash
+# run as: (nohup bash ./restart_163.sh &> runrestart_163.txt &)
+
+export SAVE_DIR=saveall_gpt
+export GRADIO_SERVER_PORT=yyyyyy
+export CUDA_VISIBLE_DEVICES=0,1  # public GPU
+export embedding_gpu_id=0
+export caption_gpu_id=1
+export doctr_gpu_id=1
+export asr_gpu_id=1
+export imagegen_gpu_id=1
+export model_lock_columns=2
+export othermore=1
+export gptmore=0
+export visionmodels=1
+export enforce_h2ogpt_ui_key=False
+export top_k_docs=-1
+#export asr_model="distil-whisper/distil-large-v2" #"openai/whisper-large-v3"
+export asr_model="openai/whisper-large-v3"
+export tts_model="tts_models/multilingual/multi-dataset/xtts_v2"
+export max_max_new_tokens=8192
+export max_new_tokens=2048
+export enable_imagegen=True
+export enable_imagegen_high=True
+export gradio_upload_to_chatbot=True
+export openai_server=True
+export openai_port=5001
+export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
+export hf_embedding_model=tei:http://localhost:5555
+export cut_distance=10000
+export H2OGPT_SERVER_NAME=0.0.0.0
+export auth_filename=all_alt_auth.json  # different auth
+export USERS_BASE_DIR=gpt_user_base_dir  # different base
+export max_input_tokens=None
+export max_total_input_tokens=None
+
+source gr_exports.sh
+unset GPT_H2O_AI  # avoids "public" mode
+
+bash ./restart_any_163.sh
+
+sleep 5
+
+ngrok http --domain=gpt.h2o.ai $GRADIO_SERVER_PORT &
+
+echo "done $SAVE_DIR"
+```
+where the gradio port is redacted as yyyyyy.  Same script renamed can be used on same system as original script if port is different.
+
+The vLLMs/TGIs are started with these options on various machines.
+
+For 8*A100 80GB, `go_VLLM.12.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=0,1,2,3"' \
+    --shm-size=10.24gb \
+    -p 5000:5000 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-70b-chat \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --tensor-parallel-size=4 \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 8192 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.70.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=4"' \
+    --shm-size=10.24gb \
+    -p 5002:5002 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0-180 -m vllm.entrypoints.openai.api_server \
+        --port=5002 \
+        --host=0.0.0.0 \
+        --model=HuggingFaceH4/zephyr-7b-beta \
+        --tensor-parallel-size=1 \
+        --seed 1234 \
+        --trust-remote-code \
+        --gpu-memory-utilization 0.4 \
+        --max-model-len 4096 \
+	--max-num-batched-tokens 32768 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.zephyrbeta.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=4"' \
+    --shm-size=10.24gb \
+    -p 5001:5001 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5001 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-13b-chat \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 8192 \
+	--gpu-memory-utilization 0.8 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.13.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=5,6"' \
+    --shm-size=10.24gb \
+    -p 5003:5003 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5003 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-32k-codellama-34b-instruct \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --seed 1234 \
+        --tensor-parallel-size=2 \
+        --trust-remote-code \
+	--max-num-batched-tokens 32768 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.code32k.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=7"' \
+    --shm-size=10.24gb \
+    -p 5004:5004 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5004 \
+        --host=0.0.0.0 \
+        --model=mistralai/Mistral-7B-Instruct-v0.2 \
+        --tensor-parallel-size=1 \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 131072 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.Mistral-7B-Instruct-v0.2.txt
+```
+and run `bash ./go_VLLM.12.sh` on that machine.
+
+On another 4*A100 80GB, `go_VLLM.28.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+# TGI
+docker run -d --gpus '"device=0,1"' --shm-size 12g -v $HOME/.cache/huggingface/hub/:/data -p 5002:80 ghcr.io/huggingface/text-generation-inference:1.3 --model-id mistralai/Mixtral-8x7B-Instruct-v0.1 --trust-remote-code --max-stop-sequences=6 --max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 --max-batch-total-tokens 131072 --sharded true --num-shard 2
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=3"' \
+    --shm-size=10.24gb \
+    -p 5001:5001 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5001 \
+        --host=0.0.0.0 \
+        --model=Nexusflow/NexusRaven-V2-13B \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 65536 \
+	--max-model-len=16384 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.func13b.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=2"' \
+    --shm-size=10.24gb \
+    -p 5005:5005 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5005 \
+        --host=0.0.0.0 \
+        --model=openchat/openchat-3.5-1210 \
+        --seed 1234 \
+        --trust-remote-code \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.openchat.txt
+```
+and run `bash ./go_VLLM.28.sh`.
+
+For another 4*A100 80GB, `go_VLLM.22.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=0,1,2,3"' \
+    --shm-size=10.24gb \
+    -p 5000:5000 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model=NousResearch/Nous-Capybara-34B \
+        --seed 1234 \
+        --tensor-parallel-size=4 \
+        --trust-remote-code \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.nous200k.txt
+```
+and run `bash ./go_VLLM.22.sh`
+
+For another 1*A100 80GB, `go_VLLM.144.sh` has:
+```bash
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=2"' \
+    --shm-size=10.24gb \
+    -p 5014:5014 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=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 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5016 \
+        --host=0.0.0.0 \
+        --model=google/gemma-7b-it \
+        --seed 1234 \
+        --trust-remote-code \
+        --tensor-parallel-size=1 \
+        --max-num-batched-tokens 8192 \
+        --dtype auto \
+        --gpu-memory-utilization 0.95 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.gemma.txt
+```
+and run `bash ./go_VLLM.144.sh`.
+
+For another 2*A10G, `go_VLLM.199.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=2,3"' \
+    --shm-size=10.24gb \
+    -p 5014:5014 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5014 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2o-danube-1.8b-chat \
+        --seed 1234 \
+        --trust-remote-code \
+        --tensor-parallel-size=2 \
+        --max-num-batched-tokens 16384 \
+        --dtype auto \
+        --gpu-memory-utilization 0.95 \
+        --dtype=half \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.danube.txt
+```
+and run `bash ./go_VLLM.199.sh`.
+
+The vision models are launched have their own python env as described in this FAQ, and launched as with `gollava.sh`:
+```bash
+# (nohup bash ./gollava.sh &> gollava.log &)
+
+export server_port=10000
+
+if [ 1 -eq 1 ]
+   then
+python -m llava.serve.controller --host 0.0.0.0 --port $server_port &> 1.log &
+fi
+
+if [ 1 -eq 1 ]
+   then
+export CUDA_VISIBLE_DEVICES=1
+export worker_port=40000
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-vicuna-13b &> 2.log &
+fi
+
+if [ 1 -eq 1 ]
+   then
+export CUDA_VISIBLE_DEVICES=3
+export worker_port=40002
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-34b &>> 34b.log &
+fi
+
+sleep 30
+if [ 1 -eq 1 ]
+   then
+python -m llava.serve.gradio_web_server --controller http://xxx.xxx.xxx.144:$server_port --model-list-mode once &>> 3b2.log &
+fi
+```
+where `xxx.xxx.xxx.144` should be actual remotely visible IP so llava can be reached outside the system, or can be 127.0.0.1 if only local gradio is reaching.  The local gradio model lock points to 127.0.0.1 as sufficient since we run gradio and llava on same system.  One runs by running `(nohup bash ./gollava.sh &> gollava.log &)` in that llava python env.  The conditionals are because has happened that the disk goes OOM, and gradio for llava needs restarting even if rest are fine.
+
 ### Google Gemma
 
 ```bash
