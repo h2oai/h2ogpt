@@ -13,7 +13,7 @@ Install in fresh env, avoiding being inside h2ogpt directory or a directory wher
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
-pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl[gpu]
+pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl[cuda]
 pip install flash-attn==2.4.2
 ```
 and pick your CUDA version, where `<h2ogpt_path>` is the relative path to the h2ogpt repo where the wheel was built. Replace `0.1.0` with actual version built if more than one.

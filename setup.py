@@ -43,11 +43,11 @@ for req_file in req_files:
     x = parse_requirements(req_file)
     install_requires.extend(x)
 
-# FAISS_CPU
+# faiss on cpu etc.
 install_cpu = parse_requirements('reqs_optional/requirements_optional_cpu_only.txt')
 
-# FAISS
-install_gpu = parse_requirements('reqs_optional/requirements_optional_gpu_only.txt')
+# faiss on gpu etc.
+install_cuda = parse_requirements('reqs_optional/requirements_optional_gpu_only.txt')
 
 # TRAINING
 install_extra_training = parse_requirements('reqs_optional/requirements_optional_training.txt')
@@ -95,7 +95,7 @@ setuptools.setup(
     install_requires=install_requires,
     extras_require={
         'cpu': install_cpu,
-        'gpu': install_gpu,
+        'cuda': install_cuda,
         'TRAINING': install_extra_training,
         'WIKI_EXTRA': install_wiki_extra,
         'local-inference': ['unstructured[local-inference]>=0.12.5,<0.13'],
