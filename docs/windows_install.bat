@@ -24,7 +24,7 @@ IF "%GPLOK%"=="1" (
     CALL pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
 )
 REM # Optional: FAISS (for AutoGPT agent)
-CALL pip install -r reqs_optional/requirements_optional_faiss_cpu.txt -c reqs_optional/reqs_constraints.txt
+CALL pip install -r reqs_optional/requirements_optional_cpu_only.txt -c reqs_optional/reqs_constraints.txt
 REM     # Optional: Selenium/PlayWright:
 CALL pip install -r reqs_optional/requirements_optional_langchain.urls.txt -c reqs_optional/reqs_constraints.txt
 REM  # Optional: for supporting unstructured package

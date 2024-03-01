@@ -44,10 +44,10 @@ for req_file in req_files:
     install_requires.extend(x)
 
 # FAISS_CPU
-install_faiss_cpu = parse_requirements('reqs_optional/requirements_optional_faiss_cpu.txt')
+install_cpu = parse_requirements('reqs_optional/requirements_optional_cpu_only.txt')
 
 # FAISS
-install_faiss = parse_requirements('reqs_optional/requirements_optional_faiss.txt')
+install_gpu = parse_requirements('reqs_optional/requirements_optional_gpu_only.txt')
 
 # TRAINING
 install_extra_training = parse_requirements('reqs_optional/requirements_optional_training.txt')
@@ -94,8 +94,8 @@ setuptools.setup(
     keywords=['LLM', 'AI'],
     install_requires=install_requires,
     extras_require={
-        'FAISS_CPU': install_faiss_cpu,
-        'FAISS': install_faiss,
+        'cpu': install_cpu,
+        'gpu': install_gpu,
         'TRAINING': install_extra_training,
         'WIKI_EXTRA': install_wiki_extra,
         'local-inference': ['unstructured[local-inference]>=0.12.5,<0.13'],

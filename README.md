@@ -145,25 +145,6 @@ Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, St
   ```
 * [macOS Manual Install and Run Docs](docs/README_MACOS.md)
 
-### Building wheel for your platform
-
-```bash
-git clone https://github.com/h2oai/h2ogpt.git
-cd h2ogpt
-python setup.py bdist_wheel
-```
-Note that Coqui TTS is not installed due to issues with librosa.  Use one-click, docker, or manual install scripts to get Coqui TTS.
-
-Install in fresh env, avoiding being inside h2ogpt directory or a directory where it is a sub directory:
-```bash
-pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl
-```
-where `<h2ogpt_path>` is the relative path to the h2ogpt repo where the wheel was built.
-Then run, e.g.:
-```bash
-CUDA_VISIBLE_DEVICES=0 python -m h2ogpt.generate --base_model=llama
-```
-
 ---
 
 #### Example Models
@@ -224,7 +205,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [Gradio UI](docs/README_ui.md)
    * [Client API (Gradio, OpenAI-Compliant)](docs/README_CLIENT.md)
    * [Inference Servers (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)](docs/README_InferenceServers.md)
-   * [Python Wheel](docs/README_WHEEL.md)
+   * [Build Python Wheel](docs/README_WHEEL.md)
    * [Offline Installation](docs/README_offline.md)
    * [Low Memory](docs/FAQ.md#low-memory-mode)
    * [Docker](docs/README_DOCKER.md)
