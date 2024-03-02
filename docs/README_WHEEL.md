@@ -33,6 +33,23 @@ and you should see:
 No broken requirements found.
 ```
 
+## PyPI
+
+For PyPI, we use a more limited set of packages built like:
+```bash
+PYPI=1 python setup.py bdist_wheel
+```
+which can be installed with CUDA support like:
+```bash
+# For other GPUs etc. see: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
+# below [cuda] assumes CUDA 12.1 for some packages like AutoAWQ etc.
+pip install h2ogpt[cuda]
+pip install flash-attn==2.4.2
+```
+
 ## Run
 
 To run h2oGPT, do, e.g.
