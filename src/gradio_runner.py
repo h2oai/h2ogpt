@@ -416,7 +416,8 @@ def go_gradio(**kwargs):
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
     task_info_md = ''
-    css_code = get_css(kwargs)
+    css_code = get_css(kwargs, select_string='\"Select_%s\"' % kwargs['max_visible_models'] if kwargs[
+        'max_visible_models'] else '\"Select_Any\"')
 
     if kwargs['gradio_offline_level'] >= 0:
         # avoid GoogleFont that pulls from internet
@@ -1250,7 +1251,7 @@ def go_gradio(**kwargs):
                                                              interactive=True,
                                                              multiselect=True,
                                                              visible=visible_model_choice,
-                                                             elem_id="multi-selection" if kwargs[
+                                                             elem_id="multi-selection-models" if kwargs[
                                                                                               'max_visible_models'] is None or is_gradio_h2oai else None,
                                                              filterable=False,
                                                              max_choices=kwargs['max_visible_models'],
@@ -2310,7 +2311,7 @@ def go_gradio(**kwargs):
                     num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
                     # WIP
-                    #if kwargs['auth'] and is_gradio_h2oai:
+                    # if kwargs['auth'] and is_gradio_h2oai:
                     #    gr.Button("Logout", link="/logout")
                     if kwargs['enforce_h2ogpt_api_key'] and kwargs['enforce_h2ogpt_ui_key']:
                         label_h2ogpt_key = "h2oGPT Token for API and UI access"
