@@ -37,6 +37,10 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
+from src.utils_procs import reulimit
+
+reulimit()
+
 
 def H2O_Fire(component=None):
     config_prefix = "H2OGPT_"
@@ -1445,12 +1449,6 @@ def set_openai(inference_server, model_name=None):
         client_args = dict(base_url=api_base, api_key=api_key)
         client = OpenAI(**client_args)
         async_client = AsyncOpenAI(**client_args)
-        if inf_type in ['vllm_chat']:
-            client = client.chat.completions
-            async_client = async_client.chat.completions
-        else:
-            client = client.completions
-            async_client = async_client.completions
 
         return client, async_client, inf_type, None, api_base, None, api_key
     else:
@@ -1508,12 +1506,6 @@ def set_openai(inference_server, model_name=None):
             client_args = dict(base_url=base_url, api_key=api_key)
             client = OpenAI(**client_args)
             async_client = AsyncOpenAI(**client_args)
-        if inf_type in ['openai_chat', 'openai_azure_chat']:
-            client = client.chat.completions
-            async_client = async_client.chat.completions
-        else:
-            client = client.completions
-            async_client = async_client.completions
 
         return client, async_client, inf_type, deployment_type, base_url, api_version, api_key
 
@@ -2008,3 +2000,23 @@ def create_relative_symlink(target, link_name):
     # Create the symlink
     os.symlink(relative_path, link_name)
     print(f"Symlink created: {link_name} -> {relative_path}")
+
+
+def get_gradio_tmp():
+    gradio_tmp = '/tmp/gradio'
+    makedirs(gradio_tmp, exist_ok=True)  # won't hurt if soft link if exists
+    gradio_tmp = os.path.realpath(gradio_tmp)
+    return gradio_tmp
+
+
+def get_is_gradio_h2oai():
+    try:
+        import gradio as gr
+        return gr.__h2oai__
+    except:
+        return False
+
+
+def split_list(input_list, split_size):
+    for i in range(0, len(input_list), split_size):
+        yield input_list[i:i + split_size]

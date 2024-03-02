@@ -34,7 +34,7 @@ def count_tokens(x, encoding_name="cl100k_base"):
         return 0
 
 
-def get_gradio_client():
+def get_gradio_client(user=None):
     try:
         from gradio_utils.grclient import GradioClient as Client
         concurrent_client = True
@@ -47,24 +47,60 @@ def get_gradio_client():
     gradio_host = os.getenv('GRADIO_SERVER_HOST', 'localhost')
     gradio_port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     gradio_url = f'{gradio_prefix}://{gradio_host}:{gradio_port}'
-    print("Getting gradio client at %s" % gradio_url, flush=True)
-    client = Client(gradio_url)
-    if concurrent_client:
-        client.setup()
+
+    auth = os.environ.get('GRADIO_AUTH', 'None')
+    auth_access = os.environ.get('GRADIO_AUTH_ACCESS', 'open')
+    guest_name = os.environ.get('GRADIO_GUEST_NAME', '')
+    if auth != 'None':
+        if user:
+            user_split = user.split(':')
+            assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
+            auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
+        elif guest_name:
+            auth_kwargs = dict(auth=(guest_name, guest_name))
+        elif auth_access == 'open':
+            auth_kwargs = dict(auth=(str(uuid.uuid4()), str(uuid.uuid4())))
+        else:
+            auth_kwargs = None
+    else:
+        auth_kwargs = dict()
+    print("OpenAI user: %s" % auth_kwargs, flush=True)
+
+    if auth_kwargs is not None:
+        print("Getting gradio client at %s" % gradio_url, flush=True)
+        client = Client(gradio_url, **auth_kwargs)
+        if concurrent_client:
+            client.setup()
+    else:
+        print("Can't get gradio client at %s yet, no auth" % gradio_url, flush=True)
+        client = None
     return client
 
 
 gradio_client = get_gradio_client()
 
 
-def get_client():
+def get_client(user=None):
     # concurrent gradio client
-    if hasattr(gradio_client, 'clone'):
+    if gradio_client is None or user is not None:
+        assert user is not None, "Need user set to username:password"
+        client = get_gradio_client(user=user)
+    elif hasattr(gradio_client, 'clone'):
         client = gradio_client.clone()
     else:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.")
-        client = get_gradio_client()
+        client = get_gradio_client(user=user)
+
+    # even if not auth, want to login
+    if user:
+        user_split = user.split(':')
+        username = user_split[0]
+        password = ':'.join(user_split[1:])
+        num_model_lock = client.predict(api_name='/num_model_lock')
+        chatbots = [None] * (2 + num_model_lock)
+        client.predict(None, username, password, *tuple(chatbots), api_name='/login')
+
     return client
 
 
@@ -76,8 +112,10 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     # max_tokens=16 for text completion by default
     gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
     gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
-    # be more like OpenAI, only temperature, not do_sample, to control
-    gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
+
+    if gen_kwargs.get('do_sample') in [False, None]:
+        # be more like OpenAI, only temperature, not do_sample, to control
+        gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
     # https://platform.openai.com/docs/api-reference/chat/create
     if gen_kwargs['temperature'] > 0.0:
         # let temperature control sampling
@@ -100,7 +138,7 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs.update(**gen_kwargs)
 
     # concurrent gradio client
-    client = get_client()
+    client = get_client(user=gen_kwargs.get('user'))
 
     if stream_output:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')

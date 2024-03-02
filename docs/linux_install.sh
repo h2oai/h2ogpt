@@ -31,7 +31,7 @@ then
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
 fi
 # Optional: FAISS
-pip install -r reqs_optional/requirements_optional_faiss.txt -c reqs_optional/reqs_constraints.txt
+pip install -r reqs_optional/requirements_optional_gpu_only.txt -c reqs_optional/reqs_constraints.txt
 # Optional: Selenium/PlayWright:
 pip install -r reqs_optional/requirements_optional_langchain.urls.txt -c reqs_optional/reqs_constraints.txt
 

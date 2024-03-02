@@ -34,7 +34,7 @@ ln -s generate.py app.py
 mv requirements.txt requirements.txt.001
 # avoid gpt4all, hit ERROR: Could not build wheels for llama-cpp-python, which is required to install pyproject.toml-based projects
 #cat requirements.txt.001 requirements_optional_langchain.txt requirements_optional_gpt4all.txt >> requirements.txt
-cat requirements.txt.001 reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_faiss.txt reqs_optional/requirements_optional_langchain.gpllike.txt >> requirements.txt
+cat requirements.txt.001 reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_langchain.txt reqs_optional/requirements_optional_gpu_only.txt reqs_optional/requirements_optional_langchain.gpllike.txt >> requirements.txt
 rm -rf requirements.txt.001
 
 git add app.py generate.py src/*

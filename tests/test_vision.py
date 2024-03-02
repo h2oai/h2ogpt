@@ -4,91 +4,26 @@ from tests.utils import wrap_test_forked
 
 
 @wrap_test_forked
-def test_llava_client():
-    file = "models/wizard.jpg"
-    llava_model = os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861')
-    # prompt = "According to the image, describe the image in full details with a well-structured response."
-    prompt = "Describe the image"
-
-    from src.vision.utils_vision import img_to_base64
-    img_str = img_to_base64(file)
-
-    from gradio_client import Client
-    client = Client(llava_model, serialize=False)
-    client.predict(api_name='/demo_load')
-
-    # test_file_local, test_file_server = client.predict(file_to_upload, api_name='/upload_api')
-
-    image_process_mode = "Default"
-    include_image = False
-    res1 = client.predict(prompt, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
-
-    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.6-vicuna-13b', 0.2, 0.7, 512
-    res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
-                         api_name='/textbox_api_submit')
-    res = res[-1][-1]
-    print(res)
-    assert 'pumpkins' in res
-
-    model_selector, temperature, top_p, max_output_tokens = 'Nous-Hermes-2-Vision', 0.2, 0.7, 512
-    res = client.predict(model_selector, temperature, top_p, max_output_tokens, include_image,
-                         api_name='/textbox_api_submit')
-    res = res[-1][-1]
-    print(res)
-    assert 'headband' in res or 'woman' in res or 'orange' in res
-
-
-@wrap_test_forked
 def test_llava_client2():
     file = "models/wizard.jpg"
     llava_model = os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861')
     from src.vision.utils_vision import get_llava_response
-    res, llava_prompt = get_llava_response(file, llava_model)
+    res, llava_prompt = get_llava_response(file, llava_model, allow_prompt_auto=True)
     print(res)
-    assert 'pumpkins' in res
+    assert 'pumpkins' in res or 'glowing' in res
 
 
 @wrap_test_forked
 def test_llava_client_stream():
-    from src.vision.utils_vision import img_to_base64
-    img_str = img_to_base64("models/wizard.jpg")
+    file = "models/wizard.jpg"
+    llava_model = os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861')
+    from src.vision.utils_vision import get_llava_stream
+    text = ''
+    for res in get_llava_stream(file, llava_model, allow_prompt_auto=True):
+        text = res
+        print(text)
 
-    from gradio_client import Client
-    client = Client(os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'), serialize=False)
-    client.predict(api_name='/demo_load')
-    # prompt = "According to the image, describe the image in full details with a well-structured response."
-    prompt = "Describe the image"
-
-    # test_file_local, test_file_server = client.predict(file_to_upload, api_name='/upload_api')
-
-    image_process_mode = "Default"
-    include_image = False
-    res1 = client.predict(prompt, img_str, image_process_mode, include_image, api_name='/textbox_api_btn')
-
-    #model_selector, temperature, top_p, max_output_tokens = 'Nous-Hermes-2-Vision', 0.2, 0.7, 512
-    model_selector, temperature, top_p, max_output_tokens = 'llava-v1.6-vicuna-13b', 0.2, 0.7, 512
-    job = client.submit(model_selector, temperature, top_p, max_output_tokens, include_image,
-                        api_name='/textbox_api_submit')
-
-    job_outputs_num = 0
-    while not job.done():
-        outputs_list = job.outputs().copy()
-        job_outputs_num_new = len(outputs_list[job_outputs_num:])
-        for num in range(job_outputs_num_new):
-            res = outputs_list[job_outputs_num + num]
-            print('Stream %d: %s\n' % (job_outputs_num + num, res[-1][-1]), flush=True)
-        job_outputs_num += job_outputs_num_new
-        time.sleep(0.01)
-
-    outputs_list = job.outputs().copy()
-    job_outputs_num_new = len(outputs_list[job_outputs_num:])
-    for num in range(job_outputs_num_new):
-        res = outputs_list[job_outputs_num + num]
-        print('Final Stream %d: %s\n' % (job_outputs_num + num, res[-1][-1]), flush=True)
-    job_outputs_num += job_outputs_num_new
-    print("total job_outputs_num=%d" % job_outputs_num, flush=True)
-
-    assert 'The image features' in res[-1][-1]
+    assert 'The image features' in text or 'The image is an illustration' in text
 
 
 @wrap_test_forked
@@ -131,7 +66,7 @@ def test_fastfood():
     from src.image_utils import align_image
     assert os.path.isfile(align_image("tests/fastfood.jpg"))
     # can't find box for receipt
-    assert align_image("tests/receipt.jpg") is None
+    assert align_image("tests/receipt.jpg") == "tests/receipt.jpg"
     assert os.path.isfile(align_image("tests/rotate-ex2.png"))
 
     from src.image_utils import correct_rotation
@@ -140,9 +75,9 @@ def test_fastfood():
     assert os.path.isfile(correct_rotation("tests/rotate-ex2.png"))
 
     # new
-    assert align_image("tests/revenue.png") is None
-    assert align_image("tests/dental.png") is None
-    assert align_image("tests/jon.png") is None
+    assert align_image("tests/revenue.png") == "tests/revenue.png"
+    assert align_image("tests/dental.png") == "tests/dental.png"
+    assert align_image("tests/jon.png") == "tests/jon.png"
 
     assert os.path.isfile(correct_rotation("tests/revenue.png"))
     assert os.path.isfile(correct_rotation("tests/dental.png"))

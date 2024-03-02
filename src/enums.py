@@ -70,6 +70,7 @@ class PromptType(Enum):
     beacon2 = 64
     llava = 65
     danube = 66
+    gemma = 67
 
 
 class DocumentSubset(Enum):
@@ -221,15 +222,25 @@ google_mapping_outputs = {
 }
 
 mistralai_mapping = {
+    "mistral-large-latest": 32768,
     "mistral-medium": 32768,
     "mistral-small": 32768,
     "mistral-tiny": 32768,
+    'open-mistral-7b': 32768,
+    'open-mixtral-8x7b': 32768,
+    'mistral-small-latest': 32768,
+    'mistral-medium-latest': 32768,
 }
 
 mistralai_mapping_outputs = {
+    "mistral-large-latest": 32768,
     "mistral-medium": 32768,
     "mistral-small": 32768,
     "mistral-tiny": 32768,
+    'open-mistral-7b': 32768,
+    'open-mixtral-8x7b': 32768,
+    'mistral-small-latest': 32768,
+    'mistral-medium-latest': 32768,
 }
 
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
@@ -383,7 +394,7 @@ docs_ordering_types = ['best_first', 'best_near_prompt', 'reverse_ucurve_sort']
 
 docs_token_handlings = ['chunk', 'split_or_merge']
 
-docs_ordering_types_default = 'reverse_ucurve_sort'
+docs_ordering_types_default = 'best_near_prompt'
 docs_token_handling_default = 'split_or_merge'
 docs_joiner_default = '\n\n'
 

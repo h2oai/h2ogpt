@@ -1,0 +1,10 @@
+faiss-gpu>=1.7.2
+# for unstructured
+onnxruntime-gpu==1.15.0
+auto-gptq==0.6.0
+optimum==1.16.1
+autoawq @ https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8-cp310-cp310-linux_x86_64.whl
+exllama @ https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu121-cp310-cp310-linux_x86_64.whl
+autoawq-kernels
+# See: Dao-AILab/flash-attention/issues/453
+# flash-attn==2.4.2

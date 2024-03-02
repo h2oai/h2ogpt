@@ -1,3 +1,4 @@
+import os
 import time
 import pytest
 
@@ -180,7 +181,7 @@ prompt_orion = """<s>Human: Hello!\n\nAssistant: </s>Hi!</s>Human: How are you?\
 
 def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1", system_prompt=None):
     from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model)
+    tokenizer = AutoTokenizer.from_pretrained(model, token=os.environ.get('HUGGING_FACE_HUB_TOKEN'), trust_remote_code=True)
     if system_prompt:
         messages = [{"role": "system", "content": system_prompt}] + messages
 
@@ -256,6 +257,7 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                               get_prompt_from_messages(messages_with_context, model='01-ai/Yi-34B-Chat',
                                                        system_prompt=system_prompt_yi)),
                              ('orion', '', None, prompt_orion),
+                             ('gemma', '', None, get_prompt_from_messages(messages_with_context, model='google/gemma-7b-it')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -306,7 +308,8 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
     t0 = time.time()
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
-    print(prompt)
+    print('prompt\n', prompt)
+    print('expected\n', expected)
     print("duration4: %s %s" % (prompt_type, time.time() - t0), flush=True)
     assert prompt == expected
     assert prompt.find(source_prefix) == -1
@@ -425,6 +428,7 @@ prompt_orion1 = "<s>Human: Go to the market?\n\nAssistant: </s>"
                              ('yi', 'auto', get_prompt_from_messages(messages_no_context, model='01-ai/Yi-34B-Chat',
                                                                      system_prompt=system_prompt_yi)),
                              ('orion', '', prompt_orion1),
+                             ('gemma', '', get_prompt_from_messages(messages_no_context, model='google/gemma-7b-it')),
                          ]
                          )
 @wrap_test_forked

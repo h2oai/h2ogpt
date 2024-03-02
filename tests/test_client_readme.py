@@ -20,10 +20,12 @@ def test_readme_example(local_server, persist):
 
     if local_server:
         host = "http://0.0.0.0:7860"
+        auth = None
     else:
         host = "https://gpt.h2o.ai"
+        auth = ('guest', 'guest')
 
-    client = GradioClient(host, h2ogpt_key=h2ogpt_key, persist=persist)
+    client = GradioClient(host, h2ogpt_key=h2ogpt_key, persist=persist, auth=auth)
 
     models = client.list_models()
     print(models)

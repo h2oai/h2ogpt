@@ -443,7 +443,7 @@ def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
         kwargs['append_sources_to_chat'] = False
         kwargs['show_link_in_sources'] = True
         res_dict, client = run_client_gen(client, kwargs, do_md_to_text=do_md_to_text)
-        res_dict['response'] += str(res_dict['sources_str'])
+        res_dict['response'] += str(res_dict.get('sources_str', ''))
         return res_dict, client
         # FIXME: https://github.com/gradio-app/gradio/issues/6592
 

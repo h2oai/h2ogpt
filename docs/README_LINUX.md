@@ -9,8 +9,9 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 
 * Set up a Python 3.10 environment. We recommend using [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/).
 
-  Download [Miniconda for Linux](https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh).  After downloading, run:
+  Download Miniconda for Linux and install:
   ```bash
+  wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
   bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
   # follow license agreement and add to bash if required
   ```
@@ -21,15 +22,7 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
   conda install python=3.10 -c conda-forge -y
   ```
   You should see `(h2ogpt)` in the shell prompt.
-  
-  Alternatively, on newer Ubuntu systems, you can set up a Python 3.10 environment by doing the following:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y build-essential gcc python3.10-dev
-  virtualenv -p python3 h2ogpt
-  source h2ogpt/bin/activate
-  ```
-  
+
 * Check your python version with the following command:
   ```bash
   python --version

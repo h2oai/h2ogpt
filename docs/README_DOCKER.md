@@ -12,6 +12,7 @@ apt-cache policy docker-ce
 sudo apt install -y docker-ce
 sudo systemctl status docker
 ```
+replace `focal` (Ubuntu 20) with `jammy` for Ubuntu 22.
 
 Add your user as part of `docker` group:
 ```bash

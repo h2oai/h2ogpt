@@ -58,12 +58,10 @@ def base64_to_img(img_str, output_path):
     return output_file
 
 
-def llava_prep(file,
-               llava_model,
+def fix_llava_prompt(file,
                prompt=None,
                allow_prompt_auto=True,
-               image_model='llava-v1.6-vicuna-13b',
-               client=None):
+                     ):
     if prompt in ['auto', None] and allow_prompt_auto:
         prompt = "Describe the image and what does the image say?"
         # prompt = "According to the image, describe the image in full details with a well-structured response."
@@ -76,7 +74,12 @@ def llava_prep(file,
             raise ValueError('prompt is None')
         else:
             prompt = ''
+    return prompt
 
+def llava_prep(file,
+                   llava_model,
+                   image_model='llava-v1.6-vicuna-13b',
+                   client=None):
     prefix = ''
     if llava_model.startswith('http://'):
         prefix = 'http://'
@@ -111,7 +114,7 @@ def llava_prep(file,
         file = "%s.jpeg" % str(uuid.uuid4())
         im.save(file)
 
-    return image_model, client, file, prompt
+    return image_model, client, file
 
 
 def get_llava_response(file=None,
@@ -124,11 +127,21 @@ def get_llava_response(file=None,
                        image_process_mode="Default",
                        include_image=False,
                        client=None,
+                       max_time=None,
+                       force_stream=True,
                        ):
-    image_model, client, file, prompt = \
+    kwargs = locals()
+
+    if force_stream:
+        text = ''
+        for res in get_llava_stream(**kwargs):
+            text = res
+        return text, prompt
+
+    prompt = fix_llava_prompt(file, prompt, allow_prompt_auto=allow_prompt_auto)
+
+    image_model, client, file = \
         llava_prep(file, llava_model,
-                   prompt=prompt,
-                   allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
                    client=client)
 
@@ -156,12 +169,14 @@ def get_llava_stream(file, llava_model,
                      include_image=False,
                      client=None,
                      verbose_level=0,
+                     max_time=None,
+                     force_stream=True,  # dummy arg
                      ):
     image_model = os.path.basename(image_model)  # in case passed HF link
-    image_model, client, file, prompt = \
+    prompt = fix_llava_prompt(file, prompt, allow_prompt_auto=allow_prompt_auto)
+
+    image_model, client, file = \
         llava_prep(file, llava_model,
-                   prompt=prompt,
-                   allow_prompt_auto=allow_prompt_auto,
                    image_model=image_model,
                    client=client)
 
@@ -178,9 +193,12 @@ def get_llava_stream(file, llava_model,
 
     t0 = time.time()
     job_outputs_num = 0
+    text = ''
     while not job.done():
         if verbose_level == 2:
             print("Inside: %s" % llava_model, time.time() - t0, flush=True)
+        if max_time is not None and time.time() - t0 > max_time:
+            return text
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
@@ -190,23 +208,28 @@ def get_llava_stream(file, llava_model,
             elif verbose_level == 1:
                 print('Stream %d' % (job_outputs_num + num), flush=True)
             if res and len(res[0]) > 0:
-                yield res[-1][-1]
+                text = res[-1][-1]
+                yield text
         job_outputs_num += job_outputs_num_new
         time.sleep(0.01)
 
     outputs_list = job.outputs().copy()
     job_outputs_num_new = len(outputs_list[job_outputs_num:])
     for num in range(job_outputs_num_new):
+        if max_time is not None and time.time() - t0 > max_time:
+            return text
         res = outputs_list[job_outputs_num + num]
         if verbose_level == 2:
             print('Final Stream %d: %s' % (num, res), flush=True)
         elif verbose_level == 1:
             print('Final Stream %d' % (job_outputs_num + num), flush=True)
         if res and len(res[0]) > 0:
-            yield res[-1][-1]
+            text = res[-1][-1]
+            yield text
     job_outputs_num += job_outputs_num_new
     if verbose_level == 1:
         print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+    return text
 
 
 def get_image_model_dict(enable_image,

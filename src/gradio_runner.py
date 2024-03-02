@@ -66,7 +66,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens, get_accordion_named
+    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -408,7 +408,6 @@ def go_gradio(**kwargs):
         instruction_label_nochat = "Instruction (Shift-Enter or push Submit to send message," \
                                    " use Enter for multiple input lines)"
 
-    title = 'h2oGPT'
     if kwargs['visible_h2ogpt_links']:
         description = """<iframe src="https://ghbtns.com/github-btn.html?user=h2oai&repo=h2ogpt&type=star&count=true&size=small" frameborder="0" scrolling="0" width="280" height="20" title="GitHub"></iframe><small><a href="https://github.com/h2oai/h2ogpt">h2oGPT</a> <a href="https://evalgpt.ai/">LLM Leaderboard</a> <a href="https://github.com/h2oai/h2o-llmstudio">LLM Studio</a><br /><a href="https://codellama.h2o.ai">CodeLlama</a> <br /><a href="https://huggingface.co/h2oai">🤗 Models</a> <br /><a href="https://h2o.ai/platform/enterprise-h2ogpt/">h2oGPTe</a>"""
     else:
@@ -611,7 +610,7 @@ def go_gradio(**kwargs):
         assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
-        if auth_access == 'open' and username1 == guest_name:
+        if auth_access == 'open' and username1.startswith(guest_name):
             return True
         if username1 == '':
             # some issue with login
@@ -676,7 +675,7 @@ def go_gradio(**kwargs):
         username1 = get_username(requests_state1)
         if auth_filename and isinstance(auth_filename, str):
             if username1:
-                if username1 == guest_name:
+                if username1.startswith(guest_name):
                     return str(uuid.uuid4())
                 with filelock.FileLock(auth_filename + '.lock'):
                     if os.path.isfile(auth_filename):
@@ -696,8 +695,8 @@ def go_gradio(**kwargs):
     if kwargs['auth_access'] == 'closed':
         auth_message1 = "Closed access"
     else:
-        auth_message1 = "WELCOME!  Open access" \
-                        " (%s/%s or any unique user/pass)" % (kwargs['guest_name'], kwargs['guest_name'])
+        auth_message1 = "WELCOME to %s!  Open access" \
+                        " (%s/%s or any unique user/pass)" % (page_title, kwargs['guest_name'], kwargs['guest_name'])
 
     if kwargs['auth_message'] is not None:
         auth_message = kwargs['auth_message']
@@ -736,9 +735,9 @@ def go_gradio(**kwargs):
         requests_state1 = {str(k): str(v) for k, v in requests_state1.items()}
         return requests_state1
 
-    def user_state_setup(db1s, requests_state1, request: gr.Request, *args):
+    def user_state_setup(db1s, requests_state1, guest_name1, request: gr.Request, *args):
         requests_state1 = get_request_state(requests_state1, request, db1s)
-        set_userid(db1s, requests_state1, get_userid_auth)
+        set_userid(db1s, requests_state1, get_userid_auth, guest_name=guest_name1)
         args_list = [db1s, requests_state1] + list(args)
         return tuple(args_list)
 
@@ -805,7 +804,9 @@ def go_gradio(**kwargs):
     else:
         have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
 
-    with (demo):
+    is_gradio_h2oai = get_is_gradio_h2oai()
+
+    with demo:
         support_state_callbacks = hasattr(gr.State(), 'callback')
 
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
@@ -884,8 +885,8 @@ def go_gradio(**kwargs):
             if description is None:
                 description = ''
             gr.Markdown(f"""
-                {get_h2o_title(title, description, visible_h2ogpt_qrcode=kwargs['visible_h2ogpt_qrcode'])
-            if kwargs['h2ocolors'] else get_simple_title(title, description)}
+                {get_h2o_title(page_title, description, visible_h2ogpt_qrcode=kwargs['visible_h2ogpt_qrcode'])
+            if kwargs['h2ocolors'] else get_simple_title(page_title, description)}
                 """)
 
         # go button visible if
@@ -1249,7 +1250,8 @@ def go_gradio(**kwargs):
                                                              interactive=True,
                                                              multiselect=True,
                                                              visible=visible_model_choice,
-                                                             elem_id="multi-selection",
+                                                             elem_id="multi-selection" if kwargs[
+                                                                                              'max_visible_models'] is None or is_gradio_h2oai else None,
                                                              filterable=False,
                                                              max_choices=kwargs['max_visible_models'],
                                                              )
@@ -2243,6 +2245,7 @@ def go_gradio(**kwargs):
                             admin_pass_textbox = gr.Textbox(label="Admin Password",
                                                             type='password',
                                                             visible=not system_visible0)
+                        guest_name = gr.Textbox(value=kwargs['guest_name'], visible=False)
                         with gr.Column(scale=4):
                             pass
                     system_row = gr.Row(visible=system_visible0)
@@ -2292,7 +2295,7 @@ def go_gradio(**kwargs):
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False)
 
-                login_tab = gr.TabItem("Login") \
+                login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login") \
                     if kwargs['visible_login_tab'] else gr.Row(visible=False)
                 with login_tab:
                     extra_login = "\nDaily maintenance at midnight PST will not allow reconnection to state otherwise." if is_public else ""
@@ -2303,7 +2306,12 @@ def go_gradio(**kwargs):
                     login_msg = "Login (pick unique user/pass to persist your state)" if kwargs[
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
+                    num_lock_button = gr.Button(visible=False)
+                    num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
+                    # WIP
+                    #if kwargs['auth'] and is_gradio_h2oai:
+                    #    gr.Button("Logout", link="/logout")
                     if kwargs['enforce_h2ogpt_api_key'] and kwargs['enforce_h2ogpt_ui_key']:
                         label_h2ogpt_key = "h2oGPT Token for API and UI access"
                     elif kwargs['enforce_h2ogpt_api_key']:
@@ -2449,7 +2457,7 @@ def go_gradio(**kwargs):
 
         # then no need for add buttons, only single changeable db
         user_state_kwargs = dict(fn=user_state_setup,
-                                 inputs=[my_db_state, requests_state, langchain_mode],
+                                 inputs=[my_db_state, requests_state, guest_name, langchain_mode],
                                  outputs=[my_db_state, requests_state, langchain_mode],
                                  show_progress='minimal')
         eventdb1a = fileup_output.upload(**user_state_kwargs)
@@ -2508,7 +2516,7 @@ def go_gradio(**kwargs):
                               api_name='add_url' if allow_upload_api else None)
 
         user_text_submit_kwargs = dict(fn=user_state_setup,
-                                       inputs=[my_db_state, requests_state, url_text, url_text],
+                                       inputs=[my_db_state, requests_state, guest_name, url_text, url_text],
                                        outputs=[my_db_state, requests_state, url_text],
                                        queue=queue,
                                        show_progress='minimal')
@@ -2547,7 +2555,8 @@ def go_gradio(**kwargs):
                                api_name='add_text' if allow_upload_api else None
                                )
         eventdb3a = user_text_text.submit(fn=user_state_setup,
-                                          inputs=[my_db_state, requests_state, user_text_text, user_text_text],
+                                          inputs=[my_db_state, requests_state, guest_name, user_text_text,
+                                                  user_text_text],
                                           outputs=[my_db_state, requests_state, user_text_text],
                                           queue=queue,
                                           show_progress='minimal')
@@ -2625,7 +2634,8 @@ def go_gradio(**kwargs):
                                   queue=queue)
 
         eventdb7a = get_sources_btn.click(user_state_setup,
-                                          inputs=[my_db_state, requests_state, get_sources_btn, get_sources_btn],
+                                          inputs=[my_db_state, requests_state, guest_name, get_sources_btn,
+                                                  get_sources_btn],
                                           outputs=[my_db_state, requests_state, get_sources_btn],
                                           show_progress='minimal')
         eventdb7 = eventdb7a.then(**get_sources_kwargs,
@@ -2658,7 +2668,8 @@ def go_gradio(**kwargs):
                                           h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                           )
         eventdb8a = show_sources_btn.click(user_state_setup,
-                                           inputs=[my_db_state, requests_state, show_sources_btn, show_sources_btn],
+                                           inputs=[my_db_state, requests_state, guest_name, show_sources_btn,
+                                                   show_sources_btn],
                                            outputs=[my_db_state, requests_state, show_sources_btn],
                                            show_progress='minimal')
         show_sources_kwargs = dict(fn=show_sources1,
@@ -2692,7 +2703,7 @@ def go_gradio(**kwargs):
                                          outputs=[file_source, viewable_docs_state, text_viewable_doc_count],
                                          queue=queue)
         eventdb12a = get_viewable_sources_btn.click(user_state_setup,
-                                                    inputs=[my_db_state, requests_state,
+                                                    inputs=[my_db_state, requests_state, guest_name,
                                                             get_viewable_sources_btn, get_viewable_sources_btn],
                                                     outputs=[my_db_state, requests_state, get_viewable_sources_btn],
                                                     show_progress='minimal')
@@ -2702,7 +2713,7 @@ def go_gradio(**kwargs):
             .then(**viewable_kwargs)
 
         view_doc_select_kwargs = dict(fn=user_state_setup,
-                                      inputs=[my_db_state, requests_state,
+                                      inputs=[my_db_state, requests_state, guest_name,
                                               view_document_choice],
                                       outputs=[my_db_state, requests_state],
                                       show_progress='minimal')
@@ -2783,7 +2794,7 @@ def go_gradio(**kwargs):
                                              h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                              )
         eventdb9a = refresh_sources_btn.click(user_state_setup,
-                                              inputs=[my_db_state, requests_state,
+                                              inputs=[my_db_state, requests_state, guest_name,
                                                       refresh_sources_btn, refresh_sources_btn],
                                               outputs=[my_db_state, requests_state, refresh_sources_btn],
                                               show_progress='minimal')
@@ -2817,7 +2828,7 @@ def go_gradio(**kwargs):
                                             h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                             )
         eventdb90a = delete_sources_btn.click(user_state_setup,
-                                              inputs=[my_db_state, requests_state,
+                                              inputs=[my_db_state, requests_state, guest_name,
                                                       delete_sources_btn, delete_sources_btn],
                                               outputs=[my_db_state, requests_state, delete_sources_btn],
                                               show_progress='minimal', **noqueue_kwargs2)
@@ -2835,8 +2846,13 @@ def go_gradio(**kwargs):
         def close_admin(x):
             return gr.update(visible=not (x == admin_pass))
 
+        def get_num_model_lock_value():
+            return len(text_outputs)
+
+        num_lock_button.click(get_num_model_lock_value, inputs=None, outputs=num_model_lock_value_output,
+                              api_name='num_model_lock', **noqueue_kwargs2)
         eventdb_logina = login_btn.click(user_state_setup,
-                                         inputs=[my_db_state, requests_state, login_btn, login_btn],
+                                         inputs=[my_db_state, requests_state, guest_name, login_btn, login_btn],
                                          outputs=[my_db_state, requests_state, login_btn],
                                          show_progress='minimal', **noqueue_kwargs2)
 
@@ -2849,7 +2865,7 @@ def go_gradio(**kwargs):
                   auth_filename=None, num_model_lock=0, pre_authorized=False):
             # use full auth login to allow new users if open access etc.
             if pre_authorized:
-                username1 = requests_state1['username']
+                username1 = requests_state1.get('username')
                 password1 = None
                 authorized1 = True
             else:
@@ -2871,7 +2887,8 @@ def go_gradio(**kwargs):
                               server_options_state1=server_options_state1,
                               chat_state1=chat_state1, langchain_mode1=langchain_mode1,
                               text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
-                              username_override=username1, password_to_check=password1)
+                              username_override=username1, password_to_check=password1,
+                              num_model_lock=num_model_lock)
             else:
                 success1 = False
                 text_result = "Wrong password for user %s" % username1
@@ -2924,7 +2941,8 @@ def go_gradio(**kwargs):
         eventdb_loginb = eventdb_logina.then(login_func,
                                              inputs=login_inputs,
                                              outputs=login_outputs,
-                                             queue=not kwargs['large_file_count_mode'])
+                                             queue=not kwargs['large_file_count_mode'],
+                                             api_name='login')
 
         admin_pass_textbox.submit(check_admin_pass, inputs=admin_pass_textbox, outputs=system_row,
                                   **noqueue_kwargs) \
@@ -2937,7 +2955,8 @@ def go_gradio(**kwargs):
                       server_options_state1=None,
                       chat_state1=None, langchain_mode1=None,
                       text_output1=None, text_output21=None, text_outputs1=None,
-                      username_override=None, password_to_check=None):
+                      username_override=None, password_to_check=None,
+                      num_model_lock=None):
             # in-place assignment
             if not auth_filename:
                 return False, "No auth file", text_output1, text_output21, text_outputs1
@@ -3000,6 +3019,13 @@ def go_gradio(**kwargs):
                             text_result = "No user %s" % username1
                 else:
                     text_result = "No auth file"
+            if num_model_lock is not None:
+                if len(text_outputs1) > num_model_lock:
+                    text_outputs1 = text_outputs1[:num_model_lock]
+                elif len(text_outputs1) < num_model_lock:
+                    text_outputs1 = text_outputs1 + [[]] * (num_model_lock - len(text_outputs1))
+            else:
+                text_outputs1 = tuple([])
             return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1
 
         def save_auth_dict(auth_dict, auth_filename):
@@ -3009,6 +3035,7 @@ def go_gradio(**kwargs):
             try:
                 with open(auth_filename, 'wt') as f:
                     f.write(json.dumps(auth_dict, indent=2))
+                remove(backup_file)
             except BaseException as e:
                 print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
                       flush=True)
@@ -3130,7 +3157,7 @@ def go_gradio(**kwargs):
                         textbox = "Invalid type %s" % langchain_mode_type
                         valid = False
                         langchain_mode2 = langchain_mode1
-                    elif langchain_mode_type == LangChainTypes.SHARED.value and username1 == guest_name:
+                    elif langchain_mode_type == LangChainTypes.SHARED.value and username1.startswith(guest_name):
                         textbox = "Guests cannot add shared collections"
                         valid = False
                         langchain_mode2 = langchain_mode1
@@ -3138,7 +3165,7 @@ def go_gradio(**kwargs):
                         textbox = "Do not pass user_path for personal/scratch types"
                         valid = False
                         langchain_mode2 = langchain_mode1
-                    elif user_path is not None and username1 == guest_name:
+                    elif user_path is not None and username1.startswith(guest_name):
                         textbox = "Guests cannot add collections with path"
                         valid = False
                         langchain_mode2 = langchain_mode1
@@ -3307,7 +3334,7 @@ def go_gradio(**kwargs):
                           value=langchain_mode2), textbox, df_langchain_mode_paths1
 
         eventdb20a = new_langchain_mode_text.submit(user_state_setup,
-                                                    inputs=[my_db_state, requests_state,
+                                                    inputs=[my_db_state, requests_state, guest_name,
                                                             new_langchain_mode_text, new_langchain_mode_text],
                                                     outputs=[my_db_state, requests_state, new_langchain_mode_text],
                                                     show_progress='minimal')
@@ -3327,7 +3354,8 @@ def go_gradio(**kwargs):
                                      outputs=[my_db_state, selection_docs_state, langchain_mode,
                                               new_langchain_mode_text,
                                               langchain_mode_path_text],
-                                     api_name='new_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+                                     api_name='new_langchain_mode_text'
+                                     if allow_api and (allow_upload_to_user_data or allow_upload_to_my_data) else None)
         db_events.extend([eventdb20a, eventdb20b])
 
         remove_langchain_mode_func = functools.partial(remove_langchain_mode,
@@ -3341,7 +3369,7 @@ def go_gradio(**kwargs):
                                                        )
         eventdb21a = remove_langchain_mode_text.submit(user_state_setup,
                                                        inputs=[my_db_state,
-                                                               requests_state,
+                                                               requests_state, guest_name,
                                                                remove_langchain_mode_text, remove_langchain_mode_text],
                                                        outputs=[my_db_state,
                                                                 requests_state, remove_langchain_mode_text],
@@ -3355,12 +3383,13 @@ def go_gradio(**kwargs):
                                                      remove_langchain_mode_text,
                                                      langchain_mode_path_text])
         eventdb21b = eventdb21a.then(**remove_langchain_mode_kwargs,
-                                     api_name='remove_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+                                     api_name='remove_langchain_mode_text'
+                                     if allow_api and (allow_upload_to_user_data or allow_upload_to_my_data) else None)
         db_events.extend([eventdb21a, eventdb21b])
 
         eventdb22a = purge_langchain_mode_text.submit(user_state_setup,
                                                       inputs=[my_db_state,
-                                                              requests_state,
+                                                              requests_state, guest_name,
                                                               purge_langchain_mode_text, purge_langchain_mode_text],
                                                       outputs=[my_db_state,
                                                                requests_state, purge_langchain_mode_text],
@@ -3377,7 +3406,8 @@ def go_gradio(**kwargs):
         # purge_langchain_mode_kwargs = remove_langchain_mode_kwargs.copy()
         # purge_langchain_mode_kwargs['fn'] = functools.partial(remove_langchain_mode_kwargs['fn'], purge=True)
         eventdb22b = eventdb22a.then(**purge_langchain_mode_kwargs,
-                                     api_name='purge_langchain_mode_text' if allow_api and allow_upload_to_user_data else None)
+                                     api_name='purge_langchain_mode_text'
+                                     if allow_api and (allow_upload_to_user_data or allow_upload_to_my_data) else None)
         eventdb22b_auth = eventdb22b.then(**save_auth_kwargs)
         db_events.extend([eventdb22a, eventdb22b, eventdb22b_auth])
 
@@ -3407,7 +3437,7 @@ def go_gradio(**kwargs):
                           value=langchain_mode1), df_langchain_mode_paths1
 
         eventdbloadla = load_langchain.click(user_state_setup,
-                                             inputs=[my_db_state, requests_state, langchain_mode],
+                                             inputs=[my_db_state, requests_state, guest_name, langchain_mode],
                                              outputs=[my_db_state, requests_state, langchain_mode],
                                              show_progress='minimal')
         load_langchain_gr_func = functools.partial(load_langchain_gr,
@@ -4955,7 +4985,7 @@ def go_gradio(**kwargs):
             bot_args = [all_bot_args, all_bot_args, all_retry_bot_args]
             for userargs1, botarg1, funn1, funs1, trigger1, in zip(user_args, bot_args, fun_name, fun_source, triggers):
                 submit_event11 = funs1(fn=user_state_setup,
-                                       inputs=[my_db_state, requests_state, trigger1, trigger1],
+                                       inputs=[my_db_state, requests_state, guest_name, trigger1, trigger1],
                                        outputs=[my_db_state, requests_state, trigger1],
                                        queue=queue)
                 submit_event1a = submit_event11.then(**userargs1, queue=queue,
@@ -4976,7 +5006,7 @@ def go_gradio(**kwargs):
 
             # if undo, no longer the saved chat
             submit_event4 = undo.click(fn=user_state_setup,
-                                       inputs=[my_db_state, requests_state, undo, undo],
+                                       inputs=[my_db_state, requests_state, guest_name, undo, undo],
                                        outputs=[my_db_state, requests_state, undo],
                                        queue=queue) \
                 .then(**all_undo_user_args, api_name='undo' if allow_api else None) \
@@ -4989,7 +5019,8 @@ def go_gradio(**kwargs):
             # in case 2nd model, consume instruction first, so can clear quickly
             # bot doesn't consume instruction itself, just history from user, so why works
             submit_event11 = instruction.submit(fn=user_state_setup,
-                                                inputs=[my_db_state, requests_state, instruction, instruction],
+                                                inputs=[my_db_state, requests_state, guest_name, instruction,
+                                                        instruction],
                                                 outputs=[my_db_state, requests_state, instruction],
                                                 queue=queue)
             submit_event1a = submit_event11.then(**user_args, queue=queue,
@@ -5014,7 +5045,7 @@ def go_gradio(**kwargs):
                         submit_event1f, submit_event1g]
 
             submit_event21 = submit.click(fn=user_state_setup,
-                                          inputs=[my_db_state, requests_state, submit, submit],
+                                          inputs=[my_db_state, requests_state, guest_name, submit, submit],
                                           outputs=[my_db_state, requests_state, submit],
                                           queue=queue)
             submit_event2a = submit_event21.then(**user_args, api_name='submit' if allow_api else None)
@@ -5039,7 +5070,7 @@ def go_gradio(**kwargs):
                         submit_event2f, submit_event2g]
 
             submit_event31 = retry_btn.click(fn=user_state_setup,
-                                             inputs=[my_db_state, requests_state, retry_btn, retry_btn],
+                                             inputs=[my_db_state, requests_state, guest_name, retry_btn, retry_btn],
                                              outputs=[my_db_state, requests_state, retry_btn],
                                              queue=queue)
             submit_event3a = submit_event31.then(**user_args, api_name='retry' if allow_api else None)
@@ -5065,7 +5096,7 @@ def go_gradio(**kwargs):
 
             # if undo, no longer the saved chat
             submit_event4 = undo.click(fn=user_state_setup,
-                                       inputs=[my_db_state, requests_state, undo, undo],
+                                       inputs=[my_db_state, requests_state, guest_name, undo, undo],
                                        outputs=[my_db_state, requests_state, undo],
                                        queue=queue) \
                 .then(**undo_user_args, api_name='undo' if allow_api else None) \
@@ -5283,7 +5314,7 @@ def go_gradio(**kwargs):
 
         # note for update_user_db_func output is ignored for db
         chatup_change_eventa = chatsup_output.change(user_state_setup,
-                                                     inputs=[my_db_state, requests_state, langchain_mode],
+                                                     inputs=[my_db_state, requests_state, guest_name, langchain_mode],
                                                      outputs=[my_db_state, requests_state, langchain_mode],
                                                      show_progress='minimal')
         add_chats_from_file_func = functools.partial(add_chats_from_file,
@@ -5307,7 +5338,7 @@ def go_gradio(**kwargs):
             .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
 
         clear_eventa = save_chat_btn.click(user_state_setup,
-                                           inputs=[my_db_state, requests_state, langchain_mode],
+                                           inputs=[my_db_state, requests_state, guest_name, langchain_mode],
                                            outputs=[my_db_state, requests_state, langchain_mode],
                                            show_progress='minimal', **noqueue_kwargs2)
         save_chat_func = functools.partial(save_chat,
@@ -6046,12 +6077,12 @@ def go_gradio(**kwargs):
         if kwargs['auth'] is not None:
             auth = authf
             load_func = user_state_setup
-            load_inputs = [my_db_state, requests_state, login_btn, login_btn]
+            load_inputs = [my_db_state, requests_state, guest_name, login_btn, login_btn]
             load_outputs = [my_db_state, requests_state, login_btn]
         else:
             auth = None
             load_func = user_state_setup
-            load_inputs = [my_db_state, requests_state, login_btn, login_btn]
+            load_inputs = [my_db_state, requests_state, guest_name, login_btn, login_btn]
             load_outputs = [my_db_state, requests_state, login_btn]
             # auth = None
             # load_func, load_inputs, load_outputs = None, None, None
@@ -6128,6 +6159,12 @@ def go_gradio(**kwargs):
     if server_port is not None:
         server_port = int(server_port)
 
+    # NOTE: Dynamically added paths won't work unless relative to root and not public
+    allowed_paths = []
+    allowed_paths += [os.path.abspath(v) for k, v in kwargs['langchain_mode_paths'].items() if v]
+    allowed_paths += [os.path.abspath(x) for x in kwargs['extra_allowed_paths']]
+    blocked_paths = [os.path.abspath(x) for x in kwargs['blocked_paths']]
+
     demo.launch(share=kwargs['share'],
                 server_name=kwargs['server_name'],
                 show_error=True,
@@ -6143,6 +6180,8 @@ def go_gradio(**kwargs):
                 ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                 max_threads=max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
                                                                                     int) else 128,
+                allowed_paths=allowed_paths if allowed_paths else None,
+                blocked_paths=blocked_paths if blocked_paths else None,
                 )
     showed_server_name = 'localhost' if kwargs['server_name'] == "0.0.0.0" else kwargs['server_name']
     if kwargs['verbose'] or not (kwargs['base_model'] in ['gptj', 'gpt4all_llama']):
@@ -6179,7 +6218,11 @@ def go_gradio(**kwargs):
             gradio_prefix=gradio_prefix,
             gradio_host=gradio_host,
             gradio_port=gradio_port,
-            h2ogpt_key=h2ogpt_key1)
+            h2ogpt_key=h2ogpt_key1,
+            auth=kwargs['auth'],
+            auth_access=kwargs['auth_access'],
+            guest_name=kwargs['guest_name'],
+            )
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

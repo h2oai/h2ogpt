@@ -14,6 +14,8 @@ python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephy
 # Then use h2oGPT as might normally for any tasks.
 # Once offline do:
 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+# or:
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
 # or if choosing in UI do (be sure to choose correct prompt_type too):
 TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
 ```
@@ -28,6 +30,8 @@ wget https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-
 # Then use normally for any tasks one expects to do offline.
 # Once offline do:
 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+# or:
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
 # or if choosing in UI do (be sure to choose correct prompt_type too):
 TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
 ```

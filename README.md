@@ -205,7 +205,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [Gradio UI](docs/README_ui.md)
    * [Client API (Gradio, OpenAI-Compliant)](docs/README_CLIENT.md)
    * [Inference Servers (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)](docs/README_InferenceServers.md)
-   * [Python Wheel](docs/README_WHEEL.md)
+   * [Build Python Wheel](docs/README_WHEEL.md)
    * [Offline Installation](docs/README_offline.md)
    * [Low Memory](docs/FAQ.md#low-memory-mode)
    * [Docker](docs/README_DOCKER.md)

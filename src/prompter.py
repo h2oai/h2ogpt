@@ -197,6 +197,7 @@ prompt_type_to_model_name = {
               'NousResearch/Nous-Hermes-2-Vision',  # different worker, that handles prompting itself too
               ],
     "danube": ['h2oai/h2o-danube-1.8b-chat'],
+    "gemma": ['gg-hf/gemma-2b-it', 'gg-hf/gemma-7b-it', 'google/gemma-2b-it', 'google/gemma-7b-it']
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -1386,6 +1387,25 @@ Remember to tailor the activities to the birthday child's interests and preferen
         botstr = 'Answer:'
         if making_context:
             PreResponse += " "
+    elif prompt_type in [PromptType.gemma.value, str(PromptType.gemma.value),
+                                 PromptType.gemma.name]:
+        can_handle_system_prompt = True  # so not part of pre-conversation
+        if making_context and histi == 0 or not making_context and not reduced:
+            prompt_tokens = "<bos><start_of_turn>user\n"
+        else:
+            prompt_tokens = "<start_of_turn>user\n"
+        answer_tokens = "<end_of_turn>\n<start_of_turn>model\n"
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "I am Gemma, a conversational chat assistant developed by Google"
+        promptA = promptB = system_prompt if not reduced else ''
+        PreInstruct = prompt_tokens
+        PreInput = None
+        PreResponse = answer_tokens
+        humanstr = prompt_tokens
+        botstr = answer_tokens
+        chat_turn_sep = '<end_of_turn>\n'
+        terminate_response = [humanstr, PreResponse, '<bos>', '<end_of_turn>']
+        chat_sep = ''
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

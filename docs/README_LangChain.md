@@ -8,11 +8,11 @@ Follow the [get started steps](../README.md#get-started) in the main README.  In
 
 To support GPU FAISS database, run:
 ```bash
-pip install -r reqs_optional/requirements_optional_faiss.txt
+pip install -r reqs_optional/requirements_optional_gpu_only.txt
 ```
 or for CPU FAISS database, run:
 ```bash
-pip install -r reqs_optional/requirements_optional_faiss_cpu.txt
+pip install -r reqs_optional/requirements_optional_cpu_only.txt
 ```
 
 or for Weaviate, run:
