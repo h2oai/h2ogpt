@@ -1,5 +1,41 @@
 ## Frequently asked questions
 
+### Google Auth
+
+https://github.com/gradio-app/gradio/issues/2790
+
+* Go to [Google Console](https://console.cloud.google.com/) and make a project, e.g. h2ogpt
+* In API & Services, go to Credentials:
+  * Choose Web client, not OAuth client
+  * Make and copy credentials for client ID and Client secret
+  * Add redirect URI, e.g. https://gpt.h2o.ai/auth
+  * Click save
+* Wait 5+ minutes
+
+Example nginx on server:
+```text
+server {
+    listen 80;
+    server_name example.com www.example.com;  # Change this to your domain name if you have one
+
+    location / {  # Change this if you'd like to server your Gradio app on a different path
+        proxy_pass http://127.0.0.1:7860/; # Change this if your Gradio app will be running on a different port
+        proxy_buffering off;
+        proxy_redirect off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
+```
+
+Run h2oGPT with:
+```bash
+GRADIO_SERVER_PORT=7860 python generate.py --auth='google' --server_name=0.0.0.0 -- ...
+```
+Then goto e.g. https://gpt.h2o.ai/ and see if works
+
 ### Deploying like gpt.h2o.ai
 
 As of March 1, 2024, https://gpt.h2o.ai uses nginx proxy on some private system (`xxx.xxx.xxx.144` IP below), and run with these two scripts (with host IPs/ports redacated), with `restart_any_163.sh`:
