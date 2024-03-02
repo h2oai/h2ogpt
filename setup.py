@@ -1,11 +1,10 @@
 import os
-import platform
-import re
-import sys
 
 import setuptools
 from typing import List
 from setuptools import find_packages
+
+for_pypi = os.getenv('PYPI') is not None
 
 
 def parse_requirements(file_name: str) -> List[str]:
@@ -20,6 +19,12 @@ def parse_requirements(file_name: str) -> List[str]:
         if 'chromamigdb' in line:
             # hnsw issue
             continue
+        if for_pypi:
+            if 'http://' in line or 'https://' in line:
+                continue
+            if 'llama-cpp-python' in line and ';' in line:
+                line = line[:line.index(';')]
+
         # assume all requirements files are in PEP 508 format with name @ <url> or name @ git+http/git+https
         requirements.append(line)
 

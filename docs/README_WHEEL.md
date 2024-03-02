@@ -13,6 +13,7 @@ Install in fresh env, avoiding being inside h2ogpt directory or a directory wher
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
+# the wheel built assumes cuda llama.cpp, need to change reqs_optional/requirements_optional_gpt4all.txt to select desired packages
 pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl[cuda]
 pip install flash-attn==2.4.2
 ```
@@ -23,6 +24,20 @@ For non CUDA cases, e.g. CPU, Metal M1/M2 do:
 pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl[cpu]
 ```
 
+A wheel online is provided for this and can be installed as follows:
+First, if using conda, DocTR can be enabled using above installation if first doing:
+```bash
+conda install weasyprint pygobject -c conda-forge -y
+```
+second run:
+```bash
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
+pip install h2ogpt==0.2.0[cuda] --index-url https://downloads.h2ogpt.h2o.ai --extra-index-url https://pypi.org/simple --no-cache
+pip install flash-attn==2.4.2
+```
+for CUDA support.  If conda and those packages weren't installed, this would exclude some DocTR support that is provided otherwise also by  docker, one-click installer for windows and mac, or manual windows/linux installers.
+
 ## Checks
 Once the wheel is built, if you do:
 ```bash
@@ -31,6 +46,24 @@ python -m pip check
 and you should see:
 ```text
 No broken requirements found.
+```
+
+## PyPI
+
+For PyPI, we use a more limited set of packages built like:
+```bash
+PYPI=1 python setup.py bdist_wheel
+```
+which can be installed with basic CUDA support like:
+```bash
+# For other GPUs etc. see: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends
+# required for PyPi wheels that do not allow URLs, so uses generic llama_cpp_python package:
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
+# below [cuda] assumes CUDA 12.1 for some packages like AutoAWQ etc.
+pip install h2ogpt[cuda]
+pip install flash-attn==2.4.2
 ```
 
 ## Run
