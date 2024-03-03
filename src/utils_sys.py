@@ -8,10 +8,30 @@ class StreamProxy:
         self.__original_stream = original_stream
 
     def write(self, *args, **kwargs):
-        return self.__original_stream.write(*args, **kwargs)
+        try:
+            return self.__original_stream.write(*args, **kwargs)
+        except ValueError as e:
+            if str(e) == "I/O operation on closed file":
+                self.handle_closed_file_error("write")
+            else:
+                raise
 
     def flush(self, *args, **kwargs):
-        return self.__original_stream.flush(*args, **kwargs)
+        try:
+            return self.__original_stream.flush(*args, **kwargs)
+        except ValueError as e:
+            if str(e) == "I/O operation on closed file":
+                self.handle_closed_file_error("flush")
+            else:
+                raise
+
+    def handle_closed_file_error(self, operation):
+        message = f"Warning: Attempt to {operation} to a closed stream has been ignored."
+        if os.getenv("HARD_ASSERTS"):
+            raise ValueError("I/O operation on closed file.")
+        else:
+            # Use sys.__stderr__ to ensure the message is seen even if stderr is closed/redirected.
+            print(message, file=sys.__stderr__)
 
     def close(self):
         # Print the stack trace to the original stream
@@ -22,8 +42,7 @@ class StreamProxy:
             # Raise an exception if HARD_ASSERTS is set
             raise Exception("Attempt to close stream intercepted.")
         else:
-            # Print a warning message to the original stream
-            print(f"{message}", file=self.__original_stream)
+            print(message, file=self.__original_stream)
 
     def __getattr__(self, name):
         return getattr(self.__original_stream, name)
@@ -38,7 +57,7 @@ class StreamProxy:
             if is_hard_asserts:
                 raise AttributeError(f"{message} Modification of '{name}' is not allowed on StreamProxy instances.")
             else:
-                print(f"{message}", file=self.__original_stream)
+                print(message, file=self.__original_stream)
 
 
 class FinalizeStream:
@@ -50,13 +69,13 @@ class FinalizeStream:
         if key in {"_FinalizeStream__proxy"}:
             super().__setattr__(key, value)
         else:
-            traceback.print_stack(
-                file=sys.__stdout__)  # Use sys.__stdout__ to ensure output if sys.stderr/stdout is protected
+            # Use sys.__stdout__ to ensure output if sys.stderr/stdout is protected
+            traceback.print_stack(file=sys.__stdout__)
             message = "Stream protection violation has been logged."
             if is_hard_asserts:
                 raise AttributeError(f"{message} Modification of '{key}' is prohibited.")
             else:
-                print(f"{message}", file=sys.__stdout__)
+                print(message, file=sys.__stdout__)
 
     def __getattr__(self, item):
         return getattr(self.__proxy, item)
