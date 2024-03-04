@@ -541,6 +541,8 @@ def main(
     :param use_gpu_id: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
     :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
+           If model is private or doesn't exist as HF model, can use "tiktoken" and pass max_seq_len and (if different) max_output_seq_len
+           For inference servers like OpenAI etc. if have model name, we use tiktoken with known input/output sequence lengths.
     :param lora_weights: LORA weights path/HF link
     :param gpu_id: if use_gpu_id, then use gpu_id for cuda device ID, or auto mode if gpu_id != -1
     :param compile_model Whether to compile the model
