@@ -2631,6 +2631,9 @@ def get_model(
         tokenizer_base_model = base_model
         config_tokenizer = config
         # ignore sequence length of tokenizer
+    elif tokenizer_base_model == 'tiktoken':
+        tokenizer_base_model = 'tiktoken'
+        config_tokenizer = None
     else:
         # get tokenizer specific objects
         config_tokenizer, _, max_seq_len_tokenizer = get_config(tokenizer_base_model, **config_kwargs,
@@ -2654,6 +2657,11 @@ def get_model(
 
     if load_exllama:
         tokenizer = tokenizer_loader
+    elif tokenizer_base_model == 'tiktoken':
+        assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or tiktoken tokenizer for model %s" % base_model
+        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
+        if max_output_seq_len is not None:
+            tokenizer.max_output_len = max_output_seq_len
     elif config_tokenizer is not None and tokenizer_loader is not None and not isinstance(tokenizer_loader, str):
         if load_exllama:
             assert base_model == tokenizer_base_model
