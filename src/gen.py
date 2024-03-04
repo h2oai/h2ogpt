@@ -2915,6 +2915,12 @@ def get_model(
         tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
         return model, tokenizer, inference_server
 
+    if inference_server and tokenizer is None:
+        # for new openai, claude, etc. models
+        assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for non-HF model %s" % base_model
+        tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
+        return model, tokenizer, inference_server
+
     # shouldn't reach here if had inference server
     assert not inference_server, "Malformed inference_server=%s" % inference_server
 
