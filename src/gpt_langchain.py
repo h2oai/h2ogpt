@@ -1240,7 +1240,9 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         # return _get_token_ids_default_method(text)
 
 
-from langchain.chat_models import ChatOpenAI, AzureChatOpenAI, ChatAnthropic
+from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
+from langchain.chat_models import ChatAnthropic as ChatAnthropic2
+from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain.llms import OpenAI, AzureOpenAI, Replicate
 
 
@@ -1470,7 +1472,7 @@ class ExtraChat:
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropicSys):
+            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys):
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -1567,10 +1569,79 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
         )
 
 
-class H2OChatAnthropic(ChatAnthropic, ExtraChat):
+class GenerateStream:
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        if 'streaming' not in kwargs:
+            kwargs['streaming'] = self.streaming
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if 'streaming' not in kwargs:
+            kwargs['streaming'] = self.streaming
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
+    def _generate(
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            stream: Optional[bool] = None,
+            **kwargs: Any,
+    ) -> ChatResult:
+        should_stream = stream if stream is not None else self.streaming
+        kwargs.pop('stream', None)
+        if should_stream:
+            stream_iter = self._stream(
+                messages, stop=stop, run_manager=run_manager, **kwargs
+            )
+            return generate_from_stream(stream_iter)
+        else:
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _agenerate(
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            stream: Optional[bool] = None,
+            **kwargs: Any,
+    ) -> ChatResult:
+        should_stream = stream if stream is not None else self.streaming
+        kwargs.pop('stream', None)
+        if should_stream:
+            stream_iter = self._astream(
+                messages, stop=stop, run_manager=run_manager, **kwargs
+            )
+            return await agenerate_from_stream(stream_iter)
+        else:
+            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+
+class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
+    streaming: Any = True
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1600,8 +1671,21 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
 
+class H2OChatAnthropic2Sys(H2OChatAnthropic2):
+    pass
 
-class H2OChatAnthropicSys(H2OChatAnthropic):
+
+class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    streaming: Any = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+
+
+class H2OChatAnthropic3Sys(H2OChatAnthropic3):
     pass
 
 
@@ -2052,11 +2136,13 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server.startswith('anthropic'):
-        if model_name == "claude-2.1":
+        if model_name in ["claude-2.0", "claude-2"]:
+            cls = H2OChatAnthropic2
+        elif model_name == "claude-2.1":
             # https://docs.anthropic.com/claude/docs/how-to-use-system-prompts
-            cls = H2OChatAnthropicSys
+            cls = H2OChatAnthropic2Sys
         else:
-            cls = H2OChatAnthropic
+            cls = H2OChatAnthropic3Sys
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
