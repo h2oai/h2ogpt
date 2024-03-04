@@ -504,8 +504,6 @@ def import_matplotlib():
     import pandas as pd
     # to avoid dlopen deadlock in fork
     import pandas.core.computation.expressions as pd_expressions
-    import pandas._libs.groupby as pd_libgroupby
-    import pandas._libs.reduction as pd_libreduction
     import pandas.core.algorithms as pd_algorithms
     import pandas.core.common as pd_com
     import numpy as np
