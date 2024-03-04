@@ -4162,10 +4162,12 @@ def go_gradio(**kwargs):
             history = history.copy()
 
             if undo:
+                history = get_llm_history(history)
                 if len(history) > 0:
                     history.pop()
                 return history
             if retry:
+                history = get_llm_history(history)
                 if history:
                     history[-1][1] = None
                 return history
@@ -4984,6 +4986,7 @@ def go_gradio(**kwargs):
                 submit_event1d = submit_event1c.then(**all_score_args,
                                                      api_name='%s_bot_score' % funn1 if allow_api else None,
                                                      queue=queue)
+                submit_event1d.then(**save_auth_kwargs)
 
                 submits1.extend([submit_event1a, submit_event1b, submit_event1c, submit_event1d])
 
@@ -4995,7 +4998,8 @@ def go_gradio(**kwargs):
                 .then(**all_undo_user_args, api_name='undo' if allow_api else None) \
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
                                                        score_text2], queue=queue) \
-                .then(**all_score_args, api_name='undo_score' if allow_api else None)
+                .then(**all_score_args, api_name='undo_score' if allow_api else None) \
+                    .then(**save_auth_kwargs)
             submits4 = [submit_event4]
 
         else:
@@ -5022,6 +5026,7 @@ def go_gradio(**kwargs):
                                                  queue=queue)
             submit_event1g = submit_event1f.then(**score_args2,
                                                  api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+            submit_event1g.then(**save_auth_kwargs)
 
             submits1 = [submit_event1a, submit_event1a2, submit_event1b, submit_event1c, submit_event1d,
                         submit_event1e,
@@ -5047,6 +5052,7 @@ def go_gradio(**kwargs):
             submit_event2g = submit_event2f.then(**score_args2,
                                                  api_name='submit_bot_score2' if allow_api else None,
                                                  queue=queue)
+            submit_event2g.then(**save_auth_kwargs)
 
             submits2 = [submit_event2a, submit_event2a2, submit_event2b, submit_event2c, submit_event2d,
                         submit_event2e,
@@ -5072,6 +5078,7 @@ def go_gradio(**kwargs):
             submit_event3g = submit_event3f.then(**score_args2,
                                                  api_name='retry_bot_score2' if allow_api else None,
                                                  queue=queue)
+            submit_event3g.then(**save_auth_kwargs)
 
             submits3 = [submit_event3a, submit_event3a2, submit_event3b, submit_event3c, submit_event3d,
                         submit_event3e,
@@ -5087,7 +5094,8 @@ def go_gradio(**kwargs):
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
                                                        score_text2], queue=queue) \
                 .then(**score_args, api_name='undo_score' if allow_api else None) \
-                .then(**score_args2, api_name='undo_score2' if allow_api else None)
+                .then(**score_args2, api_name='undo_score2' if allow_api else None) \
+                .then(**save_auth_kwargs)
             submits4 = [submit_event4]
 
         # MANAGE CHATS
