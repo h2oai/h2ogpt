@@ -3008,7 +3008,7 @@ def go_gradio(**kwargs):
                 elif len(text_outputs1) < num_model_lock:
                     text_outputs1 = text_outputs1 + [[]] * (num_model_lock - len(text_outputs1))
             else:
-                text_outputs1 = [[]]
+                text_outputs1 = []
             # ensure when load, even if unused, that has good state.  Can't be [[]]
             if text_output1 is None:
                 text_output1 = []
