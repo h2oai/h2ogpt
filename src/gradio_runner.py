@@ -3008,7 +3008,21 @@ def go_gradio(**kwargs):
                 elif len(text_outputs1) < num_model_lock:
                     text_outputs1 = text_outputs1 + [[]] * (num_model_lock - len(text_outputs1))
             else:
-                text_outputs1 = tuple([])
+                text_outputs1 = [[]]
+            # ensure when load, even if unused, that has good state.  Can't be [[]]
+            if text_output1 is None:
+                text_output1 = []
+            if text_output1 and len(text_output1) > 0 and not text_output1[0]:
+                text_output1 = []
+            if not text_output21 and len(text_output21) > 0 and not text_output21[0]:
+                text_output21 = []
+            if text_output21 is None:
+                text_output21 = []
+            for i in range(len(text_outputs1)):
+                if not text_outputs1[i] and len(text_outputs1[i]) > 0 and not text_outputs1[i][0]:
+                    text_outputs1[i] = []
+                if text_outputs1[i] is None:
+                    text_outputs1[i] = []
             return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1
 
         def save_auth_dict(auth_dict, auth_filename):
