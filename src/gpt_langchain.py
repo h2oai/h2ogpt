@@ -59,7 +59,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -3264,6 +3264,24 @@ def file_to_doc(file,
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file, parser='UnstructuredWordDocumentLoader')
+        docs1 = [x for x in docs1 if x.page_content]
+        if not docs1:
+            from langchain_community.document_loaders import Docx2txtLoader
+            docs1 = Docx2txtLoader(file_path=file).load()
+            docs1 = [x for x in docs1 if x.page_content]
+            add_meta(docs1, file, parser='Docx2txtLoader')
+        try:
+            # maybe images
+            import docx2txt
+
+            tmpdir = os.path.join(get_gradio_tmp(), str(uuid.uuid4()))
+            makedirs(tmpdir, exist_ok=True)
+            text = docx2txt.process(file, tmpdir)
+            images = os.listdir(tmpdir)
+            docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
+        except Exception as e:
+            print("docx images failure: %s" % str(e))
+
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
@@ -3491,7 +3509,7 @@ def file_to_doc(file,
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
                 [doci.metadata.update(source=file, source_true=file_llava, hashid=hash_of_file,
-                                      llava_prompt=llava_prompt) for doci in
+                                      llava_prompt=llava_prompt or '') for doci in
                  docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
