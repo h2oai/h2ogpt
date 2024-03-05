@@ -7,13 +7,19 @@ git clone https://github.com/h2oai/h2ogpt.git
 cd h2ogpt
 python setup.py bdist_wheel
 ```
-Note that Coqui TTS is not installed due to issues with librosa.  Use one-click, docker, or manual install scripts to get Coqui TTS.  Also, AMD ROC and others are supported, but need manual edits to the `reqs_optional/requirements_optional_gpt4all.txt` file to select it and comment out others.
+Note that Coqui TTS is not installed due to issues with librosa.  Use one-click, docker, or manual install scripts to get Coqui TTS.  Also, AMD ROC and others are supported, but need manual edits to the `reqs_optional/requirements_optional_llamacpp_gpt4all.txt` file to select it and comment out others.
 
 Install in fresh env, avoiding being inside h2ogpt directory or a directory where it is a sub directory.  For CUDA GPU do:
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
-# the wheel built assumes cuda llama.cpp, need to change reqs_optional/requirements_optional_gpt4all.txt to select desired packages
+set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+set LLAMA_CUBLAS=1
+set FORCE_CMAKE=1
+```
+for the cmake args, choose e llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+Then pip install:
+```bash
 pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl[cuda]
 pip install flash-attn==2.4.2
 ```

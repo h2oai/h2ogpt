@@ -56,6 +56,25 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
    # for cu118 use export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118 https://huggingface.github.io/autogptq-index/whl/cu118"
    ```
+Then choose your llama_cpp_python options, by changing `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+E.g. CUDA on Linux:
+```bash
+export LLAMA_CUBLAS=1
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+export FORCE_CMAKE=1
+```
+Windows CUDA:
+```cmdline
+set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+set LLAMA_CUBLAS=1
+set FORCE_CMAKE=1
+```
+Metal M1/M2:
+```bash
+export CMAKE_ARGS="-DLLAMA_METAL=on"
+export FORCE_CMAKE=1
+```
+
 Then run the following commands on any system:
    ```bash
    git clone https://github.com/h2oai/h2ogpt.git
@@ -63,46 +82,16 @@ Then run the following commands on any system:
    pip install -r requirements.txt
    pip install -r reqs_optional/requirements_optional_langchain.txt
 
-   # default uses cu121, for cu118, comment out cu121 and comment in similar cu118 wheels
-   # for no avx, comment-out avx wheels and choose ones without avx
-   # for AMD ROC, comment-out all except the correct ROC wheel
-   pip install -r reqs_optional/requirements_optional_gpt4all.txt
+   pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+   pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt --no-cache-dir
 
    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
    # GPL, only run next line if that is ok:
-   # pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+   pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 
    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
    ```
-If you have a system where the binary llama_cpp_python wheel is not compatible, please comment-out all llama_cpp_python lines in `reqs_optional/requirements_optional_gpt4all.txt`, then re-run above steps, and finish with:
-```bash
-pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
-export FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
-```
-For windows the equivalent is:
-```cmdline
-pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
-set LLAMA_CUBLAS=1
-set FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
-```
-Change `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).  Metal equivalent is:
-```bash
-pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS="-DLLAMA_METAL=on"
-export FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
-```
-
-Note if you see any issues with llama_cpp_python, like fatal Python errors or illegal instructions, please follow the above pip install of `llama_cpp_python`.
-
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
-If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.  For AVX1 or AMD ROC systems, edit `reqs_optional/requirements_optional_gpt4all.txt` to choose valid packages.
 
 We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) for 9GB+ GPU memory or larger models like [LLaMa-2-13B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-13b-chat.Q6_K.gguf) if you have 16GB+ GPU memory.
 

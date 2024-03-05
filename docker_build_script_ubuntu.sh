@@ -33,6 +33,11 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.
     bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
     conda install python=3.10 pygobject weasyprint -c conda-forge -y
 
+# if building for CPU, would remove CMAKE_ARGS and avoid GPU image as base image
+export LLAMA_CUBLAS=1
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export FORCE_CMAKE=1
+
 bash docs/linux_install.sh
 
 chmod -R a+rwx /h2ogpt_conda

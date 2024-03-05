@@ -59,25 +59,17 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
    ```
 
-* Default install script uses cu121.  For cu118, edit `reqs_optional/requirements_optional_gpt4all.txt` and comment-out cu121 and comment-in otherwise-similar cu118 wheels.  For no AVX or ROC, do similar comment-in/out.
-
-* If you have a non-standard setup, then comment-out **all** llama_cpp_python lines in `reqs_optional/requirements_optional_gpt4all.txt`.  You will do manual install at end.
-
+* Choose llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends), e.g. for CUDA:
+   ```bash
+   export LLAMA_CUBLAS=1
+   export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+   export FORCE_CMAKE=1
+   ```
 * Run (`bash docs/linux_install.sh`)[linux_install.sh] for full normal document Q/A installation.  To allow all (GPL too) packages, run:
     ```bash
     GPLOK=1 bash docs/linux_install.sh
     ```
 One can pick and choose different optional things to install instead by commenting them out in the shell script, or edit the script if any issues.  See script for notes about installation.
-
-* If you have a non-standard setup, then you have commented out all llama_cpp_python in `reqs_optional/requirements_optional_gpt4all.txt` and now at end you run:
-```bash
-pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
-export FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
-```
-or whichever ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).  Note that it takes while to build 0.2.55 with all arches, you can speed this up by choosing `DCMAKE_CUDA_ARCHITECTURES` to your specific cuda arch (see their docs).
 
 ---
 
