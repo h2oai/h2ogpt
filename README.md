@@ -60,15 +60,16 @@ Then choose your llama_cpp_python options, by changing `CMAKE_ARGS` to whichever
 E.g. CUDA on Linux:
 ```bash
 export LLAMA_CUBLAS=1
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
 ```
 Windows CUDA:
 ```cmdline
-set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
 set LLAMA_CUBLAS=1
 set FORCE_CMAKE=1
 ```
+Note for some reason things will fail with llama_cpp_python if don't add all cuda arch.
 Metal M1/M2:
 ```bash
 export CMAKE_ARGS="-DLLAMA_METAL=on"

@@ -62,7 +62,7 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 * Choose llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends), e.g. for CUDA:
    ```bash
    export LLAMA_CUBLAS=1
-   export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+   export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
    export FORCE_CMAKE=1
    ```
 * Run (`bash docs/linux_install.sh`)[linux_install.sh] for full normal document Q/A installation.  To allow all (GPL too) packages, run:

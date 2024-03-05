@@ -13,7 +13,7 @@ Install in fresh env, avoiding being inside h2ogpt directory or a directory wher
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
-set CMAKE_ARGS=-DLLAMA_CUBLAS=on
+set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
 set LLAMA_CUBLAS=1
 set FORCE_CMAKE=1
 ```
@@ -64,7 +64,7 @@ which can be installed with basic CUDA support like:
 ```bash
 # For other GPUs etc. see: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends
 # required for PyPi wheels that do not allow URLs, so uses generic llama_cpp_python package:
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
 # below [cuda] assumes CUDA 12.1 for some packages like AutoAWQ etc.
