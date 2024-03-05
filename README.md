@@ -63,13 +63,14 @@ export LLAMA_CUBLAS=1
 export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
 ```
+Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
 Windows CUDA:
 ```cmdline
 set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
 set LLAMA_CUBLAS=1
 set FORCE_CMAKE=1
 ```
-Note for some reason things will fail with llama_cpp_python if don't add all cuda arch.
+Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
 Metal M1/M2:
 ```bash
 export CMAKE_ARGS="-DLLAMA_METAL=on"

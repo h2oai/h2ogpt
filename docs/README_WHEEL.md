@@ -17,7 +17,7 @@ set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
 set LLAMA_CUBLAS=1
 set FORCE_CMAKE=1
 ```
-for the cmake args, choose e llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+for the cmake args, choose e llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).  Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
 Then pip install:
 ```bash
 pip install <h2ogpt_path>/dist/h2ogpt-0.1.0-py3-none-any.whl[cuda]
@@ -37,6 +37,7 @@ conda install weasyprint pygobject -c conda-forge -y
 ```
 second run:
 ```bash
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
 pip install h2ogpt==0.2.0[cuda] --index-url https://downloads.h2ogpt.h2o.ai --extra-index-url https://pypi.org/simple --no-cache
