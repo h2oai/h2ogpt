@@ -92,6 +92,8 @@ pip install llama_cpp_python==0.2.26 --force-reinstall --no-cache-dir
 ```
 Change `DLLAMA_CUBLAS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
 
+Note if you see any issues with llama_cpp_python, like fatal Python errors or illegal instructions, please follow the above pip install of `llama_cpp_python`.
+
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.  For AVX1 or AMD ROC systems, edit `reqs_optional/requirements_optional_gpt4all.txt` to choose valid packages.
 
