@@ -75,9 +75,9 @@ pip uninstall llama_cpp_python llama_cpp_python_cuda -y
 export LLAMA_CUBLAS=1
 export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.26 --force-reinstall --no-cache-dir
+pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
 ```
-or whichever ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+or whichever ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).  Note that it takes while to build 0.2.55 with all arches, you can speed this up by choosing `DCMAKE_CUDA_ARCHITECTURES` to your specific cuda arch (see their docs).
 
 ---
 

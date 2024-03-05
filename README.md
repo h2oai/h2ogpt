@@ -80,7 +80,7 @@ pip uninstall llama_cpp_python llama_cpp_python_cuda -y
 export LLAMA_CUBLAS=1
 export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.26 --force-reinstall --no-cache-dir
+pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
 ```
 For windows the equivalent is:
 ```cmdline
@@ -88,9 +88,16 @@ pip uninstall llama_cpp_python llama_cpp_python_cuda -y
 set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
 set LLAMA_CUBLAS=1
 set FORCE_CMAKE=1
-pip install llama_cpp_python==0.2.26 --force-reinstall --no-cache-dir
+pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
 ```
-Change `DLLAMA_CUBLAS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+Change `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).  Metal equivalent is:
+```bash
+pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+export LLAMA_CUBLAS=1
+export CMAKE_ARGS="-DLLAMA_METAL=on"
+export FORCE_CMAKE=1
+pip install llama_cpp_python==0.2.55 --force-reinstall --no-cache-dir
+```
 
 Note if you see any issues with llama_cpp_python, like fatal Python errors or illegal instructions, please follow the above pip install of `llama_cpp_python`.
 

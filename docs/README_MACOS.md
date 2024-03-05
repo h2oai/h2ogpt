@@ -121,7 +121,7 @@ and run `sh run.sh` from the terminal placed in the parent folder of `run.sh`
   * If any issues, then compile:
       ```bash
       pip uninstall llama-cpp-python -y
-      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.26 --no-cache-dir -c reqs_optional/reqs_constraints.txt
+      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.55 --no-cache-dir -c reqs_optional/reqs_constraints.txt
       ```
 
 * If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
