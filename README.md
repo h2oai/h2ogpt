@@ -74,6 +74,12 @@ Then run the following commands on any system:
 
    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
    ```
+If you have a system where the binary llama_cpp_python wheel is not compatible, please comment-out all llama_cpp_python lines in `reqs_optional/requirements_optional_gpt4all.txt`, then re-run above steps, and finish with:
+```bash
+CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama_cpp_python
+```
+or whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.  For AVX1 or AMD ROC systems, edit `reqs_optional/requirements_optional_gpt4all.txt` to choose valid packages.
 
