@@ -71,7 +71,11 @@ One can pick and choose different optional things to install instead by commenti
 
 * If you have a non-standard setup, then you have commented out all llama_cpp_python in `reqs_optional/requirements_optional_gpt4all.txt` and now at end you run:
 ```bash
-CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama_cpp_python
+pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+export LLAMA_CUBLAS=1
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export FORCE_CMAKE=1
+pip install llama_cpp_python==0.2.26 --force-reinstall --no-cache-dir
 ```
 or whichever ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
 

@@ -367,7 +367,7 @@ class H2OLlamaCpp(LlamaCpp):
                     else:
                         from llama_cpp_cuda import Llama
                 except Exception as e:
-                    print("Failed to listen to n_gpus: %s" % str(e), flush=True)
+                    print("Failed to listen to n_gpus: %s, trying llama_cpp module" % str(e), flush=True)
                     try:
                         from llama_cpp import Llama
                     except ImportError:

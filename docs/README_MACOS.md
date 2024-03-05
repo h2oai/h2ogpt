@@ -34,6 +34,9 @@ Supports CPU and MPS (Metal M1/M2).
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
     pip install -r reqs_optional/requirements_optional_gpt4all.txt -c reqs_optional/reqs_constraints.txt
     pip install librosa -c reqs_optional/reqs_constraints.txt
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS=-DLLAMA_METAL=on
+    export FORCE_CMAKE=1
     pip install llama-cpp-python -c reqs_optional/reqs_constraints.txt
     # Optional: PyMuPDF/ArXiv:
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
