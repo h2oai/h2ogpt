@@ -59,13 +59,21 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"
    ```
 
+* Default install script uses cu121.  For cu118, edit `reqs_optional/requirements_optional_gpt4all.txt` and comment-out cu121 and comment-in otherwise-similar cu118 wheels.  For no AVX or ROC, do similar comment-in/out.
+
+* If you have a non-standard setup, then comment-out **all** llama_cpp_python lines in `reqs_optional/requirements_optional_gpt4all.txt`.  You will do manual install at end.
+
 * Run (`bash docs/linux_install.sh`)[linux_install.sh] for full normal document Q/A installation.  To allow all (GPL too) packages, run:
     ```bash
     GPLOK=1 bash docs/linux_install.sh
     ```
 One can pick and choose different optional things to install instead by commenting them out in the shell script, or edit the script if any issues.  See script for notes about installation.
 
-Default install script uses cu121.  For cu118, edit `reqs_optional/requirements_optional_gpt4all.txt` and comment-out cu121 and comment-in otherwise-similar cu118 wheels.  For no AVX or ROC, do similar comment-in/out.
+* If you have a non-standard setup, then you have commented out all llama_cpp_python in `reqs_optional/requirements_optional_gpt4all.txt` and now at end you run:
+```bash
+CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama_cpp_python
+```
+or whichever ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
 
 ---
 

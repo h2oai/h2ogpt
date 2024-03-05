@@ -58,6 +58,9 @@ For newer builds of windows versions of 10/11.
    ```cmdline
    set PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
    ```
+* Default install script uses cu121.  For cu118, edit `reqs_optional/requirements_optional_gpt4all.txt` and comment-out cu121 and comment-in otherwise-similar cu118 wheels.  For no AVX or ROC, do similar comment-in/out.
+* If you have a non-standard setup, then comment-out **all** llama_cpp_python lines in `reqs_optional/requirements_optional_gpt4all.txt`.  You will do manual install at end.
+
 * Run [`docs\windows_install.bat](windows_install.bat) for full normal document Q/A installation.  To allow all (GPL too) packages, run:
     ```cmdline
     set GPLOK=1
@@ -68,6 +71,13 @@ One can pick and choose different optional things to install instead by commenti
 See [`docs\windows_install.bat](windows_install.bat) for additional installation instructions for:
  * Microsoft Word/Excel support
  * Tesseract OCR support
+
+* If you have a non-standard setup, then you have commented out all llama_cpp_python in `reqs_optional/requirements_optional_gpt4all.txt` and now at end you run:
+```cmdline
+set CMAKE_ARGS=-DLLAMA_CUBLAS=on && pip install llama_cpp_python
+```
+or whichever ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+
 
 Note models are stored in `C:\Users\<user>\.cache\` for chroma, huggingface, selenium, torch, weaviate, etc. directories.  For an absolute windows path, choose `--user_path=C:\Users\YourUsername\h2ogpt` or something similar for some user `YourUsername`.  If the model is using the GPU, in `nvidia-smi` or some other GPU monitor program you should see `python.exe` using GPUs in `C` (Compute) mode and using GPU resources.  Use `set CUDA_VISIBLE_DEVICES=0` to pick first model, since llama.cpp models cannot choose which GPU otherwise.
 
