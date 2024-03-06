@@ -185,14 +185,14 @@ Control model, LORA, or inference server used.
 If have inference server, add it, and click on **Load Model Names from Server** to populate the list of models with those on the server, which works for OpenAI, vLLM, oLLaMa, Google, MistralAI, Gradio inference servers.
 
 Examples of what to put into "server" include:
-* OLLaMa: vllm_chat:http://localhost:11434/v1/
-* vLLM: vllm:111.111.111.111:5005
-* vLLM Chat API: vllm_chat:https://gpt.h2o.ai:5000/v1  (only for no auth setup)
-* MistralAI: mistralai
-* Google: google
-* OpenAI Chat API: openai_chat
-* OpenAI Text API: openai
-* Gradio: https://gradio.h2o.ai (only for no auth setup)
+* OLLaMa: `vllm_chat:http://localhost:11434/v1/`
+* vLLM: `vllm:111.111.111.111:5005`
+* vLLM Chat API: `vllm_chat:https://gpt.h2o.ai:5000/v1`  (only for no auth setup)
+* MistralAI: `mistralai`
+* Google: `google`
+* OpenAI Chat API: `openai_chat`
+* OpenAI Text API: `openai`
+* Gradio: `https://gradio.h2o.ai` (only for no auth setup)
 
 Others that don't support model listing, need to enter model name:
 * Azure OpenAI Chat API: openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey
