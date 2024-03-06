@@ -1876,7 +1876,8 @@ def go_gradio(**kwargs):
                 with models_tab:
                     load_msg = "Load (Download) Model" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
-                    if kwargs['base_model'] not in ['', None, no_model_str] and kwargs['inference_server'] in ['', None, no_server_str]:
+                    if kwargs['base_model'] not in ['', None, no_model_str] and kwargs['inference_server'] in ['', None,
+                                                                                                               no_server_str]:
                         load_msg += '   [WARNING: Avoid --base_model on CLI for memory efficient Load-Unload]'
                     load_msg2 = load_msg + "2"
                     variant_load_msg = 'primary' if not is_public else 'secondary'
@@ -2042,8 +2043,8 @@ def go_gradio(**kwargs):
                             with gr.Row():
                                 with gr.Column(scale=10, visible=not kwargs['model_lock']):
                                     load_models_button2 = gr.Button('Load Model Names from Server2',
-                                                                   variant=variant_load_msg, scale=0,
-                                                                   size='sm', interactive=not is_public)
+                                                                    variant=variant_load_msg, scale=0,
+                                                                    size='sm', interactive=not is_public)
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
                                     unload_model_button2 = gr.Button("UnLoad Model2", variant=variant_load_msg, scale=0,
@@ -5786,9 +5787,9 @@ def go_gradio(**kwargs):
             return model_options_state1, gr.Dropdown(choices=model_options_state1[0], value=model_choice1)
 
         load_models_button.click(get_inf_models_gr, inputs=[model_options_state, model_choice, server_choice],
-                            outputs=[model_options_state, model_choice])
+                                 outputs=[model_options_state, model_choice])
         load_models_button2.click(get_inf_models_gr, inputs=[model_options_state, model_choice2, server_choice2],
-                             outputs=[model_options_state, model_choice2])
+                                  outputs=[model_options_state, model_choice2])
 
         go_event = go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None,
                                 **noqueue_kwargs) \

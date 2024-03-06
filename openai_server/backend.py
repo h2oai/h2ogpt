@@ -183,7 +183,8 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
                 yield response
             last_response = response
         job_outputs_num += job_outputs_num_new
-        logger.info("total job_outputs_num=%d" % job_outputs_num)
+        if verbose:
+            logger.info("total job_outputs_num=%d" % job_outputs_num)
     else:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
         res = ast.literal_eval(res)
