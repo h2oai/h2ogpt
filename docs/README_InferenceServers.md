@@ -2,7 +2,7 @@
 
 One can connect to Hugging Face text generation inference server, gradio servers running h2oGPT, OpenAI, or Azure OpenAI servers.  
 
-## OLLaMa
+## oLLaMa
 
 Use as inference server as:
 ```bash
