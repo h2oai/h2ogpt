@@ -2236,7 +2236,9 @@ def get_config(base_model,
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e) or \
-                    'OSError: You are trying to access a gated repo.' in str(e):
+                    'OSError: You are trying to access a gated repo.' in str(e) or \
+                    'does not appear to have a file' in str(e) or \
+                    'ncorrect path_or_model_id' in str(e):
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
@@ -2424,7 +2426,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
     gr_client = None
     hf_client = None
 
-    if is_vision_model(base_model):
+    if base_model and is_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
         gr_client = GradioClient(inference_server, check_hash=False, serialize=True)
         gr_client.setup()
@@ -2494,6 +2496,87 @@ def get_model_retry(**kwargs):
             if trial >= trials - 1:
                 raise
     return model1, tokenizer1, device1
+
+
+def get_root_url(url):
+    from urllib.parse import urlparse
+
+    # Parse the URL to extract its components
+    parsed_url = urlparse(url)
+
+    # Extracted parts: scheme, hostname, and port
+    scheme = parsed_url.scheme
+    hostname = parsed_url.hostname
+    port = parsed_url.port  # Will be None if the port is not explicitly specified in the URL
+
+    # Conditionally add the port to the reassembled URL only if it was explicitly specified
+    if port:
+        reassembled_url = f"{scheme}://{hostname}:{port}/"
+    else:
+        reassembled_url = f"{scheme}://{hostname}/"
+
+    # For displaying as separate parts
+    http_part = scheme
+    ip_part = hostname
+    port_part = port if port else "Not specified"  # Display 'Not specified' or similar if there's no port
+
+    # Output the reassembled URL
+    return reassembled_url
+
+
+def get_inf_models(inference_server):
+    models = []
+    if inference_server.startswith('google'):
+        import google.generativeai as genai
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                name_split = m.name.split('models/')
+                if len(name_split) >= 2:
+                    name = name_split[1]
+                    models.append(name)
+    elif inference_server.startswith('mistralai'):
+        from mistralai.client import MistralClient
+        from mistralai.async_client import MistralAsyncClient
+
+        api_key = os.environ["MISTRAL_API_KEY"]
+        assert api_key, "Missing MistralAI API key"
+        client = MistralClient(api_key=api_key)
+
+        list_models_response = client.list_models()
+        models.extend([x.id for x in dict(list_models_response)['data']])
+    elif inference_server.startswith('openai') or inference_server.startswith('vllm'):
+        openai_client, openai_async_client, \
+            inf_type, deployment_type, base_url, api_version, api_key = \
+            set_openai(inference_server)
+        # List models
+        try:
+            models.extend([x.id for x in openai_client.models.list()])
+        except Exception as e:
+            print("Can't get OpenAI/vLLM model list, trying ollama: %s" % str(e))
+            # in case ollama
+            import requests
+            root_url = get_root_url(base_url)
+            if not root_url.endswith('/'):
+                root_url += '/'
+            import json
+            response = json.loads(requests.get("%sapi/tags" % root_url).text)
+            # Print the response content
+            if 'models' in response:
+                models.extend([x['name'] for x in response['models']])
+
+    elif inference_server.startswith('replicate'):
+        pass
+    elif inference_server.startswith('sagemaker'):
+        pass
+    elif inference_server.startswith('anthropic'):
+        pass
+    elif inference_server.startswith('http'):
+        inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+        if gr_client is not None:
+            res = gr_client.predict(api_name='/model_names')
+            models.extend({x['base_model']: x['max_seq_len'] for x in ast.literal_eval(res)})
+
+    return models
 
 
 def get_model(
@@ -2773,9 +2856,8 @@ def get_model(
 
         list_models_response = client.list_models()
         see_model = False
-        models = []
-        list_models = [x.id for x in dict(list_models_response)['data']]
-        for name in list_models:
+        models = [x.id for x in dict(list_models_response)['data']]
+        for name in models:
             see_model |= base_model == name
             if name not in mistralai_mapping:
                 if os.getenv('HARD_ASSERTS'):
@@ -2906,7 +2988,7 @@ def get_model(
         if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
             # NOTE: Google reaches here because they only provide API to count tokens, no local code.
-            assert max_seq_len is not None, "Please pass --max_seq_len=<max_seq_len> for unknown or non-HF model %s" % base_model
+            assert max_seq_len is not None, "Please set max_seq_len in UI for context length, or pass to CLI --max_seq_len=<max_seq_len>"
             tokenizer = FakeTokenizer(model_max_length=max_seq_len - 50, is_openai=True)
         if max_output_len is not None:
             tokenizer.max_output_len = max_output_len

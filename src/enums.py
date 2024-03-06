@@ -156,7 +156,7 @@ class LangChainAgent(Enum):
     AUTOGPT = 'AUTOGPT'
 
 
-no_server_str = no_lora_str = no_model_str = '[None/Remove]'
+no_server_str = no_lora_str = no_model_str = '[]'
 
 # from site-packages/langchain/llms/openai.py
 # but needed since ChatOpenAI doesn't have this information

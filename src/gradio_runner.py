@@ -70,7 +70,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry, remove_refs, get_on_disk_models, get_llama_lower_hf, model_name_to_prompt_type
+    get_model_retry, remove_refs, get_on_disk_models, get_llama_lower_hf, model_name_to_prompt_type, get_inf_models
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -1885,6 +1885,9 @@ def go_gradio(**kwargs):
                         with gr.Column():
                             with gr.Row():
                                 with gr.Column(scale=10, visible=not kwargs['model_lock']):
+                                    load_models_button = gr.Button('Load Model Names from Server',
+                                                                   variant=variant_load_msg, scale=0,
+                                                                   size='sm', interactive=not is_public)
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
                                     unload_model_button = gr.Button("UnLoad Model", variant=variant_load_msg, scale=0,
@@ -2038,6 +2041,9 @@ def go_gradio(**kwargs):
                         with col_model2:
                             with gr.Row():
                                 with gr.Column(scale=10, visible=not kwargs['model_lock']):
+                                    load_models_button2 = gr.Button('Load Model Names from Server2',
+                                                                   variant=variant_load_msg, scale=0,
+                                                                   size='sm', interactive=not is_public)
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
                                     unload_model_button2 = gr.Button("UnLoad Model2", variant=variant_load_msg, scale=0,
@@ -2293,7 +2299,7 @@ def go_gradio(**kwargs):
                     num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
                     # WIP
-                    #if kwargs['auth'] and is_gradio_h2oai:
+                    # if kwargs['auth'] and is_gradio_h2oai:
                     #    gr.Button("Logout", link="/logout")
                     if kwargs['enforce_h2ogpt_api_key'] and kwargs['enforce_h2ogpt_ui_key']:
                         label_h2ogpt_key = "h2oGPT Token for API and UI access"
@@ -5013,7 +5019,7 @@ def go_gradio(**kwargs):
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
                                                        score_text2], queue=queue) \
                 .then(**all_score_args, api_name='undo_score' if allow_api else None) \
-                    .then(**save_auth_kwargs)
+                .then(**save_auth_kwargs)
             submits4 = [submit_event4]
 
         else:
@@ -5518,6 +5524,13 @@ def go_gradio(**kwargs):
             all_kwargs1['sink_dict'] = sink_dict
             all_kwargs1['truncation_generation'] = truncation_generation
             all_kwargs1['hf_model_dict'] = hf_model_dict
+            # reasonable default for easy UI/UX even if not optimal
+            if 'llama2' in model_name and max_seq_len1 in [-1, None]:
+                max_seq_len1 = 4096
+            elif 'mistral' in model_name and max_seq_len1 in [-1, None]:
+                max_seq_len1 = 4096
+            else:
+                max_seq_len1 = 4096
             all_kwargs1['max_seq_len'] = int(max_seq_len1) if max_seq_len1 is not None and max_seq_len1 > 0 else None
             try:
                 all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
@@ -5761,6 +5774,21 @@ def go_gradio(**kwargs):
                                                        [server_choice, server_choice2, new_server,
                                                         server_options_state],
                                                **noqueue_kwargs)
+
+        def get_inf_models_gr(model_options_state1, model_choice1, server1):
+            models_new = get_inf_models(server1)
+            model_options_state1[0].extend(models_new)
+            if no_model_str in model_options_state1[0]:
+                model_options_state1[0].remove(no_model_str)
+            model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
+            if models_new:
+                model_choice1 = models_new[0]  # pick new one
+            return model_options_state1, gr.Dropdown(choices=model_options_state1[0], value=model_choice1)
+
+        load_models_button.click(get_inf_models_gr, inputs=[model_options_state, model_choice, server_choice],
+                            outputs=[model_options_state, model_choice])
+        load_models_button2.click(get_inf_models_gr, inputs=[model_options_state, model_choice2, server_choice2],
+                             outputs=[model_options_state, model_choice2])
 
         go_event = go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None,
                                 **noqueue_kwargs) \
