@@ -70,10 +70,11 @@ Examples of what to put into "server" in UI or for `<server>` when using `--infe
 * Gradio: `https://gradio.h2o.ai` (only for no auth setup)
 * Anthropic: `anthropic` (this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API)
 
-Others that don't support model listing, need to enter model name:
+In the [UI Model Control Tab](README_ui.md#models-tab), one can auto-populate the models from these inference servers by clicking on `Load Model Names from Server`.  In every case, the CLI requires the `--base_model` to be specified. It is not auto-populated.
+
+Others that don't support model listing, need to enter model name in the UI:
 * Azure OpenAI Chat API: `openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey`
   * Then add base model name, e.g. `gpt-3.5-turbo`
-
 
 ### Deploying like gpt.h2o.ai
 
