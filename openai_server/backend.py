@@ -153,7 +153,6 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
                 res = ast.literal_eval(res)
                 if verbose:
                     logger.info('Stream %d: %s\n\n %s\n\n' % (num, res['response'], res))
-                else:
                     logger.info('Stream %d' % (job_outputs_num + num))
                 response = res['response']
                 chunk = response[len(last_response):]
@@ -174,7 +173,6 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
             res = ast.literal_eval(res)
             if verbose:
                 logger.info('Final Stream %d: %s\n\n%s\n\n' % (num, res['response'], res))
-            else:
                 logger.info('Final Stream %d' % (job_outputs_num + num))
             response = res['response']
             chunk = response[len(last_response):]

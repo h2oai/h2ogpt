@@ -41,11 +41,30 @@ With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fix
     ```
     Then run h2oGPT and use oLLaMa endpoint as vllm_chat API:
     ```bash
-    python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=plain --max_seq_len=4096
+    python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=openai_chat --max_seq_len=4096
     ```
-    This gives around 57 tokens/sec on 3090TI on i9.  Issue is that oLLaMa seems lower quality for same inputs and settings, e.g. `Tell a very long kid's story about birds.` geneates emojies etc. for native GGUF, while ollama for same model, settings, prompt, does not.
+    This gives around 55 tokens/sec on 3090Ti on i9.
 
-* Work-around 2: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
+    [Issue](https://github.com/ollama/ollama/issues/2963) is that oLLaMa does not allow for a runtime change to system prompt or other parameters like temperature.
+
+* Work-around 2: Use gradio, vLLM, TGI, etc. inference server.  E.g. to keep same model exactly with same llama.cpp and model file, use gradio server:
+  In one terminal (like oLLaMa but more general) do:
+  ```bash
+  GRADIO_SERVER_PORT=7861 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --prompt_type=llama2 --openai_server=True --openai_port=5000 --concurrency_count=1 --add_disk_models_to_ui=False --enable_tts=False --enable_stt=False --max_seq_len=4096 --save_dir=saveinf
+  ```
+  Note that OpenAI proxy server is default, just shown here for clarity.  Here `max_seq_len` is optional, we will auto-set if not passed for llama.cpp models.
+
+  Then in another terminal:
+  ```bash
+  python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --inference_server=vllm_chat:localhost:5000 --prompt_type=llama2 --max_seq_len=4096 --add_disk_models_to_ui=False --openai_port=5001 --save_dir=savehead
+  ```
+  where `add_disk_models_to_ui` is set to `False` since expect using just that single model, unless one uses model_lock.  The model path is set here again just to get model name correct in the UI.  Then go to `http://localhost:7860` as usual.
+
+  One can disable the OpenAI proxy server on this 2nd (primary) Gradio by setting `--openai_server=False`.
+
+  This gives 55 tokens/ses on 3090Ti on i9, no slower than oLLaMa.
+
+* Work-around 3: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
     pip uninstall llama_cpp_python llama_cpp_python_cuda -y
     export LLAMA_CUBLAS=1
