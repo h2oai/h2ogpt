@@ -4537,3 +4537,44 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     text = responses.choices[0].message.content
     print(text)
     assert 'Chirpy' in text
+
+
+@wrap_test_forked
+def test_client_openai_chat_history():
+
+    stream_output = True
+    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
+    prompt_type = 'llama2'  # 'human_bot'
+    langchain_mode = 'LLM'
+    langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled', 'LLM']
+
+    from src.gen import main
+    main(base_model=base_model, prompt_type=prompt_type, chat=True,
+         stream_output=stream_output, gradio=True, num_beams=1, block_gradio_exit=False,
+         langchain_mode=langchain_mode,
+         langchain_modes=langchain_modes,
+         add_disk_models_to_ui=False,
+         score_model=None,
+         enable_tts=False,
+         enable_stt=False,
+         )
+
+    from openai import OpenAI
+    base_url = 'http://localhost:5000/v1'
+    model = base_model
+    client_args = dict(base_url=base_url, api_key='EMPTY')
+    openai_client = OpenAI(**client_args)
+
+    messages = [{'role': 'user', 'content': 'What is your name?'},
+                {'role': 'assistant', 'content': 'My name is Bob.'},
+                {'role': 'user', 'content': 'What did I just ask?'},
+                ]
+    stream = False
+
+    client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages)
+    client = openai_client.chat.completions
+
+    responses = client.create(**client_kwargs)
+    text = responses.choices[0].message.content
+    print(text)
+    assert 'What is your name?' in text
