@@ -70,7 +70,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry, remove_refs, get_on_disk_models, get_llama_lower_hf, model_name_to_prompt_type
+    get_model_retry, remove_refs, get_on_disk_models, get_llama_lower_hf, model_name_to_prompt_type, get_inf_models
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list, key_overrides
 
@@ -1903,6 +1903,9 @@ def go_gradio(**kwargs):
                         with gr.Column():
                             with gr.Row():
                                 with gr.Column(scale=10, visible=not kwargs['model_lock']):
+                                    load_models_button = gr.Button('Load Model Names from Server',
+                                                                   variant=variant_load_msg, scale=0,
+                                                                   size='sm', interactive=not is_public)
                                     load_model_button = gr.Button(load_msg, variant=variant_load_msg, scale=0,
                                                                   size='sm', interactive=not is_public)
                                     unload_model_button = gr.Button("UnLoad Model", variant=variant_load_msg, scale=0,
@@ -2056,6 +2059,9 @@ def go_gradio(**kwargs):
                         with col_model2:
                             with gr.Row():
                                 with gr.Column(scale=10, visible=not kwargs['model_lock']):
+                                    load_models_button2 = gr.Button('Load Model Names from Server2',
+                                                                   variant=variant_load_msg, scale=0,
+                                                                   size='sm', interactive=not is_public)
                                     load_model_button2 = gr.Button(load_msg2, variant=variant_load_msg, scale=0,
                                                                    size='sm', interactive=not is_public)
                                     unload_model_button2 = gr.Button("UnLoad Model2", variant=variant_load_msg, scale=0,
@@ -3026,7 +3032,21 @@ def go_gradio(**kwargs):
                 elif len(text_outputs1) < num_model_lock:
                     text_outputs1 = text_outputs1 + [[]] * (num_model_lock - len(text_outputs1))
             else:
-                text_outputs1 = tuple([])
+                text_outputs1 = []
+            # ensure when load, even if unused, that has good state.  Can't be [[]]
+            if text_output1 is None:
+                text_output1 = []
+            if text_output1 and len(text_output1) > 0 and not text_output1[0]:
+                text_output1 = []
+            if not text_output21 and len(text_output21) > 0 and not text_output21[0]:
+                text_output21 = []
+            if text_output21 is None:
+                text_output21 = []
+            for i in range(len(text_outputs1)):
+                if not text_outputs1[i] and len(text_outputs1[i]) > 0 and not text_outputs1[i][0]:
+                    text_outputs1[i] = []
+                if text_outputs1[i] is None:
+                    text_outputs1[i] = []
             return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1
 
         def save_auth_dict(auth_dict, auth_filename):
@@ -4180,10 +4200,12 @@ def go_gradio(**kwargs):
             history = history.copy()
 
             if undo:
+                history = get_llm_history(history)
                 if len(history) > 0:
                     history.pop()
                 return history
             if retry:
+                history = get_llm_history(history)
                 if history:
                     history[-1][1] = None
                 return history
@@ -5002,6 +5024,7 @@ def go_gradio(**kwargs):
                 submit_event1d = submit_event1c.then(**all_score_args,
                                                      api_name='%s_bot_score' % funn1 if allow_api else None,
                                                      queue=queue)
+                submit_event1d.then(**save_auth_kwargs)
 
                 submits1.extend([submit_event1a, submit_event1b, submit_event1c, submit_event1d])
 
@@ -5013,7 +5036,8 @@ def go_gradio(**kwargs):
                 .then(**all_undo_user_args, api_name='undo' if allow_api else None) \
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
                                                        score_text2], queue=queue) \
-                .then(**all_score_args, api_name='undo_score' if allow_api else None)
+                .then(**all_score_args, api_name='undo_score' if allow_api else None) \
+                .then(**save_auth_kwargs)
             submits4 = [submit_event4]
 
         else:
@@ -5040,6 +5064,7 @@ def go_gradio(**kwargs):
                                                  queue=queue)
             submit_event1g = submit_event1f.then(**score_args2,
                                                  api_name='instruction_bot_score2' if allow_api else None, queue=queue)
+            submit_event1g.then(**save_auth_kwargs)
 
             submits1 = [submit_event1a, submit_event1a2, submit_event1b, submit_event1c, submit_event1d,
                         submit_event1e,
@@ -5065,6 +5090,7 @@ def go_gradio(**kwargs):
             submit_event2g = submit_event2f.then(**score_args2,
                                                  api_name='submit_bot_score2' if allow_api else None,
                                                  queue=queue)
+            submit_event2g.then(**save_auth_kwargs)
 
             submits2 = [submit_event2a, submit_event2a2, submit_event2b, submit_event2c, submit_event2d,
                         submit_event2e,
@@ -5090,6 +5116,7 @@ def go_gradio(**kwargs):
             submit_event3g = submit_event3f.then(**score_args2,
                                                  api_name='retry_bot_score2' if allow_api else None,
                                                  queue=queue)
+            submit_event3g.then(**save_auth_kwargs)
 
             submits3 = [submit_event3a, submit_event3a2, submit_event3b, submit_event3c, submit_event3d,
                         submit_event3e,
@@ -5105,7 +5132,8 @@ def go_gradio(**kwargs):
                 .then(clear_all, inputs=None, outputs=[instruction, iinput, radio_chats, score_text,
                                                        score_text2], queue=queue) \
                 .then(**score_args, api_name='undo_score' if allow_api else None) \
-                .then(**score_args2, api_name='undo_score2' if allow_api else None)
+                .then(**score_args2, api_name='undo_score2' if allow_api else None) \
+                .then(**save_auth_kwargs)
             submits4 = [submit_event4]
 
         # MANAGE CHATS
@@ -5514,6 +5542,13 @@ def go_gradio(**kwargs):
             all_kwargs1['sink_dict'] = sink_dict
             all_kwargs1['truncation_generation'] = truncation_generation
             all_kwargs1['hf_model_dict'] = hf_model_dict
+            # reasonable default for easy UI/UX even if not optimal
+            if 'llama2' in model_name and max_seq_len1 in [-1, None]:
+                max_seq_len1 = 4096
+            elif 'mistral' in model_name and max_seq_len1 in [-1, None]:
+                max_seq_len1 = 4096
+            else:
+                max_seq_len1 = 4096
             all_kwargs1['max_seq_len'] = int(max_seq_len1) if max_seq_len1 is not None and max_seq_len1 > 0 else None
             try:
                 all_kwargs1['rope_scaling'] = str_to_dict(rope_scaling1)  # transcribe
@@ -5757,6 +5792,21 @@ def go_gradio(**kwargs):
                                                        [server_choice, server_choice2, new_server,
                                                         server_options_state],
                                                **noqueue_kwargs)
+
+        def get_inf_models_gr(model_options_state1, model_choice1, server1):
+            models_new = get_inf_models(server1)
+            model_options_state1[0].extend(models_new)
+            if no_model_str in model_options_state1[0]:
+                model_options_state1[0].remove(no_model_str)
+            model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
+            if models_new:
+                model_choice1 = models_new[0]  # pick new one
+            return model_options_state1, gr.Dropdown(choices=model_options_state1[0], value=model_choice1)
+
+        load_models_button.click(get_inf_models_gr, inputs=[model_options_state, model_choice, server_choice],
+                            outputs=[model_options_state, model_choice])
+        load_models_button2.click(get_inf_models_gr, inputs=[model_options_state, model_choice2, server_choice2],
+                             outputs=[model_options_state, model_choice2])
 
         go_event = go_btn.click(lambda: gr.update(visible=False), None, go_btn, api_name="go" if allow_api else None,
                                 **noqueue_kwargs) \

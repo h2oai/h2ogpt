@@ -159,7 +159,7 @@ class LangChainAgent(Enum):
     AUTOGPT = 'AUTOGPT'
 
 
-no_server_str = no_lora_str = no_model_str = '[None/Remove]'
+no_server_str = no_lora_str = no_model_str = '[]'
 
 # from site-packages/langchain/llms/openai.py
 # but needed since ChatOpenAI doesn't have this information
@@ -200,7 +200,9 @@ anthropic_mapping = {
     "claude-2.1": 200000,
     "claude-2": 100000,
     "claude-2.0": 100000,
-    "claude-instant-1.2": 100000
+    "claude-instant-1.2": 100000,
+    "claude-3-opus-20240229": 200000,
+    "claude-3-sonnet-20240229": 200000,
 }
 
 anthropic_mapping_outputs = {
@@ -208,6 +210,8 @@ anthropic_mapping_outputs = {
     "claude-2": 4096,
     "claude-2.0": 4096,
     "claude-instant-1.2": 4096,
+    "claude-3-opus-20240229": 4096,
+    "claude-3-sonnet-20240229": 4096,
 }
 
 google_mapping = {

@@ -14,8 +14,22 @@ conda activate h2ogpt-mac
 pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt
+
 # Required for CPU: LLaMa/GPT4All:
-pip install -r reqs_optional/requirements_optional_gpt4all.txt
+# For MPS support
+if [ -z "$BUILD_MPS" ]
+then
+    echo "BUILD_MPS is not set, skipping MPS specific configs..."
+else
+    if [ "$BUILD_MPS" = "1" ]
+    then
+        echo "BUILD_MPS is set to 1, running MPS specific configs..."
+        export CMAKE_ARGS=-DLLAMA_METAL=on  # remove if CPU MAC
+        export FORCE_CMAKE=1
+    fi
+fi
+pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt --no-cache-dir
+
 # Optional: PyMuPDF/ArXiv:
 pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 # Optional: Selenium/PlayWright:
@@ -28,19 +42,6 @@ pip install https://h2o-release.s3.amazonaws.com/h2ogpt/hnswmiglib-0.7.0.tgz
 
 # Install PyInstaller
 pip install PyInstaller
-
-# For MPS support
-if [ -z "$BUILD_MPS" ]
-then
-    echo "BUILD_MPS is not set, skipping MPS specific configs..."
-else
-    if [ "$BUILD_MPS" = "1" ]
-    then
-        echo "BUILD_MPS is set to 1, running MPS specific configs..."
-        pip uninstall llama-cpp-python -y
-        CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.11 --no-cache-dir
-    fi
-fi
 
 # Install and copy tesseract & poppler
 #brew install tesseract@5.3.3

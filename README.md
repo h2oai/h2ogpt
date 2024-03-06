@@ -26,7 +26,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
-- **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
+- **Inference Servers** support (oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
 - **OpenAI-compliant**
   - Server Proxy API (h2oGPT acts as drop-in-replacement to OpenAI server)
   - Python client API (to talk to Gradio server)
@@ -56,6 +56,27 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
    export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
    # for cu118 use export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu118 https://huggingface.github.io/autogptq-index/whl/cu118"
    ```
+Then choose your llama_cpp_python options, by changing `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+E.g. CUDA on Linux:
+```bash
+export LLAMA_CUBLAS=1
+export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export FORCE_CMAKE=1
+```
+Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
+Windows CUDA:
+```cmdline
+set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
+set LLAMA_CUBLAS=1
+set FORCE_CMAKE=1
+```
+Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
+Metal M1/M2:
+```bash
+export CMAKE_ARGS="-DLLAMA_METAL=on"
+export FORCE_CMAKE=1
+```
+
 Then run the following commands on any system:
    ```bash
    git clone https://github.com/h2oai/h2ogpt.git
@@ -63,19 +84,16 @@ Then run the following commands on any system:
    pip install -r requirements.txt
    pip install -r reqs_optional/requirements_optional_langchain.txt
 
-   # default uses cu121, for cu118, comment out cu121 and comment in similar cu118 wheels
-   # for no avx, comment-out avx wheels and choose ones without avx
-   # for AMD ROC, comment-out all except the correct ROC wheel
-   pip install -r reqs_optional/requirements_optional_gpt4all.txt
+   pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+   pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt --no-cache-dir
 
    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
    # GPL, only run next line if that is ok:
-   # pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+   pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 
    python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
    ```
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
-If you encounter issues with `llama-cpp-python` or other packages that try to compile and fail, try binary wheels for your platform as linked in the detailed instructions below.  For AVX1 or AMD ROC systems, edit `reqs_optional/requirements_optional_gpt4all.txt` to choose valid packages.
 
 We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) for 9GB+ GPU memory or larger models like [LLaMa-2-13B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-13b-chat.Q6_K.gguf) if you have 16GB+ GPU memory.
 
@@ -204,7 +222,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [CLI chat](docs/README_CLI.md)
    * [Gradio UI](docs/README_ui.md)
    * [Client API (Gradio, OpenAI-Compliant)](docs/README_CLIENT.md)
-   * [Inference Servers (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)](docs/README_InferenceServers.md)
+   * [Inference Servers (oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)](docs/README_InferenceServers.md)
    * [Build Python Wheel](docs/README_WHEEL.md)
    * [Offline Installation](docs/README_offline.md)
    * [Low Memory](docs/FAQ.md#low-memory-mode)

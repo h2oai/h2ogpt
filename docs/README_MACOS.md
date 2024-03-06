@@ -30,11 +30,14 @@ Supports CPU and MPS (Metal M1/M2).
     ```bash
     # Required for Doc Q/A: LangChain:
     pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
+  
     # Required for CPU: LLaMa/GPT4All:
     pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt -c reqs_optional/reqs_constraints.txt
+    export CMAKE_ARGS=-DLLAMA_METAL=on
+    export FORCE_CMAKE=1
+    pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
+
     pip install librosa -c reqs_optional/reqs_constraints.txt
-    pip install llama-cpp-python -c reqs_optional/reqs_constraints.txt
     # Optional: PyMuPDF/ArXiv:
     pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
     # Optional: Selenium/PlayWright:
@@ -113,14 +116,6 @@ and run `sh run.sh` from the terminal placed in the parent folder of `run.sh`
     ```bash
     ARCHFLAGS="-arch x86_64" pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
     ```
-* Metal M1/M2 Only
-  * By default requirements_optional_gpt4all.txt should install correct llama_cpp_python packages for GGUF.  See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases) for other releases if you encounter any issues.
-  * If any issues, then compile:
-      ```bash
-      pip uninstall llama-cpp-python -y
-      CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.26 --no-cache-dir -c reqs_optional/reqs_constraints.txt
-      ```
-
 * If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
 * If you see the error `TypeError: Trying to convert BFloat16 to the MPS backend but it does not have support for that dtype.`:
   ```bash

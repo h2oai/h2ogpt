@@ -5,6 +5,7 @@ import uuid
 from collections import deque
 
 from log import logger
+from openai_server.backend_utils import convert_messages_to_structure
 
 
 def decode(x, encoding_name="cl100k_base"):
@@ -189,50 +190,6 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
         res = ast.literal_eval(res)
         yield res['response']
-
-
-def convert_messages_to_structure(messages):
-    """
-    Convert a list of messages with roles and content into a structured format.
-
-    Parameters:
-    messages (list of dicts): A list where each dict contains 'role' and 'content' keys.
-
-    Variables:
-    structure: dict: A dictionary with 'instruction', 'system_message', and 'history' keys.
-
-    Returns
-    """
-    structure = {
-        "instruction": None,
-        "system_message": None,
-        "history": []
-    }
-
-    for message in messages:
-        role = message.get("role")
-        assert role, "Missing role"
-        content = message.get("content")
-        assert content, "Missing content"
-
-        if role == "function":
-            raise NotImplementedError("role: function not implemented")
-        if role == "user" and structure["instruction"] is None:
-            # The first user message is considered as the instruction
-            structure["instruction"] = content
-        elif role == "system" and structure["system_message"] is None:
-            # The first system message is considered as the system message
-            structure["system_message"] = content
-        elif role == "user" or role == "assistant":
-            # All subsequent user and assistant messages are part of the history
-            if structure["history"] and structure["history"][-1][0] == "user" and role == "assistant":
-                # Pair the assistant response with the last user message
-                structure["history"][-1] = (structure["history"][-1][1], content)
-            else:
-                # Add a new pair to the history
-                structure["history"].append(("user", content) if role == "user" else ("assistant", content))
-
-    return structure['instruction'], structure['system_message'], structure['history']
 
 
 def chat_completion_action(body: dict, stream_output=False) -> dict:

@@ -59,7 +59,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1240,7 +1240,9 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         # return _get_token_ids_default_method(text)
 
 
-from langchain.chat_models import ChatOpenAI, AzureChatOpenAI, ChatAnthropic
+from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
+from langchain.chat_models import ChatAnthropic as ChatAnthropic2
+from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain.llms import OpenAI, AzureOpenAI, Replicate
 
 
@@ -1470,7 +1472,7 @@ class ExtraChat:
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropicSys):
+            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys):
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -1567,10 +1569,79 @@ class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
         )
 
 
-class H2OChatAnthropic(ChatAnthropic, ExtraChat):
+class GenerateStream:
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        if 'streaming' not in kwargs:
+            kwargs['streaming'] = self.streaming
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if 'streaming' not in kwargs:
+            kwargs['streaming'] = self.streaming
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
+
+    def _generate(
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            stream: Optional[bool] = None,
+            **kwargs: Any,
+    ) -> ChatResult:
+        should_stream = stream if stream is not None else self.streaming
+        kwargs.pop('stream', None)
+        if should_stream:
+            stream_iter = self._stream(
+                messages, stop=stop, run_manager=run_manager, **kwargs
+            )
+            return generate_from_stream(stream_iter)
+        else:
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+    async def _agenerate(
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+            stream: Optional[bool] = None,
+            **kwargs: Any,
+    ) -> ChatResult:
+        should_stream = stream if stream is not None else self.streaming
+        kwargs.pop('stream', None)
+        if should_stream:
+            stream_iter = self._astream(
+                messages, stop=stop, run_manager=run_manager, **kwargs
+            )
+            return await agenerate_from_stream(stream_iter)
+        else:
+            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+
+class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
+    streaming: Any = True
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1600,8 +1671,21 @@ class H2OChatAnthropic(ChatAnthropic, ExtraChat):
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
 
+class H2OChatAnthropic2Sys(H2OChatAnthropic2):
+    pass
 
-class H2OChatAnthropicSys(H2OChatAnthropic):
+
+class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    streaming: Any = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+
+
+class H2OChatAnthropic3Sys(H2OChatAnthropic3):
     pass
 
 
@@ -2052,11 +2136,13 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server.startswith('anthropic'):
-        if model_name == "claude-2.1":
+        if model_name in ["claude-2.0", "claude-2"]:
+            cls = H2OChatAnthropic2
+        elif model_name == "claude-2.1":
             # https://docs.anthropic.com/claude/docs/how-to-use-system-prompts
-            cls = H2OChatAnthropicSys
+            cls = H2OChatAnthropic2Sys
         else:
-            cls = H2OChatAnthropic
+            cls = H2OChatAnthropic3Sys
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
@@ -3178,6 +3264,24 @@ def file_to_doc(file,
     elif (file.lower().endswith('.docx') or file.lower().endswith('.doc')) and (have_libreoffice or True):
         docs1 = UnstructuredWordDocumentLoader(file_path=file).load()
         add_meta(docs1, file, parser='UnstructuredWordDocumentLoader')
+        docs1 = [x for x in docs1 if x.page_content]
+        if not docs1:
+            from langchain_community.document_loaders import Docx2txtLoader
+            docs1 = Docx2txtLoader(file_path=file).load()
+            docs1 = [x for x in docs1 if x.page_content]
+            add_meta(docs1, file, parser='Docx2txtLoader')
+        try:
+            # maybe images
+            import docx2txt
+
+            tmpdir = os.path.join(get_gradio_tmp(), str(uuid.uuid4()))
+            makedirs(tmpdir, exist_ok=True)
+            text = docx2txt.process(file, tmpdir)
+            images = os.listdir(tmpdir)
+            docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
+        except Exception as e:
+            print("docx images failure: %s" % str(e))
+
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
         docs1 = UnstructuredExcelLoader(file_path=file).load()
@@ -3405,7 +3509,7 @@ def file_to_doc(file,
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
                 [doci.metadata.update(source=file, source_true=file_llava, hashid=hash_of_file,
-                                      llava_prompt=llava_prompt) for doci in
+                                      llava_prompt=llava_prompt or '') for doci in
                  docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:

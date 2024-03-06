@@ -817,6 +817,28 @@ def test_docx_add(db_type):
 
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
+def test_docx_add2(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            shutil.copy('tests/table_as_image.docx', tmp_user_path)
+            test_file1 = os.path.join(tmp_user_path, 'demo.docx')
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               llava_model=os.getenv('H2OGPT_LLAVA_MODEL'),
+                                               enable_doctr=True,
+                                               )
+            assert db is not None
+            docs = db.similarity_search("Approver 1", k=4)
+            assert len(docs) == 4
+            assert 'Band D' in docs[3].page_content
+            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
 def test_xls_add(db_type):
     kill_weaviate(db_type)
     from src.make_db import make_db_main

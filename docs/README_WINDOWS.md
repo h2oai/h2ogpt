@@ -58,6 +58,13 @@ For newer builds of windows versions of 10/11.
    ```cmdline
    set PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
    ```
+* For non-CPU case, choose llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends), e.g. for CUDA:
+  ```cmdline
+   set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
+   set LLAMA_CUBLAS=1
+   set FORCE_CMAKE=1
+  ```
+  Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
 * Run [`docs\windows_install.bat](windows_install.bat) for full normal document Q/A installation.  To allow all (GPL too) packages, run:
     ```cmdline
     set GPLOK=1

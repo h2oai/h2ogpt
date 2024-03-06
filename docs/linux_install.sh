@@ -23,7 +23,7 @@ sudo apt-get -y install autoconf libtool
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
 # Required for CPU: LLaMa/GPT4All:
-pip install -r reqs_optional/requirements_optional_gpt4all.txt -c reqs_optional/reqs_constraints.txt
+pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
 # Optional: PyMuPDF/ArXiv:
 #   Note!! that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
 if [ "${GPLOK}" -eq "1" ]
@@ -144,27 +144,6 @@ else
   pip install autoawq-kernels -c reqs_optional/reqs_constraints.txt
   echo "cuda121 for awq"
 fi
-
-
-#  * If any issues with llama_cpp_python, then must compile llama-cpp-python with CUDA support:
-if [ 1 -eq 0 ]
-then
-    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-    export LLAMA_CUBLAS=1
-    export CMAKE_ARGS=-DLLAMA_CUBLAS=on
-    export FORCE_CMAKE=1
-    CMAKE_ARGS="-DLLAMA_CUBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.26 --no-cache-dir --verbose -c reqs_optional/reqs_constraints.txt
-fi
-#  * By default, we set `n_gpu_layers` to large value, so llama.cpp offloads all layers for maximum GPU performance.  You can control this by passing `--llamacpp_dict="{'n_gpu_layers':20}"` for value 20, or setting in UI.  For highest performance, offload *all* layers.
-#    That is, one gets maximum performance if one sees in startup of h2oGPT all layers offloaded:
-#      ```text
-#    llama_model_load_internal: offloaded 35/35 layers to GPU
-#    ```
-#  but this requires sufficient GPU memory.  Reduce if you have low memory GPU, say 15.
-#  * Pass to `generate.py` the option `--max_seq_len=2048` or some other number if you want model have controlled smaller context, else default (relatively large) value is used that will be slower on CPU.
-#  * For LLaMa2, can set `max_tokens` to a larger value for longer output.
-#  * If one sees `/usr/bin/nvcc` mentioned in errors, that file needs to be removed as would likely conflict with version installed for conda.
-#  * Note that once `llama-cpp-python` is compiled to support CUDA, it no longer works for CPU mode, so one would have to reinstall it without the above options to recovers CPU mode or have a separate h2oGPT env for CPU mode.
 
 #* GPU Optional: Support amazon/MistralLite with flash attention 2
 if [[ -v CUDA_HOME ]];

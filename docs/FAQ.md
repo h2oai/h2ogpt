@@ -1347,8 +1347,6 @@ Also, with `--top_k_docs=-1` or too large positive value, context-filling of the
 
 Also, best to use a single GPU if possible, since multiple GPU usage is much slower with GGUF than vLLM, but context-filling issue is worse problem for llama.cpp performance.
 
-[Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
-
 If you see:
 ```text
 CUDA error 704 at /home/runner/work/llama-cpp-python-cuBLAS-wheels/llama-cpp-python-cuBLAS-wheels/vendor/llama.cpp/ggml-cuda.cu:6998: peer access is already enabled
