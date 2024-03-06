@@ -1876,7 +1876,7 @@ def go_gradio(**kwargs):
                 with models_tab:
                     load_msg = "Load (Download) Model" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
-                    if kwargs['base_model'] not in ['', None, no_model_str]:
+                    if kwargs['base_model'] not in ['', None, no_model_str] and kwargs['inference_server'] in ['', None, no_server_str]:
                         load_msg += '   [WARNING: Avoid --base_model on CLI for memory efficient Load-Unload]'
                     load_msg2 = load_msg + "2"
                     variant_load_msg = 'primary' if not is_public else 'secondary'
