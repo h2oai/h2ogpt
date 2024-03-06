@@ -16,7 +16,6 @@ def convert_messages_to_structure(messages):
         "history": []
     }
 
-    # Immediately return the default structure if there are no messages
     if not messages:
         return structure['instruction'], structure['system_message'], structure['history']
 
@@ -30,11 +29,9 @@ def convert_messages_to_structure(messages):
         if role == "function":
             raise NotImplementedError("role: function not implemented")
         elif role == "system" and structure["system_message"] is None:
-            # The first system message is considered as the system message
             structure["system_message"] = content
         elif role == "user":
             if last_user_message is not None:
-                # The last user message becomes part of the history if not followed by an assistant response
                 structure["history"].append((last_user_message, None))
             last_user_message = content
         elif role == "assistant":
@@ -42,15 +39,14 @@ def convert_messages_to_structure(messages):
                 structure["history"].append((last_user_message, content))
                 last_user_message = None
             else:
-                # Handle case where there's an assistant message without a preceding user message
                 structure["history"].append((None, content))
 
-    # Check if there are any messages before accessing the last one
-    if messages and messages[-1]["role"] == "assistant":
-        structure["instruction"] = None
+    # Set the instruction to the last user message if the last message is from the user,
+    # and do not include it in the history.
+    if messages and messages[-1]["role"] == "user":
+        structure["instruction"] = last_user_message
+    else:
         if last_user_message:  # If there was a dangling last user message, add it to history
             structure["history"].append((last_user_message, None))
-    elif last_user_message:
-        structure["instruction"] = last_user_message
 
     return structure['instruction'], structure['system_message'], structure['history']

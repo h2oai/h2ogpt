@@ -28,6 +28,57 @@ def test_conversion():
     converted_structure = convert_messages_to_structure(messages)
     assert converted_structure == (None, None, [])
 
+    system_prompt = """You are a helpful assistant and have been created by H2O.ai. Never ever forget that your name is Liam Chen. 
+    You are having a conversation with a user.\nThe user's name is Asghar. So you are talking to Asghar. 
+    Keep your responses in short length to retain the person's attention. 
+    If the conversation history is empty, start the conversation with just a greeting and inquire about how the person is doing.
+    After the initial greeting, do not greet again, just focus on answering the user's questions directly.
+    Don't say things like "I'm a computer program" or "I don't have feelings or experiences." I know that.
+    """
+
+    messages = [{"role": "system", "content": system_prompt},
+                {"role": "assistant", "content": "Hello Asghar, how are you doing today?"},
+                {"role": "user", "content": "who are you?"}
+                ]
+    converted_structure = convert_messages_to_structure(messages)
+    assert converted_structure == ('who are you?',
+                                   'You are a helpful assistant and have been created by H2O.ai. Never ever '
+                                   'forget that your name is Liam Chen. \n'
+                                   '    You are having a conversation with a user.\n'
+                                   "The user's name is Asghar. So you are talking to Asghar. \n"
+                                   "    Keep your responses in short length to retain the person's attention. \n"
+                                   '    If the conversation history is empty, start the conversation with just a '
+                                   'greeting and inquire about how the person is doing.\n'
+                                   '    After the initial greeting, do not greet again, just focus on answering '
+                                   "the user's questions directly.\n"
+                                   '    Don\'t say things like "I\'m a computer program" or "I don\'t have '
+                                   'feelings or experiences." I know that.\n'
+                                   '    ',
+                                   [(None, 'Hello Asghar, how are you doing today?')])
+
+    messages = [{"role": "system", "content": system_prompt},
+                {"role": "assistant", "content": "Hello Asghar, how are you doing today?"},
+                {"role": "user", "content": "what is the sum of 4 plus 4?"},
+                {"role": "assistant", "content": "The sum of 4+4 is 8."},
+                {"role": "user", "content": "who are you?"}
+                ]
+    converted_structure = convert_messages_to_structure(messages)
+    assert converted_structure == ('who are you?',
+                                   'You are a helpful assistant and have been created by H2O.ai. Never ever '
+                                   'forget that your name is Liam Chen. \n'
+                                   '    You are having a conversation with a user.\n'
+                                   "The user's name is Asghar. So you are talking to Asghar. \n"
+                                   "    Keep your responses in short length to retain the person's attention. \n"
+                                   '    If the conversation history is empty, start the conversation with just a '
+                                   'greeting and inquire about how the person is doing.\n'
+                                   '    After the initial greeting, do not greet again, just focus on answering '
+                                   "the user's questions directly.\n"
+                                   '    Don\'t say things like "I\'m a computer program" or "I don\'t have '
+                                   'feelings or experiences." I know that.\n'
+                                   '    ',
+                                   [(None, 'Hello Asghar, how are you doing today?'),
+                                    ('what is the sum of 4 plus 4?', 'The sum of 4+4 is 8.')])
+
 
 def test_conversion2():
     # Basic conversion test

@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import pickle
+import re
 import shutil
 import subprocess
 import tempfile
@@ -4682,6 +4683,11 @@ def load_embed(db=None, persist_directory=None, use_openai_embedding=False):
     return got_embedding, use_openai_embedding, hf_embedding_model
 
 
+def sanitize_path_segment(segment):
+    # Replace invalid Windows filename characters with an underscore
+    return re.sub(r'[<>:"/\\|?*]', '_', segment)
+
+
 def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=None):
     if langchain_mode in [LangChainMode.DISABLED.value, LangChainMode.LLM.value]:
         # not None so join works but will fail to find db
@@ -4711,6 +4717,8 @@ def get_persist_directory(langchain_mode, langchain_type=None, db1s=None, dbs=No
     # deal with existing locations
     user_base_dir = os.getenv('USERS_BASE_DIR', 'users')
     makedirs(user_base_dir)
+    user_base_dir = sanitize_path_segment(user_base_dir)
+    dirid = sanitize_path_segment(dirid)
     persist_directory = os.path.join(user_base_dir, dirid, 'db_dir_%s' % langchain_mode)
     if userid and \
             (os.path.isdir(persist_directory) or

@@ -10,7 +10,7 @@ ollama run llama2
 ```
 and in another terminal run:
 ```bash
-python generate.py --base_model=llama2 --inference_server=vllm_chat:http://localhost:11434/v1/ --prompt_type=plain --max_seq_len=4096
+python generate.py --base_model=llama2 --inference_server=vllm_chat:http://localhost:11434/v1/ --prompt_type=openai_chat --max_seq_len=4096
 ```
 or if you prefer to load from UI one can run:
 ```bash
