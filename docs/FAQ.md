@@ -28,43 +28,9 @@ CUDA error: an illegal memory access was encountered
 
 With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
 
-* Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  E.g. for some GGUF file (e.g. `llama-2-7b-chat.Q6_K.gguf`) in llamacpp_path follow https://github.com/ollama/ollama?tab=readme-ov-file#import-from-gguf:
+* Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
 
-    Create Modelfile file:
-    ```text
-    FROM ./llamacpp_path/llama-2-7b-chat.Q6_K.gguf
-    ```
-    Then run:
-    ```bash
-    ollama create me -f Modelfile
-    ollama run me
-    ```
-    Then run h2oGPT and use oLLaMa endpoint as vllm_chat API:
-    ```bash
-    python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=openai_chat --max_seq_len=4096
-    ```
-    This gives around 55 tokens/sec on 3090Ti on i9.
-
-    [Issue](https://github.com/ollama/ollama/issues/2963) is that oLLaMa does not allow for a runtime change to system prompt or other parameters like temperature.
-
-* Work-around 2: Use gradio, vLLM, TGI, etc. inference server.  E.g. to keep same model exactly with same llama.cpp and model file, use gradio server:
-  In one terminal (like oLLaMa but more general) do:
-  ```bash
-  GRADIO_SERVER_PORT=7861 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --prompt_type=llama2 --openai_server=True --openai_port=5000 --concurrency_count=1 --add_disk_models_to_ui=False --enable_tts=False --enable_stt=False --max_seq_len=4096 --save_dir=saveinf
-  ```
-  Note that OpenAI proxy server is default, just shown here for clarity.  Here `max_seq_len` is optional, we will auto-set if not passed for llama.cpp models.
-
-  Then in another terminal:
-  ```bash
-  python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --inference_server=vllm_chat:localhost:5000 --prompt_type=llama2 --max_seq_len=4096 --add_disk_models_to_ui=False --openai_port=5001 --save_dir=savehead
-  ```
-  where `add_disk_models_to_ui` is set to `False` since expect using just that single model, unless one uses model_lock.  The model path is set here again just to get model name correct in the UI.  Then go to `http://localhost:7860` as usual.
-
-  One can disable the OpenAI proxy server on this 2nd (primary) Gradio by setting `--openai_server=False`.
-
-  This gives 55 tokens/ses on 3090Ti on i9, no slower than oLLaMa.
-
-* Work-around 3: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
+* Work-around 2: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
     pip uninstall llama_cpp_python llama_cpp_python_cuda -y
     export LLAMA_CUBLAS=1
@@ -75,6 +41,47 @@ With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fix
     However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.55 runs at 65 tokens/sec for exact same model and prompt.
 
 ## Frequently asked questions
+
+### Running oLLaMa vs. h2oGPT as inference server.
+
+* Run oLLaMa as server for h2oGPT frontend.
+ 
+  E.g. for some GGUF file (e.g. `llama-2-7b-chat.Q6_K.gguf`) in llamacpp_path follow https://github.com/ollama/ollama?tab=readme-ov-file#import-from-gguf:
+  
+    Create `Modelfile` file:
+    ```text
+    FROM ./llamacpp_path/llama-2-7b-chat.Q6_K.gguf
+    ```
+    Then in one terminal run:
+    ```bash
+    ollama create me -f Modelfile
+    ollama run me
+    ```
+    Then in another terminal, run h2oGPT and use oLLaMa endpoint as vllm_chat API:
+    ```bash
+    python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=openai_chat --max_seq_len=4096
+    ```
+    This gives around 55 tokens/sec on 3090Ti on i9.
+
+    The [problem](https://github.com/ollama/ollama/issues/2963) is that oLLaMa does not allow for a runtime change to system prompt or other parameters like temperature.
+
+* Run h2oGPT as both server and frontend:
+  
+  In one terminal run:
+  ```bash
+  GRADIO_SERVER_PORT=7861 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --prompt_type=llama2 --openai_server=True --openai_port=5000 --concurrency_count=1 --add_disk_models_to_ui=False --enable_tts=False --enable_stt=False --max_seq_len=4096 --save_dir=saveinf
+  ```
+  Note that OpenAI proxy server is default, just shown here for clarity.  Here `max_seq_len` is optional, we will auto-set if not passed for llama.cpp models.
+
+  Then in another terminal run:
+  ```bash
+  python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --inference_server=vllm_chat:localhost:5000 --prompt_type=llama2 --max_seq_len=4096 --add_disk_models_to_ui=False --openai_port=5001 --save_dir=savehead
+  ```
+  where `add_disk_models_to_ui` is set to `False` since expect using just that single model, unless one uses model_lock.  The model path is set here again just to get model name correct in the UI.  Then go to `http://localhost:7860` as usual.
+
+  One can disable the OpenAI proxy server on this 2nd (primary) Gradio by setting `--openai_server=False`.
+
+  This gives 55 tokens/ses on 3090Ti on i9, just as fast as oLLaMa with same isolation of CUDA.  Then things like system prompt, do_sample, temperature, all work unlike in oLLaMa.
 
 ### Running inference servers
 
