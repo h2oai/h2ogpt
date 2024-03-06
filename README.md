@@ -26,7 +26,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
-- **Inference Servers** support (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
+- **Inference Servers** support (OLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
 - **OpenAI-compliant**
   - Server Proxy API (h2oGPT acts as drop-in-replacement to OpenAI server)
   - Python client API (to talk to Gradio server)
@@ -222,7 +222,7 @@ YouTube 4K version: https://www.youtube.com/watch?v=_iktbj4obAI
    * [CLI chat](docs/README_CLI.md)
    * [Gradio UI](docs/README_ui.md)
    * [Client API (Gradio, OpenAI-Compliant)](docs/README_CLIENT.md)
-   * [Inference Servers (HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)](docs/README_InferenceServers.md)
+   * [Inference Servers (OLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI)](docs/README_InferenceServers.md)
    * [Build Python Wheel](docs/README_WHEEL.md)
    * [Offline Installation](docs/README_offline.md)
    * [Low Memory](docs/FAQ.md#low-memory-mode)

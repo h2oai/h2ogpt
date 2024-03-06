@@ -2,6 +2,28 @@
 
 One can connect to Hugging Face text generation inference server, gradio servers running h2oGPT, OpenAI, or Azure OpenAI servers.  
 
+## OLLaMa
+
+Use as inference server as:
+```bash
+ollama run llama2
+```
+and in another terminal run:
+```bash
+python generate.py --base_model=llama2 --inference_server=vllm_chat:http://localhost:11434/v1/ --prompt_type=plain
+```
+or if you prefer to load from UI one can run:
+```bash
+python generate.py
+```
+then when h2oGPT UI is up, go to Models Tab and enter `llama2` into base model and enter `vllm_chat:http://localhost:11434/v1/` for server and ensure prompt_type is `plain`.
+
+![ollama_setup.png](ollama_setup.png)
+
+Then use as normal in UI:
+
+![ollama_use.png](ollama_use.png)
+
 ## Hugging Face Text Generation Inference Server-Client
 
 ### Local Install
