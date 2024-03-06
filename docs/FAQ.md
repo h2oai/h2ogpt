@@ -1,4 +1,79 @@
+## Known issues
+
+### Gradio UI Audio Streaming
+
+Gradio 4.18.0+ fails to work for streaming audio from UI.  No audio is generated.  Waiting for bug fix: https://github.com/gradio-app/gradio/issues/7497.
+
+Work-around: Use gradio 4.17.0 or lower:
+```bash
+pip uninstall gradio gradio_client -y
+pip install gradio==4.17.0
+```
+
+### nginx and k8 multi-pod support
+
+Gradio 4.x.y fails to support k8 multi-pod use.  Basically gradio client on one pod can't reach gradio server on nearby pod.  See: https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
+
+Work-around: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.2
+```
+
+### llama.cpp + Audio streaming failure
+
+```text
+CUDA error: an illegal memory access was encountered
+```
+
+With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+* Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  E.g. for some GGUF file (e.g. `llama-2-7b-chat.Q6_K.gguf`) in llamacpp_path follow https://github.com/ollama/ollama?tab=readme-ov-file#import-from-gguf:
+
+    Create Modelfile file:
+    ```text
+    FROM ./llamacpp_path/llama-2-7b-chat.Q6_K.gguf
+    ```
+    Then run:
+    ```bash
+    ollama create me -f Modelfile
+    ollama run me
+    ```
+    Then run h2oGPT and use oLLaMa endpoint as vllm_chat API:
+    ```bash
+    python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=plain --max_seq_len=4096
+    ```
+    This gives around 57 tokens/sec on 3090TI on i9.
+
+* Work-around 2: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
+    ```bash
+    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+    export FORCE_CMAKE=1
+    pip install llama_cpp_python==0.2.26 --no-cache-dir
+    ```
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.55 runs at 65 tokens/sec for exact same model and prompt.
+
 ## Frequently asked questions
+
+### Running inference servers
+
+Examples of what to put into "server" in UI or for `<server>` when using `--inference_server=<server>` with CLI include:
+* oLLaMa: `vllm_chat:http://localhost:11434/v1/`
+* vLLM: `vllm:111.111.111.111:5005`
+* vLLM Chat API: `vllm_chat:https://gpt.h2o.ai:5000/v1`  (only for no auth setup)
+* MistralAI: `mistralai`
+* Google: `google`
+* OpenAI Chat API: `openai_chat`
+* OpenAI Text API: `openai`
+* Gradio: `https://gradio.h2o.ai` (only for no auth setup)
+* Anthropic: `anthropic` (this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API)
+
+Others that don't support model listing, need to enter model name:
+* Azure OpenAI Chat API: `openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey`
+  * Then add base model name, e.g. `gpt-3.5-turbo`
+
 
 ### Deploying like gpt.h2o.ai
 
@@ -549,10 +624,6 @@ if __name__ == '__main__':
 While Streamlit handles [callbacks to state clean-up)[https://github.com/streamlit/streamlit/issues/6166], Gradio does [not](https://github.com/gradio-app/gradio/issues/4016) without h2oGPT-driven changes.  So if you want browser/tab closure to trigger clean-up, `https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.2-py3-none-any.whl` is required instead of PyPi version.  This also helps if have many users using your app and want to ensure databases are cleaned up. By default h2oGPT uses this version of Gradio, but go to normal gradio if web sockets are an issue for your network/platform.
 
 This will clean up model states if use UI to load/unload models when not using `--base_model` on CLI like in windows, so don't have to worry about memory leaks when browser tab is closed.  It will also clean up Chroma database states.
-
-### nginx and k8 multi-pod support
-
-Gradio 4.x.y fails to support k8 multi-pod use, so for that case please use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`. For more information, see: https://github.com/gradio-app/gradio/issues/6920.
 
 ### Use h2oGPT just for LLM control
 
