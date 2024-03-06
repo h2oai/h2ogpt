@@ -2569,7 +2569,7 @@ def get_inf_models(inference_server):
     elif inference_server.startswith('sagemaker'):
         pass
     elif inference_server.startswith('anthropic'):
-        pass
+        models.extend(list(anthropic_mapping.keys()))
     elif inference_server.startswith('http'):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
         if gr_client is not None:

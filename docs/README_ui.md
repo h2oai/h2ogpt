@@ -193,12 +193,11 @@ Examples of what to put into "server" include:
 * OpenAI Chat API: `openai_chat`
 * OpenAI Text API: `openai`
 * Gradio: `https://gradio.h2o.ai` (only for no auth setup)
+* Anthropic: `anthropic` (this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API)
 
 Others that don't support model listing, need to enter model name:
 * Azure OpenAI Chat API: `openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey`
   * Then add base model name, e.g. `gpt-3.5-turbo`
-* Anthropic: `anthropic`
-  * Then add base model name, e.g. `claude-3-opus-20240229`
 
 After (automatically or manually) populating the model names, go with the one selected or choose another in the dropdown that is on the server.
 
