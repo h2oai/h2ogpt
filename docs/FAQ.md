@@ -43,7 +43,7 @@ With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fix
     ```bash
     python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=plain --max_seq_len=4096
     ```
-    This gives around 57 tokens/sec on 3090TI on i9.
+    This gives around 57 tokens/sec on 3090TI on i9.  Issue is that oLLaMa seems lower quality for same inputs and settings, e.g. `Tell a very long kid's story about birds.` geneates emojies etc. for native GGUF, while ollama for same model, settings, prompt, does not.
 
 * Work-around 2: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
