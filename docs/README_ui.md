@@ -205,7 +205,7 @@ To load the model state, click **Load (Download) Model**.
 
 To unload a model, click **Unload Model** or "Choose Model" and select "[]".
 
-**Important**: Unloading only works properly if did not pre-load model with `--base_model` and only selected model and clicked load.
+**Important**: For local models (no inference server), unloading only works properly if did not pre-load model with `--base_model` and only selected model and clicked load.
 
 Note: Compare Mode uses memory for both models, and currently streaming is done for each instead of simultaneously.
 
