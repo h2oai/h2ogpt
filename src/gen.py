@@ -696,7 +696,10 @@ def main(
     :param num_beams: generation number of beams
     :param repetition_penalty: generation repetition penalty
     :param num_return_sequences: generation number of sequences (1 forced for chat)
-    :param do_sample: generation sample
+    :param do_sample: generation sample.  Enable for sampling for given temperature, top_p, top_k, else greedy decoding and then temperature, top_p, top_k not used.
+        https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig.do_sample
+        https://txt.cohere.com/llm-parameters-best-outputs-language-ai/
+        https://medium.com/@daniel.puenteviejo/the-science-of-control-how-temperature-top-p-and-top-k-shape-large-language-models-853cb0480dae
     :param max_new_tokens: generation max new tokens
     :param min_new_tokens: generation min tokens
     :param early_stopping: generation early stopping
