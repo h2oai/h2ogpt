@@ -147,8 +147,12 @@ Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, St
 ---
 
 #### macOS (CPU/M1/M2) with full document Q/A capability
-* One-click Installers (Experimental and subject to changes)
+* One-click Installers (Experimental and subject to changes, we haven't tested each and every feature with these installers, we encourage the community to try them and report any issues)
 
+  Mar 07, 2024
+  - [h2ogpt-osx-m1-cpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Mar2024/h2ogpt-osx-m1-cpu)
+  - [h2ogpt-osx-m1-gpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Mar2024/h2ogpt-osx-m1-gpu)
+  
   Nov 08, 2023
   - [h2ogpt-osx-m1-cpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2ogpt-osx-m1-cpu)
   - [h2ogpt-osx-m1-gpu](https://h2o-release.s3.amazonaws.com/h2ogpt/Nov2023/h2ogpt-osx-m1-gpu)
