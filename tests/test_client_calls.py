@@ -4539,12 +4539,18 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     assert 'Chirpy' in text
 
 
+@pytest.mark.parametrize("base_model", [
+    'h2oai/h2ogpt-4096-llama2-7b-chat',
+    'h2oai/h2o-danube-1.8b-chat'
+])
 @wrap_test_forked
-def test_client_openai_chat_history():
+def test_client_openai_chat_history(base_model):
+    if 'llama2' in base_model:
+        prompt_type = 'llama2'  # 'human_bot'
+    else:
+        prompt_type = 'danube'
 
     stream_output = True
-    base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
-    prompt_type = 'llama2'  # 'human_bot'
     langchain_mode = 'LLM'
     langchain_modes = ['UserData', 'MyData', 'LLM', 'Disabled', 'LLM']
 
@@ -4573,8 +4579,48 @@ def test_client_openai_chat_history():
 
     client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages)
     client = openai_client.chat.completions
-
     responses = client.create(**client_kwargs)
     text = responses.choices[0].message.content
     print(text)
-    assert 'What is your name?' in text
+    assert 'What is your name?' in text or 'You asked for my name, which is Bob.' in text
+
+    system_prompt = """I am a helpful assistant and have been created by H2O.ai. If asked about who I am, I will always absolutely say my name is Liam Chen.
+    I am having a conversation with a user, whose name is Asghar.
+    I will keep my responses short to retain the user's attention.
+    If the conversation history is empty, I will start the conversation with just a greeting and inquire about how the person is doing.
+    After the initial greeting, I will not greet again, and just focus on answering the user's questions directly.
+    I will absolutely never say things like "I'm a computer program" or "I don't have feelings or experiences."""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        # {"role":"user","content":"Who are you and what do you do?"},
+        # {"role": "assistant", "content": system_prompt},
+        {"role": "user", "content": "How are you, assistant?"},
+        {"role": "assistant", "content": "Hello Asghar, how are you doing today?"},
+        {"role": "user", "content": "what is the sum of 4 plus 4?"},
+        {"role": "assistant", "content": "The sum of 4+4 is 8."},
+        {"role": "user", "content": "who are you, what is your name?"}
+    ]
+    client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages)
+    client = openai_client.chat.completions
+    responses = client.create(**client_kwargs)
+    text = responses.choices[0].message.content
+    print(text)
+    assert 'Liam' in text
+
+    messages = [
+        # {"role": "system", "content": system_prompt},
+        {"role": "user", "content": "Who are you and what do you do?"},
+        {"role": "assistant", "content": system_prompt},
+        {"role": "user", "content": "How are you, assistant?"},
+        {"role": "assistant", "content": "Hello Asghar, how are you doing today?"},
+        {"role": "user", "content": "what is the sum of 4 plus 4?"},
+        {"role": "assistant", "content": "The sum of 4+4 is 8."},
+        {"role": "user", "content": "who are you, what is your name?"}
+    ]
+    client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages)
+    client = openai_client.chat.completions
+    responses = client.create(**client_kwargs)
+    text = responses.choices[0].message.content
+    print(text)
+    assert 'Liam' in text

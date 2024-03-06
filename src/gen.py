@@ -5864,9 +5864,9 @@ def get_limited_prompt(instruction,
     # handle promptA/promptB addition if really from history.
     # if not from history, then reduced=False inside correct
     # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
-    context_from_history = len(history) > 0 and len(context1) > 0
+    context_from_history = len(history) > 0
     # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
-    reduced = len(context2) > 0
+    reduced = context_from_history
     prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
