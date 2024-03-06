@@ -6,9 +6,13 @@ then
     echo "conda could not be found, need conda to continue!"
     exit 1
 fi
-conda env remove -n h2ogpt-mac2
-conda create -n h2ogpt-mac2 python=3.10 rust -y
-conda activate h2ogpt-mac2
+
+# Remove old Tesseract and poppler deps
+rm -rf ./Tesseract-OCR poppler
+
+conda env remove -n h2ogpt-mac
+conda create -n h2ogpt-mac python=3.10 rust -y
+conda activate h2ogpt-mac
 
 pip install --upgrade pip
 python -m pip install --upgrade setuptools
@@ -27,21 +31,21 @@ pip install -r reqs_optional/requirements_optional_doctr.txt -c reqs_optional/re
 # Optional: for supporting unstructured package
 python -m nltk.downloader all
 
+# Required for CPU: LLaMa/GPT4All:
 # For MPS support
 if [ -z "$BUILD_MPS" ]
 then
     echo "BUILD_MPS is not set, skipping MPS specific configs..."
+    pip uninstall llama-cpp-python -y
+    CMAKE_ARGS="-DLLAMA_METAL=off" FORCE_CMAKE=1 pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
 else
     if [ "$BUILD_MPS" = "1" ]
     then
         echo "BUILD_MPS is set to 1, running MPS specific configs..."
         pip uninstall llama-cpp-python -y
-        export CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1
+        CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
     fi
 fi
-
-# Required for CPU: LLaMa/GPT4All:
-pip install -r reqs_optional/requirements_optional_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
 pip install librosa -c reqs_optional/reqs_constraints.txt
 
 # Install PyInstaller
@@ -58,7 +62,7 @@ make clean dist
 pip install ./dist/h2ogpt*.whl
 
 # Build Mac Installer
-# below command is used to build current .spec file replace it whenever use new configs
+# below command is used to build current .spec file from project root, replace it whenever use new configs
 #pyi-makespec mac_run_app.py -F --name=h2ogpt-osx-m1-cpu \
 #  --hidden-import=h2ogpt \
 #  --collect-all=h2ogpt \
@@ -70,8 +74,8 @@ pip install ./dist/h2ogpt*.whl
 #  --collect-all=gradio_pdf \
 #  --collect-all=llama_cpp \
 #  --collect-all=tiktoken_ext \
-#  --add-data=./Tesseract-OCR:Tesseract-OCR \
-#  --add-data=./poppler:poppler
+#  --add-data=../../Tesseract-OCR:Tesseract-OCR \
+#  --add-data=../../poppler:poppler
 
 # add below argument to Analysis() call in h2ogpt-osx-m1-cpu.spec file
 #module_collection_mode={
