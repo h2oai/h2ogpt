@@ -10,7 +10,7 @@ import gradio as gr
 from src.utils import is_gradio_version4
 
 
-def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=False):
+def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_type='', model_label_prefix='', debug=False):
     if not debug:
         inference_server = ''
     else:
@@ -19,9 +19,12 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=Fa
         model_path_llama = os.path.basename(model_path_llama)
         if model_path_llama.endswith('?download=true'):
             model_path_llama = model_path_llama.replace('?download=true', '')
-        return f'h2oGPT [Model: {model_path_llama}{inference_server}]'
+        label = f'{model_label_prefix} [Model: {model_path_llama}{inference_server}]'
     else:
-        return f'h2oGPT [Model: {base_model}{inference_server}]'
+        label = f'{model_label_prefix} [Model: {base_model}{inference_server}]'
+    if prompt_type in [None, '', 'plain']:
+        label += '   [Please select prompt_type in Models tab or on CLI for chat models]'
+    return label
 
 
 def get_avatars(base_model, model_path_llama, inference_server=''):
@@ -134,6 +137,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         output_label = get_chatbot_name(model_state_lock["base_model"],
                                         model_state_lock['llamacpp_dict']["model_path_llama"],
                                         model_state_lock["inference_server"],
+                                        model_state_lock["prompt_type"],
+                                        model_label_prefix=kwargs['model_label_prefix'],
                                         debug=bool(os.environ.get('DEBUG_MODEL_LOCK', 0)))
         if kwargs['avatars']:
             avatar_images = get_avatars(model_state_lock["base_model"],

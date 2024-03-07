@@ -337,6 +337,7 @@ def main(
         avatars: bool = True,
         add_disk_models_to_ui: bool = True,
         page_title: str = "h2oGPT",
+        model_label_prefix: str = "h2oGPT",
         favicon_path: str = None,
         visible_ratings: bool = False,
         reviews_file: str = None,
