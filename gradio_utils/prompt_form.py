@@ -22,7 +22,7 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_t
         label = f'{model_label_prefix} [Model: {model_path_llama}{inference_server}]'
     else:
         label = f'{model_label_prefix} [Model: {base_model}{inference_server}]'
-    if prompt_type in [None, '', 'plain']:
+    if not inference_server and prompt_type in [None, '', 'plain']:
         label += '   [Please select prompt_type in Models tab or on CLI for chat models]'
     return label
 
