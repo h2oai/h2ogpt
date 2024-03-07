@@ -2018,3 +2018,12 @@ def get_is_gradio_h2oai():
 def split_list(input_list, split_size):
     for i in range(0, len(input_list), split_size):
         yield input_list[i:i + split_size]
+
+
+def get_lock_file(name):
+    lock_type = name
+    base_path = os.path.join('locks', '%s_locks' % name)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+    lock_file = os.path.join(base_path, "%s.lock" % lock_type)
+    makedirs(os.path.dirname(lock_file))  # ensure made
+    return lock_file

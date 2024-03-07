@@ -1,12 +1,14 @@
 import inspect
 import os
 from typing import Dict, Any, Optional, List, Iterator
+
+import filelock
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema.output import GenerationChunk
 from langchain.llms import gpt4all
 from pydantic.v1 import root_validator
 
-from utils import FakeTokenizer, url_alive, download_simple, clear_torch_cache, n_gpus_global
+from utils import FakeTokenizer, url_alive, download_simple, clear_torch_cache, n_gpus_global, makedirs, get_lock_file
 
 
 def get_model_tokenizer_gpt4all(base_model, n_jobs=None, gpu_id=None, n_gpus=None, max_seq_len=None,
@@ -133,6 +135,7 @@ def get_llm_gpt4all(model_name=None,
                     llamacpp_path=None,
                     llamacpp_dict=None,
                     ):
+    model_was_None = model is None
     redo = False
     if not inner_class:
         assert prompter is not None
@@ -193,9 +196,11 @@ def get_llm_gpt4all(model_name=None,
             max_seq_len = llm.client.n_embd()
             print("Auto-detected LLaMa n_ctx=%s, will unload then reload with this setting." % max_seq_len)
 
-        # with multiple GPUs, something goes wrong unless generation occurs early before other imports
-        # CUDA error 704 at /tmp/pip-install-khkugdmy/llama-cpp-python_8c0a9782b7604a5aaf95ec79856eac97/vendor/llama.cpp/ggml-cuda.cu:6408: peer access is already enabled
-        inner_model("Say exactly one word", max_tokens=1)
+        if model_was_None is None:
+            # with multiple GPUs, something goes wrong unless generation occurs early before other imports
+            # CUDA error 704 at /tmp/pip-install-khkugdmy/llama-cpp-python_8c0a9782b7604a5aaf95ec79856eac97/vendor/llama.cpp/ggml-cuda.cu:6408: peer access is already enabled
+            # But don't do this action in case another thread doing llama.cpp, so just getting model ready.
+            inner_model("Say exactly one word", max_tokens=1)
         inner_tokenizer = FakeTokenizer(tokenizer=llm.client, is_llama_cpp=True, model_max_length=max_seq_len)
     elif model_name == 'gpt4all_llama':
         # FIXME: streaming not thread safe due to:
@@ -416,24 +421,27 @@ class H2OLlamaCpp(LlamaCpp):
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
 
-        if self.streaming:
-            # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
-            text = ""
-            for token in self.stream(input=prompt, stop=stop):
-                # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
-                text_chunk = token  # ["choices"][0]["text"]
-                text += text_chunk
-            self.count_output_tokens += self.get_num_tokens(text)
-            text = self.remove_stop_text(text, stop=stop)
-            return text
-        else:
-            params = self._get_parameters(stop)
-            params = {**params, **kwargs}
-            result = self.client(prompt=prompt, **params)
-            text = result["choices"][0]["text"]
-            self.count_output_tokens += self.get_num_tokens(text)
-            text = self.remove_stop_text(text, stop=stop)
-            return text
+        print("outside lock", flush=True)
+        with filelock.FileLock(get_lock_file('llamacpp')):
+            print("inside lock", flush=True)
+            if self.streaming:
+                # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+                text = ""
+                for token in self.stream(input=prompt, stop=stop):
+                    # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                    text_chunk = token  # ["choices"][0]["text"]
+                    text += text_chunk
+                self.count_output_tokens += self.get_num_tokens(text)
+                text = self.remove_stop_text(text, stop=stop)
+                return text
+            else:
+                params = self._get_parameters(stop)
+                params = {**params, **kwargs}
+                result = self.client(prompt=prompt, **params)
+                text = result["choices"][0]["text"]
+                self.count_output_tokens += self.get_num_tokens(text)
+                text = self.remove_stop_text(text, stop=stop)
+                return text
 
     def remove_stop_text(self, text, stop=None):
         # remove stop sequences from the end of the generated text
