@@ -495,3 +495,5 @@ max_chunks_per_doc_public = 5000
 max_chunks_per_doc_public_api = 2 * max_chunks_per_doc_public
 
 user_prompt_for_fake_system_prompt = "Who are you and what do you do?"
+
+coqui_lock_name = 'coqui'

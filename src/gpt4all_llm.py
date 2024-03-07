@@ -8,6 +8,7 @@ from langchain.schema.output import GenerationChunk
 from langchain.llms import gpt4all
 from pydantic.v1 import root_validator
 
+from src.enums import coqui_lock_name
 from utils import FakeTokenizer, url_alive, download_simple, clear_torch_cache, n_gpus_global, makedirs, get_lock_file
 
 
@@ -421,27 +422,27 @@ class H2OLlamaCpp(LlamaCpp):
         if verbose:
             print("_call prompt: %s" % prompt, flush=True)
 
-        print("outside lock", flush=True)
+        # can't run llamacpp and coqui at same time, one has to win
         with filelock.FileLock(get_lock_file('llamacpp')):
-            print("inside lock", flush=True)
-            if self.streaming:
-                # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
-                text = ""
-                for token in self.stream(input=prompt, stop=stop):
-                    # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
-                    text_chunk = token  # ["choices"][0]["text"]
-                    text += text_chunk
-                self.count_output_tokens += self.get_num_tokens(text)
-                text = self.remove_stop_text(text, stop=stop)
-                return text
-            else:
-                params = self._get_parameters(stop)
-                params = {**params, **kwargs}
-                result = self.client(prompt=prompt, **params)
-                text = result["choices"][0]["text"]
-                self.count_output_tokens += self.get_num_tokens(text)
-                text = self.remove_stop_text(text, stop=stop)
-                return text
+            with filelock.FileLock(get_lock_file(coqui_lock_name)):
+                if self.streaming:
+                    # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
+                    text = ""
+                    for token in self.stream(input=prompt, stop=stop):
+                        # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
+                        text_chunk = token  # ["choices"][0]["text"]
+                        text += text_chunk
+                    self.count_output_tokens += self.get_num_tokens(text)
+                    text = self.remove_stop_text(text, stop=stop)
+                    return text
+                else:
+                    params = self._get_parameters(stop)
+                    params = {**params, **kwargs}
+                    result = self.client(prompt=prompt, **params)
+                    text = result["choices"][0]["text"]
+                    self.count_output_tokens += self.get_num_tokens(text)
+                    text = self.remove_stop_text(text, stop=stop)
+                    return text
 
     def remove_stop_text(self, text, stop=None):
         # remove stop sequences from the end of the generated text
