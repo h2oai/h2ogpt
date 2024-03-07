@@ -39,7 +39,7 @@ boto3>=1.26.101
 botocore>=1.29.101
 
 # for gradio client
-gradio_client==0.10.1
+gradio_client==0.11.0
 #gradio_client==0.6.1
 beautifulsoup4>=4.12.2
 markdown>=3.4.3
