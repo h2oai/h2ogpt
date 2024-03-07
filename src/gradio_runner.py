@@ -4197,6 +4197,11 @@ def go_gradio(**kwargs):
                 history = get_llm_history(history)
                 if history:
                     history[-1][1] = None
+                    if isinstance(history[-1][0], (tuple, list)):
+                        if history[-1][0] is None:
+                            history[-1][0] = ''
+                        elif isinstance(history[-1][0], (tuple, list)):
+                            history[-1][0] = history[-1][0][0]
                 return history
             if user_message1 in ['', None, '\n']:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
