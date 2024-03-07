@@ -281,7 +281,7 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
                          PromptType.plain.name] or \
             prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
-                         PromptType.llava.name]:
+                            PromptType.llava.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_turn_sep = chat_sep = '\n'
@@ -1388,7 +1388,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if making_context:
             PreResponse += " "
     elif prompt_type in [PromptType.gemma.value, str(PromptType.gemma.value),
-                                 PromptType.gemma.name]:
+                         PromptType.gemma.name]:
         can_handle_system_prompt = True  # so not part of pre-conversation
         if making_context and histi == 0 or not making_context and not reduced:
             prompt_tokens = "<bos><start_of_turn>user\n"
@@ -1406,6 +1406,24 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '<end_of_turn>\n'
         terminate_response = [humanstr, PreResponse, '<bos>', '<end_of_turn>']
         chat_sep = ''
+    elif prompt_type in [PromptType.qwen.value, str(PromptType.qwen.value),
+                         PromptType.qwen.name]:
+        can_handle_system_prompt = True
+        # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s<|im_end|>\n""" % system_prompt if not reduced else ''
+
+        PreInstruct = """<|im_start|>user\n"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|>\n<|im_start|>assistant\n"""
+        terminate_response = ['<|im_end|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 

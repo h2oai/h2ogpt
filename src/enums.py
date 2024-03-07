@@ -71,6 +71,7 @@ class PromptType(Enum):
     llava = 65
     danube = 66
     gemma = 67
+    qwen = 68
 
 
 class DocumentSubset(Enum):
