@@ -20,13 +20,17 @@ pip uninstall gradio gradio_client gradio_pdf -y
 pip install gradio==3.50.2
 ```
 
-### llama.cpp + Audio streaming failure
+### llama.cpp + Audio streaming (XTTS model) failure
 
 ```text
 CUDA error: an illegal memory access was encountered
 ```
 
 With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+A temporary work-around is present in h2oGPT, whereby XTTS model (not microsoft TTS model) and llama.cpp models are not used at same time.  Leads to more delays in streaming for text+audio, but not too bad result.
+
+Other work-arounds:
 
 * Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
 
