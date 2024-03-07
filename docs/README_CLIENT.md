@@ -44,6 +44,8 @@ for chunk in responses:
 ```
 just as with OpenAI, and related API for text completion (non-chat) mode.
 
+#### curl
+
 Or for curl, with api_key set or as `EMPTY` if not set, one can do:
 ```bash
 export OPENAI_API_KEY=xxxx
@@ -112,6 +114,8 @@ which results in chunks of choices of delta like given in the OpenAI Python API.
 
 The strings `prompt` and `max_tokens` are taken as OpenAI type names that are converted to `instruction` and `max_new_tokens`.  In either case, any additional parameters are passed along to the Gradio `submit_nochat_api` API.  Either `http` or `https` works if using ngrok or some proxy service, or setup directly in the OpenAI proxy server.  Replace 'localhost' with the http or https proxy (or direct SSL) server name or IP.  Replace 5000 with the assigned port.
 
+#### auth
+
 If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the `username:password` as a string to access.  E.g.:
 ```python
 from openai import OpenAI
@@ -134,6 +138,7 @@ print(text)
 ```
 This is only required if `--auth_access=closed` was used, else for `--auth_access=open` we use guest access if that is allowed, else random uuid if no guest access.  Note that if access is closed, one cannot get model names or info.
 
+## extra_body
 
 In order to control other parameters not normally part of OpenAI API, one can use `extra_body`, e.g.
 ```python
