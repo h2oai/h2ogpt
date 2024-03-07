@@ -19,6 +19,11 @@ Work-around: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out rele
 pip uninstall gradio gradio_client gradio_pdf -y
 pip install gradio==3.50.2
 ```
+If you see spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.1
+```
 
 ### llama.cpp + Audio streaming (XTTS model) failure
 
