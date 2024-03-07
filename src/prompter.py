@@ -137,6 +137,7 @@ prompt_type_to_model_name = {
         'Yukang/LongAlpaca-70B',  # or can be instruct
         'TheBloke/Llama-2-7B-Chat-GGUF',
         'namespace-Pt/activation-beacon-llama2-7b-chat',
+        'abacusai/Smaug-72B-v0.1',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
                 'mistralai/Mistral-7B-Instruct-v0.2', 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
