@@ -5663,10 +5663,10 @@ def go_gradio(**kwargs):
         unload_model_args = dict(fn=functools.partial(load_model, unload=True),
                                  inputs=load_model_inputs, outputs=load_model_outputs)
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        chatbot_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix=kwargs['model_label_prefix']),
+        chatbot_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
                                    inputs=[text_output, model_used, model_path_llama, server_used, prompt_type],
                                    outputs=text_output)
-        nochat_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix=kwargs['model_label_prefix']),
+        nochat_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
                                   inputs=[text_output_nochat, model_used, model_path_llama, server_used, prompt_type],
                                   outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
@@ -5714,7 +5714,7 @@ def go_gradio(**kwargs):
         unload_model_args2 = dict(fn=functools.partial(load_model, unload=True),
                                   inputs=load_model_inputs2, outputs=load_model_outputs2)
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
-        chatbot_update_args2 = dict(fn=functools.partial(chatbot_list, model_label_prefix=kwargs['model_label_prefix']),
+        chatbot_update_args2 = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
                                     inputs=[text_output2, model_used2, model_path_llama2, server_used2, prompt_type2],
                                     outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
