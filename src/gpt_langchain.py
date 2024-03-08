@@ -6112,6 +6112,7 @@ def run_hyde(*args, **kwargs):
     # no-doc chain first if done
     hyde_chain['query'] = hyde_template.format(query=query)
     hyde_chain['db'] = None
+    hyde_chain['load_db_if_exists'] = False
     hyde_chain['text_context_list'] = []
     sources = []
     answers = []
@@ -6184,6 +6185,7 @@ def run_hyde(*args, **kwargs):
         # update hyde_chain with doc version from now on
         hyde_chain['db'] = kwargs['db']
         hyde_chain['text_context_list'] = kwargs['text_context_list']
+        hyde_chain['load_db_if_exists'] = True
 
     return hyde_chain['query_embedding'], llm_answers
 
