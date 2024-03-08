@@ -400,8 +400,8 @@ docs_ordering_types_default = 'best_near_prompt'
 docs_token_handling_default = 'split_or_merge'
 docs_joiner_default = '\n\n'
 
-db_types = ['chroma', 'weaviate']
-db_types_full = ['chroma', 'weaviate', 'faiss']
+db_types = ['chroma', 'weaviate', 'qdrant']
+db_types_full = ['chroma', 'weaviate', 'faiss', 'qdrant']
 
 auto_choices = [None, 'None', 'auto']
 

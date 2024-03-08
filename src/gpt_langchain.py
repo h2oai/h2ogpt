@@ -150,6 +150,16 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         index_name = collection_name.capitalize()
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
+    elif db_type == 'qdrant':
+        from langchain.vectorstores import Qdrant
+
+        qdrant_options = _get_qdrant_options()
+
+        if qdrant_options is not None:
+            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name, **qdrant_options)
+        else:
+            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name, location=":memory:")
+
     elif db_type in ['chroma', 'chroma_old']:
         assert persist_directory is not None
         # use_base already handled when making persist_directory, unless was passed into get_db()
@@ -282,7 +292,7 @@ def add_to_db(db, sources, db_type='faiss',
     # don't do too large a batch so uses reasonable amount of memory
     max_max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '4096'))
 
-    if db_type == 'faiss':
+    if db_type == 'faiss' or db_type == 'qdrant':
         sources_batches = split_list(sources, max_max_batch_size)
         for sources_batch in sources_batches:
             db.add_documents(documents=sources_batch)
@@ -396,6 +406,20 @@ def create_or_update_db(db_type, persist_directory, collection_name,
             client.schema.delete_class(index_name)
             if verbose:
                 print("Removing %s" % index_name, flush=True)
+    if db_type == 'qdrant':
+        from qdrant_client import QdrantClient
+
+        qdrant_options = _get_qdrant_options()
+
+        if qdrant_options is not None:
+            client = QdrantClient(**qdrant_options)
+        else:
+            client = QdrantClient(location=":memory:")
+
+        if client.collection_exists(collection_name):
+            client.delete_collection(collection_name)
+        if verbose:
+                print("Removing %s" % collection_name, flush=True)
     elif db_type in ['chroma', 'chroma_old']:
         pass
 
@@ -5064,6 +5088,7 @@ def large_chroma_db(db):
 
 def get_metadatas(db, full_required=True, k_max=10000):
     from langchain.vectorstores import FAISS
+    from langchain.vectorstores import Qdrant
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif is_chroma_db(db):
@@ -5082,6 +5107,9 @@ def get_metadatas(db, full_required=True, k_max=10000):
             # just use sim search, since too many
             docs1 = sim_search(db, k=k_max, with_score=False)
             metadatas = [x.metadata for x in docs1]
+    elif isinstance(db, Qdrant):
+        points = db.client.scroll(db.collection_name, limit=k_max, with_payload=True)
+        metadatas = [point.payload["metadata"] for point in points]
     elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
@@ -5118,6 +5146,7 @@ def _get_documents(db):
     # returns not just documents, but full dict of documents, metadatas, ids, embeddings
     # documents['documents] should be list of texts, not Document() type
     from langchain.vectorstores import FAISS
+    from langchain.vectorstores import Qdrant
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
@@ -5125,6 +5154,13 @@ def _get_documents(db):
         documents = db.get()
         if documents is None:
             documents = dict(documents=[], metadatas=[], ids=[])
+    elif isinstance(db, Qdrant):
+        points, next_id = db.client.scroll(db.collection_name, limit=10000, with_payload=True)
+        documents, metadatas = [], []
+        for point in points:
+            documents.append(point.payload["page_content"])
+            metadatas.append(point.payload["metadata"])
+        documents = dict(documents=documents, metadatas=metadatas, ids=[0] * len(documents))
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
@@ -5386,6 +5422,7 @@ def _run_qa_db(query=None,
                     'chroma' (for chroma >= 0.4)
                     'chroma_old' (for chroma < 0.4)
                     'weaviate' for persisted on disk
+                    'qdrant' for a Qdrant server or an in-memory instance
     :param model_name: model name, used to switch behaviors
     :param model: pre-initialized model, else will make new one
     :param tokenizer: pre-initialized tokenizer, else will make new one.  Required not None if model is not None
@@ -7367,7 +7404,7 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
     else:
         # backup method
         if os.getenv('HARD_ASSERTS'):
-            assert db_type in ['faiss', 'weaviate']
+            assert db_type in ['faiss', 'weaviate', 'qdrant']
         # use tiktoken for faiss since embedding called differently
         return FakeTokenizer()
 
@@ -8452,6 +8489,29 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
+    
+def _get_qdrant_options():
+    env_vars = os.environ.keys()
+
+    qdrant_env_vars = [var for var in env_vars if var.startswith("QDRANT_")]
+
+    if len(qdrant_env_vars) == 0:
+        return None
+
+    options = {
+        "url": os.getenv("QDRANT_URL", None),
+        "host": os.getenv("QDRANT_HOST", None),
+        "port": int(os.getenv("QDRANT_PORT", 6333)),
+        "grpc_port": int(os.getenv("QDRANT_GRPC_PORT", 6334)),
+        "prefer_grpc": bool(os.getenv("QDRANT_PREFER_GRPC", False)),
+        "https": bool(os.getenv("QDRANT_HTTPS", None)),
+        "api_key": os.getenv("QDRANT_API_KEY", None),
+        "prefix": os.getenv("QDRANT_PREFIX", None),
+        "timeout": float(os.getenv("QDRANT_TIMEOUT", None)),
+        "path": os.getenv("QDRANT_PATH", None),
+    }
+
+    return options
 
 
 if __name__ == '__main__':

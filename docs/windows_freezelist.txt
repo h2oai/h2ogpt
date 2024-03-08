@@ -310,6 +310,7 @@ pytz==2023.3.post1
 pywin32==306
 PyYAML==6.0.1
 pyzstd==0.15.9
+qdrant-client==1.8.0
 rapidfuzz==3.6.1
 rarfile==4.1
 referencing==0.32.1
