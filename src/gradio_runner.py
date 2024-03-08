@@ -5852,15 +5852,19 @@ def go_gradio(**kwargs):
                                         api_name='system_info' if allow_api else None, **noqueue_kwargs)
 
         def shutdown_func(h2ogpt_pid):
-            import psutil
-            parent = psutil.Process(h2ogpt_pid)
-            for child in parent.children(recursive=True):
-                child.kill()
-            parent.kill()
+            if kwargs['close_button']:
+                import psutil
+                parent = psutil.Process(h2ogpt_pid)
+                for child in parent.children(recursive=True):
+                    child.kill()
+                parent.kill()
 
+        api_name_shutdown = 'shutdown' if kwargs['shutdown_via_api'] and \
+                                          allow_api and \
+                                          not is_public and \
+                                          kwargs['h2ogpt_pid'] is not None else None
         shutdown_event = close_btn.click(functools.partial(shutdown_func, h2ogpt_pid=kwargs['h2ogpt_pid']),
-                                         api_name='shutdown' if allow_api and not is_public and kwargs[
-                                             'h2ogpt_pid'] is not None else None,
+                                         api_name=api_name_shutdown,
                                          **noqueue_kwargs)
 
         def get_system_info_dict(system_input1, **kwargs1):

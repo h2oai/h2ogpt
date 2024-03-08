@@ -247,6 +247,7 @@ def main(
         share: bool = False,
         open_browser: bool = False,
         close_button: bool = True,
+        shutdown_via_api: bool = False,
         root_path: str = "",
         ssl_verify: bool = True,
         ssl_keyfile: str | None = None,
@@ -748,6 +749,7 @@ def main(
     :param share: whether to share the gradio app with sharable URL
     :param open_browser: whether to automatically open browser tab with gradio UI
     :param close_button: Whether to show close button in system tab (if not public)
+    :param shutdown_via_api: Whether to allow shutdown via API
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
