@@ -25,6 +25,8 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_t
             model_path_llama = model_path_llama.replace('?download=true', '')
         label = f'{model_label_prefix} [Model: {model_path_llama}{inference_server}]'
     else:
+        if base_model == 'mixtral-8x7b-32768':
+            base_model = 'groq:mixtral-8x7b-32768'
         label = f'{model_label_prefix} [Model: {base_model}{inference_server}]'
     label += label_postfix
     return label
