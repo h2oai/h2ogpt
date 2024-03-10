@@ -5684,6 +5684,7 @@ def get_limited_prompt(instruction,
     # merge handles if chat_conversation is None
     history = []
     history = merge_chat_conversation_history(chat_conversation, history)
+
     history_to_context_func = functools.partial(history_to_context,
                                                 langchain_mode=langchain_mode,
                                                 add_chat_history_to_context=add_chat_history_to_context,
@@ -5696,7 +5697,18 @@ def get_limited_prompt(instruction,
                                                 hyde_level=hyde_level,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
-    context2 = history_to_context_func(history)
+
+    from openai_server.backend_utils import structure_to_messages
+    use_chat_template = prompt_type in [None, '', 'plain'] and tokenizer.chat_template
+
+    if use_chat_template:
+        messages = structure_to_messages(instruction, system_prompt, history)
+        context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        iinput = ''
+        context = ''
+    else:
+        context2 = history_to_context_func(history)
+
     context1 = context
     if context1 is None:
         context1 = ''
@@ -5721,8 +5733,9 @@ def get_limited_prompt(instruction,
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
-    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                           max_prompt_length=max_input_tokens)
+    if not use_chat_template:
+        context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                               max_prompt_length=max_input_tokens)
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
     # leave bit for instruction regardless of system prompt
@@ -5793,7 +5806,13 @@ def get_limited_prompt(instruction,
                     history_to_use = [history[0]] + history[1 + chat_index:]
                 else:
                     history_to_use = history[0 + chat_index:]
-                context2 = history_to_context_func(history_to_use)
+
+                if use_chat_template:
+                    messages = structure_to_messages(instruction, system_prompt, history)
+                    context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                else:
+                    context2 = history_to_context_func(history)
+
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
                         num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
@@ -5803,7 +5822,7 @@ def get_limited_prompt(instruction,
                         print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
                     break
                 # i.e. if chat_index == len(history), then nothing can be consumed
-        elif diff3 > 0 > diff2:
+        elif not use_chat_template and diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
             num_iinput_tokens = 0
@@ -5815,7 +5834,7 @@ def get_limited_prompt(instruction,
                 pass
             else:
                 print("failed to reduce", flush=True)
-        else:
+        elif not use_chat_template:
             # then must be able to do #1 + #2 + #3 + #4
             iinput = ''
             num_iinput_tokens = 0
@@ -5866,14 +5885,17 @@ def get_limited_prompt(instruction,
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type
 
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    # handle promptA/promptB addition if really from history.
-    # if not from history, then reduced=False inside correct
-    # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
-    context_from_history = len(history) > 0
-    # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
-    reduced = context_from_history
-    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
+    if not use_chat_template:
+        data_point = dict(context=context, instruction=instruction, input=iinput)
+        # handle promptA/promptB addition if really from history.
+        # if not from history, then reduced=False inside correct
+        # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
+        context_from_history = len(history) > 0
+        # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+        reduced = context_from_history
+        prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
+    else:
+        prompt = context
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \

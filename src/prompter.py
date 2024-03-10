@@ -1456,6 +1456,18 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '<|im_end|>\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.sealion.value, str(PromptType.sealion.value),
+                         PromptType.sealion.name]:
+        can_handle_system_prompt = False
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### USER:\n"
+        PreResponse = "\n\n### RESPONSE:\n"
+        terminate_response = ['### RESPONSE:', "</s>", "<|endoftext|>"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### USER:'
+        botstr = '### RESPONSE:'
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
