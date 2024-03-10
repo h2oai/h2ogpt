@@ -3027,7 +3027,7 @@ def go_gradio(**kwargs):
                 text_output1 = []
             if text_output1 and len(text_output1) > 0 and not text_output1[0]:
                 text_output1 = []
-            if not text_output21 and len(text_output21) > 0 and not text_output21[0]:
+            if text_output21 is None or not text_output21 and len(text_output21) > 0 and not text_output21[0]:
                 text_output21 = []
             if text_output21 is None:
                 text_output21 = []
