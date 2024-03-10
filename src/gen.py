@@ -1675,7 +1675,7 @@ def main(
         elif enable_stt is True:
             raise RuntimeError("STT packages (soundfile, librosa, wavio) not installed")
     elif enable_stt == 'auto':
-        enable_stt = True
+        enable_stt = False
     if n_gpus != 0 and enable_stt:
         print("STT enabled, may use more GPU, set --enable_stt=False for low-memory systems", flush=True)
 
@@ -1686,7 +1686,7 @@ def main(
         elif enable_tts is True:
             raise RuntimeError("TTS packages (soundfile, librosa, wavio) not installed")
     elif enable_tts == 'auto':
-        enable_tts = True
+        enable_tts = False
     if not have_langchain and enable_transcriptions:
         print("Must install langchain for transcription, disabling", flush=True)
         enable_transcriptions = False
