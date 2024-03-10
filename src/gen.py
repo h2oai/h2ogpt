@@ -2835,7 +2835,7 @@ def get_model(
                     if name not in google_mapping:
                         if os.getenv('HARD_ASSERTS'):
                             raise ValueError("%s not in google_mapping" % name)
-                        google_mapping[name] = 8192 # estimate
+                        google_mapping[name] = 8192  # estimate
                     see_model |= base_model == name
         assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
 
@@ -3193,8 +3193,8 @@ def get_hf_model(load_8bit: bool = False,
             if load_8bit:
                 from transformers import BitsAndBytesConfig
                 model_kwargs['quantization_config'] = BitsAndBytesConfig(
-                                                                         load_in_8bit=load_8bit,
-                                                                         )
+                    load_in_8bit=load_8bit,
+                )
 
             elif low_bit_mode == 1:
                 from transformers import BitsAndBytesConfig
@@ -4339,7 +4339,8 @@ def evaluate(
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
                                 if verbose:
-                                    print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
+                                    print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
+                                          flush=True)
                                 break
                 else:
                     raise RuntimeError("No such OpenAI mode: %s" % inference_server)
@@ -5699,7 +5700,9 @@ def get_limited_prompt(instruction,
                                                 min_max_new_tokens=min_max_new_tokens)
 
     from openai_server.backend_utils import structure_to_messages
-    use_chat_template = prompt_type in [None, '', 'plain'] and tokenizer.chat_template
+    use_chat_template = (prompt_type in [None, '', 'plain'] and
+                         hasattr(tokenizer, 'chat_template') and
+                         tokenizer.chat_template)
 
     if use_chat_template:
         messages = structure_to_messages(instruction, system_prompt, history)
@@ -5733,9 +5736,11 @@ def get_limited_prompt(instruction,
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
+    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
     if not use_chat_template:
-        context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                               max_prompt_length=max_input_tokens)
+        context2 = context2_trial
+
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
     # leave bit for instruction regardless of system prompt
