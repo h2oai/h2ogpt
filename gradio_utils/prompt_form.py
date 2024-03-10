@@ -7,14 +7,17 @@ import datetime
 import filelock
 import gradio as gr
 
+from src.enums import no_server_str
 from src.utils import is_gradio_version4
 
 
 def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_type='', model_label_prefix='', debug=False):
-    if not inference_server and prompt_type in [None, '', 'plain']:
-        label_postfix = '   [Please select prompt_type in Models tab or on CLI for chat models]'
-    else:
-        label_postfix = ''
+    #have_inference_server = inference_server not in [no_server_str, None, '']
+    #if not have_inference_server and prompt_type in [None, '', 'plain']:
+    #    label_postfix = '   [Please select prompt_type in Models tab or on CLI for chat models]'
+    #else:
+    # pass
+    label_postfix = ''
     if not debug:
         inference_server = ''
     else:
