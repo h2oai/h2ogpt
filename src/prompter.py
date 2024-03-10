@@ -229,7 +229,8 @@ prompt_type_to_model_name = {
              'Qwen/Qwen1.5-4B-Chat-GGUF',
              'Qwen/Qwen1.5-1.8B-Chat-GGUF',
              'Qwen/Qwen1.5-0.5B-Chat-GGUF',
-             ]
+             ],
+    "sealion": ['aisingapore/sea-lion-7b-instruct'],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
