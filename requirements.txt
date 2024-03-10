@@ -4,8 +4,8 @@ sentencepiece==0.1.99
 # no websockets, more cloud friendly
 #gradio==4.19.2
 # able to make gradio clean-up states
-#gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
-gradio==3.50.2
+gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
+#gradio==3.50.2
 sse_starlette==1.8.2
 huggingface_hub==0.19.4
 appdirs==1.4.4
@@ -39,8 +39,8 @@ boto3>=1.26.101
 botocore>=1.29.101
 
 # for gradio client
-#gradio_client==0.11.0
-gradio_client==0.6.1
+gradio_client==0.11.0
+#gradio_client==0.6.1
 beautifulsoup4>=4.12.2
 markdown>=3.4.3
 
