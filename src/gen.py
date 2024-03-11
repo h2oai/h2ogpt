@@ -5813,10 +5813,10 @@ def get_limited_prompt(instruction,
                     history_to_use = history[0 + chat_index:]
 
                 if use_chat_template:
-                    messages = structure_to_messages(instruction, system_prompt, history)
+                    messages = structure_to_messages(instruction, system_prompt, history_to_use)
                     context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
                 else:
-                    context2 = history_to_context_func(history)
+                    context2 = history_to_context_func(history_to_use)
 
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
