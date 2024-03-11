@@ -5804,6 +5804,7 @@ def get_limited_prompt(instruction,
             num_iinput_tokens = 0
             history_to_use_final = []
             low, high = 0, len(history) - 1
+            best_index = -1  # Keep track of the best index that satisfies the condition
             chat_index = 0
             while low <= high:
                 chat_index = (low + high) // 2  # Find the middle index
@@ -5823,6 +5824,7 @@ def get_limited_prompt(instruction,
                 diff1 = non_doc_max_length - (
                         num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
+                    best_index = chat_index  # Update best index
                     # Condition met, try to find if there's a smaller history that still meets the condition
                     history_to_use_final = history_to_use.copy()
                     high = chat_index - 1
@@ -5830,6 +5832,14 @@ def get_limited_prompt(instruction,
                     # Condition not met, need to include more history
                     low = chat_index + 1
                 # i.e. if chat_index == len(history), then nothing can be consumed
+            if best_index != -1:
+                chat_index = best_index
+                if chat_system_prompt and history:
+                    history_to_use_final = [history[0]] + history[1 + best_index:]
+                else:
+                    history_to_use_final = history[0 + best_index:]
+            else:
+                history_to_use_final = history.copy()
             if verbose:
                 print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
         elif not use_chat_template and diff3 > 0 > diff2:
