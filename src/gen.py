@@ -5803,9 +5803,10 @@ def get_limited_prompt(instruction,
             iinput = ''
             num_iinput_tokens = 0
             history_to_use_final = []
-            for chat_index in range(len(history)):
-                # NOTE: history and chat_conversation are older for first entries
-                # FIXME: This is a slow for many short conversations
+            low, high = 0, len(history) - 1
+            chat_index = 0
+            while low <= high:
+                chat_index = (low + high) // 2  # Find the middle index
                 if chat_system_prompt and history:  # should always have history[0] but just protection in case
                     # Don't ever lose system prompt if putting into chat
                     history_to_use = [history[0]] + history[1 + chat_index:]
@@ -5822,11 +5823,15 @@ def get_limited_prompt(instruction,
                 diff1 = non_doc_max_length - (
                         num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
+                    # Condition met, try to find if there's a smaller history that still meets the condition
                     history_to_use_final = history_to_use.copy()
-                    if verbose:
-                        print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
-                    break
+                    high = chat_index - 1
+                else:
+                    # Condition not met, need to include more history
+                    low = chat_index + 1
                 # i.e. if chat_index == len(history), then nothing can be consumed
+            if verbose:
+                print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
         elif not use_chat_template and diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
