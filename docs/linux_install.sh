@@ -69,7 +69,7 @@ pip install soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
 # Optional: Only for testing for now
 pip install playsound==1.3.0 -c reqs_optional/reqs_constraints.txt
 # STT from microphone (may not be required if ffmpeg installed above)
-sudo apt-get install ffmpeg
+sudo apt-get install ffmpeg -y
 # for any TTS:
 pip install torchaudio soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
 # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
