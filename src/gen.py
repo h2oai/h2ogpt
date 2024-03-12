@@ -5707,12 +5707,17 @@ def get_limited_prompt(instruction,
                                                 min_max_new_tokens=min_max_new_tokens)
 
     from openai_server.backend_utils import structure_to_messages
-    use_chat_template = (prompt_type in [None, '', 'plain'] and
-                         hasattr(tokenizer, 'chat_template') and
-                         tokenizer.chat_template)
+    use_chat_template = prompt_type in [None, '', 'plain'] and \
+                        (hasattr(tokenizer, 'chat_template') and
+                         tokenizer.chat_template not in [None, ''] or
+                         hasattr(tokenizer, 'default_chat_template') and
+                         tokenizer.default_chat_template not in [None, '']
+                         )
 
     if use_chat_template:
-        messages = structure_to_messages(instruction, system_prompt, history)
+        messages = structure_to_messages(instruction,
+         system_prompt if system_prompt not in [None, '', 'auto'] else None,
+         history)
         context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         iinput = ''
         context = ''

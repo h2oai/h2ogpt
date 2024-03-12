@@ -7243,7 +7243,9 @@ def get_chain(query=None,
                                     {k: v for k, v in x.metadata.items() if
                                      v and k in metadata_in_context_set}) for x in docs]
             from openai_server.backend_utils import structure_to_messages
-            conversation = structure_to_messages(query, system_prompt, chat_conversation)
+            conversation = structure_to_messages(query,
+                                                 system_prompt if system_prompt not in [None, '', 'auto'] else None,
+                                                 chat_conversation)
             query_with_docs = tokenizer.apply_grounded_generation_template(
                 conversation,
                 documents=documents,

@@ -2030,4 +2030,6 @@ def get_lock_file(name):
 
 
 def merge_dict(dict1, dict2):
-    return dict2.update(dict1)
+    ret = dict1.copy()
+    ret.update(dict2)
+    return ret
