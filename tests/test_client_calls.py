@@ -3959,7 +3959,7 @@ def set_env(tts_model):
     if tts_model.startswith('tts_models/'):
         assert tts_model in coqui_models, tts_model
         # for deepspeed, needs to be same as torch for compilation of kernel
-        os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
+        os.environ['CUDA_HOME'] = os.getenv('CUDA_HOME', '/usr/local/cuda-12.1')
         sr = 24000
     else:
         sr = 16000

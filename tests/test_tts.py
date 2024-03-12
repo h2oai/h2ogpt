@@ -9,7 +9,7 @@ from tests.test_sentence_parsing import bot_list
 @pytest.mark.audio
 @wrap_test_forked
 def test_sentence_to_wave():
-    os.environ['CUDA_HOME'] = '/usr/local/cuda-12.3'
+    os.environ['CUDA_HOME'] = '/usr/local/cuda-12.1'
     from src.tts_coqui import sentence_to_wave, get_xtt, get_latent, get_role_to_wave_map
 
     chatbot_role = "Female AI Assistant"
@@ -37,7 +37,7 @@ def test_sentence_to_wave():
 @pytest.mark.audio
 @wrap_test_forked
 def test_generate_speech():
-    os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
+    os.environ['CUDA_HOME'] = os.getenv('CUDA_HOME', '/usr/local/cuda-12.1')
     from src.tts_coqui import generate_speech, get_xtt, get_latent, get_role_to_wave_map
 
     chatbot_role = "Female AI Assistant"
@@ -52,7 +52,7 @@ def test_generate_speech():
 @pytest.mark.audio
 @wrap_test_forked
 def test_full_generate_speech():
-    os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
+    os.environ['CUDA_HOME'] = os.getenv('CUDA_HOME', '/usr/local/cuda-12.1')
     from src.tts_coqui import generate_speech, get_xtt, get_latent, get_role_to_wave_map
     bot = 'I am an AI assistant.  What do you want from me?  I am very busy.'
 
