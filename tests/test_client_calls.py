@@ -3806,6 +3806,7 @@ def test_client_summarization_from_url(url, top_k_docs):
     assert url in [x['source'] for x in sources][0]
 
 
+@pytest.mark.skip(reason="https://github.com/huggingface/tokenizers/issues/1452")
 @pytest.mark.parametrize("prompt_type", ['instruct_vicuna', 'one_shot'])
 @pytest.mark.parametrize("bits", [None, 8, 4])
 @pytest.mark.parametrize("stream_output", [True, False])
@@ -3958,7 +3959,7 @@ def set_env(tts_model):
     if tts_model.startswith('tts_models/'):
         assert tts_model in coqui_models, tts_model
         # for deepspeed, needs to be same as torch for compilation of kernel
-        os.environ['CUDA_HOME'] = '/usr/local/cuda-11.7'
+        os.environ['CUDA_HOME'] = os.getenv('CUDA_HOME', '/usr/local/cuda-12.1')
         sr = 24000
     else:
         sr = 16000

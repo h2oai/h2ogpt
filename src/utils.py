@@ -2027,3 +2027,9 @@ def get_lock_file(name):
     lock_file = os.path.join(base_path, "%s.lock" % lock_type)
     makedirs(os.path.dirname(lock_file))  # ensure made
     return lock_file
+
+
+def merge_dict(dict1, dict2):
+    ret = dict1.copy()
+    ret.update(dict2)
+    return ret

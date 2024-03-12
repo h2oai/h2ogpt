@@ -60,7 +60,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, merge_dict
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1696,6 +1696,7 @@ class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
 
+
 class H2OChatAnthropic2Sys(H2OChatAnthropic2):
     pass
 
@@ -1707,7 +1708,6 @@ class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
     streaming: Any = True
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
 
 
 class H2OChatAnthropic3Sys(H2OChatAnthropic3):
@@ -6019,7 +6019,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             # see if need to split
             # account for joiner tokens
             joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
-            doc_chunk_size = max(64, min(max_input_tokens, max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
+            doc_chunk_size = max(64, min(max_input_tokens,
+                                         max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
                 tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0
             )
@@ -6149,6 +6150,7 @@ def run_hyde(*args, **kwargs):
     # no-doc chain first if done
     hyde_chain['query'] = hyde_template.format(query=query)
     hyde_chain['db'] = None
+    hyde_chain['load_db_if_exists'] = False
     hyde_chain['text_context_list'] = []
     sources = []
     answers = []
@@ -6221,6 +6223,7 @@ def run_hyde(*args, **kwargs):
         # update hyde_chain with doc version from now on
         hyde_chain['db'] = kwargs['db']
         hyde_chain['text_context_list'] = kwargs['text_context_list']
+        hyde_chain['load_db_if_exists'] = True
 
     return hyde_chain['query_embedding'], llm_answers
 
@@ -7070,7 +7073,7 @@ def get_chain(query=None,
             estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
 
         # add metadata to documents and make new copy of docs with them to not contaminate originals
-        if metadata_in_context and not doc_json_mode:
+        if metadata_in_context and not doc_json_mode and not hasattr(tokenizer, 'apply_grounded_generation_template'):
             docs_with_score = [(Document(page_content='Begin Document:\n\n' +
                                                       'Metadata:\n' +
                                                       '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
@@ -7251,11 +7254,8 @@ def get_chain(query=None,
                      prompter=prompter)
 
     if doc_json_mode:
-        def merge_dict(dict1, dict2):
-            return dict2.update(dict1)
-
         # make copy so don't change originals
-        if metadata_in_context:
+        if metadata_in_context and not hasattr(tokenizer, 'apply_grounded_generation_template'):
             docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content),
                                                                 {k: v for k, v in x.metadata.items() if
                                                                  v and k in metadata_in_context_set})),
@@ -7267,21 +7267,46 @@ def get_chain(query=None,
                     for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
-        if use_template:
-            # instruct-like, rather than few-shot prompt_type='plain' as default
-            # but then sources confuse the model with how inserted among rest of text, so avoid
+        if hasattr(tokenizer, 'apply_grounded_generation_template'):
+            assert prompt_type == 'plain'
+            # https://huggingface.co/CohereForAI/c4ai-command-r-v01
             prompt = PromptTemplate(
                 # input_variables=["summaries", "question"],
                 input_variables=["context", "question"],
-                template=template,
+                template='{context}{question}',  # ignored
             )
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
+            documents = [merge_dict(dict(text=x.page_content),
+                                    {k: v for k, v in x.metadata.items() if
+                                     v and k in metadata_in_context_set}) for x in docs]
+            from openai_server.backend_utils import structure_to_messages
+            conversation = structure_to_messages(query,
+                                                 system_prompt if system_prompt not in [None, '', 'auto'] else None,
+                                                 chat_conversation)
+            query_with_docs = tokenizer.apply_grounded_generation_template(
+                conversation,
+                documents=documents,
+                citation_mode="accurate",  # or "fast"
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            chain_kwargs = dict(input_documents=[], question=query_with_docs)
         else:
-            # unused normally except in testing
-            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
-                model_name, prompt_type)
-            chain = load_qa_with_sources_chain(llm)
-        chain_kwargs = dict(input_documents=docs, question=query)
+            if use_template:
+                # instruct-like, rather than few-shot prompt_type='plain' as default
+                # but then sources confuse the model with how inserted among rest of text, so avoid
+                prompt = PromptTemplate(
+                    # input_variables=["summaries", "question"],
+                    input_variables=["context", "question"],
+                    template=template,
+                )
+                chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
+            else:
+                # unused normally except in testing
+                assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
+                    model_name, prompt_type)
+                chain = load_qa_with_sources_chain(llm)
+            chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
     elif summarize_action:
         if async_output:

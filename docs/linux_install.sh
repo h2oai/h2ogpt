@@ -8,16 +8,25 @@ if ! test -f /usr/bin/sudo; then
   alias sudo=' '
 fi
 
+#
 #* Optional: For document Q/A and use of DocTR.  Install before other pips to avoid long conflict checks.
+#
 conda install weasyprint pygobject -c conda-forge -y
-#   Avoids library mismatch.
+# Avoids library mismatch.
+
+
+#
 #* Install primary dependencies
+#
 # fix any bad env
 pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
 # broad support, but no training-time or data creation dependencies
-
 pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
+
+
+#
 #* Optional: Install document question-answer dependencies:
+#
 # May be required for jq package:
 sudo apt-get -y install autoconf libtool
 # Required for Doc Q/A: LangChain:
@@ -60,7 +69,7 @@ pip install soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
 # Optional: Only for testing for now
 pip install playsound==1.3.0 -c reqs_optional/reqs_constraints.txt
 # STT from microphone (may not be required if ffmpeg installed above)
-sudo apt-get install ffmpeg
+sudo apt-get install ffmpeg -y
 # for any TTS:
 pip install torchaudio soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
 # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
@@ -74,46 +83,70 @@ pip install git+https://github.com/SYSTRAN/faster-whisper.git -c reqs_optional/r
 pip install numpy==1.23.0 --no-deps --upgrade -c reqs_optional/reqs_constraints.txt
 # TTS or other deps load old librosa, fix:
 pip install librosa==0.10.1 --no-deps --upgrade -c reqs_optional/reqs_constraints.txt
-#* STT and TTS Notes:
-#  * STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
-#  * TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 
+
+#
+#* STT and TTS Notes:
+#
+# STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
+# TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 # Vision/Image packages
 pip install fiftyone -c reqs_optional/reqs_constraints.txt
 pip install pytube -c reqs_optional/reqs_constraints.txt
 pip install diffusers==0.24.0 -c reqs_optional/reqs_constraints.txt
 
+
+#
 #* HNSW issue:
-#    In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
+#
+# In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:
 pip uninstall -y hnswlib chroma-hnswlib
 # restore correct version
 pip install chroma-hnswlib==0.7.3 --upgrade -c reqs_optional/reqs_constraints.txt
+
+
+#
 #* Selenium needs to have chrome installed, e.g. on Ubuntu:
+#
 sudo apt install -y unzip xvfb libxi6 libgconf-2-4 libu2f-udev
-sudo apt install -y default-jdk
-if [ 1 -eq 0 ]; then
-    sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
-    sudo bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
-    sudo apt -y update
-    sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+
+javaVersion=$(java --version)
+if [ -z "$javaVersion" ]; then
+  sudo apt install -y default-jdk
 fi
-wget http://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.198-1_amd64.deb
-sudo dpkg -i google-chrome-stable_114.0.5735.198-1_amd64.deb
-sudo google-chrome --version  # e.g. Google Chrome 114.0.5735.198
-# visit https://chromedriver.chromium.org/downloads and download matching version
+
+#if [ 1 -eq 0 ]; then
+#    sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
+#    sudo bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+#    sudo apt -y update
+#    sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+#fi
+
+# upgrade chrome to latest
+sudo apt-get --only-upgrade install google-chrome-stable -y
+chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
+# visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
 # E.g.
 sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
-sudo wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
-sudo unzip chromedriver_linux64.zip
-sudo mv chromedriver /usr/bin/chromedriver
+sudo wget https://storage.googleapis.com/chrome-for-testing-public/"$chromeVersion"/linux64/chromedriver-linux64.zip
+sudo unzip -o chromedriver-linux64.zip
+sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
 sudo chown root:root /usr/bin/chromedriver
 sudo chmod +x /usr/bin/chromedriver
+
+
+#
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
+#
 pip uninstall -y auto-gptq ; pip install auto-gptq==0.6.0 -c reqs_optional/reqs_constraints.txt
 # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
 pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
+
+
+#
 #* GPU Optional: For AutoAWQ support on x86_64 linux
+#
 pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8-cp310-cp310-linux_x86_64.whl -c reqs_optional/reqs_constraints.txt
 # fix version since don't need lm-eval to have its version of 1.5.0
 pip install sacrebleu==2.3.1 --upgrade -c reqs_optional/reqs_constraints.txt
@@ -145,20 +178,35 @@ else
   echo "cuda121 for awq"
 fi
 
+
+#
 #* GPU Optional: Support amazon/MistralLite with flash attention 2
+#
 if [[ -v CUDA_HOME ]];
 then
     pip install --upgrade pip
     pip install flash-attn==2.4.2 --no-build-isolation --no-cache-dir -c reqs_optional/reqs_constraints.txt
 fi
+
+
+#
 #* Control Core Count for chroma < 0.4 using chromamigdb package:
-#    * Duckdb used by Chroma < 0.4 uses DuckDB 0.8.1 that has no control over number of threads per database, `import duckdb` leads to all virtual cores as threads and each db consumes another number of threads equal to virtual cores.  To prevent this, one can rebuild duckdb using [this modification](https://github.com/h2oai/duckdb/commit/dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad) or one can try to use the prebuild wheel for x86_64 built on Ubuntu 20.
+#
+# Duckdb used by Chroma < 0.4 uses DuckDB 0.8.1 that has no control over number of threads per database, `import duckdb` leads to all virtual cores as threads and each db consumes another number of threads equal to virtual cores.  To prevent this, one can rebuild duckdb using [this modification](https://github.com/h2oai/duckdb/commit/dcd8c1ffc53dd020623630efb99ba6a3a4cbc5ad) or one can try to use the prebuild wheel for x86_64 built on Ubuntu 20.
 pip uninstall -y pyduckdb duckdb
 pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg9698e9e6a8.d20230907-cp310-cp310-linux_x86_64.whl --no-cache-dir --force-reinstall --no-deps -c reqs_optional/reqs_constraints.txt
+
+
+#
 #* SERP for search:
+#
 pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/reqs_constraints.txt
 #  For more info see [SERP Docs](README_SerpAPI.md).
+
+
+#
 #* Deal with not-thread-safe things in LangChain:
+#
 sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
 sed -i  's/with HiddenPrints():/if True:/g' $sp/langchain_community/utilities/serpapi.py
 #sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
@@ -176,7 +224,9 @@ sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends
 sed -i 's/while True:/while True:\n            time.sleep(0.001)\n/g' $sp/gradio_client/client.py
 
 
-### Compile Install Issues
+#
+#* Compile Install Issues
+#
 #  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
 #    * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:
 if [ 1 -eq 0 ]

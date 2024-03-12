@@ -241,12 +241,13 @@ def main(
         cli_loop: bool = True,
         gradio: bool = True,
         openai_server: bool = True,
-        openai_port: int = 5000,
+        openai_port: int = 5001 if sys.platform == "darwin" else 5000,
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
         share: bool = False,
         open_browser: bool = False,
         close_button: bool = True,
+        shutdown_via_api: bool = False,
         root_path: str = "",
         ssl_verify: bool = True,
         ssl_keyfile: str | None = None,
@@ -748,6 +749,7 @@ def main(
     :param share: whether to share the gradio app with sharable URL
     :param open_browser: whether to automatically open browser tab with gradio UI
     :param close_button: Whether to show close button in system tab (if not public)
+    :param shutdown_via_api: Whether to allow shutdown via API
     :param root_path: The root path (or "mount point") of the application,
            if it's not served from the root ("/") of the domain. Often used when the application is behind a reverse proxy
            that forwards requests to the application. For example, if the application is served at "https://example.com/myapp",
@@ -1674,7 +1676,7 @@ def main(
         elif enable_stt is True:
             raise RuntimeError("STT packages (soundfile, librosa, wavio) not installed")
     elif enable_stt == 'auto':
-        enable_stt = True
+        enable_stt = False
     if n_gpus != 0 and enable_stt:
         print("STT enabled, may use more GPU, set --enable_stt=False for low-memory systems", flush=True)
 
@@ -1685,7 +1687,7 @@ def main(
         elif enable_tts is True:
             raise RuntimeError("TTS packages (soundfile, librosa, wavio) not installed")
     elif enable_tts == 'auto':
-        enable_tts = True
+        enable_tts = False
     if not have_langchain and enable_transcriptions:
         print("Must install langchain for transcription, disabling", flush=True)
         enable_transcriptions = False
@@ -2266,10 +2268,17 @@ def get_config(base_model,
                 config.update({"max_seq_len": 2 * 8192})
         if return_model and \
                 issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
-            model = AutoModel.from_config(
-                config,
-                trust_remote_code=trust_remote_code,
-            )
+            try:
+                model = AutoModel.from_config(
+                    config,
+                    trust_remote_code=trust_remote_code,
+                )
+            except Exception as e:
+                if 'has no attribute' in str(e):
+                    # half-baked hack to transformers by Cohere
+                    model = None
+                else:
+                    raise
         else:
             # can't infer
             model = None
@@ -2834,7 +2843,7 @@ def get_model(
                     if name not in google_mapping:
                         if os.getenv('HARD_ASSERTS'):
                             raise ValueError("%s not in google_mapping" % name)
-                        google_mapping[name] = 8192 # estimate
+                        google_mapping[name] = 8192  # estimate
                     see_model |= base_model == name
         assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
 
@@ -3192,8 +3201,8 @@ def get_hf_model(load_8bit: bool = False,
             if load_8bit:
                 from transformers import BitsAndBytesConfig
                 model_kwargs['quantization_config'] = BitsAndBytesConfig(
-                                                                         load_in_8bit=load_8bit,
-                                                                         )
+                    load_in_8bit=load_8bit,
+                )
 
             elif low_bit_mode == 1:
                 from transformers import BitsAndBytesConfig
@@ -4338,7 +4347,8 @@ def evaluate(
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
                                 if verbose:
-                                    print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0), flush=True)
+                                    print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
+                                          flush=True)
                                 break
                 else:
                     raise RuntimeError("No such OpenAI mode: %s" % inference_server)
@@ -5683,6 +5693,7 @@ def get_limited_prompt(instruction,
     # merge handles if chat_conversation is None
     history = []
     history = merge_chat_conversation_history(chat_conversation, history)
+
     history_to_context_func = functools.partial(history_to_context,
                                                 langchain_mode=langchain_mode,
                                                 add_chat_history_to_context=add_chat_history_to_context,
@@ -5695,7 +5706,25 @@ def get_limited_prompt(instruction,
                                                 hyde_level=hyde_level,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
-    context2 = history_to_context_func(history)
+
+    from openai_server.backend_utils import structure_to_messages
+    use_chat_template = prompt_type in [None, '', 'plain'] and \
+                        (hasattr(tokenizer, 'chat_template') and
+                         tokenizer.chat_template not in [None, ''] or
+                         hasattr(tokenizer, 'default_chat_template') and
+                         tokenizer.default_chat_template not in [None, '']
+                         )
+
+    if use_chat_template:
+        messages = structure_to_messages(instruction,
+         system_prompt if system_prompt not in [None, '', 'auto'] else None,
+         history)
+        context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        iinput = ''
+        context = ''
+    else:
+        context2 = history_to_context_func(history)
+
     context1 = context
     if context1 is None:
         context1 = ''
@@ -5720,8 +5749,11 @@ def get_limited_prompt(instruction,
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
-    context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                           max_prompt_length=max_input_tokens)
+    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
+    if not use_chat_template:
+        context2 = context2_trial
+
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
     # leave bit for instruction regardless of system prompt
@@ -5784,25 +5816,46 @@ def get_limited_prompt(instruction,
             iinput = ''
             num_iinput_tokens = 0
             history_to_use_final = []
-            for chat_index in range(len(history)):
-                # NOTE: history and chat_conversation are older for first entries
-                # FIXME: This is a slow for many short conversations
+            low, high = 0, len(history) - 1
+            best_index = -1  # Keep track of the best index that satisfies the condition
+            chat_index = 0
+            while low <= high:
+                chat_index = (low + high) // 2  # Find the middle index
                 if chat_system_prompt and history:  # should always have history[0] but just protection in case
                     # Don't ever lose system prompt if putting into chat
                     history_to_use = [history[0]] + history[1 + chat_index:]
                 else:
                     history_to_use = history[0 + chat_index:]
-                context2 = history_to_context_func(history_to_use)
+
+                if use_chat_template:
+                    messages = structure_to_messages(instruction, system_prompt, history_to_use)
+                    context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                else:
+                    context2 = history_to_context_func(history_to_use)
+
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
                         num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
                 if diff1 > 0:
+                    best_index = chat_index  # Update best index
+                    # Condition met, try to find if there's a smaller history that still meets the condition
                     history_to_use_final = history_to_use.copy()
-                    if verbose:
-                        print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
-                    break
+                    high = chat_index - 1
+                else:
+                    # Condition not met, need to include more history
+                    low = chat_index + 1
                 # i.e. if chat_index == len(history), then nothing can be consumed
-        elif diff3 > 0 > diff2:
+            if best_index != -1:
+                chat_index = best_index
+                if chat_system_prompt and history:
+                    history_to_use_final = [history[0]] + history[1 + best_index:]
+                else:
+                    history_to_use_final = history[0 + best_index:]
+            else:
+                history_to_use_final = history.copy()
+            if verbose:
+                print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
+        elif not use_chat_template and diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
             num_iinput_tokens = 0
@@ -5814,7 +5867,7 @@ def get_limited_prompt(instruction,
                 pass
             else:
                 print("failed to reduce", flush=True)
-        else:
+        elif not use_chat_template:
             # then must be able to do #1 + #2 + #3 + #4
             iinput = ''
             num_iinput_tokens = 0
@@ -5865,14 +5918,17 @@ def get_limited_prompt(instruction,
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type
 
-    data_point = dict(context=context, instruction=instruction, input=iinput)
-    # handle promptA/promptB addition if really from history.
-    # if not from history, then reduced=False inside correct
-    # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
-    context_from_history = len(history) > 0
-    # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
-    reduced = context_from_history
-    prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
+    if not use_chat_template:
+        data_point = dict(context=context, instruction=instruction, input=iinput)
+        # handle promptA/promptB addition if really from history.
+        # if not from history, then reduced=False inside correct
+        # if mixed, then no specific correct thing to do, so treat like history and promptA/B will come first still
+        context_from_history = len(history) > 0
+        # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+        reduced = context_from_history
+        prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
+    else:
+        prompt = context
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \

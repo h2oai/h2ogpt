@@ -229,7 +229,8 @@ prompt_type_to_model_name = {
              'Qwen/Qwen1.5-4B-Chat-GGUF',
              'Qwen/Qwen1.5-1.8B-Chat-GGUF',
              'Qwen/Qwen1.5-0.5B-Chat-GGUF',
-             ]
+             ],
+    "sealion": ['aisingapore/sea-lion-7b-instruct'],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -1456,6 +1457,18 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '<|im_end|>\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.sealion.value, str(PromptType.sealion.value),
+                         PromptType.sealion.name]:
+        can_handle_system_prompt = False
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### USER:\n"
+        PreResponse = "\n\n### RESPONSE:\n"
+        terminate_response = ['### RESPONSE:', "</s>", "<|endoftext|>"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### USER:'
+        botstr = '### RESPONSE:'
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
