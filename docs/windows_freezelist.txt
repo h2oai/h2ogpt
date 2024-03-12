@@ -375,7 +375,7 @@ tifffile==2023.12.9
 tiktoken==0.5.2
 timm==0.9.12
 tinycss2==1.2.1 # @ file:///home/conda/feedstock_root/build_artifacts/tinycss2_1666100256010/work
-tokenizers==0.15.0
+tokenizers==0.15.2
 toml==0.10.2
 tomli==2.0.1
 toolz==0.12.0

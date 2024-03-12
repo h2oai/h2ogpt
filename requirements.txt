@@ -7,7 +7,8 @@ sentencepiece==0.1.99
 gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
 #gradio==3.50.2
 sse_starlette==1.8.2
-huggingface_hub==0.19.4
+# consrained by tokenizers etc.:
+huggingface_hub>=0.12.4
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.20.1
@@ -28,7 +29,7 @@ bitsandbytes>=0.41.0
 accelerate>=0.27.2
 peft>=0.7.0
 transformers>=4.38.1
-tokenizers>=0.15.1
+tokenizers>=0.15.2
 APScheduler>=3.10.1
 hf_transfer>=0.1.5
 
