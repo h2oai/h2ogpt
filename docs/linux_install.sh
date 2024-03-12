@@ -129,7 +129,7 @@ chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
 # E.g.
 sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
 sudo wget https://storage.googleapis.com/chrome-for-testing-public/"$chromeVersion"/linux64/chromedriver-linux64.zip
-sudo unzip chromedriver-linux64.zip
+sudo unzip -o chromedriver-linux64.zip
 sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
 sudo chown root:root /usr/bin/chromedriver
 sudo chmod +x /usr/bin/chromedriver
