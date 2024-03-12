@@ -122,14 +122,8 @@ fi
 #    sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
 #fi
 
-chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
-if [ -z "$chromeVersion" ]; then
-  wget http://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.198-1_amd64.deb
-  sudo dpkg -i google-chrome-stable_114.0.5735.198-1_amd64.deb
-  sudo google-chrome --version  # e.g. Google Chrome 114.0.5735.198
-  chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
-fi
-
+# upgrade chrome to latest
+sudo apt-get --only-upgrade install google-chrome-stable
 # visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
 # E.g.
 sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
