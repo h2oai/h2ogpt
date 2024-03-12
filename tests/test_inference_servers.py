@@ -402,7 +402,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         if not pass_prompt_type:
             prompt_type = None
     if do_model_lock:
-        model_lock = [{'inference_server': inference_server, 'base_model': base_model}]
+        model_lock = [{'inference_server': inference_server, 'base_model': base_model, 'max_seq_len': 2048}]
         base_model = None
         inference_server = None
     else:
