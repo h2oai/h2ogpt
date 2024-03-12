@@ -3806,6 +3806,7 @@ def test_client_summarization_from_url(url, top_k_docs):
     assert url in [x['source'] for x in sources][0]
 
 
+@pytest.mark.skip(reason="https://github.com/huggingface/tokenizers/issues/1452")
 @pytest.mark.parametrize("prompt_type", ['instruct_vicuna', 'one_shot'])
 @pytest.mark.parametrize("bits", [None, 8, 4])
 @pytest.mark.parametrize("stream_output", [True, False])
