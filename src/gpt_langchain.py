@@ -3134,7 +3134,7 @@ def file_to_doc(file,
                     doc1.extend(chunk_sources(docs1))
                     handled = True
                 except BaseException as e0:
-                    print("ASR: %s" % str(e0), flush=True)
+                    print("ASR: %s: %s" % (str(e0), traceback.print_exception(e0)), flush=True)
                     e = e0
                 handled |= len(docs1) > 0
             if extract_frames > 0 and have_fiftyone:
