@@ -1,6 +1,6 @@
 # for generate (gradio server) and finetune
 datasets==2.16.1
-sentencepiece==0.1.99
+sentencepiece==0.2.0
 # no websockets, more cloud friendly
 #gradio==4.19.2
 # able to make gradio clean-up states
@@ -12,8 +12,8 @@ huggingface_hub>=0.12.4
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.20.1
-torch==2.1.2; sys_platform != "darwin" and platform_machine != "arm64"
-torch==2.1.2; sys_platform == "darwin" and platform_machine == "arm64"
+torch==2.2.1; sys_platform != "darwin" and platform_machine != "arm64"
+torch==2.2.1; sys_platform == "darwin" and platform_machine == "arm64"
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
