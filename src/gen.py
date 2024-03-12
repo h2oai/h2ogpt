@@ -2267,10 +2267,17 @@ def get_config(base_model,
                 config.update({"max_seq_len": 2 * 8192})
         if return_model and \
                 issubclass(config.__class__, tuple(AutoModel._model_mapping.keys())):
-            model = AutoModel.from_config(
-                config,
-                trust_remote_code=trust_remote_code,
-            )
+            try:
+                model = AutoModel.from_config(
+                    config,
+                    trust_remote_code=trust_remote_code,
+                )
+            except Exception as e:
+                if 'has no attribute' in str(e):
+                    # half-baked hack to transformers by Cohere
+                    model = None
+                else:
+                    raise
         else:
             # can't infer
             model = None
