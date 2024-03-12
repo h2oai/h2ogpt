@@ -256,6 +256,8 @@ print(text)
 ```
 for some IP `<IP>`, which could be the local IP and some key `<API_KEY>`. If OpenAI server was run from h2oGPT using `--openai_server=True` (default), then `api_key` is from ENV `H2OGPT_OPENAI_API_KEY` on same host as Gradio server OpenAI.  If ENV `H2OGPT_OPENAI_API_KEY` is not defined, then h2oGPT will use the first key in the `h2ogpt_api_keys` (file or CLI list) as the OpenAI API key.  If no key is at all set, the OpenAI server is "open" with key `EMPTY` as long as `--allow_api=True`.  If h2oGPT was started with `--model_lock` with multiple inference servers, use `model` to choose which model to select, like done with `--visible_models` from h2oGPT CLI.
 
+**Note:** The default OpenAI proxy port for MacOS is set to `5001`, since ports 5000 and 7000 are being used by [AirPlay in MacOS](https://developer.apple.com/forums/thread/682332).
+
 ## OpenAI Inference Server-Client
 
 If you have an OpenAI key and set an ENV `OPENAI_API_KEY`, then you can access OpenAI models via gradio by running:

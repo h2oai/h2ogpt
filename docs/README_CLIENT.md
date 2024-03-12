@@ -286,6 +286,8 @@ print(text)
 ```
 This is only required if `--auth_access=closed` was used, else for `--auth_access=open` we use guest access if that is allowed, else random uuid if no guest access.  Note that if access is closed, one cannot get model names or info.
 
+**Note:** The default OpenAI proxy port for MacOS is set to `5001`, since ports 5000 and 7000 are being used by [AirPlay in MacOS](https://developer.apple.com/forums/thread/682332).
+
 ## extra_body
 
 In order to control other parameters not normally part of OpenAI API, one can use `extra_body`, e.g.
