@@ -241,7 +241,7 @@ def main(
         cli_loop: bool = True,
         gradio: bool = True,
         openai_server: bool = True,
-        openai_port: int = 5000,
+        openai_port: int = 5001 if sys.platform == "darwin" else 5000,
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
         share: bool = False,
