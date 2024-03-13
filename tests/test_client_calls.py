@@ -3686,6 +3686,7 @@ def test_client_summarization_from_text():
     base_model = 'meta-llama/Llama-2-7b-chat-hf'
     from src.gen import main
     main(base_model=base_model, chat=True, gradio=True, num_beams=1, block_gradio_exit=False, verbose=True,
+         add_disk_models_to_ui=False,
          use_auth_token=True,
          )
 
