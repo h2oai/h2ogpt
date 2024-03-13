@@ -165,6 +165,9 @@ then
     pip install . -c reqs_optional/reqs_constraints.txt
 fi
 
+# ensure not installed if remade env on top of old env
+pip uninstall llama_cpp_python_cuda -y
+
 # Check if the environment variable `MY_ENV_VAR` contains the substring "hello"
 if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
   #* GPU Optional: For exllama support on x86_64 linux
