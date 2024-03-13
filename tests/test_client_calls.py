@@ -4022,8 +4022,8 @@ def play_audio(audio, sr=16000):
     audio = audio.export(filename, format='wav')
 
     # pip install playsound
-    from playsound import playsound
-    playsound(filename)
+    #from playsound import playsound
+    playsound_wav(filename)
 
 
 @pytest.mark.parametrize("tts_model", [
@@ -4213,11 +4213,13 @@ def play_audio_str(audio_str1, n):
         # pip install playsound==1.3.0
         # sudo apt-get install gstreamer-1.0
         # conda install -c conda-forge gst-python
-        from playsound import playsound
+        # pip install pygame
+        # from playsound import playsound
         filename = '/tmp/audio_%s.wav' % str(uuid.uuid4())
         audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
         audio.export(filename, format='wav')
-        playsound(os.path.abspath(filename))
+        #playsound(filename)
+        playsound_wav(filename)
     else:
         # pip install simpleaudio==1.0.4
         # WIP, needs header, while other shouldn't have header
@@ -4226,6 +4228,16 @@ def play_audio_str(audio_str1, n):
         song = AudioSegment.from_file(s, format="wav")
         play(song)
     return n
+
+
+def playsound_wav(x):
+    # pip install pygame
+    import pygame
+    pygame.mixer.init()
+    pygame.mixer.music.load(x)
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        pass
 
 
 @pytest.mark.skipif(not os.environ.get('HAVE_SERVER'),

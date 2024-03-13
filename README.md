@@ -278,6 +278,7 @@ These are not part of normal installation instructions and are experimental.
     pip install requirements-parser pytest-instafail pytest-random-order playsound==1.3.0
     conda install -c conda-forge gst-python
     sudo apt-get install gstreamer-1.0
+    pip install pygame
     pytest --instafail -s -v tests
     # for client tests
     make -C client setup
