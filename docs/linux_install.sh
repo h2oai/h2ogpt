@@ -213,7 +213,7 @@ pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/r
 #  For more info see [SERP Docs](README_SerpAPI.md).
 
 
-bash ./run_patches.sh
+bash ./docs/run_patches.sh
 
 
 #
