@@ -3130,6 +3130,9 @@ def file_to_doc(file,
                     # caption didn't set source, so fix-up meta
                     hash_of_file = hash_file(file)
                     [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                    for file_out_i, file_out in enumerate(files_out):
+                        key = 'source_true_' + str(file_out_i)
+                        [doci.metadata.update({key: file_out}) for doci in docs1c]
                     docs1.extend(docs1c)
                     doc1.extend(chunk_sources(docs1))
                     handled = True
@@ -3345,6 +3348,10 @@ def file_to_doc(file,
                 docs1c = model_loaders['asr'].load(from_youtube=False)
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+                files_out = model_loaders['asr'].files_out
+                for file_out_i, file_out in enumerate(files_out):
+                    key = 'source_true_' + str(file_out_i)
+                    [doci.metadata.update({key: file_out}) for doci in docs1c]
                 hash_of_file = hash_file(file)
                 [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
                 docs1c = chunk_sources(docs1c)

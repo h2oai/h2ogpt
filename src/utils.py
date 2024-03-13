@@ -1564,6 +1564,7 @@ def return_good_url(url):
 
 
 def dict_to_html(x, small=True, api=False):
+    x = {k: v if not in_gradio_root(v) else get_url(v, from_str=True, short_name=True) for k, v in x.items()}
     df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
     df.index = df.index + 1
     df.index.name = 'index'
@@ -2005,6 +2006,13 @@ def get_gradio_tmp():
     makedirs(gradio_tmp, exist_ok=True)  # won't hurt if soft link if exists
     gradio_tmp = os.path.realpath(gradio_tmp)
     return gradio_tmp
+
+
+def in_gradio_root(file):
+    ret = False
+    ret |= isinstance(file, str) and os.path.isfile(file) and os.path.abspath(file).startswith('/tmp/gradio')
+    ret |= isinstance(file, str) and os.path.isfile(file) and os.path.abspath(file).startswith(get_gradio_tmp())
+    return ret
 
 
 def get_is_gradio_h2oai():
