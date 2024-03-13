@@ -4,7 +4,7 @@
 
 Gradio 4.18.0+ fails to work for streaming audio from UI.  No audio is generated.  Waiting for bug fix: https://github.com/gradio-app/gradio/issues/7497.
 
-Work-around: Use gradio 4.17.0 or lower:
+Workaround: Use gradio 4.17.0 or lower:
 ```bash
 pip uninstall gradio gradio_client -y
 pip install gradio==4.17.0
@@ -14,12 +14,12 @@ pip install gradio==4.17.0
 
 Gradio 4.x.y fails to support k8 multi-pod use.  Basically gradio client on one pod can't reach gradio server on nearby pod.  See: https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
 
-Work-around: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+Workaround: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
 ```bash
 pip uninstall gradio gradio_client gradio_pdf -y
 pip install gradio==3.50.2
 ```
-If you see spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
 ```bash
 pip uninstall gradio gradio_client gradio_pdf -y
 pip install gradio==3.50.1
@@ -33,13 +33,13 @@ CUDA error: an illegal memory access was encountered
 
 With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
 
-A temporary work-around is present in h2oGPT, whereby XTTS model (not microsoft TTS model) and llama.cpp models are not used at same time.  Leads to more delays in streaming for text+audio, but not too bad result.
+A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
 
-Other work-arounds:
+Other workarounds:
 
-* Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
+* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
 
-* Work-around 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
+* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
     pip uninstall llama_cpp_python llama_cpp_python_cuda -y
     export LLAMA_CUBLAS=1
@@ -51,7 +51,7 @@ Other work-arounds:
 
 ## Frequently asked questions
 
-### Running oLLaMa vs. h2oGPT as inference server.
+### Running oLLaMa vs. h2oGPT as inference server
 
 * Run oLLaMa as server for h2oGPT frontend.
  
@@ -1435,7 +1435,7 @@ python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model -
 
 For full control (e.g. for non-TheBloke models), use `--base_model=llama` and specify `--model_path_llama`, which can be file or URL.  Use `--llamacpp_dict` to pass options to the model for full control over llama.cpp behavior.
 
-#### GGUF
+#### GGUF (GPT-Generated Unified Format)
 
 GGUF models are supported (can run either CPU and GPU in same install), see installation instructions for installing the separate GPU and CPU packages.
 
