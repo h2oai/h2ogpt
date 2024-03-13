@@ -2971,12 +2971,15 @@ def go_upload_gradio():
 
 # NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
 @pytest.mark.parametrize("repeat", range(0, 1))
-@pytest.mark.parametrize("inference_server", ['http://localhost:7860'])
+#@pytest.mark.parametrize("inference_server", ['http://localhost:7860'])
+@pytest.mark.parametrize("inference_server", [None, 'openai', 'openai_chat', 'openai_azure_chat', 'replicate'])
 # local_server=True
-@pytest.mark.parametrize("base_model",
-                         ['h2oai/h2ogpt-4096-llama2-13b-chat'])
+#@pytest.mark.parametrize("base_model",
+#                         ['h2oai/h2ogpt-4096-llama2-13b-chat'])
 # local_server=False or True if inference_server used
 # @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
+@pytest.mark.parametrize("base_model",
+                         ['h2oai/h2ogpt-oig-oasst1-512-6_9b', 'h2oai/h2ogpt-4096-llama2-7b-chat', 'gpt-3.5-turbo'])
 @pytest.mark.parametrize("data_kind", [
     'simple',
     'helium1',
