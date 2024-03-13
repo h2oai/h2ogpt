@@ -3399,6 +3399,7 @@ Rating: 5 (most positive)"""
         do_sample=False,
         instruction_nochat=prompt,
         text_context_list=None,  # NOTE: If use same client instance and push to this textbox, will be there next call
+        metadata_in_context=[],
     )
 
     # fast text doc Q/A
