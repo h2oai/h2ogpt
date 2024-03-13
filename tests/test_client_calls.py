@@ -3979,6 +3979,7 @@ def test_client1_tts(tts_model):
     from src.gen import main
     main(base_model='llama', chat=False,
          tts_model=tts_model,
+         enable_tts=True,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     sr = set_env(tts_model)
@@ -4038,6 +4039,7 @@ def test_client1_tts_stream(tts_model, base_model):
     from src.gen import main
     main(base_model=base_model, chat=False,
          tts_model=tts_model,
+         enable_tts=True,
          save_dir='foodir',
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -4153,7 +4155,9 @@ def test_client1_tts_api(tts_model, stream_output, h2ogpt_key):
          stream_output=True, gradio=True, num_beams=1, block_gradio_exit=False,
          enforce_h2ogpt_api_key=True if h2ogpt_key else False,
          enforce_h2ogpt_ui_key=False,
-         h2ogpt_api_keys=[h2ogpt_key] if h2ogpt_key else [])
+         h2ogpt_api_keys=[h2ogpt_key] if h2ogpt_key else [],
+         enable_tts=True,
+         )
 
     from gradio_client import Client
     client = Client(get_inf_server())
@@ -4205,12 +4209,15 @@ def play_audio_str(audio_str1, n):
     make_file = True  # WIP: can't choose yet
     if make_file:
         import uuid
-        # NOTE: pip install playsound
+        # NOTE:
+        # pip install playsound==1.3.0
+        # sudo apt-get install gstreamer-1.0
+        # conda install -c conda-forge gst-python
         from playsound import playsound
         filename = '/tmp/audio_%s.wav' % str(uuid.uuid4())
         audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
         audio.export(filename, format='wav')
-        playsound(filename)
+        playsound(os.path.abspath(filename))
     else:
         # pip install simpleaudio==1.0.4
         # WIP, needs header, while other shouldn't have header
