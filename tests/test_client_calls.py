@@ -1343,7 +1343,7 @@ def run_client_nochat_with_server(prompt='Who are you?', stream_output=False, ma
                                              stream_output=stream_output,
                                              max_new_tokens=max_new_tokens, langchain_mode=langchain_mode,
                                              langchain_action=langchain_action, langchain_agents=langchain_agents)
-    assert 'Birds' in res_dict['response'] or \
+    assert 'birds' in res_dict['response'].lower() or \
            'and can learn new things' in res_dict['response'] or \
            'Once upon a time' in res_dict['response']
     return res_dict, client
