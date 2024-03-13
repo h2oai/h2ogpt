@@ -5847,10 +5847,14 @@ def run_target(query='',
                                 answer = answer['output']
                             elif 'resolution' in answer:
                                 answer = answer['resolution']
-                        # ensure any changes to text are done
-                        answer = prompter.get_response(answer, prompt=None,
+                        answer_fix = functools.partial(prompter.get_response, prompt=None,
                                                        only_new_text=only_new_text,
                                                        sanitize_bot_response=sanitize_bot_response)
+                        if isinstance(answer, str):
+                            # ensure any changes to text are done
+                            answer = answer_fix(answer)
+                        elif isinstance(answer, list):
+                            answer = [answer_fix(x) for x in answer]
                 # in case raise StopIteration or broke queue loop in streamer, but still have exception
                 if thread.exc:
                     raise thread.exc
@@ -5867,6 +5871,14 @@ def run_target(query='',
                             answer = answer['output']
                         elif 'resolution' in answer:
                             answer = answer['resolution']
+                        answer_fix = functools.partial(prompter.get_response, prompt=None,
+                                                       only_new_text=only_new_text,
+                                                       sanitize_bot_response=sanitize_bot_response)
+                        if isinstance(answer, str):
+                            # ensure any changes to text are done
+                            answer = answer_fix(answer)
+                        elif isinstance(answer, list):
+                            answer = [answer_fix(x) for x in answer]
 
     llm_answers[llm_answers_key] = answer
     if verbose:
