@@ -152,8 +152,7 @@ pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 
 #
 #* GPU Optional: For AutoAWQ support on x86_64 linux
-#
-pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8-cp310-cp310-linux_x86_64.whl -c reqs_optional/reqs_constraints.txt
+pip uninstall -y autoawq ; pip install autoawq -c reqs_optional/reqs_constraints.txt
 # fix version since don't need lm-eval to have its version of 1.5.0
 pip install sacrebleu==2.3.1 --upgrade -c reqs_optional/reqs_constraints.txt
 #    If this has issues, you need to build:
