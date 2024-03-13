@@ -129,7 +129,7 @@ sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --im
 sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
 sudo apt-get update -y
 
-sudo apt-get --only-upgrade install google-chrome-stable -y
+sudo apt-get install google-chrome-stable -y
 chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
 # visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
 # E.g.
