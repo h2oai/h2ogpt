@@ -2283,7 +2283,7 @@ def get_llm(use_openai_model=False,
             # regenerate or leave None for llava so created inside
             inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                       base_model=model_name)
-        inference_server, headers = get_hf_server(inference_server)
+        inference_server, _, _, _ = get_hf_server(inference_server)
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))

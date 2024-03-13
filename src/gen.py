@@ -553,6 +553,14 @@ def main(
                              Address can be text-generation-server hosting that base_model
                              e.g. python generate.py --inference_server="http://192.168.1.46:6112" --base_model=HuggingFaceH4/zephyr-7b-beta
 
+                             For a gradio server, use same as TGI server.  We infer if it's TGI or Gradio.
+                             e.g. python generate.py --inference_server="http://192.168.1.46:7860" --base_model=HuggingFaceH4/zephyr-7b-beta
+                             For auth protected gradio, do:
+                             e.g. python generate.py --inference_server="http://192.168.1.46:7860:user:password" --base_model=HuggingFaceH4/zephyr-7b-beta
+                             If don't want to specify port, do:
+                             e.g. python generate.py --inference_server="https://gpt.h2o.ai:None:user:password" --base_model=HuggingFaceH4/zephyr-7b-beta
+
+
                              Or Address can be "openai_chat" or "openai" for OpenAI API
                              Or Address can be "openai_azure_chat" or "openai_azure" for Azure OpenAI API
                              e.g. python generate.py --inference_server="openai_chat" --base_model=gpt-3.5-turbo
@@ -2435,13 +2443,15 @@ def get_non_lora_model(base_model, model_loader, load_half,
 
 
 def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False):
-    inference_server, headers = get_hf_server(inference_server)
+    inference_server, headers, username, password = get_hf_server(inference_server)
     gr_client = None
     hf_client = None
 
+    gradio_auth = dict(auth=(username, password) if username and username else None)
+
     if base_model and is_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
-        gr_client = GradioClient(inference_server, check_hash=False, serialize=True)
+        gr_client = GradioClient(inference_server, check_hash=False, serialize=True, **gradio_auth)
         gr_client.setup()
     elif headers is None:
         try:
@@ -2450,7 +2460,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
             print("GR Client Begin: %s %s" % (inference_server, base_model), flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-            gr_client = GradioClient(inference_server).setup()
+            gr_client = GradioClient(inference_server, **gradio_auth).setup()
             print("GR Client End: %s" % inference_server, flush=True)
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
@@ -4366,13 +4376,14 @@ def evaluate(
         elif inference_server.startswith('http') and is_vision_model(base_model):
             where_from = "gr_client for llava"
             sources = []
-            inference_server, headers = get_hf_server(inference_server)
+            inference_server0 = inference_server
+            inference_server, _, _, _ = get_hf_server(inference_server)
             if isinstance(model, GradioClient) and not regenerate_gradio_clients:
                 gr_client = model.clone()
             elif isinstance(model, Client) and not regenerate_gradio_clients:
                 gr_client = model
             else:
-                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
+                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
                                                                                           base_model=base_model)
                 assert gr_client is not None
                 assert hf_client is None
@@ -4409,7 +4420,8 @@ def evaluate(
                         break
 
         elif inference_server.startswith('http'):
-            inference_server, headers = get_hf_server(inference_server)
+            inference_server0 = inference_server
+            inference_server, _, _, _ = get_hf_server(inference_server)
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient) and not regenerate_gradio_clients:
                 gr_client = model.clone()
@@ -4418,7 +4430,7 @@ def evaluate(
                 gr_client = None
                 hf_client = model
             else:
-                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
+                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
                                                                                           base_model=base_model)
 
             if gr_client is not None:

@@ -1151,13 +1151,44 @@ def start_faulthandler():
 
 def get_hf_server(inference_server):
     inf_split = inference_server.split("    ")
-    assert len(inf_split) == 1 or len(inf_split) == 3
-    inference_server = inf_split[0]
     if len(inf_split) == 3:
+        assert len(inf_split) == 1 or len(inf_split) == 3
+        inference_server = inf_split[0]
         headers = {"authorization": "%s %s" % (inf_split[1], inf_split[2])}
+        user = None
+        password = None
     else:
+        ip_port_vllm = ':'.join(inference_server.split(':')[0:])
+        if ip_port_vllm.startswith('https://'):
+            http_prefix = 'https://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+        elif ip_port_vllm.startswith('http://'):
+            http_prefix = 'http://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+        else:
+            http_prefix = 'http://'
+
+        inf_split = ip_port_vllm.split(":")
+        if len(inf_split) <= 2:
+            # i.e. just DNS or IP and no port or IP + port
+            user = None
+            password = None
+        elif len(inf_split) in [3, 4]:
+            # i.e. just DNS or IP, no port + user + pass = 3
+            # i.e. DNS/IP + port + user + pass = 4
+            user = inf_split[len(inf_split) - 2]
+            password = inf_split[len(inf_split) - 1]
+            ip_port_vllm = ':'.join(inf_split[:len(inf_split) - 2])
+        else:
+            raise ValueError("Malformed inference_server=%s" % inference_server)
+
         headers = None
-    return inference_server, headers
+
+        # remove None if port was None
+        if 'None' in ip_port_vllm.split(':'):
+            ip_port_vllm = ':'.join([x for x in ip_port_vllm.split(':') if x != 'None'])
+        inference_server = http_prefix + ip_port_vllm
+    return inference_server, headers, user, password
 
 
 class FakeTokenizer:
