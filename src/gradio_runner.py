@@ -345,6 +345,7 @@ def ask_block(kwargs, instruction_label, visible_upload, file_types, mic_sources
 
 def go_gradio(**kwargs):
     page_title = kwargs['page_title']
+    model_label_prefix = kwargs['model_label_prefix']
     allow_api = kwargs['allow_api']
     is_public = kwargs['is_public']
     is_hf = kwargs['is_hf']
@@ -502,7 +503,12 @@ def go_gradio(**kwargs):
     kwargs['gpu_id'] = str(kwargs['gpu_id'])
 
     no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
-    chat_name0 = get_chatbot_name(kwargs.get("base_model"), kwargs.get("llamacpp_dict", {}).get("model_path_llama"))
+    chat_name0 = get_chatbot_name(kwargs.get("base_model"),
+                                  kwargs.get("llamacpp_dict", {}).get("model_path_llama"),
+                                  kwargs.get("inference_server"),
+                                  kwargs.get("prompt_type"),
+                                  kwargs.get("model_label_prefix"),
+                                  )
     output_label0 = chat_name0 if kwargs.get('base_model') else no_model_msg
     output_label0_model2 = no_model_msg
 
@@ -3039,7 +3045,7 @@ def go_gradio(**kwargs):
                 text_output1 = []
             if text_output1 and len(text_output1) > 0 and not text_output1[0]:
                 text_output1 = []
-            if not text_output21 and len(text_output21) > 0 and not text_output21[0]:
+            if text_output21 is None or not text_output21 and len(text_output21) > 0 and not text_output21[0]:
                 text_output21 = []
             if text_output21 is None:
                 text_output21 = []
@@ -4209,6 +4215,11 @@ def go_gradio(**kwargs):
                 history = get_llm_history(history)
                 if history:
                     history[-1][1] = None
+                    if isinstance(history[-1][0], (tuple, list)):
+                        if history[-1][0] is None:
+                            history[-1][0] = ''
+                        elif isinstance(history[-1][0], (tuple, list)):
+                            history[-1][0] = history[-1][0][0]
                 return history
             if user_message1 in ['', None, '\n']:
                 if not allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1):
@@ -5639,8 +5650,10 @@ def go_gradio(**kwargs):
         def dropdown_prompt_type_list(x):
             return gr.Dropdown(value=x)
 
-        def chatbot_list(x, model_used_in, model_path_llama_in):
-            chat_name = get_chatbot_name(model_used_in, model_path_llama_in)
+        def chatbot_list(x, model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
+                         model_label_prefix_in=''):
+            chat_name = get_chatbot_name(model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
+                                         model_label_prefix=model_label_prefix_in)
             return gr.Textbox(label=chat_name)
 
         load_model_inputs = [model_choice, lora_choice, server_choice, model_state, prompt_type,
@@ -5673,9 +5686,11 @@ def go_gradio(**kwargs):
         unload_model_args = dict(fn=functools.partial(load_model, unload=True),
                                  inputs=load_model_inputs, outputs=load_model_outputs)
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        chatbot_update_args = dict(fn=chatbot_list, inputs=[text_output, model_used, model_path_llama],
+        chatbot_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
+                                   inputs=[text_output, model_used, model_path_llama, server_used, prompt_type],
                                    outputs=text_output)
-        nochat_update_args = dict(fn=chatbot_list, inputs=[text_output_nochat, model_used, model_path_llama],
+        nochat_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
+                                  inputs=[text_output_nochat, model_used, model_path_llama, server_used, prompt_type],
                                   outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
                                                    api_name='load_model' if allow_api and not is_public else None) \
@@ -5722,7 +5737,8 @@ def go_gradio(**kwargs):
         unload_model_args2 = dict(fn=functools.partial(load_model, unload=True),
                                   inputs=load_model_inputs2, outputs=load_model_outputs2)
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
-        chatbot_update_args2 = dict(fn=chatbot_list, inputs=[text_output2, model_used2, model_path_llama2],
+        chatbot_update_args2 = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
+                                    inputs=[text_output2, model_used2, model_path_llama2, server_used2, prompt_type2],
                                     outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
                                                      api_name='load_model2' if allow_api and not is_public else None) \
@@ -5854,15 +5870,19 @@ def go_gradio(**kwargs):
                                         api_name='system_info' if allow_api else None, **noqueue_kwargs)
 
         def shutdown_func(h2ogpt_pid):
-            import psutil
-            parent = psutil.Process(h2ogpt_pid)
-            for child in parent.children(recursive=True):
-                child.kill()
-            parent.kill()
+            if kwargs['close_button']:
+                import psutil
+                parent = psutil.Process(h2ogpt_pid)
+                for child in parent.children(recursive=True):
+                    child.kill()
+                parent.kill()
 
+        api_name_shutdown = 'shutdown' if kwargs['shutdown_via_api'] and \
+                                          allow_api and \
+                                          not is_public and \
+                                          kwargs['h2ogpt_pid'] is not None else None
         shutdown_event = close_btn.click(functools.partial(shutdown_func, h2ogpt_pid=kwargs['h2ogpt_pid']),
-                                         api_name='shutdown' if allow_api and not is_public and kwargs[
-                                             'h2ogpt_pid'] is not None else None,
+                                         api_name=api_name_shutdown,
                                          **noqueue_kwargs)
 
         def get_system_info_dict(system_input1, **kwargs1):

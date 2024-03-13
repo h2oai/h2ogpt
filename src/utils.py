@@ -733,6 +733,7 @@ def hyde_titles(level):
         title = "HYDE 4: Prompt+LLM+HYDE 1&2&3 embedding"
     return title
 
+
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
     content = x.page_content
@@ -1150,13 +1151,44 @@ def start_faulthandler():
 
 def get_hf_server(inference_server):
     inf_split = inference_server.split("    ")
-    assert len(inf_split) == 1 or len(inf_split) == 3
-    inference_server = inf_split[0]
     if len(inf_split) == 3:
+        assert len(inf_split) == 1 or len(inf_split) == 3
+        inference_server = inf_split[0]
         headers = {"authorization": "%s %s" % (inf_split[1], inf_split[2])}
+        user = None
+        password = None
     else:
+        ip_port_vllm = ':'.join(inference_server.split(':')[0:])
+        if ip_port_vllm.startswith('https://'):
+            http_prefix = 'https://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+        elif ip_port_vllm.startswith('http://'):
+            http_prefix = 'http://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+        else:
+            http_prefix = 'http://'
+
+        inf_split = ip_port_vllm.split(":")
+        if len(inf_split) <= 2:
+            # i.e. just DNS or IP and no port or IP + port
+            user = None
+            password = None
+        elif len(inf_split) in [3, 4]:
+            # i.e. just DNS or IP, no port + user + pass = 3
+            # i.e. DNS/IP + port + user + pass = 4
+            user = inf_split[len(inf_split) - 2]
+            password = inf_split[len(inf_split) - 1]
+            ip_port_vllm = ':'.join(inf_split[:len(inf_split) - 2])
+        else:
+            raise ValueError("Malformed inference_server=%s" % inference_server)
+
         headers = None
-    return inference_server, headers
+
+        # remove None if port was None
+        if 'None' in ip_port_vllm.split(':'):
+            ip_port_vllm = ':'.join([x for x in ip_port_vllm.split(':') if x != 'None'])
+        inference_server = http_prefix + ip_port_vllm
+    return inference_server, headers, user, password
 
 
 class FakeTokenizer:
@@ -1392,7 +1424,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_diffusers = False
 
-
 try:
     assert distribution('opencv-python-headless') is not None
     have_cv2 = True
@@ -1402,7 +1433,6 @@ except (PackageNotFoundError, AssertionError):
         have_cv2 = True
     except (PackageNotFoundError, AssertionError):
         have_cv2 = False
-
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
@@ -1536,6 +1566,8 @@ def deepcopy_by_pickle_object(object):
 
 
 def url_alive(url):
+    if not isinstance(url, str):
+        return False
     try:
         response = requests.head(url)
     except Exception as e:
@@ -1549,7 +1581,7 @@ def url_alive(url):
 
 def return_good_url(url):
     # ignore status code, just see if exists or not
-    for prefix in ['', 'http://', 'http://', 'https://www.', 'http://www.']:
+    for prefix in ['', 'https://', 'http://', 'https://www.', 'http://www.']:
         try:
             url_test = prefix + url
             response = requests.head(url_test)
@@ -1563,7 +1595,16 @@ def return_good_url(url):
     return None
 
 
+def is_probably_url(url):
+    if not isinstance(url, str):
+        return False
+    # url_alive too slow
+    return any(url.startswith(prefix) for prefix in ['www.', 'http://', 'https://', 'https://www.', 'http://www.'])
+
+
 def dict_to_html(x, small=True, api=False):
+    x = {k: v if not in_gradio_root(v) and not is_probably_url(v) else get_url(v, from_str=True, short_name=True) for
+         k, v in x.items()}
     df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
     df.index = df.index + 1
     df.index.name = 'index'
@@ -1640,9 +1681,9 @@ def lg_to_gr(
         # LLaVa better and faster if present
         #  and kwargs['max_quality']
         image_audio_loaders_options0.append('LLaVa')
-        if 'Caption' in  image_audio_loaders_options0:
+        if 'Caption' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('Caption')
-        if 'CaptionBlip2' in  image_audio_loaders_options0:
+        if 'CaptionBlip2' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('CaptionBlip2')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
@@ -1661,7 +1702,8 @@ def lg_to_gr(
     if have_doctr and kwargs['enable_pdf_doctr'] in [True, 'on']:
         pdf_loaders_options0.append('DocTR')
     # in case my pymupdf, use pypdf as backup default
-    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto', 'on'] and not have_pymupdf:
+    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto',
+                                                                                       'on'] and not have_pymupdf:
         pdf_loaders_options0.append('PyPDF')
     if kwargs['use_unstructured_pdf'] in [True, 'on']:
         pdf_loaders_options0.append('Unstructured')
@@ -1965,6 +2007,7 @@ class FullSet(set):
 
 import os
 
+
 def create_relative_symlink(target, link_name):
     """
     Creates a relative symlink to a target from a link location, ensuring parent directories exist.
@@ -2007,6 +2050,13 @@ def get_gradio_tmp():
     return gradio_tmp
 
 
+def in_gradio_root(file):
+    ret = False
+    ret |= isinstance(file, str) and os.path.isfile(file) and os.path.abspath(file).startswith('/tmp/gradio')
+    ret |= isinstance(file, str) and os.path.isfile(file) and os.path.abspath(file).startswith(get_gradio_tmp())
+    return ret
+
+
 def get_is_gradio_h2oai():
     try:
         import gradio as gr
@@ -2018,3 +2068,18 @@ def get_is_gradio_h2oai():
 def split_list(input_list, split_size):
     for i in range(0, len(input_list), split_size):
         yield input_list[i:i + split_size]
+
+
+def get_lock_file(name):
+    lock_type = name
+    base_path = os.path.join('locks', '%s_locks' % name)
+    base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
+    lock_file = os.path.join(base_path, "%s.lock" % lock_type)
+    makedirs(os.path.dirname(lock_file))  # ensure made
+    return lock_file
+
+
+def merge_dict(dict1, dict2):
+    ret = dict1.copy()
+    ret.update(dict2)
+    return ret

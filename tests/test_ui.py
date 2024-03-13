@@ -19,7 +19,7 @@ The output of this code is:
 As you can see, the `sorted()` function has merged the two sorted lists into a single sorted list."""
 
     from src.gradio_runner import fix_text_for_gradio
-    fixed = fix_text_for_gradio(text0, fix_new_lines=True)
+    fixed = fix_text_for_gradio(text0, fix_new_lines=True, fix_angle_brackets=False)
 
     expected = """You can use the `sorted()` function to merge two sorted lists in Python. The `sorted()` function takes a list as an argument and returns a new sorted list. Here’s an example of how you can use it to merge two sorted lists:<br><br>```python
 list1 = [1, 2, 3, 4, 5]

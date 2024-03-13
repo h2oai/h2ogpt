@@ -19,18 +19,27 @@ Work-around: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out rele
 pip uninstall gradio gradio_client gradio_pdf -y
 pip install gradio==3.50.2
 ```
+If you see spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.1
+```
 
-### llama.cpp + Audio streaming failure
+### llama.cpp + Audio streaming (XTTS model) failure
 
 ```text
 CUDA error: an illegal memory access was encountered
 ```
 
-With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+A temporary work-around is present in h2oGPT, whereby XTTS model (not microsoft TTS model) and llama.cpp models are not used at same time.  Leads to more delays in streaming for text+audio, but not too bad result.
+
+Other work-arounds:
 
 * Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
 
-* Work-around 2: Follow normal directions for installation, but replace 0.2.55 with 0.2.26, e.g. for CUDA with Linux:
+* Work-around 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
     pip uninstall llama_cpp_python llama_cpp_python_cuda -y
     export LLAMA_CUBLAS=1
@@ -38,7 +47,7 @@ With upgrade to llama_cpp_python 0.2.55 for faster performance and other bug fix
     export FORCE_CMAKE=1
     pip install llama_cpp_python==0.2.26 --no-cache-dir
     ```
-    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.55 runs at 65 tokens/sec for exact same model and prompt.
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
 
 ## Frequently asked questions
 

@@ -75,7 +75,7 @@ def test_requirements():
         print("Can't determine (e.g. http) packages: %s" % packages_unkn, flush=True)
         print('\n\nRUN THIS:\n\n', flush=True)
         print(
-            'pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(
+            'pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-12.1 pip install %s --upgrade' % str(
                 ' '.join(packages_all)), flush=True)
         print('\n\n', flush=True)
 

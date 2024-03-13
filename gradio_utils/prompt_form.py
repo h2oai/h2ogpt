@@ -7,10 +7,17 @@ import datetime
 import filelock
 import gradio as gr
 
+from src.enums import no_server_str
 from src.utils import is_gradio_version4
 
 
-def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=False):
+def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_type='', model_label_prefix='', debug=False):
+    #have_inference_server = inference_server not in [no_server_str, None, '']
+    #if not have_inference_server and prompt_type in [None, '', 'plain']:
+    #    label_postfix = '   [Please select prompt_type in Models tab or on CLI for chat models]'
+    #else:
+    # pass
+    label_postfix = ''
     if not debug:
         inference_server = ''
     else:
@@ -19,9 +26,13 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', debug=Fa
         model_path_llama = os.path.basename(model_path_llama)
         if model_path_llama.endswith('?download=true'):
             model_path_llama = model_path_llama.replace('?download=true', '')
-        return f'h2oGPT [Model: {model_path_llama}{inference_server}]'
+        label = f'{model_label_prefix} [Model: {model_path_llama}{inference_server}]'
     else:
-        return f'h2oGPT [Model: {base_model}{inference_server}]'
+        if base_model == 'mixtral-8x7b-32768':
+            base_model = 'groq:mixtral-8x7b-32768'
+        label = f'{model_label_prefix} [Model: {base_model}{inference_server}]'
+    label += label_postfix
+    return label
 
 
 def get_avatars(base_model, model_path_llama, inference_server=''):
@@ -134,6 +145,8 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
         output_label = get_chatbot_name(model_state_lock["base_model"],
                                         model_state_lock['llamacpp_dict']["model_path_llama"],
                                         model_state_lock["inference_server"],
+                                        model_state_lock["prompt_type"],
+                                        model_label_prefix=kwargs['model_label_prefix'],
                                         debug=bool(os.environ.get('DEBUG_MODEL_LOCK', 0)))
         if kwargs['avatars']:
             avatar_images = get_avatars(model_state_lock["base_model"],
@@ -149,6 +162,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                 min_width=min_width,
                                 avatar_images=avatar_images,
                                 likeable=True,
+                                latex_delimiters=[],
                                 show_copy_button=kwargs['show_copy_button'],
                                 visible=kwargs['model_lock'] and (visible_models is None or
                                                                   model_state_locki in visible_models or
@@ -206,6 +220,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
                                      min_width=min_width,
                                      show_copy_button=kwargs['show_copy_button'],
                                      avatar_images=avatar_images,
+                                     latex_delimiters=[],
                                      )
     with gr.Row():
         text_output = gr.Chatbot(label=output_label0,

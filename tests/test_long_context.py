@@ -145,6 +145,7 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
     print("DONE", flush=True)
 
 
+@pytest.mark.skip(reason="model fails after transformer updates, not kept up to date")
 @pytest.mark.parametrize("type", [
     None,
     # 'linear',

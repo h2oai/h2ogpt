@@ -60,7 +60,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, merge_dict
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -1672,6 +1672,7 @@ class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
 
+
 class H2OChatAnthropic2Sys(H2OChatAnthropic2):
     pass
 
@@ -1683,7 +1684,6 @@ class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
     streaming: Any = True
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
 
 
 class H2OChatAnthropic3Sys(H2OChatAnthropic3):
@@ -2283,7 +2283,7 @@ def get_llm(use_openai_model=False,
             # regenerate or leave None for llava so created inside
             inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                       base_model=model_name)
-        inference_server, headers = get_hf_server(inference_server)
+        inference_server, _, _, _ = get_hf_server(inference_server)
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
@@ -3130,11 +3130,14 @@ def file_to_doc(file,
                     # caption didn't set source, so fix-up meta
                     hash_of_file = hash_file(file)
                     [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
+                    for file_out_i, file_out in enumerate(files_out):
+                        key = 'source_true_' + str(file_out_i)
+                        [doci.metadata.update({key: file_out}) for doci in docs1c]
                     docs1.extend(docs1c)
                     doc1.extend(chunk_sources(docs1))
                     handled = True
                 except BaseException as e0:
-                    print("ASR: %s" % str(e0), flush=True)
+                    print("ASR: %s: %s" % (str(e0), traceback.print_exception(e0)), flush=True)
                     e = e0
                 handled |= len(docs1) > 0
             if extract_frames > 0 and have_fiftyone:
@@ -3345,6 +3348,10 @@ def file_to_doc(file,
                 docs1c = model_loaders['asr'].load(from_youtube=False)
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, parser='H2OAudioCaptionLoader: %s' % asr_model)
+                files_out = model_loaders['asr'].files_out
+                for file_out_i, file_out in enumerate(files_out):
+                    key = 'source_true_' + str(file_out_i)
+                    [doci.metadata.update({key: file_out}) for doci in docs1c]
                 hash_of_file = hash_file(file)
                 [doci.metadata.update(source=file, hashid=hash_of_file) for doci in docs1c]
                 docs1c = chunk_sources(docs1c)
@@ -5840,10 +5847,14 @@ def run_target(query='',
                                 answer = answer['output']
                             elif 'resolution' in answer:
                                 answer = answer['resolution']
-                        # ensure any changes to text are done
-                        answer = prompter.get_response(answer, prompt=None,
+                        answer_fix = functools.partial(prompter.get_response, prompt=None,
                                                        only_new_text=only_new_text,
                                                        sanitize_bot_response=sanitize_bot_response)
+                        if isinstance(answer, str):
+                            # ensure any changes to text are done
+                            answer = answer_fix(answer)
+                        elif isinstance(answer, list):
+                            answer = [answer_fix(x) for x in answer]
                 # in case raise StopIteration or broke queue loop in streamer, but still have exception
                 if thread.exc:
                     raise thread.exc
@@ -5860,6 +5871,14 @@ def run_target(query='',
                             answer = answer['output']
                         elif 'resolution' in answer:
                             answer = answer['resolution']
+                        answer_fix = functools.partial(prompter.get_response, prompt=None,
+                                                       only_new_text=only_new_text,
+                                                       sanitize_bot_response=sanitize_bot_response)
+                        if isinstance(answer, str):
+                            # ensure any changes to text are done
+                            answer = answer_fix(answer)
+                        elif isinstance(answer, list):
+                            answer = [answer_fix(x) for x in answer]
 
     llm_answers[llm_answers_key] = answer
     if verbose:
@@ -5982,7 +6001,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             # see if need to split
             # account for joiner tokens
             joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
-            doc_chunk_size = max(64, min(max_input_tokens, max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
+            doc_chunk_size = max(64, min(max_input_tokens,
+                                         max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
                 tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0
             )
@@ -6112,6 +6132,7 @@ def run_hyde(*args, **kwargs):
     # no-doc chain first if done
     hyde_chain['query'] = hyde_template.format(query=query)
     hyde_chain['db'] = None
+    hyde_chain['load_db_if_exists'] = False
     hyde_chain['text_context_list'] = []
     sources = []
     answers = []
@@ -6184,6 +6205,7 @@ def run_hyde(*args, **kwargs):
         # update hyde_chain with doc version from now on
         hyde_chain['db'] = kwargs['db']
         hyde_chain['text_context_list'] = kwargs['text_context_list']
+        hyde_chain['load_db_if_exists'] = True
 
     return hyde_chain['query_embedding'], llm_answers
 
@@ -7004,11 +7026,15 @@ def get_chain(query=None,
                     docs_with_score = [x for x in docs_with_score if
                                        all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
-    if not metadata_in_context:
+    if db is None and text_context_list:
+        # not useful then, just mess
+        metadata_in_context = []
+    elif not metadata_in_context:
         metadata_in_context = []
     elif isinstance(metadata_in_context, str) and metadata_in_context not in ['all', 'auto']:
         metadata_in_context = ast.literal_eval(metadata_in_context)
         assert isinstance(metadata_in_context, list)
+
     if metadata_in_context == 'all':
         metadata_in_context_set = FullSet()
     elif metadata_in_context == 'auto':
@@ -7033,7 +7059,7 @@ def get_chain(query=None,
             estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
 
         # add metadata to documents and make new copy of docs with them to not contaminate originals
-        if metadata_in_context and not doc_json_mode:
+        if metadata_in_context and not doc_json_mode and not hasattr(tokenizer, 'apply_grounded_generation_template'):
             docs_with_score = [(Document(page_content='Begin Document:\n\n' +
                                                       'Metadata:\n' +
                                                       '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
@@ -7214,11 +7240,8 @@ def get_chain(query=None,
                      prompter=prompter)
 
     if doc_json_mode:
-        def merge_dict(dict1, dict2):
-            return dict2.update(dict1)
-
         # make copy so don't change originals
-        if metadata_in_context:
+        if metadata_in_context and not hasattr(tokenizer, 'apply_grounded_generation_template'):
             docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content),
                                                                 {k: v for k, v in x.metadata.items() if
                                                                  v and k in metadata_in_context_set})),
@@ -7230,21 +7253,46 @@ def get_chain(query=None,
                     for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
-        if use_template:
-            # instruct-like, rather than few-shot prompt_type='plain' as default
-            # but then sources confuse the model with how inserted among rest of text, so avoid
+        if hasattr(tokenizer, 'apply_grounded_generation_template'):
+            assert prompt_type == 'plain'
+            # https://huggingface.co/CohereForAI/c4ai-command-r-v01
             prompt = PromptTemplate(
                 # input_variables=["summaries", "question"],
                 input_variables=["context", "question"],
-                template=template,
+                template='{context}{question}',  # ignored
             )
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
+            documents = [merge_dict(dict(text=x.page_content),
+                                    {k: v for k, v in x.metadata.items() if
+                                     v and k in metadata_in_context_set}) for x in docs]
+            from openai_server.backend_utils import structure_to_messages
+            conversation = structure_to_messages(query,
+                                                 system_prompt if system_prompt not in [None, '', 'auto'] else None,
+                                                 chat_conversation)
+            query_with_docs = tokenizer.apply_grounded_generation_template(
+                conversation,
+                documents=documents,
+                citation_mode="accurate",  # or "fast"
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            chain_kwargs = dict(input_documents=[], question=query_with_docs)
         else:
-            # unused normally except in testing
-            assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
-                model_name, prompt_type)
-            chain = load_qa_with_sources_chain(llm)
-        chain_kwargs = dict(input_documents=docs, question=query)
+            if use_template:
+                # instruct-like, rather than few-shot prompt_type='plain' as default
+                # but then sources confuse the model with how inserted among rest of text, so avoid
+                prompt = PromptTemplate(
+                    # input_variables=["summaries", "question"],
+                    input_variables=["context", "question"],
+                    template=template,
+                )
+                chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
+            else:
+                # unused normally except in testing
+                assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
+                    model_name, prompt_type)
+                chain = load_qa_with_sources_chain(llm)
+            chain_kwargs = dict(input_documents=docs, question=query)
         target = wrapped_partial(chain, chain_kwargs)
     elif summarize_action:
         if async_output:

@@ -137,6 +137,7 @@ prompt_type_to_model_name = {
         'Yukang/LongAlpaca-70B',  # or can be instruct
         'TheBloke/Llama-2-7B-Chat-GGUF',
         'namespace-Pt/activation-beacon-llama2-7b-chat',
+        'abacusai/Smaug-72B-v0.1',
     ],
     "mistral": ['mistralai/Mistral-7B-Instruct-v0.1', 'TheBloke/Mistral-7B-Instruct-v0.1-GGUF',
                 'mistralai/Mistral-7B-Instruct-v0.2', 'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
@@ -197,7 +198,39 @@ prompt_type_to_model_name = {
               'NousResearch/Nous-Hermes-2-Vision',  # different worker, that handles prompting itself too
               ],
     "danube": ['h2oai/h2o-danube-1.8b-chat'],
-    "gemma": ['gg-hf/gemma-2b-it', 'gg-hf/gemma-7b-it', 'google/gemma-2b-it', 'google/gemma-7b-it']
+    "gemma": ['gg-hf/gemma-2b-it', 'gg-hf/gemma-7b-it', 'google/gemma-2b-it', 'google/gemma-7b-it'],
+    "qwen": ['Qwen/Qwen1.5-7B-Chat-GPTQ-Int8',
+             'Qwen/Qwen1.5-7B-Chat-GPTQ-Int4',
+             'Qwen/Qwen1.5-7B-Chat-AWQ',
+             'Qwen/Qwen1.5-7B-Chat',
+             'Qwen/Qwen1.5-72B-Chat-GPTQ-Int8',
+             'Qwen/Qwen1.5-72B-Chat-GPTQ-Int4',
+             'Qwen/Qwen1.5-72B-Chat-AWQ',
+             'Qwen/Qwen1.5-72B-Chat',
+             'Qwen/Qwen1.5-4B-Chat-GPTQ-Int8',
+             'Qwen/Qwen1.5-4B-Chat-GPTQ-Int4',
+             'Qwen/Qwen1.5-4B-Chat-AWQ',
+             'Qwen/Qwen1.5-4B-Chat',
+             'Qwen/Qwen1.5-14B-Chat-GPTQ-Int8',
+             'Qwen/Qwen1.5-14B-Chat-GPTQ-Int4',
+             'Qwen/Qwen1.5-14B-Chat-AWQ',
+             'Qwen/Qwen1.5-14B-Chat',
+             'Qwen/Qwen1.5-1.8B-Chat-GPTQ-Int8',
+             'Qwen/Qwen1.5-1.8B-Chat-GPTQ-Int4',
+             'Qwen/Qwen1.5-1.8B-Chat-AWQ',
+             'Qwen/Qwen1.5-1.8B-Chat',
+             'Qwen/Qwen1.5-0.5B-Chat-GPTQ-Int8',
+             'Qwen/Qwen1.5-0.5B-Chat-GPTQ-Int4',
+             'Qwen/Qwen1.5-0.5B-Chat-AWQ',
+             'Qwen/Qwen1.5-0.5B-Chat',
+             'Qwen/Qwen1.5-72B-Chat-GGUF',
+             'Qwen/Qwen1.5-14B-Chat-GGUF',
+             'Qwen/Qwen1.5-7B-Chat-GGUF',
+             'Qwen/Qwen1.5-4B-Chat-GGUF',
+             'Qwen/Qwen1.5-1.8B-Chat-GGUF',
+             'Qwen/Qwen1.5-0.5B-Chat-GGUF',
+             ],
+    "sealion": ['aisingapore/sea-lion-7b-instruct'],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -281,7 +314,7 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
                          PromptType.plain.name] or \
             prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
-                         PromptType.llava.name]:
+                            PromptType.llava.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_turn_sep = chat_sep = '\n'
@@ -1388,7 +1421,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         if making_context:
             PreResponse += " "
     elif prompt_type in [PromptType.gemma.value, str(PromptType.gemma.value),
-                                 PromptType.gemma.name]:
+                         PromptType.gemma.name]:
         can_handle_system_prompt = True  # so not part of pre-conversation
         if making_context and histi == 0 or not making_context and not reduced:
             prompt_tokens = "<bos><start_of_turn>user\n"
@@ -1406,6 +1439,36 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '<end_of_turn>\n'
         terminate_response = [humanstr, PreResponse, '<bos>', '<end_of_turn>']
         chat_sep = ''
+    elif prompt_type in [PromptType.qwen.value, str(PromptType.qwen.value),
+                         PromptType.qwen.name]:
+        can_handle_system_prompt = True
+        # https://huggingface.co/TheBloke/mpt-30B-chat-GGML#prompt-template
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s<|im_end|>\n""" % system_prompt if not reduced else ''
+
+        PreInstruct = """<|im_start|>user\n"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|>\n<|im_start|>assistant\n"""
+        terminate_response = ['<|im_end|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+    elif prompt_type in [PromptType.sealion.value, str(PromptType.sealion.value),
+                         PromptType.sealion.name]:
+        can_handle_system_prompt = False
+        promptA = promptB = ''
+        PreInput = None
+        PreInstruct = "### USER:\n"
+        PreResponse = "\n\n### RESPONSE:\n"
+        terminate_response = ['### RESPONSE:', "</s>", "<|endoftext|>"]
+        chat_sep = '\n'
+        chat_turn_sep = '\n\n'
+        humanstr = '### USER:'
+        botstr = '### RESPONSE:'
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
