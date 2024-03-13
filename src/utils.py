@@ -733,6 +733,7 @@ def hyde_titles(level):
         title = "HYDE 4: Prompt+LLM+HYDE 1&2&3 embedding"
     return title
 
+
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
     content = x.page_content
@@ -1392,7 +1393,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_diffusers = False
 
-
 try:
     assert distribution('opencv-python-headless') is not None
     have_cv2 = True
@@ -1402,7 +1402,6 @@ except (PackageNotFoundError, AssertionError):
         have_cv2 = True
     except (PackageNotFoundError, AssertionError):
         have_cv2 = False
-
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
@@ -1536,6 +1535,8 @@ def deepcopy_by_pickle_object(object):
 
 
 def url_alive(url):
+    if not isinstance(url, str):
+        return False
     try:
         response = requests.head(url)
     except Exception as e:
@@ -1549,7 +1550,7 @@ def url_alive(url):
 
 def return_good_url(url):
     # ignore status code, just see if exists or not
-    for prefix in ['', 'http://', 'http://', 'https://www.', 'http://www.']:
+    for prefix in ['', 'https://', 'http://', 'https://www.', 'http://www.']:
         try:
             url_test = prefix + url
             response = requests.head(url_test)
@@ -1563,8 +1564,16 @@ def return_good_url(url):
     return None
 
 
+def is_probably_url(url):
+    if not isinstance(url, str):
+        return False
+    # url_alive too slow
+    return any(url.startswith(prefix) for prefix in ['www.', 'http://', 'https://', 'https://www.', 'http://www.'])
+
+
 def dict_to_html(x, small=True, api=False):
-    x = {k: v if not in_gradio_root(v) else get_url(v, from_str=True, short_name=True) for k, v in x.items()}
+    x = {k: v if not in_gradio_root(v) and not is_probably_url(v) else get_url(v, from_str=True, short_name=True) for
+         k, v in x.items()}
     df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
     df.index = df.index + 1
     df.index.name = 'index'
@@ -1641,9 +1650,9 @@ def lg_to_gr(
         # LLaVa better and faster if present
         #  and kwargs['max_quality']
         image_audio_loaders_options0.append('LLaVa')
-        if 'Caption' in  image_audio_loaders_options0:
+        if 'Caption' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('Caption')
-        if 'CaptionBlip2' in  image_audio_loaders_options0:
+        if 'CaptionBlip2' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('CaptionBlip2')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
@@ -1662,7 +1671,8 @@ def lg_to_gr(
     if have_doctr and kwargs['enable_pdf_doctr'] in [True, 'on']:
         pdf_loaders_options0.append('DocTR')
     # in case my pymupdf, use pypdf as backup default
-    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto', 'on'] and not have_pymupdf:
+    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto',
+                                                                                       'on'] and not have_pymupdf:
         pdf_loaders_options0.append('PyPDF')
     if kwargs['use_unstructured_pdf'] in [True, 'on']:
         pdf_loaders_options0.append('Unstructured')
@@ -1965,6 +1975,7 @@ class FullSet(set):
 
 
 import os
+
 
 def create_relative_symlink(target, link_name):
     """
