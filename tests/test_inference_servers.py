@@ -422,6 +422,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate,
                        inference_server=inference_server,
+                       max_seq_len=2048,
                        model_lock=model_lock)
 
     try:
