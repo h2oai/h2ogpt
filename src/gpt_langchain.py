@@ -7420,6 +7420,13 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
         return FakeTokenizer()
 
 
+def escape_braces(text):
+    if not isinstance(text, str):
+        return text
+    """Escapes braces in the text for safe formatting."""
+    return text.replace("{", "{{").replace("}", "}}")
+
+
 def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
@@ -7432,6 +7439,14 @@ def get_template(query, iinput,
                  system_prompt,
                  doc_json_mode,
                  prompter=None):
+    # Escape braces in the inputs that will be used in the format strings
+    query_esc = escape_braces(query)
+    iinput = escape_braces(iinput)
+    prompt_summary = escape_braces(prompt_summary)
+    prompt_query = escape_braces(prompt_query)
+    pre_prompt_query = escape_braces(pre_prompt_query)
+    pre_prompt_summary = escape_braces(pre_prompt_summary)
+
     triple_quotes = """
 \"\"\"
 """
@@ -7491,9 +7506,9 @@ def get_template(query, iinput,
 
         # modify prompt_summary if user passes query or iinput
         if query not in none and iinput not in none:
-            prompt_summary = "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+            prompt_summary = "Focusing on %s, %s, %s" % (query_esc, iinput, prompt_summary)
         elif query not in none:
-            prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
+            prompt_summary = "Focusing on %s, %s" % (query_esc, prompt_summary)
         # don't auto reduce
         auto_reduce_chunks = False
         if langchain_action in [LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value]:
