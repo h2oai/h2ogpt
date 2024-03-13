@@ -6116,7 +6116,7 @@ def run_hyde(*args, **kwargs):
     docs_joiner = kwargs['docs_joiner']
 
     # get llm answer
-    auto_hyde = """%s {query}""" % hyde_llm_prompt
+    auto_hyde = """%s {query}""" % escape_braces(hyde_llm_prompt)
     if hyde_template in auto_choices:
         hyde_template = auto_hyde
     elif isinstance(hyde_template, str):
