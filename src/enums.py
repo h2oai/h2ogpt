@@ -258,6 +258,19 @@ model_token_mapping_outputs = model_token_mapping.copy()
 model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096, "gpt-35-turbo-1106": 4096})
 
 
+groq_mapping = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 8192,
+    "llama2-70b-4096": 4096,
+}
+
+groq_mapping_outputs = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 4096,
+    "llama2-70b-4096": 4096,
+}
+
+
 def does_support_functiontools(inference_server, model_name):
     if any([inference_server.startswith(x) for x in ['openai_azure', 'openai_azure_chat']]):
         return model_name.lower() in openai_supports_functiontools

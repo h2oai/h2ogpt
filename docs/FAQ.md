@@ -117,6 +117,9 @@ Examples of what to put into "server" in UI or for `<server>` when using `--infe
   * Ensure ENV `ANTHROPIC_API_KEY` is set to the API key
   * E.g. for CLI: `--model_lock="[{'inference_server':'anthropic', 'base_model':'claude-3-opus-20240229'}]"`
   * Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.
+* Groq: `groq`
+  * Ensure ENV `GROQ_API_KEY` is set to the API key
+  * E.g. for CLI: `--model_lock="[{'inference_server':'groq', 'base_model':'mixtral-8x7b-32768'}]"`
 * Gradio: `https://gradio.h2o.ai` (only for no auth setup)
   * Ensure `h2ogpt_key` is in model_lock for each model if server has keyed access
 

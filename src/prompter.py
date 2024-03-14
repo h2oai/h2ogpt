@@ -2,7 +2,7 @@ import ast
 import time
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -241,6 +241,9 @@ prompt_type_to_model_name['google'] = google_gpts
 
 mistralai_gpts = sorted(mistralai_mapping.keys())
 prompt_type_to_model_name['mistralai'] = mistralai_gpts
+
+groq_gpts = sorted(groq_mapping.keys())
+prompt_type_to_model_name['groq'] = groq_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',

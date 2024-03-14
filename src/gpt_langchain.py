@@ -46,6 +46,7 @@ from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
+from langchain_groq import ChatGroq
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
@@ -1501,76 +1502,6 @@ class ExtraChat:
         return prompt_messages
 
 
-class H2OChatOpenAI(ChatOpenAI, ExtraChat):
-    tokenizer: Any = None  # for vllm_chat
-    system_prompt: Any = None
-    chat_conversation: Any = []
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            # OpenAI uses tiktoken
-            return super().get_token_ids(text)
-
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
-
-
-class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
-    system_prompt: Any = None
-    chat_conversation: Any = []
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
-
-
 class GenerateStream:
     def generate_prompt(
             self,
@@ -1639,14 +1570,34 @@ class GenerateStream:
             return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
 
-class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
-    system_prompt: Any = None
-    chat_conversation: Any = []
-    prompts: Any = []
-    streaming: Any = True
+class GenerateNormal:
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        return await self.agenerate(
+            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+        )
 
+
+class GenerateStream2:
+    # slightly different from GenerateStream
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -1657,6 +1608,8 @@ class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
         return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
     async def agenerate_prompt(
@@ -1669,9 +1622,42 @@ class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+
+
+class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
+    tokenizer: Any = None  # for vllm_chat
+    system_prompt: Any = None
+    chat_conversation: Any = []
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            # OpenAI uses tiktoken
+            return super().get_token_ids(text)
+
+
+class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+
+class H2OChatAnthropic2(GenerateNormal, ExtraChat, ChatAnthropic2):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    streaming: Any = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
 class H2OChatAnthropic2Sys(H2OChatAnthropic2):
@@ -1699,7 +1685,7 @@ from langchain_core.language_models.chat_models import (
 )
 
 
-class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
+class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1707,72 +1693,8 @@ class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        if 'streaming' not in kwargs:
-            kwargs['streaming'] = self.streaming
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        if 'streaming' not in kwargs:
-            kwargs['streaming'] = self.streaming
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
-
-    def _generate(
-            self,
-            messages: List[BaseMessage],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            stream: Optional[bool] = None,
-            **kwargs: Any,
-    ) -> ChatResult:
-        should_stream = stream if stream is not None else self.streaming
-        if should_stream:
-            stream_iter = self._stream(
-                messages, stop=stop, run_manager=run_manager, **kwargs
-            )
-            return generate_from_stream(stream_iter)
-        else:
-            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-    async def _agenerate(
-            self,
-            messages: List[BaseMessage],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-            stream: Optional[bool] = None,
-            **kwargs: Any,
-    ) -> ChatResult:
-        should_stream = stream if stream is not None else self.streaming
-        if should_stream:
-            stream_iter = self._astream(
-                messages, stop=stop, run_manager=run_manager, **kwargs
-            )
-            return await agenerate_from_stream(stream_iter)
-        else:
-            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-
-class H2OChatMistralAI(ChatMistralAI, ExtraChat):
+class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1780,35 +1702,14 @@ class H2OChatMistralAI(ChatMistralAI, ExtraChat):
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        if self.stream_output:
-            kwargs.update(dict(stream=True))
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        if self.stream_output:
-            kwargs.update(dict(stream=True))
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
+class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    stream_output: bool = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
 class H2OAzureOpenAI(AzureOpenAI):
@@ -2222,6 +2123,35 @@ def get_llm(use_openai_model=False,
                   random_seed=SEED,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
+                  )
+        streamer = callbacks[0] if stream_output else None
+        prompt_type = inference_server
+    elif inference_server.startswith('groq'):
+        cls = H2OChatGroq
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict()
+        kwargs_extra = {}
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
+
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        llm = cls(model=model_name,
+                  groq_api_key=os.getenv('GROQ_API_KEY'),
+                  temperature=temperature if do_sample else 0,
+                  callbacks=callbacks if stream_output else None,
+                  max_retries=2,
+                  streaming=stream_output,
+                  #stream=stream_output,
+                  n=1,
+                  max_tokens=max_new_tokens,
+                  model_kwargs=dict(
+                  top_p=top_p if do_sample else 1,
+                      seed=SEED,
+                  #top_k=top_k,
+                  ),
+                  **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
@@ -8217,7 +8147,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     small_dict = dict()
     for page_0 in [1, 0]:
         small_dict.update({get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas if x.get('page', 0) in [page_0] and not x.get('exception', '')})
+                           metadatas if x.get('page', 0) in [page_0] and not x.get('exception', '')})
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1
