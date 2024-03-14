@@ -240,10 +240,6 @@ def get_image_model_dict(enable_image,
     if not enable_image:
         return image_dict
 
-    if enable_image and len(set(image_models).difference(valid_imagegen_models)) == 0:
-        raise ValueError("Enabled imagegen, but invalid image_models=%s out of valid_imagegen_models=%s" % (
-            image_models, valid_imagegen_models))
-
     if image_gpu_ids is None:
         image_gpu_ids = ['auto'] * len(image_models)
 
