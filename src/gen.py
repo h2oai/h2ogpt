@@ -20,6 +20,7 @@ from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
 from src.image_utils import get_image_file
+from src.vision.utils_vision import get_image_model_dict
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -65,7 +66,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
-    generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, groq_mapping, \
+    generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
+    valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
     groq_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -504,12 +506,9 @@ def main(
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
         sst_floor: float = 100,
 
-        enable_imagegen: bool = False,  # experimental
-        enable_imagegen_high: bool = False,  # experimental
-        enable_imagegen_high_sd: bool = False,  # experimental
-        enable_imagechange: bool = False,  # experimental
-        imagegen_gpu_id: Union[str, int] = 'auto',
-        imagechange_gpu_id: Union[str, int] = 'auto',
+        enable_image: bool = False,
+        visible_image_models: typing.List[str] = [],
+        image_gpu_ids: typing.List[Union[str, int]] = None,
         enable_llava_chat: bool = False,
 
         # json
@@ -1234,12 +1233,10 @@ def main(
 
     :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
 
-    :param enable_imagegen: Whether to enable image generation model
-    :param enable_imagegen_high: Whether to enable image generation model with high resolution
-    :param enable_imagegen_high_sd: Whether to use Stable Diffusion for high res model
-    :param enable_imagechange: Whether to enable image change model
-    :param imagegen_gpu_id: GPU id to use for imagegen model
-    :param imagechange_gpu_id: GPU id to use for imagechange model
+    :param enable_image: Whether to enable image generation model
+    :param visible_image_models: Which image gen models to include
+    :param image_gpu_ids: GPU ids to use for each visible image model
+
     :param enable_llava_chat: Whether to use LLaVa model to chat directly against instead of just for ingestion
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
@@ -1317,18 +1314,25 @@ def main(
     sink_dict = str_to_dict(sink_dict)
     hf_model_dict = str_to_dict(hf_model_dict)
 
+    enable_imagegen = enable_image and \
+                      len(set(visible_image_models).difference(valid_imagegen_models)) < len(set(visible_image_models))
+    enable_imagechange = enable_image and \
+                         len(set(visible_image_models).difference(valid_imagechange_models)) < len(set(visible_image_models))
+    enable_imagestyle = enable_image and \
+                        len(set(visible_image_models).difference(valid_imagestyle_models)) < len(set(visible_image_models))
+
     if os.environ.get('SERPAPI_API_KEY') is None and \
             LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
     if (not have_diffusers or not enable_imagegen) and \
             LangChainAction.IMAGE_GENERATE.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
-    if (not have_diffusers or not enable_imagegen_high) and \
-            LangChainAction.IMAGE_GENERATE_HIGH.value in visible_langchain_actions:
-        visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE_HIGH.value)
     if (not have_diffusers or not enable_imagechange) and \
             LangChainAction.IMAGE_CHANGE.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
+    if (not have_diffusers or not enable_imagestyle) and \
+            LangChainAction.IMAGE_STYLE.value in visible_langchain_actions:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_STYLE.value)
     if (not llava_model or not enable_llava or not enable_llava_chat) and \
             LangChainAction.IMAGE_QUERY.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
@@ -1916,26 +1920,9 @@ def main(
                                                      return_as_byte=return_as_byte,
                                                      verbose=verbose)
 
-    if enable_imagegen:
-        # always preloaded
-        from src.vision.sdxl import get_pipe_make_image
-        image_gen_loader = get_pipe_make_image(gpu_id=imagegen_gpu_id)
-    else:
-        image_gen_loader = None
-    if enable_imagegen_high:
-        # always preloaded
-        if enable_imagegen_high_sd:
-            from src.vision.stable_diffusion_xl import get_pipe_make_image
-        else:
-            from src.vision.playv2 import get_pipe_make_image
-        image_gen_loader_high = get_pipe_make_image(gpu_id=imagegen_gpu_id)
-    else:
-        image_gen_loader_high = None
-    if enable_imagechange:
-        from src.vision.sdxl import get_pipe_change_image
-        image_change_loader = get_pipe_change_image(gpu_id=imagegen_gpu_id)
-    else:
-        image_change_loader = None
+    # setup image models
+    image_model_dict = get_image_model_dict(enable_image, visible_image_models, image_gpu_ids)
+    visible_image_models_state0 = list(image_model_dict.keys())
 
     # DB SETUP
 
@@ -3609,6 +3596,7 @@ def evaluate(
         extract_frames,
         llava_prompt,
         visible_models,
+        visible_image_models,
         h2ogpt_key,
         add_search_to_context,
 
@@ -3640,10 +3628,7 @@ def evaluate(
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
-        image_gen_loader=None,
-        image_gen_loader_high=None,
-        image_change_loader=None,
-        enable_imagegen_high_sd=None,
+        image_model_dict=None,
 
         asr_model=None,
         asr_loader=None,
@@ -3779,22 +3764,14 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
-    if langchain_action in [LangChainAction.IMAGE_GENERATE.value, LangChainAction.IMAGE_GENERATE_HIGH.value]:
+    if langchain_action in LangChainAction.IMAGE_GENERATE.value:
         t_generate = time.time()
+        if isinstance(visible_image_models, list):
+            assert len(visible_image_models) > 0, "visible_image_models is empty"
+            visible_image_models = visible_image_models[0]
+        image_model_dict = image_model_dict[visible_image_models]
+        pipe, make_image = image_model_dict['pipe'], image_model_dict['make_image']
 
-        if langchain_action in [LangChainAction.IMAGE_GENERATE.value]:
-            assert image_gen_loader, "Generating image, but image_gen_loader is None"
-            from src.vision.sdxl import make_image
-            pipe = image_gen_loader
-        elif langchain_action in [LangChainAction.IMAGE_GENERATE_HIGH.value]:
-            assert image_gen_loader_high, "Generating image, but image_gen_loader_high is None"
-            if enable_imagegen_high_sd:
-                from src.vision.stable_diffusion_xl import make_image
-            else:
-                from src.vision.playv2 import make_image
-            pipe = image_gen_loader_high
-        else:
-            raise ValueError("No such langchain_action=%s" % langchain_action)
         filename_image = sanitize_filename("image_%s_%s.png" % (instruction, str(uuid.uuid4())),
                                            file_length_limit=50)
         gradio_tmp = get_gradio_tmp()
@@ -3835,8 +3812,9 @@ def evaluate(
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
     no_llm_ok = langchain_action in [LangChainAction.IMAGE_GENERATE.value,
-                                     LangChainAction.IMAGE_GENERATE_HIGH.value,
                                      LangChainAction.IMAGE_CHANGE.value,
+                                     LangChainAction.IMAGE_QUERY.value,
+                                     LangChainAction.IMAGE_STYLE.value,
                                      ]
 
     chosen_model_state = model_state0
@@ -5317,6 +5295,7 @@ y = np.random.randint(0, 1, 100)
                     llava_prompt,
                     None,
                     None,
+                    None,
                     False,
                     None,
                     None,
@@ -5594,7 +5573,6 @@ def history_to_context(history, langchain_mode=None,
     :param add_chat_history_to_context:
     :param prompt_type:
     :param prompt_dict:
-    :param chat:
     :param model_max_length:
     :param memory_restriction_level:
     :param keep_sources_in_context:

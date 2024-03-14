@@ -383,6 +383,7 @@ def go_gradio(**kwargs):
     my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
     visible_models_state0 = kwargs['visible_models_state0']
+    visible_image_models_state0 = kwargs['visible_image_models_state0']
     roles_state0 = kwargs['roles_state0']
     # For Heap analytics
     is_heap_analytics_enabled = kwargs['enable_heap_analytics']
@@ -416,7 +417,8 @@ def go_gradio(**kwargs):
     if is_hf:
         description_bottom += '''<a href="https://huggingface.co/spaces/h2oai/h2ogpt-chatbot?duplicate=true"><img src="https://bit.ly/3gLdBN6" style="white-space: nowrap" alt="Duplicate Space"></a>'''
     task_info_md = ''
-    css_code = get_css(kwargs)
+    css_code = get_css(kwargs, select_string='\"Select_%s\"' % kwargs['max_visible_models'] if kwargs[
+        'max_visible_models'] else '\"Select_Any\"')
 
     if kwargs['gradio_offline_level'] >= 0:
         # avoid GoogleFont that pulls from internet
@@ -754,7 +756,7 @@ def go_gradio(**kwargs):
                                            LangChainAction.IMAGE_QUERY.value,
                                            LangChainAction.IMAGE_CHANGE.value,
                                            LangChainAction.IMAGE_GENERATE.value,
-                                           LangChainAction.IMAGE_GENERATE_HIGH.value,
+                                           LangChainAction.IMAGE_STYLE.value,
                                            ]
         allow |= document_subset1 in [DocumentSubset.TopKSources.name]
         if langchain_mode1 in [LangChainMode.LLM.value]:
@@ -1255,7 +1257,7 @@ def go_gradio(**kwargs):
                                                              interactive=True,
                                                              multiselect=True,
                                                              visible=visible_model_choice,
-                                                             elem_id="multi-selection" if kwargs[
+                                                             elem_id="multi-selection-models" if kwargs[
                                                                                               'max_visible_models'] is None or is_gradio_h2oai else None,
                                                              filterable=False,
                                                              max_choices=kwargs['max_visible_models'],
@@ -1466,18 +1468,35 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                # image_tab = gr.TabItem("Image") if have_vision_models else gr.Row(visible=False)
-                image_tab = gr.Row(visible=False)
+                image_gen_visible = kwargs['enable_imagegen']
+                image_change_visible = kwargs['enable_imagechange']
+                image_tab_visible = image_gen_visible or image_change_visible
+                image_tab_visible = False  # WIP
+                image_tab = gr.TabItem("Image Control", visible=image_tab_visible) if image_tab_visible else gr.Row(
+                    visible=False)
                 with image_tab:
+                    visible_image_models = gr.Dropdown(visible_image_models_state0,
+                                                       label="Visible Image Models",
+                                                       value=visible_image_models_state0[
+                                                           0] if visible_image_models_state0 else None,
+                                                       interactive=True,
+                                                       multiselect=False,
+                                                       visible=True,
+                                                       filterable=False,
+                                                       max_choices=None,
+                                                       )
                     with gr.Row():
-                        image_control = gr.Image(label="Input Image", type='filepath')
-                        image_style = gr.Image(label="Style Image", type='filepath')
-                        image_output = gr.Image(label="Output Image", type='filepath')
+                        image_control = gr.Image(label="Input Image", type='filepath', elem_id="warning",
+                                                 elem_classes="feedback")
+                        image_style = gr.Image(label="Style Image", type='filepath', elem_id="warning",
+                                               elem_classes="feedback")
+                        image_output = gr.Image(label="Output Image", type='filepath', elem_id="warning",
+                                                elem_classes="feedback")
                     image_prompt = gr.Textbox(label="Prompt")
                     with gr.Row():
-                        generate_btn = gr.Button("Generate by Prompt")
-                        change_btn = gr.Button("Change Image by Prompt")
-                        style_btn = gr.Button("Apply Style")
+                        generate_btn = gr.Button("Generate by Prompt", visible=image_gen_visible)
+                        change_btn = gr.Button("Change Image by Prompt", visible=image_change_visible)
+                        style_btn = gr.Button("Apply Style", visible=False)
                         # image_upload = # FIXME, go into db
 
                 chat_tab = gr.TabItem("Chat History") \
