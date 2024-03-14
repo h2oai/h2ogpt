@@ -2127,6 +2127,11 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server.startswith('groq'):
+        if len(inference_server.split(':')) == 2:
+            groq_api_key = inference_server.split(':')[1]
+            inference_server = inference_server.split(':')[0]
+        else:
+            groq_api_key = os.getenv('GROQ_API_KEY')
         cls = H2OChatGroq
 
         # Langchain oddly passes some things directly and rest via model_kwargs
@@ -2138,7 +2143,7 @@ def get_llm(use_openai_model=False,
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
-                  groq_api_key=os.getenv('GROQ_API_KEY'),
+                  groq_api_key=groq_api_key,
                   temperature=temperature if do_sample else 0,
                   callbacks=callbacks if stream_output else None,
                   max_retries=2,

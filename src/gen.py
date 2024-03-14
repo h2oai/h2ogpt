@@ -2906,19 +2906,24 @@ def get_model(
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
-    if inference_server.startswith('mistralai'):
+    if inference_server.startswith('groq'):
+        if len(inference_server.split(':')) == 2:
+            groq_api_key = inference_server.split(':')[1]
+            inference_server = inference_server.split(':')[0]
+        else:
+            groq_api_key = os.getenv('GROQ_API_KEY')
+
         t0 = time.time()
         from groq import Client, AsyncClient
 
-        api_key = os.environ["GROQ_API_KEY"]
-        assert api_key, "Missing Groq API key"
-        client = Client(api_key=api_key)
+        assert groq_api_key, "Missing Groq API key"
+        client = Client(api_key=groq_api_key)
 
-        async_client = AsyncClient(api_key=api_key)
+        async_client = AsyncClient(api_key=groq_api_key)
 
         timeout = 600
         if not regenerate_clients:
-            model = dict(client=client, async_client=async_client, inf_type='groq', base_url=None, api_key=api_key,
+            model = dict(client=client, async_client=async_client, inf_type='groq', base_url=None, api_key=groq_api_key,
                          timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
