@@ -2,7 +2,7 @@ import ast
 import time
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -241,6 +241,9 @@ prompt_type_to_model_name['google'] = google_gpts
 
 mistralai_gpts = sorted(mistralai_mapping.keys())
 prompt_type_to_model_name['mistralai'] = mistralai_gpts
+
+groq_gpts = sorted(groq_mapping.keys())
+prompt_type_to_model_name['groq'] = groq_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
@@ -695,7 +698,9 @@ ASSISTANT:
             prompt_type in [PromptType.google.value, str(PromptType.google.value),
                             PromptType.google.name] or \
             prompt_type in [PromptType.mistralai.value, str(PromptType.mistralai.value),
-                            PromptType.mistralai.name]:
+                            PromptType.mistralai.name] or \
+            prompt_type in [PromptType.groq.value, str(PromptType.groq.value),
+                            PromptType.groq.name]:
         can_handle_system_prompt = True  # handled via special messages/arguments not part of prompt
         # mistral safe_mode=True is same as this system prompt:
         # Always assist with care, respect, and truth. Respond with utmost utility yet securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies promote fairness and positivity.
@@ -708,7 +713,8 @@ ASSISTANT:
         PreInput = None
         PreResponse = ""
         terminate_response = []
-        chat_turn_sep = chat_sep = '\n'
+        chat_sep = ''
+        chat_turn_sep = '\n'
         humanstr = None
         botstr = None
 

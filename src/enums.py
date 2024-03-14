@@ -73,6 +73,7 @@ class PromptType(Enum):
     gemma = 67
     qwen = 68
     sealion = 69
+    groq = 70
 
 
 class DocumentSubset(Enum):
@@ -205,6 +206,7 @@ anthropic_mapping = {
     "claude-instant-1.2": 100000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-haiku-20240307": 200000,
 }
 
 anthropic_mapping_outputs = {
@@ -214,6 +216,7 @@ anthropic_mapping_outputs = {
     "claude-instant-1.2": 4096,
     "claude-3-opus-20240229": 4096,
     "claude-3-sonnet-20240229": 4096,
+    "claude-3-haiku-20240307": 4096,
 }
 
 google_mapping = {
@@ -257,6 +260,19 @@ openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106"]
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
 model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096, "gpt-35-turbo-1106": 4096})
+
+
+groq_mapping = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 8192,
+    "llama2-70b-4096": 4096,
+}
+
+groq_mapping_outputs = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 4096,
+    "llama2-70b-4096": 4096,
+}
 
 
 def does_support_functiontools(inference_server, model_name):

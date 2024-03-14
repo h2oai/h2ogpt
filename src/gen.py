@@ -67,7 +67,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
-    valid_imagegen_models, valid_imagestyle_models
+    valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
+    groq_mapping_outputs
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -87,7 +88,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -589,9 +590,14 @@ def main(
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
 
                               Or for groq, can use OpenAI API like:
-                              vllm:https://api.groq.com/openai:None:/v1:<api key>'
-                              with: other model_lock or CLI options: {'base_model':'mixtral-8x7b-32768', 'visible_models':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}
-                              i.e.ensure to use 'plain' prompt, not mixtral.
+                               GROQ IS BROKEN FOR OPENAI API:
+                                   vllm:https://api.groq.com/openai:None:/v1:<api key>'
+                                   with: other model_lock or CLI options: {'inference_server': 'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'visible_models':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}
+                                   i.e.ensure to use 'plain' prompt, not mixtral.
+                              For groq:
+                                 groq and ensures set env GROQ_API_KEY
+                                 or groq:<api key>
+                                 with: other model_lock or CLI options: {'inference_server': 'groq:<api key>', 'base_model':'mixtral-8x7b-32768', 'visible_models':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}
 
                              Or Address can be replicate:
                              Use:
@@ -1262,6 +1268,8 @@ def main(
     roles_state0 = tts_coquiai_roles
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
+    if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
+        metadata_in_context = []
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -2233,7 +2241,7 @@ def get_config(base_model,
         except OSError as e:
             if raise_exception:
                 raise
-            if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + non_hf_types:
+            if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + groq_gpts + non_hf_types:
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e) or \
@@ -2573,13 +2581,14 @@ def get_inf_models(inference_server):
             # Print the response content
             if 'models' in response:
                 models.extend([x['name'] for x in response['models']])
-
     elif inference_server.startswith('replicate'):
         pass
     elif inference_server.startswith('sagemaker'):
         pass
     elif inference_server.startswith('anthropic'):
         models.extend(list(anthropic_mapping.keys()))
+    elif inference_server.startswith('groq'):
+        models.extend(list(groq_mapping.keys()))
     elif inference_server.startswith('http'):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
         if gr_client is not None:
@@ -2789,6 +2798,8 @@ def get_model(
         raise ValueError("Must select inference server when choosing Google models")
     if base_model in mistralai_gpts and not inference_server:
         raise ValueError("Must select inference server when choosing MistralAI models")
+    if base_model in groq_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing Groq models")
 
     # see if we can set max_seq_len and tokenizer for non-HF models or check at least if set when required
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
@@ -2884,6 +2895,28 @@ def get_model(
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
+    if inference_server.startswith('groq'):
+        if len(inference_server.split(':')) == 2:
+            groq_api_key = inference_server.split(':')[1]
+            inference_server = inference_server.split(':')[0]
+        else:
+            groq_api_key = os.getenv('GROQ_API_KEY')
+
+        t0 = time.time()
+        from groq import Client, AsyncClient
+
+        assert groq_api_key, "Missing Groq API key"
+        client = Client(api_key=groq_api_key)
+
+        async_client = AsyncClient(api_key=groq_api_key)
+
+        timeout = 600
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='groq', base_url=None, api_key=groq_api_key,
+                         timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
     if inf_server_for_max_seq_len_handling or \
             inference_server.startswith('openai') or \
             base_model in openai_gpts or \
@@ -2892,7 +2925,9 @@ def get_model(
             inference_server.startswith('google') or \
             base_model in google_gpts or \
             inference_server.startswith('mistralai') or \
-            base_model in mistralai_gpts:
+            base_model in mistralai_gpts or \
+            inference_server.startswith('groq') or \
+            base_model in groq_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
             if inference_server.startswith('openai') and base_model in openai_gpts:
@@ -2964,6 +2999,23 @@ def get_model(
                 else:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
+        if inference_server.startswith('groq') or base_model in groq_gpts:
+            if inference_server.startswith('groq'):
+                assert os.getenv('GROQ_API_KEY'), "Set environment for GROQ_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in groq_mapping:
+                max_seq_len = groq_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in groq_mapping_outputs:
+                max_output_len = groq_mapping_outputs[base_model]
+            else:
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_output_seq_len is not None, "Must set max_output_seq_len"
+                else:
+                    max_output_seq_len = 31768  # estimate
+                max_output_len = max_output_seq_len
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -2991,9 +3043,11 @@ def get_model(
                 inference_server.startswith('google') or \
                 base_model in google_gpts or \
                 inference_server.startswith('mistralai') or \
-                base_model in mistralai_gpts:
+                base_model in mistralai_gpts or \
+                inference_server.startswith('groq') or \
+                base_model in groq_gpts:
             # must be set by now
-            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google or MistralAI models by now."
+            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google or MistralAI or Groq models by now."
 
         if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
@@ -3944,7 +3998,8 @@ def evaluate(
                            inference_server.startswith('openai_azure') or \
                            inference_server.startswith('anthropic') or \
                            inference_server.startswith('google') or \
-                           inference_server.startswith('mistralai')
+                           inference_server.startswith('mistralai') or \
+                           inference_server.startswith('groq')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
@@ -5841,9 +5896,11 @@ def get_limited_prompt(instruction,
                 else:
                     history_to_use_final = history[0 + best_index:]
             else:
-                history_to_use_final = history.copy()
+                chat_index = -1
+                # can't fit any history
+                history_to_use_final = []
             if verbose:
-                print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
+                print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
         elif not use_chat_template and diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
