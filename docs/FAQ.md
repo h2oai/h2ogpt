@@ -103,17 +103,19 @@ Examples of what to put into "server" in UI or for `<server>` when using `--infe
   * E.g. `vllm_chat:https://gpt.h2o.ai:5000/v1` (only for no auth setup)
   * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD` (keyed access)
 * MistralAI: `mistralai`
-  * E.g. `--model_lock="[{'inference_server':'mistralai', 'base_model':'mistral-medium'}]"`
+  * E.g. for CLI: `--model_lock="[{'inference_server':'mistralai', 'base_model':'mistral-medium'}]"`
 * Google: `google`
   * Ensure ENV `GOOGLE_API_KEY` set
-  * E.g. `--model_lock="[{'inference_server':'google', 'base_model':'gemini-pro'}]"`
+  * E.g. for CLI: `--model_lock="[{'inference_server':'google', 'base_model':'gemini-pro'}]"`
 * OpenAI Chat API: `openai_chat`
-  * Ensure ENV `OPENAI_API_KEY` set
-  * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD`
+  * Ensure ENV `OPENAI_API_KEY` set or pass along with inference_server
+  * E.g. for CLI: `--model_lock="[{'inference_server':'vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD', 'base_model': 'model_name'}]"`
 * OpenAI Text API: `openai`
   * Ensure ENV `OPENAI_API_KEY` set
-* Anthropic: `anthropic` (this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API)
+* Anthropic: `anthropic`
+  * In added to UI, this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API
   * Ensure ENV `ANTHROPIC_API_KEY` is set to the API key
+  * E.g. for CLI: `--model_lock="[{'inference_server':'anthropic', 'base_model':'claude-3-opus-20240229'}]"`
   * Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.
 * Gradio: `https://gradio.h2o.ai` (only for no auth setup)
   * Ensure `h2ogpt_key` is in model_lock for each model if server has keyed access
@@ -130,7 +132,6 @@ An example of using Opus is:
 ```bash
 python generate.py --inference_server=anthropic --base_model=claude-3-opus-20240229
 ```
-
 
 ### Deploying like gpt.h2o.ai
 
