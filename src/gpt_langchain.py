@@ -292,7 +292,7 @@ def add_to_db(db, sources, db_type='faiss',
     # don't do too large a batch so uses reasonable amount of memory
     max_max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '4096'))
 
-    if db_type == 'faiss' or db_type == 'qdrant':
+    if db_type == 'faiss':
         sources_batches = split_list(sources, max_max_batch_size)
         for sources_batch in sources_batches:
             db.add_documents(documents=sources_batch)
@@ -300,6 +300,16 @@ def add_to_db(db, sources, db_type='faiss',
         # FIXME: only control by file name, not hash yet
         if avoid_dup_by_file or avoid_dup_by_content:
             unique_sources = _get_unique_sources_in_weaviate(db)
+            sources = [x for x in sources if x.metadata['source'] not in unique_sources]
+        num_new_sources = len(sources)
+        if num_new_sources == 0:
+            return db, num_new_sources, []
+        sources_batches = split_list(sources, max_max_batch_size)
+        for sources_batch in sources_batches:
+            db.add_documents(documents=sources_batch)
+    elif db_type == 'qdrant':
+        if avoid_dup_by_file or avoid_dup_by_content:
+            unique_sources = _get_unique_sources_in_qdrant(db)
             sources = [x for x in sources if x.metadata['source'] not in unique_sources]
         num_new_sources = len(sources)
         if num_new_sources == 0:
@@ -8537,6 +8547,37 @@ def _get_qdrant_options():
     }
 
     return options
+
+def _get_unique_sources_in_qdrant(db):
+    from langchain.vectorstores import Qdrant
+    import grpc
+
+    if not isinstance(db, Qdrant):
+        raise ValueError("db must be an instance of langchain.vectorstores.Qdrant")
+
+    sources = []
+    next_offset = None
+    stop_scrolling = False
+    scroll_size = 1000
+
+    while not stop_scrolling:
+        records, next_offset = db.client.scroll(
+            collection_name=db.collection_name,
+            limit=scroll_size,
+            offset=next_offset,
+            with_payload=True,
+        )
+
+        # Qdrant client supports a REST and GPRC interface. So we need to handle the response differently
+        stop_scrolling = next_offset is None or (
+            isinstance(next_offset, grpc.PointId)
+            and next_offset.num == 0
+            and next_offset.uuid == ""
+        )
+
+        sources.extend(records)
+    unique_sources = {source.payload["metadata"]["source"] for source in sources}
+    return unique_sources
 
 
 if __name__ == '__main__':
