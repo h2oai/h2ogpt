@@ -1271,6 +1271,8 @@ def main(
     roles_state0 = tts_coquiai_roles
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
+    if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
+        metadata_in_context = []
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -5916,9 +5918,11 @@ def get_limited_prompt(instruction,
                 else:
                     history_to_use_final = history[0 + best_index:]
             else:
-                history_to_use_final = history.copy()
+                chat_index = -1
+                # can't fit any history
+                history_to_use_final = []
             if verbose:
-                print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
+                print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
         elif not use_chat_template and diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''

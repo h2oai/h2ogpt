@@ -6962,6 +6962,8 @@ def get_chain(query=None,
                     docs_with_score = [x for x in docs_with_score if
                                        all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
+    if metadata_in_context is None:
+        metadata_in_context = []
     if db is None and text_context_list:
         # not useful then, just mess
         metadata_in_context = []
