@@ -7484,7 +7484,7 @@ def get_template(query, iinput,
         if iinput:
             query = "%s\n%s" % (query, iinput)
         if not got_any_docs:
-            template_if_no_docs = template = """{context}\n%s""" % question_fstring
+            template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
             fstring = "{context}"
             if prompter and prompter.prompt_type == 'docsgpt':
@@ -7500,7 +7500,7 @@ def get_template(query, iinput,
                 if doc_json_mode:
                     template_if_no_docs = """{context}{{"question": {question}}}"""
                 else:
-                    template_if_no_docs = """{context}\n{question}"""
+                    template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
