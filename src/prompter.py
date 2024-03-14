@@ -708,7 +708,8 @@ ASSISTANT:
         PreInput = None
         PreResponse = ""
         terminate_response = []
-        chat_turn_sep = chat_sep = '\n'
+        chat_sep = ''
+        chat_turn_sep = '\n'
         humanstr = None
         botstr = None
 
