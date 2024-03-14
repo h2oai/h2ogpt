@@ -97,29 +97,39 @@ Other work-arounds:
 Examples of what to put into "server" in UI or for `<server>` when using `--inference_server=<server>` with CLI include:
 * oLLaMa: `vllm_chat:http://localhost:11434/v1/`
 * vLLM: `vllm:111.111.111.111:5005`
-* vLLM Chat API: `vllm_chat:https://gpt.h2o.ai:5000/v1`  (only for no auth setup)
+   * For llama-13b, e.g. `--model_lock="[{'inference_server':'vllm:111.11.111.111:5001', 'base_model':'h2oai/h2ogpt-4096-llama2-13b-chat'}`
+   * For groq, ensure groq API key is used,, e.g. `--model_lock="[{'inference_server':'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}]"`
+* vLLM Chat API: `vllm_chat`
+  * E.g. `vllm_chat:https://gpt.h2o.ai:5000/v1` (only for no auth setup)
+  * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD` (keyed access)
 * MistralAI: `mistralai`
+  * E.g. `--model_lock="[{'inference_server':'mistralai', 'base_model':'mistral-medium'}]"`
 * Google: `google`
+  * Ensure ENV `GOOGLE_API_KEY` set
+  * E.g. `--model_lock="[{'inference_server':'google', 'base_model':'gemini-pro'}]"`
 * OpenAI Chat API: `openai_chat`
+  * Ensure ENV `OPENAI_API_KEY` set
+  * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD`
 * OpenAI Text API: `openai`
-* Gradio: `https://gradio.h2o.ai` (only for no auth setup)
+  * Ensure ENV `OPENAI_API_KEY` set
 * Anthropic: `anthropic` (this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API)
+  * Ensure ENV `ANTHROPIC_API_KEY` is set to the API key
+  * Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.
+* Gradio: `https://gradio.h2o.ai` (only for no auth setup)
+  * Ensure `h2ogpt_key` is in model_lock for each model if server has keyed access
+
+See [gen.py doc strings](../src/gen.py) for more details and examples for other inference endpoints (replicate, sagemaker, etc.)
 
 In the [UI Model Control Tab](README_ui.md#models-tab), one can auto-populate the models from these inference servers by clicking on `Load Model Names from Server`.  In every case, the CLI requires the `--base_model` to be specified. It is not auto-populated.
 
 Others that don't support model listing, need to enter model name in the UI:
-* Azure OpenAI Chat API: `openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey`
-  * Then add base model name, e.g. `gpt-3.5-turbo`
+* Azure OpenAI Chat API: `openai_azure_chat`
+  * e.g. `--model_lock="[{'inference_server':'openai_azure_chat:deployment:endpoint.openai.azure.com/:None:<api key>', 'base_model':'gpt-3.5-turbo-0613'}`
 
 An example of using Opus is:
 ```bash
 python generate.py --inference_server=anthropic --base_model=claude-3-opus-20240229
 ```
-For model lock, an example use case for Opus, Claude2.1, and Gemini Pro models would be:
-```bash
-python generate.py --model_lock="[{'inference_server':'anthropic', 'base_model':'claude-3-opus-20240229'}, {'inference_server':'anthropic', 'base_model':'claude-2.1'}, {'inference_server':'google', 'base_model':'gemini-pro'}]"
-```
-Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.  See more examples of model lock below.
 
 
 ### Deploying like gpt.h2o.ai
