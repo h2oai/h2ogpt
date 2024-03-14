@@ -186,8 +186,10 @@ python generate.py --save_dir=$SAVE_DIR --model_lock="$MODEL_LOCK" \
 		   --enable_tts=True \
 		   --openai_server=$openai_server \
 		   --openai_port=$openai_port \
-                   --imagegen_gpu_id=$imagegen_gpu_id \
-		   --enable_imagegen=$enable_imagegen --enable_imagegen_high=$enable_imagegen_high --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
+		   --enable_image=$enable_image \
+           --visible_image_models=$visible_image_models \
+           --image_gpu_ids=$image_gpu_ids \
+           --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
 		   --llava_model=$llava_model \
                    --model_lock_columns=$model_lock_columns \
 		   --auth_filename=$auth_filename --auth_access=open --guest_name=guest --auth=$auth_filename \
@@ -228,8 +230,11 @@ export tts_model='microsoft/speecht5_tts'
 #export tts_model=''
 export max_max_new_tokens=8192
 export max_new_tokens=2048
-export enable_imagegen=False
-export enable_imagegen_high=False
+
+export enable_image=False
+export image_gpu_ids="[]"
+export visible_image_models="[]"
+
 export gradio_upload_to_chatbot=False
 export openai_server=True
 export openai_port=5000
@@ -284,7 +289,6 @@ export embedding_gpu_id=0
 export caption_gpu_id=1
 export doctr_gpu_id=1
 export asr_gpu_id=1
-export imagegen_gpu_id=1
 export model_lock_columns=2
 export othermore=1
 export gptmore=0
@@ -296,11 +300,16 @@ export asr_model="openai/whisper-large-v3"
 export tts_model="tts_models/multilingual/multi-dataset/xtts_v2"
 export max_max_new_tokens=8192
 export max_new_tokens=2048
-export enable_imagegen=True
-export enable_imagegen_high=True
+
+export enable_image=True
+export image_gpu_ids="[0,1]"
+export visible_image_models="['sdxl_turbo', 'playv2']"
+
 export gradio_upload_to_chatbot=True
+
 export openai_server=True
 export openai_port=5001
+
 export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
 export hf_embedding_model=tei:http://localhost:5555
 export cut_distance=10000
@@ -722,7 +731,10 @@ If you prefer to disable video extraction, choose `--extract_frames=0` with CLI 
 
 For image generation, then run:
 ```bash
-python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_imagegen=True
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['sdxl_turbo', 'sdxl', 'playv2']" \
+--image_gpu_ids="[0,1,2]"
 ```
 or for high-resolution run use `--enable_imagegen_high=True` (can add both).
 
@@ -795,7 +807,8 @@ Run h2oGPT with LLaVa and image (normal and high-quality) generation:
 export GRADIO_SERVER_PORT=7860
 python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --llava_model=<IP:port:model_name> \
---enable_imagegen=True --enable_imagegen_high=True
+           --visible_image_models="['sdxl_turbo', 'playv2']" \
+           --image_gpu_ids="[0,1]"
 ```
 e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vicuna-13b`.  The `:model_name` is not required, h2oGPT will use first model if any.
 
@@ -804,7 +817,8 @@ Run h2oGPT with LLaVa and image (normal and high-quality) generation and run LLa
 export GRADIO_SERVER_PORT=7860
 python --score_model=None \
 --llava_model=<IP:port:model_name> \
---enable_imagegen=True --enable_imagegen_high=True \
+--visible_image_models="['sdxl_turbo', 'playv2']" \
+--image_gpu_ids="[0,1]" \
 --model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}]"
 ```
 e.g. `<IP:port>=http://192.168.1.46:7861`.
