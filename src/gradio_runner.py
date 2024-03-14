@@ -1471,6 +1471,7 @@ def go_gradio(**kwargs):
                 image_gen_visible = kwargs['enable_imagegen']
                 image_change_visible = kwargs['enable_imagechange']
                 image_tab_visible = image_gen_visible or image_change_visible
+                image_tab_visible = False  # WIP
                 image_tab = gr.TabItem("Image Control", visible=image_tab_visible) if image_tab_visible else gr.Row(
                     visible=False)
                 with image_tab:
