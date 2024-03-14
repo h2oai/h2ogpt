@@ -733,10 +733,23 @@ For image generation, then run:
 ```bash
 python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --enable_image=True \
+--visible_image_models="['sdxl_turbo']" \
+--image_gpu_ids="[0]"
+```
+or for high-resolution run:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['playv2']" \
+--image_gpu_ids="[0]"
+```
+or add all possible ones.
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
 --visible_image_models="['sdxl_turbo', 'sdxl', 'playv2']" \
 --image_gpu_ids="[0,1,2]"
 ```
-or for high-resolution run use `--enable_imagegen_high=True` (can add both).
 
 ### LLaVa Vision Models
 
