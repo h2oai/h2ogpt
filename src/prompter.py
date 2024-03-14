@@ -698,7 +698,9 @@ ASSISTANT:
             prompt_type in [PromptType.google.value, str(PromptType.google.value),
                             PromptType.google.name] or \
             prompt_type in [PromptType.mistralai.value, str(PromptType.mistralai.value),
-                            PromptType.mistralai.name]:
+                            PromptType.mistralai.name] or \
+            prompt_type in [PromptType.groq.value, str(PromptType.groq.value),
+                            PromptType.groq.name]:
         can_handle_system_prompt = True  # handled via special messages/arguments not part of prompt
         # mistral safe_mode=True is same as this system prompt:
         # Always assist with care, respect, and truth. Respond with utmost utility yet securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies promote fairness and positivity.

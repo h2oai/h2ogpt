@@ -73,6 +73,7 @@ class PromptType(Enum):
     gemma = 67
     qwen = 68
     sealion = 69
+    groq = 70
 
 
 class DocumentSubset(Enum):
