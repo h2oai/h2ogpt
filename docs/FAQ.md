@@ -111,6 +111,17 @@ Others that don't support model listing, need to enter model name in the UI:
 * Azure OpenAI Chat API: `openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey`
   * Then add base model name, e.g. `gpt-3.5-turbo`
 
+An example of using Opus is:
+```bash
+python generate.py --inference_server=anthropic --base_model=claude-3-opus-20240229
+```
+For model lock, an example use case for Opus, Claude2.1, and Gemini Pro models would be:
+```bash
+python generate.py --model_lock="[{'inference_server':'anthropic', 'base_model':'claude-3-opus-20240229'}, {'inference_server':'anthropic', 'base_model':'claude-2.1'}, {'inference_server':'google', 'base_model':'gemini-pro'}]"
+```
+Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.  See more examples of model lock below.
+
+
 ### Deploying like gpt.h2o.ai
 
 As of March 1, 2024, https://gpt.h2o.ai uses nginx proxy on some private system (`xxx.xxx.xxx.144` IP below), and run with these two scripts (with host IPs/ports redacated), with `restart_any_163.sh`:
