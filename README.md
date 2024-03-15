@@ -92,7 +92,8 @@ Then run the following commands on any system:
    # GPL, only run next line if that is ok:
    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
 
-   python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+   # choose up to 32768 if have enough GPU memory:
+   python generate.py --base_model=TheBloke/Mistral-7B-Instruct-v0.2-GGUF --prompt_type=mistral --max_seq_len=4096
    ```
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 
