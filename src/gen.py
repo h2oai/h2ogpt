@@ -5931,7 +5931,7 @@ def get_limited_prompt(instruction,
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
     if truncation_generation:
-        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+        max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
         if os.getenv('HARD_ASSERTS'):
             if max_new_tokens < min_max_new_tokens:
