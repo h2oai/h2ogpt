@@ -274,13 +274,20 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
-def is_vision_model(base_model):
+def is_gradio_vision_model(base_model):
     if not base_model:
         return False
     return base_model.startswith('llava-') or \
         base_model.startswith('liuhaotian/llava-') or \
         base_model.startswith('Qwen-VL') or \
         base_model.startswith('Qwen/Qwen-VL')
+
+
+def is_vision_model(base_model):
+    if not base_model:
+        return False
+    return is_gradio_vision_model(base_model) or \
+        base_model.startswith('claude-3-')
 
 
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
@@ -2207,5 +2214,5 @@ def history_for_llm(history):
         # can't keep any tuples for llm
         history_new.append((gradio_to_llm(message1[0], bot=False),
                             gradio_to_llm(message1[1], bot=True))
-                            )
+                           )
     return history_new

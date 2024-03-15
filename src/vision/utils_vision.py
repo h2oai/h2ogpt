@@ -8,7 +8,7 @@ import numpy as np
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models
 
 
-def img_to_base64(image_file):
+def img_to_base64(image_file, str_bytes=True):
     # assert image_file.lower().endswith('jpg') or image_file.lower().endswith('jpeg')
     from PIL import Image
 
@@ -37,7 +37,10 @@ def img_to_base64(image_file):
     image.save(buffered, format=iformat)
     img_str = base64.b64encode(buffered.getvalue())
     # FIXME: unsure about below
-    img_str = str(bytes("data:image/%s;base64," % iformat.lower(), encoding='utf-8') + img_str)
+    if str_bytes:
+        img_str = str(bytes("data:image/%s;base64," % iformat.lower(), encoding='utf-8') + img_str)
+    else:
+        img_str = f"data:image/{iformat.lower()};base64,{img_str.decode('utf-8')}"
 
     return img_str
 

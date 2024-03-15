@@ -89,7 +89,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts, \
-    gradio_to_llm, history_for_llm
+    gradio_to_llm, history_for_llm, is_gradio_vision_model
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -2445,7 +2445,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     gradio_auth = dict(auth=(username, password) if username and username else None)
 
-    if base_model and is_vision_model(base_model):
+    if base_model and is_gradio_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
         gr_client = GradioClient(inference_server, check_hash=False, serialize=True, **gradio_auth)
         gr_client.setup()
@@ -4408,7 +4408,7 @@ def evaluate(
                     except Exception as e:
                         print("Failed to close OpenAI client: %s" % str(e), flush=True)
 
-        elif inference_server.startswith('http') and is_vision_model(base_model):
+        elif inference_server.startswith('http') and is_gradio_vision_model(base_model):
             where_from = "gr_client for llava"
             sources = []
             inference_server0 = inference_server
@@ -4518,15 +4518,7 @@ def evaluate(
                     gr_prompt_dict = prompt_dict
 
                 # ensure image in correct format
-                img_file = get_image_file(image_file, image_control, document_choice)
-                if img_file is not None and os.path.isfile(img_file):
-                    from src.vision.utils_vision import img_to_base64
-                    img_file = img_to_base64(img_file)
-                elif isinstance(img_file, str):
-                    # assume already bytes
-                    img_file = img_file
-                else:
-                    img_file = None
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True)
 
                 client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
                                      iinput=gr_iinput,  # only for chat=True
@@ -5739,7 +5731,7 @@ def get_limited_prompt(instruction,
                          hasattr(tokenizer, 'default_chat_template') and
                          tokenizer.default_chat_template not in [None, '']
                          )
-    if is_vision_model(base_model):
+    if is_gradio_vision_model(base_model):
         use_chat_template = False
 
     if use_chat_template:

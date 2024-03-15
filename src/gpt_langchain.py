@@ -68,12 +68,12 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode
+    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
-    is_vision_model
+    is_vision_model, is_gradio_vision_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
@@ -1480,12 +1480,16 @@ class ExtraChat:
                                            self.system_prompt]] + self.chat_conversation
             else:
                 messages.append(SystemMessage(content=self.system_prompt))
+        img_base64 = None
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
                 if len(messages1) != 2:
                     continue
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
+                    continue
+                if messages1[1] == claude3imagetag:
+                    img_base64 = messages1[0]
                     continue
                 if messages1[0]:
                     instruction = gradio_to_llm(messages1[0], bot=False)
@@ -1497,8 +1501,25 @@ class ExtraChat:
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
                 prompt_message = messages + prompt.messages
+                assert img_base64 is None, "img_base64 was filled, unused"
             else:
-                prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
+                prompt_text = prompt.text if prompt.text is not None else ''
+                if img_base64:
+                    # https://docs.anthropic.com/claude/docs/vision
+                    # https://python.langchain.com/docs/integrations/chat/anthropic
+                    # could also be type "image" and add "source" with other details
+                    content = [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": img_base64,
+                                },
+                            },
+                            {"type": "text", "text": prompt_text},
+                        ]
+                else:
+                    content = prompt_text
+                prompt_message = HumanMessage(content=content)
                 prompt_message = messages + [prompt_message]
             prompt_messages.append(prompt_message)
         return prompt_messages
@@ -1841,6 +1862,9 @@ def get_llm(use_openai_model=False,
 
     if chat_conversation is None:
         chat_conversation = []
+    # shallow copy, so if add image entry doesn't affect outer one, only returned one
+    chat_conversation = chat_conversation.copy()
+
     # in case prompter updated
     if prompter and prompter.system_prompt:
         system_prompt = prompter.system_prompt
@@ -2049,6 +2073,11 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OChatAnthropic3Sys
 
+            if is_vision_model(model_name):
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+                if img_file:
+                    chat_conversation.append((img_file, claude3imagetag))
+
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
@@ -2191,7 +2220,7 @@ def get_llm(use_openai_model=False,
         assert inference_server.startswith(
             'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
-        if is_vision_model(model_name):
+        if is_gradio_vision_model(model_name):
             img_file = get_image_file(image_file, image_control, document_choice)
         else:
             img_file = None
@@ -2229,7 +2258,7 @@ def get_llm(use_openai_model=False,
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
 
-        if gr_client and is_vision_model(model_name):
+        if gr_client and is_gradio_vision_model(model_name):
             llm = GradioLLaVaInference(
                 inference_server_url=inference_server,
 
@@ -2270,15 +2299,7 @@ def get_llm(use_openai_model=False,
             )
         elif gr_client:
             # ensure image in correct format
-            img_file = get_image_file(image_file, image_control, document_choice)
-            if img_file is not None and os.path.isfile(img_file):
-                from src.vision.utils_vision import img_to_base64
-                img_file = img_to_base64(img_file)
-            elif isinstance(img_file, str):
-                # assume already bytes
-                img_file = img_file
-            else:
-                img_file = None
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True)
 
             chat_client = False
             from src.vision.utils_vision import img_to_base64

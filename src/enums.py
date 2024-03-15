@@ -219,6 +219,8 @@ anthropic_mapping_outputs = {
     "claude-3-haiku-20240307": 4096,
 }
 
+claude3imagetag = 'claude-3-image'
+
 google_mapping = {
     "gemini-pro": 32768,
     "gemini-pro-vision": 32768,
