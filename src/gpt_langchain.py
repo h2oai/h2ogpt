@@ -2109,6 +2109,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                  max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   top_k=top_k,
                   temperature=temperature if do_sample else 0,
