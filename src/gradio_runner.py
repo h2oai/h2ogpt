@@ -1276,7 +1276,7 @@ def go_gradio(**kwargs):
                                                              visible=visible_model_choice,
                                                              elem_id="multi-selection-models" if kwargs[
                                                                                                      'max_visible_models'] is None or is_gradio_h2oai else None,
-                                                             filterable=False,
+                                                             filterable=len(kwargs['all_possible_visible_models']) > 5,
                                                              max_choices=kwargs['max_visible_models'],
                                                              )
                                 if not image_tab_visible:

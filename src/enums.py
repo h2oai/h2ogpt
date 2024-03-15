@@ -223,6 +223,7 @@ anthropic_mapping_outputs = {
 
 claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
+geminiimagetag = 'gemini-image'
 
 google_mapping = {
     "gemini-pro": 32768,
