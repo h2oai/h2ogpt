@@ -88,7 +88,8 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts, \
+    gradio_to_llm, history_for_llm
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -4242,6 +4243,7 @@ def evaluate(
                            iinput,
                            tokenizer,
                            prompter=prompter,
+                           base_model=base_model,
                            inference_server=inference_server,
                            # prompt_type=prompt_type,  # use prompter
                            # prompt_dict=prompt_dict,  # use prompter
@@ -5535,29 +5537,6 @@ def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradi
     return text
 
 
-def gradio_to_llm(x, bot=False):
-    gradio_tmp = get_gradio_tmp()
-    # handle if gradio tuples in messages
-    if x is None:
-        x = ''
-    if isinstance(x, (tuple, list)) and len(x) > 0:
-        x = list(x)
-        for insti, inst in enumerate(x):
-            if isinstance(inst, str) and \
-                    (inst.startswith('/tmp/gradio') or inst.startswith(gradio_tmp)) and \
-                    os.path.isfile(inst):
-                # below so if put into context gets rendered not as broken file
-                if bot:
-                    x[
-                        insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
-                else:
-                    x[insti] = 'file=' + inst
-        if len(x) == 1:
-            x = x[0]
-        x = str(x) if all(isinstance(x, str) for x in x) else ''
-    return x
-
-
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, model_max_length=None,
@@ -5656,6 +5635,7 @@ def get_limited_prompt(instruction,
                        tokenizer,
                        estimated_instruction=None,
                        prompter=None,
+                       base_model=None,
                        inference_server=None,
                        prompt_type=None, prompt_dict=None, max_new_tokens=None,
                        system_prompt='',
@@ -5736,6 +5716,7 @@ def get_limited_prompt(instruction,
 
     # merge handles if chat_conversation is None
     history = []
+    history = history_for_llm(history)
     history = merge_chat_conversation_history(chat_conversation, history)
 
     history_to_context_func = functools.partial(history_to_context,
@@ -5758,6 +5739,8 @@ def get_limited_prompt(instruction,
                          hasattr(tokenizer, 'default_chat_template') and
                          tokenizer.default_chat_template not in [None, '']
                          )
+    if is_vision_model(base_model):
+        use_chat_template = False
 
     if use_chat_template:
         messages = structure_to_messages(instruction,

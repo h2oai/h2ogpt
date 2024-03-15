@@ -1482,6 +1482,8 @@ class ExtraChat:
                 messages.append(SystemMessage(content=self.system_prompt))
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
+                if len(messages1) != 2:
+                    continue
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
                     continue
@@ -7021,6 +7023,7 @@ def get_chain(query=None,
                                tokenizer,
                                estimated_instruction=estimated_prompt_no_docs,
                                prompter=prompter,
+                               base_model=model_name,
                                inference_server=inference_server,
                                prompt_type=prompt_type,
                                prompt_dict=prompt_dict,
