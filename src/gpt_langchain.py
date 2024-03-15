@@ -68,7 +68,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag
+    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -1488,7 +1488,7 @@ class ExtraChat:
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
                     continue
-                if messages1[1] == claude3imagetag:
+                if messages1[1] in [claude3imagetag, gpt4imagetag]:
                     img_base64 = messages1[0]
                     continue
                 if messages1[0]:
@@ -1508,6 +1508,7 @@ class ExtraChat:
                     # https://docs.anthropic.com/claude/docs/vision
                     # https://python.langchain.com/docs/integrations/chat/anthropic
                     # could also be type "image" and add "source" with other details
+                    # also valid for gpt-4-vision: https://community.openai.com/t/using-gpt-4-vision-preview-in-langchain/549393
                     content = [
                             {
                                 "type": "image_url",
@@ -1970,8 +1971,9 @@ def get_llm(use_openai_model=False,
         model_kwargs = dict(top_p=top_p if do_sample else 1,
                             frequency_penalty=0,
                             presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
-                            logit_bias=None if inf_type == 'vllm' else {},
                             )
+        if not is_vision_model(model_name):
+            model_kwargs.update(dict(logit_bias=None if inf_type == 'vllm' else {}))
         # if inference_server.startswith('vllm'):
         #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
 
@@ -2044,6 +2046,11 @@ def get_llm(use_openai_model=False,
                 model_kwargs.update(vllm_extra_dict)
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
+
+        if is_vision_model(model_name):
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if img_file:
+                chat_conversation.append((img_file, gpt4imagetag))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,
