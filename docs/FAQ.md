@@ -187,7 +187,7 @@ python generate.py --save_dir=$SAVE_DIR --model_lock="$MODEL_LOCK" \
 		   --openai_server=$openai_server \
 		   --openai_port=$openai_port \
 		   --enable_image=$enable_image \
-           --visible_image_models=$visible_image_models \
+           --visible_image_models="$visible_image_models" \
            --image_gpu_ids=$image_gpu_ids \
            --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
 		   --llava_model=$llava_model \
