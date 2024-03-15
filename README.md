@@ -14,7 +14,8 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Attention Sinks** for [arbitrarily long](https://github.com/tomaarsen/attention_sinks) generation (LLaMa-2, Mistral, MPT, Pythia, Falcon, etc.)
 - **UI** or CLI with streaming of all models
   - **Upload** and **View** documents through the UI (control multiple collaborative or personal collections)
-  - **Vision LLaVa** Model and **Stable Diffusion** Image Generation
+  - **Vision Models** LLaVa, Claude-3, Gemini-Pro-Vision, GPT-4-Vision
+  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl) and PlaygroundAI (playv2)
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
