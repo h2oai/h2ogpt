@@ -328,12 +328,19 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
         humanstr = prompt_dict.get('humanstr', '')
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
-                         PromptType.plain.name] or \
-            prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
-                            PromptType.llava.name]:
+                         PromptType.plain.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
-        chat_turn_sep = chat_sep = '\n'
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
+                         PromptType.llava.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_turn_sep = '\n'
+        chat_sep = ''
         # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
         humanstr = None
         botstr = None

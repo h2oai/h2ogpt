@@ -164,8 +164,8 @@ export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.22:5000', '
 
 if [ "$visionmodels" -eq "1" ]
 then
-  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'plain'}"
-  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'plain'}"
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'llava'}"
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'llava'}"
 fi
 
 export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.199:5014', 'base_model':'h2oai/h2o-danube-1.8b-chat', 'prompt_type': 'danube'}"
@@ -832,7 +832,7 @@ python --score_model=None \
 --llava_model=<IP:port:model_name> \
 --visible_image_models="['sdxl_turbo', 'playv2']" \
 --image_gpu_ids="[0,1]" \
---model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}]"
+--model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'llava'}]"
 ```
 e.g. `<IP:port>=http://192.168.1.46:7861`.
 
