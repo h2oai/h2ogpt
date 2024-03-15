@@ -68,7 +68,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag
+    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -1481,6 +1481,7 @@ class ExtraChat:
             else:
                 messages.append(SystemMessage(content=self.system_prompt))
         img_base64 = None
+        img_tag = None
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
                 if len(messages1) != 2:
@@ -1488,7 +1489,8 @@ class ExtraChat:
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
                     continue
-                if messages1[1] in [claude3imagetag, gpt4imagetag]:
+                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag]:
+                    img_tag = messages1[1]
                     img_base64 = messages1[0]
                     continue
                 if messages1[0]:
@@ -1497,6 +1499,9 @@ class ExtraChat:
                 if messages1[1]:
                     output = gradio_to_llm(messages1[1], bot=True)
                     messages.append(AIMessage(content=output))
+        if isinstance(self, H2OChatGoogle) and img_base64 is not None:
+            # Multiturn chat is not enabled for models/gemini-pro-vision
+            messages = []
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
@@ -1509,15 +1514,21 @@ class ExtraChat:
                     # https://python.langchain.com/docs/integrations/chat/anthropic
                     # could also be type "image" and add "source" with other details
                     # also valid for gpt-4-vision: https://community.openai.com/t/using-gpt-4-vision-preview-in-langchain/549393
+                    # https://python.langchain.com/docs/integrations/chat/google_generative_ai
+                    # https://github.com/GoogleCloudPlatform/generative-ai/blob/main/gemini/getting-started/intro_gemini_pro_vision_python.ipynb
+                    if img_tag in [geminiimagetag]:
+                        img_url = img_base64
+                    else:
+                        img_url = {
+                            "url": img_base64,
+                        }
                     content = [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": img_base64,
-                                },
-                            },
-                            {"type": "text", "text": prompt_text},
-                        ]
+                        {
+                            "type": "image_url",
+                            "image_url": img_url,
+                        },
+                        {"type": "text", "text": prompt_text},
+                    ]
                 else:
                     content = prompt_text
                 prompt_message = HumanMessage(content=content)
@@ -1567,6 +1578,7 @@ class GenerateStream:
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         kwargs.pop('stream', None)
+        kwargs.pop('streaming', None)
         if should_stream:
             stream_iter = self._stream(
                 messages, stop=stop, run_manager=run_manager, **kwargs
@@ -1585,6 +1597,7 @@ class GenerateStream:
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         kwargs.pop('stream', None)
+        kwargs.pop('streaming', None)
         if should_stream:
             stream_iter = self._astream(
                 messages, stop=stop, run_manager=run_manager, **kwargs
@@ -2117,6 +2130,16 @@ def get_llm(use_openai_model=False,
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
+        if is_vision_model(model_name):
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if img_file:
+                chat_conversation.append((img_file, geminiimagetag))
+                # https://github.com/langchain-ai/langchain/issues/19115
+                stream_output = False  # BUG IN GOOGLE/LANGCHAIN
+            else:
+                if '-vision' in model_name:
+                    model_name = model_name.replace('-vision', '')
+
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
@@ -2186,13 +2209,13 @@ def get_llm(use_openai_model=False,
                   callbacks=callbacks if stream_output else None,
                   max_retries=2,
                   streaming=stream_output,
-                  #stream=stream_output,
+                  # stream=stream_output,
                   n=1,
                   max_tokens=max_new_tokens,
                   model_kwargs=dict(
-                  top_p=top_p if do_sample else 1,
+                      top_p=top_p if do_sample else 1,
                       seed=SEED,
-                  #top_k=top_k,
+                      # top_k=top_k,
                   ),
                   **kwargs_extra,
                   )
