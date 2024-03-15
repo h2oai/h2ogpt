@@ -1318,9 +1318,11 @@ def main(
     enable_imagegen = enable_image and \
                       len(set(visible_image_models).difference(valid_imagegen_models)) < len(set(visible_image_models))
     enable_imagechange = enable_image and \
-                         len(set(visible_image_models).difference(valid_imagechange_models)) < len(set(visible_image_models))
+                         len(set(visible_image_models).difference(valid_imagechange_models)) < len(
+        set(visible_image_models))
     enable_imagestyle = enable_image and \
-                        len(set(visible_image_models).difference(valid_imagestyle_models)) < len(set(visible_image_models))
+                        len(set(visible_image_models).difference(valid_imagestyle_models)) < len(
+        set(visible_image_models))
 
     if os.environ.get('SERPAPI_API_KEY') is None and \
             LangChainAgent.SEARCH.value in visible_langchain_agents:
@@ -4000,7 +4002,9 @@ def evaluate(
                            inference_server.startswith('anthropic') or \
                            inference_server.startswith('google') or \
                            inference_server.startswith('mistralai') or \
-                           inference_server.startswith('groq')
+                           inference_server.startswith('groq') or \
+                           (image_file or image_control) and \
+                           inference_server.startswith('openai')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
@@ -5716,7 +5720,8 @@ def get_limited_prompt(instruction,
                                                 add_chat_history_to_context=add_chat_history_to_context,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
-                                                model_max_length=model_max_length,  # still model_max_length because subtraction done again inside history_to_context
+                                                model_max_length=model_max_length,
+                                                # still model_max_length because subtraction done again inside history_to_context
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt,
@@ -5736,8 +5741,8 @@ def get_limited_prompt(instruction,
 
     if use_chat_template:
         messages = structure_to_messages(instruction,
-         system_prompt if system_prompt not in [None, '', 'auto'] else None,
-         history)
+                                         system_prompt if system_prompt not in [None, '', 'auto'] else None,
+                                         history)
         context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         iinput = ''
         context = ''

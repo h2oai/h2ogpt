@@ -287,7 +287,8 @@ def is_vision_model(base_model):
     if not base_model:
         return False
     return is_gradio_vision_model(base_model) or \
-        base_model.startswith('claude-3-')
+        base_model.startswith('claude-3-') or \
+        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview']
 
 
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
