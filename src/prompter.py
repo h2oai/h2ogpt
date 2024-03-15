@@ -1,8 +1,10 @@
 import ast
 import time
+import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
     anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping
+from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -273,6 +275,8 @@ for p in PromptType:
 
 
 def is_vision_model(base_model):
+    if not base_model:
+        return False
     return base_model.startswith('llava-') or \
         base_model.startswith('liuhaotian/llava-') or \
         base_model.startswith('Qwen-VL') or \
@@ -2161,3 +2165,47 @@ Score YES: If the existing answer is already YES or If the response for the quer
 Score NO: If the existing answer is NO and If the response for the query is in line with the context information provided.
 
 ###Feedback: """
+
+
+def gradio_to_llm(x, bot=False):
+    """
+    convert message (user or bot) in case message is tuple from gradio
+    """
+    gradio_tmp = get_gradio_tmp()
+    # handle if gradio tuples in messages
+    if x is None:
+        x = ''
+    if isinstance(x, (tuple, list)) and len(x) > 0:
+        x = list(x)
+        for insti, inst in enumerate(x):
+            if isinstance(inst, str) and \
+                    (inst.startswith('/tmp/gradio') or inst.startswith(gradio_tmp)) and \
+                    os.path.isfile(inst):
+                # below so if put into context gets rendered not as broken file
+                if bot:
+                    x[
+                        insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
+                else:
+                    x[insti] = 'file=' + inst
+        if len(x) == 1:
+            x = x[0]
+        x = str(x) if all(isinstance(x, str) for x in x) else ''
+    return x
+
+
+def history_for_llm(history):
+    history_new = []
+
+    # Loop through the history to remove gradio related things
+    for message1 in history:
+
+        if len(message1) != 2:
+            continue
+        if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+            # then not really part of LLM, internal, so avoid
+            continue
+        # can't keep any tuples for llm
+        history_new.append((gradio_to_llm(message1[0], bot=False),
+                            gradio_to_llm(message1[1], bot=True))
+                            )
+    return history_new

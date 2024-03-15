@@ -813,6 +813,23 @@ def go_gradio(**kwargs):
 
     is_gradio_h2oai = get_is_gradio_h2oai()
 
+    # image control prep
+    image_gen_visible = kwargs['enable_imagegen']
+    image_change_visible = kwargs['enable_imagechange']
+    image_control_panels_visible = False  # WIP
+    image_tab_visible = image_control_panels_visible and (image_gen_visible or image_change_visible)
+    visible_image_models_visible = len(visible_image_models_state0) > 1
+    visible_image_models_kwargs = dict(choices=visible_image_models_state0,
+                                       label="Visible Image Models",
+                                       value=visible_image_models_state0[
+                                           0] if visible_image_models_state0 else None,
+                                       interactive=True,
+                                       multiselect=False,
+                                       visible=visible_image_models_visible,
+                                       filterable=False,
+                                       max_choices=None,
+                                       )
+
     with demo:
         support_state_callbacks = hasattr(gr.State(), 'callback')
 
@@ -1258,10 +1275,12 @@ def go_gradio(**kwargs):
                                                              multiselect=True,
                                                              visible=visible_model_choice,
                                                              elem_id="multi-selection-models" if kwargs[
-                                                                                              'max_visible_models'] is None or is_gradio_h2oai else None,
+                                                                                                     'max_visible_models'] is None or is_gradio_h2oai else None,
                                                              filterable=False,
                                                              max_choices=kwargs['max_visible_models'],
                                                              )
+                                if not image_tab_visible:
+                                    visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
                                 mw0 = 100
                                 with gr.Column(min_width=mw0):
                                     if not kwargs['actions_in_sidebar']:
@@ -1468,32 +1487,21 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                image_gen_visible = kwargs['enable_imagegen']
-                image_change_visible = kwargs['enable_imagechange']
-                image_tab_visible = image_gen_visible or image_change_visible
-                image_tab_visible = False  # WIP
                 image_tab = gr.TabItem("Image Control", visible=image_tab_visible) if image_tab_visible else gr.Row(
                     visible=False)
                 with image_tab:
-                    visible_image_models = gr.Dropdown(visible_image_models_state0,
-                                                       label="Visible Image Models",
-                                                       value=visible_image_models_state0[
-                                                           0] if visible_image_models_state0 else None,
-                                                       interactive=True,
-                                                       multiselect=False,
-                                                       visible=True,
-                                                       filterable=False,
-                                                       max_choices=None,
-                                                       )
-                    with gr.Row():
+                    if image_tab_visible:
+                        visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
+                    with gr.Row(visible=image_control_panels_visible):
                         image_control = gr.Image(label="Input Image", type='filepath', elem_id="warning",
                                                  elem_classes="feedback")
                         image_style = gr.Image(label="Style Image", type='filepath', elem_id="warning",
                                                elem_classes="feedback")
                         image_output = gr.Image(label="Output Image", type='filepath', elem_id="warning",
                                                 elem_classes="feedback")
-                    image_prompt = gr.Textbox(label="Prompt")
-                    with gr.Row():
+                    image_prompt = gr.Textbox(label="Prompt", visible=image_control_panels_visible and \
+                                                                      (image_gen_visible or image_change_visible))
+                    with gr.Row(visible=image_control_panels_visible):
                         generate_btn = gr.Button("Generate by Prompt", visible=image_gen_visible)
                         change_btn = gr.Button("Change Image by Prompt", visible=image_change_visible)
                         style_btn = gr.Button("Apply Style", visible=False)
@@ -5687,12 +5695,14 @@ def go_gradio(**kwargs):
         unload_model_args = dict(fn=functools.partial(load_model, unload=True),
                                  inputs=load_model_inputs, outputs=load_model_outputs)
         prompt_update_args = dict(fn=dropdown_prompt_type_list, inputs=prompt_type, outputs=prompt_type)
-        chatbot_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
-                                   inputs=[text_output, model_used, model_path_llama, server_used, prompt_type],
-                                   outputs=text_output)
-        nochat_update_args = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
-                                  inputs=[text_output_nochat, model_used, model_path_llama, server_used, prompt_type],
-                                  outputs=text_output_nochat)
+        chatbot_update_args = dict(
+            fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
+            inputs=[text_output, model_used, model_path_llama, server_used, prompt_type],
+            outputs=text_output)
+        nochat_update_args = dict(
+            fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
+            inputs=[text_output_nochat, model_used, model_path_llama, server_used, prompt_type],
+            outputs=text_output_nochat)
         load_model_event = load_model_button.click(**load_model_args,
                                                    api_name='load_model' if allow_api and not is_public else None) \
             .then(**prompt_update_args) \
@@ -5738,9 +5748,10 @@ def go_gradio(**kwargs):
         unload_model_args2 = dict(fn=functools.partial(load_model, unload=True),
                                   inputs=load_model_inputs2, outputs=load_model_outputs2)
         prompt_update_args2 = dict(fn=dropdown_prompt_type_list, inputs=prompt_type2, outputs=prompt_type2)
-        chatbot_update_args2 = dict(fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
-                                    inputs=[text_output2, model_used2, model_path_llama2, server_used2, prompt_type2],
-                                    outputs=text_output2)
+        chatbot_update_args2 = dict(
+            fn=functools.partial(chatbot_list, model_label_prefix_in=kwargs['model_label_prefix']),
+            inputs=[text_output2, model_used2, model_path_llama2, server_used2, prompt_type2],
+            outputs=text_output2)
         load_model_event2 = load_model_button2.click(**load_model_args2,
                                                      api_name='load_model2' if allow_api and not is_public else None) \
             .then(**prompt_update_args2) \
