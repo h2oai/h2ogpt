@@ -1269,6 +1269,9 @@ def main(
     roles_state0 = tts_coquiai_roles
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
+    visible_image_models = str_to_list(visible_image_models)
+    image_gpu_ids = str_to_list(image_gpu_ids)
+    assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
         metadata_in_context = []
 
