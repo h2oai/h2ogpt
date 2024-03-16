@@ -11,6 +11,7 @@ import typing
 import uuid
 import warnings
 from datetime import datetime
+from random import randint
 
 import httpx
 import requests
@@ -220,6 +221,7 @@ def main(
         repetition_penalty: float = None,
         num_return_sequences: int = None,
         do_sample: bool = None,
+        seed: int = None,
         max_new_tokens: int = None,
         min_new_tokens: int = None,
         early_stopping: Union[bool, str] = None,
@@ -716,6 +718,7 @@ def main(
         https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig.do_sample
         https://txt.cohere.com/llm-parameters-best-outputs-language-ai/
         https://medium.com/@daniel.puenteviejo/the-science-of-control-how-temperature-top-p-and-top-k-shape-large-language-models-853cb0480dae
+    :param seed: seed (0 means random seed, >0 uses that seed for sampling so reproducible even for sampling)
     :param max_new_tokens: generation max new tokens
     :param min_new_tokens: generation min tokens
     :param early_stopping: generation early stopping
@@ -1752,6 +1755,7 @@ def main(
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
+        seed, \
         src_lang, tgt_lang, \
         examples, \
         task_info = \
@@ -1768,6 +1772,7 @@ def main(
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
                             do_sample,
+                            seed,
                             top_k_docs,
                             chunk,
                             chunk_size,
@@ -3571,6 +3576,8 @@ def evaluate(
         repetition_penalty,
         num_return_sequences,
         do_sample,
+        seed,
+
         chat,
         instruction_nochat,
         iinput_nochat,
@@ -3748,6 +3755,8 @@ def evaluate(
         jq_schema = jq_schema0
     if extract_frames is None:
         extract_frames = extract_frames0
+    if seed == 0 and do_sample:
+        seed = randint(0, 32000)
 
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
@@ -3906,6 +3915,7 @@ def evaluate(
     if temperature == 0.0:
         # override
         do_sample = False
+        seed = 1
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
@@ -4020,6 +4030,7 @@ def evaluate(
         do_langchain_path = True
 
     gen_hyper_dict = dict(do_sample=do_sample,
+                          seed=seed,
                           temperature=temperature,
                           repetition_penalty=repetition_penalty,
                           top_p=top_p,
@@ -4300,7 +4311,7 @@ def evaluate(
                                      max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
                                      frequency_penalty=0,
-                                     seed=SEED,
+                                     seed=seed,
                                      n=num_return_sequences,
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
@@ -4492,6 +4503,7 @@ def evaluate(
                                              repetition_penalty=repetition_penalty,
                                              num_return_sequences=num_return_sequences,
                                              do_sample=do_sample,
+                                             seed=seed,
                                              chat=chat_client,
                                              )
                     # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
@@ -4633,7 +4645,7 @@ def evaluate(
                                              # best_of=None,
                                              repetition_penalty=repetition_penalty,
                                              return_full_text=False,
-                                             seed=SEED,
+                                             seed=seed,
                                              stop_sequences=stop_sequences,
                                              temperature=temperature,
                                              top_k=top_k,
@@ -4737,6 +4749,7 @@ def evaluate(
     bad_word_ids = [tokenizer.eos_token_id]
     gen_config_kwargs = dict(num_beams=num_beams,
                              do_sample=do_sample,
+                             seed=seed,
                              repetition_penalty=float(repetition_penalty),
                              num_return_sequences=num_return_sequences,
                              renormalize_logits=True,
@@ -5074,6 +5087,7 @@ def get_generate_params(model_lower,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
                         do_sample,
+                        seed,
                         top_k_docs, chunk, chunk_size,
                         image_audio_loaders,
                         pdf_loaders,
@@ -5225,7 +5239,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
                    prompt_type, prompt_dict,
                    temperature, top_p, top_k, penalty_alpha, num_beams,
                    max_new_tokens, min_new_tokens,
-                   early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
+                   early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample, seed]
 
     if use_placeholder_instruction_as_example:
         examples += [[placeholder_instruction, ''] + params_list]
@@ -5343,6 +5357,7 @@ y = np.random.randint(0, 1, 100)
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
+        seed, \
         src_lang, tgt_lang, \
         examples, \
         task_info

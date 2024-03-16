@@ -43,6 +43,7 @@ def run_eval(  # for local function:
         repetition_penalty=None,
         num_return_sequences=None,
         do_sample=None,
+        seed=None,
         langchain_mode=None,
         langchain_action=None,
         langchain_agents=[],

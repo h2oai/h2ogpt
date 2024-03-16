@@ -25,6 +25,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import reduce
 from operator import concat
+from random import randint
 from urllib.parse import urlparse
 
 import filelock
@@ -581,6 +582,7 @@ class GradioInference(H2Oagenerate, LLM):
     repetition_penalty: Optional[float] = None
     num_return_sequences: Optional[int] = 1
     do_sample: bool = False
+    seed: int = 0
     chat_client: bool = False
 
     return_full_text: bool = False
@@ -671,6 +673,7 @@ class GradioInference(H2Oagenerate, LLM):
                              repetition_penalty=self.repetition_penalty,
                              num_return_sequences=self.num_return_sequences,
                              do_sample=self.do_sample,
+                             seed=self.seed,
                              chat=self.chat_client,
 
                              instruction_nochat=prompt if not self.chat_client else '',
@@ -1089,6 +1092,7 @@ class GradioLLaVaInference(GradioInference):
 class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
+    seed: int = 0
     top_p: Optional[float] = 0.95
     top_k: Optional[int] = None
     penalty_alpha: Optional[float] = 0.0
@@ -1139,6 +1143,7 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         self.prompts.append(prompt)
 
         gen_server_kwargs = dict(do_sample=self.do_sample,
+                                 seed=self.seed,
                                  stop_sequences=stop,
                                  max_new_tokens=self.max_new_tokens,
                                  top_p=self.top_p,
@@ -1148,7 +1153,6 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
                                  temperature=self.temperature,
                                  repetition_penalty=self.repetition_penalty,
                                  return_full_text=self.return_full_text,
-                                 seed=self.seed,
                                  )
         gen_server_kwargs.update(kwargs)
 
@@ -1826,6 +1830,7 @@ def get_llm(use_openai_model=False,
             async_output=True,
             num_async=3,
             do_sample=False,
+            seed=0,
             temperature=0.1,
             top_p=0.7,
             top_k=40,
@@ -1912,7 +1917,7 @@ def get_llm(use_openai_model=False,
         else:
             temperature = temperature if do_sample else 0
         gen_kwargs = dict(temperature=temperature,
-                          seed=1234,
+                          seed=seed,
                           max_length=max_new_tokens,  # langchain
                           max_new_tokens=max_new_tokens,  # replicate docs
                           top_p=top_p if do_sample else 1,
@@ -2068,6 +2073,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.001,
+                  seed=seed,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
                   model_kwargs=model_kwargs,
@@ -2113,6 +2119,7 @@ def get_llm(use_openai_model=False,
                   top_p=top_p if do_sample else 1,
                   top_k=top_k,
                   temperature=temperature if do_sample else 0,
+                  # seed=seed,  # FIXME: Not supported yet
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
                   default_request_timeout=max_time,
@@ -2152,6 +2159,7 @@ def get_llm(use_openai_model=False,
                   default_request_timeout=max_time,
                   max_output_tokens=max_new_tokens,
                   n=1,  # candidates
+                  # seed=seed,  # FIXME: Not supported yet
                   model_kwargs=model_kwargs,
                   **kwargs_extra
                   )
@@ -2182,7 +2190,7 @@ def get_llm(use_openai_model=False,
                   model_kwargs=model_kwargs,
                   max_tokens=max_new_tokens,
                   safe_mode=False,
-                  random_seed=SEED,
+                  random_seed=seed,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
                   )
@@ -2215,7 +2223,7 @@ def get_llm(use_openai_model=False,
                   max_tokens=max_new_tokens,
                   model_kwargs=dict(
                       top_p=top_p if do_sample else 1,
-                      seed=SEED,
+                      # seed=seed,  # FIXME: not supported yet
                       # top_k=top_k,
                   ),
                   **kwargs_extra,
@@ -2308,6 +2316,7 @@ def get_llm(use_openai_model=False,
                 repetition_penalty=repetition_penalty,
                 num_return_sequences=num_return_sequences,
                 do_sample=do_sample,
+                seed=seed,
 
                 callbacks=callbacks if stream_output else None,
                 stream_output=stream_output,
@@ -2353,6 +2362,7 @@ def get_llm(use_openai_model=False,
                 repetition_penalty=repetition_penalty,
                 num_return_sequences=num_return_sequences,
                 do_sample=do_sample,
+                seed=seed,
                 chat_client=chat_client,
 
                 callbacks=callbacks if stream_output else None,
@@ -2388,7 +2398,7 @@ def get_llm(use_openai_model=False,
                 max_new_tokens=max_new_tokens,
                 repetition_penalty=repetition_penalty,
                 return_full_text=False,  # this only controls internal behavior, still returns processed text
-                seed=SEED,
+                seed=seed,
 
                 stop_sequences=prompter.stop_sequences,
                 temperature=temperature,
@@ -2430,6 +2440,7 @@ def get_llm(use_openai_model=False,
                               model=model,
                               max_new_tokens=max_new_tokens,
                               temperature=temperature,
+                              seed=seed,
                               repetition_penalty=repetition_penalty,
                               top_k=top_k,
                               top_p=top_p,
@@ -2494,6 +2505,7 @@ def get_llm(use_openai_model=False,
                                                        inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
+                          seed=seed,
                           num_beams=num_beams,
                           max_new_tokens=max_new_tokens,
                           min_new_tokens=min_new_tokens,
@@ -5310,6 +5322,7 @@ def _run_qa_db(query=None,
                load_db_if_exists=False,
                db=None,
                do_sample=False,
+               seed=0,
                temperature=0.1,
                top_p=0.7,
                top_k=40,
@@ -5502,6 +5515,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       async_output=async_output,
                       num_async=num_async,
                       do_sample=do_sample,
+                      seed=seed,
                       temperature=temperature,
                       top_k=top_k,
                       top_p=top_p,
@@ -5551,7 +5565,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if LangChainAgent.SMART.value in langchain_agents:
         # get llm for exploration
         llm_kwargs_explore = llm_kwargs.copy()
-        llm_kwargs_explore.update(dict(do_sample=True, temperature=0.5))
+        llm_kwargs_explore.update(dict(do_sample=True, temperature=0.5, seed=randint(0, 32000)))
         llm_explore, _, _, _, _, _, _ = get_llm(**llm_kwargs_explore)
     else:
         llm_explore = None

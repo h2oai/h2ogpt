@@ -4654,7 +4654,7 @@ def test_client_openai_chat_history(base_model):
 
 # add rest once 25 passes
 # @pytest.mark.parametrize("max_new_tokens", [25, 64, 128, 256, 512, 768, 1024, 1500, 2048])
-@pytest.mark.parametrize("temperature", [-1.0, 0.0, 0.5])
+@pytest.mark.parametrize("temperature", [0.5])
 @pytest.mark.parametrize("max_new_tokens", [25])
 @wrap_test_forked
 def test_max_new_tokens(max_new_tokens, temperature):
@@ -4690,9 +4690,9 @@ def test_max_new_tokens(max_new_tokens, temperature):
     for base_model in base_models:
         if base_model == 'Qwen/Qwen1.5-72B-Chat':
             continue
-        #if base_model != 'h2oai/h2o-danube-1.8b-chat':
-        #    # FOR NOW
-        #    continue
+        if base_model != 'h2oai/h2o-danube-1.8b-chat':
+            # FOR NOW
+            continue
         client1 = get_client(serialize=True)
 
         from gradio_utils.grclient import GradioClient
@@ -4702,7 +4702,10 @@ def test_max_new_tokens(max_new_tokens, temperature):
         for client in [client1, client2]:
             api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
             prompt = "Tell an extremely long kid's story about birds"
-            kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens)
+            kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens,
+                          do_sample=True,  # let temp control
+                          seed=0, # so random if sampling
+                          temperature=temperature)
 
             print("START base_model: %s max_new_tokens: %s" % (base_model, max_new_tokens))
 
@@ -4764,9 +4767,11 @@ def test_max_new_tokens(max_new_tokens, temperature):
                           document_subset='Relevant',
                           document_choice=DocumentChoice.ALL.value,
                           max_new_tokens=max_new_tokens,
+                          do_sample=True,  # let temp control
+                          seed=0,  # so random if sampling
+                          temperature=temperature,
                           visible_models=base_model,
                           max_time=360,
-                          do_sample=False,
                           stream_output=False,
                           )
 

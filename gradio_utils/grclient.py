@@ -541,6 +541,7 @@ class GradioClient(Client):
                                       model: str | int | None = None,
                                       stream_output: bool = False,
                                       do_sample: bool = False,
+                                      seed: int = 0,
                                       temperature: float = 0.0,
                                       top_p: float = 0.75,
                                       top_k: int = 40,
@@ -629,6 +630,7 @@ class GradioClient(Client):
             pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
             prompt_extraction: Same as prompt_summary but for when doing extraction
             do_sample: see src/gen.py
+            seed: see src/gen.py
             temperature: see src/gen.py
             top_p: see src/gen.py
             top_k: see src/gen.py
@@ -638,9 +640,7 @@ class GradioClient(Client):
             min_max_new_tokens: see src/gen.py
             max_input_tokens: see src/gen.py
             max_total_input_tokens: see src/gen.py
-
             stream_output: Whether to stream output
-            do_sample: whether to sample
             max_time: how long to take
 
             add_search_to_context: Whether to do web search and add results to context
@@ -777,6 +777,7 @@ class GradioClient(Client):
             visible_models=model,
             stream_output=stream_output,
             do_sample=do_sample,
+            seed=seed,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,

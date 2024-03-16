@@ -1704,6 +1704,11 @@ def go_gradio(**kwargs):
                         do_sample = gr.Checkbox(label="Sample",
                                                 info="Enable sampler (required for use of temperature, top_p, top_k).  If temperature=0 is set, this is forced to False.",
                                                 value=kwargs['do_sample'])
+                        seed = gr.Number(value=0,
+                                         minimum=0,
+                                         step=1,
+                                         label="Seed for sampling.  0 makes random seed",
+                                         )
                         max_time = gr.Slider(minimum=0, maximum=kwargs['max_max_time'], step=1,
                                              value=min(kwargs['max_max_time'],
                                                        kwargs['max_time']), label="Max. time",

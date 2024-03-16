@@ -17,6 +17,7 @@ gen_hyper0 = ['num_beams',
               'repetition_penalty',
               'num_return_sequences',
               'do_sample',
+              'seed',
               ]
 gen_hyper = ['temperature',
              'top_p',
