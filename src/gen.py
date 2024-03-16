@@ -1661,7 +1661,9 @@ def main(
         if score_model == 'auto':
             if n_gpus >= 2:
                 # will by default place scoring model on last GPU
-                score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+                # avoid score model for now, not really useful
+                # score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+                score_model = ''
             else:
                 score_model = ''
         if hf_embedding_model is None:
