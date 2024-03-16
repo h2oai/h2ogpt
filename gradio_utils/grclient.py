@@ -541,7 +541,7 @@ class GradioClient(Client):
                                       model: str | int | None = None,
                                       stream_output: bool = False,
                                       do_sample: bool = False,
-                                      seed: int = 0,
+                                      seed: int | None = 0,
                                       temperature: float = 0.0,
                                       top_p: float = 1.0,
                                       top_k: int = 40,
