@@ -4576,6 +4576,7 @@ def evaluate(
                                      extract_frames=extract_frames,
                                      llava_prompt=llava_prompt,
                                      visible_models=visible_models,
+                                     visible_image_models=visible_image_models,
                                      h2ogpt_key=h2ogpt_key,
                                      add_search_to_context=client_add_search_to_context,
                                      docs_ordering_type=docs_ordering_type,
