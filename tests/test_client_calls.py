@@ -2971,10 +2971,10 @@ def go_upload_gradio():
 
 # NOTE: llama-7b on 24GB will go OOM for helium1/2 tests
 @pytest.mark.parametrize("repeat", range(0, 1))
-#@pytest.mark.parametrize("inference_server", ['http://localhost:7860'])
+# @pytest.mark.parametrize("inference_server", ['http://localhost:7860'])
 @pytest.mark.parametrize("inference_server", [None, 'openai', 'openai_chat', 'openai_azure_chat', 'replicate'])
 # local_server=True
-#@pytest.mark.parametrize("base_model",
+# @pytest.mark.parametrize("base_model",
 #                         ['h2oai/h2ogpt-4096-llama2-13b-chat'])
 # local_server=False or True if inference_server used
 # @pytest.mark.parametrize("base_model", ['h2oai/h2ogpt-4096-llama2-70b-chat'])
@@ -3549,7 +3549,8 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
 
         if inference_server == 'https://gpt.h2o.ai':
             model_lock = [
-                dict(inference_server=inference_server + ":guest:guest", base_model=base_model, visible_models=base_model,
+                dict(inference_server=inference_server + ":guest:guest", base_model=base_model,
+                     visible_models=base_model,
                      h2ogpt_key=os.getenv('H2OGPT_API_KEY'))]
             base_model = inference_server = None
         else:
@@ -3596,7 +3597,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         assert hash_client == hash_local
         assert hash_client == hash_server
     from gradio_utils.grclient import is_gradio_client_version7plus
-    #if is_gradio_client_version7plus:
+    # if is_gradio_client_version7plus:
     #    assert os.path.normpath(test_file_local) != os.path.normpath(test_file_server)
 
     chunk = True
@@ -4023,7 +4024,7 @@ def play_audio(audio, sr=16000):
     audio = audio.export(filename, format='wav')
 
     # pip install playsound
-    #from playsound import playsound
+    # from playsound import playsound
     playsound_wav(filename)
 
 
@@ -4219,7 +4220,7 @@ def play_audio_str(audio_str1, n):
         filename = '/tmp/audio_%s.wav' % str(uuid.uuid4())
         audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
         audio.export(filename, format='wav')
-        #playsound(filename)
+        # playsound(filename)
         playsound_wav(filename)
     else:
         # pip install simpleaudio==1.0.4
@@ -4649,3 +4650,117 @@ def test_client_openai_chat_history(base_model):
     text = responses.choices[0].message.content
     print(text)
     assert 'Liam' in text
+
+
+# add rest once 25 passes
+#@pytest.mark.parametrize("max_new_tokens", [25, 64, 128, 256, 512, 768, 1024, 1500, 2048])
+@pytest.mark.parametrize("max_new_tokens", [25])
+@wrap_test_forked
+def test_max_new_tokens(max_new_tokens):
+    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
+    if inference_server == 'https://gpt.h2o.ai':
+        inference_server += ':guest:guest'
+
+    from src.gen import get_inf_models
+    base_models = get_inf_models(inference_server)
+    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+    model_lock = []
+    for base_model in base_models:
+        model_lock.append(dict(
+            h2ogpt_key=h2ogpt_key,
+            inference_server=inference_server,
+            base_model=base_model,
+            visible_models=base_model,
+        ))
+
+    from src.gen import main
+    os.environ['GET_GITHASH'] = '1'
+    main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
+
+    for base_model in base_models:
+        if base_model == 'Qwen/Qwen1.5-72B-Chat':
+            continue
+        client1 = get_client(serialize=True)
+
+        from gradio_utils.grclient import GradioClient
+        client2 = GradioClient(get_inf_server())
+        client2.refresh_client()  # test refresh
+
+        for client in [client1, client2]:
+            api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+            prompt = "Tell an extremely long kid's story about birds"
+            kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens)
+
+            res = client.predict(str(dict(kwargs)), api_name=api_name)
+            res = ast.literal_eval(res)
+
+            assert 'base_model' in res['save_dict']
+            assert res['save_dict']['base_model'] == base_model
+            assert res['save_dict']['error'] in [None, '']
+            assert 'extra_dict' in res['save_dict']
+            assert res['save_dict']['extra_dict']['ntokens'] > 0
+            assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+            assert res['save_dict']['extra_dict']['t_generate'] > 0
+            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+
+            print("Raw client result: %s" % res, flush=True)
+            print('base_model: %s max_new_tokens: %s tokens: %s' % (
+            base_model, max_new_tokens, res['save_dict']['extra_dict']['ntokens']))
+
+            # get file for client to upload
+            url = 'https://cdn.openai.com/papers/whisper.pdf'
+            test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
+            download_simple(url, dest=test_file1)
+
+            # upload file(s).  Can be list or single file
+            test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+            chunk = True
+            chunk_size = 512
+            langchain_mode = 'MyData'
+            loaders = tuple([None, None, None, None, None, None])
+            h2ogpt_key = ''
+            res = client.predict(test_file_server,
+                                 langchain_mode, chunk, chunk_size, True,
+                                 *loaders,
+                                 h2ogpt_key,
+                                 api_name='/add_file_api')
+            assert res[0] is None
+            assert res[1] == langchain_mode
+            assert os.path.basename(test_file_server) in res[2]
+            assert res[3] == ''
+
+            # ask for summary, need to use same client if using MyData
+            instruction = "Give a very long detailed step-by-step description of what is Whisper paper about."
+            kwargs = dict(instruction=instruction,
+                          langchain_mode=langchain_mode,
+                          langchain_action="Query",
+                          top_k_docs=4,
+                          document_subset='Relevant',
+                          document_choice=DocumentChoice.ALL.value,
+                          max_new_tokens=max_new_tokens,
+                          max_time=360,
+                          do_sample=False,
+                          stream_output=False,
+                          )
+            res, client = run_client_gen(client, kwargs)
+            response = res['response']
+            assert len(response) > 0
+            # assert len(response) < max_time * 20  # 20 tokens/sec
+            sources = [x['source'] for x in res['sources']]
+            # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
+            # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
+            assert 'whisper1.pdf' in sources[0]
+
+            assert 'base_model' in res['save_dict']
+            assert res['save_dict']['base_model'] == base_model
+            assert res['save_dict']['error'] in [None, '']
+            assert 'extra_dict' in res['save_dict']
+            assert res['save_dict']['extra_dict']['ntokens'] > 0
+            assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+            assert res['save_dict']['extra_dict']['t_generate'] > 0
+            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+
+            print("Raw client result: %s" % res, flush=True)
+            print('base_model: %s max_new_tokens: %s tokens: %s' % (
+            base_model, max_new_tokens, res['save_dict']['extra_dict']['ntokens']))
