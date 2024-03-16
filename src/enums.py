@@ -202,6 +202,7 @@ anthropic_mapping = {
     "claude-instant-1.2": 100000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-haiku-20240307": 200000,
 }
 
 anthropic_mapping_outputs = {
@@ -211,6 +212,7 @@ anthropic_mapping_outputs = {
     "claude-instant-1.2": 4096,
     "claude-3-opus-20240229": 4096,
     "claude-3-sonnet-20240229": 4096,
+    "claude-3-haiku-20240307": 4096,
 }
 
 google_mapping = {

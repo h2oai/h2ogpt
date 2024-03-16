@@ -5710,7 +5710,7 @@ def get_limited_prompt(instruction,
                                                 add_chat_history_to_context=add_chat_history_to_context,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
-                                                model_max_length=max_input_tokens,
+                                                model_max_length=model_max_length,  # still model_max_length because subtraction done again inside history_to_context
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt,

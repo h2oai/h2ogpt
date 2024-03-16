@@ -123,7 +123,7 @@ fi
 #fi
 
 # upgrade chrome to latest
-mkdir -p /etc/apt/keyrings/
+sudo mkdir -p /etc/apt/keyrings/
 sudo wget https://dl-ssl.google.com/linux/linux_signing_key.pub -O /tmp/google.pub
 sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --import /tmp/google.pub
 sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
@@ -152,8 +152,7 @@ pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 
 #
 #* GPU Optional: For AutoAWQ support on x86_64 linux
-#
-pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8-cp310-cp310-linux_x86_64.whl -c reqs_optional/reqs_constraints.txt
+pip uninstall -y autoawq ; pip install autoawq -c reqs_optional/reqs_constraints.txt
 # fix version since don't need lm-eval to have its version of 1.5.0
 pip install sacrebleu==2.3.1 --upgrade -c reqs_optional/reqs_constraints.txt
 #    If this has issues, you need to build:

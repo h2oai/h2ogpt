@@ -141,17 +141,18 @@ def run_cli(  # for local function:
         roles_state0 = None
         args = (None, my_db_state0, selection_docs_state0, requests_state0, roles_state0)
         assert len(args) == len(input_args_list)
-        fun = partial(evaluate,
-                      *args,
-                      **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
-                                   **locals()))
-
         example1 = examples[-1]  # pick reference example
         all_generations = []
         if not context:
             context = ''
         if chat_conversation is None:
             chat_conversation = []
+
+        fun = partial(evaluate,
+                      *args,
+                      **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
+                                   **locals()))
+
         while True:
             clear_torch_cache(allow_skip=True)
             instruction = input("\nEnter an instruction: ")

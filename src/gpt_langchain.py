@@ -60,7 +60,8 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
-    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, merge_dict
+    get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
+    merge_dict
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -6116,7 +6117,7 @@ def run_hyde(*args, **kwargs):
     docs_joiner = kwargs['docs_joiner']
 
     # get llm answer
-    auto_hyde = """%s {query}""" % hyde_llm_prompt
+    auto_hyde = """%s {query}""" % escape_braces(hyde_llm_prompt)
     if hyde_template in auto_choices:
         hyde_template = auto_hyde
     elif isinstance(hyde_template, str):
@@ -7420,6 +7421,13 @@ def get_tokenizer(db=None, llm=None, tokenizer=None, inference_server=None, use_
         return FakeTokenizer()
 
 
+def escape_braces(text):
+    if not isinstance(text, str):
+        return text
+    """Escapes braces in the text for safe formatting."""
+    return text.replace("{", "{{").replace("}", "}}")
+
+
 def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
@@ -7432,6 +7440,14 @@ def get_template(query, iinput,
                  system_prompt,
                  doc_json_mode,
                  prompter=None):
+    # Escape braces in the inputs that will be used in the format strings
+    query_esc = escape_braces(query)
+    iinput = escape_braces(iinput)
+    prompt_summary = escape_braces(prompt_summary)
+    prompt_query = escape_braces(prompt_query)
+    pre_prompt_query = escape_braces(pre_prompt_query)
+    pre_prompt_summary = escape_braces(pre_prompt_summary)
+
     triple_quotes = """
 \"\"\"
 """
@@ -7491,9 +7507,9 @@ def get_template(query, iinput,
 
         # modify prompt_summary if user passes query or iinput
         if query not in none and iinput not in none:
-            prompt_summary = "Focusing on %s, %s, %s" % (query, iinput, prompt_summary)
+            prompt_summary = "Focusing on %s, %s, %s" % (query_esc, iinput, prompt_summary)
         elif query not in none:
-            prompt_summary = "Focusing on %s, %s" % (query, prompt_summary)
+            prompt_summary = "Focusing on %s, %s" % (query_esc, prompt_summary)
         # don't auto reduce
         auto_reduce_chunks = False
         if langchain_action in [LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value]:
@@ -8198,8 +8214,10 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
 
     # below automatically de-dups
     # non-exception cases only
-    small_dict = {get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas if x.get('page', 0) in [0, 1] and not x.get('exception', '')}
+    small_dict = dict()
+    for page_0 in [1, 0]:
+        small_dict.update({get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
+                  metadatas if x.get('page', 0) in [page_0] and not x.get('exception', '')})
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1
