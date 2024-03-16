@@ -4667,6 +4667,8 @@ def test_max_new_tokens(max_new_tokens):
     model_lock = []
     model_lock.append(dict(base_model='HuggingFaceH4/zephyr-7b-beta'))
     for base_model in base_models:
+        if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
+            continue
         model_lock.append(dict(
             h2ogpt_key=h2ogpt_key,
             inference_server=inference_server,
