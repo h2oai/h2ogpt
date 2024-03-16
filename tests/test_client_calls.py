@@ -4653,10 +4653,11 @@ def test_client_openai_chat_history(base_model):
 
 
 # add rest once 25 passes
-#@pytest.mark.parametrize("max_new_tokens", [25, 64, 128, 256, 512, 768, 1024, 1500, 2048])
+# @pytest.mark.parametrize("max_new_tokens", [25, 64, 128, 256, 512, 768, 1024, 1500, 2048])
+@pytest.mark.parametrize("temperature", [-1.0, 0.0, 0.5])
 @pytest.mark.parametrize("max_new_tokens", [25])
 @wrap_test_forked
-def test_max_new_tokens(max_new_tokens):
+def test_max_new_tokens(max_new_tokens, temperature):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
         inference_server += ':guest:guest'
@@ -4676,6 +4677,12 @@ def test_max_new_tokens(max_new_tokens):
             visible_models=base_model,
         ))
 
+    if temperature == -1.0:
+        temperature = 0.0
+        nrepeats = 1
+    else:
+        nrepeats = 10
+
     from src.gen import main
     os.environ['GET_GITHASH'] = '1'
     main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
@@ -4683,6 +4690,9 @@ def test_max_new_tokens(max_new_tokens):
     for base_model in base_models:
         if base_model == 'Qwen/Qwen1.5-72B-Chat':
             continue
+        #if base_model != 'h2oai/h2o-danube-1.8b-chat':
+        #    # FOR NOW
+        #    continue
         client1 = get_client(serialize=True)
 
         from gradio_utils.grclient import GradioClient
@@ -4695,22 +4705,32 @@ def test_max_new_tokens(max_new_tokens):
             kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens)
 
             print("START base_model: %s max_new_tokens: %s" % (base_model, max_new_tokens))
-            res = client.predict(str(dict(kwargs)), api_name=api_name)
-            res = ast.literal_eval(res)
 
-            assert 'base_model' in res['save_dict']
-            assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] in [None, '']
-            assert 'extra_dict' in res['save_dict']
-            assert res['save_dict']['extra_dict']['ntokens'] > 0
-            fudge = 10 if base_model == 'google/gemma-7b-it' else 0
-            assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge
-            assert res['save_dict']['extra_dict']['t_generate'] > 0
-            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+            repeat_responses = []
+            for repeat in range(nrepeats):
+                res = client.predict(str(dict(kwargs)), api_name=api_name)
+                res = ast.literal_eval(res)
 
-            print("Raw client result: %s" % res, flush=True)
-            print('base_model: %s max_new_tokens: %s tokens: %s' % (
-            base_model, max_new_tokens, res['save_dict']['extra_dict']['ntokens']))
+                assert 'base_model' in res['save_dict']
+                assert res['save_dict']['base_model'] == base_model
+                assert res['save_dict']['error'] in [None, '']
+                assert 'extra_dict' in res['save_dict']
+                assert res['save_dict']['extra_dict']['ntokens'] > 0
+                fudge = 10 if base_model == 'google/gemma-7b-it' else 0
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge
+                assert res['save_dict']['extra_dict']['t_generate'] > 0
+                assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+                assert res['response']
+
+                print("Raw client result: %s" % res, flush=True)
+                print('base_model: %s max_new_tokens: %s tokens: %s' % (
+                    base_model, max_new_tokens, res['save_dict']['extra_dict']['ntokens']))
+
+                repeat_responses.append(res['response'])
+            if temperature == 0.0:
+                assert len(set(repeat_responses)) == 1
+            else:
+                assert len(set(repeat_responses)) == len(repeat_responses)
 
             # get file for client to upload
             url = 'https://cdn.openai.com/papers/whisper.pdf'
@@ -4749,25 +4769,35 @@ def test_max_new_tokens(max_new_tokens):
                           do_sample=False,
                           stream_output=False,
                           )
+
+            repeat_responses = []
             print("START MyData base_model: %s max_new_tokens: %s" % (base_model, max_new_tokens))
-            res, client = run_client_gen(client, kwargs)
-            response = res['response']
-            assert len(response) > 0
-            # assert len(response) < max_time * 20  # 20 tokens/sec
-            sources = [x['source'] for x in res['sources']]
-            # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
-            # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
-            assert 'whisper1.pdf' in sources[0]
+            for repeat in range(nrepeats):
+                res, client = run_client_gen(client, kwargs)
+                response = res['response']
+                assert len(response) > 0
+                # assert len(response) < max_time * 20  # 20 tokens/sec
+                sources = [x['source'] for x in res['sources']]
+                # only get source not empty list if break in inner loop, not gradio_runner loop, so good test of that too
+                # this is why gradio timeout adds 10 seconds, to give inner a chance to produce references or other final info
+                assert 'whisper1.pdf' in sources[0]
 
-            assert 'base_model' in res['save_dict']
-            assert res['save_dict']['base_model'] == base_model
-            assert res['save_dict']['error'] in [None, '']
-            assert 'extra_dict' in res['save_dict']
-            assert res['save_dict']['extra_dict']['ntokens'] > 0
-            assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
-            assert res['save_dict']['extra_dict']['t_generate'] > 0
-            assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+                assert 'base_model' in res['save_dict']
+                assert res['save_dict']['base_model'] == base_model
+                assert res['save_dict']['error'] in [None, '']
+                assert 'extra_dict' in res['save_dict']
+                assert res['save_dict']['extra_dict']['ntokens'] > 0
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+                assert res['save_dict']['extra_dict']['t_generate'] > 0
+                assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+                assert res['response']
 
-            print("Raw client result: %s" % res, flush=True)
-            print('langchain base_model: %s max_new_tokens: %s tokens: %s' % (
-            base_model, max_new_tokens, res['save_dict']['extra_dict']['ntokens']))
+                print("Raw client result: %s" % res, flush=True)
+                print('langchain base_model: %s max_new_tokens: %s tokens: %s' % (
+                    base_model, max_new_tokens, res['save_dict']['extra_dict']['ntokens']))
+
+                repeat_responses.append(res['response'])
+            if temperature == 0.0:
+                assert len(set(repeat_responses)) == 1
+            else:
+                assert len(set(repeat_responses)) == len(repeat_responses)
