@@ -1515,7 +1515,7 @@ def main(
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
         temperature = 0.2 if temperature is None else temperature
-        top_p = 0.85 if top_p is None else top_p
+        top_p = 1.0 if top_p is None else top_p
         top_k = 70 if top_k is None else top_k
         penalty_alpha = 0.0 if penalty_alpha is None else penalty_alpha
         if is_hf:
@@ -3911,7 +3911,7 @@ def evaluate(
     # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
     # below is for TGI server, not required for HF transformers
     # limits are chosen similar to gradio_runner.py sliders/numbers
-    top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
+    top_p = min(max(1e-3, top_p), 1.0)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
     if temperature == 0.0:
@@ -4651,7 +4651,7 @@ def evaluate(
                                              stop_sequences=stop_sequences,
                                              temperature=temperature,
                                              top_k=top_k,
-                                             top_p=top_p,
+                                             top_p=min(max(1e-3, top_p), 1.0 - 1e-3),
                                              # truncate=False,  # behaves oddly
                                              # typical_p=top_p,
                                              # watermark=False,
@@ -5227,7 +5227,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         do_sample = False if do_sample is None else do_sample
     else:
         temperature = 0.1 if temperature is None else temperature
-        top_p = 0.75 if top_p is None else top_p
+        top_p = 1.0 if top_p is None else top_p
         top_k = 40 if top_k is None else top_k
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1

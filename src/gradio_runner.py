@@ -1717,7 +1717,7 @@ def go_gradio(**kwargs):
                                                 value=kwargs['temperature'],
                                                 label="Temperature",
                                                 info="Lower is deterministic, higher more creative")
-                        top_p = gr.Slider(minimum=1e-3, maximum=1.0 - 1e-3,
+                        top_p = gr.Slider(minimum=1e-3, maximum=1.0,
                                           value=kwargs['top_p'], label="Top p",
                                           info="Cumulative probability of tokens to sample from")
                         top_k = gr.Slider(

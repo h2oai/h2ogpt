@@ -543,7 +543,7 @@ class GradioClient(Client):
                                       do_sample: bool = False,
                                       seed: int = 0,
                                       temperature: float = 0.0,
-                                      top_p: float = 0.75,
+                                      top_p: float = 1.0,
                                       top_k: int = 40,
                                       repetition_penalty: float = 1.07,
                                       penalty_alpha: float = 0.0,
