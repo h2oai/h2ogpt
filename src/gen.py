@@ -718,7 +718,7 @@ def main(
         https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig.do_sample
         https://txt.cohere.com/llm-parameters-best-outputs-language-ai/
         https://medium.com/@daniel.puenteviejo/the-science-of-control-how-temperature-top-p-and-top-k-shape-large-language-models-853cb0480dae
-    :param seed: seed (0 means random seed, >0 uses that seed for sampling so reproducible even for sampling)
+    :param seed: seed (0 means random seed, >0 uses that seed for sampling so reproducible even for sampling).  None becomes 0.
     :param max_new_tokens: generation max new tokens
     :param min_new_tokens: generation min tokens
     :param early_stopping: generation early stopping
@@ -1277,6 +1277,8 @@ def main(
     assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
         metadata_in_context = []
+    if seed is None:
+        seed = 0
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -3757,6 +3759,8 @@ def evaluate(
         jq_schema = jq_schema0
     if extract_frames is None:
         extract_frames = extract_frames0
+    if seed is None:
+        seed = 0
     if seed == 0 and do_sample:
         seed = randint(0, 32000)
 
