@@ -4654,7 +4654,7 @@ def test_client_openai_chat_history(base_model):
 
 # add rest once 25 passes
 # @pytest.mark.parametrize("max_new_tokens", [25, 64, 128, 256, 512, 768, 1024, 1500, 2048])
-@pytest.mark.parametrize("temperature", [0.5])
+@pytest.mark.parametrize("temperature", [-1, 0.0, 0.5])
 @pytest.mark.parametrize("max_new_tokens", [25])
 @wrap_test_forked
 def test_max_new_tokens(max_new_tokens, temperature):
@@ -4691,9 +4691,12 @@ def test_max_new_tokens(max_new_tokens, temperature):
     for base_model in base_models:
         if base_model == 'Qwen/Qwen1.5-72B-Chat':
             continue
-        if base_model != 'h2oai/h2o-danube-1.8b-chat':
-            # FOR NOW
+        if temperature == 0.5 and ('claude' in base_model or 'gemini' in base_model or '-32768' in base_model):
+            # these don't support seed, can't randomize sampling
             continue
+        #if base_model != 'h2oai/h2o-danube-1.8b-chat':
+        #    # FOR NOW
+        #    continue
         client1 = get_client(serialize=True)
 
         from gradio_utils.grclient import GradioClient
