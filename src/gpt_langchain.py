@@ -740,7 +740,7 @@ class GradioInference(H2Oagenerate, LLM):
         max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
                                                     max_new_tokens=self.max_new_tokens,
                                                     max_new_tokens0=self.max_new_tokens0)
-        client_kwargs.update(dict(max_new_tokens=get_relaxed_max_new_tokens(max_new_tokens)))
+        client_kwargs.update(dict(max_new_tokens=max_new_tokens))
 
         # new client for each call
         client = self.client.clone()
@@ -2289,7 +2289,10 @@ def get_llm(use_openai_model=False,
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
 
-        if gr_client and is_gradio_vision_model(model_name):
+        llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
+                                                                                  gr_client.endpoints]
+
+        if is_gradio_vision_model(model_name) and llava_direct_gradio:
             llm = GradioLLaVaInference(
                 inference_server_url=inference_server,
 

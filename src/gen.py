@@ -4415,58 +4415,16 @@ def evaluate(
                     except Exception as e:
                         print("Failed to close OpenAI client: %s" % str(e), flush=True)
 
-        elif inference_server.startswith('http') and is_gradio_vision_model(base_model):
-            where_from = "gr_client for llava"
-            sources = []
-            inference_server0 = inference_server
-            inference_server, _, _, _ = get_hf_server(inference_server)
-            if isinstance(model, GradioClient) and not regenerate_gradio_clients:
-                gr_client = model.clone()
-            elif isinstance(model, Client) and not regenerate_gradio_clients:
-                gr_client = model
-            else:
-                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
-                                                                                          base_model=base_model)
-                assert gr_client is not None
-                assert hf_client is None
-
-            # NOTE: llava doesn't handle context or system prompt directly
-            img_file = get_image_file(image_file, image_control, document_choice)
-            llava_kwargs = dict(file=img_file,
-                                llava_model=inference_server,
-                                # prompt=instruction,
-                                prompt=prompt,  # prepared prompt with chat history etc.
-                                chat_conversation=chat_conversation,
-                                allow_prompt_auto=False,
-                                image_model=base_model, temperature=temperature,
-                                top_p=top_p, max_new_tokens=max_new_tokens,
-                                client=gr_client if not regenerate_gradio_clients else None,
-                                )
-            if not stream_output:
-                from src.vision.utils_vision import get_llava_response
-                response, _ = get_llava_response(**llava_kwargs)
-
-                yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
-                           response_no_refs=response, sources_str='', prompt_raw='')
-            else:
-                response = ''
-                tgen0 = time.time()
-                from src.vision.utils_vision import get_llava_stream
-                for response in get_llava_stream(**llava_kwargs):
-                    yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
-
-                    if time.time() - tgen0 > max_time:
-                        if verbose:
-                            print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
-                        break
-
         elif inference_server.startswith('http'):
+            sources = []
             inference_server0 = inference_server
             inference_server, _, _, _ = get_hf_server(inference_server)
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient) and not regenerate_gradio_clients:
                 gr_client = model.clone()
+                hf_client = None
+            elif isinstance(model, Client) and not regenerate_gradio_clients:
+                gr_client = model
                 hf_client = None
             elif isinstance(model, HFClient) and not regenerate_gradio_clients:
                 gr_client = None
@@ -4474,209 +4432,245 @@ def evaluate(
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
                                                                                           base_model=base_model)
+            llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in gr_client.endpoints]
 
-            if gr_client is not None:
-                # Note: h2oGPT gradio server could handle input token size issues for prompt,
-                # but best to handle here so send less data to server
+            if is_gradio_vision_model(base_model) and llava_direct_gradio:
+                where_from = "gr_client for llava"
 
-                chat_client = chat
-                where_from = "gr_client"
-                client_langchain_mode = 'Disabled'
-                client_add_chat_history_to_context = add_chat_history_to_context
-                client_add_search_to_context = False
-                client_langchain_action = LangChainAction.QUERY.value
-                client_langchain_agents = []
-                gen_server_kwargs = dict(temperature=temperature,
-                                         top_p=top_p,
-                                         top_k=top_k,
-                                         penalty_alpha=penalty_alpha,
-                                         num_beams=num_beams,
-                                         max_new_tokens=max_new_tokens,
-                                         min_new_tokens=min_new_tokens,
-                                         early_stopping=early_stopping,
-                                         max_time=max_time,
-                                         repetition_penalty=repetition_penalty,
-                                         num_return_sequences=num_return_sequences,
-                                         do_sample=do_sample,
-                                         chat=chat_client,
-                                         )
-                # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
-                if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value,
-                                   str(PromptType.plain.value)]:
-                    # if our prompt is plain, assume either correct or gradio server knows different prompt type,
-                    # so pass empty prompt_Type
-                    gr_prompt_type = ''
-                    gr_prompt_dict = ''
-                    gr_prompt = prompt  # already prepared prompt
-                    gr_context = ''
-                    gr_iinput = ''
-                else:
-                    # if already have prompt_type that is not plain, None, or '', then already applied some prompting
-                    #  But assume server can handle prompting, and need to avoid double-up.
-                    #  Also assume server can do better job of using stopping.py to stop early, so avoid local prompting, let server handle
-                    #  So avoid "prompt" and let gradio server reconstruct from prompt_type we passed
-                    # Note it's ok that prompter.get_response() has prompt+text, prompt=prompt passed,
-                    #  because just means extra processing and removal of prompt, but that has no human-bot prompting doesn't matter
-                    #  since those won't appear
-                    gr_context = context
-                    gr_prompt = instruction
-                    gr_iinput = iinput
-                    gr_prompt_type = prompt_type
-                    gr_prompt_dict = prompt_dict
-
-                # ensure image in correct format
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True)
-
-                client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
-                                     iinput=gr_iinput,  # only for chat=True
-                                     context=gr_context,
-                                     # streaming output is supported, loops over and outputs each generation in streaming mode
-                                     # but leave stream_output=False for simple input/output mode
-                                     stream_output=stream_output,
-
-                                     **gen_server_kwargs,
-
-                                     prompt_type=gr_prompt_type,
-                                     prompt_dict=gr_prompt_dict,
-
-                                     instruction_nochat=gr_prompt if not chat_client else '',
-                                     iinput_nochat=gr_iinput,  # only for chat=False
-                                     langchain_mode=client_langchain_mode,
-
-                                     add_chat_history_to_context=client_add_chat_history_to_context,
-                                     chat_conversation=chat_conversation,
-                                     text_context_list=text_context_list,
-
-                                     chatbot_role=chatbot_role,
-                                     speaker=speaker,
-                                     tts_language=tts_language,
-                                     tts_speed=tts_speed,
-
-                                     langchain_action=client_langchain_action,
-                                     langchain_agents=client_langchain_agents,
-                                     top_k_docs=top_k_docs,
-                                     chunk=chunk,
-                                     chunk_size=chunk_size,
-                                     document_subset=DocumentSubset.Relevant.name,
-                                     document_choice=[DocumentChoice.ALL.value],
-                                     document_source_substrings=[],
-                                     document_source_substrings_op='and',
-                                     document_content_substrings=[],
-                                     document_content_substrings_op='and',
-                                     pre_prompt_query=pre_prompt_query,
-                                     prompt_query=prompt_query,
-                                     pre_prompt_summary=pre_prompt_summary,
-                                     prompt_summary=prompt_summary,
-                                     hyde_llm_prompt=hyde_llm_prompt,
-                                     system_prompt=system_prompt,
-                                     image_audio_loaders=image_audio_loaders,
-                                     pdf_loaders=pdf_loaders,
-                                     url_loaders=url_loaders,
-                                     jq_schema=jq_schema,
-                                     extract_frames=extract_frames,
-                                     llava_prompt=llava_prompt,
-                                     visible_models=visible_models,
-                                     visible_image_models=visible_image_models,
-                                     h2ogpt_key=h2ogpt_key,
-                                     add_search_to_context=client_add_search_to_context,
-                                     docs_ordering_type=docs_ordering_type,
-                                     min_max_new_tokens=min_max_new_tokens,
-                                     max_input_tokens=max_input_tokens,
-                                     max_total_input_tokens=max_total_input_tokens,
-                                     docs_token_handling=docs_token_handling,
-                                     docs_joiner=docs_joiner,
-                                     hyde_level=hyde_level,
-                                     hyde_template=hyde_template,
-                                     hyde_show_only_final=hyde_show_only_final,
-                                     doc_json_mode=doc_json_mode,
-                                     metadata_in_context=metadata_in_context,
-
-                                     image_file=img_file,
-                                     image_control=None,  # already stuffed into image_file
-                                     )
-                assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
-                api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-                response = ''
-                text = ''
-                sources = []
-                strex = ''
+                # NOTE: llava doesn't handle context or system prompt directly
+                img_file = get_image_file(image_file, image_control, document_choice)
+                llava_kwargs = dict(file=img_file,
+                                    llava_model=inference_server,
+                                    # prompt=instruction,
+                                    prompt=prompt,  # prepared prompt with chat history etc.
+                                    chat_conversation=chat_conversation,
+                                    allow_prompt_auto=False,
+                                    image_model=base_model, temperature=temperature,
+                                    top_p=top_p, max_new_tokens=max_new_tokens,
+                                    client=gr_client if not regenerate_gradio_clients else None,
+                                    )
                 if not stream_output:
-                    res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
-                    res_dict = ast.literal_eval(res)
-                    text = res_dict['response']
-                    sources = res_dict['sources']
-                    response = prompter.get_response(prompt + text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
-                else:
-                    new_stream = False  # hanging for many chatbots
-                    gr_stream_kwargs = dict(client_kwargs=client_kwargs,
-                                            api_name=api_name,
-                                            prompt=prompt, prompter=prompter,
-                                            sanitize_bot_response=sanitize_bot_response,
-                                            max_time=max_time,
-                                            is_public=is_public,
-                                            verbose=verbose)
-                    if new_stream:
-                        res_dict = yield from gr_client.stream(**gr_stream_kwargs)
-                    else:
-                        res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
-                    response = res_dict.get('response', '')
-            elif hf_client:
-                # quick sanity check to avoid long timeouts, just see if can reach server
-                requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-                # HF inference server needs control over input tokens
-                where_from = "hf_client"
-                response = ''
-                sources = []
+                    from src.vision.utils_vision import get_llava_response
+                    response, _ = get_llava_response(**llava_kwargs)
 
-                # prompt must include all human-bot like tokens, already added by prompt
-                # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-                terminate_response = prompter.terminate_response or []
-                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-                stop_sequences = [x for x in stop_sequences if x]
-                gen_server_kwargs = dict(do_sample=do_sample,
-                                         max_new_tokens=max_new_tokens,
-                                         # best_of=None,
-                                         repetition_penalty=repetition_penalty,
-                                         return_full_text=False,
-                                         seed=SEED,
-                                         stop_sequences=stop_sequences,
-                                         temperature=temperature,
-                                         top_k=top_k,
-                                         top_p=top_p,
-                                         # truncate=False,  # behaves oddly
-                                         # typical_p=top_p,
-                                         # watermark=False,
-                                         # decoder_input_details=False,
-                                         )
-                # work-around for timeout at constructor time, will be issue if multi-threading,
-                # so just do something reasonable or max_time if larger
-                # lower bound because client is re-used if multi-threading
-                hf_client.timeout = max(300, max_time)
-                if not stream_output:
-                    text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
-                    response = prompter.get_response(prompt + text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
+                    yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                               response_no_refs=response, sources_str='', prompt_raw='')
                 else:
+                    response = ''
                     tgen0 = time.time()
-                    text = ""
-                    for responses in hf_client.generate_stream(prompt, **gen_server_kwargs):
-                        if not responses.token.special:
-                            # stop_sequences
-                            text_chunk = responses.token.text
-                            text += text_chunk
-                            response = prompter.get_response(prompt + text, prompt=prompt,
-                                                             sanitize_bot_response=sanitize_bot_response)
-                            sources = []
-                            yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                       response_no_refs=response, sources_str='', prompt_raw='')
-                            time.sleep(0.01)
+                    from src.vision.utils_vision import get_llava_stream
+                    for response in get_llava_stream(**llava_kwargs):
+                        yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                                   response_no_refs=response, sources_str='', prompt_raw='')
+
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
                             break
+
             else:
-                raise RuntimeError("Failed to get client: %s" % inference_server)
+                if gr_client is not None:
+                    # Note: h2oGPT gradio server could handle input token size issues for prompt,
+                    # but best to handle here so send less data to server
+
+                    chat_client = chat
+                    where_from = "gr_client"
+                    client_langchain_mode = 'Disabled'
+                    client_add_chat_history_to_context = add_chat_history_to_context
+                    client_add_search_to_context = False
+                    client_langchain_action = LangChainAction.QUERY.value
+                    client_langchain_agents = []
+                    gen_server_kwargs = dict(temperature=temperature,
+                                             top_p=top_p,
+                                             top_k=top_k,
+                                             penalty_alpha=penalty_alpha,
+                                             num_beams=num_beams,
+                                             max_new_tokens=max_new_tokens,
+                                             min_new_tokens=min_new_tokens,
+                                             early_stopping=early_stopping,
+                                             max_time=max_time,
+                                             repetition_penalty=repetition_penalty,
+                                             num_return_sequences=num_return_sequences,
+                                             do_sample=do_sample,
+                                             chat=chat_client,
+                                             )
+                    # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
+                    if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value,
+                                       str(PromptType.plain.value)]:
+                        # if our prompt is plain, assume either correct or gradio server knows different prompt type,
+                        # so pass empty prompt_Type
+                        gr_prompt_type = ''
+                        gr_prompt_dict = ''
+                        gr_prompt = prompt  # already prepared prompt
+                        gr_context = ''
+                        gr_iinput = ''
+                    else:
+                        # if already have prompt_type that is not plain, None, or '', then already applied some prompting
+                        #  But assume server can handle prompting, and need to avoid double-up.
+                        #  Also assume server can do better job of using stopping.py to stop early, so avoid local prompting, let server handle
+                        #  So avoid "prompt" and let gradio server reconstruct from prompt_type we passed
+                        # Note it's ok that prompter.get_response() has prompt+text, prompt=prompt passed,
+                        #  because just means extra processing and removal of prompt, but that has no human-bot prompting doesn't matter
+                        #  since those won't appear
+                        gr_context = context
+                        gr_prompt = instruction
+                        gr_iinput = iinput
+                        gr_prompt_type = prompt_type
+                        gr_prompt_dict = prompt_dict
+
+                    # ensure image in correct format
+                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)
+
+                    client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
+                                         iinput=gr_iinput,  # only for chat=True
+                                         context=gr_context,
+                                         # streaming output is supported, loops over and outputs each generation in streaming mode
+                                         # but leave stream_output=False for simple input/output mode
+                                         stream_output=stream_output,
+
+                                         **gen_server_kwargs,
+
+                                         prompt_type=gr_prompt_type,
+                                         prompt_dict=gr_prompt_dict,
+
+                                         instruction_nochat=gr_prompt if not chat_client else '',
+                                         iinput_nochat=gr_iinput,  # only for chat=False
+                                         langchain_mode=client_langchain_mode,
+
+                                         add_chat_history_to_context=client_add_chat_history_to_context,
+                                         chat_conversation=chat_conversation,
+                                         text_context_list=text_context_list,
+
+                                         chatbot_role=chatbot_role,
+                                         speaker=speaker,
+                                         tts_language=tts_language,
+                                         tts_speed=tts_speed,
+
+                                         langchain_action=client_langchain_action,
+                                         langchain_agents=client_langchain_agents,
+                                         top_k_docs=top_k_docs,
+                                         chunk=chunk,
+                                         chunk_size=chunk_size,
+                                         document_subset=DocumentSubset.Relevant.name,
+                                         document_choice=[DocumentChoice.ALL.value],
+                                         document_source_substrings=[],
+                                         document_source_substrings_op='and',
+                                         document_content_substrings=[],
+                                         document_content_substrings_op='and',
+                                         pre_prompt_query=pre_prompt_query,
+                                         prompt_query=prompt_query,
+                                         pre_prompt_summary=pre_prompt_summary,
+                                         prompt_summary=prompt_summary,
+                                         hyde_llm_prompt=hyde_llm_prompt,
+                                         system_prompt=system_prompt,
+                                         image_audio_loaders=image_audio_loaders,
+                                         pdf_loaders=pdf_loaders,
+                                         url_loaders=url_loaders,
+                                         jq_schema=jq_schema,
+                                         extract_frames=extract_frames,
+                                         llava_prompt=llava_prompt,
+                                         visible_models=visible_models,
+                                         visible_image_models=visible_image_models,
+                                         h2ogpt_key=h2ogpt_key,
+                                         add_search_to_context=client_add_search_to_context,
+                                         docs_ordering_type=docs_ordering_type,
+                                         min_max_new_tokens=min_max_new_tokens,
+                                         max_input_tokens=max_input_tokens,
+                                         max_total_input_tokens=max_total_input_tokens,
+                                         docs_token_handling=docs_token_handling,
+                                         docs_joiner=docs_joiner,
+                                         hyde_level=hyde_level,
+                                         hyde_template=hyde_template,
+                                         hyde_show_only_final=hyde_show_only_final,
+                                         doc_json_mode=doc_json_mode,
+                                         metadata_in_context=metadata_in_context,
+
+                                         image_file=img_file,
+                                         image_control=None,  # already stuffed into image_file
+                                         )
+                    assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
+                    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+                    response = ''
+                    text = ''
+                    sources = []
+                    strex = ''
+                    if not stream_output:
+                        res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+                        res_dict = ast.literal_eval(res)
+                        text = res_dict['response']
+                        sources = res_dict['sources']
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        new_stream = False  # hanging for many chatbots
+                        gr_stream_kwargs = dict(client_kwargs=client_kwargs,
+                                                api_name=api_name,
+                                                prompt=prompt, prompter=prompter,
+                                                sanitize_bot_response=sanitize_bot_response,
+                                                max_time=max_time,
+                                                is_public=is_public,
+                                                verbose=verbose)
+                        if new_stream:
+                            res_dict = yield from gr_client.stream(**gr_stream_kwargs)
+                        else:
+                            res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
+                        response = res_dict.get('response', '')
+                elif hf_client:
+                    # quick sanity check to avoid long timeouts, just see if can reach server
+                    requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
+                    # HF inference server needs control over input tokens
+                    where_from = "hf_client"
+                    response = ''
+                    sources = []
+
+                    # prompt must include all human-bot like tokens, already added by prompt
+                    # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+                    terminate_response = prompter.terminate_response or []
+                    stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
+                    stop_sequences = [x for x in stop_sequences if x]
+                    gen_server_kwargs = dict(do_sample=do_sample,
+                                             max_new_tokens=max_new_tokens,
+                                             # best_of=None,
+                                             repetition_penalty=repetition_penalty,
+                                             return_full_text=False,
+                                             seed=SEED,
+                                             stop_sequences=stop_sequences,
+                                             temperature=temperature,
+                                             top_k=top_k,
+                                             top_p=top_p,
+                                             # truncate=False,  # behaves oddly
+                                             # typical_p=top_p,
+                                             # watermark=False,
+                                             # decoder_input_details=False,
+                                             )
+                    # work-around for timeout at constructor time, will be issue if multi-threading,
+                    # so just do something reasonable or max_time if larger
+                    # lower bound because client is re-used if multi-threading
+                    hf_client.timeout = max(300, max_time)
+                    if not stream_output:
+                        text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        tgen0 = time.time()
+                        text = ""
+                        for responses in hf_client.generate_stream(prompt, **gen_server_kwargs):
+                            if not responses.token.special:
+                                # stop_sequences
+                                text_chunk = responses.token.text
+                                text += text_chunk
+                                response = prompter.get_response(prompt + text, prompt=prompt,
+                                                                 sanitize_bot_response=sanitize_bot_response)
+                                sources = []
+                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                           response_no_refs=response, sources_str='', prompt_raw='')
+                                time.sleep(0.01)
+                            if time.time() - tgen0 > max_time:
+                                if verbose:
+                                    print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
+                                break
+                else:
+                    raise RuntimeError("Failed to get client: %s" % inference_server)
         else:
             raise RuntimeError("No such inference_server  %s" % inference_server)
 

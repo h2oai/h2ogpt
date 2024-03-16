@@ -79,6 +79,7 @@ def fix_llava_prompt(file,
             prompt = ''
     return prompt
 
+
 def llava_prep(file,
                    llava_model,
                    image_model='llava-v1.6-vicuna-13b',
