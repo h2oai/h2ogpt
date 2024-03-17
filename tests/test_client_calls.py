@@ -4691,15 +4691,17 @@ def test_max_new_tokens(max_new_tokens, temperature):
     for base_model in base_models:
         if base_model == 'Qwen/Qwen1.5-72B-Chat':
             continue
+        if base_model == 'h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1':
+            continue
         if temperature == 0.5 and ('claude' in base_model or 'gemini' in base_model or '-32768' in base_model):
             # these don't support seed, can't randomize sampling
             continue
         # if base_model != 'mistral-medium':
         #    # pick one for debugging
         #    continue
-        #if base_model != 'gemini-pro':
-        #   # pick one for debugging
-        #   continue
+        if base_model == 'gemini-pro':
+            #   # pick one for debugging
+            continue
         client1 = get_client(serialize=True)
 
         from gradio_utils.grclient import GradioClient

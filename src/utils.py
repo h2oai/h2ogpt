@@ -1896,7 +1896,11 @@ def str_to_list(x, allow_none=False):
     if isinstance(x, str):
         if len(x.strip()) > 0:
             if x.strip().startswith('['):
-                x = ast.literal_eval(x.strip())
+                try:
+                    x = ast.literal_eval(x.strip())
+                except Exception:
+                    print("bad x: %s" % x, flush=True)
+                    raise
             else:
                 raise ValueError("Invalid str_to_list for %s" % x)
         else:
