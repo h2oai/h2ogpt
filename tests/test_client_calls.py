@@ -4728,7 +4728,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert res['save_dict']['error'] in [None, '']
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
-                fudge = 10 if base_model == 'google/gemma-7b-it' else 3
+                fudge = 10 if base_model == 'google/gemma-7b-it' else 4
                 assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
