@@ -158,6 +158,8 @@ Document Control:
 LLM Control:
 * Stream output: Whether to stream output.  Not currently supported for GPT4All/llama.cpp models except via CLI.
 * Sample: Whether to enable sampling (required for use of temperature, top_p, top_k, beams)
+  * seed: 0 means randomized sampling.  >0 means use that fixed seed for sampling
+    * OpenAI, vLLM, TGI, MistralAI support seed.  But Anthropic, Google, Groq, Replicate, Sagemaker do not support seed.
   * Temperature, top_p, top_k: See [HF](https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig)
   * Beams: Number of beams for beam search.  Currently disabled for HF version of streaming to work.
 * Max output length: Maximum number of new tokens in LLM response

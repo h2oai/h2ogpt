@@ -541,8 +541,9 @@ class GradioClient(Client):
                                       model: str | int | None = None,
                                       stream_output: bool = False,
                                       do_sample: bool = False,
+                                      seed: int | None = 0,
                                       temperature: float = 0.0,
-                                      top_p: float = 0.75,
+                                      top_p: float = 1.0,
                                       top_k: int = 40,
                                       repetition_penalty: float = 1.07,
                                       penalty_alpha: float = 0.0,
@@ -629,6 +630,7 @@ class GradioClient(Client):
             pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
             prompt_extraction: Same as prompt_summary but for when doing extraction
             do_sample: see src/gen.py
+            seed: see src/gen.py
             temperature: see src/gen.py
             top_p: see src/gen.py
             top_k: see src/gen.py
@@ -638,9 +640,7 @@ class GradioClient(Client):
             min_max_new_tokens: see src/gen.py
             max_input_tokens: see src/gen.py
             max_total_input_tokens: see src/gen.py
-
             stream_output: Whether to stream output
-            do_sample: whether to sample
             max_time: how long to take
 
             add_search_to_context: Whether to do web search and add results to context
@@ -777,6 +777,7 @@ class GradioClient(Client):
             visible_models=model,
             stream_output=stream_output,
             do_sample=do_sample,
+            seed=seed,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
@@ -955,6 +956,8 @@ class GradioClient(Client):
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
+                if text is None:
+                    self.refresh_client()
                 prompt_and_text = prompt + text
                 response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                  sanitize_bot_response=sanitize_bot_response)

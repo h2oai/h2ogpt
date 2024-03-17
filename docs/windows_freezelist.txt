@@ -90,9 +90,9 @@ fastapi==0.108.0
 feedparser==6.0.11
 ffmpeg==1.4
 ffmpy==0.3.1
-fiftyone==0.23.2
-fiftyone-brain==0.14.2
-fiftyone-db==1.1
+fiftyone==0.23.6
+fiftyone-brain==0.16.1
+fiftyone-db==1.1.1
 filelock==3.13.1
 filetype==1.2.0
 fire==0.5.0
@@ -173,7 +173,7 @@ langsmith==0.0.77
 layoutparser==0.3.4
 lazy_loader==0.3
 librosa==0.10.1
-llama_cpp_python==0.2.55
+llama_cpp_python==0.2.56
 llvmlite==0.41.1
 lm-dataformat==0.0.20
 lm_eval==0.4.0

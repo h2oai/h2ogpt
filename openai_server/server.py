@@ -117,7 +117,7 @@ class Params(H2oGPTParams):
     stream: bool | None = False
     temperature: float | None = 0.3
     top_p: float | None = 1.0
-    seed: int | None = 1234
+    seed: int | None = 0  # 0 means random seed if sampling
 
 
 class CompletionParams(Params):

@@ -123,7 +123,13 @@ fi
 #fi
 
 # upgrade chrome to latest
-sudo apt-get --only-upgrade install google-chrome-stable -y
+sudo mkdir -p /etc/apt/keyrings/
+sudo wget https://dl-ssl.google.com/linux/linux_signing_key.pub -O /tmp/google.pub
+sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --import /tmp/google.pub
+sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
+sudo apt-get update -y
+
+sudo apt-get install google-chrome-stable -y
 chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
 # visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
 # E.g.
@@ -146,8 +152,7 @@ pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 
 #
 #* GPU Optional: For AutoAWQ support on x86_64 linux
-#
-pip uninstall -y autoawq ; pip install https://github.com/casper-hansen/AutoAWQ/releases/download/v0.1.8/autoawq-0.1.8-cp310-cp310-linux_x86_64.whl -c reqs_optional/reqs_constraints.txt
+pip uninstall -y autoawq ; pip install autoawq -c reqs_optional/reqs_constraints.txt
 # fix version since don't need lm-eval to have its version of 1.5.0
 pip install sacrebleu==2.3.1 --upgrade -c reqs_optional/reqs_constraints.txt
 #    If this has issues, you need to build:
@@ -158,6 +163,9 @@ then
     cd AutoAWQ
     pip install . -c reqs_optional/reqs_constraints.txt
 fi
+
+# ensure not installed if remade env on top of old env
+pip uninstall llama_cpp_python_cuda -y
 
 # Check if the environment variable `MY_ENV_VAR` contains the substring "hello"
 if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
@@ -204,24 +212,7 @@ pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/r
 #  For more info see [SERP Docs](README_SerpAPI.md).
 
 
-#
-#* Deal with not-thread-safe things in LangChain:
-#
-sp=`python3.10 -c 'import site; print(site.getsitepackages()[0])'`
-sed -i  's/with HiddenPrints():/if True:/g' $sp/langchain_community/utilities/serpapi.py
-#sed -i 's/"progress": Status.PROGRESS,/"progress": Status.PROGRESS,\n            "heartbeat": Status.PROGRESS,/g' gradio_client/utils.py
-#sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
-
-
-# fix pytube to avoid errors for restricted content
-sed -i "s/client='ANDROID_MUSIC'/client='ANDROID'/g" $sp/pytube/innertube.py
-
-# fix asyncio same way websockets was fixed, else keep hitting errors in async calls
-# https://github.com/python-websockets/websockets/commit/f9fd2cebcd42633ed917cd64e805bea17879c2d7
-sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends/_asyncio.py
-
-# https://github.com/gradio-app/gradio/issues/7086
-sed -i 's/while True:/while True:\n            time.sleep(0.001)\n/g' $sp/gradio_client/client.py
+bash ./docs/run_patches.sh
 
 
 #

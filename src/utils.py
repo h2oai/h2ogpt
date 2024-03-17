@@ -733,6 +733,7 @@ def hyde_titles(level):
         title = "HYDE 4: Prompt+LLM+HYDE 1&2&3 embedding"
     return title
 
+
 def get_accordion(x, font_size=2, head_acc=50):
     title = x.page_content[:head_acc].replace("\n", ' ').replace("<br>", ' ').replace("<p>", ' ').replace("\r", ' ')
     content = x.page_content
@@ -1150,13 +1151,44 @@ def start_faulthandler():
 
 def get_hf_server(inference_server):
     inf_split = inference_server.split("    ")
-    assert len(inf_split) == 1 or len(inf_split) == 3
-    inference_server = inf_split[0]
     if len(inf_split) == 3:
+        assert len(inf_split) == 1 or len(inf_split) == 3
+        inference_server = inf_split[0]
         headers = {"authorization": "%s %s" % (inf_split[1], inf_split[2])}
+        user = None
+        password = None
     else:
+        ip_port_vllm = ':'.join(inference_server.split(':')[0:])
+        if ip_port_vllm.startswith('https://'):
+            http_prefix = 'https://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+        elif ip_port_vllm.startswith('http://'):
+            http_prefix = 'http://'
+            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+        else:
+            http_prefix = 'http://'
+
+        inf_split = ip_port_vllm.split(":")
+        if len(inf_split) <= 2:
+            # i.e. just DNS or IP and no port or IP + port
+            user = None
+            password = None
+        elif len(inf_split) in [3, 4]:
+            # i.e. just DNS or IP, no port + user + pass = 3
+            # i.e. DNS/IP + port + user + pass = 4
+            user = inf_split[len(inf_split) - 2]
+            password = inf_split[len(inf_split) - 1]
+            ip_port_vllm = ':'.join(inf_split[:len(inf_split) - 2])
+        else:
+            raise ValueError("Malformed inference_server=%s" % inference_server)
+
         headers = None
-    return inference_server, headers
+
+        # remove None if port was None
+        if 'None' in ip_port_vllm.split(':'):
+            ip_port_vllm = ':'.join([x for x in ip_port_vllm.split(':') if x != 'None'])
+        inference_server = http_prefix + ip_port_vllm
+    return inference_server, headers, user, password
 
 
 class FakeTokenizer:
@@ -1169,13 +1201,17 @@ class FakeTokenizer:
                  encoding_name="cl100k_base",
                  is_openai=False,
                  is_anthropic=False,
+                 is_google=False,
+                 is_hf=False,
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
-            assert not (is_openai or is_anthropic), "Should have set model_max_length for OpenAI or Anthropic"
+            assert not (is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
             model_max_length = 2048
         self.is_openai = is_openai
         self.is_anthropic = is_anthropic
+        self.is_google= is_google
+        self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
@@ -1184,7 +1220,7 @@ class FakeTokenizer:
             self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        if not self.is_anthropic:
+        if not (self.is_anthropic or self.is_google):
             import tiktoken
             self.encoding = tiktoken.get_encoding(self.encoding_name)
         else:
@@ -1198,6 +1234,10 @@ class FakeTokenizer:
             client = Anthropic()
             tokenizer = client.get_tokenizer()
             input_ids = tokenizer.encode(x).ids
+        elif self.is_google:
+            input_ids = [0] * self.tokenizer(x).total_tokens  # fake tokens
+        elif self.is_hf:
+            input_ids = self.tokenizer.encode(x)
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
@@ -1213,6 +1253,10 @@ class FakeTokenizer:
             client = Anthropic()
             tokenizer = client.get_tokenizer()
             return tokenizer.decode(x)
+        elif self.is_google:
+            return ['a'] * len(x)  # fake
+        elif self.is_hf:
+            return self.tokenizer.decode(x)
         # input is input_ids[0] form
         return self.encoding.decode(x)
 
@@ -1222,6 +1266,10 @@ class FakeTokenizer:
             from anthropic import Anthropic
             client = Anthropic()
             return client.count_tokens(prompt)
+        elif self.is_google:
+            return self.tokenizer(prompt)
+        elif self.is_hf:
+            return len(self.tokenizer.encode(prompt))
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
 
@@ -1392,7 +1440,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_diffusers = False
 
-
 try:
     assert distribution('opencv-python-headless') is not None
     have_cv2 = True
@@ -1402,7 +1449,6 @@ except (PackageNotFoundError, AssertionError):
         have_cv2 = True
     except (PackageNotFoundError, AssertionError):
         have_cv2 = False
-
 
 only_unstructured_urls = os.environ.get("ONLY_UNSTRUCTURED_URLS", "0") == "1"
 only_selenium = os.environ.get("ONLY_SELENIUM", "0") == "1"
@@ -1536,6 +1582,8 @@ def deepcopy_by_pickle_object(object):
 
 
 def url_alive(url):
+    if not isinstance(url, str):
+        return False
     try:
         response = requests.head(url)
     except Exception as e:
@@ -1549,7 +1597,7 @@ def url_alive(url):
 
 def return_good_url(url):
     # ignore status code, just see if exists or not
-    for prefix in ['', 'http://', 'http://', 'https://www.', 'http://www.']:
+    for prefix in ['', 'https://', 'http://', 'https://www.', 'http://www.']:
         try:
             url_test = prefix + url
             response = requests.head(url_test)
@@ -1563,7 +1611,16 @@ def return_good_url(url):
     return None
 
 
+def is_probably_url(url):
+    if not isinstance(url, str):
+        return False
+    # url_alive too slow
+    return any(url.startswith(prefix) for prefix in ['www.', 'http://', 'https://', 'https://www.', 'http://www.'])
+
+
 def dict_to_html(x, small=True, api=False):
+    x = {k: v if not in_gradio_root(v) and not is_probably_url(v) else get_url(v, from_str=True, short_name=True) for
+         k, v in x.items()}
     df = pd.DataFrame(x.items(), columns=['Key', 'Value'])
     df.index = df.index + 1
     df.index.name = 'index'
@@ -1640,9 +1697,9 @@ def lg_to_gr(
         # LLaVa better and faster if present
         #  and kwargs['max_quality']
         image_audio_loaders_options0.append('LLaVa')
-        if 'Caption' in  image_audio_loaders_options0:
+        if 'Caption' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('Caption')
-        if 'CaptionBlip2' in  image_audio_loaders_options0:
+        if 'CaptionBlip2' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('CaptionBlip2')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
@@ -1661,7 +1718,8 @@ def lg_to_gr(
     if have_doctr and kwargs['enable_pdf_doctr'] in [True, 'on']:
         pdf_loaders_options0.append('DocTR')
     # in case my pymupdf, use pypdf as backup default
-    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto', 'on'] and not have_pymupdf:
+    if kwargs['use_pypdf'] in [True, 'on'] and have_pymupdf or kwargs['use_pypdf'] in [True, 'auto',
+                                                                                       'on'] and not have_pymupdf:
         pdf_loaders_options0.append('PyPDF')
     if kwargs['use_unstructured_pdf'] in [True, 'on']:
         pdf_loaders_options0.append('Unstructured')
@@ -1838,7 +1896,11 @@ def str_to_list(x, allow_none=False):
     if isinstance(x, str):
         if len(x.strip()) > 0:
             if x.strip().startswith('['):
-                x = ast.literal_eval(x.strip())
+                try:
+                    x = ast.literal_eval(x.strip())
+                except Exception:
+                    print("bad x: %s" % x, flush=True)
+                    raise
             else:
                 raise ValueError("Invalid str_to_list for %s" % x)
         else:
@@ -1965,6 +2027,7 @@ class FullSet(set):
 
 import os
 
+
 def create_relative_symlink(target, link_name):
     """
     Creates a relative symlink to a target from a link location, ensuring parent directories exist.
@@ -2005,6 +2068,13 @@ def get_gradio_tmp():
     makedirs(gradio_tmp, exist_ok=True)  # won't hurt if soft link if exists
     gradio_tmp = os.path.realpath(gradio_tmp)
     return gradio_tmp
+
+
+def in_gradio_root(file):
+    ret = False
+    ret |= isinstance(file, str) and os.path.isfile(file) and os.path.abspath(file).startswith('/tmp/gradio')
+    ret |= isinstance(file, str) and os.path.isfile(file) and os.path.abspath(file).startswith(get_gradio_tmp())
+    return ret
 
 
 def get_is_gradio_h2oai():

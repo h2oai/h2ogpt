@@ -1,7 +1,7 @@
 pydub>=0.25.1
 librosa>=0.10.1
 ffmpeg>=1.4
-yt_dlp>=2023.10.13
+yt_dlp>=2024.3.10
 wavio>=0.0.8
 # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
 # pyrubberband>=0.3.0
