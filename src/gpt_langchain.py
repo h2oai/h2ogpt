@@ -12,6 +12,7 @@ import pickle
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import traceback
@@ -1651,7 +1652,16 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        try:
+            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        except Exception as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            if 'assert generation is not None' in str(ex):
+                # try one more time
+                return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            else:
+                raise
 
     async def agenerate_prompt(
             self,
@@ -1665,9 +1675,20 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
+        try:
+            return await self.agenerate(
+                prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+            )
+        except Exception as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            if 'assert generation is not None' in str(ex):
+                # try one more time
+                return await self.agenerate(
+                    prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+                )
+            else:
+                raise
 
 
 class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
