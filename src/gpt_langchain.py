@@ -1732,6 +1732,12 @@ class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     prompts: Any = []
     streaming: Any = False
 
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
+
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
@@ -1740,8 +1746,15 @@ class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
     chat_conversation: Any = []
     prompts: Any = []
     stream_output: bool = True
+    tokenizer: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
 
 
 class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
@@ -1752,6 +1765,11 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
 
 class H2OAzureOpenAI(AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
@@ -2071,9 +2089,9 @@ def get_llm(use_openai_model=False,
                 chat_conversation.append((img_file, gpt4imagetag))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.001,
-                  seed=seed,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
                   model_kwargs=model_kwargs,
@@ -2403,7 +2421,7 @@ def get_llm(use_openai_model=False,
                 stop_sequences=prompter.stop_sequences,
                 temperature=temperature,
                 top_k=top_k,
-                top_p=top_p,
+                top_p=min(max(1e-3, top_p), 1.0 - 1e-3),
                 # typical_p=top_p,
                 callbacks=callbacks if stream_output else None,
                 stream_output=stream_output,

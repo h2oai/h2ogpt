@@ -225,15 +225,17 @@ claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
 
+# https://ai.google.dev/models/gemini
+# gemini-1.0-pro
 google_mapping = {
-    "gemini-pro": 32768,
-    "gemini-pro-vision": 32768,
+    "gemini-pro": 30720,
+    "gemini-pro-vision": 12288,
 }
 
 # FIXME: at least via current API:
 google_mapping_outputs = {
-    "gemini-pro": 8192,
-    "gemini-pro-vision": 2048,
+    "gemini-pro": 2048,
+    "gemini-pro-vision": 4096,
 }
 
 mistralai_mapping = {

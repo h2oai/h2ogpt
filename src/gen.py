@@ -86,7 +86,7 @@ set_seed(SEED)
 from typing import Union
 
 import torch
-from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
+from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, AutoTokenizer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts, \
@@ -2851,6 +2851,7 @@ def get_model(
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
+    google_client = None
     if inference_server.startswith('google'):
         t0 = time.time()
         import google.generativeai as genai
@@ -2880,6 +2881,7 @@ def get_model(
                          timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+        google_client = client
 
     if inference_server.startswith('mistralai'):
         t0 = time.time()
@@ -2997,6 +2999,12 @@ def get_model(
                 else:
                     max_output_seq_len = 8192  # estimate
                 max_output_len = max_output_seq_len
+
+            if google_client:
+                tokenizer = FakeTokenizer(model_max_length=max_seq_len,
+                                          is_google=True,
+                                          tokenizer=google_client.count_tokens)
+
         if inference_server.startswith('mistralai') or base_model in mistralai_gpts:
             if inference_server.startswith('mistralai'):
                 assert os.getenv('MISTRAL_API_KEY'), "Set environment for MISTRAL_API_KEY"
@@ -3014,6 +3022,10 @@ def get_model(
                 else:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
+
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
+                                      tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2'))
+
         if inference_server.startswith('groq') or base_model in groq_gpts:
             if inference_server.startswith('groq'):
                 assert os.getenv('GROQ_API_KEY'), "Set environment for GROQ_API_KEY"
@@ -3031,6 +3043,16 @@ def get_model(
                 else:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
+
+            if base_model == 'mixtral-8x7b-32768':
+                tokenizer_base_model = 'mistralai/Mistral-7B-Instruct-v0.2'
+            elif base_model == 'llama2-70b-4096':
+                tokenizer_base_model = 'h2oai/h2ogpt-4096-llama2-7b'
+            # elif base_model == 'gemma-7b-it':
+
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
+                                      tokenizer=AutoTokenizer.from_pretrained(tokenizer_base_model))
+
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -4449,7 +4471,8 @@ def evaluate(
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
                                                                                           base_model=base_model)
-            llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in gr_client.endpoints]
+            llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
+                                                                                      gr_client.endpoints]
 
             if is_gradio_vision_model(base_model) and llava_direct_gradio:
                 where_from = "gr_client for llava"
