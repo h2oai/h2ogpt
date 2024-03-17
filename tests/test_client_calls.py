@@ -4682,7 +4682,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
         nrepeats = 1
     else:
         nrepeats = 10
-    fudge_seed = 3
+    fudge_seed = 4
 
     from src.gen import main
     os.environ['GET_GITHASH'] = '1'
