@@ -2,12 +2,10 @@
 set -o pipefail
 set -ex
 
-apt-get clean all 2>&1
+echo -e "\n\n\n\t\tSTART\n\n\n";
+
+# ensure Ubunt is up to date
 apt-get update 2>&1
-apt-get -y full-upgrade 2>&1
-apt-get -y dist-upgrade 2>&1
-apt-get -y autoremove 2>&1
-apt-get clean all 2>&1
 
 # Check if the h2ogpt directory already exists
 if [ -d "h2ogpt" ]; then
@@ -32,6 +30,7 @@ else
     echo "Conda is already installed."
 fi
 
+echo "Installing fresh h2oGPT env."
 conda remove -n h2ogpt --all -y
 conda update conda -y
 conda create -n h2ogpt -y
@@ -44,7 +43,10 @@ export LLAMA_CUBLAS=1
 export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
 
+echo "Installing fresh h2oGPT"
 set +x
-GPLOK=1 bash docs/linux_install.sh
+export GPLOK=1
+curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install.sh | sudo sh
+# bash docs/linux_install.sh
 
-echo -e "\n\n\n\t\tFINISHED - Right\n\n\n";
+echo -e "\n\n\n\t\t h2oGPT installation FINISHED\n\n\n";

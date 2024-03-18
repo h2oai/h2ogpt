@@ -28,6 +28,7 @@ pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
 #* Optional: Install document question-answer dependencies:
 #
 # May be required for jq package:
+sudo apt-get update -y
 sudo apt-get -y install autoconf libtool
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt

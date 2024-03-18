@@ -5,6 +5,12 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 - [Install](#install)
 - [Run](#run)
 
+## Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install_full.sh | sudo sh
+```
+
 ## Install
 
 * Set up a Python 3.10 environment. We recommend using [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/).
@@ -148,3 +154,17 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
   [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 
   A local copy of that CPU Google Colab is [h2oGPT_CPU.ipynb](h2oGPT_CPU.ipynb).
+
+#### Issues
+
+## Old Ubuntu 18
+
+* If your Ubuntu etc. is very out of date (E.g. Ubuntu 18), you can run the below, but it might lead to system issues.  If you already have Ubuntu 20, 22, do **not** run these.
+```bash
+apt-get clean all
+apt-get update
+apt-get -y full-upgrade
+apt-get -y dist-upgrade
+apt-get -y autoremove
+apt-get clean all
+```
