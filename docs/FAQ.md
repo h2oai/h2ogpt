@@ -1291,6 +1291,7 @@ https://github.com/gradio-app/gradio/issues/2790
   * Make and copy credentials for client ID and Client secret
   * Add redirect URI, e.g. https://gpt.h2o.ai/auth
   * Click save
+  * If mark application as "in production" then need to use https.
 * Wait 5+ minutes
 
 Example nginx on server:
