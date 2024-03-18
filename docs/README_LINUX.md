@@ -8,8 +8,24 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install_full.sh | sudo -E bash
+curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install_full.sh | bash
 ```
+and enter the sudo password when required
+
+To avoid periodically entering the sudo password (default 5 minute timeout), then extend the sudo timeout by running:
+```bash
+sudo visudo
+```
+and adding:
+```
+Defaults        timestamp_timeout=60
+```
+after the `Defaults env_reset` line.  Then run:
+```bash
+sudo bash
+exit
+```
+So allow your user session to run sudo for 60 minutes. Then the script will not ask for sudo password during its run.
 
 ## Install
 
