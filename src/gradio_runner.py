@@ -2339,7 +2339,7 @@ def go_gradio(**kwargs):
                     num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
                     # WIP
-                    if kwargs['auth'] and is_gradio_h2oai:
+                    if (kwargs['auth'] or kwargs['google_auth']) and is_gradio_h2oai:
                         gr.Button("Logout", link="/logout")
                     if kwargs['enforce_h2ogpt_api_key'] and kwargs['enforce_h2ogpt_ui_key']:
                         label_h2ogpt_key = "h2oGPT Token for API and UI access"
