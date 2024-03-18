@@ -1201,13 +1201,17 @@ class FakeTokenizer:
                  encoding_name="cl100k_base",
                  is_openai=False,
                  is_anthropic=False,
+                 is_google=False,
+                 is_hf=False,
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
-            assert not (is_openai or is_anthropic), "Should have set model_max_length for OpenAI or Anthropic"
+            assert not (is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
             model_max_length = 2048
         self.is_openai = is_openai
         self.is_anthropic = is_anthropic
+        self.is_google= is_google
+        self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
@@ -1216,7 +1220,7 @@ class FakeTokenizer:
             self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        if not self.is_anthropic:
+        if not (self.is_anthropic or self.is_google):
             import tiktoken
             self.encoding = tiktoken.get_encoding(self.encoding_name)
         else:
@@ -1230,6 +1234,10 @@ class FakeTokenizer:
             client = Anthropic()
             tokenizer = client.get_tokenizer()
             input_ids = tokenizer.encode(x).ids
+        elif self.is_google:
+            input_ids = [0] * self.tokenizer(x).total_tokens  # fake tokens
+        elif self.is_hf:
+            input_ids = self.tokenizer.encode(x)
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
@@ -1245,6 +1253,10 @@ class FakeTokenizer:
             client = Anthropic()
             tokenizer = client.get_tokenizer()
             return tokenizer.decode(x)
+        elif self.is_google:
+            return ['a'] * len(x)  # fake
+        elif self.is_hf:
+            return self.tokenizer.decode(x)
         # input is input_ids[0] form
         return self.encoding.decode(x)
 
@@ -1254,6 +1266,10 @@ class FakeTokenizer:
             from anthropic import Anthropic
             client = Anthropic()
             return client.count_tokens(prompt)
+        elif self.is_google:
+            return self.tokenizer(prompt)
+        elif self.is_hf:
+            return len(self.tokenizer.encode(prompt))
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
 
@@ -1880,7 +1896,11 @@ def str_to_list(x, allow_none=False):
     if isinstance(x, str):
         if len(x.strip()) > 0:
             if x.strip().startswith('['):
-                x = ast.literal_eval(x.strip())
+                try:
+                    x = ast.literal_eval(x.strip())
+                except Exception:
+                    print("bad x: %s" % x, flush=True)
+                    raise
             else:
                 raise ValueError("Invalid str_to_list for %s" % x)
         else:

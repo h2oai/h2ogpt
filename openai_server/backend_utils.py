@@ -69,7 +69,16 @@ def structure_to_messages(instruction, system_message, history):
         messages.append({"role": "system", "content": system_message})
 
     # Loop through the history to add user and assistant messages.
-    for user_message, assistant_message in history:
+    for message1 in history:
+
+        if len(message1) != 2:
+            continue
+        if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+            # then not really part of LLM, internal, so avoid
+            continue
+
+        user_message, assistant_message = message1
+
         if user_message:
             messages.append({"role": "user", "content": user_message})
         if assistant_message:

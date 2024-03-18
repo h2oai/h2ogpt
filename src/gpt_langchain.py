@@ -12,6 +12,7 @@ import pickle
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import traceback
@@ -25,6 +26,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import reduce
 from operator import concat
+from random import randint
 from urllib.parse import urlparse
 
 import filelock
@@ -46,6 +48,7 @@ from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
+from langchain_groq import ChatGroq
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
@@ -67,12 +70,12 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode
+    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
-    is_vision_model
+    is_vision_model, is_gradio_vision_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
@@ -580,6 +583,7 @@ class GradioInference(H2Oagenerate, LLM):
     repetition_penalty: Optional[float] = None
     num_return_sequences: Optional[int] = 1
     do_sample: bool = False
+    seed: int = 0
     chat_client: bool = False
 
     return_full_text: bool = False
@@ -670,6 +674,7 @@ class GradioInference(H2Oagenerate, LLM):
                              repetition_penalty=self.repetition_penalty,
                              num_return_sequences=self.num_return_sequences,
                              do_sample=self.do_sample,
+                             seed=self.seed,
                              chat=self.chat_client,
 
                              instruction_nochat=prompt if not self.chat_client else '',
@@ -739,7 +744,7 @@ class GradioInference(H2Oagenerate, LLM):
         max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
                                                     max_new_tokens=self.max_new_tokens,
                                                     max_new_tokens0=self.max_new_tokens0)
-        client_kwargs.update(dict(max_new_tokens=get_relaxed_max_new_tokens(max_new_tokens)))
+        client_kwargs.update(dict(max_new_tokens=max_new_tokens))
 
         # new client for each call
         client = self.client.clone()
@@ -1088,6 +1093,7 @@ class GradioLLaVaInference(GradioInference):
 class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
+    seed: int = 0
     top_p: Optional[float] = 0.95
     top_k: Optional[int] = None
     penalty_alpha: Optional[float] = 0.0
@@ -1138,6 +1144,7 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         self.prompts.append(prompt)
 
         gen_server_kwargs = dict(do_sample=self.do_sample,
+                                 seed=self.seed,
                                  stop_sequences=stop,
                                  max_new_tokens=self.max_new_tokens,
                                  top_p=self.top_p,
@@ -1147,7 +1154,6 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
                                  temperature=self.temperature,
                                  repetition_penalty=self.repetition_penalty,
                                  return_full_text=self.return_full_text,
-                                 seed=self.seed,
                                  )
         gen_server_kwargs.update(kwargs)
 
@@ -1479,10 +1485,18 @@ class ExtraChat:
                                            self.system_prompt]] + self.chat_conversation
             else:
                 messages.append(SystemMessage(content=self.system_prompt))
+        img_base64 = None
+        img_tag = None
         if self.chat_conversation:
             for messages1 in self.chat_conversation:
+                if len(messages1) != 2:
+                    continue
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
+                    continue
+                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag]:
+                    img_tag = messages1[1]
+                    img_base64 = messages1[0]
                     continue
                 if messages1[0]:
                     instruction = gradio_to_llm(messages1[0], bot=False)
@@ -1490,85 +1504,42 @@ class ExtraChat:
                 if messages1[1]:
                     output = gradio_to_llm(messages1[1], bot=True)
                     messages.append(AIMessage(content=output))
+        if isinstance(self, H2OChatGoogle) and img_base64 is not None:
+            # Multiturn chat is not enabled for models/gemini-pro-vision
+            messages = []
         prompt_messages = []
         for prompt in prompts:
             if isinstance(prompt, ChatPromptValue):
                 prompt_message = messages + prompt.messages
+                assert img_base64 is None, "img_base64 was filled, unused"
             else:
-                prompt_message = HumanMessage(content=prompt.text if prompt.text is not None else '')
+                prompt_text = prompt.text if prompt.text is not None else ''
+                if img_base64:
+                    # https://docs.anthropic.com/claude/docs/vision
+                    # https://python.langchain.com/docs/integrations/chat/anthropic
+                    # could also be type "image" and add "source" with other details
+                    # also valid for gpt-4-vision: https://community.openai.com/t/using-gpt-4-vision-preview-in-langchain/549393
+                    # https://python.langchain.com/docs/integrations/chat/google_generative_ai
+                    # https://github.com/GoogleCloudPlatform/generative-ai/blob/main/gemini/getting-started/intro_gemini_pro_vision_python.ipynb
+                    if img_tag in [geminiimagetag]:
+                        img_url = img_base64
+                    else:
+                        img_url = {
+                            "url": img_base64,
+                        }
+                    content = [
+                        {
+                            "type": "image_url",
+                            "image_url": img_url,
+                        },
+                        {"type": "text", "text": prompt_text},
+                    ]
+                else:
+                    content = prompt_text
+                prompt_message = HumanMessage(content=content)
                 prompt_message = messages + [prompt_message]
             prompt_messages.append(prompt_message)
         return prompt_messages
-
-
-class H2OChatOpenAI(ChatOpenAI, ExtraChat):
-    tokenizer: Any = None  # for vllm_chat
-    system_prompt: Any = None
-    chat_conversation: Any = []
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            # OpenAI uses tiktoken
-            return super().get_token_ids(text)
-
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
-
-
-class H2OAzureChatOpenAI(AzureChatOpenAI, ExtraChat):
-    system_prompt: Any = None
-    chat_conversation: Any = []
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
 
 
 class GenerateStream:
@@ -1612,6 +1583,7 @@ class GenerateStream:
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         kwargs.pop('stream', None)
+        kwargs.pop('streaming', None)
         if should_stream:
             stream_iter = self._stream(
                 messages, stop=stop, run_manager=run_manager, **kwargs
@@ -1630,6 +1602,7 @@ class GenerateStream:
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         kwargs.pop('stream', None)
+        kwargs.pop('streaming', None)
         if should_stream:
             stream_iter = self._astream(
                 messages, stop=stop, run_manager=run_manager, **kwargs
@@ -1639,14 +1612,7 @@ class GenerateStream:
             return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
 
-class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
-    system_prompt: Any = None
-    chat_conversation: Any = []
-    prompts: Any = []
-    streaming: Any = True
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
+class GenerateNormal:
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -1654,7 +1620,6 @@ class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
-        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
@@ -1666,12 +1631,95 @@ class H2OChatAnthropic2(ExtraChat, ChatAnthropic2):
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
-        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+
+
+class GenerateStream2:
+    # slightly different from GenerateStream
+    def generate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        try:
+            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        except Exception as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
+                # try one more time
+                return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            else:
+                raise
+
+    async def agenerate_prompt(
+            self,
+            prompts: List[PromptValue],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        self.prompts.extend(prompts)
+        prompt_messages = self.get_messages(prompts)
+        # prompt_messages = [p.to_messages() for p in prompts]
+        if self.stream_output:
+            kwargs.update(dict(stream=True))
+        try:
+            return await self.agenerate(
+                prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+            )
+        except Exception as e:
+            t, v, tb = sys.exc_info()
+            ex = ''.join(traceback.format_exception(t, v, tb))
+            if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
+                # try one more time
+                return await self.agenerate(
+                    prompt_messages, stop=stop, callbacks=callbacks, **kwargs
+                )
+            else:
+                raise
+
+
+class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
+    tokenizer: Any = None  # for vllm_chat
+    system_prompt: Any = None
+    chat_conversation: Any = []
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            # OpenAI uses tiktoken
+            return super().get_token_ids(text)
+
+
+class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+
+class H2OChatAnthropic2(GenerateNormal, ExtraChat, ChatAnthropic2):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    streaming: Any = True
+
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
 class H2OChatAnthropic2Sys(H2OChatAnthropic2):
@@ -1699,80 +1747,38 @@ from langchain_core.language_models.chat_models import (
 )
 
 
-class H2OChatGoogle(ChatGoogleGenerativeAI, ExtraChat):
+class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
     streaming: Any = False
 
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
+
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        if 'streaming' not in kwargs:
-            kwargs['streaming'] = self.streaming
-        # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        if 'streaming' not in kwargs:
-            kwargs['streaming'] = self.streaming
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
+class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
+    system_prompt: Any = None
+    chat_conversation: Any = []
+    prompts: Any = []
+    stream_output: bool = True
+    tokenizer: Any = None
 
-    def _generate(
-            self,
-            messages: List[BaseMessage],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            stream: Optional[bool] = None,
-            **kwargs: Any,
-    ) -> ChatResult:
-        should_stream = stream if stream is not None else self.streaming
-        if should_stream:
-            stream_iter = self._stream(
-                messages, stop=stop, run_manager=run_manager, **kwargs
-            )
-            return generate_from_stream(stream_iter)
+    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
         else:
-            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-    async def _agenerate(
-            self,
-            messages: List[BaseMessage],
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-            stream: Optional[bool] = None,
-            **kwargs: Any,
-    ) -> ChatResult:
-        should_stream = stream if stream is not None else self.streaming
-        if should_stream:
-            stream_iter = self._astream(
-                messages, stop=stop, run_manager=run_manager, **kwargs
-            )
-            return await agenerate_from_stream(stream_iter)
-        else:
-            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return FakeTokenizer().encode(text)['input_ids']
 
 
-class H2OChatMistralAI(ChatMistralAI, ExtraChat):
+class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1780,36 +1786,11 @@ class H2OChatMistralAI(ChatMistralAI, ExtraChat):
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def generate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        if self.stream_output:
-            kwargs.update(dict(stream=True))
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
-
-    async def agenerate_prompt(
-            self,
-            prompts: List[PromptValue],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        self.prompts.extend(prompts)
-        prompt_messages = self.get_messages(prompts)
-        # prompt_messages = [p.to_messages() for p in prompts]
-        if self.stream_output:
-            kwargs.update(dict(stream=True))
-        return await self.agenerate(
-            prompt_messages, stop=stop, callbacks=callbacks, **kwargs
-        )
-
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
 
 class H2OAzureOpenAI(AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
@@ -1888,6 +1869,7 @@ def get_llm(use_openai_model=False,
             async_output=True,
             num_async=3,
             do_sample=False,
+            seed=0,
             temperature=0.1,
             top_p=0.7,
             top_k=40,
@@ -1938,6 +1920,9 @@ def get_llm(use_openai_model=False,
 
     if chat_conversation is None:
         chat_conversation = []
+    # shallow copy, so if add image entry doesn't affect outer one, only returned one
+    chat_conversation = chat_conversation.copy()
+
     # in case prompter updated
     if prompter and prompter.system_prompt:
         system_prompt = prompter.system_prompt
@@ -1971,7 +1956,7 @@ def get_llm(use_openai_model=False,
         else:
             temperature = temperature if do_sample else 0
         gen_kwargs = dict(temperature=temperature,
-                          seed=1234,
+                          seed=seed,
                           max_length=max_new_tokens,  # langchain
                           max_new_tokens=max_new_tokens,  # replicate docs
                           top_p=top_p if do_sample else 1,
@@ -2043,8 +2028,9 @@ def get_llm(use_openai_model=False,
         model_kwargs = dict(top_p=top_p if do_sample else 1,
                             frequency_penalty=0,
                             presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
-                            logit_bias=None if inf_type == 'vllm' else {},
                             )
+        if not is_vision_model(model_name):
+            model_kwargs.update(dict(logit_bias=None if inf_type == 'vllm' else {}))
         # if inference_server.startswith('vllm'):
         #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
 
@@ -2118,7 +2104,13 @@ def get_llm(use_openai_model=False,
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
+        if is_vision_model(model_name):
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if img_file:
+                chat_conversation.append((img_file, gpt4imagetag))
+
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.001,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
@@ -2146,6 +2138,11 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OChatAnthropic3Sys
 
+            if is_vision_model(model_name):
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+                if img_file:
+                    chat_conversation.append((img_file, claude3imagetag))
+
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
@@ -2157,9 +2154,11 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                  max_tokens=max_new_tokens,
                   top_p=top_p if do_sample else 1,
                   top_k=top_k,
                   temperature=temperature if do_sample else 0,
+                  # seed=seed,  # FIXME: Not supported yet
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
                   default_request_timeout=max_time,
@@ -2178,6 +2177,16 @@ def get_llm(use_openai_model=False,
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
+        if is_vision_model(model_name):
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if img_file:
+                chat_conversation.append((img_file, geminiimagetag))
+                # https://github.com/langchain-ai/langchain/issues/19115
+                stream_output = False  # BUG IN GOOGLE/LANGCHAIN
+            else:
+                if '-vision' in model_name:
+                    model_name = model_name.replace('-vision', '')
+
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
@@ -2189,6 +2198,7 @@ def get_llm(use_openai_model=False,
                   default_request_timeout=max_time,
                   max_output_tokens=max_new_tokens,
                   n=1,  # candidates
+                  # seed=seed,  # FIXME: Not supported yet
                   model_kwargs=model_kwargs,
                   **kwargs_extra
                   )
@@ -2219,9 +2229,43 @@ def get_llm(use_openai_model=False,
                   model_kwargs=model_kwargs,
                   max_tokens=max_new_tokens,
                   safe_mode=False,
-                  random_seed=SEED,
+                  random_seed=seed,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
+                  )
+        streamer = callbacks[0] if stream_output else None
+        prompt_type = inference_server
+    elif inference_server.startswith('groq'):
+        if len(inference_server.split(':')) == 2:
+            groq_api_key = inference_server.split(':')[1]
+            inference_server = inference_server.split(':')[0]
+        else:
+            groq_api_key = os.getenv('GROQ_API_KEY')
+        cls = H2OChatGroq
+
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        model_kwargs = dict()
+        kwargs_extra = {}
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        if not regenerate_clients and isinstance(model, dict):
+            kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
+
+        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        llm = cls(model=model_name,
+                  groq_api_key=groq_api_key,
+                  temperature=temperature if do_sample else 0,
+                  callbacks=callbacks if stream_output else None,
+                  max_retries=2,
+                  streaming=stream_output,
+                  # stream=stream_output,
+                  n=1,
+                  max_tokens=max_new_tokens,
+                  model_kwargs=dict(
+                      top_p=top_p if do_sample else 1,
+                      # seed=seed,  # FIXME: not supported yet
+                      # top_k=top_k,
+                  ),
+                  **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
@@ -2254,7 +2298,7 @@ def get_llm(use_openai_model=False,
         assert inference_server.startswith(
             'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
-        if is_vision_model(model_name):
+        if is_gradio_vision_model(model_name):
             img_file = get_image_file(image_file, image_control, document_choice)
         else:
             img_file = None
@@ -2292,7 +2336,10 @@ def get_llm(use_openai_model=False,
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
 
-        if gr_client and is_vision_model(model_name):
+        llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
+                                                                                  gr_client.endpoints]
+
+        if is_gradio_vision_model(model_name) and llava_direct_gradio:
             llm = GradioLLaVaInference(
                 inference_server_url=inference_server,
 
@@ -2308,6 +2355,7 @@ def get_llm(use_openai_model=False,
                 repetition_penalty=repetition_penalty,
                 num_return_sequences=num_return_sequences,
                 do_sample=do_sample,
+                seed=seed,
 
                 callbacks=callbacks if stream_output else None,
                 stream_output=stream_output,
@@ -2333,15 +2381,7 @@ def get_llm(use_openai_model=False,
             )
         elif gr_client:
             # ensure image in correct format
-            img_file = get_image_file(image_file, image_control, document_choice)
-            if img_file is not None and os.path.isfile(img_file):
-                from src.vision.utils_vision import img_to_base64
-                img_file = img_to_base64(img_file)
-            elif isinstance(img_file, str):
-                # assume already bytes
-                img_file = img_file
-            else:
-                img_file = None
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True)
 
             chat_client = False
             from src.vision.utils_vision import img_to_base64
@@ -2361,6 +2401,7 @@ def get_llm(use_openai_model=False,
                 repetition_penalty=repetition_penalty,
                 num_return_sequences=num_return_sequences,
                 do_sample=do_sample,
+                seed=seed,
                 chat_client=chat_client,
 
                 callbacks=callbacks if stream_output else None,
@@ -2396,12 +2437,12 @@ def get_llm(use_openai_model=False,
                 max_new_tokens=max_new_tokens,
                 repetition_penalty=repetition_penalty,
                 return_full_text=False,  # this only controls internal behavior, still returns processed text
-                seed=SEED,
+                seed=seed,
 
                 stop_sequences=prompter.stop_sequences,
                 temperature=temperature,
                 top_k=top_k,
-                top_p=top_p,
+                top_p=min(max(1e-3, top_p), 1.0 - 1e-3),
                 # typical_p=top_p,
                 callbacks=callbacks if stream_output else None,
                 stream_output=stream_output,
@@ -2438,6 +2479,7 @@ def get_llm(use_openai_model=False,
                               model=model,
                               max_new_tokens=max_new_tokens,
                               temperature=temperature,
+                              seed=seed,
                               repetition_penalty=repetition_penalty,
                               top_k=top_k,
                               top_p=top_p,
@@ -2502,6 +2544,7 @@ def get_llm(use_openai_model=False,
                                                        inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
+                          seed=seed,
                           num_beams=num_beams,
                           max_new_tokens=max_new_tokens,
                           min_new_tokens=min_new_tokens,
@@ -5318,6 +5361,7 @@ def _run_qa_db(query=None,
                load_db_if_exists=False,
                db=None,
                do_sample=False,
+               seed=0,
                temperature=0.1,
                top_p=0.7,
                top_k=40,
@@ -5510,6 +5554,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       async_output=async_output,
                       num_async=num_async,
                       do_sample=do_sample,
+                      seed=seed,
                       temperature=temperature,
                       top_k=top_k,
                       top_p=top_p,
@@ -5559,7 +5604,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if LangChainAgent.SMART.value in langchain_agents:
         # get llm for exploration
         llm_kwargs_explore = llm_kwargs.copy()
-        llm_kwargs_explore.update(dict(do_sample=True, temperature=0.5))
+        llm_kwargs_explore.update(dict(do_sample=True, temperature=0.5, seed=randint(0, 32000)))
         llm_explore, _, _, _, _, _, _ = get_llm(**llm_kwargs_explore)
     else:
         llm_explore = None
@@ -7027,6 +7072,8 @@ def get_chain(query=None,
                     docs_with_score = [x for x in docs_with_score if
                                        all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
+    if metadata_in_context is None:
+        metadata_in_context = []
     if db is None and text_context_list:
         # not useful then, just mess
         metadata_in_context = []
@@ -7084,6 +7131,7 @@ def get_chain(query=None,
                                tokenizer,
                                estimated_instruction=estimated_prompt_no_docs,
                                prompter=prompter,
+                               base_model=model_name,
                                inference_server=inference_server,
                                prompt_type=prompt_type,
                                prompt_dict=prompt_dict,
@@ -7484,7 +7532,7 @@ def get_template(query, iinput,
         if iinput:
             query = "%s\n%s" % (query, iinput)
         if not got_any_docs:
-            template_if_no_docs = template = """{context}\n%s""" % question_fstring
+            template_if_no_docs = template = """{context}%s""" % question_fstring
         else:
             fstring = "{context}"
             if prompter and prompter.prompt_type == 'docsgpt':
@@ -7500,7 +7548,7 @@ def get_template(query, iinput,
                 if doc_json_mode:
                     template_if_no_docs = """{context}{{"question": {question}}}"""
                 else:
-                    template_if_no_docs = """{context}\n{question}"""
+                    template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
         none = ['', '\n', None]
@@ -8217,7 +8265,7 @@ def get_source_files(db=None, exceptions=None, metadatas=None):
     small_dict = dict()
     for page_0 in [1, 0]:
         small_dict.update({get_url(x['source'], from_str=True, short_name=True): get_short_name(x.get('head')) for x in
-                  metadatas if x.get('page', 0) in [page_0] and not x.get('exception', '')})
+                           metadatas if x.get('page', 0) in [page_0] and not x.get('exception', '')})
     # if small_dict is empty dict, that's ok
     df = pd.DataFrame(small_dict.items(), columns=['source', 'head'])
     df.index = df.index + 1

@@ -17,6 +17,7 @@ gen_hyper0 = ['num_beams',
               'repetition_penalty',
               'num_return_sequences',
               'do_sample',
+              'seed',
               ]
 gen_hyper = ['temperature',
              'top_p',
@@ -57,6 +58,7 @@ eval_func_param_names = ['instruction',
                          ] + \
                         reader_names + \
                         ['visible_models',
+                         'visible_image_models',
                          'h2ogpt_key',
                          'add_search_to_context',
 

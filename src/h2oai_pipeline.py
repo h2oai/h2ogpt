@@ -1,5 +1,6 @@
 import os
 
+import torch
 from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
@@ -293,6 +294,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 generate_kwargs["min_length"] += prefix_length
 
         # BS x SL
+        seed = generate_kwargs.pop('seed', 1234)
+        torch.manual_seed(seed)
         generated_sequence = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **generate_kwargs)
         out_b = generated_sequence.shape[0]
         if self.framework == "pt":

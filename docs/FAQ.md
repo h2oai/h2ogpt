@@ -97,19 +97,44 @@ Other workarounds:
 Examples of what to put into "server" in UI or for `<server>` when using `--inference_server=<server>` with CLI include:
 * oLLaMa: `vllm_chat:http://localhost:11434/v1/`
 * vLLM: `vllm:111.111.111.111:5005`
-* vLLM Chat API: `vllm_chat:https://gpt.h2o.ai:5000/v1`  (only for no auth setup)
+   * For llama-13b, e.g. `--model_lock="[{'inference_server':'vllm:111.11.111.111:5001', 'base_model':'h2oai/h2ogpt-4096-llama2-13b-chat'}`
+   * For groq, ensure groq API key is used,, e.g. `--model_lock="[{'inference_server':'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}]"`
+* vLLM Chat API: `vllm_chat`
+  * E.g. `vllm_chat:https://gpt.h2o.ai:5000/v1` (only for no auth setup)
+  * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD` (keyed access)
 * MistralAI: `mistralai`
+  * E.g. for CLI: `--model_lock="[{'inference_server':'mistralai', 'base_model':'mistral-medium'}]"`
 * Google: `google`
+  * Ensure ENV `GOOGLE_API_KEY` set
+  * E.g. for CLI: `--model_lock="[{'inference_server':'google', 'base_model':'gemini-pro'}]"`
 * OpenAI Chat API: `openai_chat`
+  * Ensure ENV `OPENAI_API_KEY` set or pass along with inference_server
+  * E.g. for CLI: `--model_lock="[{'inference_server':'vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD', 'base_model': 'model_name'}]"`
 * OpenAI Text API: `openai`
+  * Ensure ENV `OPENAI_API_KEY` set
+* Anthropic: `anthropic`
+  * In added to UI, this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API
+  * Ensure ENV `ANTHROPIC_API_KEY` is set to the API key
+  * E.g. for CLI: `--model_lock="[{'inference_server':'anthropic', 'base_model':'claude-3-opus-20240229'}]"`
+  * Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.
+* Groq: `groq`
+  * Ensure ENV `GROQ_API_KEY` is set to the API key
+  * E.g. for CLI: `--model_lock="[{'inference_server':'groq', 'base_model':'mixtral-8x7b-32768'}]"`
 * Gradio: `https://gradio.h2o.ai` (only for no auth setup)
-* Anthropic: `anthropic` (this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API)
+  * Ensure `h2ogpt_key` is in model_lock for each model if server has keyed access
+
+See [gen.py doc strings](../src/gen.py) for more details and examples for other inference endpoints (replicate, sagemaker, etc.)
 
 In the [UI Model Control Tab](README_ui.md#models-tab), one can auto-populate the models from these inference servers by clicking on `Load Model Names from Server`.  In every case, the CLI requires the `--base_model` to be specified. It is not auto-populated.
 
 Others that don't support model listing, need to enter model name in the UI:
-* Azure OpenAI Chat API: `openai_azure_chat:deployment:endpoint.openai.azure.com/:None:apikey`
-  * Then add base model name, e.g. `gpt-3.5-turbo`
+* Azure OpenAI Chat API: `openai_azure_chat`
+  * e.g. `--model_lock="[{'inference_server':'openai_azure_chat:deployment:endpoint.openai.azure.com/:None:<api key>', 'base_model':'gpt-3.5-turbo-0613'}`
+
+An example of using Opus is:
+```bash
+python generate.py --inference_server=anthropic --base_model=claude-3-opus-20240229
+```
 
 ### Deploying like gpt.h2o.ai
 
@@ -139,8 +164,8 @@ export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.22:5000', '
 
 if [ "$visionmodels" -eq "1" ]
 then
-  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'plain'}"
-  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'plain'}"
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'llava'}"
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'llava'}"
 fi
 
 export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.199:5014', 'base_model':'h2oai/h2o-danube-1.8b-chat', 'prompt_type': 'danube'}"
@@ -161,8 +186,10 @@ python generate.py --save_dir=$SAVE_DIR --model_lock="$MODEL_LOCK" \
 		   --enable_tts=True \
 		   --openai_server=$openai_server \
 		   --openai_port=$openai_port \
-                   --imagegen_gpu_id=$imagegen_gpu_id \
-		   --enable_imagegen=$enable_imagegen --enable_imagegen_high=$enable_imagegen_high --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
+		   --enable_image=$enable_image \
+           --visible_image_models="$visible_image_models" \
+           --image_gpu_ids=$image_gpu_ids \
+           --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
 		   --llava_model=$llava_model \
                    --model_lock_columns=$model_lock_columns \
 		   --auth_filename=$auth_filename --auth_access=open --guest_name=guest --auth=$auth_filename \
@@ -203,8 +230,11 @@ export tts_model='microsoft/speecht5_tts'
 #export tts_model=''
 export max_max_new_tokens=8192
 export max_new_tokens=2048
-export enable_imagegen=False
-export enable_imagegen_high=False
+
+export enable_image=False
+export image_gpu_ids="[]"
+export visible_image_models="[]"
+
 export gradio_upload_to_chatbot=False
 export openai_server=True
 export openai_port=5000
@@ -259,7 +289,6 @@ export embedding_gpu_id=0
 export caption_gpu_id=1
 export doctr_gpu_id=1
 export asr_gpu_id=1
-export imagegen_gpu_id=1
 export model_lock_columns=2
 export othermore=1
 export gptmore=0
@@ -271,11 +300,16 @@ export asr_model="openai/whisper-large-v3"
 export tts_model="tts_models/multilingual/multi-dataset/xtts_v2"
 export max_max_new_tokens=8192
 export max_new_tokens=2048
-export enable_imagegen=True
-export enable_imagegen_high=True
+
+export enable_image=True
+export image_gpu_ids="[0,1]"
+export visible_image_models="['sdxl_turbo', 'playv2']"
+
 export gradio_upload_to_chatbot=True
+
 export openai_server=True
 export openai_port=5001
+
 export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
 export hf_embedding_model=tei:http://localhost:5555
 export cut_distance=10000
@@ -697,9 +731,25 @@ If you prefer to disable video extraction, choose `--extract_frames=0` with CLI 
 
 For image generation, then run:
 ```bash
-python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None --enable_imagegen=True
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['sdxl_turbo']" \
+--image_gpu_ids="[0]"
 ```
-or for high-resolution run use `--enable_imagegen_high=True` (can add both).
+or for high-resolution run:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['playv2']" \
+--image_gpu_ids="[0]"
+```
+or add all possible ones.
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['sdxl_turbo', 'sdxl', 'playv2']" \
+--image_gpu_ids="[0,1,2]"
+```
 
 ### LLaVa Vision Models
 
@@ -770,7 +820,8 @@ Run h2oGPT with LLaVa and image (normal and high-quality) generation:
 export GRADIO_SERVER_PORT=7860
 python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --llava_model=<IP:port:model_name> \
---enable_imagegen=True --enable_imagegen_high=True
+           --visible_image_models="['sdxl_turbo', 'playv2']" \
+           --image_gpu_ids="[0,1]"
 ```
 e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vicuna-13b`.  The `:model_name` is not required, h2oGPT will use first model if any.
 
@@ -779,8 +830,9 @@ Run h2oGPT with LLaVa and image (normal and high-quality) generation and run LLa
 export GRADIO_SERVER_PORT=7860
 python --score_model=None \
 --llava_model=<IP:port:model_name> \
---enable_imagegen=True --enable_imagegen_high=True \
---model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}]"
+--visible_image_models="['sdxl_turbo', 'playv2']" \
+--image_gpu_ids="[0,1]" \
+--model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'llava'}]"
 ```
 e.g. `<IP:port>=http://192.168.1.46:7861`.
 
@@ -1441,7 +1493,7 @@ GGUF models are supported (can run either CPU and GPU in same install), see inst
 
 GGUF using Mistral:
 ```bash
-python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
 ```
 
 GGUF using Mixtral:
@@ -1483,13 +1535,13 @@ Exllama is supported using `load_exllama` bool, with additional control using `e
 
 Attention sinks is supported, like:
 ```bash
-python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096 --sink_dict="{'num_sink_tokens': 4, 'window_length': 4096}"
+python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.2 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096 --sink_dict="{'num_sink_tokens': 4, 'window_length': 4096}"
 ```
 where the attention sink window has to be larger than any prompt input else failures will occur.  If one sets `max_input_tokens` then this will restrict the input tokens and that can be set to same value as `window_length`.
 
 One can increase `--max_seq_len=4096` for Mistral up to maximum of `32768` if GPU has enough memory, or reduce to lower memory needs from input itself, but still get efficient generation of new tokens "without limit".  E.g.
 ```bash
---base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=8192 --sink_dict="{'num_sink_tokens': 4, 'window_length': 8192}"
+--base_model=mistralai/Mistral-7B-Instruct-v0.2 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=8192 --sink_dict="{'num_sink_tokens': 4, 'window_length': 8192}"
 ```
 
 One can also set `--min_new_tokens` on CLI or in UI to some larger value, but this is risky as it ignores end of sentence token and may do poorly after.  Better to improve prompt, and this is most useful when already consumed context with input from documents (e.g. `top_k_docs=-1`) and still want long generation.  Attention sinks is not yet supported for llama.cpp type models or vLLM/TGI inference servers.
@@ -1594,7 +1646,7 @@ This section describes how to add a new embedding model.
 
 To run the embedding model on the CPU, use options like:
 ```bash
-python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --metadata_in_context=None
 ```
 The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
 
@@ -1696,46 +1748,58 @@ Related to transformers.  There are two independent ways to do this (choose one)
 * Ensure use all GPUs if have multiple GPUs (`--use_gpu_id=False`)
 * Limit the sequence length (`--max_seq_len=4096`)
 * For GGUF models limit number of model layers put onto GPU (`--n_gpu_layers=10`)
+* Avoid metadata in context (`--metadata_in_context=None`)
+* Lower chunks (`--chunk-size=128`)
+* Lower number of documetns in context (`--top_k_docs=3`)
+* Use smaller quantized model like Q4 instead of Q5 or Q6 from TheBloke (`--base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=mistral`)
+
+Combining these together in some middle-ground way that is reasonable for not too many documents but good speed on GPU is:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --score_model=None --base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=mistral --max_seq_len=2048 --max_new_tokens=128 --top_k_docs=3 --metadata_in_context=False --chunk-size=128 --add_disk_models_to_ui=False --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5
+```
+Add `--cli=True` for CLI mode or `--langchain_mode=UserData` for accessing UserData documents immediately (good for CLI where can't switch at runtime).
+
+#### Other low-memory examples
 
 If you can do 4-bit, then do:
 ```bash
-python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_4bit=True --langchain_mode='UserData' --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=2048
+python generate.py --base_model=TheBloke/Mistral-7B-Instruct-v0.2-GGUF --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --prompt_type=mistral --score_model=None --load_4bit=True --langchain_mode='UserData' --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=2048 --top_k_docs=3 --metadata_in_context=None
 ```
 which uses about 9GB.  But still uses embedding model on GPU.
 
 For some models, you can restrict the use of context to use less memory.  This does not work for long context models trained with static/linear RoPE scaling, for which the full static scaling should be used.  Otherwise, e.g. for LLaMa-2 you can use
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048 --enable_tts=False --enable_stt=False --enable_transcriptions=False
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
 even though normal value is `--max_seq_len=4096` if the option is not passed as inferred from the model `config.json`.
 
 Also try smaller GGUF models for GPU, e.g.:
 ```bash
-python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False
+python generate.py --base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
-This only uses 2GB of GPU even during usage.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
+This only uses 2GB of GPU even during usage, but will be alot slower if use only use GPU with 10 layers instead of default.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
 
 On CPU case, a good model that's still low memory is to run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path --enable_tts=False --enable_stt=False --enable_transcriptions=False
+python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
 Ensure to vary `n_gpu_layers` at CLI or in UI to smaller values to reduce offloading for smaller GPU memory boards.
 
 To run the embedding model on the CPU, use options like:
 ```bash
-python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
 The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
 
 All together, one might do for a good 7B model using AWQ (4-bit) quantization with embedding model on CPU:
 ```bash
-CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/openchat-3.5-1210-AWQ --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=4096
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/openchat-3.5-1210-AWQ --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=4096 --top_k_docs=3 --metadata_in_context=None
 ```
 This uses about 7.2GB memory during usage of short questions.  Or use GGUF to control GPU offloading for more minimal GPU usage:
 ```bash
-CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr  --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr  --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
-This uses about 2.3GB of GPU memory during usage of short questions.
+This uses about 2.3GB of GPU memory during usage of short questions.  But it will be slower due to only offloading 10 layers.
 
 ### ValueError: ...offload....
 

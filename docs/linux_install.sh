@@ -28,6 +28,7 @@ pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
 #* Optional: Install document question-answer dependencies:
 #
 # May be required for jq package:
+sudo apt-get update -y
 sudo apt-get -y install autoconf libtool
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
@@ -124,6 +125,7 @@ fi
 
 # upgrade chrome to latest
 sudo mkdir -p /etc/apt/keyrings/
+sudo rm -rf /tmp/google.pub
 sudo wget https://dl-ssl.google.com/linux/linux_signing_key.pub -O /tmp/google.pub
 sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --import /tmp/google.pub
 sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
@@ -210,6 +212,10 @@ pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg
 #
 pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/reqs_constraints.txt
 #  For more info see [SERP Docs](README_SerpAPI.md).
+
+
+# https://github.com/h2oai/h2ogpt/issues/1483
+pip uninstall flash_attn autoawq autoawq-kernels -y && pip install flash_attn autoawq autoawq-kernels --no-cache-dir
 
 
 bash ./docs/run_patches.sh

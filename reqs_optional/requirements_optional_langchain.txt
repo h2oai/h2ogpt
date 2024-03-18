@@ -13,10 +13,12 @@ langchain_experimental==0.0.47
 langchain-community==0.0.8
 langsmith==0.0.77
 langchain-core==0.1.6
+
 pypdf>=3.17.1
 # avoid textract, requires old six
 #textract==1.6.5
 pypdfium2>=4.24.0
+
 
 # for HF embeddings
 sentence_transformers>=2.2.2,<2.3.0
@@ -26,10 +28,18 @@ replicate==0.20.0
 anthropic==0.18.1
 langchain-anthropic==0.1.3
 
-langchain-google-genai==0.0.6
-google-generativeai==0.3.2
+langchain-google-genai==0.0.11
+google-generativeai==0.4.1
+
+#langchain_mistralai==0.0.5
+#mistralai==0.1.6
+
 langchain_mistralai==0.0.2
 mistralai==0.0.8
+
+
+groq==0.4.2
+langchain-groq==0.0.1
 
 # local vector db
 chromadb==0.4.23

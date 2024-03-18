@@ -20,7 +20,8 @@ def run_cli(  # for local function:
         use_pypdf=None,
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
-        enable_imagegen_high_sd=None,
+        enable_image=None,
+
         try_pdf_as_html=None,
         # for some evaluate args
         load_awq='',
@@ -28,7 +29,7 @@ def run_cli(  # for local function:
         prompt_type=None, prompt_dict=None, system_prompt=None,
         temperature=None, top_p=None, top_k=None, penalty_alpha=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
-        num_return_sequences=None, do_sample=None, chat=None,
+        num_return_sequences=None, do_sample=None, seed=None, chat=None,
         langchain_mode=None, langchain_action=None, langchain_agents=None,
         document_subset=None, document_choice=None,
         document_source_substrings=None,
@@ -75,9 +76,7 @@ def run_cli(  # for local function:
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
-        image_gen_loader=None,
-        image_gen_loader_high=None,
-        image_change_loader=None,
+        imagegen_model_dict=None,
 
         asr_model=None,
         asr_loader=None,
