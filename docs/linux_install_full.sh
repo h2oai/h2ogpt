@@ -28,7 +28,11 @@ else
 fi
 
 echo "Installing fresh h2oGPT env."
-conda remove -n h2ogpt --all -y
+if conda env list | grep -q 'h2ogpt'; then
+    conda remove -n h2ogpt --all -y
+else
+    echo "h2ogpt environment does not exist."
+fi
 conda update conda -y
 conda create -n h2ogpt -y
 conda activate h2ogpt
