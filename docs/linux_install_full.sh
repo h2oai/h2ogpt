@@ -25,6 +25,9 @@ if ! command -v conda &> /dev/null; then
     conda deactivate
 else
     echo "Conda is already installed."
+    source ~/miniconda3/bin/activate
+    conda init bash
+    conda deactivate
 fi
 
 echo "Installing fresh h2oGPT env."
