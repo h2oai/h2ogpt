@@ -10,13 +10,12 @@ import gradio as gr
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config
 
-# CODE FOR NEW APP
-
 app = FastAPI()
 
 import os
-os.environ['GOOGLE_CLIENT_ID'] = ''
-os.environ['GOOGLE_CLIENT_SECRET'] = ''
+
+assert os.environ['GOOGLE_CLIENT_ID'], "Set env GOOGLE_CLIENT_ID"
+assert os.environ['GOOGLE_CLIENT_SECRET'], "Set env GOOGLE_CLIENT_SECRET"
 
 config = Config()
 oauth = OAuth(config)
@@ -30,6 +29,9 @@ oauth.register(
     }
 )
 
+from urllib.parse import urlparse, urlunparse
+
+
 # The Middleware that enforces authentication on /gradio app
 @app.middleware("http")
 async def check_authentication(request: Request, call_next):
@@ -37,16 +39,16 @@ async def check_authentication(request: Request, call_next):
         # Skip authentication check for login and authentication routes
         return await call_next(request)
 
-    if request.url.path=='/gradio/api/predict' or request.url.path=='/gradio/reset':
+    if request.url.path == '/gradio/api/predict' or request.url.path == '/gradio/reset':
         return await call_next(request)
 
     user = request.session.get("user")
     if not user:
-
         # User is not logged in, redirect to login page
         return RedirectResponse(url="/login")
 
     return await call_next(request)
+
 
 @app.get('/')
 async def homepage(request: Request):
@@ -66,6 +68,14 @@ async def homepage(request: Request):
 @app.get('/login')
 async def login(request: Request):
     redirect_uri = request.url_for('auth')
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+# If using http and not https, then comment out this function:
+@app.route('/login')
+async def login(request: Request):
+    parsed_url = urlparse(str(request.url_for('auth')))
+    modified_url = parsed_url._replace(scheme='https')
+    redirect_uri = urlunparse(modified_url)
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -88,6 +98,7 @@ async def logout(request: Request):
     request.session.pop('user', None)
     return RedirectResponse(url='/')
 
+
 # CODE FOR MOUNTED GRADIO APP
 
 def update(name, request: gr.Request):
@@ -97,7 +108,8 @@ def update(name, request: gr.Request):
 def make_demo_visible(request: gr.Request):
     if request.request.session.get('user'):
         return gr.update(visible=True), gr.update(visible=True), gr.update(visible=True), gr.update(visible=False)
-    return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(value="Looks like you are not logged in. Please login at the main app.")
+    return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(
+        value="Looks like you are not logged in. Please login at the main app.")
 
 
 def get_demo():
@@ -115,7 +127,7 @@ def get_demo():
     return demo
 
 
-def get_app(demo):
-    gradio_app = gr.mount_gradio_app(app, demo, "/gradio")
+def get_app(demo, app_kwargs):
+    gradio_app = gr.mount_gradio_app(app, demo, "/gradio", app_kwargs)
     app.add_middleware(SessionMiddleware, secret_key="!secret")
     return gradio_app
