@@ -12,26 +12,31 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
   Download Miniconda for Linux and install:
   ```bash
   wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
-  bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
-  # follow license agreement and add to bash if required
-  ```
-  Open a new shell and look for `(base)` in the prompt to confirm that Miniconda is properly installed, then create a new env:
-  ```bash
+  bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -p $HOME/miniconda3
+
+  # Manually adding Conda init to .bashrc
+  echo '### Conda init ###' >> $HOME/.bashrc
+  echo 'source $HOME/miniconda3/etc/profile.d/conda.sh' >> $HOME/.bashrc
+  echo 'conda activate' >> $HOME/.bashrc
+  source $HOME/.bashrc
+
+  # install h2ogpt env
+  conda remove -n h2ogpt --all -y
+  conda update conda -y
   conda create -n h2ogpt -y
   conda activate h2ogpt
   conda install python=3.10 -c conda-forge -y
   ```
-  You should see `(h2ogpt)` in the shell prompt.
+  You should see `(h2ogpt)` in the shell prompt.  If do not want conda in your `~/.bashrc`, then add to different shell script to `source` before starting h2oGPT.
 
 * Check your python version with the following command:
   ```bash
   python --version
-  ```
-  The return should say 3.10.xx, and:
-  ```bash
   python -c "import os, sys ; print('hello world')"
   ```
-  should print `hello world`.  Then clone:
+  The return should say 3.10.xx, and print `hello world`.
+
+* Clone h2oGPT:
   ```bash
   git clone https://github.com/h2oai/h2ogpt.git
   cd h2ogpt
@@ -40,12 +45,11 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 
 * For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS use of deepspeed, by going to [CUDA Toolkit](INSTALL.md#install-cuda-toolkit).  E.g. [CUDA 12.1 Toolkit](https://developer.nvidia.com/cuda-12-1-1-download-archive).  In order to avoid removing the original CUDA toolkit/driver you have, on NVIDIA's website, use the `runfile (local)` installer, and choose to not install driver or overwrite `/usr/local/cuda` link and just install the toolkit, and rely upon the `CUDA_HOME` env to point to the desired CUDA version.  Then do:
   ```bash
-  export CUDA_HOME=/usr/local/cuda-12.1
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64
-  export PATH=$PATH:$CUDA_HOME/bin
+  echo 'export CUDA_HOME=/usr/local/cuda-12.1' >> $HOME/.bashrc
+  echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64' >> $HOME/.bashrc
+  echo 'export PATH=$PATH:$CUDA_HOME/bin' >> $HOME/.bashrc
   ```
-
-* Place the `CUDA_HOME` export into your `~/.bashrc` or before starting h2oGPT for TTS's use of deepspeed to work.
+  If you do not want these in your `~/.bashrc`, then add to different shell script to `source` before starting h2oGPT (e.g. for TTS's use of deepspeed to work).
   
 * Prepare to install dependencies for CUDA 12.1:
    ```bash
