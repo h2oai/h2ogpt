@@ -4652,6 +4652,10 @@ def test_client_openai_chat_history(base_model):
     assert 'Liam' in text
 
 
+# can run some server locally (e.g. in pycharm) with bunch of models
+# then run:
+# (h2ogpt) jon@pseudotensor:~/h2ogpt$ GRADIO_SERVER_PORT=7862 H2OGPT_OPENAI_PORT=6001 TEST_SERVER=http://localhost:7860 pytest -s -v tests/test_client_calls.py::test_max_new_tokens &> doit16.log
+
 # add rest once 25 passes
 # @pytest.mark.parametrize("max_new_tokens", [25, 64, 128, 256, 512, 768, 1024, 1500, 2048])
 @pytest.mark.parametrize("temperature", [-1, 0.0, 1.0])
