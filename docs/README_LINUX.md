@@ -190,8 +190,36 @@ apt-get clean all
 
 ## undefined symbols
 
-Try running:
+If see:
+```text
+  File "/home/jon/h2ogpt/src/gen.py", line 2289, in get_config
+    model = AutoModel.from_config(
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 434, in from_config
+    model_class = _get_model_class(config, cls._model_mapping)
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 381, in _get_model_class
+    supported_models = model_mapping[type(config)]
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 732, in __getitem__
+    return self._load_attr_from_module(model_type, model_name)
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 746, in _load_attr_from_module
+    return getattribute_from_module(self._modules[module_name], attr)
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 690, in getattribute_from_module
+    if hasattr(module, attr):
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/utils/import_utils.py", line 1380, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+  File "/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/utils/import_utils.py", line 1392, in _get_module
+    raise RuntimeError(
+RuntimeError: Failed to import transformers.models.mistral.modeling_mistral because of the following error (look up to see its traceback):
+/home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/flash_attn_2_cuda.cpython-310-x86_64-linux-gnu.so: undefined symbol: _ZN2at4_ops5zeros4callEN3c108ArrayRefINS2_6SymIntEEENS2_8optionalINS2_10ScalarTypeEEENS6_INS2_6LayoutEEENS6_INS2_6DeviceEEENS6_IbEE
+```
+
+Ensure your `CUDA_HOME` env is set to the same as you installed h2oGPT with, e.g.
+```bash
+export CUDA_HOME=/usr/local/cuda-12.1
+
+Then run in the `h2ogpt` conda env:
 ```bash
 # https://github.com/h2oai/h2ogpt/issues/1483
-pip uninstall flash_attn autoawq autoawq-kernels -y && pip install flash_attn autoawq autoawq-kernels
+pip uninstall flash_attn autoawq autoawq-kernels -y && pip install flash_attn autoawq autoawq-kernels --no-cache-dir
+```
+
 ```
