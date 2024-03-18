@@ -4716,8 +4716,8 @@ def test_max_new_tokens(max_new_tokens, temperature):
             api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
             prompt = "Tell an extremely long kid's story about birds"
             kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens,
-                          do_sample=True,  # let temp control
-                          seed=0, # so random if sampling
+                          # do_sample=True,  # let temp control
+                          seed=0,  # so random if sampling
                           temperature=temperature)
 
             print("START base_model: %s max_new_tokens: %s" % (base_model, max_new_tokens))
@@ -4780,7 +4780,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                           document_subset='Relevant',
                           document_choice=DocumentChoice.ALL.value,
                           max_new_tokens=max_new_tokens,
-                          do_sample=True,  # let temp control
+                          # do_sample=True,  # let temp control
                           seed=0,  # so random if sampling
                           temperature=temperature,
                           visible_models=base_model,
