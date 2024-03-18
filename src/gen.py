@@ -1516,9 +1516,9 @@ def main(
         max_total_input_tokens = max_total_input_tokens_public if max_total_input_tokens is None else max_total_input_tokens
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
-        temperature = 0.2 if temperature is None else temperature
+        temperature = 0.3 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
-        top_k = 70 if top_k is None else top_k
+        top_k = 1 if top_k is None else top_k
         penalty_alpha = 0.0 if penalty_alpha is None else penalty_alpha
         if is_hf:
             do_sample = True if do_sample is None else do_sample
@@ -3783,8 +3783,6 @@ def evaluate(
         extract_frames = extract_frames0
     if seed is None:
         seed = 0
-    if seed == 0 and do_sample:
-        seed = randint(0, 32000)
 
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
@@ -3940,11 +3938,15 @@ def evaluate(
     top_p = min(max(1e-3, top_p), 1.0)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
+    if temperature > 0.0 or top_p < 1.0 or top_k > 1:
+        do_sample = True
     if not do_sample:
         temperature = 0
         top_p = 1.0
         top_k = 1
         seed = 1
+    if seed == 0 and do_sample:
+        seed = randint(0, 32000)
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
@@ -5244,9 +5246,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     else:
         prompt_type = prompt_type or ''
     if use_defaults:
-        temperature = 1.0 if temperature is None else temperature
+        temperature = 0.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
-        top_k = 40 if top_k is None else top_k
+        top_k = 1 if top_k is None else top_k
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 512
@@ -5254,9 +5256,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
-        temperature = 0.1 if temperature is None else temperature
+        temperature = 0.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
-        top_k = 40 if top_k is None else top_k
+        top_k = 1 if top_k is None else top_k
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 1024

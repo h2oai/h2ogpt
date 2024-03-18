@@ -1703,7 +1703,8 @@ def go_gradio(**kwargs):
                                                                value=kwargs['stream_output'])
                         do_sample = gr.Checkbox(label="Sample",
                                                 info="Enable sampler (required for use of temperature, top_p, top_k).  If temperature=0 is set, this is forced to False.",
-                                                value=kwargs['do_sample'])
+                                                value=kwargs['do_sample'],
+                                                visible=False)
                         seed = gr.Number(value=0,
                                          minimum=0,
                                          step=1,
@@ -1716,14 +1717,14 @@ def go_gradio(**kwargs):
                         temperature = gr.Slider(minimum=0, maximum=2,
                                                 value=kwargs['temperature'],
                                                 label="Temperature",
-                                                info="Lower is deterministic, higher more creative")
+                                                info="Lower is deterministic, higher more creative (e.g. 0.3 to 0.75)")
                         top_p = gr.Slider(minimum=1e-3, maximum=1.0,
                                           value=kwargs['top_p'], label="Top p",
-                                          info="Cumulative probability of tokens to sample from")
+                                          info="Cumulative probability of tokens to sample from (e.g. 0.7)")
                         top_k = gr.Slider(
                             minimum=1, maximum=100, step=1,
                             value=kwargs['top_k'], label="Top k",
-                            info='Num. tokens to sample from'
+                            info='Num. tokens to sample from (e.g. 5 to 70)'
                         )
                         penalty_alpha = gr.Slider(
                             minimum=0.0, maximum=2.0, step=0.01,
