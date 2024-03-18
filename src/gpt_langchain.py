@@ -1657,7 +1657,7 @@ class GenerateStream2:
         except Exception as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            if 'assert generation is not None' in str(ex):
+            if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
                 # try one more time
                 return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
             else:
@@ -1682,7 +1682,7 @@ class GenerateStream2:
         except Exception as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
-            if 'assert generation is not None' in str(ex):
+            if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
                 # try one more time
                 return await self.agenerate(
                     prompt_messages, stop=stop, callbacks=callbacks, **kwargs
