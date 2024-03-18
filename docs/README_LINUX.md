@@ -184,3 +184,11 @@ apt-get -y dist-upgrade
 apt-get -y autoremove
 apt-get clean all
 ```
+
+## undefined symbols
+
+Try running:
+```bash
+# https://github.com/h2oai/h2ogpt/issues/1483
+pip uninstall flash_attn autoawq autoawq-kernels -y && pip install flash_attn autoawq autoawq-kernels
+```
