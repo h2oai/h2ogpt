@@ -8,7 +8,7 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install_full.sh | bash
+curl -fsSL https://h2o-release.s3.amazonaws.com/h2ogpt/linux_install_full.sh | bash
 ```
 and enter the sudo password when required
 
