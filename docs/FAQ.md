@@ -1008,7 +1008,7 @@ For Twitter, one can right-click on Twitter video, copy video address, then past
 
 For fast performance, one can use `distil-whisper/distil-large-v2` as the model, which is about 10x faster for similar accuracy.
 
-In addition, faster_whisper package can be used if using large v2 or v3, which is about 4x faster and 2x less memory for similar accuracy.
+In addition, `faster_whisper` package can be used if using large v2 or v3, which is about 4x faster and 2x less memory for similar accuracy.
 
 ### Voice Cloning
 
@@ -1427,7 +1427,7 @@ We take care of this for distilgpt2, but other similar models might fail in same
 
 ### Adding Models
 
-You can choose any Hugging Face model or quantized GGUF model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face .cache folder (in home folder).
+You can choose any Hugging Face model or quantized GGUF model file in h2oGPT.  Hugging Face models are automatically downloaded to the Hugging Face `.cache` folder (in home folder).
 
 #### Hugging Face
 
@@ -1435,7 +1435,7 @@ Hugging Face models are passed via `--base_model` in all cases, with fine-contro
 
 #### TheBloke
 
-For models by [TheBloke](https://huggingface.co/TheBloke), h2oGPT tries to automatically handle all types of models (AWQ, GGUF, GGML, GPTQ, with or without safetensors) automatically all passed with `--base_model` only (CLI or UI both).  For example, these models all can be passed just with `--base_model` without any extra model options:
+For models by [TheBloke](https://huggingface.co/TheBloke), h2oGPT tries to automatically handle all types of models (AWQ, GGUF, GGML, and GPTQ, with or without [safetensors](https://huggingface.co/docs/safetensors/index#safetensors)). These models can all be passed using only the `--base_model` option (CLI or UI both).  For example, the following models can all be passed with just the `--base_model` option without any additional model options:
 ```text
 python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
 python generate.py --base_model=TheBloke/Xwin-LM-13B-V0.1-GPTQ
@@ -1446,15 +1446,15 @@ python generate.py --base_model=TheBloke/zephyr-7B-beta-AWQ
 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr
 python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true
 ```
-Some are these are non-quantized models with links HF links, some specific files on local disk ending in `.gguf`.  Given `TheBloke` HF names, if a quantized model, h2oGPT pulls the recommended model from his repository.  You can also provide a resolved web link directly, or a file.
+Some are these are non-quantized models with HF links, and some are specific files on local disk ending in `.gguf`.  Given `TheBloke` HF names, if it is a quantized model, h2oGPT pulls the recommended model from his repository.  You can also provide a resolved web link directly, or a file.
 
-Watch out for typos.  h2oGPT broadly detects if the URL is valid, but Hugging Face just returns a redirect for resolved links, leading to page containing `Entry not found` if one makes a mistake in the file name, e.g. `https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguffoo`.
+Watch out for typos.  h2oGPT broadly detects if the URL is valid, but Hugging Face just returns a redirect for resolved links, leading to a page containing `Entry not found` if there is a mistake in the file name, e.g. `https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguffoo`.
 
-For AWQ, GPTQ, we try the required safe tensors or other options, and by default use transformers's GPTQ unless one specifies `--use_autogptq=True`.
+For AWQ, GPTQ, we try the required safe tensors or other options, and by default use transformers' GPTQ unless one specifies `--use_autogptq=True`.
 
 #### AWQ & GPTQ
 
-For full control over AWQ, GPTQ models, one can use an extra `--load_gptq` and `gptq_dict` for GPTQ models or an extra `--load_awq` for AWQ models.
+For full control over AWQ and GPTQ models, one can use an extra `--load_gptq` and `gptq_dict` for GPTQ models or an extra `--load_awq` for AWQ models.
 
 ##### GPTQ
 
@@ -1487,9 +1487,9 @@ python generate.py --base_model=TheBloke/Llama-2-13B-chat-AWQ --load_awq=model -
 
 For full control (e.g. for non-TheBloke models), use `--base_model=llama` and specify `--model_path_llama`, which can be file or URL.  Use `--llamacpp_dict` to pass options to the model for full control over llama.cpp behavior.
 
-#### GGUF (GPT-Generated Unified Format)
+#### GGUF
 
-GGUF models are supported (can run either CPU and GPU in same install), see installation instructions for installing the separate GPU and CPU packages.
+GGUF (GPT-Generated Unified Format) models are supported (can run either CPU and GPU in same install), see installation instructions for installing the separate GPU and CPU packages.
 
 GGUF using Mistral:
 ```bash
