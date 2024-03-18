@@ -46,7 +46,7 @@ export FORCE_CMAKE=1
 echo "Installing fresh h2oGPT"
 set +x
 export GPLOK=1
-curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/h2oai/h2ogpt/main/docs/linux_install.sh | sudo bash
 # bash docs/linux_install.sh
 
 echo -e "\n\n\n\t\t h2oGPT installation FINISHED\n\n\n";
