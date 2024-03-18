@@ -10,11 +10,11 @@ pip uninstall gradio gradio_client -y
 pip install gradio==4.17.0
 ```
 
-### nginx and k8 multi-pod support
+### nginx and K8s multi-pod support
 
-Gradio 4.x.y fails to support k8 multi-pod use.  Basically gradio client on one pod can't reach gradio server on nearby pod.  See: https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
+Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
 
-Workaround: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
 ```bash
 pip uninstall gradio gradio_client gradio_pdf -y
 pip install gradio==3.50.2
@@ -241,7 +241,7 @@ ulimit -n 1048576
 
 export H2OGPT_LLAVA_MODEL=http://xxx.xxx.xxx.144:7860/
 ```
-Be careful with gradio and secret files.  h2oGPT sets `allowed_paths` to include `.`, unless public instance when `GPT_H2O_AI=1` is set.  So if you put your key file in `.` and didn't set to be public instance, it'll be possible to access your key file even if have a soft link to secret location.
+Exercise caution with gradio and secret files.  h2oGPT sets `allowed_paths` to include `.`, unless public instance when `GPT_H2O_AI=1` is set.  So if you put your key file in `.` and didn't set to be public instance, it'll be possible to access your key file even if have a soft link to secret location.
 
 Then running:
 ```
