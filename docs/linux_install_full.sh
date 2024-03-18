@@ -4,6 +4,9 @@ set -ex
 
 echo -e "\n\n\n\t\tSTART\n\n\n";
 
+# ensure not in h2ogpt repo folder
+cd $HOME
+
 # Check if the h2ogpt directory already exists
 if [ -d "h2ogpt" ]; then
     echo "h2ogpt directory exists. Updating the repository."
@@ -28,6 +31,13 @@ else
     source ~/miniconda3/bin/activate
     conda init bash
     conda deactivate
+fi
+
+if [ "$CONDA_DEFAULT_ENV" = "h2ogpt" ]; then
+    echo "Deactivating the h2ogpt Conda environment."
+    conda deactivate
+else
+    echo "The h2ogpt Conda environment is not currently activated."
 fi
 
 echo "Installing fresh h2oGPT env."
