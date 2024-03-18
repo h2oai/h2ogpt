@@ -3940,9 +3940,10 @@ def evaluate(
     top_p = min(max(1e-3, top_p), 1.0)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
-    if temperature == 0.0:
-        # override
-        do_sample = False
+    if not do_sample:
+        temperature = 0
+        top_p = 1.0
+        top_k = 1
         seed = 1
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:

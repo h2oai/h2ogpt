@@ -10,7 +10,10 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 ```bash
 curl -fsSL https://h2o-release.s3.amazonaws.com/h2ogpt/linux_install_full.sh | bash
 ```
-and enter the sudo password when required.
+and enter the sudo password when required. Once install done, do:
+```bash
+conda activate h2ogpt
+```
 
 To avoid periodically entering the sudo password (default 5 minute timeout), then extend the sudo timeout by running:
 ```bash
