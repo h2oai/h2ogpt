@@ -1325,9 +1325,11 @@ from `gradio_utils/google_auth.py`.
 
 Run h2oGPT with:
 ```bash
-export GOOGLE_CLIENT_ID = "<fill me>"
-export GOOGLE_CLIENT_SECRET = "<fill me>"
-GRADIO_SERVER_PORT=7860 python generate.py --auth='google' --server_name=0.0.0.0 -- ...
+export GOOGLE_CLIENT_ID="<fill me>"
+export GOOGLE_CLIENT_SECRET="<fill me>"
+# can just be "foo" or some random thing below:
+export SECRET_KEY="<fill me>"
+GRADIO_SERVER_PORT=7860 python generate.py --google_auth --server_name=0.0.0.0 -- ...
 ```
 Then goto e.g. https://gpt.h2o.ai/ and see if works
 

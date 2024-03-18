@@ -6263,7 +6263,7 @@ def go_gradio(**kwargs):
         from gradio_utils.google_auth import get_app
         app_kwargs = dict(
             favicon_path=favicon_path,
-            prevent_thread_lock=True,
+            # prevent_thread_lock=True,
             allowed_paths=allowed_paths if allowed_paths else None,
             blocked_paths=blocked_paths if blocked_paths else None,
         )
@@ -6271,13 +6271,13 @@ def go_gradio(**kwargs):
         uvicorn.run(app,
                     # share not allowed
                     host=kwargs['server_name'],
-                    port=server_port,
+                    port=server_port or 7860,
                     # show_error not allowed
                     ws_max_queue=max_threads,
-                    workers=max_threads,
+                    # workers=max_threads, # https://github.com/tiangolo/fastapi/issues/1495#issuecomment-635681976
                     root_path=kwargs['root_path'],
                     ssl_keyfile=kwargs['ssl_keyfile'],
-                    # ssl_verify=kwargs['ssl_verify'],
+                    # ssl_verify=kwargs['ssl_verify'], # https://github.com/gradio-app/gradio/issues/2790#issuecomment-2004984763
                     ssl_certfile=kwargs['ssl_certfile'],
                     ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                     limit_concurrency=None,
