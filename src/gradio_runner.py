@@ -6249,7 +6249,6 @@ def go_gradio(**kwargs):
     if server_port is not None:
         server_port = int(server_port)
 
-
     # NOTE: Dynamically added paths won't work unless relative to root and not public
     allowed_paths = []
     allowed_paths += [os.path.abspath(v) for k, v in kwargs['langchain_mode_paths'].items() if v]
@@ -6257,11 +6256,17 @@ def go_gradio(**kwargs):
     blocked_paths = [os.path.abspath(x) for x in kwargs['blocked_paths']]
 
     max_threads = max(128, 4 * kwargs['concurrency_count']) if isinstance(kwargs['concurrency_count'],
-                                                                                   int) else 128
+                                                                          int) else 128
 
     if kwargs['google_auth']:
         import uvicorn
         from gradio_utils.google_auth import get_app
+        app_kwargs = dict(
+            favicon_path=favicon_path,
+            prevent_thread_lock=True,
+            allowed_paths=allowed_paths if allowed_paths else None,
+            blocked_paths=blocked_paths if blocked_paths else None,
+        )
         app = get_app(demo)
         uvicorn.run(app,
                     # share not allowed
@@ -6272,7 +6277,7 @@ def go_gradio(**kwargs):
                     workers=max_threads,
                     root_path=kwargs['root_path'],
                     ssl_keyfile=kwargs['ssl_keyfile'],
-                    #ssl_verify=kwargs['ssl_verify'],
+                    # ssl_verify=kwargs['ssl_verify'],
                     ssl_certfile=kwargs['ssl_certfile'],
                     ssl_keyfile_password=kwargs['ssl_keyfile_password'],
                     limit_concurrency=None,

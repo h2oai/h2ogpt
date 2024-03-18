@@ -1,133 +1,104 @@
-import json
-
-import uvicorn
-from authlib.integrations.base_client import OAuthError
-from fastapi import FastAPI
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import HTMLResponse, RedirectResponse
-from starlette.requests import Request
-import gradio as gr
-from authlib.integrations.starlette_client import OAuth
-from starlette.config import Config
-
-app = FastAPI()
-
-import os
-
-assert os.environ['GOOGLE_CLIENT_ID'], "Set env GOOGLE_CLIENT_ID"
-assert os.environ['GOOGLE_CLIENT_SECRET'], "Set env GOOGLE_CLIENT_SECRET"
-
-config = Config()
-oauth = OAuth(config)
-
-CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
-oauth.register(
-    name='google',
-    server_metadata_url=CONF_URL,
-    client_kwargs={
-        'scope': 'openid email profile'
-    }
-)
-
-from urllib.parse import urlparse, urlunparse
+def setup_app():
+    from authlib.integrations.starlette_client import OAuth, OAuthError
+    from fastapi import FastAPI, Depends, Request
+    from starlette.config import Config
+    from starlette.responses import RedirectResponse
+    from starlette.middleware.sessions import SessionMiddleware
+    import os
+    import gradio as gr
 
 
-# The Middleware that enforces authentication on /gradio app
-@app.middleware("http")
-async def check_authentication(request: Request, call_next):
-    if request.url.path.startswith('/login') or request.url.path.startswith('/auth'):
-        # Skip authentication check for login and authentication routes
-        return await call_next(request)
+    assert os.environ['GOOGLE_CLIENT_ID'], "Set env GOOGLE_CLIENT_ID"
+    GOOGLE_CLIENT_ID = os.environ['GOOGLE_CLIENT_ID']
+    assert os.environ['GOOGLE_CLIENT_SECRET'], "Set env GOOGLE_CLIENT_SECRET"
+    GOOGLE_CLIENT_SECRET = os.environ['GOOGLE_CLIENT_SECRET']
+    assert os.environ['SECRET_KEY'], "Set env SECRET_KEY"
+    SECRET_KEY = os.environ['SECRET_KEY']
 
-    if request.url.path == '/gradio/api/predict' or request.url.path == '/gradio/reset':
-        return await call_next(request)
+    app = FastAPI()
+    config = Config()
+    oauth = OAuth(config)
 
-    user = request.session.get("user")
-    if not user:
-        # User is not logged in, redirect to login page
-        return RedirectResponse(url="/login")
+    # Set up OAuth
+    config_data = {'GOOGLE_CLIENT_ID': GOOGLE_CLIENT_ID, 'GOOGLE_CLIENT_SECRET': GOOGLE_CLIENT_SECRET}
+    starlette_config = Config(environ=config_data)
+    oauth = OAuth(starlette_config)
+    oauth.register(
+        name='google',
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'},
+    )
+    app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-    return await call_next(request)
+    # Dependency to get the current user
+    def get_user(request: Request):
+        user = request.session.get('user')
+        if user:
+            return user['name']
+        return None
 
+    @app.get('/')
+    def public(request: Request, user = Depends(get_user)):
+        root_url = gr.route_utils.get_root_url(request, "/", None)
+        if user:
+            return RedirectResponse(url=f'{root_url}/gradio/')
+        else:
+            return RedirectResponse(url=f'{root_url}/main/')
 
-@app.get('/')
-async def homepage(request: Request):
-    user = request.session.get('user')
-    if user:
-        data = json.dumps(user)
-        html = (
-            f'<pre>{data}</pre>'
-            '<a href="/logout">logout</a>'
-            '<br>'
-            '<a href="/gradio">demo</a>'
-        )
-        return HTMLResponse(html)
-    return HTMLResponse('<a href="/login">login</a>')
+    @app.route('/logout')
+    async def logout(request: Request):
+        request.session.pop('user', None)
+        return RedirectResponse(url='/')
 
+    @app.route('/login')
+    async def login(request: Request):
+        root_url = gr.route_utils.get_root_url(request, "/login", None)
+        redirect_uri = f"{root_url}/auth"
+        print("Redirecting to", redirect_uri)
+        return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@app.get('/login')
-async def login(request: Request):
-    redirect_uri = request.url_for('auth')
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    @app.route('/auth')
+    async def auth(request: Request):
+        try:
+            access_token = await oauth.google.authorize_access_token(request)
+        except OAuthError:
+            print("Error getting access token", str(OAuthError))
+            return RedirectResponse(url='/')
+        request.session['user'] = dict(access_token)["userinfo"]
+        print("Redirecting to /gradio")
+        return RedirectResponse(url='/gradio')
 
-# If using http and not https, then comment out this function:
-@app.route('/login')
-async def login(request: Request):
-    parsed_url = urlparse(str(request.url_for('auth')))
-    modified_url = parsed_url._replace(scheme='https')
-    redirect_uri = urlunparse(modified_url)
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    from urllib.parse import urlparse, urlunparse
 
+    # Comment out below if using http instead of https
+    @app.route('/login')
+    async def login(request: Request):
+        parsed_url = urlparse(str(request.url_for('auth')))
+        modified_url = parsed_url._replace(scheme='https')
+        redirect_uri = urlunparse(modified_url)
+        return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@app.get('/auth')
-async def auth(request: Request):
-    print(f"before request user {request.session.get('user')}")
-    try:
-        token = await oauth.google.authorize_access_token(request)
-    except OAuthError as error:
-        return HTMLResponse(f'<h1>{error.error}</h1>')
-    user = token.get('userinfo')
-    if user:
-        request.session['user'] = dict(user)
-    print(f"after request user {request.session.get('user')}")
-    return RedirectResponse(url='/')
-
-
-@app.get('/logout')
-async def logout(request: Request):
-    request.session.pop('user', None)
-    return RedirectResponse(url='/')
-
-
-# CODE FOR MOUNTED GRADIO APP
-
-def update(name, request: gr.Request):
-    return f"Welcome to Gradio, {name}!\n{request.request.session.get('user')}"
-
-
-def make_demo_visible(request: gr.Request):
-    if request.request.session.get('user'):
-        return gr.update(visible=True), gr.update(visible=True), gr.update(visible=True), gr.update(visible=False)
-    return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(
-        value="Looks like you are not logged in. Please login at the main app.")
+    return app, get_user
 
 
-def get_demo():
-    with gr.Blocks() as demo:
-        start_btn = gr.Button("Press Here to initialize the demo!")
+def login_gradio():
+    import gradio as gr
+    login_demo = gr.Blocks()
+    with login_demo:
+        btn = gr.Button("h2oGPT Login")
+        _js_redirect = """
+            () => {
+                url = '/login' + window.location.search;
+                window.open(url, '_blank');
+            }
+            """
+        btn.click(None, js=_js_redirect)
+    return login_demo
 
-        with gr.Row():
-            inp = gr.Textbox(placeholder="What is your name?", visible=False)
-            out = gr.Textbox(visible=False)
 
-        btn = gr.Button("Run", visible=False)
-
-        start_btn.click(make_demo_visible, outputs=[inp, out, btn, start_btn])
-        btn.click(fn=update, inputs=inp, outputs=out)
-    return demo
-
-
-def get_app(demo, app_kwargs):
-    gradio_app = gr.mount_gradio_app(app, demo, "/gradio", app_kwargs)
-    app.add_middleware(SessionMiddleware, secret_key="!secret")
-    return gradio_app
+def get_app(demo, app_kwargs={}):
+    app, get_user = setup_app()
+    import gradio as gr
+    login_app = gr.mount_gradio_app(app, login_gradio(), "/main")
+    main_app = gr.mount_gradio_app(login_app, demo, path="/gradio", auth_dependency=get_user, app_kwargs=app_kwargs)
+    return main_app
