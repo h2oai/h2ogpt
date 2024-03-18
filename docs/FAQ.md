@@ -1,4 +1,855 @@
+## Known issues
+
+### Gradio UI Audio Streaming
+
+Gradio 4.18.0+ fails to work for streaming audio from UI.  No audio is generated.  Waiting for bug fix: https://github.com/gradio-app/gradio/issues/7497.
+
+Work-around: Use gradio 4.17.0 or lower:
+```bash
+pip uninstall gradio gradio_client -y
+pip install gradio==4.17.0
+```
+
+### nginx and k8 multi-pod support
+
+Gradio 4.x.y fails to support k8 multi-pod use.  Basically gradio client on one pod can't reach gradio server on nearby pod.  See: https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
+
+Work-around: Use gradio 3.50.2 and gradio_client 0.6.1 by commenting-in/out relevant lines in `requirements.txt`, `reqs_optional/reqs_constraints.txt`, and comment-out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.2
+```
+If you see spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.1
+```
+
+### llama.cpp + Audio streaming (XTTS model) failure
+
+```text
+CUDA error: an illegal memory access was encountered
+```
+
+With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+A temporary work-around is present in h2oGPT, whereby XTTS model (not microsoft TTS model) and llama.cpp models are not used at same time.  Leads to more delays in streaming for text+audio, but not too bad result.
+
+Other work-arounds:
+
+* Work-around 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
+
+* Work-around 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
+    ```bash
+    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+    export FORCE_CMAKE=1
+    pip install llama_cpp_python==0.2.26 --no-cache-dir
+    ```
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
+
 ## Frequently asked questions
+
+### Running oLLaMa vs. h2oGPT as inference server.
+
+* Run oLLaMa as server for h2oGPT frontend.
+ 
+  E.g. for some GGUF file (e.g. `llama-2-7b-chat.Q6_K.gguf`) in llamacpp_path follow https://github.com/ollama/ollama?tab=readme-ov-file#import-from-gguf:
+  
+    Create `Modelfile` file:
+    ```text
+    FROM ./llamacpp_path/llama-2-7b-chat.Q6_K.gguf
+    ```
+    Then in one terminal run:
+    ```bash
+    ollama create me -f Modelfile
+    ollama run me
+    ```
+    Then in another terminal, run h2oGPT and use oLLaMa endpoint as vllm_chat API:
+    ```bash
+    python generate.py --base_model=me --inference_server=vllm_chat:http://localhost:11434/v1/ --save_dir=saveollama --prompt_type=openai_chat --max_seq_len=4096
+    ```
+    This gives around 55 tokens/sec on 3090Ti on i9.
+
+    The [problem](https://github.com/ollama/ollama/issues/2963) is that oLLaMa does not allow for a runtime change to system prompt or other parameters like temperature.
+
+* Run h2oGPT as both server and frontend:
+  
+  In one terminal run:
+  ```bash
+  GRADIO_SERVER_PORT=7861 python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --prompt_type=llama2 --openai_server=True --openai_port=5000 --concurrency_count=1 --add_disk_models_to_ui=False --enable_tts=False --enable_stt=False --max_seq_len=4096 --save_dir=saveinf
+  ```
+  Note that OpenAI proxy server is default, just shown here for clarity.  Here `max_seq_len` is optional, we will auto-set if not passed for llama.cpp models.
+
+  Then in another terminal run:
+  ```bash
+  python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.Q6_K.gguf --inference_server=vllm_chat:localhost:5000 --prompt_type=llama2 --max_seq_len=4096 --add_disk_models_to_ui=False --openai_port=5001 --save_dir=savehead
+  ```
+  where `add_disk_models_to_ui` is set to `False` since expect using just that single model, unless one uses model_lock.  The model path is set here again just to get model name correct in the UI.  Then go to `http://localhost:7860` as usual.
+
+  One can disable the OpenAI proxy server on this 2nd (primary) Gradio by setting `--openai_server=False`.
+
+  This gives 55 tokens/ses on 3090Ti on i9, just as fast as oLLaMa with same isolation of CUDA.  Then things like system prompt, do_sample, temperature, all work unlike in oLLaMa.
+
+### Running inference servers
+
+Examples of what to put into "server" in UI or for `<server>` when using `--inference_server=<server>` with CLI include:
+* oLLaMa: `vllm_chat:http://localhost:11434/v1/`
+* vLLM: `vllm:111.111.111.111:5005`
+   * For llama-13b, e.g. `--model_lock="[{'inference_server':'vllm:111.11.111.111:5001', 'base_model':'h2oai/h2ogpt-4096-llama2-13b-chat'}`
+   * For groq, ensure groq API key is used,, e.g. `--model_lock="[{'inference_server':'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}]"`
+* vLLM Chat API: `vllm_chat`
+  * E.g. `vllm_chat:https://gpt.h2o.ai:5000/v1` (only for no auth setup)
+  * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD` (keyed access)
+* MistralAI: `mistralai`
+  * E.g. for CLI: `--model_lock="[{'inference_server':'mistralai', 'base_model':'mistral-medium'}]"`
+* Google: `google`
+  * Ensure ENV `GOOGLE_API_KEY` set
+  * E.g. for CLI: `--model_lock="[{'inference_server':'google', 'base_model':'gemini-pro'}]"`
+* OpenAI Chat API: `openai_chat`
+  * Ensure ENV `OPENAI_API_KEY` set or pass along with inference_server
+  * E.g. for CLI: `--model_lock="[{'inference_server':'vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD', 'base_model': 'model_name'}]"`
+* OpenAI Text API: `openai`
+  * Ensure ENV `OPENAI_API_KEY` set
+* Anthropic: `anthropic`
+  * In added to UI, this adds models h2oGPT has in `src/enums/anthropic_mapping` not pulled from Anthropic as they have no such API
+  * Ensure ENV `ANTHROPIC_API_KEY` is set to the API key
+  * E.g. for CLI: `--model_lock="[{'inference_server':'anthropic', 'base_model':'claude-3-opus-20240229'}]"`
+  * Others for Anthropic include `claude-3-sonnet-20240229` and `claude-3-haiku-20240307`.
+* Groq: `groq`
+  * Ensure ENV `GROQ_API_KEY` is set to the API key
+  * E.g. for CLI: `--model_lock="[{'inference_server':'groq', 'base_model':'mixtral-8x7b-32768'}]"`
+* Gradio: `https://gradio.h2o.ai` (only for no auth setup)
+  * Ensure `h2ogpt_key` is in model_lock for each model if server has keyed access
+
+See [gen.py doc strings](../src/gen.py) for more details and examples for other inference endpoints (replicate, sagemaker, etc.)
+
+In the [UI Model Control Tab](README_ui.md#models-tab), one can auto-populate the models from these inference servers by clicking on `Load Model Names from Server`.  In every case, the CLI requires the `--base_model` to be specified. It is not auto-populated.
+
+Others that don't support model listing, need to enter model name in the UI:
+* Azure OpenAI Chat API: `openai_azure_chat`
+  * e.g. `--model_lock="[{'inference_server':'openai_azure_chat:deployment:endpoint.openai.azure.com/:None:<api key>', 'base_model':'gpt-3.5-turbo-0613'}`
+
+An example of using Opus is:
+```bash
+python generate.py --inference_server=anthropic --base_model=claude-3-opus-20240229
+```
+
+### Deploying like gpt.h2o.ai
+
+As of March 1, 2024, https://gpt.h2o.ai uses nginx proxy on some private system (`xxx.xxx.xxx.144` IP below), and run with these two scripts (with host IPs/ports redacated), with `restart_any_163.sh`:
+```bash
+pkill -f "$SAVE_DIR" --signal 15
+pkill -f "$SAVE_DIR" --signal 9
+sleep 5
+pkill -f "$SAVE_DIR" --signal 15
+pkill -f "$SAVE_DIR" --signal 9
+sleep 5
+
+
+export MODEL=h2oai/h2ogpt-4096-llama2-70b-chat
+export MODEL_NAME=`echo $MODEL | sed 's@/@_@g'`
+export MODEL_LOCK="["
+export MODEL_LOCK=$MODEL_LOCK"{'inference_server':'vllm:xxx.xxx.xxx.12:5000', 'base_model':'$MODEL'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'http://xxx.xxx.xxx.28:5002', 'base_model':'mistralai/Mixtral-8x7B-Instruct-v0.1', 'max_seq_len': 31744}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.12:5002', 'base_model':'HuggingFaceH4/zephyr-7b-beta', 'max_seq_len': 4096}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'openai_azure_chat:deployment_name:endpoint.openai.azure.com/:None:apikey', 'base_model':'gpt-3.5-turbo-0613'}"
+
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.28:5005', 'base_model':'openchat/openchat-3.5-1210'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.12:5004', 'base_model':'mistralai/Mistral-7B-Instruct-v0.2'}"
+
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server': 'vllm:xxx.xxx.xxx.12:5003', 'base_model': 'h2oai/h2ogpt-32k-codellama-34b-instruct'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.22:5000', 'base_model':'NousResearch/Nous-Capybara-34B'}"
+
+if [ "$visionmodels" -eq "1" ]
+then
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'llava'}"
+  export MODEL_LOCK=$MODEL_LOCK",{'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': 'http://localhost:7860', 'prompt_type': 'llava'}"
+fi
+
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.199:5014', 'base_model':'h2oai/h2o-danube-1.8b-chat', 'prompt_type': 'danube'}"
+export MODEL_LOCK=$MODEL_LOCK",{'inference_server':'vllm:xxx.xxx.xxx.144:5016', 'base_model':'google/gemma-7b-it', 'prompt_type':'gemma'}"
+
+export MODEL_LOCK=$MODEL_LOCK"]"
+echo $MODEL_LOCK
+
+export vis="['h2oai/h2ogpt-4096-llama2-70b-chat','mistralai/Mixtral-8x7B-Instruct-v0.1','HuggingFaceH4/zephyr-7b-beta','gpt-3.5-turbo-0613']"
+python generate.py --save_dir=$SAVE_DIR --model_lock="$MODEL_LOCK" \
+                   --hf_embedding_model=$hf_embedding_model --cut_distance=$cut_distance \
+                   --pre_load_embedding_model=True --pre_load_image_audio_models=True \
+                   --caption_gpu_id=$caption_gpu_id --doctr_gpu_id=$doctr_gpu_id \
+                   --embedding_gpu_id=$embedding_gpu_id --asr_gpu_id=$asr_gpu_id \
+                   --asr_model=$asr_model \
+		   --tts_model=$tts_model \
+		   --enable_stt=True \
+		   --enable_tts=True \
+		   --openai_server=$openai_server \
+		   --openai_port=$openai_port \
+		   --enable_image=$enable_image \
+           --visible_image_models="$visible_image_models" \
+           --image_gpu_ids=$image_gpu_ids \
+           --gradio_upload_to_chatbot=$gradio_upload_to_chatbot \
+		   --llava_model=$llava_model \
+                   --model_lock_columns=$model_lock_columns \
+		   --auth_filename=$auth_filename --auth_access=open --guest_name=guest --auth=$auth_filename \
+		   --gradio_size=small --height=400 \
+		               --top_k_docs=$top_k_docs --visible_models="$vis" \
+			       --score_model=None \
+			       --verbose=True \
+                   --share=False --enforce_h2ogpt_api_key=True --enforce_h2ogpt_ui_key=$enforce_h2ogpt_ui_key \
+                   --max_max_new_tokens=$max_max_new_tokens --max_new_tokens=$max_new_tokens \
+                   --max_input_tokens=$max_input_tokens --max_total_input_tokens=$max_total_input_tokens \
+                   --heap_app_id=1090178399 &>> logs.$SAVE_DIR.gradio_chat.txt &
+
+sleep 5
+
+echo "done inner $SAVE_DIR"
+```
+where the deployment_name, endpoint, and api_key for OpenAI Azure have been redacted.
+
+The script to run is `restart_163.sh` with:
+```bash
+# run as: (nohup bash ./restart_163.sh &> runrestart_163.txt &)
+
+export SAVE_DIR=saveall_gpt
+export GRADIO_SERVER_PORT=xxxxx
+export CUDA_VISIBLE_DEVICES=0,1  # public GPU
+export embedding_gpu_id=0
+export caption_gpu_id=1
+export doctr_gpu_id=0
+export asr_gpu_id=1
+export model_lock_columns=2
+export othermore=0
+export gptmore=0
+export visionmodels=1
+export enforce_h2ogpt_ui_key=False
+export top_k_docs=10
+export asr_model="distil-whisper/distil-large-v2"   #"openai/whisper-large-v3"
+export tts_model='microsoft/speecht5_tts'
+#export tts_model=''
+export max_max_new_tokens=8192
+export max_new_tokens=2048
+
+export enable_image=False
+export image_gpu_ids="[]"
+export visible_image_models="[]"
+
+export gradio_upload_to_chatbot=False
+export openai_server=True
+export openai_port=5000
+export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
+#export hf_embedding_model=tei:http://localhost:5555
+export hf_embedding_model=hkunlp/instructor-large
+export cut_distance=1.64
+export auth_filename=all_auth.json
+export max_input_tokens=8192
+export max_total_input_tokens=16384
+
+source gr_exports.sh
+
+bash ./restart_any_163.sh
+
+sleep 5
+
+ngrok http --domain=gpt.h2o.ai $GRADIO_SERVER_PORT &
+
+echo "done $SAVE_DIR"
+```
+and the gradio port is redacted as xxxxx.
+
+The file `gr_exports.sh` contains any required envs for API keys or h2oGPT envs with keys if required, e.g. `gr_exports.sh` can contain:
+```bash
+export GPT_H2O_AI=1
+export ADMIN_PASS=<fill me>
+export CONCURRENCY_COUNT=100
+export ALLOW_API=1
+export HUGGING_FACE_HUB_TOKEN=<fill me>  # for Gemma for example
+export H2OGPT_H2OGPT_API_KEYS="/secret_location/h2ogpt_api_keys.json"  # add file and fill in as described in docs
+export SERPAPI_API_KEY=<fill me>
+ulimit -n 1048576
+
+export H2OGPT_LLAVA_MODEL=http://xxx.xxx.xxx.144:7860/
+```
+Be careful with gradio and secret files.  h2oGPT sets `allowed_paths` to include `.`, unless public instance when `GPT_H2O_AI=1` is set.  So if you put your key file in `.` and didn't set to be public instance, it'll be possible to access your key file even if have a soft link to secret location.
+
+Then running:
+```
+(nohup bash ./restart_163.sh &> runrestart_163.txt &)
+```
+
+An alternate setup with more open permissions is:
+```bash
+# run as: (nohup bash ./restart_163.sh &> runrestart_163.txt &)
+
+export SAVE_DIR=saveall_gpt
+export GRADIO_SERVER_PORT=yyyyyy
+export CUDA_VISIBLE_DEVICES=0,1  # public GPU
+export embedding_gpu_id=0
+export caption_gpu_id=1
+export doctr_gpu_id=1
+export asr_gpu_id=1
+export model_lock_columns=2
+export othermore=1
+export gptmore=0
+export visionmodels=1
+export enforce_h2ogpt_ui_key=False
+export top_k_docs=-1
+#export asr_model="distil-whisper/distil-large-v2" #"openai/whisper-large-v3"
+export asr_model="openai/whisper-large-v3"
+export tts_model="tts_models/multilingual/multi-dataset/xtts_v2"
+export max_max_new_tokens=8192
+export max_new_tokens=2048
+
+export enable_image=True
+export image_gpu_ids="[0,1]"
+export visible_image_models="['sdxl_turbo', 'playv2']"
+
+export gradio_upload_to_chatbot=True
+
+export openai_server=True
+export openai_port=5001
+
+export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
+export hf_embedding_model=tei:http://localhost:5555
+export cut_distance=10000
+export H2OGPT_SERVER_NAME=0.0.0.0
+export auth_filename=all_alt_auth.json  # different auth
+export USERS_BASE_DIR=gpt_user_base_dir  # different base
+export max_input_tokens=None
+export max_total_input_tokens=None
+
+source gr_exports.sh
+unset GPT_H2O_AI  # avoids "public" mode
+
+bash ./restart_any_163.sh
+
+sleep 5
+
+ngrok http --domain=gpt.h2o.ai $GRADIO_SERVER_PORT &
+
+echo "done $SAVE_DIR"
+```
+where the gradio port is redacted as yyyyyy.  Same script renamed can be used on same system as original script if port is different.
+
+The vLLMs/TGIs are started with these options on various machines.
+
+For 8*A100 80GB, `go_VLLM.12.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=0,1,2,3"' \
+    --shm-size=10.24gb \
+    -p 5000:5000 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-70b-chat \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --tensor-parallel-size=4 \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 8192 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.70.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=4"' \
+    --shm-size=10.24gb \
+    -p 5002:5002 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0-180 -m vllm.entrypoints.openai.api_server \
+        --port=5002 \
+        --host=0.0.0.0 \
+        --model=HuggingFaceH4/zephyr-7b-beta \
+        --tensor-parallel-size=1 \
+        --seed 1234 \
+        --trust-remote-code \
+        --gpu-memory-utilization 0.4 \
+        --max-model-len 4096 \
+	--max-num-batched-tokens 32768 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.zephyrbeta.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=4"' \
+    --shm-size=10.24gb \
+    -p 5001:5001 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5001 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-4096-llama2-13b-chat \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 8192 \
+	--gpu-memory-utilization 0.8 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.13.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=5,6"' \
+    --shm-size=10.24gb \
+    -p 5003:5003 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5003 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2ogpt-32k-codellama-34b-instruct \
+        --tokenizer=hf-internal-testing/llama-tokenizer \
+        --seed 1234 \
+        --tensor-parallel-size=2 \
+        --trust-remote-code \
+	--max-num-batched-tokens 32768 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.code32k.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=7"' \
+    --shm-size=10.24gb \
+    -p 5004:5004 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5004 \
+        --host=0.0.0.0 \
+        --model=mistralai/Mistral-7B-Instruct-v0.2 \
+        --tensor-parallel-size=1 \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 131072 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.Mistral-7B-Instruct-v0.2.txt
+```
+and run `bash ./go_VLLM.12.sh` on that machine.
+
+On another 4*A100 80GB, `go_VLLM.28.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+# TGI
+docker run -d --gpus '"device=0,1"' --shm-size 12g -v $HOME/.cache/huggingface/hub/:/data -p 5002:80 ghcr.io/huggingface/text-generation-inference:1.3 --model-id mistralai/Mixtral-8x7B-Instruct-v0.1 --trust-remote-code --max-stop-sequences=6 --max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 --max-batch-total-tokens 131072 --sharded true --num-shard 2
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=3"' \
+    --shm-size=10.24gb \
+    -p 5001:5001 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5001 \
+        --host=0.0.0.0 \
+        --model=Nexusflow/NexusRaven-V2-13B \
+        --seed 1234 \
+        --trust-remote-code \
+	--max-num-batched-tokens 65536 \
+	--max-model-len=16384 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.func13b.txt
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=2"' \
+    --shm-size=10.24gb \
+    -p 5005:5005 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5005 \
+        --host=0.0.0.0 \
+        --model=openchat/openchat-3.5-1210 \
+        --seed 1234 \
+        --trust-remote-code \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.openchat.txt
+```
+and run `bash ./go_VLLM.28.sh`.
+
+For another 4*A100 80GB, `go_VLLM.22.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=0,1,2,3"' \
+    --shm-size=10.24gb \
+    -p 5000:5000 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5000 \
+        --host=0.0.0.0 \
+        --model=NousResearch/Nous-Capybara-34B \
+        --seed 1234 \
+        --tensor-parallel-size=4 \
+        --trust-remote-code \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.nous200k.txt
+```
+and run `bash ./go_VLLM.22.sh`
+
+For another 1*A100 80GB, `go_VLLM.144.sh` has:
+```bash
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=2"' \
+    --shm-size=10.24gb \
+    -p 5014:5014 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=aaa \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5016 \
+        --host=0.0.0.0 \
+        --model=google/gemma-7b-it \
+        --seed 1234 \
+        --trust-remote-code \
+        --tensor-parallel-size=1 \
+        --max-num-batched-tokens 8192 \
+        --dtype auto \
+        --gpu-memory-utilization 0.95 \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.gemma.txt
+```
+and run `bash ./go_VLLM.144.sh`.
+
+For another 2*A10G, `go_VLLM.199.sh` has:
+```bash
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+mkdir -p $HOME/.cache/huggingface/hub
+
+docker run -d \
+    --runtime=nvidia \
+    --gpus '"device=2,3"' \
+    --shm-size=10.24gb \
+    -p 5014:5014 \
+    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
+    -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v /etc/group:/etc/group:ro \
+    -u `id -u`:`id -g` \
+    -v "${HOME}"/.cache:/workspace/.cache \
+    --network host \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+        --port=5014 \
+        --host=0.0.0.0 \
+        --model=h2oai/h2o-danube-1.8b-chat \
+        --seed 1234 \
+        --trust-remote-code \
+        --tensor-parallel-size=2 \
+        --max-num-batched-tokens 16384 \
+        --dtype auto \
+        --gpu-memory-utilization 0.95 \
+        --dtype=half \
+        --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.danube.txt
+```
+and run `bash ./go_VLLM.199.sh`.
+
+The vision models are launched have their own python env as described in this FAQ, and launched as with `gollava.sh`:
+```bash
+# (nohup bash ./gollava.sh &> gollava.log &)
+
+export server_port=10000
+
+if [ 1 -eq 1 ]
+   then
+python -m llava.serve.controller --host 0.0.0.0 --port $server_port &> 1.log &
+fi
+
+if [ 1 -eq 1 ]
+   then
+export CUDA_VISIBLE_DEVICES=1
+export worker_port=40000
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-vicuna-13b &> 2.log &
+fi
+
+if [ 1 -eq 1 ]
+   then
+export CUDA_VISIBLE_DEVICES=3
+export worker_port=40002
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-34b &>> 34b.log &
+fi
+
+sleep 30
+if [ 1 -eq 1 ]
+   then
+python -m llava.serve.gradio_web_server --controller http://xxx.xxx.xxx.144:$server_port --model-list-mode once &>> 3b2.log &
+fi
+```
+where `xxx.xxx.xxx.144` should be actual remotely visible IP so llava can be reached outside the system, or can be 127.0.0.1 if only local gradio is reaching.  The local gradio model lock points to 127.0.0.1 as sufficient since we run gradio and llava on same system.  One runs by running `(nohup bash ./gollava.sh &> gollava.log &)` in that llava python env.  The conditionals are because has happened that the disk goes OOM, and gradio for llava needs restarting even if rest are fine.
+
+### Google Gemma
+
+```bash
+export HUGGING_FACE_HUB_TOKEN=<token so can access gemma after you have been approved>
+python generate.py --base_model=google/gemma-7b-it
+```
+If issues, try logging in via `huggingface-cli login` (run `git config --global credential.helper store` if in git repo).
+
+### Text Embedding Inference Server
+
+Using docker for [TEI](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker):
+```
+docker run -d --gpus '"device=0"' --shm-size 3g -v $HOME/.cache/huggingface/hub/:/data -p 5555:80 --pull always ghcr.io/huggingface/text-embeddings-inference:0.6 --model-id BAAI/bge-large-en-v1.5 --revision refs/pr/5 --hf-api-token=$HUGGING_FACE_HUB_TOKEN --max-client-batch-size=4096 --max-batch-tokens=2097152
+```
+where passing `--hf-api-token=$HUGGING_FACE_HUB_TOKEN` is only required if the model is private. Use [different tags](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker-images) for Turing, H100, or CPU etc.  Adjust `--max-batch-tokens` to smaller for smaller GPUs (e.g. back to default of 16384).  Note that client batch size times 512 must be smaller or equal to max batch tokens.
+
+Then for h2oGPT ensure pass:
+```bash
+--hf_embedding_model=tei:http://localhost:5555 --cut_distance=10000
+```
+or whatever address is required.
+
+This leads to much faster embedding generation as well as better memory leak avoidance due to [multi-threading and torch](https://github.com/pytorch/pytorch/issues/64412).
+
+To use the TEI directly, do the following for synchronous calls. Asynchronous calls also can be done.
+```python
+import json
+from huggingface_hub import InferenceClient
+
+
+def split_list(input_list, split_size):
+    for i in range(0, len(input_list), split_size):
+        yield input_list[i:i + split_size]
+
+
+def get_embeddings(texts):
+    model = "https://api.embed-internal.h2o.ai"
+    client = InferenceClient(
+        model=model,
+    )
+
+    max_tokens = 512  # to avoid sending long untokenized text for requests limit
+    max_batch_size = 1024  # for 2M request barrier
+
+    texts = [text.replace("\n", " ")[:4 * max_tokens] for text in texts]
+    texts_batches = split_list(texts, max_batch_size)
+    embedddings = []
+    for text_batch in texts_batches:
+        responses = client.post(json={"inputs": text_batch, "truncate": True, }, task="feature-extraction")
+        embedddings.extend(json.loads(responses.decode()))
+    return embedddings
+
+
+if __name__ == '__main__':
+    texts = ["Who are you?", "I am Dad"]
+
+    print(get_embeddings(texts))
+```
+
+### Gradio clean-up of states
+
+While Streamlit handles [callbacks to state clean-up)[https://github.com/streamlit/streamlit/issues/6166], Gradio does [not](https://github.com/gradio-app/gradio/issues/4016) without h2oGPT-driven changes.  So if you want browser/tab closure to trigger clean-up, `https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.19.2-py3-none-any.whl` is required instead of PyPi version.  This also helps if have many users using your app and want to ensure databases are cleaned up. By default h2oGPT uses this version of Gradio, but go to normal gradio if web sockets are an issue for your network/platform.
+
+This will clean up model states if use UI to load/unload models when not using `--base_model` on CLI like in windows, so don't have to worry about memory leaks when browser tab is closed.  It will also clean up Chroma database states.
+
+### Use h2oGPT just for LLM control
+
+For just LLM control and any document QA via `text_context_list` that does not use any embedding or database, you can launch with the following command:
+```bash
+python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
+```
+and to be sure no GPUs are used, you can add `CUDA_VISIBLE_DEVICES=` to start of command line or exported to environment, e.g.
+```bash
+CUDA_VISIBLE_DEVICES= python generate.py --score_model=None --enable_tts=False --enable_sst=False --enable_transcriptions=False --embedding_gpu_id=cpu --hf_embedding_model=fake --base_model=HuggingFaceH4/zephyr-7b-beta --inference_server=vllm://100.0.0.1:5000
+```
+Or if in docker, specify `docker run --gpus none <options> <image>`.
+
+This is useful when using h2oGPT as pass-through for some other top-level document QA system like [h2oGPTe](https://docs.h2o.ai/h2ogpte-docs/) (Enterprise h2oGPT), while h2oGPT (OSS) manages all LLM related tasks like how many chunks can fit, while preserving original order.  h2oGPT will handle truncation of tokens per LLM and async summarization, multiple LLMs, etc.
+
+### Control location of files
+
+* HUGGINGFACE_HUB_CACHE : else set by HF transformers package to be `~/.cache/huggingface/hub` in linux or in windows `C:\Users\username\.cache\huggingface\hub`.
+* TRANSFORMERS_CACHE : else set by HF transformers package to be `~/.cache/huggingface/transformers` in linux or in windows `C:\Users\username\.cache\huggingface\transformers`.
+* HF_HOME: More broad location for any HF objects
+* XDG_CACHE_HOME: Broadly any `~/.cache` items.  Some [other packages](README_offline.md) use this folder.
+* `--llamacpp_path=<location>` : Location for llama.cpp models, like GGUF models.
+
+### Video Extraction
+
+Ways to get Audio (ASR) and Video extraction:
+* Add YouTube link to Ask Anything and click Ingest
+* Upload video file clicking Upload and selecting your video
+
+By default, image frames are extracted as a separate document, so when viewed in document viewer, the images are shown.  If you prefer them under the same document, set env `FRAMES_AS_SAME_DOC=1`.
+
+If you prefer to disable video extraction, choose `--extract_frames=0` with CLI or pick 0 in Document Control in expert settings in UI.
+
+### Image Generation
+
+For image generation, then run:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['sdxl_turbo']" \
+--image_gpu_ids="[0]"
+```
+or for high-resolution run:
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['playv2']" \
+--image_gpu_ids="[0]"
+```
+or add all possible ones.
+```bash
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--enable_image=True \
+--visible_image_models="['sdxl_turbo', 'sdxl', 'playv2']" \
+--image_gpu_ids="[0,1,2]"
+```
+
+### LLaVa Vision Models
+
+https://github.com/haotian-liu/LLaVA
+
+Use separate env for workers and server
+```bash
+export CUDA_HOME=/usr/local/cuda-12.1
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
+
+conda create -n llava python=3.10 -y
+conda activate llava
+pip install --upgrade pip  # enable PEP 660 support
+
+# git clone https://github.com/haotian-liu/LLaVA.git
+git clone https://github.com/h2oai/LLaVA.git h2oai_llava
+cd h2oai_llava
+
+pip install -e .
+pip install -e ".[train]"
+pip install torch==2.1.2 torchvision==0.16.2 triton==2.1.0 accelerate==0.26.1 deepspeed==0.13.1 pynvml==11.5.0 --upgrade
+pip install "sglang[all]"
+pip install flash-attn==2.5.2 --no-build-isolation
+```
+
+Run controller:
+```bash
+export server_port=10000
+python -m llava.serve.controller --host 0.0.0.0 --port $server_port
+```
+
+Run a worker
+```bash
+worker_port=40000
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path liuhaotian/llava-v1.6-vicuna-13b
+```
+and/or
+```bash
+worker_port=40001
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path liuhaotian/llava-v1.6-34b
+```
+
+Can also run Hermes LLaVa on another port, for more verbose output (but not necessarily technically better), run:
+```bash
+git clone https://github.com/qnguyen3/hermes-llava.git
+cd hermes-llava
+conda create -n llava_hermes python=3.10 -y
+conda activate llava_hermes
+pip install --upgrade pip  # enable PEP 660 support
+pip install -e .
+pip install -e ".[train]"
+pip install flash-attn --no-build-isolation
+pip install transformers==4.34.1
+
+worker_port=40002
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://localhost:$server_port --port $worker_port --worker http://localhost:$worker_port --model-path NousResearch/Nous-Hermes-2-Vision
+````
+
+Run server:
+```bash
+pip install gradio==4.17.0
+export GRADIO_SERVER_PORT=7861
+python -m llava.serve.gradio_web_server --controller http://localhost:$server_port --model-list-mode once
+```
+
+Run h2oGPT with LLaVa and image (normal and high-quality) generation:
+```bash
+export GRADIO_SERVER_PORT=7860
+python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
+--llava_model=<IP:port:model_name> \
+           --visible_image_models="['sdxl_turbo', 'playv2']" \
+           --image_gpu_ids="[0,1]"
+```
+e.g. `--llava_model=<IP:port:model_name>=http://192.168.1.46:7861:llava-v1.6-vicuna-13b`.  The `:model_name` is not required, h2oGPT will use first model if any.
+
+Run h2oGPT with LLaVa and image (normal and high-quality) generation and run LLaVa model as normal LLM model:
+```bash
+export GRADIO_SERVER_PORT=7860
+python --score_model=None \
+--llava_model=<IP:port:model_name> \
+--visible_image_models="['sdxl_turbo', 'playv2']" \
+--image_gpu_ids="[0,1]" \
+--model_lock="[{'base_model': 'HuggingFaceH4/zephyr-7b-beta', 'prompt_type': 'zephyr'}, {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': '<IP:port>', 'prompt_type': 'plain'}, {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': '<IP:port>', 'prompt_type': 'llava'}]"
+```
+e.g. `<IP:port>=http://192.168.1.46:7861`.
+
+When launching LLaVa, if you want the server and worker to work with a remote gradio, then replace `localhost` with the IP of the server.
+
+To use CLI with LLaVa, do:
+```bash
+python generate.py \
+--score_model=None \
+--llava_model=<IP:port:model_name> \
+--base_model=liuhaotian/llava-v1.6-34b \
+--inference_server=<IP:port> \
+--prompt_type=plain \
+--image_file=models/llava.png \
+--cli
+```
+for example image `models/llava.png`.
 
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
@@ -64,6 +915,94 @@ There is currently no TTS for CLI.
 In the expert panel you can replay any h2oGPT generation or speak instruction generation.
 
 If you want to stop generation of speech, click "Stop" in top-right to stop generation of text and speech, or click "Stop/Clear Speak" to stop speech when having clicked on "Speak Instruction" and "Speak Response".
+
+### Client TTS
+
+From [Client Call Test Code](../tests/test_client_calls.py) eee function `play_audio` to play (or write) audio one gets using the `playsound` pypi package, and see test `test_client1_tts_stream` for how to stream audio along with LLM call for Microsoft or Coqui models, skipping main() call for pure client case.  See `test_client1_tts` test for non-streaming case.
+
+To just get a single one-off conversion of text to audio via API using gradio client, one can follow test `test_client1_tts_api`, self-contained and reduced here for pure client case:
+```python
+def play_audio_str(audio_str1, n):
+    import ast
+    import io
+    from pydub import AudioSegment
+
+    print(n)
+    n += 1
+    audio_dict = ast.literal_eval(audio_str1)
+    audio = audio_dict['audio']
+    sr = audio_dict['sr']
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+
+    make_file = True  # WIP: can't choose yet
+    if make_file:
+        import uuid
+        # NOTE: pip install playsound
+        from playsound import playsound
+        filename = '/tmp/audio_%s.wav' % str(uuid.uuid4())
+        audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+        audio.export(filename, format='wav')
+        playsound(filename)
+    else:
+        from pydub import AudioSegment
+        from pydub.playback import play
+        song = AudioSegment.from_file(s, format="wav")
+        play(song)
+    return n
+
+from gradio_client import Client
+client = Client('http://localhost:7860')
+
+# string of dict for input
+prompt = 'I am a robot.  I like to eat cookies, cakes, and donuts.  Please feed me every day.'
+inputs = dict(chatbot_role="Female AI Assistant",
+              speaker="SLT (female)",
+              tts_language='autodetect',
+              tts_speed=1.0,
+              prompt=prompt,
+              stream_output=True,
+              h2ogpt_key='',  # set if required, else leave as empty string.  Always needs to be passed
+              )
+job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
+
+from gradio_client.utils import Status
+import time
+
+do_play = True
+n = 0
+t0 = time.time()
+# work-around https://github.com/gradio-app/gradio/issues/7136
+while True:
+    if not job.communicator:
+        break
+    time.sleep(0.001)
+
+    if len(job.outputs()) - 1 >= n:
+        audio_str = job.outputs()[n]
+        print("n=%s/%s dt=%s" % (n, len(job.outputs()) - 1, (time.time() - t0)))
+        t0 = time.time()
+        n += 1
+        if do_play:
+            play_audio_str(audio_str)
+
+    n_outputs = len(job.outputs())  # must be outside lock below
+    with job.communicator.lock:
+        if job.communicator.job.latest_status.code == Status.FINISHED and n >= n_outputs:
+            break
+```
+or via curlable endpoint:
+```bash
+curl 127.0.0.1:7860/api/speak_text_plain_api -X POST -d '{"data": ["{\"chatbot_role\": \"Female AI Assistant\", \"speaker\": \"SLT (female)\", \"tts_language\": \"autodetect\", \"tts_speed\": 1.0, \"prompt\": \"Say cheese.\", \"stream_output\": \"False\", \"h2ogpt_key\": \"foodoo\"}"]}' -H 'Content-Type: application/json'
+```
+for h2oGPT key `foodoo`.
+
+### Automatic Speech Recognition (ASR)
+
+ASR is handled with whisper type models for ingesting YouTube videos or other videos.
+
+For Twitter, one can right-click on Twitter video, copy video address, then paste into [TwitterVideoDownloader.com](https://twitter.com/i/status/1732448989336006826) and download the video, right-click on that video and click save as, then upload to h2oGPT.
 
 ### Faster ASR
 
@@ -140,6 +1079,14 @@ One can also run such models in vLLM and have h2oGPT use `--inference_server` to
 In some cases LLaMa-2 or other chat models do ok on some languages, but others have been fine-tuned that are probably better:
 * Mistral-based [German](https://huggingface.co/LeoLM/leo-mistral-hessianai-7b-chat) or bilingual LLaMa-2 based [German](https://huggingface.co/LeoLM/leo-hessianai-13b-chat-bilingual)
 * LLaMa-2-7B-based [Spanish](https://huggingface.co/clibrain/Llama-2-7b-ft-instruct-es) or 13B-based [Spanish](https://huggingface.co/marianbasti/Llama-2-13b-fp16-alpaca-spanish)
+* JAIS-based Arabic-English [13B](https://huggingface.co/core42/jais-30b-v1) or [30B](https://huggingface.co/core42/jais-30b-chat-v1)
+
+For these various languages, if a specific embedding is not available, one can use multilingual models with [Mini-all](https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2) with `--hf_embedding_model=sentence-transformers/all-MiniLM-L12-v2`.
+
+E.g. for Arabic:
+```bash
+python generate.py --cut_distance=10000 --hf_embedding_model=sentence-transformers/all-MiniLM-L12-v2 --save_dir=save_jais --base_model=core42/jais-13b-chat --model_lock_columns=3 --gradio_size=small --height=400 --score_model=None --pre_prompt_query="انتبه وتذكر المعلومات الواردة أدناه، والتي ستساعد في الإجابة على السؤال أو الأمر الضروري بعد انتهاء السياق." --prompt_query="وفقًا للمعلومات الواردة في مصادر المستندات المقدمة في السياق أعلاه فقط، اكتب ردًا ثاقبًا ومنظمة جيدًا على:" --pre_prompt_summary="من أجل كتابة ملخص موجز من فقرة واحدة أو قائمة ذات تعداد نقطي، انتبه إلى النص التالي." --prompt_summary="باستخدام المعلومات الموجودة في مصادر المستندات أعلاه فقط، اكتب ملخصًا مكثفًا وموجزًا ​​للنتائج الرئيسية (يفضل أن يكون على شكل نقاط)." --system_prompt="أنت مساعد لغة عربية خالص مفيد يعمل حصريًا باللغة العربية."
+```
 
 In some cases more language boosting can be done by adding not just a system prompt but also a `--chat_conversation` that is a list of tuples of strings like `--chat_conversation=[(human, bot),(human, bot)]` (can also be passed to UI in expert panel for exploration of what works best).  Adding some reasonable but generic native language pre convsersation gets the model more into the mood of maintaining that language if it is a multilingual model or one that was heavily English based like LLaMa-2.
 
@@ -223,7 +1170,7 @@ As listed in the `src/gen.py` file, there are many ways to control authorization
 *  :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
     * e.g. --auth=[('jon','password')] with no spaces
     * e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
-    * e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required)
+    * e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required),
     * e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename then not required)
     * e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
 *    :param auth_filename:
@@ -235,6 +1182,104 @@ As listed in the `src/gen.py` file, there are many ways to control authorization
 *   :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
 *   :param guest_name: guess name if using auth and have open access.
     * If '', then no guest allowed even if open access, then all databases for each user always persisted
+
+Example auth accesses are OPEN with guest allowed
+```
+python generate.py --auth_access=open --guest_name=guest --auth=auth.json
+```
+OPEN with no guest allowed:
+```
+python generate.py --auth_access=open --guest_name=guest --auth=auth.json --guest_name=''
+```
+CLOSED with no guest allowed
+```
+python generate.py --auth_access=closed --auth=auth.json --guest_name=''
+```
+No landing page authentication, but login possible inside app for Login tab:
+```
+python generate.py --auth_filename=auth.json
+```
+
+
+The file format for `auth.json` in basic form is:
+```json
+{
+  "user1": {
+    "userid": "any_unique_value",
+    "password": "login_password",
+  },
+  "user2": {
+    "userid": "any_unique_value",
+    "password": "login_password",
+  },
+}
+```
+while more generally it is updated by h2oGPT to contain other entries, for example for single user `username`:
+```json
+  "username": {
+    "password": "username",
+    "userid": "9078ac9c-8ccf-481a-8de3-d6ccd21fd1c3",
+    "selection_docs_state": {
+      "langchain_modes": [
+        "UserData",
+        "MyData",
+        "LLM",
+        "Disabled"
+      ],
+      "langchain_mode_paths": {
+        "UserData": null
+      },
+      "langchain_mode_types": {
+        "UserData": "shared",
+        "github h2oGPT": "shared",
+        "DriverlessAI docs": "shared",
+        "wiki": "shared",
+        "wiki_full": "",
+        "MyData": "personal",
+        "LLM": "either",
+        "Disabled": "either"
+      }
+    },
+    "chat_state": {
+      "Say a color": [
+        [],
+        [],
+        [
+          [
+            "Say a color",
+            "I do not have the ability to speak, but I can tell you that a color is a hue, tone, or shade that is perceived by the human eye and identified by a name. Some common colors include red, orange, yellow, green, blue, indigo, and violet."
+          ]
+        ]
+      ]
+    },
+    "text_outputs": [
+      [
+        [
+          [
+            "Say a color",
+            "I do not have the ability to speak, but I can tell you that a color is a hue, tone, or shade that is perceived by the human eye and identified by a name. Some common colors include red, orange, yellow, green, blue, indigo, and violet."
+          ]
+        ]
+      ]
+    ]
+  }
+```
+
+Since Gradio 4.x, API access is possible when auth protected, e.g.
+```python
+from gradio_client import Client
+client = Client('http://localhost:7860', auth=('username', 'password'))
+```
+then use client as normal.
+
+If both auth and key is enabled, then do:
+```python
+from gradio_client import Client
+client = Client('http://localhost:7860', auth=('username', 'password'))
+res = client.predict(str(dict(instruction="Who are you?", h2ogpt_key='<h2ogpt_key')), api_name='/submit_nochat_plain_api')
+print(res)
+```
+or other API endpoints.
 
 ### HTTPS access for server and client
 
@@ -398,8 +1443,8 @@ python generate.py --base_model=TheBloke/Llama-2-7B-Chat-GGUF
 python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta
 python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF
 python generate.py --base_model=TheBloke/zephyr-7B-beta-AWQ
-python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf
-python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf
+python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr
+python generate.py --base_model=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true
 ```
 Some are these are non-quantized models with links HF links, some specific files on local disk ending in `.gguf`.  Given `TheBloke` HF names, if a quantized model, h2oGPT pulls the recommended model from his repository.  You can also provide a resolved web link directly, or a file.
 
@@ -422,6 +1467,12 @@ and in some cases one has to disable certain features that are not automatically
 CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/Xwin-LM-13B-v0.2-GPTQ --load_gptq=model --use_safetensors=True --prompt_type=xwin --langchain_mode=UserData --score_model=None --share=False --gradio_offline_level=1 --gptq_dict="{'disable_exllama': True}"
 ```
 
+For Mixtral on 4 A6000 uses about 8-11GB per GPU:
+```bash
+python generate.py --base_model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ --prompt_type=mistral --use_gpu_id=False --score_model=None --use_autogptq=True --load_gptq=model --use_safetensors=True
+```
+NOTE: After quantization report, it takes about 4 minutes on fast system to fully load for whatever reason, without any change to GPU or CPU memory usage.
+
 For AutoGPTQ and other models, h2oGPT tries to automatically handle models needing certain exllama options.
 
 ##### AWQ
@@ -442,10 +1493,18 @@ GGUF models are supported (can run either CPU and GPU in same install), see inst
 
 GGUF using Mistral:
 ```bash
-python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
+python generate.py --base_model=llama --prompt_type=mistral --model_path_llama=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --max_seq_len=4096 --score_model=None
 ```
 
-[Similar versions of this package](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) also give support for Windows, AMD, Metal, CPU with various AVX choices, GPU, etc.
+GGUF using Mixtral:
+```bash
+python generate.py --base_model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096 --score_model=None
+```
+Also note that Mixtral GGUF has max context of 4k if allowed to auto-detect in h2oGPT.  One can try larger up to 32k with `--max_seq_len`.  But higher uses alot of GPU memory and is slow but for document QA is probably not helpful (e.g. `--top_k_docs=-1` with 32k actually hurts RAG performance, better to limit RAG to 4k, summarization can use more though).  This can be controlled per-query with `max_input_tokens` in API/UI.
+
+Also, with `--top_k_docs=-1` or too large positive value, context-filling of the 4k leads to very slow results for GGUF Mixtral compared to vLLM FP16 performance.
+
+Also, best to use a single GPU if possible, since multiple GPU usage is much slower with GGUF than vLLM, but context-filling issue is worse problem for llama.cpp performance.
 
 If you see:
 ```text
@@ -453,21 +1512,6 @@ CUDA error 704 at /home/runner/work/llama-cpp-python-cuBLAS-wheels/llama-cpp-pyt
 current device: 0
 ```
 This is known bug in `llama.cpp` for some multi-GPU systems.  Only work-around is to restrict to single GPU by adding `export CUDA_VISIBLE_DEVICES=0` or similar value.
-
-#### GGML
-
-GGML v3 quantized models are not recommended, but are supported.  E.g. [TheBloke](https://huggingface.co/TheBloke) also has many of those, such as:
-```bash
-python generate.py --base_model=llama --model_path_llama=llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-```
-For GGML models, passing `--max_seq_len` directly is always recommended. When you pass the filename as shown in the preceding example, we assume you have previously downloaded the model to the local path, but if you pass a URL, then we download the file for you.
-You can also pass a URL for automatic downloading (which will not re-download if the file already exists):
-```bash
-python generate.py --base_model=llama --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q8_0.bin --max_seq_len=4096
-```
-for any TheBloke GGML v3 models.
-
-GGMLv3 requires installing older llama_cpp_python versions as listed in each linux/windows/mac installation, but it has bugs, so GGUF is recommended in all cases.
 
 #### GPT4All
 
@@ -491,14 +1535,13 @@ Exllama is supported using `load_exllama` bool, with additional control using `e
 
 Attention sinks is supported, like:
 ```bash
-pip install git+https://github.com/tomaarsen/attention_sinks.git
-python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096 --sink_dict="{'attention_sink_size': 4, 'attention_sink_window_size': 4096}"
+python generate.py --base_model=mistralai/Mistral-7B-Instruct-v0.2 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=4096 --sink_dict="{'num_sink_tokens': 4, 'window_length': 4096}"
 ```
-where the attention sink window has to be larger than any prompt input else failures will occur.  If one sets `max_input_tokens` then this will restrict the input tokens and that can be set to same value as `attention_sink_window_size`.
+where the attention sink window has to be larger than any prompt input else failures will occur.  If one sets `max_input_tokens` then this will restrict the input tokens and that can be set to same value as `window_length`.
 
 One can increase `--max_seq_len=4096` for Mistral up to maximum of `32768` if GPU has enough memory, or reduce to lower memory needs from input itself, but still get efficient generation of new tokens "without limit".  E.g.
 ```bash
---base_model=mistralai/Mistral-7B-Instruct-v0.1 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=8192 --sink_dict="{'attention_sink_size': 4, 'attention_sink_window_size': 8192}"
+--base_model=mistralai/Mistral-7B-Instruct-v0.2 --score_model=None --attention_sinks=True --max_new_tokens=100000 --max_max_new_tokens=100000 --top_k_docs=-1 --use_gpu_id=False --max_seq_len=8192 --sink_dict="{'num_sink_tokens': 4, 'window_length': 8192}"
 ```
 
 One can also set `--min_new_tokens` on CLI or in UI to some larger value, but this is risky as it ignores end of sentence token and may do poorly after.  Better to improve prompt, and this is most useful when already consumed context with input from documents (e.g. `top_k_docs=-1`) and still want long generation.  Attention sinks is not yet supported for llama.cpp type models or vLLM/TGI inference servers.
@@ -538,6 +1581,14 @@ However, in some cases, you need to add a new prompt structure because the model
     botstr
     ```
     Note that it is often the case that `humanstr` equals `PreInstruct` and `botstr` equals `PreResponse`. If this is the case, then you only have to set two keys.
+
+For example, suppose one did not have the `open_chat` prompt yet in h2oGPT, then one would run:
+```bash
+python generate.py --base_model=TheBloke/openchat_3.5-GGUF --prompt_type=custom --prompt_dict="{'promptA': '', 'promptB': '', 'PreInstruct': 'GPT4 User: ', 'PreInput': None, 'PreResponse': 'GPT4 Assistant:', 'terminate_response': ['GPT4 Assistant:', '<|end_of_turn|>'], 'chat_sep': '<|end_of_turn|>', 'chat_turn_sep': '<|end_of_turn|>', 'humanstr': 'GPT4 User: ', 'botstr': 'GPT4 Assistant:', 'generates_leading_space': False, 'system_prompt': ''}"
+```
+This generates the correct responses, etc.  The string added in the above is in double quotes as required when passing a dict or list with spaces.  And all internal quotes are single quotes.
+
+If there is a similar prompt or one wants to see how a model prompt template looks like, you can run the model and then go to the UI in models and select right sidebar, then select `Current or Custom Model Prompt` then copy the text within `Current Prompt (or Custom)`.  This can be pasted directly into the double quotes like in the above run example, or edited as required for a new model.
 
 * **Option 2**: Tweak or Edit code
 
@@ -592,6 +1643,28 @@ This section describes how to add a new embedding model.
   ```bash
   python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat  --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --hf_embedding_model=BAAI/bge-large-en --cut_distance=1000000
   ```
+
+To run the embedding model on the CPU, use options like:
+```bash
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --metadata_in_context=None
+```
+The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
+
+The change of cut distance is required for other arbitrary models since the distance is not normalized for each model.
+
+See [Embedding Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) for other options for smaller size that are still quite accurate, where smaller should be faster on CPU.
+
+Also review the low memory documentation for other low memory options.
+
+### System Prompting
+
+Some models explicitly take a system prompt (in the raw prompt or via some chat API).  However, some models have no system prompt, in which case by default with `--allow_chat_system_prompt=True`, we fill conversation history with a [prompt-response pair](../src/enums.py) for `user_prompt_for_fake_system_prompt` to replace the system_prompt, which often works well.
+
+For most models, one can speak for model, i.e. `I am a chatbot who can't help but talk about cars every time I speak.`, instead of `You ...`, even if often model card's (like for `zephyr`) give example as `You ...`.
+
+However, models vary quite a bit in whether or how they respond to system prompts even if supposedly accept.  E.g. `zephyr` with `--prompt_type=zephyr` is valid prompt, but `zephyr0` allows the system prompt to be listened to more.  So one can explore variations in the strictly correct prompt to expose more from model in some cases.
+
+In some cases, longer system prompts help, but it may also hurt for some models.  A system prompt that works well is something reasonable that connects the model (being a chatbot it knows) to what it is, e.g. `I am a friendly chatbot who always responds in the style of a cute pixie who talks like a pixie.`.   However, some models (like Claude) will always respond a certain way for some questions, like `Who are you?` regardless of any system prompting (for Claude done via chat history, since raw no-prefix prompting used by LangChain is strongly ignored).
 
 ### In-Context learning via Prompt Engineering
 
@@ -666,34 +1739,67 @@ Related to transformers.  There are two independent ways to do this (choose one)
 
 ### Low-memory mode
 
-For GPU case, a reasonable model for low memory is to run:
+* Use quantized models like GGUF, AWQ, GPTQ, or bitsandbytes 4-bit
+* Use CPU for embedding model (`--pre_load_embedding_model=True --embedding_gpu_id=cpu`)
+* Use smaller embedding model (`--cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5`)
+* Disable score model (`--score_model=None`)
+* Disable TTS and STT and ASR (`--enable_tts=False --enable_stt=False --enable_transcriptions=False`)
+* Ensure only using main GPU with most memory if have mixed GPUs (`CUDA_VISIBLE_DEVICES=0` or `--use_gpu_id=0`)
+* Ensure use all GPUs if have multiple GPUs (`--use_gpu_id=False`)
+* Limit the sequence length (`--max_seq_len=4096`)
+* For GGUF models limit number of model layers put onto GPU (`--n_gpu_layers=10`)
+* Avoid metadata in context (`--metadata_in_context=None`)
+* Lower chunks (`--chunk-size=128`)
+* Lower number of documetns in context (`--top_k_docs=3`)
+* Use smaller quantized model like Q4 instead of Q5 or Q6 from TheBloke (`--base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=mistral`)
+
+Combining these together in some middle-ground way that is reasonable for not too many documents but good speed on GPU is:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_8bit=True --langchain_mode='UserData'
+CUDA_VISIBLE_DEVICES=0 python generate.py --score_model=None --base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=mistral --max_seq_len=2048 --max_new_tokens=128 --top_k_docs=3 --metadata_in_context=False --chunk-size=128 --add_disk_models_to_ui=False --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5
 ```
-which uses good but smaller base model, embedding model, and no response score model to save GPU memory.  If you can do 4-bit, then do:
+Add `--cli=True` for CLI mode or `--langchain_mode=UserData` for accessing UserData documents immediately (good for CLI where can't switch at runtime).
+
+#### Other low-memory examples
+
+If you can do 4-bit, then do:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v3 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --load_4bit=True --langchain_mode='UserData'
+python generate.py --base_model=TheBloke/Mistral-7B-Instruct-v0.2-GGUF --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --prompt_type=mistral --score_model=None --load_4bit=True --langchain_mode='UserData' --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=2048 --top_k_docs=3 --metadata_in_context=None
 ```
-This uses 5800MB to startup, then soon drops to 5075MB after torch cache is cleared. Asking a simple question uses up to 6050MB. Adding a document uses no more new GPU memory.  Asking a question uses up to 6312MB for a few chunks (default), then drops back down to 5600MB.
+which uses about 9GB.  But still uses embedding model on GPU.
 
 For some models, you can restrict the use of context to use less memory.  This does not work for long context models trained with static/linear RoPE scaling, for which the full static scaling should be used.  Otherwise, e.g. for LLaMa-2 you can use
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048
+python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=2048 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
 even though normal value is `--max_seq_len=4096` if the option is not passed as inferred from the model `config.json`.
 
 Also try smaller GGUF models for GPU, e.g.:
 ```bash
-python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False
+python generate.py --base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
-This only uses 2GB of GPU even during usage.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
+This only uses 2GB of GPU even during usage, but will be alot slower if use only use GPU with 10 layers instead of default.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
 
 On CPU case, a good model that's still low memory is to run:
 ```bash
-python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path
+python generate.py --base_model='llama' --prompt_type=llama2 --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --langchain_mode=UserData --user_path=user_path --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
-
 Ensure to vary `n_gpu_layers` at CLI or in UI to smaller values to reduce offloading for smaller GPU memory boards.
+
+To run the embedding model on the CPU, use options like:
+```bash
+python generate.py --base_model=llama --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
+```
+The change of embedding model type is optional, but recommended so the model is smaller. That's because it takes about 0.3seconds per chunk on my i9 using instructor-large. That's why you probably want to use a smaller bge model of much smaller size like above. E.g. 90 seconds for 270 chunks. But with bge base above it only takes 20 seconds, so about 4x faster.
+
+All together, one might do for a good 7B model using AWQ (4-bit) quantization with embedding model on CPU:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=TheBloke/openchat-3.5-1210-AWQ --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --enable_tts=False --enable_stt=False --enable_transcriptions=False --max_seq_len=4096 --top_k_docs=3 --metadata_in_context=None
+```
+This uses about 7.2GB memory during usage of short questions.  Or use GGUF to control GPU offloading for more minimal GPU usage:
+```bash
+CUDA_VISIBLE_DEVICES=0 python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --prompt_type=zephyr  --pre_load_embedding_model=True --embedding_gpu_id=cpu --cut_distance=10000 --hf_embedding_model=BAAI/bge-base-en-v1.5 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
+```
+This uses about 2.3GB of GPU memory during usage of short questions.  But it will be slower due to only offloading 10 layers.
 
 ### ValueError: ...offload....
 
@@ -749,19 +1855,10 @@ where `use_auth_token` has been set as required for LLaMa2.
 
 Depending on available GPU memory, you can load differently sized models. For multiple GPUs, automatic sharding can be enabled with `--use_gpu_id=False`, but this is disabled by default since cuda:x cuda:y mismatches can occur.
 
-For GPUs with at least 24GB of memory, we recommend:
+For GPUs with at least 9GB of memory, one can do 4-bit quantization like:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --load_4bit=True
 ```
-or
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
-```
-For GPUs with at least 48GB of memory, we recommend:
-```bash
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-20b --load_8bit=True
-```
-etc.
 
 ### CPU with no AVX2 or using LLaMa.cpp
 
@@ -895,7 +1992,6 @@ This warning can be safely ignored.
    - `ALLOW_API`: Whether to allow API access,
    - `CUDA_VISIBLE_DEVICES`: Standard list of CUDA devices to make visible.
    - `PING_GPU`: ping GPU every few minutes for full GPU memory usage by torch, useful for debugging OOMs or memory leaks
-   - `GET_GITHASH`: get git hash on startup for system info.  Avoided normally as can fail with extra messages in output for CLI mode
    - `H2OGPT_BASE_PATH`: Choose base folder for all files except personal/scratch files
    - `LLAMACPP_PATH`: Choose directory where url downloads for llama models are kept.
 These can be useful on HuggingFace spaces, where one sets secret tokens because CLI options cannot be used.

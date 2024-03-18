@@ -567,7 +567,7 @@ def test_show_prompts():
     from prompter import generate_prompt
     for data_points in file_points:
         for data_point in data_points:
-            print(generate_prompt(data_point, 'plain', '', False, False, False)[0])
+            print(generate_prompt(data_point, 'plain', '', False, False)[0])
 
 
 def test_get_open_datasets():

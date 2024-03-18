@@ -2,7 +2,9 @@ version: '3'
 
 services:
   h2ogpt:
-    image: ${H2OGPT_RUNTIME}
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: always
     shm_size: '2gb'
     depends_on:
@@ -29,7 +31,9 @@ services:
             capabilities: [gpu]
 
   vllm:
-    image: ${H2OGPT_RUNTIME}
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: always
     shm_size: '64gb'
     expose:

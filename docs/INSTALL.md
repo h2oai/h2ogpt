@@ -16,9 +16,14 @@ Note that if you run the preceding commands, you don't need to use the NVIDIA de
 
 ### Install CUDA Toolkit
 
-E.g. Latest CUDA [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)
+If happy with above drivers, then just get run local file for [CUDA 11.8](https://developer.nvidia.com/cuda-11-8-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local):
+```bash
+wget wget https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run
+sudo sh cuda_11.8.0_520.61.05_linux.run
+```
+only choose to install toolkit and do not replace existing `/usr/local/cuda` link if you already have one.
 
-E.g. for Ubuntu 20.04, select Ubuntu, Version 20.04, Installer Type "deb (local)", and you should get the following commands:
+If instead, you want full deb CUDA [install cuda coolkit](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local).  Pick deb local, e.g. for Ubuntu:
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
 sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
@@ -101,21 +106,3 @@ tensorboard --logdir=runs/
 ```
 
 For more information, see [TensorBoard usage](https://github.com/tensorflow/tensorboard/blob/master/README.md#usage).
-
-### Flash Attention
-
-**Update:** Flash attention specifics are no longer needed. For more information, see https://github.com/h2oai/h2ogpt/issues/128.
-
-To use flash attention with LLaMa, need cuda 11.7 so flash attention module compiles against torch.
-
-E.g. for Ubuntu, one goes to [cuda toolkit](https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local), then:
-```bash
-wget https://developer.download.nvidia.com/compute/cuda/11.7.0/local_installers/cuda_11.7.0_515.43.04_linux.run
-sudo bash ./cuda_11.7.0_515.43.04_linux.run
-```
-Then No for symlink change, say continue (not abort), accept license, keep only toolkit selected, select install.
-
-If cuda 11.7 is not your base installation, then when doing pip install -r requirements.txt do instead:
-```bash
-CUDA_HOME=/usr/local/cuda-11.8 pip install -r reqs_optional/requirements_optional_flashattention.txt
-```

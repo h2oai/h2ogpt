@@ -17,12 +17,31 @@ This document provide the details to build one click installers for MacOS. To ma
 
 - Clone `h2ogpt` from https://github.com/h2oai/h2ogpt.git
 - Create conda environment and installer all required dependencies, consult [build_mac_installer.sh](build_mac_installer.sh) for more details.
-- Run below commands to build the installer
+- Run below commands to build the spec file for installer, replace the `--name` appropriately depending on whether building for CPU only or with MPS (GPU) support
     ```shell
     cd h2ogpt
-    pyinstaller ./dev_installers/mac/mac_run_app.py -D -w --name=h2ogpt-osx-m1-cpu-debug --hiddenimport=h2ogpt --collect-all=h2ogpt --noconfirm --recursive-copy-metadata=transformers --collect-data=langchain --collect-data=gradio_client --collect-all=gradio --path=${CONDA_PREFIX}/python3.10/site-packages --collect-all=sentencepiece --add-data=./Tesseract-OCR:Tesseract-OCR --add-data=./poppler:poppler
+    pyi-makespec mac_run_app.py -F --name=h2ogpt-osx-m1-cpu \
+      --hidden-import=h2ogpt \
+      --collect-all=h2ogpt \
+      --recursive-copy-metadata=transformers \
+      --collect-data=langchain \
+      --collect-data=gradio_client \
+      --collect-all=gradio \
+      --collect-all=sentencepiece \
+      --collect-all=gradio_pdf \
+      --collect-all=llama_cpp \
+      --collect-all=tiktoken_ext \
+      --add-data=../../Tesseract-OCR:Tesseract-OCR \
+      --add-data=../../poppler:poppler
     ```
-
+- Edit the `h2ogpt-osx-m1-cpu.spec` and/or `h2ogpt-osx-m1-gpu.spec` and add below code block to `Analysis()`, to explicitly tell PyInstaller to collect all `.py` modules from listed dependencies.
+    ```
+    module_collection_mode={
+        'gradio' : 'py',
+        'gradio_pdf' : 'py',
+    },
+    ```
+- Run `pyinstaller h2ogpt-osx-m1-cpu.spec` to build the installer.
 ### Deployment Mode
 
 - Clone `h2ogpt` from https://github.com/h2oai/h2ogpt.git

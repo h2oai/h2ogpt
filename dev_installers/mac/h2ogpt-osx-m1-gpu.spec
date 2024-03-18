@@ -15,10 +15,16 @@ tmp_ret = collect_all('gradio')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('sentencepiece')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('gradio_pdf')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('llama_cpp')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('tiktoken_ext')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
-    ['./mac_run_app.py'],
+    ['mac_run_app.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
@@ -28,6 +34,10 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
+    module_collection_mode={
+        'gradio' : 'py',
+        'gradio_pdf' : 'py',
+    },
 )
 pyz = PYZ(a.pure)
 

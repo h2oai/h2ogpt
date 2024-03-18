@@ -12,31 +12,33 @@
 # 1) clear old build
 
 del build
+del wheels
 
-# 2) Follow through README_WINDOWS.md installation, replacing pip install with pip download.  Easier than picking each wheel that's not on pypi.  So this for GPU and CPU separately in different repos (e.g. h2ogpt and h2ogpt.2).
+# 2) Follow through README_WINDOWS.md installation, then do:
 
-# 3) move wheels
 mkdir wheels
-move *.whl wheels
+cd wheels
+pip freeze > ..\docs\windows_freezelist.txt
+# file needs some edits for download
+pip download -r ..\docs\windows_freezelist.txt
 
 # extra things from tar.gz need to be wheel not just download:
 for /r %i in (*.tar.gz) do pip wheel %i
-move *.whl wheels
+for /r %i in (*.zip) do pip wheel %i
 
 # GPU (so package name not confusing to installer)
-cd wheels
-ren auto_gptq-0.4.2+cu118-cp310-cp310-win_amd64.whl auto_gptq-0.4.2-cp310-cp310-win_amd64.whl
-ren exllama-0.0.13+cu118-cp310-cp310-win_amd64.whl exllama-0.0.13-cp310-cp310-win_amd64.whl
-ren llama_cpp_python_cuda-0.2.10+cu118-cp310-cp310-win_amd64.whl llama_cpp_python_cuda-0.2.10-cp310-cp310-win_amd64.whl
-ren torch-2.0.1+cu118-cp310-cp310-win_amd64.whl torch-2.0.1-cp310-cp310-win_amd64.whl
+ren exllama-0.0.18+cu118-cp310-cp310-win_amd64.whl exllama-0.0.18-cp310-cp310-win_amd64.whl
+ren torchvision-0.16.2+cu118-cp310-cp310-win_amd64.whl torchvision-0.16.2-cp310-cp310-win_amd64.whl
 del hnswlib-0.7.0-cp310-cp310-win_amd64.whl
-cd ..
-
 # others:
 pip wheel tabula==1.0.5
-move *.whl wheels/
 
+# FIXME:
+# pip install --global-option build_ext --global-option --compiler=mingw32 pygobject
+
+cd ..
 # Download: https://github.com/oschwartz10612/poppler-windows/releases/download/v23.08.0-0/Release-23.08.0-0.zip
+
 unzip Release-23.08.0-0.zip
 move poppler-23.08.0 poppler
 
@@ -52,7 +54,6 @@ playwright install
 xcopy C:\Users\pseud\AppData\Local\ms-playwright ms-playwright /s /e /h  # say specifies Directory
 
 # build
-# for CPU, ensure win_rup_app.py sets CVD=''
 python -m nsist windows_installer.cfg
 
 # test

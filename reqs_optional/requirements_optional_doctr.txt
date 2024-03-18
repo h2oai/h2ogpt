@@ -1,2 +1,4 @@
 python-doctr @ git+https://github.com/h2oai/doctr.git@aee9b1c369e37af9e18265660935bce2c4447d65
-weasyprint==60.1
+weasyprint>=60.1
+imutils>=0.5.4
+opencv-python-headless>=4.8.1.78

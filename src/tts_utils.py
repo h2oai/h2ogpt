@@ -1,6 +1,4 @@
 import io
-
-import librosa
 import numpy as np
 import pydub
 
@@ -43,6 +41,11 @@ def get_no_audio(return_as_byte=True, return_nonbyte_as_file=False, sr=None):
 
 
 def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, expect_bytes=True):
+    no_audio = get_no_audio(sr=sr)
+    have_audio = any(x not in [no_audio, None, ''] for x in audios) or audio not in [no_audio, None, '']
+    if not have_audio:
+        return no_audio
+
     if audio or audios:
         is_bytes = expect_bytes  # force default as bytes no matter input if know should have been bytes
         if audios:

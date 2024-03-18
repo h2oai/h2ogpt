@@ -1,16 +1,27 @@
 nameOverride: ""
 fullnameOverride: ""
+namespaceOverride: ""
 
 h2ogpt:
   enabled: true
+  stack:
+    # -- Run h2oGPT and vLLM on same pod.
+    enabled: false 
   replicaCount: 1
+  imagePullSecrets: 
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    tag: 
     pullPolicy: IfNotPresent
   initImage:
     repository:
     tag:
     pullPolicy:
+  
+  podAffinity:
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+  # hostname:
+  # zone:
 
   storage:
     size: 128Gi
@@ -89,6 +100,11 @@ tgi:
     tag: 0.9.3
     pullPolicy: IfNotPresent
 
+  podAffinity:
+    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+    # hostname:
+    # zone:
+
   storage:
     size: 512Gi
     class: 
@@ -124,7 +140,13 @@ vllm:
 
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    tag:
     pullPolicy: IfNotPresent
+
+  podAffinity:
+    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+    # hostname:
+    # zone:
 
   imagePullSecrets:
 

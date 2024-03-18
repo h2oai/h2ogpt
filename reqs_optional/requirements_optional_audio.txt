@@ -1,0 +1,34 @@
+pydub>=0.25.1
+librosa>=0.10.1
+ffmpeg>=1.4
+yt_dlp>=2024.3.10
+wavio>=0.0.8
+# Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
+# pyrubberband>=0.3.0
+# stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
+# pip uninstall -y pysoundfile soundfile
+soundfile==0.12.1
+# Optional: Only for testing for now
+# playsound==1.3.0
+# STT from microphone (may not be required if ffmpeg installed above)
+# for any TTS:
+torchaudio
+soundfile>=0.12.1
+# GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
+# relaxed versions to avoid conflicts
+#TTS
+#deepspeed
+noisereduce
+emoji
+ffmpeg-python
+trainer
+pysbd
+coqpit
+# for Coqui XTTS language helpers (specific versions probably not required)
+cutlet>=0.3.0
+langid>=1.1.6
+g2pkk>=0.1.2
+jamo>=0.4.1
+gruut[de,es,fr]>=2.2.3
+jieba>=0.42.1
+# librosa==0.10.1

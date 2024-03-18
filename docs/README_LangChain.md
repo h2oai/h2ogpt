@@ -2,33 +2,33 @@
 
 Our goal is to make it easy to have private offline document question-answer using LLMs.
 
-## Getting Started
+## Get Started
 
-Follow the main [README](../README.md#getting-started) getting started steps.  In this readme, we focus on other optional aspects.
+Follow the [get started steps](../README.md#get-started) in the main README.  In this readme, we focus on other optional aspects.
 
 To support GPU FAISS database, run:
 ```bash
-pip install -r reqs_optional/requirements_optional_faiss.txt
+pip install -r reqs_optional/requirements_optional_gpu_only.txt
 ```
 or for CPU FAISS database, run:
 ```bash
-pip install -r reqs_optional/requirements_optional_faiss_cpu.txt
+pip install -r reqs_optional/requirements_optional_cpu_only.txt
 ```
 
 or for Weaviate, run:
 ```bash
 pip install -r reqs_optional/requirements_optional_langchain.txt
 ```
-## Supported Datatypes
+## Supported Data types
 
 Open-source data types are supported, .msg is not supported due to GPL-3 requirement.  Other meta types support other types inside them.  Special support for some behaviors is provided by the UI itself.
 
-### Supported Native Datatypes
+### Supported Native Data types
 
    - `.pdf`: Portable Document Format (PDF),
    - `.txt`: Text file (UTF-8),
    - `.csv`: CSV,
-   - `.toml`: Toml,
+   - `.toml`: TOML,
    - `.py`: Python,
    - `.rst`: reStructuredText,
    - `.rtf`: Rich Text Format,
@@ -125,17 +125,47 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.au` : AU Audio (optional).
 
 
-### Supported Meta Datatypes
+### Supported Meta Data types
 
-   - `.zip` : Zip File containing any native datatype,
+   - `.zip` : Zip File containing any native datatype.
    - `.urls` : Text file containing new-line separated URLs (to be consumed via download).
 
-### Supported Datatypes in UI
+Note: If you upload files and one of the files is a zip that contains images to be read by BLIP/DocTR or PDFs to be read by DocTR, this will currently fail with:
+```text
+Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
+```
+Please upload the zip separately for now.
 
-   - `Files` : All Native and Meta DataTypes as file(s),
+### Supported Data Types in UI
+
+   - `Files` : All Native and Meta Data Types as file(s),
    - `URL` : Any URL (i.e. `http://` or `https://`),
    - `ArXiv` : Any ArXiv name (e.g. `arXiv:1706.03762`),
    - `Text` : Paste Text into UI.
+
+### Supported Meta Tasks
+
+   - `ScrapeWithPlayWRight` : Async Web Scraping using headless Chromium via PlayWright
+   - `ScrapeWithHttp` : Async Web Scraping using aiohttp (slower than PlayWright)
+
+* Timing
+  * Typical page like passing `https://github.com/h2oai/h2ogpt` takes about 300 seconds to process at default depth of 1 with about 140 pages.
+  * No good progress indicators from these packages, so just have to wait.
+* Depth:
+  * Set env `CRAWL_DEPTH=<depth>` to control depth for some integer `<depth>`, where 0 means only actual page, 1 means that page + all links on that page, etc.  `CRAWL_DEPTH=1` by default to avoid excessive crawling.
+  * Set env `ALL_CRAWL_DEPTH=<depth>` to force all url loaders to crawl at some depth (will be slower than async ones)
+* BS4:
+  * Set env `HTML_TRANS=BS4` to use `BS4` to transform instead of `Html2TextTransformer`.  Set `BS4_TAGS` env to some string of list to set [tags](https://python.langchain.com/docs/use_cases/web_scraping#quickstart).
+    * e.g. `export BS4_TAGS="['span']"`
+  * Scrape text content tags such as `<p>`, `<li>`, `<div>`, and `<a>` tags from the HTML content:
+    * `<p>`: The paragraph tag. It defines a paragraph in HTML and is used to group together related sentences and/or phrases.
+    * `<li>`: The list item tag. It is used within ordered (`<ol>`) and unordered (`<ul>`) lists to define individual items within the list.
+    * `<div>`: The division tag. It is a block-level element used to group other inline or block-level elements.
+    * `<a>`: The anchor tag. It is used to define hyperlinks.
+    * `<span>`: an inline container used to mark up a part of a text, or a part of a document.
+  For many news websites (e.g., WSJ, CNN), headlines and summaries are all in `<span>` tags.
+* ScrapeWithHttp:
+  * Can change code in src/gpt_langchain.py to change `requests_per_second=10` to some other value.
 
 ### Adding new file types
 
@@ -148,7 +178,7 @@ Metadata is added using `add_meta` function, and other metadata, like chunk_id, 
 To use some example databases (will overwrite UserData make above unless change options) and run generate after, do:
 ```bash
 python src/make_db.py --download_some=True
-python generate.py --base_model=h2oai/h2ogpt-oasst1-512-12b --load_8bit=True --langchain_mode=UserData --langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
+python generate.py --base_model=HuggingFaceH4/zephyr-7b-beta --langchain_mode=UserData --langchain_modes="['UserData', 'wiki', 'MyData', 'github h2oGPT', 'DriverlessAI docs']"
 ```
 which downloads example databases.  This obtains files from some [pre-generated databases](https://huggingface.co/datasets/h2oai/db_dirs).  A large Wikipedia database is also available.
 

@@ -48,8 +48,32 @@ class PromptType(Enum):
     mistralgerman = 42
     deepseek_coder = 43
     open_chat = 44
-    open_chat_correct = 44
-    open_chat_code = 44
+    open_chat_correct = 45
+    open_chat_code = 46
+    anthropic = 47
+    orca2 = 48
+    jais = 49
+    yi = 50
+    xwincoder = 51
+    xwinmath = 52
+    vicuna11nosys = 53
+    zephyr0 = 54
+    google = 55
+    docsgpt = 56
+    open_chat_math = 57
+    mistralai = 58
+    mixtral = 59
+    mixtralnosys = 60
+    orion = 61
+    sciphi = 62
+    beacon = 63
+    beacon2 = 64
+    llava = 65
+    danube = 66
+    gemma = 67
+    qwen = 68
+    sealion = 69
+    groq = 70
 
 
 class DocumentSubset(Enum):
@@ -106,6 +130,23 @@ class LangChainAction(Enum):
     SUMMARIZE_ALL = "Summarize_all"
     SUMMARIZE_REFINE = "Summarize_refine"
     EXTRACT = "Extract"
+    IMAGE_GENERATE = "ImageGen"
+    IMAGE_CHANGE = "ImageChange"
+    IMAGE_QUERY = "ImageQuery"
+    IMAGE_STYLE = "ImageStyle"
+
+
+valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'playv2']
+valid_imagechange_models = ['sdxl_change']
+valid_imagestyle_models = ['sdxl_style']
+
+# rest are not implemented fully
+base_langchain_actions = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
+                          LangChainAction.EXTRACT.value,
+                          LangChainAction.IMAGE_GENERATE.value,
+                          LangChainAction.IMAGE_CHANGE.value,
+                          LangChainAction.IMAGE_QUERY.value,
+                          ]
 
 
 class LangChainAgent(Enum):
@@ -118,13 +159,14 @@ class LangChainAgent(Enum):
     PANDAS = "Pandas"
     JSON = 'JSON'
     SMART = 'SMART'
+    AUTOGPT = 'AUTOGPT'
 
 
-no_server_str = no_lora_str = no_model_str = '[None/Remove]'
+no_server_str = no_lora_str = no_model_str = '[]'
 
 # from site-packages/langchain/llms/openai.py
 # but needed since ChatOpenAI doesn't have this information
-model_token_mapping = {
+gpt_token_mapping = {
     "gpt-4": 8192,
     "gpt-4-0314": 8192,
     "gpt-4-0613": 8192,  # supports function tools
@@ -137,6 +179,13 @@ model_token_mapping = {
     "gpt-3.5-turbo-16k": 16385,
     "gpt-3.5-turbo-16k-0613": 16385,  # supports function tools
     "gpt-3.5-turbo-instruct": 4096,
+    "gpt-4-1106-preview": 128000,  # 4096 output
+    "gpt-35-turbo-1106": 16385,  # 4096 output
+    "gpt-4-vision-preview": 128000,  # 4096 output
+    "gpt-4-1106-vision-preview": 128000,  # 4096 output
+}
+model_token_mapping = gpt_token_mapping.copy()
+model_token_mapping.update({
     "text-ada-001": 2049,
     "ada": 2049,
     "text-babbage-001": 2040,
@@ -150,14 +199,107 @@ model_token_mapping = {
     "code-davinci-001": 8001,
     "code-cushman-002": 2048,
     "code-cushman-001": 2048,
+})
+
+anthropic_mapping = {
+    "claude-2.1": 200000,
+    "claude-2": 100000,
+    "claude-2.0": 100000,
+    "claude-instant-1.2": 100000,
+    "claude-3-opus-20240229": 200000,
+    "claude-3-sonnet-20240229": 200000,
+    "claude-3-haiku-20240307": 200000,
 }
 
-openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613"]
+anthropic_mapping_outputs = {
+    "claude-2.1": 4096,
+    "claude-2": 4096,
+    "claude-2.0": 4096,
+    "claude-instant-1.2": 4096,
+    "claude-3-opus-20240229": 4096,
+    "claude-3-sonnet-20240229": 4096,
+    "claude-3-haiku-20240307": 4096,
+}
+
+claude3imagetag = 'claude-3-image'
+gpt4imagetag = 'gpt-4-image'
+geminiimagetag = 'gemini-image'
+
+# https://ai.google.dev/models/gemini
+# gemini-1.0-pro
+google_mapping = {
+    "gemini-pro": 30720,
+    "gemini-pro-vision": 12288,
+}
+
+# FIXME: at least via current API:
+google_mapping_outputs = {
+    "gemini-pro": 2048,
+    "gemini-pro-vision": 4096,
+}
+
+mistralai_mapping = {
+    "mistral-large-latest": 32768,
+    "mistral-medium": 32768,
+    "mistral-small": 32768,
+    "mistral-tiny": 32768,
+    'open-mistral-7b': 32768,
+    'open-mixtral-8x7b': 32768,
+    'mistral-small-latest': 32768,
+    'mistral-medium-latest': 32768,
+}
+
+mistralai_mapping_outputs = {
+    "mistral-large-latest": 32768,
+    "mistral-medium": 32768,
+    "mistral-small": 32768,
+    "mistral-tiny": 32768,
+    'open-mistral-7b': 32768,
+    'open-mixtral-8x7b': 32768,
+    'mistral-small-latest': 32768,
+    'mistral-medium-latest': 32768,
+}
+
+openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
+                                 "gpt-4-1106-preview", "gpt-35-turbo-1106"]
+
+openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106"]
+
+# https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
+model_token_mapping_outputs = model_token_mapping.copy()
+model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
+                                    "gpt-35-turbo-1106": 4096,
+                                    "gpt-4-vision-preview": 4096,
+                                    "gpt-4-1106-vision-preview": 4096,
+                                    }
+                                   )
+
+groq_mapping = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 8192,
+    "llama2-70b-4096": 4096,
+}
+
+groq_mapping_outputs = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 4096,
+    "llama2-70b-4096": 4096,
+}
 
 
 def does_support_functiontools(inference_server, model_name):
     if any([inference_server.startswith(x) for x in ['openai_azure', 'openai_azure_chat']]):
         return model_name.lower() in openai_supports_functiontools
+    elif any([inference_server.startswith(x) for x in ['openai', 'openai_chat']]):
+        # assume OpenAI serves updated models
+        return True
+    else:
+        return False
+
+
+def does_support_json_mode(inference_server, model_name):
+    if any([inference_server.startswith(x) for x in ['openai_azure', 'openai_azure_chat']]):
+        return model_name.lower() in openai_supports_json_mode
     elif any([inference_server.startswith(x) for x in ['openai', 'openai_chat']]):
         # assume OpenAI serves updated models
         return True
@@ -173,6 +315,9 @@ source_postfix = "End Sources<p>"
 super_source_prefix = f"""<details><summary><font size="{font_size}">Sources</font></summary><font size="{font_size}"><font size="{font_size}">Sources [Score | Link]:"""
 super_source_postfix = f"""End Sources<p></font></font></details>"""
 
+generic_prefix = f"""<details><summary><font size="""
+generic_postfix = f"""</font></details>"""
+
 
 def t5_type(model_name):
     return 't5' == model_name.lower() or \
@@ -181,20 +326,22 @@ def t5_type(model_name):
         'fastchat-t5' in model_name.lower()
 
 
-def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary,
+def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,
                           model_name, inference_server, model_path_llama,
-                          doc_json_mode):
-    if inference_server and inference_server.startswith('openai'):
-        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents.\n"
-        prompt_query1 = "According to (primarily) the information in the document sources provided within context above, "
+                          doc_json_mode,
+                          prompt_query_type='simple'):
+    if prompt_query_type == 'advanced':
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
+        prompt_query1 = "According to (primarily) the information in the document sources provided within context above, write an insightful and well-structured response to: "
     else:
-        # use when no model, like no --base_model as well.
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
-        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.\n"
-        prompt_query1 = "According to only the information in the document sources provided within the context above, "
+        pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
+        prompt_query1 = "According to only the information in the document sources provided within the context above, write an insightful and well-structured response to: "
 
-    pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text\n"""
-    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points):\n"
+    pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text."""
+    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
+
+    hyde_llm_prompt1 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
     if pre_prompt_query is None:
         pre_prompt_query = pre_prompt_query1
@@ -204,15 +351,30 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         pre_prompt_summary = pre_prompt_summary1
     if prompt_summary is None:
         prompt_summary = prompt_summary1
+    if hyde_llm_prompt is None:
+        hyde_llm_prompt = hyde_llm_prompt1
 
-    return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary
+    return pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt
 
 
 def gr_to_lg(image_audio_loaders,
              pdf_loaders,
              url_loaders,
+             use_pymupdf=None,
+             use_unstructured_pdf=None,
+             use_pypdf=None,
+             enable_pdf_ocr=None,
+             enable_pdf_doctr=None,
+             try_pdf_as_html=None,
              **kwargs,
              ):
+    assert use_pymupdf is not None
+    assert use_unstructured_pdf is not None
+    assert use_pypdf is not None
+    assert enable_pdf_ocr is not None
+    assert enable_pdf_doctr is not None
+    assert try_pdf_as_html is not None
+
     if image_audio_loaders is None:
         image_audio_loaders = kwargs['image_audio_loaders_options0']
     if pdf_loaders is None:
@@ -226,14 +388,18 @@ def gr_to_lg(image_audio_loaders,
         use_unstructured='Unstructured' in url_loaders,
         use_playwright='PlayWright' in url_loaders,
         use_selenium='Selenium' in url_loaders,
+        use_scrapeplaywright='ScrapeWithPlayWright' in url_loaders,
+        use_scrapehttp='ScrapeWithHttp' in url_loaders,
 
         # pdfs
-        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else 'off',
-        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else 'off',
-        use_pypdf='on' if 'PyPDF' in pdf_loaders else 'off',
-        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else 'off',
-        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else 'off',
-        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else 'off',
+        # ... else condition uses default from command line, by default auto, so others can be used as backup
+        # make sure pass 'off' for those if really want fully disabled.
+        use_pymupdf='on' if 'PyMuPDF' in pdf_loaders else use_pymupdf,
+        use_unstructured_pdf='on' if 'Unstructured' in pdf_loaders else use_unstructured_pdf,
+        use_pypdf='on' if 'PyPDF' in pdf_loaders else use_pypdf,
+        enable_pdf_ocr='on' if 'OCR' in pdf_loaders else enable_pdf_ocr,
+        enable_pdf_doctr='on' if 'DocTR' in pdf_loaders else enable_pdf_doctr,
+        try_pdf_as_html='on' if 'TryHTML' in pdf_loaders else try_pdf_as_html,
 
         # images and audio
         enable_ocr='OCR' in image_audio_loaders,
@@ -241,6 +407,7 @@ def gr_to_lg(image_audio_loaders,
         enable_pix2struct='Pix2Struct' in image_audio_loaders,
         enable_captions='Caption' in image_audio_loaders or 'CaptionBlip2' in image_audio_loaders,
         enable_transcriptions="ASR" in image_audio_loaders or 'ASRLarge' in image_audio_loaders,
+        enable_llava='LLaVa' in image_audio_loaders,
     )
     if 'CaptionBlip2' in image_audio_loaders:
         # just override, don't actually do both even if user chose both
@@ -261,7 +428,7 @@ docs_ordering_types = ['best_first', 'best_near_prompt', 'reverse_ucurve_sort']
 
 docs_token_handlings = ['chunk', 'split_or_merge']
 
-docs_ordering_types_default = 'reverse_ucurve_sort'
+docs_ordering_types_default = 'best_near_prompt'
 docs_token_handling_default = 'split_or_merge'
 docs_joiner_default = '\n\n'
 
@@ -359,3 +526,7 @@ max_docs_public_api = 2 * max_docs_public
 
 max_chunks_per_doc_public = 5000
 max_chunks_per_doc_public_api = 2 * max_chunks_per_doc_public
+
+user_prompt_for_fake_system_prompt = "Who are you and what do you do?"
+
+coqui_lock_name = 'coqui'

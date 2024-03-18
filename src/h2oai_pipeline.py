@@ -1,5 +1,6 @@
 import os
 
+import torch
 from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
@@ -37,6 +38,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         super().__init__(*args, **kwargs)
         self.prompt_text = None
         self.use_prompter = use_prompter
+        self.prompts = []
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.prompter = prompter
@@ -47,7 +49,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
             else:
-                self.prompter = Prompter(self.prompt_type, self.prompt_dict, debug=debug, chat=chat,
+                self.prompter = Prompter(self.prompt_type, self.prompt_dict, debug=debug,
                                          stream_output=stream_output)
             self.human = self.prompter.humanstr
             self.bot = self.prompter.botstr
@@ -117,7 +119,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     num_prompt_tokens = H2OTextGenerationPipeline.get_token_count(prompt_text, tokenizer)
                 else:
                     num_prompt_tokens = 0
-                if num_prompt_tokens > model_max_length:
+                if num_prompt_tokens > model_max_length and num_prompt_tokens > 0:
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain
@@ -144,6 +146,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         if self.prompter is not None:
             prompt_text = self.prompter.generate_prompt(data_point)
         self.prompt_text = prompt_text
+        self.prompts.append(prompt_text)
         if handle_long_generation is None:
             # forces truncation of inputs to avoid critical failure
             handle_long_generation = None  # disable with new approaches
@@ -231,6 +234,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             rec[key] = outputs
             if self.debug:
                 print("prompt: %s\noutputs: %s\n\n" % (self.prompt_text, outputs), flush=True)
+        if hasattr(self.model, 'memory') and hasattr(self.model.memory, 'reset'):
+            self.model.memory.reset()
+
         return records
 
     def _forward(self, model_inputs, **generate_kwargs):
@@ -288,6 +294,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 generate_kwargs["min_length"] += prefix_length
 
         # BS x SL
+        seed = generate_kwargs.pop('seed', 1234)
+        torch.manual_seed(seed)
         generated_sequence = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **generate_kwargs)
         out_b = generated_sequence.shape[0]
         if self.framework == "pt":

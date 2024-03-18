@@ -3,14 +3,23 @@ from __future__ import annotations
 import functools
 import io
 import os
+import tempfile
+
+import filelock
 import numpy as np
 import uuid
 import subprocess
 import time
 
+from src.enums import coqui_lock_name
 from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
-from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change
-from src.utils import cuda_vis_check
+from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
+from src.utils import cuda_vis_check, get_lock_file
+
+import torch
+
+n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
+n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
 
 
 def list_models():
@@ -19,9 +28,6 @@ def list_models():
 
 
 def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspeed=True, use_gpu=True, gpu_id='auto'):
-    import torch
-    n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
-    n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)
     if n_gpus1 == 0:
         use_gpu = False
 
@@ -49,18 +55,20 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
     supported_languages = config.languages
 
     model = Xtts.init_from_config(config)
-    model.load_checkpoint(
-        config,
-        checkpoint_path=os.path.join(model_path, "model.pth"),
-        vocab_path=os.path.join(model_path, "vocab.json"),
-        eval=True,
-        use_deepspeed=deepspeed,
-    )
-    if use_gpu:
-        if gpu_id == 'auto':
-            model.cuda()
-        else:
-            model.cuda(device='cuda:%d' % gpu_id)
+    with filelock.FileLock(get_lock_file(coqui_lock_name)):
+        model.load_checkpoint(
+            config,
+            checkpoint_dir=os.path.dirname(os.path.join(model_path, "model.pth")),
+            checkpoint_path=os.path.join(model_path, "model.pth"),
+            vocab_path=os.path.join(model_path, "vocab.json"),
+            eval=True,
+            use_deepspeed=deepspeed,
+        )
+        if use_gpu:
+            if gpu_id == 'auto':
+                model.cuda()
+            else:
+                model.cuda(device='cuda:%d' % gpu_id)
     print("Done loading TTS")
     return model, supported_languages
 
@@ -78,8 +86,9 @@ def get_latent(speaker_wav, voice_cleanup=False, model=None, gpt_cond_len=30, ma
     # create as function as we can populate here with voice cleanup/filtering
     # note diffusion_conditioning not used on hifigan (default mode), it will be empty but need to pass it to model.inference
     # latent = (gpt_cond_latent, speaker_embedding)
-    latent = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
-                                            max_ref_length=max_ref_length, load_sr=sr)
+    with filelock.FileLock(get_lock_file(coqui_lock_name)):
+        latent = model.get_conditioning_latents(audio_path=speaker_wav, gpt_cond_len=gpt_cond_len,
+                                                max_ref_length=max_ref_length, load_sr=sr)
     return latent
 
 
@@ -191,31 +200,34 @@ def sentence_to_wave(sentence, supported_languages, tts_speed,
     try:
         wav_bytestream = b""
         for sentence in sentence_list:
+            # have to lock entire sentence, model doesn't handle threads,
+            # this is ok since usually have many sentences
+            with filelock.FileLock(get_lock_file(coqui_lock_name)):
 
-            if any(c.isalnum() for c in sentence):
-                if language == "autodetect":
-                    # on first call autodetect, next sentence calls will use same language
-                    language = detect_language(sentence, supported_languages, verbose=verbose)
+                if any(c.isalnum() for c in sentence):
+                    if language == "autodetect":
+                        # on first call autodetect, next sentence calls will use same language
+                        language = detect_language(sentence, supported_languages, verbose=verbose)
 
-                # exists at least 1 alphanumeric (utf-8)
-                audio_stream = get_voice_streaming(
-                    sentence, language, latent,
-                    model=model,
-                    tts_speed=tts_speed,
-                )
-            else:
-                # likely got a ' or " or some other text without alphanumeric in it
-                audio_stream = None
+                    # exists at least 1 alphanumeric (utf-8)
+                    audio_stream = get_voice_streaming(
+                        sentence, language, latent,
+                        model=model,
+                        tts_speed=tts_speed,
+                    )
+                else:
+                    # likely got a ' or " or some other text without alphanumeric in it
+                    audio_stream = None
 
-            if audio_stream is not None:
-                frame_length = 0
-                for chunk in audio_stream:
-                    try:
-                        wav_bytestream += chunk
-                        frame_length += len(chunk)
-                    except Exception as e:
-                        print("Exception in chunk appending: %s" % str(e), flush=True)
-                        continue
+                if audio_stream is not None:
+                    frame_length = 0
+                    for chunk in audio_stream:
+                        try:
+                            wav_bytestream += chunk
+                            frame_length += len(chunk)
+                        except Exception as e:
+                            print("Exception in chunk appending: %s" % str(e), flush=True)
+                            continue
 
             # Filter output for better voice
             filter_output = False
@@ -230,7 +242,8 @@ def sentence_to_wave(sentence, supported_languages, tts_speed,
             if audio_stream is not None:
                 if not return_as_byte:
                     if return_nonbyte_as_file:
-                        audio_unique_filename = "/tmp/" + str(uuid.uuid4()) + ".wav"
+                        tmpdir = os.getenv('TMPDDIR', tempfile.mkdtemp())
+                        audio_unique_filename = os.path.join(tmpdir, str(uuid.uuid4()) + ".wav")
                         with wave.open(audio_unique_filename, "w") as f:
                             f.setnchannels(1)
                             # 2 bytes per sample.
@@ -292,11 +305,19 @@ def get_roles(choices=None, value=None):
 def predict_from_text(response, chatbot_role, language, roles_map, tts_speed,
                       model=None,
                       supported_languages=None,
-                      return_as_byte=True, sr=24000, verbose=False):
+                      return_as_byte=True, sr=24000,
+                      return_prefix_every_yield=False,
+                      include_audio0=True,
+                      return_dict=False,
+                      verbose=False):
     if chatbot_role == "None":
         return
     audio0 = prepare_speech(sr=sr)
-    yield audio0
+    if not return_prefix_every_yield and include_audio0:
+        if not return_dict:
+            yield audio0
+        else:
+            yield dict(audio=audio0, sr=sr)
     latent = get_latent(roles_map[chatbot_role], model=model)
     sentence_state = init_sentence_state()
     generate_speech_func = functools.partial(generate_speech,
@@ -312,12 +333,26 @@ def predict_from_text(response, chatbot_role, language, roles_map, tts_speed,
     while True:
         audio1, sentence, sentence_state = generate_speech_func(response, is_final=False)
         if sentence is not None:
-            yield audio1
+            if return_prefix_every_yield and include_audio0:
+                audio_out = combine_audios([audio0], audio=audio1, channels=1, sample_width=2, sr=sr, expect_bytes=return_as_byte)
+            else:
+                audio_out = audio1
+            if not return_dict:
+                yield audio_out
+            else:
+                yield dict(audio=audio_out, sr=sr)
         else:
             break
 
     audio1, sentence, sentence_state = generate_speech_func(response, is_final=True)
-    yield audio1
+    if return_prefix_every_yield and include_audio0:
+        audio_out = combine_audios([audio0], audio=audio1, channels=1, sample_width=2, sr=sr, expect_bytes=return_as_byte)
+    else:
+        audio_out = audio1
+    if not return_dict:
+        yield audio_out
+    else:
+        yield dict(audio=audio_out, sr=sr)
 
 
 def filter_wave_1(speaker_wav):

@@ -1,7 +1,9 @@
+import os
+
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 
-from src.utils import remove
+from src.utils import remove, makedirs, download
 from tests.utils import wrap_test_forked
 
 
@@ -10,6 +12,8 @@ def get_all_requirements():
     requirements_all = []
     reqs_http_all = []
     for req_name in ['requirements.txt'] + glob.glob('reqs_optional/req*.txt'):
+        if 'reqs_constraints.txt' in req_name:
+            continue
         requirements1, reqs_http1 = get_requirements(req_name)
         requirements_all.extend(requirements1)
         reqs_http_all.extend(reqs_http1)
@@ -71,7 +75,7 @@ def test_requirements():
         print("Can't determine (e.g. http) packages: %s" % packages_unkn, flush=True)
         print('\n\nRUN THIS:\n\n', flush=True)
         print(
-            'pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-11.7 pip install %s --upgrade' % str(
+            'pip uninstall peft transformers accelerate -y ; CUDA_HOME=/usr/local/cuda-12.1 pip install %s --upgrade' % str(
                 ' '.join(packages_all)), flush=True)
         print('\n\n', flush=True)
 
@@ -120,3 +124,48 @@ def test_what_latest_packages():
                         print("%s: %s -> %s" % (req.name, current_version, latest_version), flush=True)
                 except Exception as e:
                     print("Exception: %s" % str(e), flush=True)
+
+
+@wrap_test_forked
+def test_make_packages():
+    # for https://github.com/pypiserver/pypiserver
+
+    dryrun = False
+
+    """Test that each required package is available."""
+    reqs, reqs_http = get_all_requirements()
+
+    makedirs('packages')
+    print("PACKAGES START\n\n\n")
+    for requirement in reqs_http:
+        if requirement.startswith('#') and ('.whl' in requirement or 'http' in requirement):
+            requirement = requirement[1:]
+        if ('https://' in requirement or 'http://' in requirement) and '@' in requirement:
+            requirement = requirement[requirement.index('@')+1:]
+        if ';' in requirement:
+            requirement = requirement[:requirement.index(';')]
+        requirement = requirement.strip()
+        print(requirement)
+        if not dryrun:
+            if '.whl' in requirement:
+                download(requirement, dest_path='packages')
+            else:
+                os.system('cd packages && pip wheel %s --no-deps' % requirement)
+
+    for req1 in reqs:
+        name = req1.name
+        if req1.specs:
+            version = req1.specs[0][1]
+        else:
+            version = None
+        req1 = str(req1)
+        req1 = req1.strip()
+        if ';' in str(req1):
+            req1 = req1[:req1.index(';')]
+        print(req1)
+        if not dryrun:
+            if version:
+                os.system('cd packages && pip wheel %s==%s --no-deps' % (name, version))
+            else:
+                os.system('cd packages && pip wheel %s --no-deps' % name)
+    # then do on host with server: (pypiserver) ubuntu@ip-10-10-0-245:~/packages$ scp jon@pseudotensor.hopto.org:h2ogpt/packages/* .

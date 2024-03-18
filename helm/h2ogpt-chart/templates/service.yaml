@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-web
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 
   {{- with .Values.h2ogpt.service.webServiceAnnotations }}
   annotations:
@@ -24,7 +24,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "h2ogpt.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   selector:
     app: {{ include "h2ogpt.fullname" . }}
@@ -35,12 +35,12 @@ spec:
   type: {{ .Values.h2ogpt.service.type }}
 {{- end }}
 ---
-{{- if .Values.tgi.enabled }}
+{{- if and (.Values.tgi.enabled) (not .Values.h2ogpt.stack.enabled ) }}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-tgi-inference
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   selector:
     app: {{ include "h2ogpt.fullname" . }}-tgi-inference
@@ -51,12 +51,12 @@ spec:
   type: {{ .Values.tgi.service.type }}
 {{- end }}
 ---
-{{- if .Values.vllm.enabled }}
+{{- if and (.Values.vllm.enabled) (not .Values.h2ogpt.stack.enabled ) }}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "h2ogpt.fullname" . }}-vllm-inference
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   selector:
     app: {{ include "h2ogpt.fullname" . }}-vllm-inference

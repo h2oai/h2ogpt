@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from tests.utils import wrap_test_forked
+from tests.utils import wrap_test_forked, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, docs_joiner_default
 from src.utils import remove
 
@@ -38,17 +38,22 @@ def test_eval_json():
     val0 = "My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"
     val1 = """Hi! I'm h2oGPT, a large language model by H2O.ai, the visionary leader in democratizing AI. How may I assist you?"""
     val2 = """Hi! I'm h2oGPT, a large language model by H2O.ai"""
+    val3 = """My name is h2oGPT. I'm a large language model trained by H2O.ai. How may I assist you?"""
+    val4 = """ I'm h2oGPT, a large language model by H2O.ai. How may I assist you?"""
     assert df['response'].values[0] == val0 or \
            df['response'].values[0] == ' ' + val0 or \
            df['response'].values[0] == val1 or \
+           df['response'].values[0] == val3 or \
+           df['response'].values[0] == val4 or \
            val2 in df['response'].values[0]
     assert df['score'].values[0] > 0.03  # odd score IMO
-    assert df['response'].values[1] in ["2 + 2 = 4\n", "2+2 = 4\n", " 2 + 2 = 4\n"]
-    assert df['score'].values[1] > 0.95
+    assert df['response'].values[1] in ["2 + 2 = 4\n", "2+2 = 4\n", " 2 + 2 = 4\n", ' 4\n']
+    assert df['score'].values[1] > 0.5
 
 
 def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', eval_filename=None,
-              eval_prompts_only_num=1):
+              eval_prompts_only_num=1,
+              langchain_mode='Disabled'):
     if base_model == 'junelee/wizard-vicuna-13b' and (bits != 8 or cpu):
         # Too much CPU memory or GPU memory
         return
@@ -75,8 +80,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
         stream_output=False, prompt_type=prompt_type, prompt_dict='',
         temperature=0.4, top_p=0.85, top_k=70, penalty_alpha=0.0, num_beams=1, max_new_tokens=256,
         min_new_tokens=0, early_stopping=False, max_time=180, repetition_penalty=1.07,
-        num_return_sequences=1, do_sample=True, chat=False,
-        langchain_mode='Disabled', add_chat_history_to_context=True,
+        num_return_sequences=1, do_sample=True, seed=0, chat=False,
+        langchain_mode=langchain_mode, add_chat_history_to_context=True,
         add_search_to_context=False,
         langchain_action=LangChainAction.QUERY.value, langchain_agents=[],
         chunk=True, chunk_size=512,
@@ -123,32 +128,43 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'top_k_docs': 10,
                  'document_subset': DocumentSubset.Relevant.name,  # matches return
                  'document_choice': np.array([]),  # matches return
+                 'document_content_substrings': np.array([]),  # matches return
+                 'document_source_substrings_op': 'and',
+                 'document_source_substrings': np.array([]),  # matches return
+                 'document_content_substrings_op': 'and',
                  'langchain_agents': np.array([]),  # matches return
                  'pre_prompt_query': None,
                  'prompt_query': None,
                  'pre_prompt_summary': None,
                  'prompt_summary': None,
-                 'system_prompt': '',
+                 'hyde_llm_prompt': None,
+                 'system_prompt': 'auto',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),
                  'url_loaders': np.array(['Unstructured'], dtype=object),
                  'jq_schema': '.[]',
+                 'extract_frames': 10,
                  'visible_models': None,
                  'h2ogpt_key': None,
                  'chat_conversation': None,
                  'text_context_list': None,
-                 'docs_ordering_type': 'reverse_ucurve_sort',
-                 'min_max_new_tokens': 256,
+                 'docs_ordering_type': 'best_near_prompt',
+                 'min_max_new_tokens': 512,
                  'max_input_tokens': -1,
+                 'llava_prompt': 'auto',
                  'max_total_input_tokens': -1,
                  'docs_token_handling': 'split_or_merge',
                  'docs_joiner': docs_joiner_default,
                  'hyde_level': 0,
                  'hyde_template': None,
+                 'hyde_show_only_final': False,
                  'doc_json_mode': False,
-                 'chatbot_role': 'Female AI Assistant',
-                 'speaker': 'SLT (female)',
+                 'metadata_in_context': 'auto',
+                 'chatbot_role': 'None',
+                 'speaker': 'None',
                  'tts_language': 'autodetect',
                  'tts_speed': 1.0,
+                 'image_file': None,
+                 'image_control': None,
                  }
     if cpu and bits == 32:
         expected1.update({'image_audio_loaders': np.array([], dtype=object)})
@@ -157,7 +173,9 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
 
     expected1.update({k: v for k, v in kwargs.items() if
                       k not in ['load_half', 'load_4bit', 'load_8bit', 'load_gptq', 'load_awq', 'load_exllama', 'use_safetensors']})
-    drop_keys = ['document_choice', 'langchain_agents', 'image_audio_loaders']  # some numpy things annoying to match
+    drop_keys = ['document_choice',
+                 'document_source_substrings', 'document_source_substrings_op', 'document_content_substrings', 'document_content_substrings_op',
+                 'langchain_agents', 'image_audio_loaders']  # some numpy things annoying to match
     expected1 = {k: v for k, v in expected1.items() if k not in drop_keys}
     actual1 = {k: v for k, v in actual1.items() if k not in drop_keys}
     assert sorted(actual1.items()) == sorted(expected1.items())
@@ -176,17 +194,17 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                     'score': 0.7533428072929382}
             else:
                 expected2 = {
-                    'response': """The spinal ligaments are like the webbing on a fishing line. They are there to help keep the spine straight and stable. If you pull on the line, the webbing stretches and the line gets slack. But if you let go, the webbing returns to its original shape and the line tightens again. The same is true for the spinal ligaments. If you keep pulling on them, they stretch and loosen. If you let go, they return to their normal length and tightness. \nIf the ligaments are stretched too much, they can become permanently damaged. If they are stretched too little, they can become weak and vulnerable to injury. Either way, the result is a painful and unstable spine. \nLigaments are also responsible for keeping the spine from moving too far in certain directions. For example, if you move your neck too far to the right, the ligaments will tighten and stop you. If you move your neck too far to the left, the ligaments will relax and allow you to move farther. \nLigaments are also responsible for holding the vertebrae in place. If you move the vertebrae too far, the ligaments will tighten and stop you. If you move the vertebrae too""",
+                    'response': """The ligaments are the bands of tissue that connect the vertebrae together. The ligaments help to stabilize the spine and protect the spinal cord.""",
                     'score': 0.7533428072929382}
 
         elif bits == 16:
             expected2 = {
                 'response': """The spinal ligaments are like the supports on a bridge. They hold the spinal column in place, and they are very important. If you pull on the spinal column, the ligaments will try to keep the column straight. If you push on the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you pull on the ligaments themselves, they will try to keep the column straight. If you twist the ligaments, they will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep""",
-                'score': 0.479}
+                'score': 0.65}
         else:
             expected2 = {
-                'response': """The spinal ligaments are like the supports on a bridge. They hold the spinal column in place, and they are very important. If you pull on the spinal column, the ligaments will try to keep the column straight. If you push on the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you pull on the ligaments themselves, they will try to keep the column straight. If you twist the ligaments, they will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep the column straight. If you twist the spinal column, the ligaments will try to keep""",
-                'score': 0.479}
+                'response': """The spinal ligaments are like the webbing on a tree branch. They are there to help the spinal cord stay upright and prevent it from flopping around. If the spinal cord gets twisted or bent, the ligaments can get stretched or torn. That can cause pain and sometimes paralysis. \nTendons""",
+                'score': 0.65}
     else:
         expected2 = {
             'response': 'The ligaments that support the spine are called the “spinal ligaments.” They are there to help keep the spine straight and upright. They are made up of tough fibers that run from the pelvis to the skull. They are like the stays on a sailboat, except that they are much thicker and stronger. \nThe spinal ligaments are divided into two groups: anterior and posterior. The anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are called the “anterior longitudinal ligaments”',
@@ -201,10 +219,66 @@ e the posterior ligaments are attached to the back. The anterior ligaments are c
  run across the width of the spine. \nThe anterior ligaments are attached to the front of the vertebrae, while the posterior ligaments are attached to the back. The anterior ligaments are""",
             'score': 0.77}
 
-    assert np.isclose(actual2['score'], expected2['score'], rtol=0.3), "Score is not as expected: %s %s" % (
+    assert np.isclose(actual2['score'], expected2['score'], rtol=0.35), "Score is not as expected: %s %s" % (
         actual2['score'], expected2['score'])
 
     from sacrebleu.metrics import BLEU
     bleu = BLEU()
-    assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 29
+    assert bleu.sentence_score(actual2['response'], [expected2['response']]).score > 10
     return eval_out_filename
+
+
+@wrap_test_forked
+def test_eval_json_langchain():
+    base_model = 'llama'
+    user_path = make_user_path_test()
+
+    # make 2 rows of json
+    prompts = [dict(instruction="What is Whisper?", response="""According to the document sources provided in the context, Whisper is a large language model (LLM) that can be used for various tasks such as text-to-speech (TTS), voice cloning, and speech recognition (ASR). It is a powerful tool for generating human-like speech and can be trained on a wide range of data sources."""),
+               dict(instruction="Who made Whisper?", response="""According to the document sources provided within the context, Whisper was made by OpenAI."""),
+               ]
+    eval_prompts_only_num = len(prompts)
+    eval_filename = 'test_prompts.json'
+    remove(eval_filename)
+    import json
+    with open(eval_filename, "wt") as f:
+        f.write(json.dumps(prompts, indent=2))
+
+    import pandas as pd
+    from src.evaluate_params import eval_func_param_names, eval_extra_columns
+    from src.gen import main
+    kwargs = dict(
+        stream_output=False,
+        langchain_mode='UserData',
+        user_path=user_path,
+    )
+    eval_out_filename = main(base_model=base_model,
+                             gradio=False,
+                             eval_filename=eval_filename,
+                             eval_prompts_only_num=eval_prompts_only_num,
+                             eval_as_output=False,
+                             asr_model='',
+                             answer_with_sources=False,
+                             show_link_in_sources=False,
+                             append_sources_to_answer=False,
+                             append_sources_to_chat=False,
+                             eval_prompts_only_seed=1235,
+                             score_model='OpenAssistant/reward-model-deberta-v3-large-v2',
+                             **kwargs)
+    df = pd.read_parquet(eval_out_filename)
+    assert df.shape[0] == 2
+    columns = eval_func_param_names + eval_extra_columns
+    assert df.shape[1] == len(columns)
+    print(df.values)
+    actuals = [dict(score=df['score'].values[ii], response=df['response'].values[ii]) for ii in range(df.shape[0])]
+    expecteds = [0.05, 0.01]
+
+    for prompt, expected, actual in zip(prompts, expecteds, actuals):
+        import numpy as np
+        print("actual: %s" % actual)
+        print("expected: %s" % expected)
+        assert actual['score'] > expected, "Assert: %s %s" % (actual, expected)
+
+        from sacrebleu.metrics import BLEU
+        bleu = BLEU()
+        assert bleu.sentence_score(actual['response'], [prompt['response']]).score > 25

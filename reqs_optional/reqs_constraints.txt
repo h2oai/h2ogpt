@@ -1,0 +1,4 @@
+# ensure doesn't drift, e.g. Issue #1348
+torch==2.2.1
+gradio==4.20.1
+gradio_client==0.11.0

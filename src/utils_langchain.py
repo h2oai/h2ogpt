@@ -1,4 +1,6 @@
 import copy
+import functools
+import json
 import os
 import types
 import uuid
@@ -15,8 +17,9 @@ from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.summarize import map_reduce_prompt, LoadingCallable, _load_stuff_chain, _load_map_reduce_chain, \
     _load_refine_chain
 from langchain.schema.language_model import BaseLanguageModel
+from langchain_community.embeddings import HuggingFaceHubEmbeddings
 
-from src.utils import hash_file, get_sha
+from src.utils import hash_file, get_sha, split_list
 
 from langchain.callbacks.base import BaseCallbackHandler, Callbacks
 from langchain.schema import LLMResult
@@ -141,7 +144,7 @@ def add_parser(docs1, parser):
     [x.metadata.update(dict(parser=x.metadata.get('parser', parser))) for x in docs1]
 
 
-def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
+def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet', file_as_source=False):
     if os.path.isfile(file):
         file_extension = pathlib.Path(file).suffix
         hashid = hash_file(file)
@@ -160,6 +163,8 @@ def _add_meta(docs1, file, headsize=50, filei=0, parser='NotSet'):
                             doc_hash=doc_hash,
                             file_id=filei,
                             head=x.page_content[:headsize].strip())) for order_id, x in enumerate(docs1)]
+    if file_as_source:
+        [x.metadata.update(dict(source=file)) for order_id, x in enumerate(docs1)]
 
 
 def fix_json_meta(docs1):
@@ -171,6 +176,8 @@ def fix_json_meta(docs1):
 
 
 class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
+    allow_map_1 = True
+    which = 'map'
     def combine_docs(
             self,
             docs: List[Document],
@@ -194,12 +201,22 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             # This uses metadata from the docs, and the textual results from `results`
             for i, r in enumerate(map_results)
         ]
-        extra_return_dict = {}
-        if self.return_intermediate_steps:
-            intermediate_steps = [r[question_result_key] for r in map_results]
-            extra_return_dict["intermediate_steps"] = intermediate_steps
-        result_docs_content = [x.page_content for x in result_docs]
-        return result_docs_content, extra_return_dict
+        if self.which == 'map' or len(result_docs) == 1 and self.allow_map_1:
+            extra_return_dict = {}
+            if self.return_intermediate_steps:
+                intermediate_steps = [r[question_result_key] for r in map_results]
+                extra_return_dict["intermediate_steps"] = intermediate_steps
+            result = [x.page_content for x in result_docs]
+            if self.which == 'map_reduce':
+                result = result[0]
+        else:
+            result, extra_return_dict = self.reduce_documents_chain.combine_docs(
+                result_docs, token_max=token_max, callbacks=callbacks, **kwargs
+            )
+            if self.return_intermediate_steps:
+                intermediate_steps = [r[question_result_key] for r in map_results]
+                extra_return_dict["intermediate_steps"] = intermediate_steps
+        return result, extra_return_dict
 
     async def acombine_docs(
             self,
@@ -224,12 +241,22 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             # This uses metadata from the docs, and the textual results from `results`
             for i, r in enumerate(map_results)
         ]
-        extra_return_dict = {}
-        if self.return_intermediate_steps:
-            intermediate_steps = [r[question_result_key] for r in map_results]
-            extra_return_dict["intermediate_steps"] = intermediate_steps
-        result_docs_content = [x.page_content for x in result_docs]
-        return result_docs_content, extra_return_dict
+        if self.which == 'map' or len(result_docs) == 1 and self.allow_map_1:
+            extra_return_dict = {}
+            if self.return_intermediate_steps:
+                intermediate_steps = [r[question_result_key] for r in map_results]
+                extra_return_dict["intermediate_steps"] = intermediate_steps
+            result = [x.page_content for x in result_docs]
+            if self.which == 'map_reduce':
+                result = result[0]
+        else:
+            result, extra_return_dict = await self.reduce_documents_chain.acombine_docs(
+                result_docs, token_max=token_max, callbacks=callbacks, **kwargs
+            )
+            if self.return_intermediate_steps:
+                intermediate_steps = [r[question_result_key] for r in map_results]
+                extra_return_dict["intermediate_steps"] = intermediate_steps
+        return result, extra_return_dict
 
     @property
     def _chain_type(self) -> str:
@@ -295,6 +322,7 @@ def _load_map_chain(
         document_variable_name=map_reduce_document_variable_name,
         verbose=verbose,
         callbacks=callbacks,
+        allow_map_1=map_prompt == combine_prompt,
         **kwargs,
     )
 
@@ -319,9 +347,9 @@ def load_general_summarization_chain(
     """
     loader_mapping: Mapping[str, LoadingCallable] = {
         "stuff": _load_stuff_chain,
-        "map_reduce": _load_map_reduce_chain,
+        "map_reduce": functools.partial(_load_map_chain, which='map_reduce'),
         "refine": _load_refine_chain,
-        "map": _load_map_chain,
+        "map": functools.partial(_load_map_chain, which='map'),
     }
     if chain_type not in loader_mapping:
         raise ValueError(
@@ -329,3 +357,131 @@ def load_general_summarization_chain(
             f"Should be one of {loader_mapping.keys()}"
         )
     return loader_mapping[chain_type](llm, verbose=verbose, **kwargs)
+
+
+"""Utils for interacting with the Semantic Scholar API."""
+import logging
+from typing import Any, Dict, Optional
+
+from langchain_core.pydantic_v1 import BaseModel, root_validator
+
+logger = logging.getLogger(__name__)
+
+
+class H2OSemanticScholarAPIWrapper(BaseModel):
+    """Wrapper around semanticscholar.org API.
+    https://github.com/danielnsilva/semanticscholar
+
+    You should have this library installed.
+
+    `pip install semanticscholar`
+
+    Semantic Scholar API can conduct searches and fetch document metadata
+    like title, abstract, authors, etc.
+
+    Attributes:
+    top_k_results: number of the top-scored document used for the Semantic Scholar tool
+    load_max_docs: a limit to the number of loaded documents
+
+    Example:
+    .. code-block:: python
+
+    from langchain_community.utilities.semanticscholar import SemanticScholarAPIWrapper
+    ss = SemanticScholarAPIWrapper(
+        top_k_results = 3,
+        load_max_docs = 3
+    )
+    ss.run("biases in large language models")
+    """
+
+    semanticscholar_search: Any  #: :meta private:
+    top_k_results: int = 5
+    S2_MAX_QUERY_LENGTH: int = 300
+    load_max_docs: int = 100
+    doc_content_chars_max: Optional[int] = 4000
+    returned_fields = [
+        "title",
+        "abstract",
+        "venue",
+        "year",
+        "paperId",
+        "citationCount",
+        "openAccessPdf",
+        "authors",
+        "externalIds",
+    ]
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that the python package exists in environment."""
+        try:
+            from semanticscholar import SemanticScholar
+
+            sch = SemanticScholar(api_key=os.getenv('S2_API_KEY'))
+            values["semanticscholar_search"] = sch.search_paper
+        except ImportError:
+            raise ImportError(
+                "Could not import Semanticscholar python package. "
+                "Please install it with `pip install semanticscholar`."
+            )
+        return values
+
+    def run(self, query: str) -> str:
+        """Run the Semantic Scholar API."""
+        results = self.semanticscholar_search(
+            query, limit=self.load_max_docs, fields=self.returned_fields
+        )
+        documents = []
+        for item in results[: self.top_k_results]:
+            authors = ", ".join(
+                author["name"] for author in getattr(item, "authors", [])
+            )
+            documents.append(
+                f"Published year: {getattr(item, 'year', None)}\n"
+                f"Title: {getattr(item, 'title', None)}\n"
+                f"Authors: {authors}\n"
+                f"Astract: {getattr(item, 'abstract', None)}\n"
+            )
+
+        if documents:
+            return "\n\n".join(documents)[: self.doc_content_chars_max]
+        else:
+            return "No results found."
+
+
+class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Call out to HuggingFaceHub's embedding endpoint for embedding search docs.
+
+        Args:
+            texts: The list of texts to embed.
+
+        Returns:
+            List of embeddings, one for each text.
+        """
+        # replace newlines, which can negatively affect performance.
+        max_tokens = 512
+        # should be less than --max-client-batch-size=4096 for launching TEI
+        # shoudl also be that max_tokens * 4 * max_batch_size <= 2MB
+        max_batch_size = 1024
+        verbose = False
+
+        texts = [text.replace("\n", " ")[:4 * max_tokens] for text in texts]
+        # don't leave empty
+        texts = [text or ' ' for text in texts]
+        _model_kwargs = self.model_kwargs or {}
+
+        texts_batches = split_list(texts, max_batch_size)
+        rets = []
+        batchii = 0
+        for ii, text_batch in enumerate(texts_batches):
+            if verbose:
+                print("begin batch %s for texts %s of batch size %s" % (ii, len(texts), len(text_batch)), flush=True)
+            responses = self.client.post(
+                json={"inputs": text_batch, "truncate": True, "parameters": _model_kwargs}, task=self.task
+            )
+            rets.extend(json.loads(responses.decode()))
+            batchii += len(text_batch)
+            if verbose:
+                print("done batch %s %s %s" % (ii, len(text_batch), batchii), flush=True)
+        return rets

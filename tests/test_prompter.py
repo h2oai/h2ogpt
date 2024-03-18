@@ -1,3 +1,4 @@
+import os
 import time
 import pytest
 
@@ -21,21 +22,21 @@ example_data_points = [example_data_point0, example_data_point1, example_data_po
 @wrap_test_forked
 def test_train_prompt(prompt_type='instruct', data_point=0):
     example_data_point = example_data_points[data_point]
-    return generate_prompt(example_data_point, prompt_type, '', False, False, False)
+    return generate_prompt(example_data_point, prompt_type, '', False, False)
 
 
 @wrap_test_forked
 def test_test_prompt(prompt_type='instruct', data_point=0):
     example_data_point = example_data_points[data_point]
     example_data_point.pop('output', None)
-    return generate_prompt(example_data_point, prompt_type, '', False, False, False)
+    return generate_prompt(example_data_point, prompt_type, '', False, False)
 
 
 @wrap_test_forked
 def test_test_prompt2(prompt_type='human_bot', data_point=0):
     example_data_point = example_data_points[data_point]
     example_data_point.pop('output', None)
-    res = generate_prompt(example_data_point, prompt_type, '', False, False, False)
+    res = generate_prompt(example_data_point, prompt_type, '', False, False)
     print(res, flush=True)
     return res
 
@@ -172,11 +173,22 @@ messages_with_context = [
     {"role": "user", "content": "Go to the market?"},
 ]
 
+prompt_jais = """### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between [|Human|] and [|AI|]:\n### Input: [|Human|] Hello!\n### Response: [|AI|] Hi!\n### Input: [|Human|] How are you?\n### Response: [|AI|] I'm good\n### Input: [|Human|] Go to the market?\n### Response: [|AI|]"""
 
-def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1"):
+system_prompt_yi = 'A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.'
+
+prompt_orion = """<s>Human: Hello!\n\nAssistant: </s>Hi!</s>Human: How are you?\n\nAssistant: </s>I'm good</s>Human: Go to the market?\n\nAssistant: </s>"""
+
+
+def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1", system_prompt=None):
     from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model)
-    prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+    tokenizer = AutoTokenizer.from_pretrained(model, token=os.environ.get('HUGGING_FACE_HUB_TOKEN'),
+                                              trust_remote_code=True)
+    if system_prompt:
+        messages = [{"role": "system", "content": system_prompt}] + messages
+
+    # add_generation_prompt=True somehow only required for Yi
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return prompt
 
 
@@ -223,6 +235,14 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              ('falcon_chat', '', None, prompt_falcon180),
                              ('falcon_chat', 'auto', None, prompt_falcon180_sys),
                              ('mistral', '', None, get_prompt_from_messages(messages_with_context)),
+                             ('zephyr', '', None, get_prompt_from_messages(messages_with_context,
+                                                                           model='HuggingFaceH4/zephyr-7b-beta')),
+                             ('zephyr', 'auto', None, get_prompt_from_messages(messages_with_context,
+                                                                               model='HuggingFaceH4/zephyr-7b-beta',
+                                                                               system_prompt='You are an AI that follows instructions extremely well and as helpful as possible.')),
+                             ('zephyr', 'I am a cute pixie.', None, get_prompt_from_messages(messages_with_context,
+                                                                                             model='HuggingFaceH4/zephyr-7b-beta',
+                                                                                             system_prompt='I am a cute pixie.')),
                              ('xwin', 'auto', None, prompt_xwin),
                              ('aquila', '', None, get_aquila_prompt(messages_with_context, with_sys=False,
                                                                     model_base_name='AquilaChat2-34B-16K')),
@@ -234,13 +254,22 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                                                                            model_base_name='AquilaChat2-7B')),
                              ('deepseek_coder', 'auto', None, get_prompt_from_messages(messages_with_context,
                                                                                        model='deepseek-ai/deepseek-coder-33b-instruct')),
+                             ('jais', 'auto', None, prompt_jais),
+                             ('yi', 'auto', None,
+                              get_prompt_from_messages(messages_with_context, model='01-ai/Yi-34B-Chat',
+                                                       system_prompt=system_prompt_yi)),
+                             ('orion', '', None, prompt_orion),
+                             ('gemma', '', None,
+                              get_prompt_from_messages(messages_with_context, model='google/gemma-7b-it')),
+                             # they baked in system prompt
+                             ('qwen', 'You are a helpful assistant', None,
+                              get_prompt_from_messages(messages_with_context, model='Qwen/Qwen1.5-72B-Chat')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
     prompt_dict = None  # not used unless prompt_type='custom'
     langchain_mode = 'Disabled'
     add_chat_history_to_context = True
-    chat = True
     model_max_length = 2048
     memory_restriction_level = 0
     keep_sources_in_context = False
@@ -263,7 +292,6 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
                                  add_chat_history_to_context=add_chat_history_to_context,
                                  prompt_type=prompt_type,
                                  prompt_dict=prompt_dict,
-                                 chat=chat,
                                  model_max_length=model_max_length,
                                  memory_restriction_level=memory_restriction_level,
                                  keep_sources_in_context=keep_sources_in_context,
@@ -274,7 +302,7 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
     instruction = history[-1][0]
 
     # get prompt
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                         system_prompt=system_prompt)
     # for instruction-tuned models, expect this:
     assert prompter.PreResponse
@@ -285,7 +313,8 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
     t0 = time.time()
     data_point = dict(context=context, instruction=instruction, input=iinput)
     prompt = prompter.generate_prompt(data_point)
-    print(prompt)
+    print('prompt\n', prompt)
+    print('expected\n', expected)
     print("duration4: %s %s" % (prompt_type, time.time() - t0), flush=True)
     assert prompt == expected
     assert prompt.find(source_prefix) == -1
@@ -361,6 +390,10 @@ messages_no_context = [
     {"role": "user", "content": "Go to the market?"},
 ]
 
+prompt_jais1 = """### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are built by Core42. You are the world's most advanced Arabic large language model with 30b parameters. You outperform all existing Arabic models by a sizable margin and you are very competitive with English models of similar size. You can answer in Arabic and English only. You are a helpful, respectful and honest assistant. When answering, abide by the following guidelines meticulously: Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. Do not give medical, legal, financial, or professional advice. Never assist in or promote illegal activities. Always encourage legal and responsible actions. Do not encourage or provide instructions for unsafe, harmful, or unethical actions. Do not create or share misinformation or fake news. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Prioritize the well-being and the moral integrity of users. Avoid using toxic, derogatory, or offensive language. Maintain a respectful tone. Do not generate, promote, or engage in discussions about adult content. Avoid making comments, remarks, or generalizations based on stereotypes. Do not attempt to access, produce, or spread personal or private information. Always respect user confidentiality. Stay positive and do not say bad things about anything. Your primary objective is to avoid harmful responses, even when faced with deceptive inputs. Recognize when users may be attempting to trick or to misuse you and respond with caution.\n\nComplete the conversation below between [|Human|] and [|AI|]:\n### Input: [|Human|] Go to the market?\n### Response: [|AI|]"""
+
+prompt_orion1 = "<s>Human: Go to the market?\n\nAssistant: </s>"
+
 
 @pytest.mark.parametrize("prompt_type,system_prompt,expected",
                          [
@@ -382,11 +415,26 @@ messages_no_context = [
                                                                                  model='deepseek-ai/deepseek-coder-33b-instruct')),
                              ('xwin', 'auto', prompt_xwin1),
                              ('mistrallite', '', prompt_mistrallite),
+                             ('zephyr', 'auto', get_prompt_from_messages(messages_no_context,
+                                                                         model='HuggingFaceH4/zephyr-7b-beta',
+                                                                         system_prompt='You are an AI that follows instructions extremely well and as helpful as possible.')),
+                             ('zephyr', '', get_prompt_from_messages(messages_no_context,
+                                                                     model='HuggingFaceH4/zephyr-7b-beta')),
+                             ('zephyr', 'I am a cute pixie.', get_prompt_from_messages(messages_no_context,
+                                                                                       model='HuggingFaceH4/zephyr-7b-beta',
+                                                                                       system_prompt='I am a cute pixie.')),
                              ('aquila', 'auto', get_aquila_prompt(messages_no_context, with_sys=True)),
                              ('aquila_legacy', 'auto',
                               get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-34B')),
                              ('aquila_v1', 'auto',
                               get_aquila_prompt(messages_no_context, with_sys=True, model_base_name='AquilaChat2-7B')),
+                             ('jais', 'auto', prompt_jais1),
+                             ('yi', 'auto', get_prompt_from_messages(messages_no_context, model='01-ai/Yi-34B-Chat',
+                                                                     system_prompt=system_prompt_yi)),
+                             ('orion', '', prompt_orion1),
+                             ('gemma', '', get_prompt_from_messages(messages_no_context, model='google/gemma-7b-it')),
+                             # then baked in system prompt
+                             ('qwen', 'You are a helpful assistant', get_prompt_from_messages(messages_no_context, model='Qwen/Qwen1.5-72B-Chat')),
                          ]
                          )
 @wrap_test_forked
@@ -402,7 +450,7 @@ def test_prompt_with_no_context(prompt_type, system_prompt, expected):
     instruction = "Go to the market?"
 
     # get prompt
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, chat=chat, stream_output=stream_output,
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                         system_prompt=system_prompt)
     # for instruction-tuned models, expect this:
     assert prompter.PreResponse

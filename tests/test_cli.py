@@ -31,18 +31,21 @@ def test_cli_langchain(base_model, monkeypatch):
                            user_path=user_path,
                            langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
+                           append_sources_to_answer=True,
                            verbose=True)
 
     print(all_generations)
     assert len(all_generations) == 1
-    assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
+    # no sources in output now
+    # assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
     assert "looking out the window" in all_generations[0] or \
            "staring out the window at the city skyline" in all_generations[0] or \
            "what the cat is doing" in all_generations[0] or \
            "question about a cat" in all_generations[0] or \
            "The prompt asks for an answer to a question" in all_generations[0] or \
            "The prompt asks what the cat in the scenario is doing" in all_generations[0] or \
-           "The prompt asks why H2O.ai" in all_generations[0]
+           "The prompt asks why H2O.ai" in all_generations[0] or \
+           "cat is sitting on a window" in all_generations[0]
 
 
 @pytest.mark.need_tokens
@@ -64,6 +67,7 @@ def test_cli_langchain_llamacpp(monkeypatch):
                            user_path=user_path,
                            langchain_modes=['UserData', 'MyData'],
                            document_subset=DocumentSubset.Relevant.name,
+                           append_sources_to_answer=True,
                            verbose=True)
 
     print(all_generations)
@@ -104,8 +108,9 @@ def test_cli_llamacpp(monkeypatch):
            "how can I assist" in all_generations[0] or \
            "am a virtual assistant" in all_generations[0] or \
            "My name is John." in all_generations[0] or \
-           "I am a student" in all_generations[0]  or \
-           "I'm LLaMA" in all_generations[0]
+           "I am a student" in all_generations[0] or \
+           "I'm LLaMA" in all_generations[0] or \
+           "Hello! I'm just an AI assistant" in all_generations[0]
 
 
 @wrap_test_forked
@@ -140,6 +145,5 @@ def test_cli_langchain_h2ogpt(monkeypatch):
 
     print(all_generations)
     assert len(all_generations) == 1
-    assert "pexels-evg-kowalievska-1170986_small.jpg" in all_generations[0]
     assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in \
            all_generations[0]

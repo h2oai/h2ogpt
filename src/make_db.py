@@ -8,7 +8,7 @@ if os.path.dirname(os.path.abspath(os.path.join(__file__, '..'))) not in sys.pat
 
 from gpt_langchain import path_to_docs, get_some_dbs_from_hf, all_db_zips, some_db_zips, create_or_update_db, \
     get_persist_directory, get_existing_db
-from utils import get_ngpus_vis, H2O_Fire, makedirs
+from utils import H2O_Fire, makedirs, n_gpus_global
 
 
 def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
@@ -18,6 +18,8 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                use_unstructured=True,
                use_playwright=False,
                use_selenium=False,
+               use_scrapeplaywright=False,
+               use_scrapehttp=False,
 
                # pdfs
                use_pymupdf='auto',
@@ -32,58 +34,77 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                enable_doctr=False,
                enable_pix2struct=False,
                enable_captions=True,
+               enable_llava=True,
                enable_transcriptions=True,
                captions_model=None,
                caption_loader=None,
                doctr_loader=None,
+               llava_model=None,
+               llava_prompt=None,
                asr_model=None,
                asr_loader=None,
 
                # json
                jq_schema='.[]',
+               extract_frames=10,
 
                db_type=None,
                selected_file_types=None,
 
                is_public=False):
     assert db_type is not None
-    sources1 = path_to_docs(user_path, verbose=verbose, fail_any_exception=fail_any_exception,
-                            n_jobs=n_jobs,
-                            chunk=chunk,
-                            chunk_size=chunk_size, url=url,
 
-                            # urls
-                            use_unstructured=use_unstructured,
-                            use_playwright=use_playwright,
-                            use_selenium=use_selenium,
+    loaders_and_settings = dict(
+        # diag/error handling
+        verbose=verbose, fail_any_exception=fail_any_exception,
+        # speed
+        n_jobs=n_jobs,
 
-                            # pdfs
-                            use_pymupdf=use_pymupdf,
-                            use_unstructured_pdf=use_unstructured_pdf,
-                            use_pypdf=use_pypdf,
-                            enable_pdf_ocr=enable_pdf_ocr,
-                            try_pdf_as_html=try_pdf_as_html,
-                            enable_pdf_doctr=enable_pdf_doctr,
+        # chunking
+        chunk=chunk,
+        chunk_size=chunk_size,
 
-                            # images
-                            enable_ocr=enable_ocr,
-                            enable_doctr=enable_doctr,
-                            enable_pix2struct=enable_pix2struct,
-                            enable_captions=enable_captions,
-                            enable_transcriptions=enable_transcriptions,
-                            captions_model=captions_model,
-                            caption_loader=caption_loader,
-                            doctr_loader=doctr_loader,
-                            asr_model=asr_model,
-                            asr_loader=asr_loader,
+        # urls
+        use_unstructured=use_unstructured,
+        use_playwright=use_playwright,
+        use_selenium=use_selenium,
+        use_scrapeplaywright=use_scrapeplaywright,
+        use_scrapehttp=use_scrapehttp,
 
-                            # json
-                            jq_schema=jq_schema,
+        # pdfs
+        use_pymupdf=use_pymupdf,
+        use_unstructured_pdf=use_unstructured_pdf,
+        use_pypdf=use_pypdf,
+        enable_pdf_ocr=enable_pdf_ocr,
+        try_pdf_as_html=try_pdf_as_html,
+        enable_pdf_doctr=enable_pdf_doctr,
 
-                            db_type=db_type,
+        # images
+        enable_ocr=enable_ocr,
+        enable_doctr=enable_doctr,
+        enable_pix2struct=enable_pix2struct,
+        enable_captions=enable_captions,
+        enable_llava=enable_llava,
+        enable_transcriptions=enable_transcriptions,
+        captions_model=captions_model,
+        caption_loader=caption_loader,
+        doctr_loader=doctr_loader,
+        llava_model=llava_model,
+        llava_prompt=llava_prompt,
+        asr_model=asr_model,
+        asr_loader=asr_loader,
+
+        # json
+        jq_schema=jq_schema,
+        extract_frames=extract_frames,
+
+        db_type=db_type,
+        is_public=is_public,
+    )
+    sources1 = path_to_docs(user_path,
+                            url=url,
+                            **loaders_and_settings,
                             selected_file_types=selected_file_types,
-
-                            is_public=is_public,
                             )
     return sources1
 
@@ -112,6 +133,8 @@ def make_db_main(use_openai_embedding: bool = False,
                  use_unstructured=True,
                  use_playwright=False,
                  use_selenium=False,
+                 use_scrapeplaywright=False,
+                 use_scrapehttp=False,
 
                  # pdfs
                  use_pymupdf='auto',
@@ -126,7 +149,10 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_doctr=False,
                  enable_pix2struct=False,
                  enable_captions=True,
+                 enable_llava=True,
                  captions_model: str = "Salesforce/blip-image-captioning-base",
+                 llava_model: str = None,
+                 llava_prompt: str = None,
                  pre_load_image_audio_models: bool = False,
                  caption_gpu: bool = True,
                  # caption_loader=None,  # set internally
@@ -138,6 +164,7 @@ def make_db_main(use_openai_embedding: bool = False,
 
                  # json
                  jq_schema='.[]',
+                 extract_frames=10,
 
                  db_type: str = 'chroma',
                  selected_file_types: Union[List[str], str] = None,
@@ -187,6 +214,8 @@ def make_db_main(use_openai_embedding: bool = False,
     :param use_unstructured: see gen.py
     :param use_playwright: see gen.py
     :param use_selenium: see gen.py
+    :param use_scrapeplaywright: see gen.py
+    :param use_scrapehttp: see gen.py
 
     :param use_pymupdf: see gen.py
     :param use_unstructured_pdf: see gen.py
@@ -199,7 +228,10 @@ def make_db_main(use_openai_embedding: bool = False,
     :param enable_doctr: see gen.py
     :param enable_pix2struct: see gen.py
     :param enable_captions: Whether to enable captions on images
-    :param captions_model: See generate.py
+    :param enable_llava: See gen.py
+    :param captions_model: See gen.py
+    :param llava_model: See gen.py
+    :param llava_prompt: See gen.py
     :param pre_load_image_audio_models: See generate.py
     :param caption_gpu: Caption images on GPU if present
 
@@ -223,7 +255,7 @@ def make_db_main(use_openai_embedding: bool = False,
         download_dest = makedirs('./', use_base=True)
 
     # match behavior of main() in generate.py for non-HF case
-    n_gpus = get_ngpus_vis()
+    n_gpus = n_gpus_global
     if n_gpus == 0:
         if hf_embedding_model is None:
             # if no GPUs, use simpler embedding model to avoid cost in time
@@ -305,6 +337,8 @@ def make_db_main(use_openai_embedding: bool = False,
                          use_unstructured=use_unstructured,
                          use_playwright=use_playwright,
                          use_selenium=use_selenium,
+                         use_scrapeplaywright=use_scrapeplaywright,
+                         use_scrapehttp=use_scrapehttp,
 
                          # pdfs
                          use_pymupdf=use_pymupdf,
@@ -319,16 +353,20 @@ def make_db_main(use_openai_embedding: bool = False,
                          enable_doctr=enable_doctr,
                          enable_pix2struct=enable_pix2struct,
                          enable_captions=enable_captions,
+                         enable_llava=enable_llava,
                          enable_transcriptions=enable_transcriptions,
                          captions_model=captions_model,
                          caption_loader=caption_loader,
                          doctr_loader=doctr_loader,
+                         llava_model=llava_model,
+                         llava_prompt=llava_prompt,
                          # Note: we don't reload doctr model
                          asr_loader=asr_loader,
                          asr_model=asr_model,
 
                          # json
                          jq_schema=jq_schema,
+                         extract_frames=extract_frames,
 
                          db_type=db_type,
                          selected_file_types=selected_file_types,

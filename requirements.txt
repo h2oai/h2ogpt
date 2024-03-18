@@ -1,13 +1,19 @@
 # for generate (gradio server) and finetune
-datasets==2.13.0
-sentencepiece==0.1.99
-gradio==4.7.1
-huggingface_hub==0.16.4
+datasets==2.16.1
+sentencepiece==0.2.0
+# no websockets, more cloud friendly
+#gradio==4.19.2
+# able to make gradio clean-up states
+gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
+#gradio==3.50.2
+sse_starlette==1.8.2
+# consrained by tokenizers etc.:
+huggingface_hub>=0.12.4
 appdirs==1.4.4
 fire==0.5.0
 docutils==0.20.1
-torch==2.1.1; sys_platform != "darwin" and platform_machine != "arm64"
-torch==2.1.1; sys_platform == "darwin" and platform_machine == "arm64"
+torch==2.2.1; sys_platform != "darwin" and platform_machine != "arm64"
+torch==2.2.1; sys_platform == "darwin" and platform_machine == "arm64"
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
@@ -15,58 +21,60 @@ scikit-learn==1.2.2
 # optional (need to uncomment code in gradio_runner.py for import of better_profanity)
 # alt-profanity-check==1.2.2
 # better-profanity==0.7.0
-numpy==1.24.3
+numpy>=1.23.4,<2.0
 pandas==2.0.2
-matplotlib==3.7.1
-loralib==0.1.1
-bitsandbytes==0.41.1
-accelerate==0.24.1
-peft==0.6.2
-transformers==4.35.2
-tokenizers==0.15.0
-APScheduler==3.10.1
+matplotlib>=3.7.1
+loralib>=0.1.1
+bitsandbytes>=0.41.0
+accelerate>=0.27.2
+peft>=0.7.0
+transformers>=4.38.1
+tokenizers>=0.15.2
+APScheduler>=3.10.1
+hf_transfer>=0.1.5
 
 # optional for generate
-pynvml==11.5.0
-psutil==5.9.5
-boto3==1.26.101
-botocore==1.29.101
-
-# optional for finetune
-tensorboard==2.13.0
-neptune==1.2.0
+pynvml>=11.5.0
+psutil>=5.9.5
+boto3>=1.26.101
+botocore>=1.29.101
 
 # for gradio client
-gradio_client==0.7.0
-beautifulsoup4==4.12.2
-markdown==3.4.3
+gradio_client==0.11.0
+#gradio_client==0.6.1
+beautifulsoup4>=4.12.2
+markdown>=3.4.3
 
 # data and testing
-pytest==7.2.2
-pytest-xdist==3.2.1
-nltk==3.8.1
-textstat==0.7.3
+pytest>=7.2.2
+pytest-xdist>=3.2.1
+nltk>=3.8.1
+textstat>=0.7.3
 # pandoc==2.3
-pypandoc==1.11; sys_platform == "darwin" and platform_machine == "arm64"
-pypandoc_binary==1.11; platform_machine == "x86_64"
-pypandoc_binary==1.11; sys_platform == "win32"
-python-magic-bin==0.4.14; sys_platform == "win32"
-openpyxl==3.1.2
-lm_dataformat==0.0.20
-bioc==2.0
+pypandoc>=1.11; sys_platform == "darwin" and platform_machine == "arm64"
+pypandoc_binary>=1.11; platform_machine == "x86_64"
+pypandoc_binary>=1.11; platform_system == "Windows"
+python-magic-bin>=0.4.14; platform_system == "Windows"
+openpyxl>=3.1.2
+lm_dataformat>=0.0.20
+bioc>=2.0
 
 # falcon
-einops==0.6.1
-instructorembedding==1.0.1
+einops>=0.6.1
+instructorembedding>=1.0.1
 
 # for gpt4all .env file, but avoid worrying about imports
-python-dotenv==1.0.0
+python-dotenv>=1.0.0
 
-text-generation==0.6.1
+text-generation>=0.6.1
 # for tokenization when don't have HF tokenizer
-tiktoken==0.4.0
+tiktoken>=0.5.2
+
+# optional: for OpenAI endpoint
+openai>=1.12.0
 
 requests>=2.31.0
+httpx>=0.24.1
 urllib3>=1.26.16
 filelock>=3.12.2
 joblib>=1.3.1

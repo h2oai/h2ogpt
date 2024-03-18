@@ -1,6 +1,9 @@
-# MACOS
+# macOS
 
 Supports CPU and MPS (Metal M1/M2).
+
+- [Install](#install)
+- [Run](#run)
 
 ## Install
 * Download and Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html#macos-installers) for Python 3.10.
@@ -17,22 +20,34 @@ Supports CPU and MPS (Metal M1/M2).
 
     # fix any bad env
     pip uninstall -y pandoc pypandoc pypandoc-binary
+    pip install --upgrade pip
+    python -m pip install --upgrade setuptools
     
     # Install Torch:
-    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu
+    pip install -r requirements.txt --extra-index https://download.pytorch.org/whl/cpu -c reqs_optional/reqs_constraints.txt
     ```
 * Install document question-answer dependencies:
     ```bash
     # Required for Doc Q/A: LangChain:
-    pip install -r reqs_optional/requirements_optional_langchain.txt
+    pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
+  
     # Required for CPU: LLaMa/GPT4All:
-    pip install -r reqs_optional/requirements_optional_gpt4all.txt
+    pip uninstall -y llama-cpp-python llama-cpp-python-cuda
+    export CMAKE_ARGS=-DLLAMA_METAL=on
+    export FORCE_CMAKE=1
+    pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
+
+    pip install librosa -c reqs_optional/reqs_constraints.txt
     # Optional: PyMuPDF/ArXiv:
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt
+    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
     # Optional: Selenium/PlayWright:
-    pip install -r reqs_optional/requirements_optional_langchain.urls.txt
+    pip install -r reqs_optional/requirements_optional_langchain.urls.txt -c reqs_optional/reqs_constraints.txt
+    # Optional: DocTR OCR:
+    conda install weasyprint pygobject -c conda-forge -y
+    pip install -r reqs_optional/requirements_optional_doctr.txt -c reqs_optional/reqs_constraints.txt
     # Optional: for supporting unstructured package
     python -m nltk.downloader all
+  ```
 * For supporting Word and Excel documents, download libreoffice: https://www.libreoffice.org/download/download-libreoffice/ .
 * To support OCR, install [Tesseract Documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html):
     ```bash
@@ -41,7 +56,33 @@ Supports CPU and MPS (Metal M1/M2).
     brew install poppler
     brew install tesseract
     brew install tesseract-lang
+    brew install rubberband
+    brew install pygobject3 gtk4
+    brew install libjpeg
+    brew install libpng
+    brew install wget
     ```
+
+See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
+
+## Run 
+
+For information on how to run h2oGPT offline, see [Offline](README_offline.md#tldr).
+
+In your terminal, run:
+```bash
+python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+```
+Or you can run it from a file called `run.sh` that would contain following text:
+```bash
+#!/bin/bash
+python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+```
+and run `sh run.sh` from the terminal placed in the parent folder of `run.sh`
+
+---
+
+## Issues
 * Metal M1/M2 Only:
    Verify whether torch uses MPS, run below python script:
      ```python
@@ -57,57 +98,6 @@ Supports CPU and MPS (Metal M1/M2).
      ```bash
      tensor([1.], device='mps:0')
      ```
-* Metal M1/M2 Only:  Install and setup GPU-specific dependencies to support LLaMa.cpp on GPU:
-* GGUF:
-  See [https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases](https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases) or [https://github.com/abetlen/llama-cpp-python/releases](https://github.com/abetlen/llama-cpp-python/releases) for other releases, try to stick to same version.  One roughly follows:
-  ```bash
-  pip uninstall -y llama-cpp-python llama-cpp-python-cuda
-  # GGUF:
-  pip install https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/metal/llama_cpp_python-0.2.19-cp310-cp310-macosx_11_0_arm64.whl
-  ```
-  - Pass difference value of `--model_path_llama` if download a different GGUF model from TheBloke, or pass URL/path in UI. The default model can be [downloaded here](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) and placed in repo folder or give this URL.
-* If any issues, then compile:
-    ```bash
-    pip uninstall llama-cpp-python -y
-    CMAKE_ARGS="-DLLAMA_METAL=on" FORCE_CMAKE=1 pip install -U llama-cpp-python==0.2.19 --no-cache-dir
-    ```
-* vLLM support
-  ```bash
-  pip install https://h2o-release.s3.amazonaws.com/h2ogpt/openvllm-0.28.1-py3-none-any.whl
-  ```
-
----
-
-## Run
-
-* To run LLaMa.cpp model in CPU or GPU mode (NOTE: if you haven't compiled llama-cpp-python for M1/M2 as mentioned above you can simply run without `--llamacpp_dict` arg, which will run on CPU):
-    
-    * CPU Mode: To run in CPU mode, specify the `'n_gpu_layers':0` in `--llamacpp_dict` arg, for GGUF installed do:
-      ```bash
-      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096 --llamacpp_dict="{'n_gpu_layers':0,'n_batch':128}"
-      ```
-    * GPU Mode for GGUF: To run in GPU mode, specify the number of gpus needed to be used `'n_gpu_layers: 2'` in `--llamacpp_dict` arg, by default it is set to higher value to use all the available gpus
-       ```bash
-      python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
-      ```
-Ignore CLI output showing `0.0.0.0`, and instead go to http://localhost:7860 or the public live URL printed by the server (disable shared link with `--share=False`).
-
-* Full Hugging Face Model -- slower than GGUF/GGML in general:
-    ```bash
-    python generate.py --base_model=h2oai/h2ogpt-gm-oasst1-en-2048-open-llama-7b --score_model=None --langchain_mode='UserData' --user_path=user_path
-    ```
-
-* CLI mode with GGUF:
-    ```bash
-    python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None --langchain_mode='UserData' --user_path=user_path --cli=True --model_path_llama=https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf --max_seq_len=4096
-    ```
-
-See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects about using h2oGPT on CPU or GPU, such as which models to try.
-
----
-
-## Issues
-
 * If you see `ld: library not found for -lSystem` then ensure you do below and then retry from scratch to do `pip install` commands:
     ```bash
     export LDFLAGS=-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib`
@@ -124,7 +114,14 @@ See [CPU](README_CPU.md) and [GPU](README_GPU.md) for some other general aspects
     ```
     during pip install.  If so, set your archflags during pip install. E.g.
     ```bash
-    ARCHFLAGS="-arch x86_64" pip install -r requirements.txt
+    ARCHFLAGS="-arch x86_64" pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
     ```
-
 * If you encounter an error while building a wheel during the `pip install` process, you may need to install a C++ compiler on your computer.
+* If you see the error `TypeError: Trying to convert BFloat16 to the MPS backend but it does not have support for that dtype.`:
+  ```bash
+  pip install -U torch==2.3.0.dev20240229 --extra-index https://download.pytorch.org/whl/nightly/cpu --pre
+  pip install -U torchvision==0.18.0.dev20240229 --extra-index https://download.pytorch.org/whl/nightly/cpu --pre
+  ```
+  * Support for BFloat16 is added to MacOS from Sonama (14.0)
+  * Based on that a fix is added to torch with PR https://github.com/pytorch/pytorch/pull/119641 and it is still only available in nighlty. Expecting the feature with release `torch-2.3.0`
+  * **Note:** Updating torch to nighlty is experimental and it might break features in h2ogpt

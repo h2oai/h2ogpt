@@ -11,7 +11,7 @@ if os.path.dirname('src') not in sys.path:
 
 os.environ['HARD_ASSERTS'] = "1"
 
-from src.utils import call_subprocess_onetask, makedirs, FakeTokenizer, download_simple
+from src.utils import call_subprocess_onetask, makedirs, FakeTokenizer, download_simple, sanitize_filename
 
 
 def get_inf_port():
@@ -80,28 +80,6 @@ def get_sha(value):
     return hashlib.md5(str(value).encode('utf-8')).hexdigest()
 
 
-def sanitize_filename(name):
-    """
-    Sanitize file *base* names.  Also used to generation valid class names.
-    :param name:
-    :return:
-    """
-    bad_chars = ['[', ']', ',', '/', '\\', '\\w', '\\s', '-', '+', '\"', '\'', '>', '<', ' ', '=', ')', '(', ':', '^']
-    for char in bad_chars:
-        name = name.replace(char, "_")
-
-    length = len(name)
-    file_length_limit = 250  # bit smaller than 256 for safety
-    sha_length = 32
-    real_length_limit = file_length_limit - (sha_length + 2)
-    if length > file_length_limit:
-        sha = get_sha(name)
-        half_real_length_limit = max(1, int(real_length_limit / 2))
-        name = name[0:half_real_length_limit] + "_" + sha + "_" + name[length - half_real_length_limit:length]
-
-    return name
-
-
 def get_test_name():
     tn = os.environ['PYTEST_CURRENT_TEST'].split(':')[-1]
     tn = "_".join(tn.split(' ')[:-1])  # skip (call) at end
@@ -139,7 +117,7 @@ def get_llama(llama_type=3):
         dest = './'
         prompt_type = 'wizard2'
     elif llama_type == 3:
-        file = download_simple('https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf')
+        file = download_simple('https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true')
         dest = './'
         prompt_type = 'llama2'
     else:

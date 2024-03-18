@@ -3,7 +3,7 @@ import uuid
 from enums import LangChainMode
 
 
-def set_userid(db1s, requests_state1, get_userid_auth):
+def set_userid(db1s, requests_state1, get_userid_auth, guest_name=''):
     force = requests_state1 and 'username' in requests_state1
     db1 = db1s[LangChainMode.MY_DATA.value]
     assert db1 is not None and len(db1) == length_db1()
@@ -13,6 +13,9 @@ def set_userid(db1s, requests_state1, get_userid_auth):
         username1 = None
         if 'username' in requests_state1:
             username1 = requests_state1['username']
+            if username1 == guest_name:
+                username1 += ':' + str(uuid.uuid4())
+                requests_state1['username'] = username1
         db1[2] = username1
 
 

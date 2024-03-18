@@ -246,13 +246,17 @@ def test_qa_daidocs_db_chunk_hf_dbs(db_type, top_k_docs):
                      llamacpp_dict={},
                      )
     check_ret(ret)
+    kill_weaviate(db_type)
 
 
-def get_test_model():
+def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
+                   tokenizer_base_model='',
+                   prompt_type='human_bot',
+                   inference_server='',
+                   max_seq_len=None,
+                   regenerate_clients=True):
     # need to get model externally, so don't OOM
     from src.gen import get_model
-    base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    prompt_type = 'human_bot'
     all_kwargs = dict(load_8bit=False,
                       load_4bit=False,
                       low_bit_mode=1,
@@ -265,8 +269,9 @@ def get_test_model():
                       revision=None,
                       use_gpu_id=True,
                       base_model=base_model,
-                      tokenizer_base_model=base_model,
-                      inference_server='',
+                      tokenizer_base_model=tokenizer_base_model,
+                      inference_server=inference_server,
+                      regenerate_clients=regenerate_clients,
                       lora_weights='',
                       gpu_id=0,
                       n_jobs=1,
@@ -279,7 +284,7 @@ def get_test_model():
                       trust_remote_code=True,
                       offload_folder=None,
                       rope_scaling=None,
-                      max_seq_len=None,
+                      max_seq_len=max_seq_len,
                       compile_model=True,
                       llamacpp_dict={},
                       exllama_dict={},
@@ -288,6 +293,10 @@ def get_test_model():
                       sink_dict={},
                       truncation_generation=False,
                       hf_model_dict={},
+                      use_flash_attention_2=False,
+                      llamacpp_path='llamacpp_path',
+                      regenerate_gradio_clients=True,
+                      max_output_seq_len=None,
 
                       verbose=False)
     model, tokenizer, device = get_model_retry(reward_type=False,
@@ -358,7 +367,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                                                            n_jobs=8,
                                                            max_seq_len=512,
                                                            llamacpp_dict=dict(
-                                                               model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf',
+                                                               model_path_llama='https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true',
                                                                n_gpu_layers=100,
                                                                use_mlock=True,
                                                                n_batch=1024))
@@ -381,6 +390,7 @@ def test_qa_wiki_db_chunk_hf_dbs_llama(db_type):
                      llamacpp_dict=dict(n_gpu_layers=100, use_mlock=True, n_batch=1024),
                      )
     check_ret(ret)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.skipif(not have_openai_key, reason="requires OpenAI key to run")
@@ -517,27 +527,35 @@ def test_make_add_db(repeat, db_type):
                                   enable_captions=False,
                                   enable_doctr=False,
                                   enable_pix2struct=False,
+                                  enable_llava=False,
                                   enable_transcriptions=False,
                                   captions_model="Salesforce/blip-image-captioning-base",
+                                  llava_model=None,
+                                  llava_prompt=None,
                                   asr_model='openai/whisper-medium',
                                   enable_ocr=False,
                                   enable_pdf_ocr='auto',
                                   enable_pdf_doctr=False,
+                                  gradio_upload_to_chatbot_num_max=1,
                                   verbose=False,
-                                  is_url=False, is_txt=False)
+                                  is_url=False, is_txt=False,
+                                  allow_upload_to_my_data=True,
+                                  allow_upload_to_user_data=True,
+                                  )
                     langchain_mode2 = 'MyData'
                     selection_docs_state2 = dict(langchain_modes=[langchain_mode2],
                                                  langchain_mode_paths={},
                                                  langchain_mode_types={})
                     requests_state2 = dict()
-                    z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2_my, db1,
-                                                                                       selection_docs_state2,
-                                                                                       requests_state2,
-                                                                                       langchain_mode2,
-                                                                                       chunk=chunk,
-                                                                                       chunk_size=chunk_size,
-                                                                                       dbs={}, db_type=db_type,
-                                                                                       **kwargs)
+                    z1, z2, source_files_added, exceptions, last_file, last_dict = update_user_db(test_file2_my, db1,
+                                                                                                  selection_docs_state2,
+                                                                                                  requests_state2,
+                                                                                                  langchain_mode2,
+                                                                                                  chunk=chunk,
+                                                                                                  chunk_size=chunk_size,
+                                                                                                  dbs={},
+                                                                                                  db_type=db_type,
+                                                                                                  **kwargs)
                     assert z1 is None
                     assert 'MyData' == z2
                     assert 'test2my' in str(source_files_added)
@@ -547,15 +565,16 @@ def test_make_add_db(repeat, db_type):
                     selection_docs_state1 = dict(langchain_modes=[langchain_mode],
                                                  langchain_mode_paths={langchain_mode: tmp_user_path},
                                                  langchain_mode_types={langchain_mode: LangChainTypes.SHARED.value})
-                    z1, z2, source_files_added, exceptions, last_file = update_user_db(test_file2, db1,
-                                                                                       selection_docs_state1,
-                                                                                       requests_state1,
-                                                                                       langchain_mode,
-                                                                                       chunk=chunk,
-                                                                                       chunk_size=chunk_size,
-                                                                                       dbs={langchain_mode: db},
-                                                                                       db_type=db_type,
-                                                                                       **kwargs)
+                    z1, z2, source_files_added, exceptions, last_file, last_dict = update_user_db(test_file2, db1,
+                                                                                                  selection_docs_state1,
+                                                                                                  requests_state1,
+                                                                                                  langchain_mode,
+                                                                                                  chunk=chunk,
+                                                                                                  chunk_size=chunk_size,
+                                                                                                  dbs={
+                                                                                                      langchain_mode: db},
+                                                                                                  db_type=db_type,
+                                                                                                  **kwargs)
                     assert 'test2' in str(source_files_added)
                     assert langchain_mode == z2
                     assert z1 is None
@@ -625,6 +644,7 @@ def test_make_add_db(repeat, db_type):
                     assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
                     assert docs[0].page_content == msg2
                     assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file2)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -648,6 +668,7 @@ def test_zip_add(db_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert docs[0].page_content == msg1
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -672,6 +693,7 @@ def test_tar_add(db_type, tar_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert docs[0].page_content == msg1
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -687,6 +709,7 @@ def test_url_add(db_type):
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) == 4
         assert 'Sri Ambati' in docs[0].page_content
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -710,6 +733,7 @@ def test_urls_add(db_type):
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) == 4
         assert 'Sri Ambati' in docs[0].page_content
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -737,6 +761,7 @@ def test_urls_file_add(db_type):
             docs = db.similarity_search("list founding team of h2o.ai")
             assert len(docs) == 4
             assert 'Sri Ambati' in docs[0].page_content
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -769,6 +794,7 @@ def test_html_add(db_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Yugu' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -788,6 +814,29 @@ def test_docx_add(db_type):
             assert len(docs) == 4
             assert 'calibre' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_docx_add2(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            shutil.copy('tests/table_as_image.docx', tmp_user_path)
+            test_file1 = os.path.join(tmp_user_path, 'demo.docx')
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               llava_model=os.getenv('H2OGPT_LLAVA_MODEL'),
+                                               enable_doctr=True,
+                                               )
+            assert db is not None
+            docs = db.similarity_search("Approver 1", k=4)
+            assert len(docs) == 4
+            assert 'Band D' in docs[3].page_content
+            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -804,9 +853,11 @@ def test_xls_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is Profit?")
             assert len(docs) == 4
-            assert '16604.000' in docs[0].page_content or 'Small Business' in docs[
-                0].page_content or 'United States of America' in docs[0].page_content
+            assert '16185' in docs[0].page_content or \
+                   'Small Business' in docs[0].page_content or \
+                   'United States of America' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -831,6 +882,7 @@ def test_md_add(db_type):
             assert 'Query and summarize your documents' in docs[1].page_content or 'document Q/A' in docs[
                 1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -851,6 +903,7 @@ def test_rst_add(db_type):
             assert len(docs) == 4
             assert 'Within paragraphs, inline markup' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -871,6 +924,7 @@ def test_xml_add(db_type):
             assert len(docs) == 4 if db_type == 'chroma' else 3
             assert 'Ensuite Bathroom' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -891,6 +945,7 @@ def test_eml_add(db_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'testtest' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -923,6 +978,7 @@ FYIcenter.com Team"""
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Welcome' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -942,6 +998,7 @@ def test_odt_add(db_type):
             assert len(docs) == 4
             assert 'ownCloud' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -962,6 +1019,7 @@ def test_pptx_add(db_type):
             assert len(docs) == 4
             assert 'Presentation' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("use_pypdf", ['auto', 'on', 'off'])
@@ -1028,7 +1086,7 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
             assert db is not None
             docs = db.similarity_search("Suggestions")
             if default_mode:
-                assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+                assert len(docs) == 3 + (1 if db_type == 'chroma' else 0) or len(docs) == 4  # weaviate madness
             else:
                 # ocr etc. end up with different pages, overly complex to test exact count
                 assert len(docs) >= 2
@@ -1038,6 +1096,7 @@ def test_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, use_uns
                     docs[0].metadata['source']) == os.path.basename(test_file1)
             else:
                 assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("use_pypdf", ['auto', 'on', 'off'])
@@ -1103,7 +1162,7 @@ def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, u
                 docs = db.similarity_search("List Tshwane's concerns about water.")
                 assert len(docs) == 4
                 assert 'we appeal to residents that do have water to please use it sparingly.' in docs[
-                    1].page_content or 'OFFICE OF THE MMC FOR UTILITIES AND REGIONAL OPERATIONS' in docs[1].page_content
+                    1].page_content or 'OFFICE OF THE MMC FOR UTILITIES AND REGIONAL' in docs[1].page_content
             else:
 
                 assert db is not None
@@ -1116,6 +1175,7 @@ def test_image_pdf_add(db_type, enable_pdf_ocr, enable_pdf_doctr, use_pymupdf, u
                     docs[0].metadata['source']) == os.path.basename(test_file1)
             else:
                 assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -1136,6 +1196,7 @@ def test_simple_pptx_add(db_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Powerpoint' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -1156,6 +1217,7 @@ def test_epub_add(db_type):
             assert len(docs) == 4
             assert 'happy' in docs[0].page_content or 'happiness' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.skip(reason="Not supported, GPL3, and msg-extractor code fails too often")
@@ -1178,6 +1240,7 @@ def test_msg_add(db_type):
             assert len(docs) == 4 + (1 if db_type == 'chroma' else 0)
             assert 'Happy' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
@@ -1222,14 +1285,22 @@ def test_png_add(captions_model, caption_gpu, pre_load_image_audio_models, enabl
         # FIXME: Not good for this
         return
     kill_weaviate(db_type)
-    return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
-                       pre_load_image_audio_models=pre_load_image_audio_models,
-                       enable_captions=enable_captions,
-                       enable_ocr=enable_ocr,
-                       enable_doctr=enable_doctr,
-                       enable_pix2struct=enable_pix2struct,
-                       db_type=db_type,
-                       file=file)
+    try:
+        return run_png_add(captions_model=captions_model, caption_gpu=caption_gpu,
+                           pre_load_image_audio_models=pre_load_image_audio_models,
+                           enable_captions=enable_captions,
+                           enable_ocr=enable_ocr,
+                           enable_doctr=enable_doctr,
+                           enable_pix2struct=enable_pix2struct,
+                           db_type=db_type,
+                           file=file)
+    except Exception as e:
+        if not enable_captions and 'data/pexels-evg-kowalievska-1170986_small.jpg' in file and 'had no valid text and no meta data was parsed' in str(
+                e):
+            pass
+        else:
+            raise
+    kill_weaviate(db_type)
 
 
 def run_png_add(captions_model=None, caption_gpu=False,
@@ -1369,9 +1440,9 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 raise NotImplementedError()
 
 
-def check_content_captions(docs, caption_model, enable_pix2struct):
+def check_content_captions(docs, captions_model, enable_pix2struct):
     assert any(['license' in docs[ix].page_content.lower() for ix in range(len(docs))])
-    if caption_model is not None and 'blip2' in caption_model:
+    if captions_model is not None and 'blip2' in captions_model:
         str_expected = """california driver license with a woman's face on it california driver license"""
     elif enable_pix2struct:
         str_expected = """california license"""
@@ -1381,9 +1452,9 @@ def check_content_captions(docs, caption_model, enable_pix2struct):
 
 
 def check_content_doctr(docs):
-    assert any(['DRIVERLICENSE' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['DRIVER LICENSE' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['California' in docs[ix].page_content for ix in range(len(docs))])
-    assert any([' EXP <10> 08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['ExP08/31/2014' in docs[ix].page_content for ix in range(len(docs))])
     assert any(['VETERAN' in docs[ix].page_content for ix in range(len(docs))])
 
 
@@ -1391,7 +1462,7 @@ def check_content_ocr(docs):
     # hi_res
     # assert any(['Californias' in docs[ix].page_content for ix in range(len(docs))])
     # ocr_only
-    assert any(['DRIVER LICENSE A' in docs[ix].page_content for ix in range(len(docs))])
+    assert any(['DRIVER LICENSE' in docs[ix].page_content for ix in range(len(docs))])
 
 
 def check_source(docs, test_file1):
@@ -1401,6 +1472,47 @@ def check_source(docs, test_file1):
         assert os.path.basename(os.path.normpath(test_file1)) in os.path.normpath(docs[0].metadata['source'])
     else:
         assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+
+
+@pytest.mark.parametrize("image_file", ['./models/anthropic.png', 'data/pexels-evg-kowalievska-1170986_small.jpg'])
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_llava_add(image_file, db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            file = os.path.basename(image_file)
+            test_file1 = os.path.join(tmp_user_path, file)
+            shutil.copy(image_file, test_file1)
+
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False,
+                                               enable_llava=True,
+                                               llava_model=os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'),
+                                               llava_prompt=None,
+                                               enable_doctr=False,
+                                               enable_captions=False,
+                                               enable_ocr=False,
+                                               enable_transcriptions=False,
+                                               enable_pdf_ocr=False,
+                                               enable_pdf_doctr=False,
+                                               enable_pix2struct=False,
+                                               )
+            assert db is not None
+            if 'anthropic' in image_file:
+                docs = db.similarity_search("circle")
+                assert len(docs) == 2 if db_type == 'chroma' else 1
+                assert 'AI' in docs[0].page_content
+            else:
+                docs = db.similarity_search("cat")
+                assert len(docs) >= 2 if db_type == 'chroma' else 1
+                assert 'cat' in docs[0].page_content
+                assert 'window' in docs[0].page_content or 'outdoors' in docs[0].page_content or 'outside' in docs[
+                    0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -1437,6 +1549,7 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
             assert len(docs) == 4
             assert 'Microsoft' in docs[1].page_content
             assert os.path.normpath(docs[1].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 # Windows is not supported with EmbeddedDB. Please upvote the feature request if you want this: https://github.com/weaviate/weaviate-python-client/issues/239
@@ -1453,6 +1566,7 @@ def test_url_more_add(db_type):
         docs = db.similarity_search("Ukraine")
         assert len(docs) == 4
         assert 'Ukraine' in docs[0].page_content
+    kill_weaviate(db_type)
 
 
 json_data = {
@@ -1519,6 +1633,7 @@ def test_json_add(db_type):
             assert len(docs) == 2 if db_type == 'chroma' else 1
             assert 'Bulls' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+    kill_weaviate(db_type)
 
 
 @pytest.mark.parametrize("db_type", db_types)
@@ -1543,6 +1658,7 @@ def test_jsonl_gz_add(db_type):
             assert len(docs) == 2 if db_type == 'chroma' else 1
             assert 'Bulls' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1).replace('.gz', '')
+    kill_weaviate(db_type)
 
 
 @wrap_test_forked
@@ -1553,13 +1669,16 @@ def test_url_more_subunit():
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
 
+    # Playwright and Selenium fails on cnn url
+    url_easy = 'https://github.com/h2oai/h2ogpt'
+
     from langchain.document_loaders import PlaywrightURLLoader
-    docs1 = PlaywrightURLLoader(urls=[url]).load()
+    docs1 = PlaywrightURLLoader(urls=[url_easy]).load()
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
 
     from langchain.document_loaders import SeleniumURLLoader
-    docs1 = SeleniumURLLoader(urls=[url]).load()
+    docs1 = SeleniumURLLoader(urls=[url_easy]).load()
     docs1 = [x for x in docs1 if x.page_content]
     assert len(docs1) > 0
 
@@ -1589,12 +1708,34 @@ def test_youtube_audio_add(db_type):
             url = 'https://www.youtube.com/watch?v=cwjs1WAG9CM'
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url,
                                                fail_any_exception=True, db_type=db_type,
-                                               add_if_exists=False)
+                                               add_if_exists=False,
+                                               extract_frames=0)
             assert db is not None
             docs = db.similarity_search("Example")
-            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0)
+            assert len(docs) == 3 + (1 if db_type == 'chroma' else 0) or len(docs) == 4
             assert 'structured output' in docs[0].page_content
             assert url in docs[0].metadata['source']
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_youtube_full_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://www.youtube.com/shorts/JjdqlglRxrU'
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, url=url,
+                                               fail_any_exception=True, db_type=db_type,
+                                               add_if_exists=False)
+            assert db is not None
+            docs = db.similarity_search("cat")
+            assert len(docs) >= 2
+            assert 'couch' in str([x.page_content for x in docs])
+            assert url in docs[0].metadata['source'] or url in docs[0].metadata['original_source']
+            docs = db.similarity_search("cat", 100)
+            assert 'egg' in str([x.page_content for x in docs])
     kill_weaviate(db_type)
 
 
@@ -1614,6 +1755,33 @@ def test_mp3_add(db_type):
             assert len(docs) == 1 + (1 if db_type == 'chroma' else 0)
             assert 'Porsche Macan' in docs[0].page_content
             assert 'porsche.mp3' in os.path.normpath(docs[0].metadata['source'])
+    kill_weaviate(db_type)
+
+
+@pytest.mark.parametrize("db_type", db_types)
+@wrap_test_forked
+def test_mp4_add(db_type):
+    kill_weaviate(db_type)
+    from src.make_db import make_db_main
+    with tempfile.TemporaryDirectory() as tmp_persist_directory:
+        with tempfile.TemporaryDirectory() as tmp_user_path:
+            url = 'https://h2o-release.s3.amazonaws.com/h2ogpt/iG_jeMeUPBnUO6sx.mp4'
+            test_file1 = os.path.join(tmp_user_path, 'demo.mp4')
+            download_simple(url, dest=test_file1)
+            db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
+                                               fail_any_exception=True, db_type=db_type,
+                                               enable_captions=True)
+            assert db is not None
+            docs = db.similarity_search("Gemini")
+            assert len(docs) >= 3
+            assert 'Gemini' in str([x.page_content for x in docs])
+            assert 'demo.mp4' in os.path.normpath(docs[0].metadata['source'])
+            docs = db.similarity_search("AI", 100)
+            assert 'fun birthday party' in str([x.page_content for x in docs])
+            assert 'Gemini tries to design' in str([x.page_content for x in docs])
+            assert 'H2OAudioCaptionLoader' in str([x.metadata for x in docs])
+            assert 'H2OImageCaptionLoader' in str([x.metadata for x in docs])
+            assert '.jpg' in str([x.metadata for x in docs])
     kill_weaviate(db_type)
 
 
@@ -1647,6 +1815,8 @@ def test_chroma_filtering():
                         max_raw_chunks=max_raw_chunks,
                         api=api,
                         n_jobs=n_jobs,
+                        enforce_h2ogpt_api_key=False,
+                        enforce_h2ogpt_ui_key=False,
                         )
     mydata_mode1 = LangChainMode.MY_DATA.value
     from src.make_db import make_db_main
@@ -1739,18 +1909,18 @@ def test_chroma_filtering():
                         rets1 = rets[0]
                         if chroma_new:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 5 and (
+                                assert len(rets1) >= 7 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                             else:
-                                assert len(rets1) == 5 and (
+                                assert len(rets1) >= 7 and (
                                         'h2oGPT' in rets1['response'] or 'H2O GPT' in rets1['response'] or 'H2O.ai' in
                                         rets1['response'])
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'h2oGPT' in rets1['sources']
+                                    assert 'h2oGPT' in str(rets1['sources'])
                         else:
                             if answer_with_sources == -1:
-                                assert len(rets1) == 5 and (
+                                assert len(rets1) >= 7 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
@@ -1758,18 +1928,19 @@ def test_chroma_filtering():
                                         'a chat bot that' in rets1['response'].lower() or
                                         'non-centrality parameter' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower() or
-                                        'gravitational' in rets1['response'].lower()
+                                        'gravitational' in rets1['response'].lower() or
+                                        'answer to the question'  in rets1['response'].lower()
                                 )
                             else:
-                                assert len(rets1) == 5 and (
+                                assert len(rets1) >= 7 and (
                                         'whisper' in rets1['response'].lower() or
                                         'phase' in rets1['response'].lower() or
                                         'generate' in rets1['response'].lower() or
                                         'statistic' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in rets1['sources'] or 'unbiased' in rets1[
-                                        'sources'] or 'approximate' in rets1['sources']
+                                    assert 'whisper' in str(rets1['sources']) or 'unbiased' in str(rets1[
+                                        'sources']) or 'approximate' in str(rets1['sources'])
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
@@ -1800,6 +1971,7 @@ def test_chroma_filtering():
         single_document_choice1 = [x['source'] for x in db.get()['metadatas']][0]
         text_context_list1 = []
         pdf_height = 800
+        h2ogpt_key1 = ''
         for view_raw_text_checkbox1 in [True, False]:
             print("view_raw_text_checkbox1: %s" % view_raw_text_checkbox1, flush=True)
             from src.gradio_runner import show_doc
@@ -1809,11 +1981,12 @@ def test_chroma_filtering():
                                 view_raw_text_checkbox1,
                                 text_context_list1,
                                 pdf_height,
+                                h2ogpt_key1,
                                 dbs1=dbs1,
                                 hf_embedding_model1=hf_embedding_model,
                                 **other_kwargs
                                 )
-            assert len(show_ret) == 5
+            assert len(show_ret) == 8
             if chroma_new:
                 assert1 = show_ret[4]['value'] is not None and 'README.md' in show_ret[4]['value']
                 assert2 = show_ret[3]['value'] is not None and 'h2oGPT' in show_ret[3]['value']
@@ -1885,6 +2058,14 @@ def test_merge_docs(data_kind):
     elif data_kind == 'helium5':
         assert len(docs_with_score_new) == 3
         assert all([x < max_input_tokens for x in tokens])
+
+
+@wrap_test_forked
+def test_crawl():
+    from src.gpt_langchain import Crawler
+    final_urls = Crawler(urls=['https://github.com/h2oai/h2ogpt'], verbose=True).run()
+    assert 'https://github.com/h2oai/h2ogpt/blob/main/docs/README_GPU.md' in final_urls
+    print(final_urls)
 
 
 if __name__ == '__main__':

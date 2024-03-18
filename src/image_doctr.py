@@ -62,13 +62,13 @@ class H2OOCRLoader(ImageCaptionLoader):
         return self
 
     def unload_model(self):
-        if hasattr(self._ocr_model.det_predictor.model, 'cpu'):
+        if self._ocr_model and hasattr(self._ocr_model.det_predictor.model, 'cpu'):
             self._ocr_model.det_predictor.model.cpu()
             clear_torch_cache()
-        if hasattr(self._ocr_model.reco_predictor.model, 'cpu'):
+        if self._ocr_model and hasattr(self._ocr_model.reco_predictor.model, 'cpu'):
             self._ocr_model.reco_predictor.model.cpu()
             clear_torch_cache()
-        if hasattr(self._ocr_model, 'cpu'):
+        if self._ocr_model and hasattr(self._ocr_model, 'cpu'):
             self._ocr_model.cpu()
             clear_torch_cache()
 
@@ -101,6 +101,7 @@ class H2OOCRLoader(ImageCaptionLoader):
         """
         Helper function for getting the captions and metadata of an image
         """
+        from src.image_utils import pad_resize_image
         try:
             from doctr.io import DocumentFile
         except ImportError:
@@ -117,7 +118,12 @@ class H2OOCRLoader(ImageCaptionLoader):
         except Exception:
             raise ValueError(f"Could not get image data for {document_path}")
         document_words = []
+        shapes = []
         for image in images:
+            shape0 = str(image.shape)
+            image = pad_resize_image(image)
+            shape1 = str(image.shape)
+
             ocr_output = model([image])
             page_words = []
             page_boxes = []
@@ -137,7 +143,8 @@ class H2OOCRLoader(ImageCaptionLoader):
             else:
                 page_words = " ".join(page_words)
             document_words.append(page_words)
-        metadata: dict = {"image_path": document_path}
+            shapes.append(dict(shape0=shape0, shape1=shape1))
+        metadata: dict = {"image_path": document_path, 'shape': str(shapes)}
         return document_words, metadata
 
 

@@ -1,3 +1,3 @@
 arxiv==1.4.8
-pymupdf==1.23.6 # AGPL license
+pymupdf>=1.23.8 # AGPL license
 # extract-msg==0.41.1  # GPL3
