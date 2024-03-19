@@ -3077,9 +3077,9 @@ def go_gradio(**kwargs):
             if text_output21 is None:
                 text_output21 = []
             for i in range(len(text_outputs1)):
-                if not text_outputs1[i] and len(text_outputs1[i]) > 0 and not text_outputs1[i][0]:
-                    text_outputs1[i] = []
                 if text_outputs1[i] is None:
+                    text_outputs1[i] = []
+                if not text_outputs1[i] and len(text_outputs1[i]) > 0 and not text_outputs1[i][0]:
                     text_outputs1[i] = []
             return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1, h2ogpt_key2, visible_models1,
 
