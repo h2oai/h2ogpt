@@ -109,6 +109,8 @@ def setup_app(name_login='google_login', name_app='h2ogpt', verbose=False):
         for key, value in request.query_params.items():
             print(f"    {key}: {value}")
 
+        print("%s session:" % which, request.session)
+
     return app, get_user
 
 
