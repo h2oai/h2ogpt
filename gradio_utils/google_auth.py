@@ -1,7 +1,7 @@
 from src.utils import sanitize_filename
 
 
-def setup_app(name_login='google_login', name_app='h2ogpt'):
+def setup_app(name_login='google_login', name_app='h2ogpt', verbose=False):
     from authlib.integrations.starlette_client import OAuth, OAuthError
     from fastapi import FastAPI, Depends, Request
     from starlette.config import Config
@@ -34,6 +34,8 @@ def setup_app(name_login='google_login', name_app='h2ogpt'):
 
     # Dependency to get the current user
     def get_user(request: Request):
+        if verbose:
+            print_request(request, which='get_user')
         user = request.session.get('user')
         if user:
             return user['name']
@@ -41,6 +43,8 @@ def setup_app(name_login='google_login', name_app='h2ogpt'):
 
     @app.get('/')
     def public(request: Request, user=Depends(get_user)):
+        if verbose:
+            print_request(request, which='public')
         root_url = gr.route_utils.get_root_url(request, "/", None)
         if user:
             return RedirectResponse(url=f'{root_url}/{name_app}/')
@@ -49,11 +53,15 @@ def setup_app(name_login='google_login', name_app='h2ogpt'):
 
     @app.route('/logout')
     async def logout(request: Request):
+        if verbose:
+            print_request(request, which='logout')
         request.session.pop('user', None)
         return RedirectResponse(url='/')
 
     @app.route('/login')
     async def login(request: Request):
+        if verbose:
+            print_request(request, which='login0')
         root_url = gr.route_utils.get_root_url(request, "/login", None)
         redirect_uri = f"{root_url}/auth"
         print("Redirecting to", redirect_uri)
@@ -61,6 +69,8 @@ def setup_app(name_login='google_login', name_app='h2ogpt'):
 
     @app.route('/auth')
     async def auth(request: Request):
+        if verbose:
+            print_request(request, which='auth')
         try:
             access_token = await oauth.google.authorize_access_token(request)
         except OAuthError:
@@ -75,10 +85,29 @@ def setup_app(name_login='google_login', name_app='h2ogpt'):
     # Comment out below if using http instead of https
     @app.route('/login')
     async def login(request: Request):
+        if verbose:
+            print_request(request, which='login')
         parsed_url = urlparse(str(request.url_for('auth')))
         modified_url = parsed_url._replace(scheme='https')
         redirect_uri = urlunparse(modified_url)
         return await oauth.google.authorize_redirect(request, redirect_uri)
+
+    def print_request(request: Request, which='unknown'):
+        # Print request method (GET, POST, etc.)
+        print("%s Method:" % which, request.method)
+
+        # Print full URL
+        print("%s URL:" % which, str(request.url))
+
+        # Print headers
+        print("%s Headers:" % which)
+        for key, value in request.headers.items():
+            print(f"    {key}: {value}")
+
+        # Print query parameters
+        print("%s Query Parameters:" % which)
+        for key, value in request.query_params.items():
+            print(f"    {key}: {value}")
 
     return app, get_user
 
@@ -111,6 +140,7 @@ def get_app(demo, app_kwargs={}, **login_kwargs):
     name_app = sanitize_filename(login_kwargs['page_title']).replace('/', '').lower()
     app, get_user = setup_app(name_login=name_login,
                               name_app=name_app,
+                              verbose=True,  # DEBUG
                               )
     import gradio as gr
     login_app = gr.mount_gradio_app(app, login_gradio(**login_kwargs), f"/{name_login}")
