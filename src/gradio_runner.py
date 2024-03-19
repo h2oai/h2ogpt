@@ -2869,11 +2869,16 @@ def go_gradio(**kwargs):
             # use full auth login to allow new users if open access etc.
             if pre_authorized:
                 username1 = requests_state1.get('username')
-                password1 = None
+                password1 = username1
                 authorized1 = True
             else:
-                authorized1 = authf(username1, password1, selection_docs_state1=selection_docs_state1,
-                                    id0=get_userid_direct(db1s))
+                authorized1 = False
+
+            # need to store even if pre authorized, so can keep track of state
+            authorized2 = authf(username1, password1, selection_docs_state1=selection_docs_state1,
+                                id0=get_userid_direct(db1s))
+            authorized1 += authorized2
+
             if authorized1:
                 if not isinstance(requests_state1, dict):
                     requests_state1 = {}
