@@ -1283,8 +1283,6 @@ or other API endpoints.
 
 ### Google Auth Access
 
-https://github.com/gradio-app/gradio/issues/2790
-
 * Go to [Google Console](https://console.cloud.google.com/) and make a project, e.g. h2ogpt
 * In API & Services, go to Credentials:
   * Choose Web client, not OAuth client
@@ -1332,6 +1330,8 @@ export SECRET_KEY="<fill me>"
 GRADIO_SERVER_PORT=7860 python generate.py --google_auth --server_name=0.0.0.0 -- ...
 ```
 Then goto e.g. https://gpt.h2o.ai/ and see if works
+
+For details about this feature, see https://github.com/gradio-app/gradio/issues/2790. 
 
 ### HTTPS access for server and client
 

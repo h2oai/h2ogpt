@@ -905,13 +905,14 @@ def go_gradio(**kwargs):
         requests_state0 = dict(headers='', host='', username='')
         requests_state = gr.State(requests_state0)
 
-        if kwargs['visible_h2ogpt_logo']:
-            if description is None:
-                description = ''
-            gr.Markdown(f"""
+        if description is None:
+            description = ''
+        markdown_logo = f"""
                 {get_h2o_title(page_title, description, visible_h2ogpt_qrcode=kwargs['visible_h2ogpt_qrcode'])
             if kwargs['h2ocolors'] else get_simple_title(page_title, description)}
-                """)
+                """
+        if kwargs['visible_h2ogpt_logo']:
+            gr.Markdown(markdown_logo)
 
         # go button visible if
         base_wanted = kwargs['base_model'] != no_model_str and kwargs['login_mode_if_model0']
@@ -6267,7 +6268,11 @@ def go_gradio(**kwargs):
             allowed_paths=allowed_paths if allowed_paths else None,
             blocked_paths=blocked_paths if blocked_paths else None,
         )
-        app = get_app(demo)
+        app = get_app(demo,
+                      markdown_logo=markdown_logo,
+                      visible_h2ogpt_logo=kwargs['visible_h2ogpt_logo'],
+                      page_title=page_title,
+                      )
         uvicorn.run(app,
                     # share not allowed
                     host=kwargs['server_name'],

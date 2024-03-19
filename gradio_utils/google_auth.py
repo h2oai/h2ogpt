@@ -7,7 +7,6 @@ def setup_app():
     import os
     import gradio as gr
 
-
     assert os.environ['GOOGLE_CLIENT_ID'], "Set env GOOGLE_CLIENT_ID"
     GOOGLE_CLIENT_ID = os.environ['GOOGLE_CLIENT_ID']
     assert os.environ['GOOGLE_CLIENT_SECRET'], "Set env GOOGLE_CLIENT_SECRET"
@@ -38,7 +37,7 @@ def setup_app():
         return None
 
     @app.get('/')
-    def public(request: Request, user = Depends(get_user)):
+    def public(request: Request, user=Depends(get_user)):
         root_url = gr.route_utils.get_root_url(request, "/", None)
         if user:
             return RedirectResponse(url=f'{root_url}/gradio/')
@@ -81,11 +80,19 @@ def setup_app():
     return app, get_user
 
 
-def login_gradio():
+def login_gradio(**kwargs):
     import gradio as gr
     login_demo = gr.Blocks()
     with login_demo:
-        btn = gr.Button("h2oGPT Login")
+        if kwargs['visible_h2ogpt_logo']:
+            gr.Markdown(kwargs['markdown_logo'])
+        with gr.Row():
+            with gr.Column(scale=1):
+                pass
+            with gr.Column(scale=1):
+                btn = gr.Button("%s Google Auth Login" % kwargs['page_title'])
+            with gr.Column(scale=1):
+                pass
         _js_redirect = """
             () => {
                 url = '/login' + window.location.search;
@@ -96,9 +103,9 @@ def login_gradio():
     return login_demo
 
 
-def get_app(demo, app_kwargs={}):
+def get_app(demo, app_kwargs={}, **login_kwargs):
     app, get_user = setup_app()
     import gradio as gr
-    login_app = gr.mount_gradio_app(app, login_gradio(), "/main")
+    login_app = gr.mount_gradio_app(app, login_gradio(**login_kwargs), "/main")
     main_app = gr.mount_gradio_app(login_app, demo, path="/gradio", auth_dependency=get_user, app_kwargs=app_kwargs)
     return main_app
