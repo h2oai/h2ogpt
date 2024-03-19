@@ -3938,6 +3938,8 @@ def evaluate(
     top_p = min(max(1e-3, top_p), 1.0)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
+    if temperature == 0.0 and top_p == 1.0 and top_k == 1:
+        do_sample = False
     if temperature > 0.0 or top_p < 1.0 or top_k > 1:
         do_sample = True
     if not do_sample:
