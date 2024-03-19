@@ -67,8 +67,8 @@ def setup_app(name_login='google_login', name_app='h2ogpt'):
             print("Error getting access token", str(OAuthError))
             return RedirectResponse(url='/')
         request.session['user'] = dict(access_token)["userinfo"]
-        print("Redirecting to /gradio")
-        return RedirectResponse(url='/gradio')
+        print(f"Redirecting to /{name_app}")
+        return RedirectResponse(url=f'/{name_app}')
 
     from urllib.parse import urlparse, urlunparse
 
