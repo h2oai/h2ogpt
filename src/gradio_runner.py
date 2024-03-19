@@ -2881,6 +2881,8 @@ def go_gradio(**kwargs):
 
         num_lock_button.click(get_num_model_lock_value, inputs=None, outputs=num_model_lock_value_output,
                               api_name='num_model_lock', **noqueue_kwargs2)
+
+
         eventdb_logina = login_btn.click(user_state_setup,
                                          inputs=[my_db_state, requests_state, guest_name, login_btn, login_btn],
                                          outputs=[my_db_state, requests_state, login_btn],
@@ -2888,8 +2890,8 @@ def go_gradio(**kwargs):
 
         def login(db1s, selection_docs_state1, requests_state1, roles_state1,
                   model_options_state1, lora_options_state1, server_options_state1,
-                  chat_state1,
-                  langchain_mode1,
+                  chat_state1, langchain_mode1,
+                  h2ogpt_key2, visible_models1,
                   username1, password1,
                   text_output1, text_output21, *text_outputs1,
                   auth_filename=None, num_model_lock=0, pre_authorized=False):
@@ -2909,14 +2911,16 @@ def go_gradio(**kwargs):
                 username2 = get_username(requests_state1)
                 text_outputs1 = list(text_outputs1)
 
-                success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1 = \
+                success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1, h2ogpt_key2, visible_models1 = \
                     load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
                               roles_state1=roles_state1,
                               model_options_state1=model_options_state1,
                               lora_options_state1=lora_options_state1,
                               server_options_state1=server_options_state1,
                               chat_state1=chat_state1, langchain_mode1=langchain_mode1,
-                              text_output1=text_output1, text_output21=text_output21, text_outputs1=text_outputs1,
+                              h2ogpt_key2=h2ogpt_key2, visible_models1=visible_models1,
+                              text_output1=text_output1, text_output21=text_output21,
+                              text_outputs1=text_outputs1,
                               username_override=username1, password_to_check=password1,
                               num_model_lock=num_model_lock)
             else:
@@ -2940,6 +2944,7 @@ def go_gradio(**kwargs):
                 gr.update(choices=list(chat_state1.keys()), value=None), \
                 gr.update(choices=get_langchain_choices(selection_docs_state1),
                           value=langchain_mode1), \
+                h2ogpt_key2, visible_models1, \
                 text_output1, text_output21, *tuple(text_outputs1)
 
         login_func = functools.partial(login,
@@ -2954,8 +2959,8 @@ def go_gradio(**kwargs):
                                             )
         login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state,
                         model_options_state, lora_options_state, server_options_state,
-                        chat_state,
-                        langchain_mode,
+                        chat_state, langchain_mode,
+                        h2ogpt_key, visible_models,
                         username_text, password_text,
                         text_output, text_output2] + text_outputs
         login_outputs = [my_db_state, selection_docs_state, requests_state, roles_state,
@@ -2965,8 +2970,8 @@ def go_gradio(**kwargs):
                          instruction,
                          langchain_mode_path_text,
                          chatbot_role,
-                         radio_chats,
-                         langchain_mode,
+                         radio_chats, langchain_mode,
+                         h2ogpt_key, visible_models,
                          text_output, text_output2] + text_outputs
         eventdb_loginb = eventdb_logina.then(login_func,
                                              inputs=login_inputs,
@@ -2984,7 +2989,9 @@ def go_gradio(**kwargs):
                       lora_options_state1=None,
                       server_options_state1=None,
                       chat_state1=None, langchain_mode1=None,
-                      text_output1=None, text_output21=None, text_outputs1=None,
+                      h2ogpt_key2=None, visible_models1=None,
+                      text_output1=None, text_output21=None,
+                      text_outputs1=None,
                       username_override=None, password_to_check=None,
                       num_model_lock=None):
             # in-place assignment
@@ -3043,6 +3050,10 @@ def go_gradio(**kwargs):
                                 text_outputs1 = auth_user['text_outputs']
                             if 'langchain_mode' in auth_user:
                                 langchain_mode1 = auth_user['langchain_mode']
+                            if 'h2ogpt_key' in auth_user:
+                                h2ogpt_key2 = auth_user['h2ogpt_key']
+                            if 'visible_models' in auth_user:
+                                visible_models1 = auth_user['visible_models']
                             text_result = "Successful login for %s" % username1
                             success1 = True
                         else:
@@ -3070,7 +3081,7 @@ def go_gradio(**kwargs):
                     text_outputs1[i] = []
                 if text_outputs1[i] is None:
                     text_outputs1[i] = []
-            return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1
+            return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1, h2ogpt_key2, visible_models1,
 
         def save_auth_dict(auth_dict, auth_filename):
             backup_file = auth_filename + '.bak' + str(uuid.uuid4())
@@ -3091,7 +3102,9 @@ def go_gradio(**kwargs):
         def save_auth(selection_docs_state1, requests_state1, roles_state1,
                       model_options_state1, lora_options_state1, server_options_state1,
                       chat_state1, langchain_mode1,
-                      text_output1, text_output21, text_outputs1,
+                      h2ogpt_key1, visible_models1,
+                      text_output1, text_output21,
+                      text_outputs1,
                       auth_filename=None, auth_access=None, auth_freeze=None, guest_name=None,
                       ):
             if auth_freeze:
@@ -3131,13 +3144,19 @@ def go_gradio(**kwargs):
                             auth_user['text_outputs'] = text_outputs1
                         if langchain_mode1:
                             auth_user['langchain_mode'] = langchain_mode1
+                        if h2ogpt_key1:
+                            auth_user['h2ogpt_key'] = h2ogpt_key1
+                        if visible_models1:
+                            auth_user['visible_models'] = visible_models1
                         save_auth_dict(auth_dict, auth_filename)
 
         def save_auth_wrap(*args, **kwargs):
             save_auth(args[0], args[1], args[2],
                       args[3], args[4], args[5],
-                      args[6], args[7], args[8], args[9],
-                      args[10:], **kwargs
+                      args[6], args[7],
+                      args[8], args[9],
+                      args[10], args[11],
+                      args[12:], **kwargs
                       )
 
         save_auth_func = functools.partial(save_auth_wrap,
@@ -3150,10 +3169,16 @@ def go_gradio(**kwargs):
         save_auth_kwargs = dict(fn=save_auth_func,
                                 inputs=[selection_docs_state, requests_state, roles_state,
                                         model_options_state, lora_options_state, server_options_state,
-                                        chat_state, langchain_mode, text_output, text_output2] + text_outputs
+                                        chat_state, langchain_mode,
+                                        h2ogpt_key, visible_models,
+                                        text_output, text_output2] + text_outputs
                                 )
         lg_change_event_auth = lg_change_event.then(**save_auth_kwargs)
         add_role_event_save_event = add_role_event.then(**save_auth_kwargs)
+
+        h2ogpt_key.blur(**save_auth_kwargs)
+        h2ogpt_key.submit(**save_auth_kwargs)
+        visible_models.change(**save_auth_kwargs)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
                                h2ogpt_key1,
