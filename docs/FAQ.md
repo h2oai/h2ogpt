@@ -1310,7 +1310,7 @@ server {
 }
 ```
 
-If using http and not https, then comment out:
+If using http through nginx to get https and do not have native https, then comment out:
 ```python
 @app.route('/login')
 async def login(request: Request):
