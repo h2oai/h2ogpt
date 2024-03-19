@@ -108,7 +108,7 @@ def login_gradio(**kwargs):
 
 def get_app(demo, app_kwargs={}, **login_kwargs):
     name_login = 'google_login'
-    name_app = sanitize_filename(login_kwargs['page_title']).replace('/', '')
+    name_app = sanitize_filename(login_kwargs['page_title']).replace('/', '').lower()
     app, get_user = setup_app(name_login=name_login,
                               name_app=name_app,
                               )
