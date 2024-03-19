@@ -2404,35 +2404,6 @@ def go_gradio(**kwargs):
                            inputs=max_quality,
                            outputs=[image_audio_loaders, pdf_loaders, url_loaders])
 
-        def get_model_lock_visible_list(visible_models1, all_possible_visible_models):
-            visible_list = []
-            for modeli, model in enumerate(all_possible_visible_models):
-                if visible_models1 is None or model in visible_models1 or modeli in visible_models1:
-                    visible_list.append(True)
-                else:
-                    visible_list.append(False)
-            return visible_list
-
-        def set_visible_models(visible_models1, num_model_lock=0, all_possible_visible_models=None):
-            if num_model_lock == 0:
-                num_model_lock = 3  # 2 + 1 (which is dup of first)
-                ret_list = [gr.Textbox(visible=True)] * num_model_lock
-            else:
-                assert isinstance(all_possible_visible_models, list)
-                assert num_model_lock == len(all_possible_visible_models)
-                visible_list = [False, False] + get_model_lock_visible_list(visible_models1,
-                                                                            all_possible_visible_models)
-                ret_list = [gr.Textbox(visible=x) for x in visible_list]
-            return tuple(ret_list)
-
-        visible_models_func = functools.partial(set_visible_models,
-                                                num_model_lock=len(text_outputs),
-                                                all_possible_visible_models=kwargs['all_possible_visible_models'])
-        visible_models.change(fn=visible_models_func,
-                              inputs=visible_models,
-                              outputs=[text_output, text_output2] + text_outputs,
-                              )
-
         # Add to UserData or custom user db
         update_db_func = functools.partial(update_user_db_gr,
                                            dbs=dbs,
@@ -3178,7 +3149,37 @@ def go_gradio(**kwargs):
 
         h2ogpt_key.blur(**save_auth_kwargs)
         h2ogpt_key.submit(**save_auth_kwargs)
-        visible_models.change(**save_auth_kwargs)
+
+        def get_model_lock_visible_list(visible_models1, all_possible_visible_models):
+            visible_list = []
+            for modeli, model in enumerate(all_possible_visible_models):
+                if visible_models1 is None or \
+                        isinstance(model, str) and model in visible_models1 or \
+                        isinstance(modeli, int) and modeli in visible_models1:
+                    visible_list.append(True)
+                else:
+                    visible_list.append(False)
+            return visible_list
+
+        def set_visible_models(visible_models1, num_model_lock=0, all_possible_visible_models=None):
+            if num_model_lock == 0:
+                num_model_lock = 3  # 2 + 1 (which is dup of first)
+                ret_list = [gr.Textbox(visible=True)] * num_model_lock
+            else:
+                assert isinstance(all_possible_visible_models, list)
+                assert num_model_lock == len(all_possible_visible_models)
+                visible_list = [False, False] + get_model_lock_visible_list(visible_models1,
+                                                                            all_possible_visible_models)
+                ret_list = [gr.Textbox(visible=x) for x in visible_list]
+            return tuple(ret_list)
+
+        visible_models_func = functools.partial(set_visible_models,
+                                                num_model_lock=len(text_outputs),
+                                                all_possible_visible_models=kwargs['all_possible_visible_models'])
+        visible_models.change(fn=visible_models_func,
+                              inputs=visible_models,
+                              outputs=[text_output, text_output2] + text_outputs,
+                              ).then(**save_auth_kwargs)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
                                h2ogpt_key1,
