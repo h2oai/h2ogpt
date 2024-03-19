@@ -2,7 +2,8 @@ import sys
 
 import pytest
 
-from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list
+from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
+    is_uuid4
 from tests.utils import wrap_test_forked
 import subprocess as sp
 
@@ -183,3 +184,20 @@ def test_reverse_ucurve():
 def check_gradio():
     import gradio as gr
     assert gr.__h2oai__
+
+
+def test_is_uuid4():
+    # Example usage:
+    test_strings = [
+        "f47ac10b-58cc-4372-a567-0e02b2c3d479", # Valid UUID v4
+        "not-a-uuid",                            # Invalid
+        "12345678-1234-1234-1234-123456789abc",  # Valid UUID v4
+        "xyz"                                    # Invalid
+    ]
+    # "f47ac10b-58cc-4372-a567-0e02b2c3d479": True (Valid UUID v4)
+    # "not-a-uuid": False (Invalid)
+    # "12345678-1234-1234-1234-123456789abc": False (Invalid, even though it resembles a UUID, it doesn't follow the version 4 UUID pattern)
+    # "xyz": False (Invalid)
+
+    # Check each string and print whether it's a valid UUID v4
+    assert [is_uuid4(s) for s in test_strings] == [True, False, False, False]

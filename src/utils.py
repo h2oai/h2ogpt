@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 import requests
 import uuid
+import re
 
 import tabulate
 from fire import inspectutils
@@ -2103,3 +2104,9 @@ def merge_dict(dict1, dict2):
     ret = dict1.copy()
     ret.update(dict2)
     return ret
+
+
+def is_uuid4(string):
+    # Regular expression to match the UUID v4 format
+    pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$', re.IGNORECASE)
+    return bool(pattern.match(string))
