@@ -909,7 +909,7 @@ def go_gradio(**kwargs):
             description = ''
         markdown_logo = f"""
                 {get_h2o_title(page_title, description, visible_h2ogpt_qrcode=kwargs['visible_h2ogpt_qrcode'])
-            if kwargs['h2ocolors'] else get_simple_title(page_title, description)}
+        if kwargs['h2ocolors'] else get_simple_title(page_title, description)}
                 """
         if kwargs['visible_h2ogpt_logo']:
             gr.Markdown(markdown_logo)

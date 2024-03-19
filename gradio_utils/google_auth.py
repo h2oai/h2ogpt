@@ -1,4 +1,7 @@
-def setup_app():
+from src.utils import sanitize_filename
+
+
+def setup_app(name_login='google_login', name_app='h2ogpt'):
     from authlib.integrations.starlette_client import OAuth, OAuthError
     from fastapi import FastAPI, Depends, Request
     from starlette.config import Config
@@ -40,9 +43,9 @@ def setup_app():
     def public(request: Request, user=Depends(get_user)):
         root_url = gr.route_utils.get_root_url(request, "/", None)
         if user:
-            return RedirectResponse(url=f'{root_url}/gradio/')
+            return RedirectResponse(url=f'{root_url}/{name_app}/')
         else:
-            return RedirectResponse(url=f'{root_url}/main/')
+            return RedirectResponse(url=f'{root_url}/{name_login}/')
 
     @app.route('/logout')
     async def logout(request: Request):
@@ -104,8 +107,14 @@ def login_gradio(**kwargs):
 
 
 def get_app(demo, app_kwargs={}, **login_kwargs):
-    app, get_user = setup_app()
+    name_login = 'google_login'
+    name_app = sanitize_filename(login_kwargs['page_title']).replace('/', '')
+    app, get_user = setup_app(name_login=name_login,
+                              name_app=name_app,
+                              )
     import gradio as gr
-    login_app = gr.mount_gradio_app(app, login_gradio(**login_kwargs), "/main")
-    main_app = gr.mount_gradio_app(login_app, demo, path="/gradio", auth_dependency=get_user, app_kwargs=app_kwargs)
+    login_app = gr.mount_gradio_app(app, login_gradio(**login_kwargs), f"/{name_login}")
+    main_app = gr.mount_gradio_app(login_app, demo, path=f"/{name_app}",
+                                   auth_dependency=get_user,
+                                   app_kwargs=app_kwargs)
     return main_app
