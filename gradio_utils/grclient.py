@@ -958,6 +958,9 @@ class GradioClient(Client):
                 text = res_dict['response']
                 if text is None:
                     self.refresh_client()
+                if text is None:
+                    print("text None for client_kwargs=%s" % client_kwargs, flush=True)
+                    text = ''
                 prompt_and_text = prompt + text
                 response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                  sanitize_bot_response=sanitize_bot_response)
@@ -1100,6 +1103,9 @@ class GradioClient(Client):
         res_dict_server = ast.literal_eval(res)
         # yield what have
         text = res_dict_server['response']
+        if text is None:
+            print("text None", flush=True)
+            text = ''
         if prompter:
             response = prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=sanitize_bot_response)
