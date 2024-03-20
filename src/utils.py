@@ -2115,7 +2115,6 @@ def is_uuid4(string):
 
 def get_show_username(username1):
     if split_google in username1:
-        assert len(username1.split(split_google)) == 3
         show_username = split_google.join(username1.split(split_google)[0:1])
     else:
         show_username = username1

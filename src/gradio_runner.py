@@ -740,14 +740,19 @@ def go_gradio(**kwargs):
                 db_username = get_username_direct(db1s)
 
                 if split_google in request.username:
-                    assert len(request.username.split(split_google)) == 3
+                    assert len(request.username.split(split_google)) >= 2  # 3 if already got pic out
                     username = split_google.join(request.username.split(split_google)[0:2])  # no picture
-                    picture = split_google.join(request.username.split(split_google)[2:3])  # picture
                 else:
                     username = request.username
+
+                requests_state1.update(dict(username=username or db_username or str(uuid.uuid4())))
+            if not requests_state1.get('picture', ''):
+                if split_google in request.username and len(request.username.split(split_google)) == 3:
+                    picture = split_google.join(request.username.split(split_google)[2:3])  # picture
+                else:
                     picture = None
 
-                requests_state1.update(dict(username=username or db_username or str(uuid.uuid4()), picture=picture))
+                requests_state1.update(dict(picture=picture))
         requests_state1 = {str(k): str(v) for k, v in requests_state1.items()}
         return requests_state1
 
