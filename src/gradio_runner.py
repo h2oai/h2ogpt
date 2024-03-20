@@ -2923,7 +2923,7 @@ def go_gradio(**kwargs):
                 label_instruction1 = 'Ask or Ingest'
             else:
                 username = requests_state1['username']
-                if split_google in username:
+                if username and split_google in username:
                     real_name = split_google.join(username.split(split_google)[0:1])
                 else:
                     real_name = username
