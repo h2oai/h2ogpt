@@ -31,12 +31,14 @@ import numpy as np
 import pandas as pd
 import requests
 import uuid
+import re
 
 import tabulate
 from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
+from src.enums import split_google
 from src.utils_procs import reulimit
 
 reulimit()
@@ -2103,3 +2105,17 @@ def merge_dict(dict1, dict2):
     ret = dict1.copy()
     ret.update(dict2)
     return ret
+
+
+def is_uuid4(string):
+    # Regular expression to match the UUID v4 format
+    pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$', re.IGNORECASE)
+    return bool(pattern.match(string))
+
+
+def get_show_username(username1):
+    if split_google in username1:
+        show_username = split_google.join(username1.split(split_google)[0:1])
+    else:
+        show_username = username1
+    return show_username

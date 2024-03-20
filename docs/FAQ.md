@@ -1281,6 +1281,58 @@ print(res)
 ```
 or other API endpoints.
 
+### Google Auth Access
+
+* Go to [Google Console](https://console.cloud.google.com/) and make a project, e.g. h2ogpt
+* In API & Services, go to Credentials:
+  * Choose Web client, not OAuth client
+  * Make and copy credentials for client ID and Client secret
+  * Add redirect URI, e.g. https://gpt.h2o.ai/auth
+  * Click save
+  * If mark application as "in production" then need to use https.
+* Wait 5+ minutes
+
+Example nginx on server:
+```text
+server {
+    listen 80;
+    server_name example.com www.example.com;  # Change this to your domain name if you have one
+
+    location / {  # Change this if you'd like to server your Gradio app on a different path
+        proxy_pass http://127.0.0.1:7860/; # Change this if your Gradio app will be running on a different port
+        proxy_buffering off;
+        proxy_redirect off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
+```
+
+If using http through nginx to get https and do not have native https, then comment out:
+```python
+@app.route('/login')
+async def login(request: Request):
+    parsed_url = urlparse(str(request.url_for('auth')))
+    modified_url = parsed_url._replace(scheme='https')
+    redirect_uri = urlunparse(modified_url)
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+```
+from `gradio_utils/google_auth.py`.
+
+Run h2oGPT with:
+```bash
+export GOOGLE_CLIENT_ID="<fill me>"
+export GOOGLE_CLIENT_SECRET="<fill me>"
+# can just be "foo" or some random thing below:
+export SECRET_KEY="<fill me>"
+GRADIO_SERVER_PORT=7860 python generate.py --google_auth --server_name=0.0.0.0 -- ...
+```
+Then goto e.g. https://gpt.h2o.ai/ and see if works
+
+For details about this feature, see https://github.com/gradio-app/gradio/issues/2790. 
+
 ### HTTPS access for server and client
 
 Have files `private_key.pem` and `cert.pem` from your own SSL, or if do not have such files, generate by doing:

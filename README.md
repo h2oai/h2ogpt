@@ -22,7 +22,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **AI Assistant Voice Control Mode** for hands-free control of h2oGPT chat
   - **Bake-off** UI mode against many models at the same time
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
-  - **Authentication** in the UI by user/password
+  - **Authentication** in the UI by user/password via Native or Google OAuth
   - **State Preservation** in the UI by user/password
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
