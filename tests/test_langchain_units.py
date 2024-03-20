@@ -934,9 +934,8 @@ def test_eml_add(db_type):
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            url = 'https://raw.githubusercontent.com/FlexConfirmMail/Thunderbird/master/sample.eml'
             test_file1 = os.path.join(tmp_user_path, 'sample.eml')
-            download_simple(url, dest=test_file1)
+            shutil.copy('tests/sample.eml', test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
