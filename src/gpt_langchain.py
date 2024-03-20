@@ -1526,9 +1526,7 @@ class ExtraChat:
                     # also valid for gpt-4-vision: https://community.openai.com/t/using-gpt-4-vision-preview-in-langchain/549393
                     # https://python.langchain.com/docs/integrations/chat/google_generative_ai
                     # https://github.com/GoogleCloudPlatform/generative-ai/blob/main/gemini/getting-started/intro_gemini_pro_vision_python.ipynb
-                    content = [
-                        {"type": "text", "text": prompt_text},
-                    ]
+                    content = []
                     num_images = 0
                     for img_base64_one in img_base64:
                         if img_tag in [geminiimagetag]:
@@ -1551,6 +1549,9 @@ class ExtraChat:
                             break
                         if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
                             break
+                    # https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/design-multimodal-prompts
+                    # gemini recommends images come first before text
+                    content.append({"type": "text", "text": prompt_text})
 
                 else:
                     content = prompt_text
