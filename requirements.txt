@@ -17,12 +17,12 @@ torch==2.2.1; sys_platform == "darwin" and platform_machine == "arm64"
 evaluate==0.4.0
 rouge_score==0.1.2
 sacrebleu==2.3.1
-scikit-learn==1.2.2
+scikit-learn>=1.2.2
 # optional (need to uncomment code in gradio_runner.py for import of better_profanity)
 # alt-profanity-check==1.2.2
 # better-profanity==0.7.0
 numpy>=1.23.4,<2.0
-pandas==2.0.2
+pandas>=2.0.2
 matplotlib>=3.7.1
 loralib>=0.1.1
 bitsandbytes>=0.41.0
