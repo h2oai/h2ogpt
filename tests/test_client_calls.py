@@ -4273,6 +4273,7 @@ def test_pure_client_test():
 
 @wrap_test_forked
 def test_client_upload_to_user_not_allowed():
+    remove('db_dir_UserData')
     base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
     from src.gen import main
     main(base_model=base_model, block_gradio_exit=False, verbose=True, allow_upload_to_user_data=False,

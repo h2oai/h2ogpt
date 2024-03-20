@@ -1539,9 +1539,9 @@ class ExtraChat:
                             if img_tag in [gpt4imagetag]:
                                 img_url['detail'] = 'high'
                         content.append({
-                                "type": "image_url",
-                                "image_url": img_url,
-                            })
+                            "type": "image_url",
+                            "image_url": img_url,
+                        })
                         num_images += 1
                         if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
                             break
@@ -8018,6 +8018,12 @@ def _update_user_db(file,
             raise ValueError("Not allowed to upload to scratch/personal space")
         elif in_user_db and not allow_upload_to_user_data:
             raise ValueError("Not allowed to upload to shared space")
+        elif langchain_mode_types and langchain_mode in langchain_mode_types and langchain_mode_types[
+            langchain_mode] in [LangChainTypes.SHARED.value] and not allow_upload_to_user_data:
+            raise ValueError("Not allowed to upload to shared space")
+        elif langchain_mode_types and langchain_mode in langchain_mode_types and langchain_mode_types[
+            langchain_mode] in [LangChainTypes.PERSONAL.value] and not allow_upload_to_my_data:
+            raise ValueError("Not allowed to upload to scratch/personal space")
 
     # handle case of list of temp buffer
     if isinstance(file, str) and file.strip().startswith('['):
