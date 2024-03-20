@@ -70,7 +70,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag
+    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
+    geminiimage_num_max, claude3image_num_max, gpt4image_num_max
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -1528,6 +1529,7 @@ class ExtraChat:
                     content = [
                         {"type": "text", "text": prompt_text},
                     ]
+                    num_images = 0
                     for img_base64_one in img_base64:
                         if img_tag in [geminiimagetag]:
                             img_url = img_base64_one
@@ -1542,6 +1544,14 @@ class ExtraChat:
                                 "type": "image_url",
                                 "image_url": img_url,
                             })
+                        num_images += 1
+                        if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
+                            break
+                        if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
+                            break
+                        if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
+                            break
+
                 else:
                     content = prompt_text
                 prompt_message = HumanMessage(content=content)

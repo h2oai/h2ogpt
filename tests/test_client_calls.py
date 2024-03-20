@@ -4865,7 +4865,7 @@ def test_client1_images_qa_proprietary():
     image_dir = 'pdf_images'
     makedirs(image_dir)
     os.system('pdftoppm tests/2403.09629.pdf %s/outputname -jpeg' % image_dir)
-    pdf_images = os.listdir(image_dir)[:19]
+    pdf_images = os.listdir(image_dir)
     pdf_images = [os.path.join(image_dir, x) for x in pdf_images]
 
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
