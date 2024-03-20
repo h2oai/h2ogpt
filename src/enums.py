@@ -225,7 +225,7 @@ claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
 
-geminiimage_num_max = 30
+geminiimage_num_max = 16
 claude3image_num_max = 20
 gpt4image_num_max = 10
 

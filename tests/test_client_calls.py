@@ -4900,4 +4900,4 @@ def test_client1_images_qa_proprietary():
         # string of dict for output
         response = ast.literal_eval(res)['response']
         print(response)
-        assert 'license' in response.lower()
+        assert 'REINFORCE'.lower() in response.lower()
