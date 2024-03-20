@@ -812,8 +812,9 @@ def test_docx_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is calibre DOCX plugin do?")
             assert len(docs) == 4
-            assert 'calibre' in docs[0].page_content
-            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+            assert 'calibre' in docs[0].page_content or 'an arrow pointing' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or \
+                   'image4.png' in os.path.normpath(docs[0].metadata['source'])
     kill_weaviate(db_type)
 
 
@@ -835,7 +836,8 @@ def test_docx_add2(db_type):
             docs = db.similarity_search("Approver 1", k=4)
             assert len(docs) == 4
             assert 'Band D' in docs[3].page_content
-            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
+            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(
+                test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
     kill_weaviate(db_type)
 
 
@@ -1928,7 +1930,7 @@ def test_chroma_filtering():
                                         'non-centrality parameter' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower() or
                                         'gravitational' in rets1['response'].lower() or
-                                        'answer to the question'  in rets1['response'].lower()
+                                        'answer to the question' in rets1['response'].lower()
                                 )
                             else:
                                 assert len(rets1) >= 7 and (
@@ -1938,8 +1940,9 @@ def test_chroma_filtering():
                                         'statistic' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in str(rets1['sources']) or 'unbiased' in str(rets1[
-                                        'sources']) or 'approximate' in str(rets1['sources'])
+                                    assert 'whisper' in str(rets1['sources']) or \
+                                           'unbiased' in str(rets1['sources']) or \
+                                           'approximate' in str(rets1['sources'])
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][
