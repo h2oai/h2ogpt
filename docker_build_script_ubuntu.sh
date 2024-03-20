@@ -114,3 +114,4 @@ chmod -R a+rwx /workspace/save
 # Cleanup
 rm -rf /workspace/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
 rm -rf /workspace/.cache/pip
+rm -rf /h2ogpt_conda/pkgs
