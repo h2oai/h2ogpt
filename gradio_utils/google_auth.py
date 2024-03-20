@@ -1,3 +1,4 @@
+from src.enums import split_google
 from src.utils import sanitize_filename
 
 
@@ -38,7 +39,10 @@ def setup_app(name_login='google_login', name_app='h2ogpt', verbose=False):
             print_request(request, which='get_user')
         user = request.session.get('user')
         if user:
-            return user['name']
+            assert user['email'], "No email"
+            assert user['email_verified'], "Email not verified: %s" % user['email']
+            picture = user.get('picture', '') or 'None'
+            return user['name'] + split_google + user['email'] + split_google + picture
         return None
 
     @app.get('/')

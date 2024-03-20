@@ -56,7 +56,7 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default
+    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -738,7 +738,16 @@ def go_gradio(**kwargs):
                 # use already-defined username instead of keep changing to new uuid
                 # should be same as in requests_state1
                 db_username = get_username_direct(db1s)
-                requests_state1.update(dict(username=request.username or db_username or str(uuid.uuid4())))
+
+                if split_google in request.username:
+                    assert len(request.username.split(split_google)) == 3
+                    username = split_google.join(request.username.split(split_google)[0:2])  # no picture
+                    picture = split_google.join(request.username.split(split_google)[2:3])  # picture
+                else:
+                    username = request.username
+                    picture = None
+
+                requests_state1.update(dict(username=username or db_username or str(uuid.uuid4()), picture=picture))
         requests_state1 = {str(k): str(v) for k, v in requests_state1.items()}
         return requests_state1
 
@@ -2909,7 +2918,12 @@ def go_gradio(**kwargs):
                 # still pre-login if both are same hash
                 label_instruction1 = 'Ask or Ingest'
             else:
-                label_instruction1 = 'Ask or Ingest, %s' % requests_state1['username']
+                username = requests_state1['username']
+                if split_google in username:
+                    real_name = split_google.join(username.split(split_google)[0:1])
+                else:
+                    real_name = username
+                label_instruction1 = 'Ask or Ingest, %s' % real_name
             return db1s, selection_docs_state1, requests_state1, roles_state1, \
                 model_options_state1, lora_options_state1, server_options_state1, \
                 chat_state1, \
