@@ -1445,6 +1445,7 @@ class H2OReplicate(Replicate):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    prompts: Any = []
 
     def _call(
             self,
@@ -1695,6 +1696,7 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
+    prompts: Any = []
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1709,6 +1711,7 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
 class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    prompts: Any = []
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
