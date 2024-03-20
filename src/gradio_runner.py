@@ -739,7 +739,7 @@ def go_gradio(**kwargs):
                 # should be same as in requests_state1
                 db_username = get_username_direct(db1s)
 
-                if split_google in request.username:
+                if request.username and split_google in request.username:
                     assert len(request.username.split(split_google)) >= 2  # 3 if already got pic out
                     username = split_google.join(request.username.split(split_google)[0:2])  # no picture
                 else:
