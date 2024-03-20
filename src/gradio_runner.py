@@ -747,7 +747,7 @@ def go_gradio(**kwargs):
 
                 requests_state1.update(dict(username=username or db_username or str(uuid.uuid4())))
             if not requests_state1.get('picture', ''):
-                if split_google in request.username and len(request.username.split(split_google)) == 3:
+                if request.username and split_google in request.username and len(request.username.split(split_google)) == 3:
                     picture = split_google.join(request.username.split(split_google)[2:3])  # picture
                 else:
                     picture = None
