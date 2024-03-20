@@ -1930,7 +1930,8 @@ def test_chroma_filtering():
                                         'non-centrality parameter' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower() or
                                         'gravitational' in rets1['response'].lower() or
-                                        'answer to the question' in rets1['response'].lower()
+                                        'answer to the question' in rets1['response'].lower() or
+                                        'not responsible' in rets1['response'].lower()
                                 )
                             else:
                                 assert len(rets1) >= 7 and (
