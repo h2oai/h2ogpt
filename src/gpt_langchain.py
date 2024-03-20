@@ -1094,11 +1094,11 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     seed: int = 0
-    top_p: Optional[float] = 0.95
+    top_p: Optional[float] = 1.0
     top_k: Optional[int] = None
     penalty_alpha: Optional[float] = 0.0
-    typical_p: Optional[float] = 0.95
-    temperature: float = 0.8
+    typical_p: Optional[float] = 1.0
+    temperature: float = 0.0
     repetition_penalty: Optional[float] = None
     return_full_text: bool = False
     stop_sequences: List[str] = Field(default_factory=list)
@@ -1516,28 +1516,32 @@ class ExtraChat:
             else:
                 prompt_text = prompt.text if prompt.text is not None else ''
                 if img_base64:
+                    if isinstance(img_base64, str):
+                        img_base64 = [img_base64]
+                    assert isinstance(img_base64, list)
                     # https://docs.anthropic.com/claude/docs/vision
                     # https://python.langchain.com/docs/integrations/chat/anthropic
                     # could also be type "image" and add "source" with other details
                     # also valid for gpt-4-vision: https://community.openai.com/t/using-gpt-4-vision-preview-in-langchain/549393
                     # https://python.langchain.com/docs/integrations/chat/google_generative_ai
                     # https://github.com/GoogleCloudPlatform/generative-ai/blob/main/gemini/getting-started/intro_gemini_pro_vision_python.ipynb
-                    if img_tag in [geminiimagetag]:
-                        img_url = img_base64
-                    else:
-                        img_url = {
-                            "url": img_base64,
-                        }
-                        # https://platform.openai.com/docs/guides/vision
-                        if img_tag in [gpt4imagetag]:
-                            img_url['detail'] = 'high'
                     content = [
-                        {
-                            "type": "image_url",
-                            "image_url": img_url,
-                        },
                         {"type": "text", "text": prompt_text},
                     ]
+                    for img_base64_one in img_base64:
+                        if img_tag in [geminiimagetag]:
+                            img_url = img_base64_one
+                        else:
+                            img_url = {
+                                "url": img_base64_one,
+                            }
+                            # https://platform.openai.com/docs/guides/vision
+                            if img_tag in [gpt4imagetag]:
+                                img_url['detail'] = 'high'
+                        content.append({
+                                "type": "image_url",
+                                "image_url": img_url,
+                            })
                 else:
                     content = prompt_text
                 prompt_message = HumanMessage(content=content)
@@ -1798,6 +1802,7 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
         else:
             return FakeTokenizer().encode(text)['input_ids']
 
+
 class H2OAzureOpenAI(AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1876,9 +1881,9 @@ def get_llm(use_openai_model=False,
             num_async=3,
             do_sample=False,
             seed=0,
-            temperature=0.1,
-            top_p=0.7,
-            top_k=40,
+            temperature=0.0,
+            top_p=1.0,
+            top_k=1,
             penalty_alpha=0.0,
             num_beams=1,
             max_new_tokens=512,
@@ -1965,8 +1970,8 @@ def get_llm(use_openai_model=False,
                           seed=seed,
                           max_length=max_new_tokens,  # langchain
                           max_new_tokens=max_new_tokens,  # replicate docs
-                          top_p=top_p if do_sample else 1,
-                          top_k=top_k,  # not always supported
+                          top_p=top_p if do_sample else 1.0,
+                          top_k=top_k if do_sample else 1,  # not always supported
                           repetition_penalty=repetition_penalty)
         if system_prompt in auto_choices:
             if prompter.system_prompt:
@@ -2031,7 +2036,7 @@ def get_llm(use_openai_model=False,
             openai_async_client_completions = openai_async_client.completions
 
         # Langchain oddly passes some things directly and rest via model_kwargs
-        model_kwargs = dict(top_p=top_p if do_sample else 1,
+        model_kwargs = dict(top_p=top_p if do_sample else 1.0,
                             frequency_penalty=0,
                             presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                             )
@@ -2111,14 +2116,18 @@ def get_llm(use_openai_model=False,
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
         if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if isinstance(image_file, list):
+                img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
+                            for x in image_file]
+            else:
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
                 chat_conversation.append((img_file, gpt4imagetag))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
-                  temperature=temperature if do_sample else 0.001,
+                  temperature=temperature if do_sample else 0.0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
                   model_kwargs=model_kwargs,
@@ -2145,7 +2154,11 @@ def get_llm(use_openai_model=False,
             cls = H2OChatAnthropic3Sys
 
             if is_vision_model(model_name):
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+                if isinstance(image_file, list):
+                    img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
+                                for x in image_file]
+                else:
+                    img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
                 if img_file:
                     chat_conversation.append((img_file, claude3imagetag))
 
@@ -2161,8 +2174,8 @@ def get_llm(use_openai_model=False,
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
                   max_tokens=max_new_tokens,
-                  top_p=top_p if do_sample else 1,
-                  top_k=top_k,
+                  top_p=top_p if do_sample else 1.0,
+                  top_k=top_k if do_sample else 1,
                   temperature=temperature if do_sample else 0,
                   # seed=seed,  # FIXME: Not supported yet
                   callbacks=callbacks if stream_output else None,
@@ -2184,7 +2197,11 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if isinstance(image_file, list):
+                img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
+                            for x in image_file]
+            else:
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
                 chat_conversation.append((img_file, geminiimagetag))
                 # https://github.com/langchain-ai/langchain/issues/19115
@@ -2224,8 +2241,8 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         llm = cls(model=model_name,
                   mistral_api_key=os.getenv('MISTRAL_API_KEY'),
-                  top_p=top_p if do_sample else 1,
-                  top_k=top_k,
+                  top_p=top_p if do_sample else 1.0,
+                  top_k=top_k if do_sample else 1,
                   temperature=temperature if do_sample else 0,
                   callbacks=callbacks if stream_output else None,
                   streaming=stream_output,
@@ -2267,7 +2284,7 @@ def get_llm(use_openai_model=False,
                   n=1,
                   max_tokens=max_new_tokens,
                   model_kwargs=dict(
-                      top_p=top_p if do_sample else 1,
+                      top_p=top_p if do_sample else 1.0,
                       # seed=seed,  # FIXME: not supported yet
                       # top_k=top_k,
                   ),
@@ -2288,7 +2305,9 @@ def get_llm(use_openai_model=False,
         else:
             content_handler = BaseContentHandler()
         model_kwargs = dict(temperature=temperature if do_sample else 1E-10,
-                            return_full_text=False, top_p=top_p, max_new_tokens=max_new_tokens)
+                            return_full_text=False,
+                            top_p=top_p if do_sample else 1.0,
+                            max_new_tokens=max_new_tokens)
         llm = H2OSagemakerEndpoint(
             endpoint_name=endpoint_name,
             region_name=region_name,
