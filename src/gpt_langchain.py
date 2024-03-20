@@ -1528,6 +1528,9 @@ class ExtraChat:
                         img_url = {
                             "url": img_base64,
                         }
+                        # https://platform.openai.com/docs/guides/vision
+                        if img_tag in [gpt4imagetag]:
+                            img_url['detail'] = 'high'
                     content = [
                         {
                             "type": "image_url",
