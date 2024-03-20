@@ -225,6 +225,17 @@ claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
 
+# https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini
+#  Invalid argument provided to Gemini: 400 Please use fewer than 16 images in your request to models/gemini-pro-vision
+# 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
+geminiimage_num_max = 15
+# https://docs.anthropic.com/claude/docs/vision#image-best-practices
+# 5MB per image
+claude3image_num_max = 20
+# https://platform.openai.com/docs/guides/vision
+# 20MB per image
+gpt4image_num_max = 10
+
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
 google_mapping = {

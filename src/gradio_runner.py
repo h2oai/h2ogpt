@@ -3813,9 +3813,17 @@ def go_gradio(**kwargs):
             kwargs1['top_k_docs_max_show'] = 30
 
             if 'image_file' in user_kwargs and user_kwargs['image_file']:
-                img_file = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
-                # assume is bytes
-                user_kwargs['image_file'] = base64_to_img(user_kwargs['image_file'], img_file)
+                if isinstance(user_kwargs['image_file'], list):
+                    image_files = user_kwargs['image_file']
+                else:
+                    image_files = [user_kwargs['image_file']]
+                b2imgs = []
+                for img_file_one in image_files:
+                    img_file_b2img = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
+                    # assume is bytes
+                    img_file_b2img_one = base64_to_img(img_file_one, img_file_b2img)
+                    b2imgs.append(img_file_b2img_one)
+                user_kwargs['image_file'] = b2imgs if len(b2imgs) > 1 else b2imgs[0]
 
             # only used for submit_nochat_api
             user_kwargs['chat'] = False
