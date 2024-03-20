@@ -3954,7 +3954,6 @@ def evaluate(
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
-    temperature = min(max(0.01, temperature), 2.0)
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
@@ -4342,7 +4341,7 @@ def evaluate(
             stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
             max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
-            gen_server_kwargs = dict(temperature=temperature if do_sample else 0.001,
+            gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
                                      max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
                                      frequency_penalty=0,
@@ -4683,7 +4682,7 @@ def evaluate(
                                              return_full_text=False,
                                              seed=seed,
                                              stop_sequences=stop_sequences,
-                                             temperature=temperature,
+                                             temperature=max(1e-5, temperature),
                                              top_k=top_k,
                                              top_p=min(max(1e-3, top_p), 1.0 - 1e-3),
                                              # truncate=False,  # behaves oddly
