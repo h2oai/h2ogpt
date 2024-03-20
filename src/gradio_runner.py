@@ -2867,7 +2867,6 @@ def go_gradio(**kwargs):
         num_lock_button.click(get_num_model_lock_value, inputs=None, outputs=num_model_lock_value_output,
                               api_name='num_model_lock', **noqueue_kwargs2)
 
-
         eventdb_logina = login_btn.click(user_state_setup,
                                          inputs=[my_db_state, requests_state, guest_name, login_btn, login_btn],
                                          outputs=[my_db_state, requests_state, login_btn],
@@ -3304,9 +3303,11 @@ def go_gradio(**kwargs):
                 lora_options_state1 = None
                 server_options_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
+                h2ogpt_key2, visible_models2 = None, None
                 save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                                model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
+                               h2ogpt_key2, visible_models2,
                                text_output1, text_output21, text_outputs1,
                                )
 
@@ -3417,9 +3418,11 @@ def go_gradio(**kwargs):
                 lora_options_state1 = None
                 server_options_state1 = None
                 text_output1, text_output21, text_outputs1 = None, None, None
+                h2ogpt_key2, visible_models2 = None, None
                 save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                                model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
+                               h2ogpt_key2, visible_models2,
                                text_output1, text_output21, text_outputs1,
                                )
 
@@ -5324,9 +5327,11 @@ def go_gradio(**kwargs):
             text_output1 = chat_list[0]
             text_output21 = chat_list[1]
             text_outputs1 = chat_list[2:]
+            h2ogpt_key2, visible_models2 = None, None
             save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                            model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
+                           h2ogpt_key2, visible_models2,
                            text_output1, text_output21, text_outputs1,
                            )
 
@@ -5412,9 +5417,11 @@ def go_gradio(**kwargs):
             lora_options_state1 = None
             server_options_state1 = None
             text_output1, text_output21, text_outputs1 = None, None, None
+            h2ogpt_key2, visible_models2 = None, None
             save_auth_func(selection_docs_state1, requests_state1, roles_state1,
                            model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
+                           h2ogpt_key2, visible_models2,
                            text_output1, text_output21, text_outputs1,
                            )
             return None, chat_state1, gr.update(choices=list(chat_state1.keys()), value=None), chat_exception_text1
