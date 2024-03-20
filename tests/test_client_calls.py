@@ -4901,3 +4901,12 @@ def test_client1_images_qa_proprietary():
         response = ast.literal_eval(res)['response']
         print(response)
         assert 'REINFORCE'.lower() in response.lower()
+
+
+def test_pdf_to_base_64_images():
+    pdf_path = 'tests/2403.09629.pdf'
+    from src.vision.utils_vision import pdf_to_base64_pngs
+    base64_encoded_pngs = pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='png')
+    assert len(base64_encoded_pngs) == 25
+    base64_encoded_pngs = pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='jpg')
+    assert len(base64_encoded_pngs) == 25

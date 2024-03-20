@@ -265,3 +265,54 @@ def get_image_model_dict(enable_image,
             pipe = get_pipe_make_image(gpu_id=image_gpu_ids[imagegen_index])
             image_dict[image_model_name] = dict(pipe=pipe, make_image=make_image)
     return image_dict
+
+
+def pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='png'):
+    """
+    Define the function to convert a pdf slide deck to a list of images. Note that we need to ensure we resize images to keep them within Claude's size limits.
+    """
+    # https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
+    from PIL import Image
+    import io
+    import fitz
+    import tempfile
+
+    # Open the PDF file
+    doc = fitz.open(pdf_path)
+
+    # Iterate through each page of the PDF
+    images = []
+    for page_num in range(doc.page_count):
+        # Load the page
+        page = doc.load_page(page_num)
+
+        # Render the page as a PNG image
+        pix = page.get_pixmap(matrix=fitz.Matrix(300/72, 300/72))
+
+        # Save the PNG image
+        output_path = f"{tempfile.mkdtemp()}/page_{page_num+1}.{ext}"
+        pix.save(output_path)
+        images.append(output_path)
+    # Close the PDF document
+    doc.close()
+
+    if ext == 'png':
+        iformat = 'PNG'
+    elif ext in ['jpeg', 'jpg']:
+        iformat = 'JPEG'
+    else:
+        raise ValueError("No such ext=%s" % ext)
+
+    images = [Image.open(image) for image in images]
+    base64_encoded_pngs = []
+    for image in images:
+        # Resize the image if it exceeds the maximum size
+        if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        image_data = io.BytesIO()
+        image.save(image_data, format=iformat, optimize=True, quality=quality)
+        image_data.seek(0)
+        base64_encoded = base64.b64encode(image_data.getvalue()).decode('utf-8')
+        base64_encoded_pngs.append(base64_encoded)
+
+    return base64_encoded_pngs

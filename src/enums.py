@@ -230,6 +230,7 @@ geminiimagetag = 'gemini-image'
 # 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
 geminiimage_num_max = 15
 # https://docs.anthropic.com/claude/docs/vision#image-best-practices
+# https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
 # 5MB per image
 claude3image_num_max = 20
 # https://platform.openai.com/docs/guides/vision
