@@ -4876,7 +4876,7 @@ def test_client1_images_qa_proprietary():
 
     from src.gen import get_inf_models
     base_models = get_inf_models(inference_server)
-    base_models_touse = ['gpt-4-vision-preview', 'gemini-pro-vision', 'claude-3-haiku-20240307']
+    base_models_touse = ['gemini-pro-vision', 'gpt-4-vision-preview', 'claude-3-haiku-20240307']
     assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
