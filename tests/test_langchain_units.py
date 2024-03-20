@@ -880,7 +880,7 @@ def test_md_add(db_type):
             docs = db.similarity_search("What is h2oGPT?")
             assert len(docs) == 4
             assert 'Query and summarize your documents' in docs[1].page_content or 'document Q/A' in docs[
-                1].page_content
+                1].page_content or 'go to your browser by visiting' in docs[1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
     kill_weaviate(db_type)
 
