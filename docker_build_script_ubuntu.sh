@@ -115,3 +115,18 @@ chmod -R a+rwx /workspace/save
 rm -rf /workspace/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh
 rm -rf /workspace/.cache/pip
 rm -rf /h2ogpt_conda/pkgs
+rm -rf /workspace/spaces
+rm -rf /workspace/benchmarks
+rm -rf /workspace/data
+rm -rf /workspace/cloud
+rm -rf /workspace/docs
+rm -rf /workspace/helm
+rm -rf /workspace/notebooks
+rm -rf /workspace/papers
+
+
+
+
+
+
+
