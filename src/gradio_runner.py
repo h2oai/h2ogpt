@@ -66,7 +66,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai, is_uuid4
+    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -3044,10 +3044,10 @@ def go_gradio(**kwargs):
                                 h2ogpt_key2 = auth_user['h2ogpt_key']
                             if 'visible_models' in auth_user:
                                 visible_models1 = auth_user['visible_models']
-                            text_result = "Successful login for %s" % username1
+                            text_result = "Successful login for %s" % get_show_username(username1)
                             success1 = True
                         else:
-                            text_result = "No user %s" % username1
+                            text_result = "No user %s" % get_show_username(username1)
                 else:
                     text_result = "No auth file"
             if num_model_lock is not None:
