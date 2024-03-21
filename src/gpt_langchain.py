@@ -6063,15 +6063,19 @@ class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
 
 def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, docs_token_handling=None,
                      joiner=docs_joiner_default,
+                     non_doc_prompt='',
                      do_split=True,
                      verbose=False):
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
     # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len and is per-llm call
+    if max_input_tokens is not None:
+        max_input_tokens -= get_token_count(non_doc_prompt, tokenizer)
+
     if docs_token_handling in ['chunk']:
         return docs_with_score, 0
     elif docs_token_handling in [None, 'split_or_merge']:
         assert tokenizer
-        tokens_before_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+        tokens_before_split = [get_token_count(x + joiner, tokenizer) for x in
                                [x[0].page_content for x in docs_with_score]]
         # skip split if not necessary, since expensive for some reason
         do_split &= any([x > max_input_tokens for x in tokens_before_split])
@@ -6082,7 +6086,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
 
             # see if need to split
             # account for joiner tokens
-            joiner_tokens = get_token_count(docs_joiner_default, tokenizer)
+            joiner_tokens = get_token_count(joiner, tokenizer)
             doc_chunk_size = max(64, min(max_input_tokens,
                                          max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
             text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
@@ -6101,7 +6105,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
             docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
 
-            tokens_after_split = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+            tokens_after_split = [get_token_count(x + joiner, tokenizer) for x in
                                   [x[0].page_content for x in docs_with_score]]
             if verbose:
                 print('tokens_after_split=%s' % tokens_after_split, flush=True)
@@ -6130,7 +6134,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             assert top_k_docs >= 1
             k += top_k_docs
 
-        tokens_after_merge = [get_token_count(x + docs_joiner_default, tokenizer) for x in
+        tokens_after_merge = [get_token_count(x + joiner, tokenizer) for x in
                               [x[0].page_content for x in docs_with_score_new]]
         if verbose:
             print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
@@ -7133,6 +7137,32 @@ def get_chain(query=None,
     tokenizer = get_tokenizer(db=db, llm=llm, tokenizer=tokenizer, inference_server=inference_server,
                               use_openai_model=use_openai_model,
                               db_type=db_type)
+
+    get_limited_prompt_func = functools.partial(get_limited_prompt,
+                                                prompter=prompter,
+                                                base_model=model_name,
+                                                inference_server=inference_server,
+                                                prompt_type=prompt_type,
+                                                prompt_dict=prompt_dict,
+                                                max_new_tokens=max_new_tokens,
+                                                system_prompt=system_prompt,
+                                                allow_chat_system_prompt=allow_chat_system_prompt,
+                                                context=context,
+                                                chat_conversation=chat_conversation,
+                                                keep_sources_in_context=keep_sources_in_context,
+                                                gradio_errors_to_chatbot=gradio_errors_to_chatbot,
+                                                model_max_length=model_max_length,
+                                                memory_restriction_level=memory_restriction_level,
+                                                langchain_mode=langchain_mode,
+                                                add_chat_history_to_context=add_chat_history_to_context,
+                                                min_max_new_tokens=min_max_new_tokens,
+                                                max_input_tokens=max_input_tokens,
+                                                truncation_generation=truncation_generation,
+                                                gradio_server=gradio_server,
+                                                attention_sinks=attention_sinks,
+                                                hyde_level=hyde_level,
+                                                )
+
     # NOTE: if map_reduce, then no need to auto reduce chunks
     if query_action and (top_k_docs == -1 or auto_reduce_chunks):
         top_k_docs_tokenize = 100
@@ -7161,35 +7191,13 @@ def get_chain(query=None,
             num_prompt_tokens0, num_prompt_tokens_actual, \
             history_to_use_final, external_handle_chat_conversation, \
             top_k_docs_trial, one_doc_size, \
-            truncation_generation, system_prompt = \
-            get_limited_prompt(query,
-                               iinput,
-                               tokenizer,
-                               estimated_instruction=estimated_prompt_no_docs,
-                               prompter=prompter,
-                               base_model=model_name,
-                               inference_server=inference_server,
-                               prompt_type=prompt_type,
-                               prompt_dict=prompt_dict,
-                               max_new_tokens=max_new_tokens,
-                               system_prompt=system_prompt,
-                               allow_chat_system_prompt=allow_chat_system_prompt,
-                               context=context,
-                               chat_conversation=chat_conversation,
-                               text_context_list=[x[0].page_content for x in docs_with_score],
-                               keep_sources_in_context=keep_sources_in_context,
-                               gradio_errors_to_chatbot=gradio_errors_to_chatbot,
-                               model_max_length=model_max_length,
-                               memory_restriction_level=memory_restriction_level,
-                               langchain_mode=langchain_mode,
-                               add_chat_history_to_context=add_chat_history_to_context,
-                               min_max_new_tokens=min_max_new_tokens,
-                               max_input_tokens=max_input_tokens,
-                               truncation_generation=truncation_generation,
-                               gradio_server=gradio_server,
-                               attention_sinks=attention_sinks,
-                               hyde_level=hyde_level,
-                               )
+            truncation_generation, system_prompt = get_limited_prompt_func(query,
+                                                                           iinput,
+                                                                           tokenizer,
+                                                                           estimated_instruction=estimated_prompt_no_docs,
+                                                                           text_context_list=[x[0].page_content for x in
+                                                                                              docs_with_score],
+                                                                           )
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput, system_prompt=system_prompt)
         if external_handle_chat_conversation:
@@ -7222,12 +7230,33 @@ def get_chain(query=None,
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
 
     if summarize_action:
+        if langchain_action in [LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value]:
+            estimated_prompt_no_docs = template.format(text='', question=query)
+        else:
+            estimated_prompt_no_docs = template.format(input_documents='', question=query)
+
+        # first docs_with_score are most important with highest score
+        estimated_full_prompt, \
+            _, _, _, \
+            _, _, \
+            _, _, \
+            _, _, \
+            _, _, \
+            _, _ = get_limited_prompt_func(estimated_prompt_no_docs,
+                                           iinput,
+                                           tokenizer,
+                                           estimated_instruction=estimated_prompt_no_docs,
+                                           text_context_list=[],
+                                           # nothing, just getting base amount for each call
+                                           )
+
         # group docs if desired/can to fill context to avoid multiple LLM calls or too large chunks
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
                                                            docs_token_handling=docs_token_handling,
                                                            joiner=docs_joiner,
+                                                           non_doc_prompt=estimated_full_prompt,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
         if top_k_docs > 0:
