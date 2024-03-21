@@ -100,7 +100,12 @@ def get_client(user=None):
         password = ':'.join(user_split[1:])
         num_model_lock = client.predict(api_name='/num_model_lock')
         chatbots = [None] * (2 + num_model_lock)
-        client.predict(None, username, password, *tuple(chatbots), api_name='/login')
+        h2ogpt_key = ''
+        visible_models = []
+        client.predict(None,
+                       h2ogpt_key, visible_models,
+                       username, password,
+                       *tuple(chatbots), api_name='/login')
 
     return client
 

@@ -2951,6 +2951,7 @@ def go_gradio(**kwargs):
                                             num_model_lock=len(text_outputs),
                                             pre_authorized=True,
                                             )
+        # get_client() in openai server backend.py needs updating if login_inputs changes
         login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state,
                         model_options_state, lora_options_state, server_options_state,
                         chat_state, langchain_mode,
