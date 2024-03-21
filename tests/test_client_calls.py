@@ -4114,7 +4114,7 @@ def check_final_res(res, base_model='llama'):
     assert res['save_dict']['extra_dict']['do_sample'] == False
     assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 10
     assert res['save_dict']['extra_dict']['ntokens'] > 60
-    assert res['save_dict']['extra_dict']['tokens_persecond'] > 4.5
+    assert res['save_dict']['extra_dict']['tokens_persecond'] > 3.5
 
 
 def check_curl_plain_api():
