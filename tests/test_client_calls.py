@@ -44,7 +44,7 @@ def test_client1_lock_choose_model():
 
     from src.gen import main
     base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
-    base2 = 'distilgpt2'
+    base2 = 'h2oai/h2o-danube-1.8b-chat'
     model_lock = [dict(base_model=base1, prompt_type='human_bot'),
                   dict(base_model=base2, prompt_type='plain')]
     main(chat=False, model_lock=model_lock,
@@ -70,7 +70,7 @@ def test_client1_lock_choose_model():
                                             prompt_type=prompt_type)
             assert res_dict['prompt'] == prompt
             assert res_dict['iinput'] == ''
-            assert 'the limit of time' in res_dict['response']
+            assert 'blue, and the clouds are white' in res_dict['response']
 
 
 @pytest.mark.parametrize("base_model", [
