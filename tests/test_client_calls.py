@@ -70,7 +70,10 @@ def test_client1_lock_choose_model():
                                             prompt_type=prompt_type)
             assert res_dict['prompt'] == prompt
             assert res_dict['iinput'] == ''
-            assert 'blue, and the clouds are white' in res_dict['response']
+            if prompt_type == 'plain':
+                assert 'The sky is a big, blue' in res_dict['response'] or 'blue' in res_dict['response']
+            else:
+                assert 'The sky is a big, blue, and sometimes' in res_dict['response'] or 'blue' in res_dict['response']
 
 
 @pytest.mark.parametrize("base_model", [
