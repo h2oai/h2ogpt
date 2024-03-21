@@ -2315,7 +2315,7 @@ def get_llm(use_openai_model=False,
             content_handler = ChatContentHandler()
         else:
             content_handler = BaseContentHandler()
-        model_kwargs = dict(temperature=temperature if do_sample else 1E-10,
+        model_kwargs = dict(temperature=temperature if do_sample else 1E-2,
                             return_full_text=False,
                             top_p=top_p if do_sample else 1.0,
                             max_new_tokens=max_new_tokens)
@@ -2476,7 +2476,7 @@ def get_llm(use_openai_model=False,
                 seed=seed,
 
                 stop_sequences=prompter.stop_sequences,
-                temperature=temperature,
+                temperature=max(1e-2, temperature),
                 top_k=top_k,
                 top_p=min(max(1e-3, top_p), 1.0 - 1e-3),
                 # typical_p=top_p,

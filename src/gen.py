@@ -4682,9 +4682,9 @@ def evaluate(
                                              return_full_text=False,
                                              seed=seed,
                                              stop_sequences=stop_sequences,
-                                             temperature=max(1e-5, temperature),
+                                             temperature=max(1e-2, temperature),
                                              top_k=top_k,
-                                             top_p=min(max(1e-3, top_p), 1.0 - 1e-3),
+                                             top_p=min(max(1e-2, top_p), 1.0 - 1e-3),
                                              # truncate=False,  # behaves oddly
                                              # typical_p=top_p,
                                              # watermark=False,
