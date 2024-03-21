@@ -1836,6 +1836,7 @@ def check_langchain():
     assert 'whisper1.pdf' in sources[0]
 
 
+@pytest.mark.skip(reason="No longer supported")
 @pytest.mark.parametrize("mode", ['a', 'b', 'c'])
 @wrap_test_forked
 def test_exllama(mode):
