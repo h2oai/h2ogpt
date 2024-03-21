@@ -2653,7 +2653,7 @@ def test_client_load_unload_models(model_choice):
     elif model_choice in ['HuggingFaceH4/zephyr-7b-beta',
                           'TheBloke/zephyr-7B-beta-AWQ']:
         prompt_type_ex = 'zephyr'
-        max_seq_len_ex = 32768.0
+        max_seq_len_ex = 4096.0
         max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['TheBloke/Xwin-LM-13B-V0.1-GPTQ']:
         prompt_type_ex = 'xwin'
