@@ -27,6 +27,7 @@ def run_eval(  # for local function:
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
         enable_image=None,
+        visible_image_models=None,
 
         try_pdf_as_html=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created

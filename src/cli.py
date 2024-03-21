@@ -21,6 +21,7 @@ def run_cli(  # for local function:
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
         enable_image=None,
+        visible_image_models=None,
 
         try_pdf_as_html=None,
         # for some evaluate args
