@@ -4522,7 +4522,11 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     responses = client.create(**client_kwargs)
     text = responses.choices[0].message.content
     print(text)
-    assert 'h2oGPT project' in text or 'natural language' in text or 'Summarize' in text or 'summarizing' in text
+    assert 'h2oGPT project' in text or \
+           'natural language' in text or \
+           'Summarize' in text or \
+           'summarizing' in text or \
+           'summarization' in text
 
     # MyData
     # get file for client to upload
@@ -4868,7 +4872,6 @@ def test_client1_image_qa_proprietary():
 
 @wrap_test_forked
 def test_client1_images_qa_proprietary():
-
     image_dir = 'pdf_images'
     makedirs(image_dir)
     os.system('pdftoppm tests/2403.09629.pdf %s/outputname -jpeg' % image_dir)
