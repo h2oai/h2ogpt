@@ -6002,7 +6002,8 @@ def get_limited_prompt(instruction,
         reduced = context_from_history
         prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
     else:
-        prompt = context
+        # assume inner gradio server handles.  if we point to gradio server (i.e. gradio_server=True) then we just pass instruction
+        prompt = instruction if gradio_server else context2
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \

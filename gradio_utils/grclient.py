@@ -956,11 +956,6 @@ class GradioClient(Client):
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
                 text = res_dict['response']
-                if text is None:
-                    self.refresh_client()
-                if text is None:
-                    print("text None for client_kwargs=%s" % client_kwargs, flush=True)
-                    text = ''
                 prompt_and_text = prompt + text
                 response = prompter.get_response(prompt_and_text, prompt=prompt,
                                                  sanitize_bot_response=sanitize_bot_response)
@@ -1012,9 +1007,6 @@ class GradioClient(Client):
 
             print("Bad final response:%s %s %s: %s %s" % (res_all, prompt, text, stre, strex),
                   flush=True)
-        if text is None:
-            print("text None for client_kwargs=%s" % client_kwargs, flush=True)
-            text = ''
         prompt_and_text = prompt + text
         response = prompter.get_response(prompt_and_text, prompt=prompt,
                                          sanitize_bot_response=sanitize_bot_response)

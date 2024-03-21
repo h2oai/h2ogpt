@@ -3951,7 +3951,7 @@ def go_gradio(**kwargs):
                                         api=True):
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
                     res_dict = {}
-                    res_dict['response'] = history[-1][1]
+                    res_dict['response'] = history[-1][1] or ''
                     res_dict['error'] = error
                     res_dict['sources'] = sources
                     res_dict['sources_str'] = sources_str
