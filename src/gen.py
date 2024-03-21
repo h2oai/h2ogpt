@@ -1176,7 +1176,7 @@ def main(
            None means no such LLaVa support
     :param llava_prompt: Prompt passed to LLaVa for querying the image
 
-    :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A
+    :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr

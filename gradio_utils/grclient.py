@@ -12,7 +12,7 @@ from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Generator, Any, Union, List
+from typing import Callable, Generator, Any, Union, List, Dict
 import ast
 from packaging import version
 
@@ -506,6 +506,21 @@ class GradioClient(Client):
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
+    def get_client_kwargs(self, **kwargs):
+        client_kwargs = {}
+        import inspect
+        from src.evaluate_params import eval_func_param_names
+        for k in eval_func_param_names:
+            if k in kwargs:
+                client_kwargs[k] = kwargs[k]
+
+        if os.getenv('HARD_ASSERTS'):
+            fun_kwargs = {k: v.default for k, v in dict(inspect.signature(self.query_or_summarize_or_extract).parameters).items()}
+            diff = set(eval_func_param_names).difference(fun_kwargs)
+            assert len(diff) == 0, "Add entries: %s" % diff
+
+        return client_kwargs
+
     def query_or_summarize_or_extract(self,
                                       h2ogpt_key: str = None,
 
@@ -564,6 +579,41 @@ class GradioClient(Client):
                                       hyde_show_only_final: bool = True,
                                       doc_json_mode: bool = False,
                                       metadata_in_context: list = [],
+
+                                      image_file: str = None,
+                                      image_control: str = None,
+
+                                      prompt_type: Union[int, str] = None,
+                                      prompt_dict: Dict = None,
+                                      jq_schema='.[]',
+
+                                      llava_model: str = None,
+                                      llava_prompt: str = 'auto',
+
+                                      image_audio_loaders: list = None,
+                                      url_loaders: list = None,
+                                      pdf_loaders: list = None,
+
+                                      extract_frames: int = 10,
+                                      add_chat_history_to_context: bool = True,
+
+                                      chatbot_role: str = "None",  # "Female AI Assistant",
+                                      speaker: str = "None",  # "SLT (female)",
+                                      tts_language: str = 'autodetect',
+                                      tts_speed: float = 1.0,
+
+                                      visible_image_models: List[str] = [],
+                                      visible_models: list = None,
+
+                                      num_return_sequences: int = None,  # don't use
+                                      chat: bool = True,  # don't use
+                                      min_new_tokens: int = None,  # don't use
+                                      early_stopping: Union[bool, str] = None,  # don't use
+                                      iinput: str = '',  # don't use
+                                      iinput_nochat: str = '',  # don't use
+                                      instruction_nochat: str = '',  # don't use
+                                      context: str = '',  # don't use
+                                      num_beams: int = 1,  # don't use
 
                                       asserts: bool = False,
                                       ) -> Generator[tuple[str | list[str], list[str]], None, None]:
@@ -669,6 +719,47 @@ class GradioClient(Client):
             doc_json_mode: see src/gen.py
             metadata_in_context: see src/gen.py
 
+
+            :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
+            :param image_control: Initial image for UI Image Control
+
+            :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+            :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+
+            :param jq_schema: control json loader
+                   By default '.[]' ingests everything in brute-force way, but better to match your schema
+                   See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
+
+            :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
+
+            :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
+                   E.g. http://192.168.1.46:7861
+                   None means no such LLaVa support
+            :param llava_prompt: Prompt passed to LLaVa for querying the image
+
+            :param image_audio_loaders: which loaders to use for image and audio parsing (None means default)
+            :param url_loaders: which loaders to use for url parsing (None means default)
+            :param pdf_loaders: which loaders to use for pdf parsing (None means default)
+
+            :param add_chat_history_to_context: Include chat context when performing action
+                   Not supported when using CLI mode
+
+            :param chatbot_role: Default role for coqui models.  If 'None', then don't by default speak when launching h2oGPT for coqui model choice.
+            :param speaker: Default speaker for microsoft models  If 'None', then don't by default speak when launching h2oGPT for microsoft model choice.
+            :param tts_language: Default language for coqui models
+            :param tts_speed: Default speed of TTS, < 1.0 (needs rubberband) for slower than normal, > 1.0 for faster.  Tries to keep fixed pitch.
+
+            :param visible_image_models: Which image gen models to include
+            :param visible_models: Which models in model_lock list to show by default
+                   Takes integers of position in model_lock (model_states) list or strings of base_model names
+                   Ignored if model_lock not used
+                   For nochat API, this is single item within a list for model by name or by index in model_lock
+                                        If None, then just use first model in model_lock list
+                                        If model_lock not set, use model selected by CLI --base_model etc.
+                   Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
+                      and the value is not used to access the inference server.
+                      If need a visible_models for an inference server, then use --model_lock and group together.
+
             asserts: whether to do asserts to ensure handling is correct
 
         Returns: summary/answer: str or extraction List[str]
@@ -751,56 +842,11 @@ class GradioClient(Client):
             if langchain_action == LangChainAction.SUMMARIZE_MAP.value \
             else prompt_extraction
 
-        kwargs = dict(
-            h2ogpt_key=h2ogpt_key,
+        chat_conversation = chat_conversation if chat_conversation else self.chat_conversation.copy()
 
-            instruction=instruction,
-
-            langchain_mode=langchain_mode,
-            langchain_action=langchain_action,  # uses full document, not vectorDB chunks
-            langchain_agents=langchain_agents,
-            top_k_docs=top_k_docs,
-            document_choice=document_choice,
-            document_subset=document_subset,
-            document_source_substrings=document_source_substrings,
-            document_source_substrings_op=document_source_substrings_op,
-            document_content_substrings=document_content_substrings,
-            document_content_substrings_op=document_content_substrings_op,
-
-            system_prompt=system_prompt,
-            pre_prompt_query=pre_prompt_query,
-            prompt_query=prompt_query,
-            pre_prompt_summary=pre_prompt_summary,
-            prompt_summary=prompt_summary,
-            hyde_llm_prompt=hyde_llm_prompt,
-
-            visible_models=model,
-            stream_output=stream_output,
-            do_sample=do_sample,
-            seed=seed,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            repetition_penalty=repetition_penalty,
-            penalty_alpha=penalty_alpha,
-            max_time=max_time,
-            max_new_tokens=max_new_tokens,
-
-            add_search_to_context=add_search_to_context,
-            chat_conversation=chat_conversation if chat_conversation else self.chat_conversation,
-            text_context_list=text_context_list,
-            docs_ordering_type=docs_ordering_type,
-            min_max_new_tokens=min_max_new_tokens,
-            max_input_tokens=max_input_tokens,
-            max_total_input_tokens=max_total_input_tokens,
-            docs_token_handling=docs_token_handling,
-            docs_joiner=docs_joiner,
-            hyde_level=hyde_level,
-            hyde_template=hyde_template,
-            hyde_show_only_final=hyde_show_only_final,
-            doc_json_mode=doc_json_mode,
-            metadata_in_context=metadata_in_context,
-        )
+        locals_for_client = locals().copy()
+        locals_for_client.pop('self', None)
+        client_kwargs = self.get_client_kwargs(**locals_for_client)
 
         # in case server changed, update in case clone()
         self.server_hash = client.server_hash
@@ -814,7 +860,7 @@ class GradioClient(Client):
             try:
                 if not stream_output:
                     res = client.predict(
-                        str(dict(kwargs)),
+                        str(dict(client_kwargs)),
                         api_name=api_name,
                     )
                     # in case server changed, update in case clone()
@@ -838,7 +884,7 @@ class GradioClient(Client):
                     yield response, texts_out
                     self.chat_conversation[-1] = (instruction, response)
                 else:
-                    job = client.submit(str(dict(kwargs)), api_name=api_name)
+                    job = client.submit(str(dict(client_kwargs)), api_name=api_name)
                     text0 = ""
                     response = ""
                     texts_out = []
