@@ -76,7 +76,7 @@ def run_cli(  # for local function:
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
-        imagegen_model_dict=None,
+        image_model_dict=None,
 
         asr_model=None,
         asr_loader=None,
