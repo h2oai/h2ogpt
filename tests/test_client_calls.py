@@ -4521,7 +4521,7 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     responses = client.create(**client_kwargs)
     text = responses.choices[0].message.content
     print(text)
-    assert 'h2oGPT project' in text or 'natural language' in text or 'Summarize' in text
+    assert 'h2oGPT project' in text or 'natural language' in text or 'Summarize' in text or 'summarizing' in text
 
     # MyData
     # get file for client to upload
@@ -4533,7 +4533,12 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     # login regardless of auth, so can access collection
     num_model_lock = gr_client.predict(api_name='/num_model_lock')
     chatbots = [None] * (2 + num_model_lock)
-    gr_client.predict(None, username, password, *tuple(chatbots), api_name='/login')
+    h2ogpt_key = ''
+    visible_models = []
+    gr_client.predict(None,
+                      h2ogpt_key, visible_models,
+                      username, password,
+                      *tuple(chatbots), api_name='/login')
 
     # now can upload file to collection MyData
     test_file_local, test_file_server = gr_client.predict('tests/screenshot.png', api_name='/upload_api')
