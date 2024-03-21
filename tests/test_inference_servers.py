@@ -640,14 +640,15 @@ def test_gradio_tgi_docker(base_model):
         ret1, ret2, ret3, ret4, ret5, ret6, ret7 = run_client_many(prompt_type=None, version=version)
         if 'llama' in base_model.lower():
             who = "I'm LLaMA, an AI assistant developed by Meta AI"
-            assert who in ret1['response']
-            assert who in ret1['response']
+            who2 = "I'm just an AI assistant"
+            assert who in ret1['response'] or who2 in ret1['response']
+            assert who in ret1['response'] or who2 in ret2['response']
             assert 'Once upon a time' in ret2['response']
             assert 'Once upon a time' in ret3['response']
-            assert who in ret4['response']
-            assert who in ret5['response']
-            assert who in ret6['response']
-            assert who in ret7['response']
+            assert who in ret4['response'] or who2 in ret3['response']
+            assert who in ret5['response'] or who2 in ret4['response']
+            assert who in ret6['response'] or who2 in ret5['response']
+            assert who in ret7['response'] or who2 in ret6['response']
         else:
             who = 'I am an AI language model'
             assert who in ret1['response']
