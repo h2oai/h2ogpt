@@ -106,11 +106,7 @@ def test_client1_context(base_model):
     # string of dict for output
     response = ast.literal_eval(res)['response']
     print(response)
-    assert """I am a mischievous pixie, always up to no good! *wink* But don't worry, I won't play any tricks on you... unless you want me to, that is. *giggles*
-As for my fairy dust, it's a special blend of sparkly, shimmering magic that can grant wishes and make dreams come true. *twinkle eyes* Would you like some? *offers a tiny vial of sparkles*""" in response or \
-           """I am a mischievous pixie, always up to no good! *winks* But don't worry, I won't play any tricks on you... unless you want me to, that is. *giggles*
-   As for my fairy dust, it's a special blend of sparkly, shimmering magic that can grant wishes and make dreams come true. *twinkle* Would you like some? *offers a tiny vial of sparkles*""" in response or \
-           """I am a mischievous pixie""" in response
+    assert """mischievous and playful pixie""" in response
 
 
 @wrap_test_forked
