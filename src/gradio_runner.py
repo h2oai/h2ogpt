@@ -747,7 +747,8 @@ def go_gradio(**kwargs):
 
                 requests_state1.update(dict(username=username or db_username or str(uuid.uuid4())))
             if not requests_state1.get('picture', ''):
-                if request.username and split_google in request.username and len(request.username.split(split_google)) == 3:
+                if request.username and split_google in request.username and len(
+                        request.username.split(split_google)) == 3:
                     picture = split_google.join(request.username.split(split_google)[2:3])  # picture
                 else:
                     picture = None
@@ -2900,7 +2901,9 @@ def go_gradio(**kwargs):
                 username2 = get_username(requests_state1)
                 text_outputs1 = list(text_outputs1)
 
-                success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1, h2ogpt_key2, visible_models1 = \
+                success1, text_result, text_output1, text_output21, text_outputs1, \
+                    langchain_mode1, \
+                    h2ogpt_key2, visible_models1 = \
                     load_auth(db1s, requests_state1, auth_filename, selection_docs_state1=selection_docs_state1,
                               roles_state1=roles_state1,
                               model_options_state1=model_options_state1,
@@ -2991,7 +2994,8 @@ def go_gradio(**kwargs):
                       num_model_lock=None):
             # in-place assignment
             if not auth_filename:
-                return False, "No auth file", text_output1, text_output21, text_outputs1
+                return False, "No auth file", text_output1, text_output21, text_outputs1, \
+                    langchain_mode1, h2ogpt_key2, visible_models1
             # if first time here, need to set userID
             set_userid_gr(db1s, requests_state1, get_userid_auth)
             if username_override:
@@ -3007,7 +3011,9 @@ def go_gradio(**kwargs):
                             auth_user = auth_dict[username1]
                             if password_to_check:
                                 if auth_user['password'] != password_to_check:
-                                    return False, [], [], [], "Invalid password for user %s" % username1
+                                    return False, "Invalid password for user %s" % username1, \
+                                        text_output1, text_output21, text_outputs1, \
+                                        langchain_mode1, h2ogpt_key2, visible_models1
                             if username_override:
                                 # then use original user id
                                 set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
@@ -3076,7 +3082,8 @@ def go_gradio(**kwargs):
                     text_outputs1[i] = []
                 if not text_outputs1[i] and len(text_outputs1[i]) > 0 and not text_outputs1[i][0]:
                     text_outputs1[i] = []
-            return success1, text_result, text_output1, text_output21, text_outputs1, langchain_mode1, h2ogpt_key2, visible_models1,
+            return success1, text_result, text_output1, text_output21, text_outputs1, \
+                langchain_mode1, h2ogpt_key2, visible_models1,
 
         def save_auth_dict(auth_dict, auth_filename):
             backup_file = auth_filename + '.bak' + str(uuid.uuid4())
