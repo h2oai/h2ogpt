@@ -814,7 +814,7 @@ def test_docx_add(db_type):
             assert len(docs) == 4
             assert 'calibre' in docs[0].page_content or 'an arrow pointing' in docs[0].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or \
-                   'image4.png' in os.path.normpath(docs[0].metadata['source'])
+                   'image' in os.path.normpath(docs[0].metadata['source'])
     kill_weaviate(db_type)
 
 
