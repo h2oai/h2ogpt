@@ -1006,6 +1006,7 @@ def main(
                     'chroma' (for chroma >= 0.4)
                     'chroma_old' (for chroma < 0.4) -- recommended for large collections
                     'weaviate' for persisted on disk
+                    'qdrant' for a Qdrant server or an in-memory instance
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db

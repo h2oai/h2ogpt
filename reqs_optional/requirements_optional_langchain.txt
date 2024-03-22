@@ -95,3 +95,6 @@ weaviate-client>=3.25.3
 gradio_pdf>=0.0.4
 
 gradio_tools>=0.0.9
+
+# Qdrant - https://qdrant.tech vector database
+qdrant-client>=1.8.0
