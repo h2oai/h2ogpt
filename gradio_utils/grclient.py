@@ -635,7 +635,7 @@ class GradioClient(Client):
         hyde_show_only_final: bool = True,
         doc_json_mode: bool = False,
         metadata_in_context: list = [],
-        image_file: str = None,
+        image_file: Union[str, list] = None,
         image_control: str = None,
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
