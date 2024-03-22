@@ -652,7 +652,7 @@ class GradioClient(Client):
         tts_language: str = "autodetect",
         tts_speed: float = 1.0,
         visible_image_models: List[str] = [],
-        visible_models: Union[str, list] = None,
+        visible_models: Union[str, int, list] = None,
         num_return_sequences: int = None,  # don't use
         chat: bool = True,  # don't use
         min_new_tokens: int = None,  # don't use
@@ -821,6 +821,8 @@ class GradioClient(Client):
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
 
+        if model is not None and visible_models is None:
+            visible_models = model
         self.check_model(model)
 
         # chunking not used here
