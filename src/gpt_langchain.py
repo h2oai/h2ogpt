@@ -1129,10 +1129,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     seed: int = 0
-    top_p: Optional[float] = 1.0
+    top_p: Optional[float] = 0.99
     top_k: Optional[int] = None
     penalty_alpha: Optional[float] = 0.0
-    typical_p: Optional[float] = 1.0
+    typical_p: Optional[float] = 0.95
     temperature: float = 0.0
     repetition_penalty: Optional[float] = None
     return_full_text: bool = False
@@ -6494,7 +6494,7 @@ def get_chain(query=None,
         chunk_id = 0 if query_action else -1
         text_context_list = [
             Document(page_content=x, metadata=dict(source='text_context_list', score=1.0, chunk_id=chunk_id)) for x
-            in text_context_list]
+            in text_context_list if x]
 
     if add_search_to_context:
         params = {
