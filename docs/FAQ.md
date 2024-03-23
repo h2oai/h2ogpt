@@ -640,6 +640,8 @@ If issues, try logging in via `huggingface-cli login` (run `git config --global 
 
 ### Text Embedding Inference Server
 
+Using TEI leads to much faster embedding generation as well as better memory leak avoidance due to [multi-threading and torch](https://github.com/pytorch/pytorch/issues/64412).
+
 Using docker for [TEI](https://github.com/huggingface/text-embeddings-inference?tab=readme-ov-file#docker):
 ```
 docker run -d --gpus '"device=0"' --shm-size 3g -v $HOME/.cache/huggingface/hub/:/data -p 5555:80 --pull always ghcr.io/huggingface/text-embeddings-inference:0.6 --model-id BAAI/bge-large-en-v1.5 --revision refs/pr/5 --hf-api-token=$HUGGING_FACE_HUB_TOKEN --max-client-batch-size=4096 --max-batch-tokens=2097152
@@ -648,11 +650,18 @@ where passing `--hf-api-token=$HUGGING_FACE_HUB_TOKEN` is only required if the m
 
 Then for h2oGPT ensure pass:
 ```bash
---hf_embedding_model=tei:http://localhost:5555 --cut_distance=10000
+python generate.py --hf_embedding_model=tei:http://localhost:5555 --cut_distance=10000 ...
 ```
 or whatever address is required.
 
-This leads to much faster embedding generation as well as better memory leak avoidance due to [multi-threading and torch](https://github.com/pytorch/pytorch/issues/64412).
+For some networks and GPU type combinations, you may require smaller batch sizes than the default of 1024, by doing, e.g. for Tesla T4 on AWS:
+```bash
+TEI_MAX_BATCH_SIZE=128 python generate.py --hf_embedding_model=tei:http://localhost:5555 --cut_distance=10000 ...
+```
+as required to avoid this error:
+```text
+requests.exceptions.HTTPError: 413 Client Error: Payload Too Large for url: http://localhost:5555/
+```
 
 To use the TEI directly, do the following for synchronous calls. Asynchronous calls also can be done.
 ```python
