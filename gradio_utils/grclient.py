@@ -936,13 +936,32 @@ class GradioClient(Client):
                     scores_out = [x["score"] for x in sources]
                     texts_out = [x["content"] for x in sources]
                     prompt_raw = res.get("prompt_raw", "")
-                    actual_llm = res["save_dict"]["base_model"]
-                    extra_dict = res["save_dict"]["extra_dict"]
-                    input_tokens = extra_dict["num_prompt_tokens"]
-                    output_tokens = extra_dict["ntokens"]
-                    tokens_per_second = np.round(
-                        extra_dict["tokens_persecond"], decimals=3
-                    )
+
+                    try:
+                        actual_llm = res_dict["save_dict"][
+                            "base_model"
+                        ]  # fast path
+                    except Exception as e:
+                        print_warning(
+                            f"Unable to access save_dict to get actual_llm: {str(e)}"
+                        )
+                        actual_llm = (
+                            sanitize_llm(visible_models)
+                            if sanitize_llm is not None
+                            else visible_models
+                        )
+
+                    try:
+                        extra_dict = res["save_dict"]["extra_dict"]
+                        input_tokens = extra_dict["num_prompt_tokens"]
+                        output_tokens = extra_dict["ntokens"]
+                        tokens_per_second = np.round(
+                            extra_dict["tokens_persecond"], decimals=3
+                        )
+                    except:
+                        if os.getenv("HARD_ASSERTS"):
+                            raise
+                        input_tokens = output_tokens = tokens_per_second = None
                     if asserts:
                         if text and not file and not url:
                             assert any(
