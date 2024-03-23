@@ -958,7 +958,7 @@ class GradioLLaVaInference(GradioInference):
     """
     Gradio/LLaVa generation inference API.
     """
-    img_file: Any = None
+    image_file: Any = None
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -1004,7 +1004,7 @@ class GradioLLaVaInference(GradioInference):
         self.count_input_tokens += self.get_num_tokens(prompt)
         self.prompts.append(prompt)
 
-        llava_kwargs = dict(file=self.img_file,
+        llava_kwargs = dict(file=self.image_file,
                             llava_model=self.inference_server_url,
                             # prompt=instruction,
                             prompt=prompt,  # prepared prompt with chat history etc.
@@ -1012,7 +1012,8 @@ class GradioLLaVaInference(GradioInference):
                             allow_prompt_auto=False,
                             image_model=self.visible_models,
                             temperature=client_kwargs['temperature'],
-                            top_p=client_kwargs['top_p'], max_new_tokens=client_kwargs['max_new_tokens'],
+                            top_p=client_kwargs['top_p'],
+                            max_new_tokens=client_kwargs['max_new_tokens'],
                             client=self.client,
                             max_time=self.max_time,
                             )

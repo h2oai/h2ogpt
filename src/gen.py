@@ -4492,8 +4492,10 @@ def evaluate(
                                     prompt=prompt,  # prepared prompt with chat history etc.
                                     chat_conversation=chat_conversation,
                                     allow_prompt_auto=False,
-                                    image_model=base_model, temperature=temperature,
-                                    top_p=top_p, max_new_tokens=max_new_tokens,
+                                    image_model=base_model,
+                                    temperature=temperature,
+                                    top_p=top_p,
+                                    max_new_tokens=max_new_tokens,
                                     client=gr_client if not regenerate_gradio_clients else None,
                                     )
                 if not stream_output:
