@@ -926,16 +926,16 @@ class GradioClient(Client):
                     t_taken_s = time.time() - t0
                     # in case server changed, update in case clone()
                     self.server_hash = client.server_hash
-                    res = ast.literal_eval(res)
-                    response = res["response"]
+                    res_dict = ast.literal_eval(res)
+                    response = res_dict["response"]
                     if langchain_action != LangChainAction.EXTRACT.value:
                         response = response.strip()
                     else:
                         response = [r.strip() for r in ast.literal_eval(response)]
-                    sources = res["sources"]
+                    sources = res_dict["sources"]
                     scores_out = [x["score"] for x in sources]
                     texts_out = [x["content"] for x in sources]
-                    prompt_raw = res.get("prompt_raw", "")
+                    prompt_raw = res_dict.get("prompt_raw", "")
 
                     try:
                         actual_llm = res_dict["save_dict"][
@@ -952,7 +952,7 @@ class GradioClient(Client):
                         )
 
                     try:
-                        extra_dict = res["save_dict"]["extra_dict"]
+                        extra_dict = res_dict["save_dict"]["extra_dict"]
                         input_tokens = extra_dict["num_prompt_tokens"]
                         output_tokens = extra_dict["ntokens"]
                         tokens_per_second = np.round(
