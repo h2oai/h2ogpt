@@ -463,7 +463,7 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
         max_tokens = 512
         # should be less than --max-client-batch-size=4096 for launching TEI
         # shoudl also be that max_tokens * 4 * max_batch_size <= 2MB
-        max_batch_size = 1024
+        max_batch_size = int(os.getenv('TEI_MAX_BATCH_SIZE', '1024'))
         verbose = False
 
         texts = [text.replace("\n", " ")[:4 * max_tokens] for text in texts]
