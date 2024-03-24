@@ -1180,7 +1180,7 @@ def main(
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
 
-    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
+    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v3 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
@@ -1737,7 +1737,7 @@ def main(
         caption_gpu = False
         asr_gpu = False
     if is_public:
-        stt_model = 'distil-whisper/distil-large-v2'
+        stt_model = 'distil-whisper/distil-large-v3'
 
     # defaults
     caption_loader = None
