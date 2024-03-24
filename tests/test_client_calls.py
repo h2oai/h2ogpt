@@ -4915,6 +4915,7 @@ def test_client1_images_qa_proprietary():
         assert 'REINFORCE'.lower() in response.lower()
 
 
+@wrap_test_forked
 def test_pdf_to_base_64_images():
     pdf_path = 'tests/2403.09629.pdf'
     from src.vision.utils_vision import pdf_to_base64_pngs
@@ -4922,3 +4923,6 @@ def test_pdf_to_base_64_images():
     assert len(base64_encoded_pngs) == 25
     base64_encoded_pngs = pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='jpg')
     assert len(base64_encoded_pngs) == 25
+
+    base64_encoded_pngs = pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='jpg', pages=[5, 7])
+    assert len(base64_encoded_pngs) == 2
