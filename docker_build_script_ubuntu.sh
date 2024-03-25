@@ -28,9 +28,10 @@ apt-get update && apt-get install -y \
 apt-get upgrade -y
 
 # Install conda
-wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.1.0-1-Linux-x86_64.sh && \
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     mkdir -p /h2ogpt_conda && \
-    bash ./Miniconda3-py310_23.1.0-1-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
+    bash ./Miniconda3-latest-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
+    conda update -n base conda \
     conda install python=3.10 pygobject weasyprint -c conda-forge -y
 
 # if building for CPU, would remove CMAKE_ARGS and avoid GPU image as base image
