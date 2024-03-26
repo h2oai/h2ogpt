@@ -5660,9 +5660,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       iinput=iinput,
                       sanitize_bot_response=sanitize_bot_response,
                       system_prompt=system_prompt,
-                      chat_conversation=chat_conversation if not query_action else [],
+                      chat_conversation=chat_conversation,
                       add_chat_history_to_context=add_chat_history_to_context,
-                      # FIXME: sum/extra handle long chat_conversation
                       visible_models=visible_models,
                       h2ogpt_key=h2ogpt_key,
                       min_max_new_tokens=min_max_new_tokens,
