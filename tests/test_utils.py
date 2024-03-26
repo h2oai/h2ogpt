@@ -2,6 +2,7 @@ import sys
 
 import pytest
 
+from src.gen import apply_chat_template
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4
 from tests.utils import wrap_test_forked
@@ -201,3 +202,27 @@ def test_is_uuid4():
 
     # Check each string and print whether it's a valid UUID v4
     assert [is_uuid4(s) for s in test_strings] == [True, False, False, False]
+
+
+def test_chat_template():
+    instruction = "Who are you?"
+    system_prompt = "Be kind"
+    history_to_use = [('Are you awesome?', "Yes I'm awesome.")]
+    other_base_models = ['h2oai/mixtral-gm-rag-experimental-v2']
+    supports_system_prompt = ['meta-llama/Llama-2-7b-chat-hf', 'openchat/openchat-3.5-1210', 'SeaLLMs/SeaLLM-7B-v2', 'h2oai/h2ogpt-gm-experimental']
+    base_models = supports_system_prompt + other_base_models
+
+    for base_model in base_models:
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(base_model)
+
+        prompt = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer, verbose=True)
+
+        if base_model in supports_system_prompt:
+            assert 'Be kind' in prompt
+        else:
+            assert 'Be kind' not in prompt
+
+        assert instruction in prompt
+        assert history_to_use[0][0] in prompt
+        assert history_to_use[0][1] in prompt

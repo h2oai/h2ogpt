@@ -5677,6 +5677,30 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
     return max_new_tokens
 
 
+def apply_chat_template(instruction, system_prompt, history, tokenizer, verbose=False):
+    prompt = None
+
+    from openai_server.backend_utils import structure_to_messages
+
+    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] else None, None]
+    for si, system_prompt_to_use in enumerate(system_prompts_to_use):
+        try:
+            messages = structure_to_messages(instruction,
+                                             system_prompt_to_use,
+                                             history)
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            break
+        except Exception as e:
+            if si == 0 and 'Conversation roles must alternate' in str(e):
+                if verbose:
+                    print("No system prompt supported: %s" % str(e))
+                continue
+            else:
+                raise
+    assert prompt is not None, "Prompt was not set"
+    return prompt
+
+
 def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
@@ -5780,7 +5804,6 @@ def get_limited_prompt(instruction,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
 
-    from openai_server.backend_utils import structure_to_messages
     use_chat_template = prompt_type in [None, '', 'plain'] and \
                         (hasattr(tokenizer, 'chat_template') and
                          tokenizer.chat_template not in [None, ''] or
@@ -5791,10 +5814,7 @@ def get_limited_prompt(instruction,
         use_chat_template = False
 
     if use_chat_template:
-        messages = structure_to_messages(instruction,
-                                         system_prompt if system_prompt not in [None, '', 'auto'] else None,
-                                         history)
-        context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        context2 = apply_chat_template(instruction, system_prompt, history, tokenizer)
         iinput = ''
         context = ''
     else:
@@ -5903,8 +5923,7 @@ def get_limited_prompt(instruction,
                     history_to_use = history[0 + chat_index:]
 
                 if use_chat_template:
-                    messages = structure_to_messages(instruction, system_prompt, history_to_use)
-                    context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                    context2 = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer)
                 else:
                     context2 = history_to_context_func(history_to_use)
 
