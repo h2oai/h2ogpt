@@ -241,13 +241,23 @@ gpt4image_num_max = 10
 # gemini-1.0-pro
 google_mapping = {
     "gemini-pro": 30720,
+    "gemini-1.0-pro-latest": 30720,
     "gemini-pro-vision": 12288,
+    "gemini-1.0-pro-vision-latest": 12288,
+    "gemini-1.0-ultra-latest": 30720,
+    "gemini-ultra": 30720,
+    "gemini-1.5-pro-latest": 1048576,
 }
 
 # FIXME: at least via current API:
 google_mapping_outputs = {
     "gemini-pro": 2048,
+    "gemini-1.0-pro-latest": 2048,
     "gemini-pro-vision": 4096,
+    "gemini-1.0-pro-vision-latest": 4096,
+    "gemini-1.0-ultra-latest": 2048,
+    "gemini-ultra": 2048,
+    "gemini-1.5-pro-latest": 8192,
 }
 
 mistralai_mapping = {
