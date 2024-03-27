@@ -1,5 +1,18 @@
 ## Known issues
 
+### T5 Conditional or Sequence to Sequence models
+
+These can be supported by passing (or setting in the UI):
+```bash
+python generate.py --base_model=CohereForAI/aya-101 --load_4bit=True --add_disk_models_to_ui=False --force_seq2seq_type=True
+```
+or
+```bash
+python generate.py --base_model=CohereForAI/aya-101 --load_4bit=True --add_disk_models_to_ui=False --force_t5_type=True
+```
+although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
+
+
 ### Gradio UI Audio Streaming
 
 Gradio 4.18.0+ fails to work for streaming audio from UI.  No audio is generated.  Waiting for bug fix: https://github.com/gradio-app/gradio/issues/7497.
