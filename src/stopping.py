@@ -1,3 +1,5 @@
+import time
+
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList
 
@@ -7,7 +9,7 @@ from enums import PromptType, t5_type
 class StoppingCriteriaSub(StoppingCriteria):
 
     def __init__(self, stops=[], stop_words=[], encounters=[], device="cuda", model_max_length=None, tokenizer=None,
-                 truncation_generation=False):
+                 truncation_generation=False, max_time=None):
         super().__init__()
         assert len(stops) % len(encounters) == 0, "Number of stops and encounters must match"
         self.encounters = encounters
@@ -21,8 +23,13 @@ class StoppingCriteriaSub(StoppingCriteria):
         # not setup for handling existing prompt, only look at new tokens, some models like xwin have funny token handling,
         # and despite new tokens present the block looks back into different sized output and matches the stop token
         self.look_at_new_tokens_only = max(self.encounters) == 1
+        self.max_time = max_time
+        self.t0 = time.time()
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        if self.max_time is not None and (time.time() - self.t0) > self.max_time:
+            print("Stopping: Took too long: %s" % self.max_time)
+            return True
         # if self.tokenizer:
         #    print('stop: %s' % self.tokenizer.decode(input_ids[0]), flush=True)
         if self.token_start is None:
@@ -54,7 +61,8 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                  human='<human>:', bot="<bot>:", model_max_length=None,
                  prompter=None,
                  stop=None,
-                 truncation_generation=False):
+                 truncation_generation=False,
+                 max_time=None):
     stop_words = []
     encounters = []
     # FIXME: prompt_dict unused currently
@@ -159,7 +167,8 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
                                  stop_words=stop_words,
                                  encounters=encounters, device=device,
                                  model_max_length=model_max_length, tokenizer=tokenizer,
-                                 truncation_generation=truncation_generation)])
+                                 truncation_generation=truncation_generation,
+                                 max_time=max_time)])
     else:
         # nothing to stop on
         stopping_criteria = StoppingCriteriaList()

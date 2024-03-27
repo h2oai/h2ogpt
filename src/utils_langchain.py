@@ -56,10 +56,12 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Run on new LLM token. Only available when streaming is enabled."""
-        if self.tgen0 is not None and self.max_time is not None and (time.time() - self.tgen0) > self.max_time:
+        if False and \
+        self.tgen0 is not None and self.max_time is not None and (time.time() - self.tgen0) > self.max_time:
             if self.verbose:
                 print("Took too long in StreamingGradioCallbackHandler: %s" % (time.time() - self.tgen0), flush=True)
             self.text_queue.put(self.stop_signal)
+            self.do_stop = True
         else:
             self.text_queue.put(token)
 
