@@ -12,6 +12,7 @@ python generate.py --base_model=CohereForAI/aya-101 --load_4bit=True --add_disk_
 ```
 although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
 
+![aya.png](aya.png)
 
 ### Gradio UI Audio Streaming
 
