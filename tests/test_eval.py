@@ -144,6 +144,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'jq_schema': '.[]',
                  'extract_frames': 10,
                  'visible_models': None,
+                 'visible_image_models': None,
                  'h2ogpt_key': None,
                  'chat_conversation': None,
                  'text_context_list': None,
