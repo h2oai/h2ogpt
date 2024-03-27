@@ -2420,8 +2420,6 @@ def get_non_lora_model(base_model, model_loader, load_half,
         model_kwargs.pop('torch_dtype', None)
         loader_kwargs = dict(model_name_or_path=base_model,
                              model_basename=load_gptq,
-                             force_seq2seq_type=force_seq2seq_type,
-                             force_t5_type=force_t5_type,
                              **model_kwargs)
         model = model_loader(**loader_kwargs)
     elif load_awq:
