@@ -92,7 +92,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              document_source_substrings_op='and',
              document_content_substrings=[],
              document_content_substrings_op='and',
-             max_time=200,  # nominally want test to complete, not exercise timeout code (llama.cpp gets stuck behind file lock if prior generation is still going)
+             max_time=20,  # nominally want test to complete, not exercise timeout code (llama.cpp gets stuck behind file lock if prior generation is still going)
              repetition_penalty=1.0,
              do_sample=True,
              seed=0,

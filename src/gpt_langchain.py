@@ -2565,6 +2565,7 @@ def get_llm(use_openai_model=False,
                               llamacpp_path=llamacpp_path,
                               llamacpp_dict=llamacpp_dict,
                               n_gpus=n_gpus,
+                              max_time=max_time,
                               )
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
