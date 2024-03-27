@@ -206,6 +206,8 @@ def main(
         sink_dict: typing.Dict = dict(),
         truncation_generation: bool = False,
         hf_model_dict: typing.Dict = dict(),
+        force_seq2seq_type: bool = False,
+        force_t5_type: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -2014,6 +2016,8 @@ def main(
                                       sink_dict=sink_dict,
                                       truncation_generation=truncation_generation,
                                       hf_model_dict=hf_model_dict,
+                                      force_seq2seq_type=force_seq2seq_type,
+                                      force_t5_type=force_t5_type,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
@@ -2416,6 +2420,8 @@ def get_non_lora_model(base_model, model_loader, load_half,
         model_kwargs.pop('torch_dtype', None)
         loader_kwargs = dict(model_name_or_path=base_model,
                              model_basename=load_gptq,
+                             force_seq2seq_type=force_seq2seq_type,
+                             force_t5_type=force_t5_type,
                              **model_kwargs)
         model = model_loader(**loader_kwargs)
     elif load_awq:
@@ -2654,6 +2660,8 @@ def get_model(
         exllama_dict=None,
         gptq_dict=None,
         hf_model_dict={},
+        force_seq2seq_type=False,
+        force_t5_type=False,
 
         verbose: bool = False,
 ):
@@ -2746,7 +2754,10 @@ def get_model(
                          rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                          model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                          exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                         hf_model_dict=hf_model_dict)
+                         hf_model_dict=hf_model_dict,
+                         force_seq2seq_type=force_seq2seq_type,
+                         force_t5_type=force_t5_type,
+                         )
     model_loader, tokenizer_loader, conditional_type = get_loaders(**loader_kwargs)
 
     if not tokenizer_base_model:
@@ -3166,6 +3177,8 @@ def get_model(
                         loader_kwargs=loader_kwargs,
                         gptq_dict=gptq_dict,
                         hf_model_dict=hf_model_dict,
+                        force_seq2seq_type=force_seq2seq_type,
+                        force_t5_type=force_t5_type,
 
                         verbose=verbose)
 
@@ -3202,6 +3215,8 @@ def get_hf_model(load_8bit: bool = False,
                  loader_kwargs=None,
                  gptq_dict=None,
                  hf_model_dict=None,
+                 force_seq2seq_type=None,
+                 force_t5_type=None,
 
                  verbose: bool = False,
                  ):
@@ -3530,6 +3545,8 @@ def get_score_model(score_model: str = None,
                     sink_dict: typing.Dict = None,
                     truncation_generation: bool = False,
                     hf_model_dict: typing.Dict = None,
+                    force_seq2seq_type: bool = False,
+                    force_t5_type: bool = False,
 
                     verbose: bool = False,
                     ):
@@ -3564,6 +3581,9 @@ def get_score_model(score_model: str = None,
         sink_dict = {}
         truncation_generation = False
         hf_model_dict = {}
+        force_seq2seq_type = False
+        force_t5_type = False
+
         smodel, stokenizer, sdevice = get_model(reward_type=True,
                                                 **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
     else:
@@ -3731,6 +3751,8 @@ def evaluate(
         sink_dict=None,
         truncation_generation=None,
         hf_model_dict=None,
+        force_seq2seq_type=None,
+        force_t5_type=None,
 
         load_exllama=None,
         answer_with_sources=None,
@@ -4240,6 +4262,8 @@ def evaluate(
                 sink_dict=sink_dict,
                 truncation_generation=truncation_generation,
                 hf_model_dict=hf_model_dict,
+                force_seq2seq_type=force_seq2seq_type,
+                force_t5_type=force_t5_type,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,

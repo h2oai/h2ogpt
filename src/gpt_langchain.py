@@ -5350,6 +5350,8 @@ def run_qa_db(**kwargs):
     kwargs['gptq_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['sink_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
     kwargs['hf_model_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
+    kwargs['force_seq2seq_type'] = False  # shouldn't be required unless from test using _run_qa_db
+    kwargs['force_t5_type'] = False  # shouldn't be required unless from test using _run_qa_db
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
     kwargs['load_awq'] = kwargs.get('load_awq', '')

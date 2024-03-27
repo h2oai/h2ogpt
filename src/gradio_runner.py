@@ -2040,6 +2040,9 @@ def go_gradio(**kwargs):
                                             value=kwargs['use_safetensors'], interactive=not is_public)
                                         model_hf_model_dict = gr.Textbox(value=str(kwargs['hf_model_dict'] or {}),
                                                                          label="hf_model_dict")
+                                        model_force_seq2seq_type = gr.components.Checkbox(label="Force sequence to sequence")
+                                        model_force_force_t5_type = gr.components.Checkbox(
+                                            label="Force T5 Conditional")
                                         model_revision = gr.Textbox(label="revision",
                                                                     value=kwargs['revision'],
                                                                     info="Hash on HF to use",
@@ -2189,6 +2192,9 @@ def go_gradio(**kwargs):
                                             value=False, interactive=not is_public)
                                         model_hf_model_dict2 = gr.Textbox(value=str(kwargs['hf_model_dict'] or {}),
                                                                           label="hf_model_dict (Model 2)")
+                                        model_force_seq2seq_type2 = gr.components.Checkbox(label="Force sequence to sequence (Model 2)")
+                                        model_force_force_t5_type2 = gr.components.Checkbox(
+                                            label="Force T5 Conditional (Model 2)")
                                         model_revision2 = gr.Textbox(label="revision (Model 2)", value='',
                                                                      interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
@@ -5535,6 +5541,7 @@ def go_gradio(**kwargs):
                        n_gpu_layers1, n_batch1, n_gqa1, llamacpp_dict_more1,
                        system_prompt1,
                        exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                       force_seq2seq_type, force_t5_type,
                        model_options_state1, lora_options_state1, server_options_state1,
                        unload=False):
             if unload:
@@ -5643,6 +5650,8 @@ def go_gradio(**kwargs):
             all_kwargs1['sink_dict'] = sink_dict
             all_kwargs1['truncation_generation'] = truncation_generation
             all_kwargs1['hf_model_dict'] = hf_model_dict
+            all_kwargs1['force_seq2seq_type'] = force_seq2seq_type
+            all_kwargs1['force_t5_type'] = force_t5_type
             # reasonable default for easy UI/UX even if not optimal
             if 'llama2' in model_name and max_seq_len1 in [-1, None]:
                 max_seq_len1 = 4096
@@ -5759,6 +5768,8 @@ def go_gradio(**kwargs):
                              model_attention_sinks, model_sink_dict,
                              model_truncation_generation,
                              model_hf_model_dict,
+                             model_force_seq2seq_type,
+                             model_force_force_t5_type,
                              model_options_state, lora_options_state, server_options_state,
                              ]
         load_model_outputs = [model_state, model_used, lora_used, server_used,
@@ -5812,6 +5823,8 @@ def go_gradio(**kwargs):
                               model_attention_sinks2, model_sink_dict2,
                               model_truncation_generation2,
                               model_hf_model_dict2,
+                              model_force_seq2seq_type2,
+                              model_force_force_t5_type2,
                               model_options_state, lora_options_state, server_options_state,
                               ]
         load_model_outputs2 = [model_state2, model_used2, lora_used2, server_used2,

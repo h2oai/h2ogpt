@@ -13,7 +13,10 @@ def run_cli(  # for local function:
         examples=None, memory_restriction_level=None,
         # evaluate kwargs
         n_jobs=None, llamacpp_path=None, llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None,
-        sink_dict=None, truncation_generation=None, hf_model_dict=None, load_exllama=None,
+        sink_dict=None, truncation_generation=None,
+        hf_model_dict=None,
+        force_seq2seq_type=None, force_t5_type=None,
+        load_exllama=None,
 
         use_pymupdf=None,
         use_unstructured_pdf=None,

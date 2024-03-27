@@ -74,6 +74,7 @@ class PromptType(Enum):
     qwen = 68
     sealion = 69
     groq = 70
+    aya = 71
 
 
 class DocumentSubset(Enum):
@@ -345,7 +346,8 @@ def t5_type(model_name):
     return 't5' == model_name.lower() or \
         't5-' in model_name.lower() or \
         'flan-' in model_name.lower() or \
-        'fastchat-t5' in model_name.lower()
+        'fastchat-t5' in model_name.lower() or \
+        'CohereForAI/aya-101' in model_name.lower()
 
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,

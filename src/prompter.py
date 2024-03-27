@@ -233,6 +233,7 @@ prompt_type_to_model_name = {
              'Qwen/Qwen1.5-0.5B-Chat-GGUF',
              ],
     "sealion": ['aisingapore/sea-lion-7b-instruct'],
+    "aya": ["CohereForAI/aya-101"],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -1495,6 +1496,24 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '\n\n'
         humanstr = '### USER:'
         botstr = '### RESPONSE:'
+    elif prompt_type in [PromptType.aya.value, str(PromptType.aya.value),
+                             PromptType.aya.name]:
+        can_handle_system_prompt = True
+        # https://huggingface.co/CohereForAI/aya-101
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s<|im_end|>\n""" % system_prompt if not reduced else ''
+
+        PreInstruct = """<|im_start|>user\n"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|>\n<|im_start|>assistant\n"""
+        terminate_response = ['<|im_end|>', '<|im_start|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
