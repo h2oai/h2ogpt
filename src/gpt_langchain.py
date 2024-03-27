@@ -1874,6 +1874,7 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
+    tokenizer: Any = None
     stream_output: bool = True
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
@@ -2266,6 +2267,7 @@ def get_llm(use_openai_model=False,
                   streaming=stream_output,
                   default_request_timeout=max_time,
                   model_kwargs=model_kwargs,
+                  tokenizer=tokenizer,
                   verbose=verbose,
                   **kwargs_extra
                   )
@@ -2309,6 +2311,7 @@ def get_llm(use_openai_model=False,
                   # seed=seed,  # FIXME: Not supported yet
                   model_kwargs=model_kwargs,
                   verbose=verbose,
+                  tokenizer=tokenizer,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -2339,6 +2342,7 @@ def get_llm(use_openai_model=False,
                   safe_mode=False,
                   random_seed=seed,
                   verbose=verbose,
+                  tokenizer=tokenizer,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
                   )
@@ -2374,6 +2378,7 @@ def get_llm(use_openai_model=False,
                       # seed=seed,  # FIXME: not supported yet
                       # top_k=top_k,
                   ),
+                  tokenizer=tokenizer,
                   **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
