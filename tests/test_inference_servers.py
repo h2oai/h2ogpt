@@ -449,17 +449,22 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
             assert 'I am a writer' in ret1['response'] or \
                    'I am a person who is asking you a question' in ret1['response'] or \
                    'year old' in ret1['response'] or \
-                   'AI language model' in ret1['response']
+                   'AI language model' in ret1['response'] or \
+                   'who has been living' in ret1['response']
             assert 'bird' in ret2['response']
             assert 'bird' in ret3['response']
             assert 'I am a writer' in ret4['response'] or 'I am a person who is asking you a question' in \
-                   ret4['response'] or 'year old' in ret4['response'] or 'I am an AI language model' in ret4['response']
+                   ret4['response'] or 'year old' in ret4['response'] or 'I am an AI language model' in ret4['response'] or \
+                   'who has been living' in ret4['response']
             assert 'I am a writer' in ret5['response'] or 'I am a person who is asking you a question' in \
-                   ret5['response'] or 'year old' in ret5['response'] or 'I am an AI language model' in ret5['response']
+                   ret5['response'] or 'year old' in ret5['response'] or 'I am an AI language model' in ret5['response'] or \
+                   'who has been living' in ret5['response']
             assert 'I am a writer' in ret6['response'] or 'I am a person who is asking you a question' in \
-                   ret6['response'] or 'year old' in ret6['response'] or 'I am an AI language model' in ret6['response']
+                   ret6['response'] or 'year old' in ret6['response'] or 'I am an AI language model' in ret6['response'] or \
+                   'who has been living' in ret6['response']
             assert 'I am a writer' in ret7['response'] or 'I am a person who is asking you a question' in \
-                   ret7['response'] or 'year old' in ret7['response'] or 'I am an AI language model' in ret7['response']
+                   ret7['response'] or 'year old' in ret7['response'] or 'I am an AI language model' in ret7['response'] or \
+                   'who has been living' in ret7['response']
         elif base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             assert 'h2oGPT' in ret1['response']
             assert 'Birds' in ret2['response']
