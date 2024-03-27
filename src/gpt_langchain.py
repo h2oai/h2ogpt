@@ -2675,6 +2675,7 @@ def get_llm(use_openai_model=False,
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
         # not built in prompt removal that is less general and not specific for our model
+        # also works for Conditional generation: https://github.com/huggingface/transformers/issues/27870#issuecomment-1844775749
         pipe.task = "text2text-generation"
 
         llm = H2OHuggingFacePipeline(pipeline=pipe)
