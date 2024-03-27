@@ -477,11 +477,11 @@ class EThread(threading.Thread):
             if self._target is not None:
                 self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
-            print("thread exception: %s" % str(sys.exc_info()))
+            print("thread exception: %s" % str(traceback.format_exc()))
             self.bucket.put(sys.exc_info())
             self.exc = e
             if self.streamer:
-                print("make stop: %s" % str(sys.exc_info()), flush=True)
+                print("make stop: %s" % str(traceback.format_exc()), flush=True)
                 self.streamer.do_stop = True
         finally:
             # Avoid a refcycle if the thread is running a function with
