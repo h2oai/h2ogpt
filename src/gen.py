@@ -2018,11 +2018,13 @@ def main(
                                       hf_model_dict=hf_model_dict,
                                       force_seq2seq_type=force_seq2seq_type,
                                       force_t5_type=force_t5_type,
+                                      trust_remote_code=trust_remote_code,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
+                            trust_remote_code=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
