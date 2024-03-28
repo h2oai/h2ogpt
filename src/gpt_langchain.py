@@ -1804,6 +1804,7 @@ class H2OChatAnthropic2(GenerateNormal, ExtraChat, ChatAnthropic2):
     streaming: Any = True
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    tokenizer: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
