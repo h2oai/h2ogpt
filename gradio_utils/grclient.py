@@ -1121,8 +1121,13 @@ class GradioClient(Client):
                 if trial == trials - 1:
                     raise
                 else:
-                    print_warning("trying again: %s" % trial)
-                    time.sleep(1 * trial)
+                    # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
+                    if 'Overloaded' in str(traceback.format_tb(e.__traceback__)):
+                        sleep_time = 30 + 2 ** (trial + 1)
+                    else:
+                        sleep_time = 1 * trial
+                    print_warning("trying again: %s in %s seconds" % (trial, sleep_time))
+                    time.sleep(sleep_time)
             finally:
                 # in case server changed, update in case clone()
                 self.server_hash = client.server_hash
