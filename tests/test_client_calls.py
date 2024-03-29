@@ -4882,10 +4882,13 @@ def test_client1_image_qa(langchain_mode, base_model):
             raise
 
     # string of dict for output
-    response = ast.literal_eval(res)['response']
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
     assert 'license' in response.lower()
+
+    assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
 @wrap_test_forked
@@ -4935,6 +4938,8 @@ def test_client1_images_qa(langchain_mode, base_model):
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
     assert 'REINFORCE'.lower() in response.lower()
+
+    assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
 @wrap_test_forked
