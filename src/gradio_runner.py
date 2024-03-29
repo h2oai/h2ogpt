@@ -3191,7 +3191,7 @@ def go_gradio(**kwargs):
                             if 'login_tab_text' in auth_user:
                                 login_tab_text1 = auth_user['login_tab_text']
                             if 'hosts_tab_text' in auth_user:
-                                hosts_tab_text1 = auth_user['hosts_tab_text1']
+                                hosts_tab_text1 = auth_user['hosts_tab_text']
 
                             text_result = "Successful login for %s" % get_show_username(username1)
                             success1 = True
