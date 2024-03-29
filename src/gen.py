@@ -4509,7 +4509,7 @@ def evaluate(
                 where_from = "gr_client for llava"
 
                 # NOTE: llava doesn't handle context or system prompt directly
-                img_file = get_image_file(image_file, image_control, document_choice)
+                img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
                 llava_kwargs = dict(file=img_file,
                                     llava_model=inference_server,
                                     # prompt=instruction,
@@ -4593,7 +4593,7 @@ def evaluate(
                         gr_prompt_dict = prompt_dict
 
                     # ensure image in correct format
-                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)
+                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
                                          iinput=gr_iinput,  # only for chat=True

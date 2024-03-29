@@ -135,6 +135,10 @@ def get_llava_response(file=None,
                        max_time=None,
                        force_stream=True,
                        ):
+    if isinstance(file, list) and len(file) >= 1:
+        # llava only handles first image if list of images
+        file = file[0]
+
     kwargs = locals()
 
     if force_stream:

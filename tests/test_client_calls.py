@@ -4929,3 +4929,20 @@ def test_pdf_to_base_64_images():
 
     base64_encoded_pngs = pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='jpg', pages=[5, 7])
     assert len(base64_encoded_pngs) == 2
+
+
+@wrap_test_forked
+def test_get_image_file():
+    image_control = None
+    from src.image_utils import get_image_file
+
+    for convert in [True, False]:
+        for str_bytes in [True, False]:
+            image_file = 'tests/jon.png'
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 1
+
+            image_file = ['tests/jon.png']
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 1
+
+            image_file = ['tests/jon.png', 'tests/fastfood.jpg']
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 2
