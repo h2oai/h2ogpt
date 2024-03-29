@@ -3795,6 +3795,7 @@ def go_gradio(**kwargs):
             assert k in kwargs_evaluate, "Missing %s" % k
 
         def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, **kwargs1):
+            image_files_to_delete = []
             args_list = list(args1)
             if str_api:
                 if plain_api:
@@ -3837,6 +3838,7 @@ def go_gradio(**kwargs):
                     # assume is bytes
                     img_file_b2img_one = base64_to_img(img_file_one, img_file_b2img)
                     b2imgs.append(img_file_b2img_one)
+                image_files_to_delete = b2imgs
                 user_kwargs['image_file'] = b2imgs if len(b2imgs) > 1 else b2imgs[0]
 
             # only used for submit_nochat_api
@@ -4084,6 +4086,9 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache(allow_skip=True)
                 clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
+                for image_file1 in image_files_to_delete:
+                    if os.path.isfile(image_file1):
+                        remove(image_file1)
             save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
