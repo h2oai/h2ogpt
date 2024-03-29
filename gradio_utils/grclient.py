@@ -12,7 +12,7 @@ from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Generator, Any, Union, List, Dict, Optional, Literal
+from typing import Callable, Generator, Any, Union, List, Dict, Optional
 import ast
 import inspect
 import numpy as np
@@ -110,18 +110,13 @@ class GradioClient(Client):
         src: str,
         hf_token: str | None = None,
         max_workers: int = 40,
-        serialize: bool | None = None,  # TODO: remove in 1.0
-        output_dir: str
-        | Path = DEFAULT_TEMP_DIR,  # Maybe this can be combined with `download_files` in 1.0
+        serialize: bool | None = None,
+        output_dir: str | Path | None = DEFAULT_TEMP_DIR,
         verbose: bool = False,
         auth: tuple[str, str] | None = None,
-        *,
         headers: dict[str, str] | None = None,
-        upload_files: bool = True,  # TODO: remove and hardcode to False in 1.0
-        download_files: bool = True,  # TODO: consider setting to False in 1.0
-        _skip_components: bool = True,  # internal parameter to skip values certain components (e.g. State) that do not need to be displayed to users.
-        ssl_verify: bool = True,
-
+        upload_files: bool = True,
+        download_files: bool = True,
         h2ogpt_key: str = None,
         persist: bool = False,
         check_hash: bool = True,
@@ -158,11 +153,7 @@ class GradioClient(Client):
             # 4.18.0:
             # self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
             # 4.17.0:
-            # self.kwargs.update(dict(auth=auth))
-            # 4.24.0:
-            self._skip_components = _skip_components
-            self.ssl_verify = ssl_verify
-            self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files, ssl_verify=ssl_verify))
+            self.kwargs.update(dict(auth=auth))
 
         self.verbose = verbose
         self.hf_token = hf_token
@@ -254,9 +245,7 @@ class GradioClient(Client):
         self.config = self._get_config()
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
         if is_gradio_client_version7plus:
-            self.protocol: Literal[
-            "ws", "sse", "sse_v1", "sse_v2", "sse_v2.1"
-            ] = self.config.get("protocol", "ws")
+            self.protocol: str = self.config.get("protocol", "ws")
             self.sse_url = urllib.parse.urljoin(
                 self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
             )
