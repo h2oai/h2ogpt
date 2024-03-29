@@ -4932,8 +4932,9 @@ def test_client1_images_qa(langchain_mode, base_model):
                   langchain_mode=langchain_mode,
                   h2ogpt_key=h2ogpt_key)
     res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    response = ast.literal_eval(res_dict)['response']
 
-    if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in res:
+    if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in response:
         return
 
     # string of dict for output
