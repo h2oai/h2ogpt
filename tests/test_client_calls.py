@@ -2608,6 +2608,8 @@ def test_client_load_unload_models(model_choice):
     sink_dict = "{}"
     truncation_generation = False
     hf_model_dict = "{}"
+    model_force_seq2seq_type = False
+    model_force_force_t5_type = False
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
@@ -2621,6 +2623,7 @@ def test_client_load_unload_models(model_choice):
                  n_gpu_layers, n_batch, n_gqa, llamacpp_dict_more,
                  system_prompt,
                  exllama_dict, gptq_dict, attention_sinks, sink_dict, truncation_generation, hf_model_dict,
+                 model_force_seq2seq_type, model_force_force_t5_type,
                  ]
     res = client.predict(*tuple(args_list), api_name='/load_model')
 
