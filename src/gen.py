@@ -322,6 +322,7 @@ def main(
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
         visible_doc_track: bool = True,
+
         visible_chat_tab: bool = True,
         visible_doc_selection_tab: bool = True,
         visible_doc_view_tab: bool = True,
@@ -332,6 +333,7 @@ def main(
         visible_tos_tab: bool = False,
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
+
         chat_tables: bool = False,
         visible_h2ogpt_links: bool = True,
         visible_h2ogpt_qrcode: bool = True,

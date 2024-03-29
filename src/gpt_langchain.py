@@ -1776,6 +1776,8 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
