@@ -2709,7 +2709,6 @@ def get_llm(use_openai_model=False,
                                          base_model=model_name,
                                          verbose=verbose,
                                          truncation_generation=truncation_generation,
-                                         max_time=max_time,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
