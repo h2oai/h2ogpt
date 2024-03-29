@@ -835,7 +835,7 @@ def go_gradio(**kwargs):
     image_tab_visible = image_control_panels_visible and (image_gen_visible or image_change_visible)
     visible_image_models_visible = len(visible_image_models_state0) > 1
     visible_image_models_kwargs = dict(choices=visible_image_models_state0,
-                                       label="Visible Image Models",
+                                       label="Visible ImageGen Models",
                                        value=visible_image_models_state0[
                                            0] if visible_image_models_state0 else None,
                                        interactive=True,
