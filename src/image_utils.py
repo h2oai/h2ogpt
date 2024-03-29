@@ -270,15 +270,20 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
     else:
         image_types = get_image_types()
         img_file = [x for x in document_choice if any(x.endswith('.' + y) for y in image_types)] if document_choice else []
-        img_file = img_file[0] if img_file else None
 
-    if convert:
-        if img_file is not None and os.path.isfile(img_file):
-            from src.vision.utils_vision import img_to_base64
-            img_file = img_to_base64(img_file, str_bytes=str_bytes)
-        elif isinstance(img_file, str):
-            # assume already bytes
-            img_file = img_file
-        else:
-            img_file = None
-    return img_file
+    if not isinstance(img_file, list):
+        img_file = [img_file]
+
+    final_img_files = []
+    for img_file1 in img_file:
+        if convert:
+            if img_file is not None and os.path.isfile(img_file1):
+                from src.vision.utils_vision import img_to_base64
+                img_file1 = img_to_base64(img_file1, str_bytes=str_bytes)
+            elif isinstance(img_file1, str):
+                # assume already bytes
+                img_file1 = img_file1
+            else:
+                img_file1 = None
+        final_img_files.append(img_file1)
+    return final_img_files

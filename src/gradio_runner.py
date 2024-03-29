@@ -3839,7 +3839,7 @@ def go_gradio(**kwargs):
                     img_file_b2img_one = base64_to_img(img_file_one, img_file_b2img)
                     b2imgs.append(img_file_b2img_one)
                 image_files_to_delete = b2imgs
-                user_kwargs['image_file'] = b2imgs if len(b2imgs) > 1 else b2imgs[0]
+                user_kwargs['image_file'] = b2imgs  # always just make list
 
             # only used for submit_nochat_api
             user_kwargs['chat'] = False
