@@ -4508,6 +4508,8 @@ def evaluate(
             if is_gradio_vision_model(base_model) and llava_direct_gradio:
                 where_from = "gr_client for llava"
 
+                num_prompt_tokens += 1500  # estimate for single image
+
                 # NOTE: llava doesn't handle context or system prompt directly
                 img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
                 llava_kwargs = dict(file=img_file,

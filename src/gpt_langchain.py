@@ -5891,7 +5891,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         prompt = llm.prompter.prompt
     else:
         prompt = prompt_basic
-    num_prompt_tokens = get_token_count(prompt, tokenizer)
+    if hasattr(llm, 'count_input_tokens') and llm.count_input_tokens != 0:
+        num_prompt_tokens = llm.count_input_tokens
+    else:
+        num_prompt_tokens = get_token_count(prompt, tokenizer)
 
     # ensure to close client
     # https://github.com/langchain-ai/langchain/issues/13509
