@@ -3839,7 +3839,7 @@ def go_gradio(**kwargs):
                     img_file_b2img_one = base64_to_img(img_file_one, img_file_b2img)
                     b2imgs.append(img_file_b2img_one)
                 image_files_to_delete = b2imgs
-                user_kwargs['image_file'] = b2imgs if len(b2imgs) > 1 else b2imgs[0]
+                user_kwargs['image_file'] = b2imgs  # always just make list
 
             # only used for submit_nochat_api
             user_kwargs['chat'] = False
@@ -6642,10 +6642,13 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         return dummy1, gr.update(visible=True, value=df), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
     port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     import pathlib
-    absolute_path_string = os.path.abspath(file)
-    url_path = pathlib.Path(absolute_path_string).as_uri()
-    url = get_url(absolute_path_string, from_str=True)
-    img_url = url.replace("""<a href=""", """<img src=""")
+    if not file.startswith('http'):
+        absolute_path_string = os.path.abspath(file)
+        url_path = pathlib.Path(absolute_path_string).as_uri()
+        url = get_url(absolute_path_string, from_str=True)
+        img_url = url.replace("""<a href=""", """<img src=""")
+    else:
+        img_url = """<img src="%s" alt="%s">""" % (file, file)
     from src.gpt_langchain import image_types, audio_types, video_types
     if any([file.lower().endswith('.' + x) for x in image_types]):
         return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1

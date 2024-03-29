@@ -1002,7 +1002,7 @@ class GradioLLaVaInference(GradioInference):
             self.chat_conversation = []
 
         if self.image_file is not None:
-            self.count_input_tokens += 1000  # estimate for image
+            self.count_input_tokens += 1000  # estimate for image -- llava only takes first one for now
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
 
@@ -2203,11 +2203,7 @@ def get_llm(use_openai_model=False,
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
         if is_vision_model(model_name):
-            if isinstance(image_file, list):
-                img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
-                            for x in image_file]
-            else:
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
                 chat_conversation.append((img_file, gpt4imagetag))
 
@@ -2241,11 +2237,7 @@ def get_llm(use_openai_model=False,
             cls = H2OChatAnthropic3Sys
 
             if is_vision_model(model_name):
-                if isinstance(image_file, list):
-                    img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
-                                for x in image_file]
-                else:
-                    img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
                 if img_file:
                     chat_conversation.append((img_file, claude3imagetag))
 
@@ -2286,11 +2278,7 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         if is_vision_model(model_name):
-            if isinstance(image_file, list):
-                img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
-                            for x in image_file]
-            else:
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
                 chat_conversation.append((img_file, geminiimagetag))
                 # https://github.com/langchain-ai/langchain/issues/19115
@@ -3214,7 +3202,7 @@ def file_to_doc(file,
     orig_url = None
     if is_url and any([file.strip().lower().endswith('.' + x) for x in file_types]):
         # then just download, so can use good parser, not always unstructured url parser
-        base_path_url = "urls_downloaded"
+        base_path_url = os.path.join(get_gradio_tmp(), "urls_downloaded")
         base_path_url = makedirs(base_path_url, exist_ok=True, tmp_ok=True, use_base=True)
         source_file = os.path.join(base_path_url,
                                    "_%s_%s" % ("_" + str(uuid.uuid4())[:10], os.path.basename(urlparse(file).path)))
@@ -5903,7 +5891,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         prompt = llm.prompter.prompt
     else:
         prompt = prompt_basic
-    num_prompt_tokens = get_token_count(prompt, tokenizer)
+    if hasattr(llm, 'count_input_tokens') and llm.count_input_tokens != 0:
+        num_prompt_tokens = llm.count_input_tokens
+    else:
+        num_prompt_tokens = get_token_count(prompt, tokenizer)
 
     # ensure to close client
     # https://github.com/langchain-ai/langchain/issues/13509

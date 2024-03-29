@@ -135,6 +135,10 @@ def get_llava_response(file=None,
                        max_time=None,
                        force_stream=True,
                        ):
+    if isinstance(file, list) and len(file) >= 1:
+        # llava only handles first image if list of images
+        file = file[0]
+
     kwargs = locals()
 
     if force_stream:
@@ -177,6 +181,10 @@ def get_llava_stream(file, llava_model,
                      max_time=None,
                      force_stream=True,  # dummy arg
                      ):
+    if isinstance(file, list) and len(file) >= 1:
+        # llava only handles first image if list of images
+        file = file[0]
+
     image_model = os.path.basename(image_model)  # in case passed HF link
     prompt = fix_llava_prompt(file, prompt, allow_prompt_auto=allow_prompt_auto)
 
