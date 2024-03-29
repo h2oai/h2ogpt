@@ -4833,10 +4833,13 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
 
 
+vision_models = ['gpt-4-vision-preview', 'gemini-pro-vision',
+                 'gemini-1.5-pro-latest', 'claude-3-haiku-20240307', 'liuhaotian/llava-v1.6-34b',
+                 'liuhaotian/llava-v1.6-vicuna-13b']
+
+
 @wrap_test_forked
-@pytest.mark.parametrize("base_model", ['gpt-4-vision-preview', 'gemini-pro-vision',
-                                        'gemini-1.5-pro-latest', 'claude-3-haiku-20240307', 'liuhaotian/llava-v1.6-34b',
-                                        'liuhaotian/llava-v1.6-vicuna-13b'])
+@pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 def test_client1_image_qa(langchain_mode, base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
@@ -4865,17 +4868,21 @@ def test_client1_image_qa(langchain_mode, base_model):
                   image_file=image_file,
                   visible_models=base_model,
                   stream_output=False,
+                  langchain_mode=langchain_mode,
                   h2ogpt_key=h2ogpt_key)
     res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 
     # string of dict for output
     response = ast.literal_eval(res)['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
+    print(response)
     assert 'license' in response.lower()
 
 
 @wrap_test_forked
-def test_client1_images_qa_proprietary():
+@pytest.mark.parametrize("base_model", vision_models)
+@pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
+def test_client1_images_qa_proprietary(langchain_mode, base_model):
     image_dir = 'pdf_images'
     makedirs(image_dir)
     os.system('pdftoppm tests/2403.09629.pdf %s/outputname -jpeg' % image_dir)
@@ -4890,8 +4897,7 @@ def test_client1_images_qa_proprietary():
 
     from src.gen import get_inf_models
     base_models = get_inf_models(inference_server)
-    base_models_touse = ['gemini-pro-vision', 'gemini-1.5-pro-latest', 'gpt-4-vision-preview',
-                         'claude-3-haiku-20240307']
+    base_models_touse = [base_model]
     assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
@@ -4903,19 +4909,20 @@ def test_client1_images_qa_proprietary():
     from src.vision.utils_vision import img_to_base64
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
 
-    for base_model in base_models_touse:
-        print("Doing base_model=%s" % base_model)
-        kwargs = dict(instruction_nochat=prompt,
-                      image_file=image_files,
-                      visible_models=base_model,
-                      stream_output=False,
-                      h2ogpt_key=h2ogpt_key)
-        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    print("Doing base_model=%s" % base_model)
+    kwargs = dict(instruction_nochat=prompt,
+                  image_file=image_files,
+                  visible_models=base_model,
+                  stream_output=False,
+                  langchain_mode=langchain_mode,
+                  h2ogpt_key=h2ogpt_key)
+    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 
-        # string of dict for output
-        response = ast.literal_eval(res)['response']
-        print(response)
-        assert 'REINFORCE'.lower() in response.lower()
+    # string of dict for output
+    response = ast.literal_eval(res)['response']
+    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
+    print(response)
+    assert 'REINFORCE'.lower() in response.lower()
 
 
 @wrap_test_forked
