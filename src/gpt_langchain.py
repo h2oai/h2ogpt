@@ -1002,7 +1002,7 @@ class GradioLLaVaInference(GradioInference):
             self.chat_conversation = []
 
         if self.image_file is not None:
-            self.count_input_tokens += 1000  # estimate for image
+            self.count_input_tokens += 1000  # estimate for image -- llava only takes first one for now
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
 
@@ -1776,6 +1776,8 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
+    count_input_tokens: Any = 0
+    count_output_tokens: Any = 0
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2203,11 +2205,7 @@ def get_llm(use_openai_model=False,
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
         if is_vision_model(model_name):
-            if isinstance(image_file, list):
-                img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
-                            for x in image_file]
-            else:
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
                 chat_conversation.append((img_file, gpt4imagetag))
 
@@ -2241,11 +2239,7 @@ def get_llm(use_openai_model=False,
             cls = H2OChatAnthropic3Sys
 
             if is_vision_model(model_name):
-                if isinstance(image_file, list):
-                    img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
-                                for x in image_file]
-                else:
-                    img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
                 if img_file:
                     chat_conversation.append((img_file, claude3imagetag))
 
@@ -2286,11 +2280,7 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         if is_vision_model(model_name):
-            if isinstance(image_file, list):
-                img_file = [get_image_file(x, image_control, document_choice, convert=True, str_bytes=False)
-                            for x in image_file]
-            else:
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
                 chat_conversation.append((img_file, geminiimagetag))
                 # https://github.com/langchain-ai/langchain/issues/19115
@@ -2719,7 +2709,6 @@ def get_llm(use_openai_model=False,
                                          base_model=model_name,
                                          verbose=verbose,
                                          truncation_generation=truncation_generation,
-                                         max_time=max_time,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -5903,7 +5892,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         prompt = llm.prompter.prompt
     else:
         prompt = prompt_basic
-    num_prompt_tokens = get_token_count(prompt, tokenizer)
+    if hasattr(llm, 'count_input_tokens') and llm.count_input_tokens != 0:
+        num_prompt_tokens = llm.count_input_tokens
+    else:
+        num_prompt_tokens = get_token_count(prompt, tokenizer)
 
     # ensure to close client
     # https://github.com/langchain-ai/langchain/issues/13509

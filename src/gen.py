@@ -322,6 +322,7 @@ def main(
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
         visible_doc_track: bool = True,
+
         visible_chat_tab: bool = True,
         visible_doc_selection_tab: bool = True,
         visible_doc_view_tab: bool = True,
@@ -332,6 +333,7 @@ def main(
         visible_tos_tab: bool = False,
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
+
         chat_tables: bool = False,
         visible_h2ogpt_links: bool = True,
         visible_h2ogpt_qrcode: bool = True,
@@ -4508,8 +4510,10 @@ def evaluate(
             if is_gradio_vision_model(base_model) and llava_direct_gradio:
                 where_from = "gr_client for llava"
 
+                num_prompt_tokens += 1500  # estimate for single image
+
                 # NOTE: llava doesn't handle context or system prompt directly
-                img_file = get_image_file(image_file, image_control, document_choice)
+                img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
                 llava_kwargs = dict(file=img_file,
                                     llava_model=inference_server,
                                     # prompt=instruction,
@@ -4593,7 +4597,7 @@ def evaluate(
                         gr_prompt_dict = prompt_dict
 
                     # ensure image in correct format
-                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)
+                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
                                          iinput=gr_iinput,  # only for chat=True
