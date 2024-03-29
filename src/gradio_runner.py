@@ -3514,6 +3514,7 @@ def go_gradio(**kwargs):
                                h2ogpt_key2, visible_models2,
                                None, None, None, None,
                                None, None, None, None,
+                               None, None, None, None,
                                None, None,
                                text_output1, text_output21, text_outputs1,
                                )
@@ -3630,6 +3631,7 @@ def go_gradio(**kwargs):
                                model_options_state1, lora_options_state1, server_options_state1,
                                chat_state1, langchain_mode2,
                                h2ogpt_key2, visible_models2,
+                               None, None, None, None,
                                None, None, None, None,
                                None, None, None, None,
                                None, None,
@@ -5607,6 +5609,7 @@ def go_gradio(**kwargs):
                            h2ogpt_key2, visible_models2,
                            None, None, None, None,
                            None, None, None, None,
+                           None, None, None, None,
                            None, None,
                            text_output1, text_output21, text_outputs1,
                            )
@@ -5698,6 +5701,7 @@ def go_gradio(**kwargs):
                            model_options_state1, lora_options_state1, server_options_state1,
                            chat_state1, langchain_mode2,
                            h2ogpt_key2, visible_models2,
+                           None, None, None, None,
                            None, None, None, None,
                            None, None, None, None,
                            None, None,
