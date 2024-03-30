@@ -5875,7 +5875,8 @@ def get_limited_prompt(instruction,
     if use_chat_template:
         context2 = apply_chat_template(instruction, system_prompt, history, tokenizer)
         iinput = ''
-        context = ''
+        context1 = ''
+        num_context1_tokens = 0
     else:
         context2 = history_to_context_func(history)
 
