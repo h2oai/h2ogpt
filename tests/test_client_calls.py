@@ -4844,7 +4844,8 @@ vision_models = ['gpt-4-vision-preview', 'gemini-pro-vision',
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
-def test_client1_image_qa(langchain_mode, base_model):
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
@@ -4872,6 +4873,7 @@ def test_client1_image_qa(langchain_mode, base_model):
                   visible_models=base_model,
                   stream_output=False,
                   langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
                   h2ogpt_key=h2ogpt_key)
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -4889,15 +4891,19 @@ def test_client1_image_qa(langchain_mode, base_model):
     response = res_dict['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
-    assert 'license' in response.lower()
 
+    if 'no relevant documents to summarize'.lower() in response.lower() and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        return
+
+    assert 'license' in response.lower()
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
-def test_client1_images_qa(langchain_mode, base_model):
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     image_dir = 'pdf_images'
     makedirs(image_dir)
     os.system('pdftoppm tests/2403.09629.pdf %s/outputname -jpeg' % image_dir)
@@ -4930,11 +4936,15 @@ def test_client1_images_qa(langchain_mode, base_model):
                   visible_models=base_model,
                   stream_output=False,
                   langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
                   h2ogpt_key=h2ogpt_key)
     res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     response = ast.literal_eval(res_dict)['response']
 
     if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in response:
+        return
+
+    if 'no relevant documents to summarize'.lower() in response.lower() and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
         return
 
     # string of dict for output
