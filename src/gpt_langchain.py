@@ -871,7 +871,7 @@ class GradioInference(H2Oagenerate, LLM):
             return ret
 
     def use_gradio_return(self, res_dict, prompt_raw):
-        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', 0)
+        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', self.get_num_tokens(str(prompt_raw)))
         self.prompts.append(res_dict.get('prompt_raw', prompt_raw))
 
     # copy-paste of streaming part of _call() with asyncio.sleep instead
@@ -5893,7 +5893,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             prompt = str(llm.pipeline.prompts)
     elif hasattr(llm, 'prompts') and llm.prompts:
         if isinstance(llm.prompts, list) and len(llm.prompts) == 1:
-            prompt = str(llm.prompts[0])
+            if hasattr(llm.prompts[0], 'text'):
+                prompt = str(llm.prompts[0].text)
+            else:
+                prompt = str(llm.prompts[0])
         else:
             prompt = str(llm.prompts)
     elif hasattr(llm, 'prompter') and llm.prompter.prompt:
