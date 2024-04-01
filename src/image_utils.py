@@ -279,7 +279,7 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
     final_img_files = []
     for img_file1 in img_file:
         if convert:
-            if img_file is not None and os.path.isfile(img_file1):
+            if img_file1 and os.path.isfile(img_file1):
                 from src.vision.utils_vision import img_to_base64
                 img_file1 = img_to_base64(img_file1, str_bytes=str_bytes)
             elif isinstance(img_file1, str):
