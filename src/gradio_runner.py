@@ -6301,7 +6301,7 @@ def go_gradio(**kwargs):
                 model_state3['rag'] = not is_gradio_vision_model(base_model) # FIXME
                 model_state3['image'] = is_vision_model(base_model)
                 model_state3['video'] = is_video_model(base_model)
-            key_list = ['llm', 'rag', 'image', 'video']
+            key_list.extend(['llm', 'rag', 'image', 'video'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,
