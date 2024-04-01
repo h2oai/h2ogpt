@@ -146,7 +146,7 @@ def run_eval(  # for local function:
     append_sources_to_answer = False
     append_sources_to_chat = False
 
-    check_locals(**locals())
+    check_locals(**locals().copy())
 
     if not context:
         context = ''
@@ -243,7 +243,7 @@ def run_eval(  # for local function:
             fun = partial(evaluate,
                           *args,
                           **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
-                                       **locals()))
+                                       **locals().copy()))
         else:
             assert eval_prompts_only_num > 0
 
@@ -275,8 +275,8 @@ def run_eval(  # for local function:
             # grab other parameters, like langchain_mode
             eval_vars = ex.copy()
             for k in eval_func_param_names:
-                if k in locals():
-                    eval_vars[eval_func_param_names.index(k)] = locals()[k]
+                if k in locals().copy():
+                    eval_vars[eval_func_param_names.index(k)] = locals().copy()[k]
 
             gener = fun(*tuple(eval_vars), exi=exi) if eval_as_output else fun(*tuple(eval_vars))
             for res_fun in gener:

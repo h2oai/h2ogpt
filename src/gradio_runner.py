@@ -395,7 +395,7 @@ def go_gradio(**kwargs):
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     allow_upload_api = allow_api and allow_upload
 
-    kwargs.update(locals())
+    kwargs.update(locals().copy())
 
     # import control
     if kwargs['langchain_mode'] != 'Disabled':
@@ -2821,7 +2821,7 @@ def go_gradio(**kwargs):
         # Get inputs to evaluate() and make_db()
         # don't deepcopy, can contain model itself
         all_kwargs = kwargs.copy()
-        all_kwargs.update(locals())
+        all_kwargs.update(locals().copy())
 
         refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode_gr,
                                              captions_model=captions_model,
@@ -6570,7 +6570,7 @@ def go_gradio(**kwargs):
 
     if kwargs['prepare_offline_level'] > 0:
         from src.prepare_offline import go_prepare_offline
-        go_prepare_offline(**locals())
+        go_prepare_offline(**locals().copy())
         return
 
     scheduler = BackgroundScheduler()

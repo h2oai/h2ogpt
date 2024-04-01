@@ -4491,7 +4491,7 @@ def prep_langchain(persist_directory,
             get_wiki_sources(first_para=kwargs_make_db['first_para'], text_limit=kwargs_make_db['text_limit'])
 
         langchain_kwargs = kwargs_make_db.copy()
-        langchain_kwargs.update(locals())
+        langchain_kwargs.update(locals().copy())
         db, num_new_sources, new_sources_metadata = make_db(**langchain_kwargs)
 
     return db
@@ -5801,7 +5801,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     llm_answers = {}
     if hyde_level is not None and hyde_level > 0 and query_action and document_subset not in non_query_commands:
-        query_embedding, llm_answers = yield from run_hyde(**locals())
+        query_embedding, llm_answers = yield from run_hyde(**locals().copy())
         sim_kwargs['query_embedding'] = query_embedding
 
     docs, chain, scores, \

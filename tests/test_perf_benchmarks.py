@@ -54,7 +54,7 @@ results_file = "./benchmarks/perf.json"
 @wrap_test_forked
 def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     reps = 3
-    bench_dict = locals()
+    bench_dict = locals().copy()
     from datetime import datetime
     import json
     import socket
