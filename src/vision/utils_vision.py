@@ -209,7 +209,7 @@ def get_llava_response(file=None,
 
     if len(reses) > 1:
         reses = [x for x in reses if server_error_msg not in x]
-        prompt_with_texts = get_prompt_with_texts(texts, prompt)
+        prompt_with_texts = get_prompt_with_texts(reses, prompt)
         res = client.predict(prompt_with_texts,
                              chat_conversation,
                              None,
