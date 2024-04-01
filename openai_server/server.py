@@ -159,12 +159,19 @@ class ChatResponse(BaseModel):
     usage: dict
 
 
+class Model(BaseModel):
+    id: str
+    object: str = 'model'
+    created: str = 'na'
+    owned_by: str = 'H2O.ai'
+
+
 class ModelInfoResponse(BaseModel):
-    model_name: str
+    model_info: str
 
 
 class ModelListResponse(BaseModel):
-    model_names: List[str]
+    model_names: List[Model]
 
 
 def verify_api_key(authorization: str = Header(None)) -> None:
@@ -269,7 +276,7 @@ async def handle_models(request: Request):
     if not model_name:
         response = {
             "object": "list",
-            "data": base_models,
+            "data": [dict(id=x, object='model', created='NA', owned_by='H2O.ai') for x in base_models],
         }
     else:
         model_index = base_models.index(model_name)
@@ -290,7 +297,7 @@ async def handle_model_info():
 @app.get("/v1/internal/model/list", response_model=ModelListResponse, dependencies=check_key)
 async def handle_list_models():
     from openai_server.backend import get_model_list
-    return JSONResponse(content=get_model_list())
+    return JSONResponse(content=[dict(id=x) for x in get_model_list()])
 
 
 def run_server(host='0.0.0.0',
