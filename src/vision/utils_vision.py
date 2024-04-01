@@ -291,7 +291,7 @@ def get_llava_stream(file, llava_model,
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
         for num in range(job_outputs_num_new):
-            #if max_time is not None and time.time() - t0 > max_time:
+            # if max_time is not None and time.time() - t0 > max_time:
             #    done_all = True
             #    break
             res = outputs_list[job_outputs_nums[ji] + num]
@@ -311,24 +311,25 @@ def get_llava_stream(file, llava_model,
         # recurse without image(s)
         server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
         texts = [x for x in texts if server_error_msg not in x]
-        prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n' + 'Reduce the above information to single correct answer of the following question: ' + prompt
+        prompt_with_texts = '\"\"\"' + '\n\n'.join(
+            texts) + '\"\"\"' + '\n' + 'Reduce the above information to single correct answer of the following question: ' + prompt
         text = ''
         for text in get_llava_stream(None,
-                                llava_model,
-                                prompt=prompt_with_texts,
-                                chat_conversation=chat_conversation,
-                                allow_prompt_auto=allow_prompt_auto,
-                                image_model=image_model,
-                                temperature=temperature,
-                                top_p=top_p,
-                                max_new_tokens=max_new_tokens,
-                                image_process_mode=image_process_mode,
-                                include_image=include_image,
-                                client=client,
-                                verbose_level=verbose_level,
-                                max_time=max_time,
-                                force_stream=force_stream,  # dummy arg
-                                ):
+                                     llava_model,
+                                     prompt=prompt_with_texts,
+                                     chat_conversation=chat_conversation,
+                                     allow_prompt_auto=allow_prompt_auto,
+                                     image_model=image_model,
+                                     temperature=temperature,
+                                     top_p=top_p,
+                                     max_new_tokens=max_new_tokens,
+                                     image_process_mode=image_process_mode,
+                                     include_image=include_image,
+                                     client=client,
+                                     verbose_level=verbose_level,
+                                     max_time=max_time,
+                                     force_stream=force_stream,  # dummy arg
+                                     ):
             yield text
     else:
         assert len(texts) == 1
