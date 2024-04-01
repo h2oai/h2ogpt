@@ -2594,7 +2594,6 @@ def get_inf_models(inference_server):
     elif inference_server.startswith('anthropic'):
         models.extend(list(anthropic_mapping.keys()))
     elif inference_server.startswith('http'):
-        print("get models")
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
         if gr_client is not None:
             res = gr_client.predict(api_name='/model_names')
