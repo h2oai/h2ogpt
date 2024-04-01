@@ -89,7 +89,7 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, AutoTokenizer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts, \
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
     gradio_to_llm, history_for_llm, is_gradio_vision_model
 from stopping import get_stopping
 
