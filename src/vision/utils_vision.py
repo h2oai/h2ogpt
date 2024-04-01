@@ -186,6 +186,8 @@ def get_llava_response(file=None,
         file_list = [file]
     elif isinstance(file, list):
         file_list = file
+        if len(file_list) == 0:
+            file_list = [None]
     else:
         file_list = [None]
 
@@ -256,6 +258,8 @@ def get_llava_stream(file, llava_model,
         file_list = [file]
     elif isinstance(file, list):
         file_list = file
+        if len(file_list) == 0:
+            file_list = [None]
     else:
         file_list = [None]
 
