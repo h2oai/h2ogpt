@@ -69,7 +69,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs
+    groq_mapping_outputs, llava_num_max
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -4510,10 +4510,10 @@ def evaluate(
             if is_gradio_vision_model(base_model) and llava_direct_gradio:
                 where_from = "gr_client for llava"
 
-                num_prompt_tokens += 1500  # estimate for single image
-
                 # NOTE: llava doesn't handle context or system prompt directly
                 img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
+                img_file = img_file[:llava_num_max]
+                num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
                 llava_kwargs = dict(file=img_file,
                                     llava_model=inference_server,
                                     # prompt=instruction,
@@ -4526,7 +4526,7 @@ def evaluate(
                                     max_new_tokens=max_new_tokens,
                                     client=gr_client if not regenerate_gradio_clients else None,
                                     )
-                if not stream_output:
+                if not stream_output and img_file == 1:
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 

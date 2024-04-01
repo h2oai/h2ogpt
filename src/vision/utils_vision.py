@@ -64,8 +64,8 @@ def base64_to_img(img_str, output_path):
 
 
 def fix_llava_prompt(file,
-               prompt=None,
-               allow_prompt_auto=True,
+                     prompt=None,
+                     allow_prompt_auto=True,
                      ):
     if prompt in ['auto', None] and allow_prompt_auto:
         prompt = "Describe the image and what does the image say?"
@@ -82,10 +82,30 @@ def fix_llava_prompt(file,
     return prompt
 
 
-def llava_prep(file,
-                   llava_model,
-                   image_model='llava-v1.6-vicuna-13b',
-                   client=None):
+def llava_prep(file_list,
+               llava_model,
+               image_model='llava-v1.6-vicuna-13b',
+               client=None):
+    assert client is not None
+
+    file_list_new = []
+    image_model_list_new = []
+    for file in file_list:
+        image_model_new, client, file_new = _llava_prep(file,
+                                                        llava_model,
+                                                        image_model=image_model,
+                                                        client=client)
+        file_list_new.append(file_new)
+        image_model_list_new.append(image_model_new)
+    assert len(image_model_list_new) >= 1
+    assert len(file_list_new) >= 1
+    return image_model_list_new[0], client, file_list_new
+
+
+def _llava_prep(file,
+                llava_model,
+                image_model='llava-v1.6-vicuna-13b',
+                client=None):
     prefix = ''
     if llava_model.startswith('http://'):
         prefix = 'http://'
@@ -139,9 +159,13 @@ def get_llava_response(file=None,
                        max_time=None,
                        force_stream=True,
                        ):
-    if isinstance(file, list) and len(file) >= 1:
-        # llava only handles first image if list of images
-        file = file[0]
+    force_stream |= isinstance(file, list) and len(file) > 1
+    if isinstance(file, str):
+        file_list = [file]
+    elif isinstance(file, list):
+        file_list = file
+    else:
+        file_list = [None]
 
     kwargs = locals().copy()
 
@@ -152,24 +176,43 @@ def get_llava_response(file=None,
         return text, prompt
 
     image_model = os.path.basename(image_model)  # in case passed HF link
-    prompt = fix_llava_prompt(file, prompt, allow_prompt_auto=allow_prompt_auto)
+    prompt = fix_llava_prompt(file_list, prompt, allow_prompt_auto=allow_prompt_auto)
 
-    image_model, client, file = \
-        llava_prep(file, llava_model,
+    image_model, client, file_list = \
+        llava_prep(file_list, llava_model,
                    image_model=image_model,
                    client=client)
 
-    res = client.predict(prompt,
-                         chat_conversation,
-                         file,
-                         image_process_mode,
-                         include_image,
-                         image_model,
-                         temperature,
-                         top_p,
-                         max_new_tokens,
-                         api_name='/textbox_api_submit')
-    res = res[-1][-1]
+    reses = []
+    for file in file_list:
+        res = client.predict(prompt,
+                             chat_conversation if len(file_list) == 1 else [],
+                             file,
+                             image_process_mode,
+                             include_image,
+                             image_model,
+                             temperature,
+                             top_p,
+                             max_new_tokens,
+                             api_name='/textbox_api_submit')
+        res = res[-1][-1]
+        reses.append(res)
+
+    if len(reses) > 1:
+        prompt_with_reses = '\"\"\"' + '\n\n'.join(reses) + '\"\"\"' + '\n' + prompt
+        res = client.predict(prompt_with_reses,
+                             chat_conversation,
+                             None,
+                             image_process_mode,
+                             include_image,
+                             image_model,
+                             temperature,
+                             top_p,
+                             max_new_tokens,
+                             api_name='/textbox_api_submit')
+    else:
+        res = reses[0]
+
     return res, prompt
 
 
@@ -186,67 +229,107 @@ def get_llava_stream(file, llava_model,
                      max_time=None,
                      force_stream=True,  # dummy arg
                      ):
-    if isinstance(file, list) and len(file) >= 1:
-        # llava only handles first image if list of images
-        file = file[0]
+    if isinstance(file, str):
+        file_list = [file]
+    elif isinstance(file, list):
+        file_list = file
+    else:
+        file_list = [None]
 
     image_model = os.path.basename(image_model)  # in case passed HF link
-    prompt = fix_llava_prompt(file, prompt, allow_prompt_auto=allow_prompt_auto)
+    prompt = fix_llava_prompt(file_list, prompt, allow_prompt_auto=allow_prompt_auto)
 
-    image_model, client, file = \
-        llava_prep(file, llava_model,
+    image_model, client, file_list = \
+        llava_prep(file_list, llava_model,
                    image_model=image_model,
                    client=client)
 
-    job = client.submit(prompt,
-                        chat_conversation,
-                        file,
-                        image_process_mode,
-                        include_image,
-                        image_model,
-                        temperature,
-                        top_p,
-                        max_new_tokens,
-                        api_name='/textbox_api_submit')
+    jobs = []
+    for file in file_list:
+        job = client.submit(prompt,
+                            chat_conversation,
+                            file,
+                            image_process_mode,
+                            include_image,
+                            image_model,
+                            temperature,
+                            top_p,
+                            max_new_tokens,
+                            api_name='/textbox_api_submit')
+        jobs.append(job)
 
     t0 = time.time()
-    job_outputs_num = 0
-    text = ''
-    while not job.done():
-        if verbose_level == 2:
-            print("Inside: %s" % llava_model, time.time() - t0, flush=True)
-        if max_time is not None and time.time() - t0 > max_time:
-            return text
-        outputs_list = job.outputs().copy()
-        job_outputs_num_new = len(outputs_list[job_outputs_num:])
-        for num in range(job_outputs_num_new):
-            res = outputs_list[job_outputs_num + num]
+    job_outputs_nums = [0] * len(jobs)
+    texts = [''] * len(jobs)
+    done_all = False
+    reses = [None] * len(jobs)
+    while True:
+        for ji, job in enumerate(jobs):
             if verbose_level == 2:
-                print('Stream %d: %s' % (num, res), flush=True)
-            elif verbose_level == 1:
-                print('Stream %d' % (job_outputs_num + num), flush=True)
-            if res and len(res[0]) > 0:
-                text = res[-1][-1]
-                yield text
-        job_outputs_num += job_outputs_num_new
-        time.sleep(0.01)
+                print("Inside: %s" % llava_model, time.time() - t0, flush=True)
+            if max_time is not None and time.time() - t0 > max_time:
+                done_all = True
+                break
+            outputs_list = job.outputs().copy()
+            job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
+            for num in range(job_outputs_num_new):
+                reses[ji] = outputs_list[job_outputs_nums[ji] + num]
+                if verbose_level == 2:
+                    print('Stream %d: %s' % (num, reses[ji]), flush=True)
+                elif verbose_level == 1:
+                    print('Stream %d' % (job_outputs_nums[ji] + num), flush=True)
+                if reses[ji] and len(reses[ji][0]) > 0:
+                    texts[ji] = reses[ji][-1][-1]
+                    if len(jobs) == 1:
+                        yield texts[ji]
+            job_outputs_nums[ji] += job_outputs_num_new
+            time.sleep(0.01)
+        if done_all or all([job.done() for job in jobs]):
+            break
 
-    outputs_list = job.outputs().copy()
-    job_outputs_num_new = len(outputs_list[job_outputs_num:])
-    for num in range(job_outputs_num_new):
-        if max_time is not None and time.time() - t0 > max_time:
-            return text
-        res = outputs_list[job_outputs_num + num]
-        if verbose_level == 2:
-            print('Final Stream %d: %s' % (num, res), flush=True)
-        elif verbose_level == 1:
-            print('Final Stream %d' % (job_outputs_num + num), flush=True)
-        if res and len(res[0]) > 0:
-            text = res[-1][-1]
-            yield text
-    job_outputs_num += job_outputs_num_new
-    if verbose_level == 1:
-        print("total job_outputs_num=%d" % job_outputs_num, flush=True)
+    for ji, job in enumerate(jobs):
+        outputs_list = job.outputs().copy()
+        job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
+        for num in range(job_outputs_num_new):
+            #if max_time is not None and time.time() - t0 > max_time:
+            #    done_all = True
+            #    break
+            res = outputs_list[job_outputs_nums[ji] + num]
+            if verbose_level == 2:
+                print('Final Stream %d: %s' % (num, res), flush=True)
+            elif verbose_level == 1:
+                print('Final Stream %d' % (job_outputs_nums[ji] + num), flush=True)
+            if reses[ji] and len(reses[ji][0]) > 0:
+                texts[ji] = reses[ji][-1][-1]
+                if len(jobs) == 1:
+                    yield texts[ji]
+        job_outputs_nums[ji] += job_outputs_num_new
+        if verbose_level == 1:
+            print("total job_outputs_num=%d" % job_outputs_nums[ji], flush=True)
+
+    if len(jobs) > 1:
+        # recurse without image(s)
+        prompt_with_reses = '\"\"\"' + '\n\n'.join(reses) + '\"\"\"' + '\n' + prompt
+        text = get_llava_stream(None,
+                                llava_model,
+                                prompt=prompt_with_reses,
+                                chat_conversation=chat_conversation,
+                                allow_prompt_auto=allow_prompt_auto,
+                                image_model=image_model,
+                                temperature=temperature,
+                                top_p=top_p,
+                                max_new_tokens=max_new_tokens,
+                                image_process_mode=image_process_mode,
+                                include_image=include_image,
+                                client=client,
+                                verbose_level=verbose_level,
+                                max_time=max_time,
+                                force_stream=force_stream,  # dummy arg
+                                )
+    else:
+        assert len(texts) == 1
+        text = texts[0]
+
     return text
 
 
@@ -306,10 +389,10 @@ def pdf_to_base64_pngs(pdf_path, quality=75, max_size=(1024, 1024), ext='png', p
         page = doc.load_page(page_num)
 
         # Render the page as a PNG image
-        pix = page.get_pixmap(matrix=fitz.Matrix(300/72, 300/72))
+        pix = page.get_pixmap(matrix=fitz.Matrix(300 / 72, 300 / 72))
 
         # Save the PNG image
-        output_path = f"{tempfile.mkdtemp()}/page_{page_num+1}.{ext}"
+        output_path = f"{tempfile.mkdtemp()}/page_{page_num + 1}.{ext}"
         pix.save(output_path)
         images.append(output_path)
     # Close the PDF document
