@@ -297,6 +297,8 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       llamacpp_path='llamacpp_path',
                       regenerate_gradio_clients=True,
                       max_output_seq_len=None,
+                      force_seq2seq_type=False,
+                      force_t5_type=False,
 
                       verbose=False)
     model, tokenizer, device = get_model_retry(reward_type=False,
