@@ -326,22 +326,23 @@ def get_llava_stream(file, llava_model,
             print("texts: %s -> %s" % (ntexts_before, ntexts_after))
         prompt_with_texts = get_prompt_with_texts(texts, prompt)
         text = ''
-        for text in get_llava_stream(None,
-                                     llava_model,
-                                     prompt=prompt_with_texts,
-                                     chat_conversation=chat_conversation,
-                                     allow_prompt_auto=allow_prompt_auto,
-                                     image_model=image_model,
-                                     temperature=temperature,
-                                     top_p=top_p,
-                                     max_new_tokens=max_new_tokens,
-                                     image_process_mode=image_process_mode,
-                                     include_image=include_image,
-                                     client=client,
-                                     verbose_level=verbose_level,
-                                     max_time=max_time,
-                                     force_stream=force_stream,  # dummy arg
-                                     ):
+        for res in get_llava_stream(None,
+                                    llava_model,
+                                    prompt=prompt_with_texts,
+                                    chat_conversation=chat_conversation,
+                                    allow_prompt_auto=allow_prompt_auto,
+                                    image_model=image_model,
+                                    temperature=temperature,
+                                    top_p=top_p,
+                                    max_new_tokens=max_new_tokens,
+                                    image_process_mode=image_process_mode,
+                                    include_image=include_image,
+                                    client=client,
+                                    verbose_level=verbose_level,
+                                    max_time=max_time,
+                                    force_stream=force_stream,  # dummy arg
+                                    ):
+            text = res
             yield text
     else:
         assert len(texts) == 1
