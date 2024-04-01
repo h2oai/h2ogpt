@@ -5885,7 +5885,7 @@ def get_limited_prompt(instruction,
     if not use_chat_template:
         context2 = context2_trial
     else:
-        num_context2_tokens = 0
+        num_instruction_tokens = 0
 
     # limit system prompt
     if prompter:
