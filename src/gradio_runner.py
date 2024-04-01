@@ -6298,7 +6298,7 @@ def go_gradio(**kwargs):
             for model_state3 in local_model_states:
                 base_model = model_state3.get('base_model', '')
                 model_state3['llm'] = True
-                model_state3['rag'] = not is_gradio_vision_model(base_model) # FIXME
+                model_state3['rag'] = True
                 model_state3['image'] = is_vision_model(base_model)
                 model_state3['video'] = is_video_model(base_model)
             key_list.extend(['llm', 'rag', 'image', 'video'])
