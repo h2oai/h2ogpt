@@ -21,7 +21,7 @@ def test_llava_client_stream():
     text = ''
     for res in get_llava_stream(file, llava_model, allow_prompt_auto=True):
         text = res
-    print(text)
+        print(text)
 
     assert 'The image features' in text or 'The image is an illustration' in text
 

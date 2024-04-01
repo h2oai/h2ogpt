@@ -13,10 +13,12 @@ langchain_experimental==0.0.47
 langchain-community==0.0.8
 langsmith==0.0.77
 langchain-core==0.1.6
+
 pypdf>=3.17.1
 # avoid textract, requires old six
 #textract==1.6.5
 pypdfium2>=4.24.0
+
 
 # for HF embeddings
 sentence_transformers>=2.2.2,<2.3.0
@@ -26,10 +28,18 @@ replicate==0.20.0
 anthropic==0.18.1
 langchain-anthropic==0.1.3
 
-langchain-google-genai==0.0.6
-google-generativeai==0.3.2
+langchain-google-genai==0.0.11
+google-generativeai==0.4.1
+
+#langchain_mistralai==0.0.5
+#mistralai==0.1.6
+
 langchain_mistralai==0.0.2
 mistralai==0.0.8
+
+
+groq==0.4.2
+langchain-groq==0.0.1
 
 # local vector db
 chromadb==0.4.23
@@ -55,7 +65,7 @@ docx2txt==0.8
 python-docx==1.1.0
 #pdf2image==1.16.3
 #pytesseract==0.3.10
-pillow>=9.5.0
+pillow>=10.2.0
 posthog
 
 pdfminer.six==20231228
@@ -85,3 +95,14 @@ weaviate-client>=3.25.3
 gradio_pdf>=0.0.4
 
 gradio_tools>=0.0.9
+
+# Qdrant - https://qdrant.tech vector database
+qdrant-client>=1.8.0
+
+certifi>=2023.7.22 # not directly required, pinned by Snyk to avoid a vulnerability
+requests>=2.31.0 # not directly required, pinned by Snyk to avoid a vulnerability
+fastapi>=0.109.1 # not directly required, pinned by Snyk to avoid a vulnerability
+numpy>=1.22.2 # not directly required, pinned by Snyk to avoid a vulnerability
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
+sympy>=1.12 # not directly required, pinned by Snyk to avoid a vulnerability
+wheel>=0.38.0 # not directly required, pinned by Snyk to avoid a vulnerability

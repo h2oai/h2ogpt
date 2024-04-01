@@ -14,6 +14,8 @@ def get_all_requirements():
     for req_name in ['requirements.txt'] + glob.glob('reqs_optional/req*.txt'):
         if 'reqs_constraints.txt' in req_name:
             continue
+        if 'requirements_optional_training.txt' in req_name:
+            continue
         requirements1, reqs_http1 = get_requirements(req_name)
         requirements_all.extend(requirements1)
         reqs_http_all.extend(reqs_http1)

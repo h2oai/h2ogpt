@@ -31,12 +31,14 @@ import numpy as np
 import pandas as pd
 import requests
 import uuid
+import re
 
 import tabulate
 from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
+from src.enums import split_google
 from src.utils_procs import reulimit
 
 reulimit()
@@ -475,11 +477,11 @@ class EThread(threading.Thread):
             if self._target is not None:
                 self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
-            print("thread exception: %s" % str(sys.exc_info()))
+            print("thread exception: %s" % str(traceback.format_exc()))
             self.bucket.put(sys.exc_info())
             self.exc = e
             if self.streamer:
-                print("make stop: %s" % str(sys.exc_info()), flush=True)
+                print("make stop: %s" % str(traceback.format_exc()), flush=True)
                 self.streamer.do_stop = True
         finally:
             # Avoid a refcycle if the thread is running a function with
@@ -1201,13 +1203,17 @@ class FakeTokenizer:
                  encoding_name="cl100k_base",
                  is_openai=False,
                  is_anthropic=False,
+                 is_google=False,
+                 is_hf=False,
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
-            assert not (is_openai or is_anthropic), "Should have set model_max_length for OpenAI or Anthropic"
+            assert not (is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
             model_max_length = 2048
         self.is_openai = is_openai
         self.is_anthropic = is_anthropic
+        self.is_google= is_google
+        self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
@@ -1216,7 +1222,7 @@ class FakeTokenizer:
             self.model_max_length -= 250
         self.encoding_name = encoding_name
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        if not self.is_anthropic:
+        if not (self.is_anthropic or self.is_google):
             import tiktoken
             self.encoding = tiktoken.get_encoding(self.encoding_name)
         else:
@@ -1230,6 +1236,10 @@ class FakeTokenizer:
             client = Anthropic()
             tokenizer = client.get_tokenizer()
             input_ids = tokenizer.encode(x).ids
+        elif self.is_google:
+            input_ids = [0] * self.tokenizer(x).total_tokens  # fake tokens
+        elif self.is_hf:
+            input_ids = self.tokenizer.encode(x)
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
@@ -1245,6 +1255,10 @@ class FakeTokenizer:
             client = Anthropic()
             tokenizer = client.get_tokenizer()
             return tokenizer.decode(x)
+        elif self.is_google:
+            return ['a'] * len(x)  # fake
+        elif self.is_hf:
+            return self.tokenizer.decode(x)
         # input is input_ids[0] form
         return self.encoding.decode(x)
 
@@ -1254,6 +1268,10 @@ class FakeTokenizer:
             from anthropic import Anthropic
             client = Anthropic()
             return client.count_tokens(prompt)
+        elif self.is_google:
+            return self.tokenizer(prompt)
+        elif self.is_hf:
+            return len(self.tokenizer.encode(prompt))
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
 
@@ -1880,7 +1898,11 @@ def str_to_list(x, allow_none=False):
     if isinstance(x, str):
         if len(x.strip()) > 0:
             if x.strip().startswith('['):
-                x = ast.literal_eval(x.strip())
+                try:
+                    x = ast.literal_eval(x.strip())
+                except Exception:
+                    print("bad x: %s" % x, flush=True)
+                    raise
             else:
                 raise ValueError("Invalid str_to_list for %s" % x)
         else:
@@ -2083,3 +2105,17 @@ def merge_dict(dict1, dict2):
     ret = dict1.copy()
     ret.update(dict2)
     return ret
+
+
+def is_uuid4(string):
+    # Regular expression to match the UUID v4 format
+    pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$', re.IGNORECASE)
+    return bool(pattern.match(string))
+
+
+def get_show_username(username1):
+    if split_google in username1:
+        show_username = split_google.join(username1.split(split_google)[0:1])
+    else:
+        show_username = username1
+    return show_username

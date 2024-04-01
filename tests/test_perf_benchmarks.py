@@ -54,7 +54,7 @@ results_file = "./benchmarks/perf.json"
 @wrap_test_forked
 def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
     reps = 3
-    bench_dict = locals()
+    bench_dict = locals().copy()
     from datetime import datetime
     import json
     import socket
@@ -180,6 +180,7 @@ def test_perf_benchmarks(backend, base_model, task, bits, ngpus):
                           max_new_tokens=max_new_tokens,
                           max_time=300,
                           do_sample=False,
+                          seed=1234,
                           prompt_summary='Summarize into single paragraph',
                           system_prompt='',
                           )

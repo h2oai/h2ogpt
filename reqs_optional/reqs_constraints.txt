@@ -2,3 +2,4 @@
 torch==2.2.1
 gradio==4.20.1
 gradio_client==0.11.0
+transformers==4.39.2

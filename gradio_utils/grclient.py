@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import concurrent
 import difflib
 import traceback
 import os
-import concurrent.futures
 import time
 import urllib.parse
 import uuid
@@ -12,9 +12,10 @@ from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Generator, Any, Union, List
+from typing import Callable, Generator, Any, Union, List, Dict, Optional
 import ast
-from packaging import version
+import inspect
+import numpy as np
 
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
@@ -27,13 +28,28 @@ from gradio_client import utils
 
 from importlib.metadata import distribution, PackageNotFoundError
 
+from pydantic import BaseModel
+
+
+class ReturnType(BaseModel):
+    reply: str | list[str] | None
+    prompt_raw: str | None
+    actual_llm: str | None
+    text_context_list: list[str] | None = []
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    tokens_per_second: Optional[float] = None
+
+
 try:
-    assert distribution('gradio_client') is not None
+    assert distribution("gradio_client") is not None
     have_gradio_client = True
     from packaging import version
 
-    client_version = distribution('gradio_client').version
-    is_gradio_client_version7plus = version.parse(client_version) >= version.parse("0.7.0")
+    client_version = distribution("gradio_client").version
+    is_gradio_client_version7plus = version.parse(client_version) >= version.parse(
+        "0.7.0"
+    )
 except (PackageNotFoundError, AssertionError):
     have_gradio_client = False
     is_gradio_client_version7plus = False
@@ -73,8 +89,12 @@ prompt_query0 = "According to only the information in the document sources provi
 pre_prompt_summary0 = """"""
 prompt_summary0 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
 
-pre_prompt_extraction0 = """In order to extract information, pay attention to the following text."""
-prompt_extraction0 = "Using only the information in the document sources above, extract "
+pre_prompt_extraction0 = (
+    """In order to extract information, pay attention to the following text."""
+)
+prompt_extraction0 = (
+    "Using only the information in the document sources above, extract "
+)
 
 hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
@@ -86,22 +106,21 @@ class GradioClient(Client):
     """
 
     def __init__(
-            self,
-            src: str,
-            hf_token: str | None = None,
-            max_workers: int = 40,
-            serialize: bool | None = None,
-            output_dir: str | Path | None = DEFAULT_TEMP_DIR,
-            verbose: bool = False,
-            auth: tuple[str, str] | None = None,
-            headers: dict[str, str] | None = None,
-            upload_files: bool = True,
-            download_files: bool = True,
-
-            h2ogpt_key: str = None,
-            persist: bool = False,
-            check_hash: bool = True,
-            check_model_name: bool = False,
+        self,
+        src: str,
+        hf_token: str | None = None,
+        max_workers: int = 40,
+        serialize: bool | None = None,
+        output_dir: str | Path | None = DEFAULT_TEMP_DIR,
+        verbose: bool = False,
+        auth: tuple[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        upload_files: bool = True,
+        download_files: bool = True,
+        h2ogpt_key: str = None,
+        persist: bool = False,
+        check_hash: bool = True,
+        check_model_name: bool = False,
     ):
         """
         Parameters:
@@ -132,7 +151,7 @@ class GradioClient(Client):
         )
         if is_gradio_client_version7plus:
             # 4.18.0:
-            #self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
+            # self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
             # 4.17.0:
             self.kwargs.update(dict(auth=auth))
 
@@ -189,8 +208,11 @@ class GradioClient(Client):
         )
         if headers0:
             self.headers.update(headers0)
-        if 'authorization' in self.headers and self.headers['authorization'] == 'Bearer ':
-            self.headers['authorization'] = 'Bearer hf_xx'
+        if (
+            "authorization" in self.headers
+            and self.headers["authorization"] == "Bearer "
+        ):
+            self.headers["authorization"] = "Bearer hf_xx"
         if src.startswith("http://") or src.startswith("https://"):
             _src = src if src.endswith("/") else src + "/"
         else:
@@ -259,8 +281,11 @@ class GradioClient(Client):
         )
         if is_gradio_client_version7plus:
             from gradio_client.client import EndpointV3Compatibility
+
             endpoint_class = (
-                Endpoint if client.protocol.startswith("sse") else EndpointV3Compatibility
+                Endpoint
+                if client.protocol.startswith("sse")
+                else EndpointV3Compatibility
             )
         else:
             endpoint_class = Endpoint
@@ -279,6 +304,7 @@ class GradioClient(Client):
             client.stream_open = False
             client.streaming_future = None
             from gradio_client.utils import Message
+
             client.pending_messages_per_event = {}
             client.pending_event_ids = set()
         if verbose:
@@ -309,12 +335,16 @@ class GradioClient(Client):
         server_hash = self.get_server_hash()
         if self.server_hash != server_hash:
             if self.verbose:
-                print("server hash changed: %s %s" % (self.server_hash, server_hash), flush=True)
+                print(
+                    "server hash changed: %s %s" % (self.server_hash, server_hash),
+                    flush=True,
+                )
             if self.server_hash is not None and self.persist:
                 if self.verbose:
                     print(
                         "Failed to persist due to server hash change, only kept chat_conversation not user session hash",
-                        flush=True)
+                        flush=True,
+                    )
             # risky to persist if hash changed
             self.refresh_client()
             self.server_hash = server_hash
@@ -329,10 +359,10 @@ class GradioClient(Client):
             self.setup()
 
         kwargs = self.kwargs.copy()
-        kwargs.pop('h2ogpt_key', None)
-        kwargs.pop('persist', None)
-        kwargs.pop('check_hash', None)
-        kwargs.pop('check_model_name', None)
+        kwargs.pop("h2ogpt_key", None)
+        kwargs.pop("persist", None)
+        kwargs.pop("check_hash", None)
+        kwargs.pop("check_model_name", None)
         ntrials = 3
         client = None
         for trial in range(0, ntrials + 1):
@@ -375,12 +405,12 @@ class GradioClient(Client):
         return client
 
     def submit(
-            self,
-            *args,
-            api_name: str | None = None,
-            fn_index: int | None = None,
-            result_callbacks: Callable | list[Callable] | None = None,
-            exception_handling=True,  # new_stream = True, can make False, doesn't matter.
+        self,
+        *args,
+        api_name: str | None = None,
+        fn_index: int | None = None,
+        result_callbacks: Callable | list[Callable] | None = None,
+        exception_handling=True,  # new_stream = True, can make False, doesn't matter.
     ) -> Job:
         if self.config is None:
             self.setup()
@@ -422,10 +452,10 @@ class GradioClient(Client):
         """
         kwargs["instruction"] = kwargs.get("instruction", instruction)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
-        kwargs["langchain_mode"] = 'LLM'
-        ret = ''
-        for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
-            ret = response
+        kwargs["langchain_mode"] = "LLM"
+        ret = ""
+        for ret1 in self.query_or_summarize_or_extract(*args, **kwargs):
+            ret = ret1.reply
         return ret
 
     def question_stream(self, instruction, *args, **kwargs) -> str:
@@ -434,7 +464,7 @@ class GradioClient(Client):
         """
         kwargs["instruction"] = kwargs.get("instruction", instruction)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
-        kwargs["langchain_mode"] = 'LLM'
+        kwargs["langchain_mode"] = "LLM"
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
@@ -444,12 +474,14 @@ class GradioClient(Client):
         """
         kwargs["instruction"] = kwargs.get("instruction", query)
         kwargs["langchain_action"] = LangChainAction.QUERY.value
-        ret = ''
-        for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
-            ret = response
+        ret = ""
+        for ret1 in self.query_or_summarize_or_extract(*args, **kwargs):
+            ret = ret1.reply
         return ret
 
-    def query_stream(self, query, *args, **kwargs) -> Generator[tuple[str | list[str], list[str]], None, None]:
+    def query_stream(
+        self, query, *args, **kwargs
+    ) -> Generator[tuple[str | list[str], list[str]], None, None]:
         """
         Search for documents matching a query, then ask that query to LLM with those documents
         """
@@ -463,12 +495,14 @@ class GradioClient(Client):
         Search for documents matching a focus, then ask a query to LLM with those documents
         If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
         """
-        kwargs["prompt_summary"] = kwargs.get("prompt_summary", query or prompt_summary0)
-        kwargs["instruction"] = kwargs.get('instruction', focus)
+        kwargs["prompt_summary"] = kwargs.get(
+            "prompt_summary", query or prompt_summary0
+        )
+        kwargs["instruction"] = kwargs.get("instruction", focus)
         kwargs["langchain_action"] = LangChainAction.SUMMARIZE_MAP.value
-        ret = ''
-        for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
-            ret = response
+        ret = ""
+        for ret1 in self.query_or_summarize_or_extract(*args, **kwargs):
+            ret = ret1.reply
         return ret
 
     def summarize_stream(self, *args, query=None, focus=None, **kwargs) -> str:
@@ -476,8 +510,10 @@ class GradioClient(Client):
         Search for documents matching a focus, then ask a query to LLM with those documents
         If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
         """
-        kwargs["prompt_summary"] = kwargs.get("prompt_summary", query or prompt_summary0)
-        kwargs["instruction"] = kwargs.get('instruction', focus)
+        kwargs["prompt_summary"] = kwargs.get(
+            "prompt_summary", query or prompt_summary0
+        )
+        kwargs["instruction"] = kwargs.get("instruction", focus)
         kwargs["langchain_action"] = LangChainAction.SUMMARIZE_MAP.value
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
@@ -487,12 +523,14 @@ class GradioClient(Client):
         Search for documents matching a focus, then ask a query to LLM with those documents
         If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
         """
-        kwargs["prompt_extraction"] = kwargs.get("prompt_extraction", query or prompt_extraction0)
-        kwargs["instruction"] = kwargs.get('instruction', focus)
+        kwargs["prompt_extraction"] = kwargs.get(
+            "prompt_extraction", query or prompt_extraction0
+        )
+        kwargs["instruction"] = kwargs.get("instruction", focus)
         kwargs["langchain_action"] = LangChainAction.EXTRACT.value
-        ret = ''
-        for response, texts_out in self.query_or_summarize_or_extract(*args, **kwargs):
-            ret = response
+        ret = ""
+        for ret1 in self.query_or_summarize_or_extract(*args, **kwargs):
+            ret = ret1.reply
         return ret
 
     def extract_stream(self, *args, query=None, focus=None, **kwargs) -> list[str]:
@@ -500,72 +538,132 @@ class GradioClient(Client):
         Search for documents matching a focus, then ask a query to LLM with those documents
         If focus "" or None, no similarity search is done and all documents (up to top_k_docs) are used
         """
-        kwargs["prompt_extraction"] = kwargs.get("prompt_extraction", query or prompt_extraction0)
-        kwargs["instruction"] = kwargs.get('instruction', focus)
+        kwargs["prompt_extraction"] = kwargs.get(
+            "prompt_extraction", query or prompt_extraction0
+        )
+        kwargs["instruction"] = kwargs.get("instruction", focus)
         kwargs["langchain_action"] = LangChainAction.EXTRACT.value
         ret = yield from self.query_or_summarize_or_extract(*args, **kwargs)
         return ret
 
-    def query_or_summarize_or_extract(self,
-                                      h2ogpt_key: str = None,
+    def get_client_kwargs(self, **kwargs):
+        client_kwargs = {}
+        try:
+            from src.evaluate_params import eval_func_param_names
+        except ModuleNotFoundError:
+            from .src.evaluate_params import eval_func_param_names
 
-                                      instruction: str = "",
+        for k in eval_func_param_names:
+            if k in kwargs:
+                client_kwargs[k] = kwargs[k]
 
-                                      text: list[str] | str | None = None,
-                                      file: list[str] | str | None = None,
-                                      url: list[str] | str | None = None,
-                                      embed: bool = True,
-                                      chunk: bool = True,
-                                      chunk_size: int = 512,
+        if os.getenv("HARD_ASSERTS"):
+            fun_kwargs = {
+                k: v.default
+                for k, v in dict(
+                    inspect.signature(self.query_or_summarize_or_extract).parameters
+                ).items()
+            }
+            diff = set(eval_func_param_names).difference(fun_kwargs)
+            assert len(diff) == 0, "Add entries: %s" % diff
 
-                                      langchain_mode: str = None,
-                                      langchain_action: str | None = None,
-                                      langchain_agents: List[str] = [],
-                                      top_k_docs: int = 10,
-                                      document_choice: Union[str, List[str]] = "All",
-                                      document_subset: str = "Relevant",
-                                      document_source_substrings: Union[str, List[str]] = [],
-                                      document_source_substrings_op: str = 'and',
-                                      document_content_substrings: Union[str, List[str]] = [],
-                                      document_content_substrings_op: str = 'and',
+        return client_kwargs
 
-                                      system_prompt: str | None = '',
-                                      pre_prompt_query: str | None = pre_prompt_query0,
-                                      prompt_query: str | None = prompt_query0,
-                                      pre_prompt_summary: str | None = pre_prompt_summary0,
-                                      prompt_summary: str | None = prompt_summary0,
-                                      pre_prompt_extraction: str | None = pre_prompt_extraction0,
-                                      prompt_extraction: str | None = prompt_extraction0,
-                                      hyde_llm_prompt: str | None = hyde_llm_prompt0,
+    def get_query_kwargs(self, **kwargs):
+        fun_dict = dict(
+            inspect.signature(self.query_or_summarize_or_extract).parameters
+        ).items()
+        fun_kwargs = {k: kwargs.get(k, v.default) for k, v in fun_dict}
 
-                                      model: str | int | None = None,
-                                      stream_output: bool = False,
-                                      do_sample: bool = False,
-                                      temperature: float = 0.0,
-                                      top_p: float = 0.75,
-                                      top_k: int = 40,
-                                      repetition_penalty: float = 1.07,
-                                      penalty_alpha: float = 0.0,
-                                      max_time: int = 360,
-                                      max_new_tokens: int = 1024,
+        return fun_kwargs
 
-                                      add_search_to_context: bool = False,
-                                      chat_conversation: list[tuple[str, str]] | None = None,
-                                      text_context_list: list[str] | None = None,
-                                      docs_ordering_type: str | None = None,
-                                      min_max_new_tokens: int = 512,
-                                      max_input_tokens: int = -1,
-                                      max_total_input_tokens: int = -1,
-                                      docs_token_handling: str = "split_or_merge",
-                                      docs_joiner: str = "\n\n",
-                                      hyde_level: int = 0,
-                                      hyde_template: str = None,
-                                      hyde_show_only_final: bool = True,
-                                      doc_json_mode: bool = False,
-                                      metadata_in_context: list = [],
-
-                                      asserts: bool = False,
-                                      ) -> Generator[tuple[str | list[str], list[str]], None, None]:
+    def query_or_summarize_or_extract(
+        self,
+        print_error=print,
+        print_info=print,
+        print_warning=print,
+        bad_error_string=None,
+        sanitize_llm=None,
+        h2ogpt_key: str = None,
+        instruction: str = "",
+        text: list[str] | str | None = None,
+        file: list[str] | str | None = None,
+        url: list[str] | str | None = None,
+        embed: bool = True,
+        chunk: bool = True,
+        chunk_size: int = 512,
+        langchain_mode: str = None,
+        langchain_action: str | None = None,
+        langchain_agents: List[str] = [],
+        top_k_docs: int = 10,
+        document_choice: Union[str, List[str]] = "All",
+        document_subset: str = "Relevant",
+        document_source_substrings: Union[str, List[str]] = [],
+        document_source_substrings_op: str = "and",
+        document_content_substrings: Union[str, List[str]] = [],
+        document_content_substrings_op: str = "and",
+        system_prompt: str | None = "",
+        pre_prompt_query: str | None = pre_prompt_query0,
+        prompt_query: str | None = prompt_query0,
+        pre_prompt_summary: str | None = pre_prompt_summary0,
+        prompt_summary: str | None = prompt_summary0,
+        pre_prompt_extraction: str | None = pre_prompt_extraction0,
+        prompt_extraction: str | None = prompt_extraction0,
+        hyde_llm_prompt: str | None = hyde_llm_prompt0,
+        model: str | int | None = None,
+        stream_output: bool = False,
+        do_sample: bool = False,
+        seed: int | None = 0,
+        temperature: float = 0.0,
+        top_p: float = 1.0,
+        top_k: int = 40,
+        repetition_penalty: float = 1.07,
+        penalty_alpha: float = 0.0,
+        max_time: int = 360,
+        max_new_tokens: int = 1024,
+        add_search_to_context: bool = False,
+        chat_conversation: list[tuple[str, str]] | None = None,
+        text_context_list: list[str] | None = None,
+        docs_ordering_type: str | None = None,
+        min_max_new_tokens: int = 512,
+        max_input_tokens: int = -1,
+        max_total_input_tokens: int = -1,
+        docs_token_handling: str = "split_or_merge",
+        docs_joiner: str = "\n\n",
+        hyde_level: int = 0,
+        hyde_template: str = None,
+        hyde_show_only_final: bool = True,
+        doc_json_mode: bool = False,
+        metadata_in_context: list = [],
+        image_file: Union[str, list] = None,
+        image_control: str = None,
+        prompt_type: Union[int, str] = None,
+        prompt_dict: Dict = None,
+        jq_schema=".[]",
+        llava_model: str = None,
+        llava_prompt: str = "auto",
+        image_audio_loaders: list = None,
+        url_loaders: list = None,
+        pdf_loaders: list = None,
+        extract_frames: int = 10,
+        add_chat_history_to_context: bool = True,
+        chatbot_role: str = "None",  # "Female AI Assistant",
+        speaker: str = "None",  # "SLT (female)",
+        tts_language: str = "autodetect",
+        tts_speed: float = 1.0,
+        visible_image_models: List[str] = [],
+        visible_models: Union[str, int, list] = None,
+        num_return_sequences: int = None,  # don't use
+        chat: bool = True,  # don't use
+        min_new_tokens: int = None,  # don't use
+        early_stopping: Union[bool, str] = None,  # don't use
+        iinput: str = "",  # don't use
+        iinput_nochat: str = "",  # don't use
+        instruction_nochat: str = "",  # don't use
+        context: str = "",  # don't use
+        num_beams: int = 1,  # don't use
+        asserts: bool = False,
+    ) -> Generator[ReturnType, None, None]:
         """
         Query or Summarize or Extract using h2oGPT
         Args:
@@ -629,6 +727,7 @@ class GradioClient(Client):
             pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
             prompt_extraction: Same as prompt_summary but for when doing extraction
             do_sample: see src/gen.py
+            seed: see src/gen.py
             temperature: see src/gen.py
             top_p: see src/gen.py
             top_k: see src/gen.py
@@ -638,9 +737,7 @@ class GradioClient(Client):
             min_max_new_tokens: see src/gen.py
             max_input_tokens: see src/gen.py
             max_total_input_tokens: see src/gen.py
-
             stream_output: Whether to stream output
-            do_sample: whether to sample
             max_time: how long to take
 
             add_search_to_context: Whether to do web search and add results to context
@@ -669,6 +766,47 @@ class GradioClient(Client):
             doc_json_mode: see src/gen.py
             metadata_in_context: see src/gen.py
 
+
+            :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
+            :param image_control: Initial image for UI Image Control
+
+            :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
+            :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+
+            :param jq_schema: control json loader
+                   By default '.[]' ingests everything in brute-force way, but better to match your schema
+                   See: https://python.langchain.com/docs/modules/data_connection/document_loaders/json#using-jsonloader
+
+            :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
+
+            :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
+                   E.g. http://192.168.1.46:7861
+                   None means no such LLaVa support
+            :param llava_prompt: Prompt passed to LLaVa for querying the image
+
+            :param image_audio_loaders: which loaders to use for image and audio parsing (None means default)
+            :param url_loaders: which loaders to use for url parsing (None means default)
+            :param pdf_loaders: which loaders to use for pdf parsing (None means default)
+
+            :param add_chat_history_to_context: Include chat context when performing action
+                   Not supported when using CLI mode
+
+            :param chatbot_role: Default role for coqui models.  If 'None', then don't by default speak when launching h2oGPT for coqui model choice.
+            :param speaker: Default speaker for microsoft models  If 'None', then don't by default speak when launching h2oGPT for microsoft model choice.
+            :param tts_language: Default language for coqui models
+            :param tts_speed: Default speed of TTS, < 1.0 (needs rubberband) for slower than normal, > 1.0 for faster.  Tries to keep fixed pitch.
+
+            :param visible_image_models: Which image gen models to include
+            :param visible_models: Which models in model_lock list to show by default
+                   Takes integers of position in model_lock (model_states) list or strings of base_model names
+                   Ignored if model_lock not used
+                   For nochat API, this is single item within a list for model by name or by index in model_lock
+                                        If None, then just use first model in model_lock list
+                                        If model_lock not set, use model selected by CLI --base_model etc.
+                   Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
+                      and the value is not used to access the inference server.
+                      If need a visible_models for an inference server, then use --model_lock and group together.
+
             asserts: whether to do asserts to ensure handling is correct
 
         Returns: summary/answer: str or extraction List[str]
@@ -683,6 +821,8 @@ class GradioClient(Client):
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
 
+        if model is not None and visible_models is None:
+            visible_models = model
         self.check_model(model)
 
         # chunking not used here
@@ -692,11 +832,11 @@ class GradioClient(Client):
         doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
         asserts |= bool(os.getenv("HARD_ASSERTS", False))
         if (
-                text
-                and isinstance(text, list)
-                and not file
-                and not url
-                and not text_context_list
+            text
+            and isinstance(text, list)
+            and not file
+            and not url
+            and not text_context_list
         ):
             # then can do optimized text-only path
             text_context_list = text
@@ -709,7 +849,7 @@ class GradioClient(Client):
                 text, *doc_options, *loaders, h2ogpt_key, api_name="/add_text"
             )
             t1 = time.time()
-            print("upload text: %s" % str(timedelta(seconds=t1 - t0)), flush=True)
+            print_info("upload text: %s" % str(timedelta(seconds=t1 - t0)))
             if asserts:
                 assert res[0] is None
                 assert res[1] == langchain_mode
@@ -739,68 +879,29 @@ class GradioClient(Client):
                 assert res[3] == ""
                 assert res[4]  # should have file name or something similar
         if res and not res[4] and "Exception" in res[2]:
-            print("Exception: %s" % res[2], flush=True)
+            print_error("Exception: %s" % res[2])
 
         # ask for summary, need to use same client if using MyData
         api_name = "/submit_nochat_api"  # NOTE: like submit_nochat but stable API for string dict passing
 
-        pre_prompt_summary = pre_prompt_summary \
-            if langchain_action == LangChainAction.SUMMARIZE_MAP.value \
+        pre_prompt_summary = (
+            pre_prompt_summary
+            if langchain_action == LangChainAction.SUMMARIZE_MAP.value
             else pre_prompt_extraction
-        prompt_summary = prompt_summary \
-            if langchain_action == LangChainAction.SUMMARIZE_MAP.value \
-            else prompt_extraction
-
-        kwargs = dict(
-            h2ogpt_key=h2ogpt_key,
-
-            instruction=instruction,
-
-            langchain_mode=langchain_mode,
-            langchain_action=langchain_action,  # uses full document, not vectorDB chunks
-            langchain_agents=langchain_agents,
-            top_k_docs=top_k_docs,
-            document_choice=document_choice,
-            document_subset=document_subset,
-            document_source_substrings=document_source_substrings,
-            document_source_substrings_op=document_source_substrings_op,
-            document_content_substrings=document_content_substrings,
-            document_content_substrings_op=document_content_substrings_op,
-
-            system_prompt=system_prompt,
-            pre_prompt_query=pre_prompt_query,
-            prompt_query=prompt_query,
-            pre_prompt_summary=pre_prompt_summary,
-            prompt_summary=prompt_summary,
-            hyde_llm_prompt=hyde_llm_prompt,
-
-            visible_models=model,
-            stream_output=stream_output,
-            do_sample=do_sample,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            repetition_penalty=repetition_penalty,
-            penalty_alpha=penalty_alpha,
-            max_time=max_time,
-            max_new_tokens=max_new_tokens,
-
-            add_search_to_context=add_search_to_context,
-            chat_conversation=chat_conversation if chat_conversation else self.chat_conversation,
-            text_context_list=text_context_list,
-            docs_ordering_type=docs_ordering_type,
-            min_max_new_tokens=min_max_new_tokens,
-            max_input_tokens=max_input_tokens,
-            max_total_input_tokens=max_total_input_tokens,
-            docs_token_handling=docs_token_handling,
-            docs_joiner=docs_joiner,
-            hyde_level=hyde_level,
-            hyde_template=hyde_template,
-            hyde_show_only_final=hyde_show_only_final,
-            doc_json_mode=doc_json_mode,
-            metadata_in_context=metadata_in_context,
-            model = model
         )
+        prompt_summary = (
+            prompt_summary
+            if langchain_action == LangChainAction.SUMMARIZE_MAP.value
+            else prompt_extraction
+        )
+
+        chat_conversation = (
+            chat_conversation if chat_conversation else self.chat_conversation.copy()
+        )
+
+        locals_for_client = locals().copy()
+        locals_for_client.pop("self", None)
+        client_kwargs = self.get_client_kwargs(**locals_for_client)
 
         # in case server changed, update in case clone()
         self.server_hash = client.server_hash
@@ -809,39 +910,80 @@ class GradioClient(Client):
         self.chat_conversation.append((instruction, None))
 
         # get result
+        actual_llm = None
+        response = ""
+        texts_out = []
         trials = 3
+        t0 = time.time()
         for trial in range(trials):
+            t0 = time.time()
             try:
                 if not stream_output:
                     res = client.predict(
-                        str(dict(kwargs)),
+                        str(dict(client_kwargs)),
                         api_name=api_name,
                     )
+                    t_taken_s = time.time() - t0
                     # in case server changed, update in case clone()
                     self.server_hash = client.server_hash
-                    res = ast.literal_eval(res)
-                    response = res["response"]
+                    res_dict = ast.literal_eval(res)
+                    response = res_dict["response"]
                     if langchain_action != LangChainAction.EXTRACT.value:
                         response = response.strip()
                     else:
                         response = [r.strip() for r in ast.literal_eval(response)]
-                    sources = res["sources"]
+                    sources = res_dict["sources"]
                     scores_out = [x["score"] for x in sources]
                     texts_out = [x["content"] for x in sources]
+                    prompt_raw = res_dict.get("prompt_raw", "")
+
+                    try:
+                        actual_llm = res_dict["save_dict"][
+                            "base_model"
+                        ]  # fast path
+                    except Exception as e:
+                        print_warning(
+                            f"Unable to access save_dict to get actual_llm: {str(e)}"
+                        )
+                        actual_llm = (
+                            sanitize_llm(visible_models)
+                            if sanitize_llm is not None
+                            else visible_models
+                        )
+
+                    try:
+                        extra_dict = res_dict["save_dict"]["extra_dict"]
+                        input_tokens = extra_dict["num_prompt_tokens"]
+                        output_tokens = extra_dict["ntokens"]
+                        tokens_per_second = np.round(
+                            extra_dict["tokens_persecond"], decimals=3
+                        )
+                    except:
+                        if os.getenv("HARD_ASSERTS"):
+                            raise
+                        input_tokens = output_tokens = tokens_per_second = None
                     if asserts:
                         if text and not file and not url:
                             assert any(
-                                text[:cutoff] == texts_out for cutoff in range(len(text))
+                                text[:cutoff] == texts_out
+                                for cutoff in range(len(text))
                             )
                         assert len(texts_out) == len(scores_out)
 
-                    yield response, texts_out
+                    yield ReturnType(
+                        reply=response,
+                        text_context_list=texts_out,
+                        prompt_raw=prompt_raw,
+                        actual_llm=actual_llm,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        tokens_per_second=tokens_per_second,
+                    )
+
                     self.chat_conversation[-1] = (instruction, response)
                 else:
-                    job = client.submit(str(dict(kwargs)), api_name=api_name)
+                    job = client.submit(str(dict(client_kwargs)), api_name=api_name)
                     text0 = ""
-                    response = ""
-                    texts_out = []
                     while not job.done():
                         e = check_job(job, timeout=0, raise_exception=False)
                         if e is not None:
@@ -851,13 +993,21 @@ class GradioClient(Client):
                             res = outputs_list[-1]
                             res_dict = ast.literal_eval(res)
                             response = res_dict["response"]  # keeps growing
-                            text_chunk = response[len(text0):]  # only keep new stuff
+                            prompt_raw = res_dict.get(
+                                "prompt_raw", ""
+                            )  # only filled at end
+                            text_chunk = response[len(text0) :]  # only keep new stuff
                             if not text_chunk:
                                 time.sleep(0.001)
                                 continue
                             text0 = response
                             assert text_chunk, "must yield non-empty string"
-                            yield text_chunk, texts_out
+                            yield ReturnType(
+                                reply=text_chunk,
+                                text_context_list=texts_out,
+                                prompt_raw=prompt_raw,
+                                actual_llm=actual_llm,
+                            )
                         time.sleep(0.01)
 
                     # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
@@ -865,43 +1015,145 @@ class GradioClient(Client):
                     success = job.communicator.job.latest_status.success
                     timeout = 0.1 if success else 10
                     if len(res_all) > 0:
-                        check_job(job, timeout=timeout, raise_exception=True)
+                        try:
+                            check_job(job, timeout=timeout, raise_exception=True)
+                        except (
+                            Exception
+                        ) as e:  # FIXME - except TimeoutError once h2ogpt raises that.
+                            if "Abrupt termination of communication" in str(e):
+                                actual_llm = (
+                                    sanitize_llm(visible_models)
+                                    if sanitize_llm is not None
+                                    else visible_models
+                                )
+                                t_taken = "%.4f" % (time.time() - t0)
+                                raise TimeoutError(
+                                    f"LLM {actual_llm} timed out after {t_taken} seconds."
+                                )
+                            else:
+                                raise
 
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
                         response = res_dict["response"]
                         sources = res_dict["sources"]
+                        prompt_raw = res_dict["prompt_raw"]
                         texts_out = [x["content"] for x in sources]
-                        yield response[len(text0):], texts_out
-                        self.chat_conversation[-1] = (instruction, response[len(text0):])
+                        t_taken_s = time.time() - t0
+                        t_taken = "%.4f" % t_taken_s
+                        if langchain_action != LangChainAction.EXTRACT.value:
+                            if not (response.strip()):
+                                actual_llm = (
+                                    sanitize_llm(visible_models)
+                                    if sanitize_llm is not None
+                                    else visible_models
+                                )
+                                raise TimeoutError(
+                                    f"No output from LLM {actual_llm} after {t_taken} seconds."
+                                )
+                        else:
+                            if not all(r.strip() for r in ast.literal_eval(response)):
+                                actual_llm = (
+                                    sanitize_llm(visible_models)
+                                    if sanitize_llm is not None
+                                    else visible_models
+                                )
+                                raise TimeoutError(
+                                    f"No output from LLM {actual_llm} after {t_taken} seconds."
+                                )
+                        try:
+                            extra_dict = res_dict["save_dict"]["extra_dict"]
+                            input_tokens = extra_dict["num_prompt_tokens"]
+                            output_tokens = extra_dict["ntokens"]
+                            tokens_per_second = np.round(
+                                extra_dict["tokens_persecond"], decimals=3
+                            )
+                        except:
+                            if os.getenv("HARD_ASSERTS"):
+                                raise
+                            input_tokens = output_tokens = tokens_per_second = None
+
+                        try:
+                            actual_llm = res_dict["save_dict"][
+                                "base_model"
+                            ]  # fast path
+                        except Exception as e:
+                            print_warning(
+                                f"Unable to access save_dict to get actual_llm: {str(e)}"
+                            )
+                            actual_llm = (
+                                sanitize_llm(visible_models)
+                                if sanitize_llm is not None
+                                else visible_models
+                            )
+
+                        if text_context_list:
+                            assert texts_out, "No texts_out 1"
+
+                        yield ReturnType(
+                            reply=response[len(text0) :],
+                            text_context_list=texts_out,
+                            prompt_raw=prompt_raw,
+                            actual_llm=actual_llm,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            tokens_per_second=tokens_per_second,
+                        )
+
+                        self.chat_conversation[-1] = (
+                            instruction,
+                            response[len(text0) :],
+                        )
                     else:
+                        assert not success
                         check_job(job, timeout=2.0 * timeout, raise_exception=True)
-                        yield response[len(text0):], texts_out
-                        self.chat_conversation[-1] = (instruction, response[len(text0):])
                 break
             except Exception as e:
-                print(
+                print_error(
                     "h2oGPT predict failed: %s %s"
                     % (str(e), "".join(traceback.format_tb(e.__traceback__))),
-                    flush=True,
                 )
+                if "invalid model" in str(e).lower():
+                    raise
+                if bad_error_string and bad_error_string in str(e):
+                    # no need to do 3 trials if have disallowed stuff, unlikely that LLM will change its mind
+                    raise
                 if trial == trials - 1:
                     raise
                 else:
-                    print("trying again: %s" % trial, flush=True)
-                    time.sleep(1 * trial)
+                    # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
+                    if 'Overloaded' in str(traceback.format_tb(e.__traceback__)):
+                        sleep_time = 30 + 2 ** (trial + 1)
+                    else:
+                        sleep_time = 1 * trial
+                    print_warning("trying again: %s in %s seconds" % (trial, sleep_time))
+                    time.sleep(sleep_time)
             finally:
                 # in case server changed, update in case clone()
                 self.server_hash = client.server_hash
+
+        t1 = time.time()
+        print_info(
+            dict(
+                api="submit_nochat_api",
+                streaming=stream_output,
+                texts_in=len(text or []) + len(text_context_list or []),
+                texts_out=len(texts_out),
+                response_time=str(timedelta(seconds=t1 - t0)),
+                response_len=len(response),
+                llm=visible_models,
+                actual_llm=actual_llm,
+            )
+        )
 
     def check_model(self, model):
         if model != 0 and self.check_model_name:
             valid_llms = self.list_models()
             if (
-                    isinstance(model, int)
-                    and model >= len(valid_llms)
-                    or isinstance(model, str)
-                    and model not in valid_llms
+                isinstance(model, int)
+                and model >= len(valid_llms)
+                or isinstance(model, str)
+                and model not in valid_llms
             ):
                 did_you_mean = ""
                 if isinstance(model, str):
@@ -927,25 +1179,38 @@ class GradioClient(Client):
         """
         if self.config is None:
             self.setup()
-        return [x['base_model'] for x in ast.literal_eval(self.predict(api_name="/model_names"))]
+        return [
+            x["base_model"]
+            for x in ast.literal_eval(self.predict(api_name="/model_names"))
+        ]
 
-    def simple_stream(self,
-                      client_kwargs={},
-                      api_name='/submit_nochat_api',
-                      prompt='', prompter=None, sanitize_bot_response=False,
-                      max_time=None,
-                      is_public=False,
-                      raise_exception=True,
-                      verbose=False,
-                      ):
+    def simple_stream(
+        self,
+        client_kwargs={},
+        api_name="/submit_nochat_api",
+        prompt="",
+        prompter=None,
+        sanitize_bot_response=False,
+        max_time=None,
+        is_public=False,
+        raise_exception=True,
+        verbose=False,
+    ):
         job = self.submit(str(dict(client_kwargs)), api_name=api_name)
         sources = []
-        res_dict = dict(response='', sources=sources, save_dict={}, llm_answers={},
-                        response_no_refs='', sources_str='', prompt_raw='')
+        res_dict = dict(
+            response="",
+            sources=sources,
+            save_dict={},
+            llm_answers={},
+            response_no_refs="",
+            sources_str="",
+            prompt_raw="",
+        )
         yield res_dict
-        text = ''
-        text0 = ''
-        strex = ''
+        text = ""
+        text0 = ""
+        strex = ""
         tgen0 = time.time()
         while not job.done():
             e = check_job(job, timeout=0, raise_exception=False)
@@ -955,24 +1220,35 @@ class GradioClient(Client):
             if outputs_list:
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
-                text = res_dict['response']
-                if text is None:
-                    self.refresh_client()
+                text = res_dict["response"]
                 prompt_and_text = prompt + text
-                response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                                 sanitize_bot_response=sanitize_bot_response)
-                text_chunk = response[len(text0):]
+                response = prompter.get_response(
+                    prompt_and_text,
+                    prompt=prompt,
+                    sanitize_bot_response=sanitize_bot_response,
+                )
+                text_chunk = response[len(text0) :]
                 if not text_chunk:
                     # just need some sleep for threads to switch
                     time.sleep(0.001)
                     continue
                 # save old
                 text0 = response
-                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                           response_no_refs=response, sources_str='', prompt_raw='')
+                yield dict(
+                    response=response,
+                    sources=sources,
+                    save_dict={},
+                    llm_answers={},
+                    response_no_refs=response,
+                    sources_str="",
+                    prompt_raw="",
+                )
                 if time.time() - tgen0 > max_time:
                     if verbose:
-                        print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                        print(
+                            "Took too long for Gradio: %s" % (time.time() - tgen0),
+                            flush=True,
+                        )
                     break
             time.sleep(0.01)
         # ensure get last output to avoid race
@@ -983,12 +1259,12 @@ class GradioClient(Client):
             # don't raise unless nochat API for now
             e = check_job(job, timeout=timeout, raise_exception=True)
             if e is not None:
-                strex = ''.join(traceback.format_tb(e.__traceback__))
+                strex = "".join(traceback.format_tb(e.__traceback__))
 
             res = res_all[-1]
             res_dict = ast.literal_eval(res)
-            text = res_dict['response']
-            sources = res_dict.get('sources')
+            text = res_dict["response"]
+            sources = res_dict.get("sources")
             if sources is None:
                 # then communication terminated, keep what have, but send error
                 if is_public:
@@ -1002,54 +1278,70 @@ class GradioClient(Client):
             # go with old text if last call didn't work
             if e is not None:
                 stre = str(e)
-                strex = ''.join(traceback.format_tb(e.__traceback__))
+                strex = "".join(traceback.format_tb(e.__traceback__))
             else:
-                stre = ''
-                strex = ''
+                stre = ""
+                strex = ""
 
-            print("Bad final response:%s %s %s: %s %s" % (res_all, prompt, text, stre, strex),
-                  flush=True)
+            print(
+                "Bad final response:%s %s %s: %s %s"
+                % (res_all, prompt, text, stre, strex),
+                flush=True,
+            )
         prompt_and_text = prompt + text
-        response = prompter.get_response(prompt_and_text, prompt=prompt,
-                                         sanitize_bot_response=sanitize_bot_response)
-        res_dict = dict(response=response, sources=sources, save_dict={}, error=strex, llm_answers={},
-                        response_no_refs=response, sources_str='', prompt_raw='')
+        response = prompter.get_response(
+            prompt_and_text, prompt=prompt, sanitize_bot_response=sanitize_bot_response
+        )
+        res_dict.update(dict(
+            response=response,
+            sources=sources,
+            error=strex,
+            response_no_refs=response,
+        ))
         yield res_dict
         return res_dict
 
-    def stream(self,
-               client_kwargs={},
-               api_name='/submit_nochat_api',
-               prompt='', prompter=None, sanitize_bot_response=False,
-               max_time=None,
-               is_public=False,
-               raise_exception=True,
-               verbose=False,
-               ):
-        strex = ''
+    def stream(
+        self,
+        client_kwargs={},
+        api_name="/submit_nochat_api",
+        prompt="",
+        prompter=None,
+        sanitize_bot_response=False,
+        max_time=None,
+        is_public=False,
+        raise_exception=True,
+        verbose=False,
+    ):
+        strex = ""
         e = None
         res_dict = {}
         try:
-            res_dict = yield from self._stream(client_kwargs,
-                                               api_name=api_name,
-                                               prompt=prompt,
-                                               prompter=prompter,
-                                               sanitize_bot_response=sanitize_bot_response,
-                                               max_time=max_time,
-                                               verbose=verbose)
+            res_dict = yield from self._stream(
+                client_kwargs,
+                api_name=api_name,
+                prompt=prompt,
+                prompter=prompter,
+                sanitize_bot_response=sanitize_bot_response,
+                max_time=max_time,
+                verbose=verbose,
+            )
         except Exception as e:
-            strex = ''.join(traceback.format_tb(e.__traceback__))
+            strex = "".join(traceback.format_tb(e.__traceback__))
             # check validity of final results and check for timeout
             # NOTE: server may have more before its timeout, and res_all will have more if waited a bit
             if raise_exception:
                 raise
 
-        if 'timeout' in res_dict['save_dict']['extra_dict']:
-            timeout_time = res_dict['save_dict']['extra_dict']['timeout']
-            raise TimeoutError("Timeout from local after %s %s" % (timeout_time, ': ' + strex if e else ''))
+        if "timeout" in res_dict["save_dict"]["extra_dict"]:
+            timeout_time = res_dict["save_dict"]["extra_dict"]["timeout"]
+            raise TimeoutError(
+                "Timeout from local after %s %s"
+                % (timeout_time, ": " + strex if e else "")
+            )
 
         # won't have sources if timed out
-        if res_dict.get('sources') is None:
+        if res_dict.get("sources") is None:
             # then communication terminated, keep what have, but send error
             if is_public:
                 raise ValueError("Abrupt termination of communication")
@@ -1057,52 +1349,97 @@ class GradioClient(Client):
                 raise ValueError("Abrupt termination of communication: %s" % strex)
         return res_dict
 
-    def _stream(self,
-                client_kwargs,
-                api_name='/submit_nochat_api',
-                prompt='', prompter=None, sanitize_bot_response=False,
-                max_time=None,
-                verbose=False):
+    def _stream(
+        self,
+        client_kwargs,
+        api_name="/submit_nochat_api",
+        prompt="",
+        prompter=None,
+        sanitize_bot_response=False,
+        max_time=None,
+        verbose=False,
+    ):
         job = self.submit(str(dict(client_kwargs)), api_name=api_name)
 
-        text = ''
+        text = ""
         sources = []
         save_dict = {}
-        save_dict['extra_dict'] = {}
-        res_dict = dict(response=text, sources=sources, save_dict=save_dict, llm_answers={},
-                        response_no_refs=text, sources_str='', prompt_raw='')
+        save_dict["extra_dict"] = {}
+        res_dict = dict(
+            response=text,
+            sources=sources,
+            save_dict=save_dict,
+            llm_answers={},
+            response_no_refs=text,
+            sources_str="",
+            prompt_raw="",
+        )
         yield res_dict
 
-        text0 = ''
+        text0 = ""
         tgen0 = time.time()
         n = 0
         for res in job:
-            res_dict, text0 = yield from self.yield_res(res, res_dict, prompt, prompter, sanitize_bot_response,
-                                                        max_time, text0, tgen0, verbose)
+            res_dict, text0 = yield from self.yield_res(
+                res,
+                res_dict,
+                prompt,
+                prompter,
+                sanitize_bot_response,
+                max_time,
+                text0,
+                tgen0,
+                verbose,
+            )
             n += 1
-            if 'timeout' in res_dict['save_dict']['extra_dict']:
+            if "timeout" in res_dict["save_dict"]["extra_dict"]:
                 break
         # final res
         outputs = job.outputs().copy()
         all_n = len(outputs)
         for nn in range(n, all_n):
             res = outputs[nn]
-            res_dict, text0 = yield from self.yield_res(res, res_dict, prompt, prompter, sanitize_bot_response,
-                                                        max_time, text0, tgen0, verbose)
+            res_dict, text0 = yield from self.yield_res(
+                res,
+                res_dict,
+                prompt,
+                prompter,
+                sanitize_bot_response,
+                max_time,
+                text0,
+                tgen0,
+                verbose,
+            )
         return res_dict
 
     @staticmethod
-    def yield_res(res, res_dict, prompt, prompter, sanitize_bot_response, max_time, text0, tgen0, verbose):
+    def yield_res(
+        res,
+        res_dict,
+        prompt,
+        prompter,
+        sanitize_bot_response,
+        max_time,
+        text0,
+        tgen0,
+        verbose,
+    ):
         do_yield = True
         res_dict_server = ast.literal_eval(res)
         # yield what have
-        text = res_dict_server['response']
+        text = res_dict_server["response"]
+        if text is None:
+            print("text None", flush=True)
+            text = ""
         if prompter:
-            response = prompter.get_response(prompt + text, prompt=prompt,
-                                             sanitize_bot_response=sanitize_bot_response)
+            response = prompter.get_response(
+                prompt + text,
+                prompt=prompt,
+                sanitize_bot_response=sanitize_bot_response,
+            )
         else:
             response = text
-        text_chunk = response[len(text0):]
+        text_chunk = response[len(text0) :]
         if not text_chunk:
             # just need some sleep for threads to switch
             time.sleep(0.001)
@@ -1112,22 +1449,29 @@ class GradioClient(Client):
         res_dict.update(res_dict_server)
         res_dict.update(dict(response=response, response_no_refs=response))
 
-        timeout_time_other = res_dict.get('save_dict', {}).get('extra_dict', {}).get('timeout')
+        timeout_time_other = (
+            res_dict.get("save_dict", {}).get("extra_dict", {}).get("timeout")
+        )
         if timeout_time_other:
             if verbose:
-                print("Took too long for other Gradio: %s" % (time.time() - tgen0), flush=True)
+                print(
+                    "Took too long for other Gradio: %s" % (time.time() - tgen0),
+                    flush=True,
+                )
             return res_dict, text0
 
         timeout_time = time.time() - tgen0
         if max_time is not None and timeout_time > max_time:
-            if 'save_dict' not in res_dict:
-                res_dict['save_dict'] = {}
-            if 'extra_dict' not in res_dict['save_dict']:
-                res_dict['save_dict']['extra_dict'] = {}
-            res_dict['save_dict']['extra_dict']['timeout'] = timeout_time
+            if "save_dict" not in res_dict:
+                res_dict["save_dict"] = {}
+            if "extra_dict" not in res_dict["save_dict"]:
+                res_dict["save_dict"]["extra_dict"] = {}
+            res_dict["save_dict"]["extra_dict"]["timeout"] = timeout_time
             yield res_dict
             if verbose:
-                print("Took too long for Gradio: %s" % (time.time() - tgen0), flush=True)
+                print(
+                    "Took too long for Gradio: %s" % (time.time() - tgen0), flush=True
+                )
             return res_dict, text0
         if do_yield:
             yield res_dict

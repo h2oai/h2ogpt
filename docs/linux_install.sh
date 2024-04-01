@@ -28,6 +28,7 @@ pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
 #* Optional: Install document question-answer dependencies:
 #
 # May be required for jq package:
+sudo apt-get update -y
 sudo apt-get -y install autoconf libtool
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
@@ -124,6 +125,7 @@ fi
 
 # upgrade chrome to latest
 sudo mkdir -p /etc/apt/keyrings/
+sudo rm -rf /tmp/google.pub
 sudo wget https://dl-ssl.google.com/linux/linux_signing_key.pub -O /tmp/google.pub
 sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --import /tmp/google.pub
 sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
@@ -144,9 +146,8 @@ sudo chmod +x /usr/bin/chromedriver
 #
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
 #
-pip uninstall -y auto-gptq ; pip install auto-gptq==0.6.0 -c reqs_optional/reqs_constraints.txt
 # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
+pip install optimum==1.18.0 -c reqs_optional/reqs_constraints.txt
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 
 
@@ -170,20 +171,23 @@ pip uninstall llama_cpp_python_cuda -y
 # Check if the environment variable `MY_ENV_VAR` contains the substring "hello"
 if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
   #* GPU Optional: For exllama support on x86_64 linux
-  pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
+  #pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu118-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
   #    See [exllama](README_GPU.md#exllama) about running exllama models.
-  echo "cuda118 for exllama"
+  echo "cuda118"
   # https://github.com/casper-hansen/AutoAWQ_kernels
   pip install https://github.com/casper-hansen/AutoAWQ_kernels/releases/download/v0.0.3/autoawq_kernels-0.0.3+cu118-cp310-cp310-linux_x86_64.whl
+
+  pip install auto-gptq==0.7.1 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
   echo "cuda118 for awq, see: https://github.com/casper-hansen/AutoAWQ_kernels/releases/"
 
 else
   #* GPU Optional: For exllama support on x86_64 linux
-  pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu121-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
+  #pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu121-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
   #    See [exllama](README_GPU.md#exllama) about running exllama models.
-  echo "cuda121 for exllama"
+  echo "cuda121"
   pip install autoawq-kernels -c reqs_optional/reqs_constraints.txt
-  echo "cuda121 for awq"
+
+  pip install auto-gptq==0.7.1 exllamav2==0.0.16
 fi
 
 
@@ -210,6 +214,11 @@ pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg
 #
 pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/reqs_constraints.txt
 #  For more info see [SERP Docs](README_SerpAPI.md).
+
+
+# https://github.com/h2oai/h2ogpt/issues/1483
+pip uninstall flash_attn autoawq autoawq-kernels -y
+pip install flash_attn autoawq autoawq-kernels --no-cache-dir -c reqs_optional/reqs_constraints.txt
 
 
 bash ./docs/run_patches.sh

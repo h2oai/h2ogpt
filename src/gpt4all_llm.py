@@ -1,5 +1,6 @@
 import inspect
 import os
+import time
 from typing import Dict, Any, Optional, List, Iterator
 
 import filelock
@@ -82,6 +83,7 @@ def get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=[]):
 
 def get_gpt4all_default_kwargs(max_new_tokens=256,
                                temperature=0.1,
+                               seed=0,
                                repetition_penalty=1.0,
                                top_k=40,
                                top_p=0.7,
@@ -103,6 +105,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
                           repeat_penalty=repetition_penalty,
                           temp=temperature,
                           temperature=temperature,
+                          seed=seed,
                           top_k=top_k,
                           top_p=top_p,
                           use_mlock=True,
@@ -119,12 +122,14 @@ def get_llm_gpt4all(model_name=None,
                     model=None,
                     max_new_tokens=256,
                     temperature=0.1,
+                    seed=0,
                     repetition_penalty=1.0,
                     top_k=40,
                     top_p=0.7,
                     streaming=False,
                     callbacks=None,
                     prompter=None,
+                    max_time=None,
                     context='',
                     iinput='',
                     n_jobs=None,
@@ -144,6 +149,7 @@ def get_llm_gpt4all(model_name=None,
     default_kwargs = \
         get_gpt4all_default_kwargs(max_new_tokens=max_new_tokens,
                                    temperature=temperature,
+                                   seed=seed,
                                    repetition_penalty=repetition_penalty,
                                    top_k=top_k,
                                    top_p=top_p,
@@ -181,7 +187,7 @@ def get_llm_gpt4all(model_name=None,
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
                                  prompter=prompter, context=context, iinput=iinput,
-                                 n_gpus=n_gpus))
+                                 n_gpus=n_gpus, max_time=max_time))
 
         # migration to  new langchain fix:
         odd_keys = ['model_kwargs', 'grammar_path', 'grammar']
@@ -340,6 +346,7 @@ class H2OLlamaCpp(LlamaCpp):
     prompts: Any = []
     count_output_tokens: Any = 0
     n_gpus: Any = -1
+    max_time: Any = None
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -402,6 +409,7 @@ class H2OLlamaCpp(LlamaCpp):
             run_manager: Optional[CallbackManagerForLLMRun] = None,
             **kwargs,
     ) -> str:
+        t0 = time.time()
         verbose = False
 
         inner_tokenizer = FakeTokenizer(tokenizer=self.client, is_llama_cpp=True, model_max_length=self.n_ctx)
@@ -429,6 +437,10 @@ class H2OLlamaCpp(LlamaCpp):
                     # parent handler of streamer expects to see prompt first else output="" and lose if prompt=None in prompter
                     text = ""
                     for token in self.stream(input=prompt, stop=stop):
+                        if self.max_time is not None and (time.time() - t0) > self.max_time:
+                            if verbose:
+                                print("LLaMa.cpp reached max_time=%s" % self.max_time, flush=True)
+                            break
                         # for token in self.stream(input=prompt, stop=stop, run_manager=run_manager):
                         text_chunk = token  # ["choices"][0]["text"]
                         text += text_chunk

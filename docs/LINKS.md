@@ -7,7 +7,7 @@
 [OpenChatKit on multi-GPU](https://github.com/togethercomputer/OpenChatKit/issues/20)<br />
 [Non-Causal LLM](https://huggingface.co/docs/transformers/main/en/model_doc/gptj#transformers.GPTJForSequenceClassification)<br />
 [OpenChatKit_Offload](https://github.com/togethercomputer/OpenChatKit/commit/148b5745a57a6059231178c41859ecb09164c157)<br />
-[Flan-alpaca](https://github.com/declare-lab/flan-alpaca/blob/main/training.py)<br />
+[Flan-alpaca `training.py`](https://github.com/declare-lab/flan-alpaca/blob/main/training.py)<br />
 
 ### Some open source models:
 [GPT-NeoXT-Chat-Base-20B](https://huggingface.co/togethercomputer/GPT-NeoXT-Chat-Base-20B/tree/main)<br />
@@ -59,7 +59,7 @@
 [alpaca.http](https://github.com/Nuked88/alpaca.http)<br />
 [chatgpt-retrieval-pllugin](https://github.com/openai/chatgpt-retrieval-plugin)<br />
 [subtl.ai docs search on private docs](https://www.subtl.ai/)<br />
-[gertel](https://gretel.ai/)<br />
+[gretel](https://gretel.ai/)<br />
 [alpaca_lora_4bit](https://github.com/johnsmith0031/alpaca_lora_4bit)<br />
 [alpaca_lora_4bit_readme](https://github.com/s4rduk4r/alpaca_lora_4bit_readme)<br />
 [code alpaca](https://github.com/sahil280114/codealpaca)<br />
@@ -75,7 +75,7 @@
 [llama.cpp](https://github.com/ggerganov/llama.cpp)<br />
 [ggml](https://github.com/ggerganov/ggml)<br />
 [mmap](https://justine.lol/mmap/)<br />
-[lamma.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
+[llama.cpp more](https://til.simonwillison.net/llms/llama-7b-m2)<br />
 [TargetedSummarization](https://github.com/helliun/targetedSummarization)<br />
 [OpenFlamingo](https://laion.ai/blog/open-flamingo/)<br />
 [Auto-GPT](https://github.com/Torantulino/Auto-GPT)<br />

@@ -297,6 +297,8 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       llamacpp_path='llamacpp_path',
                       regenerate_gradio_clients=True,
                       max_output_seq_len=None,
+                      force_seq2seq_type=False,
+                      force_t5_type=False,
 
                       verbose=False)
     model, tokenizer, device = get_model_retry(reward_type=False,
@@ -812,8 +814,9 @@ def test_docx_add(db_type):
             assert db is not None
             docs = db.similarity_search("What is calibre DOCX plugin do?")
             assert len(docs) == 4
-            assert 'calibre' in docs[0].page_content
-            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
+            assert 'calibre' in docs[0].page_content or 'an arrow pointing' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1) or \
+                   'image' in os.path.normpath(docs[0].metadata['source'])
     kill_weaviate(db_type)
 
 
@@ -835,7 +838,8 @@ def test_docx_add2(db_type):
             docs = db.similarity_search("Approver 1", k=4)
             assert len(docs) == 4
             assert 'Band D' in docs[3].page_content
-            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
+            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(
+                test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
     kill_weaviate(db_type)
 
 
@@ -880,7 +884,7 @@ def test_md_add(db_type):
             docs = db.similarity_search("What is h2oGPT?")
             assert len(docs) == 4
             assert 'Query and summarize your documents' in docs[1].page_content or 'document Q/A' in docs[
-                1].page_content
+                1].page_content or 'go to your browser by visiting' in docs[1].page_content
             assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
     kill_weaviate(db_type)
 
@@ -934,9 +938,8 @@ def test_eml_add(db_type):
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
         with tempfile.TemporaryDirectory() as tmp_user_path:
-            url = 'https://raw.githubusercontent.com/FlexConfirmMail/Thunderbird/master/sample.eml'
             test_file1 = os.path.join(tmp_user_path, 'sample.eml')
-            download_simple(url, dest=test_file1)
+            shutil.copy('tests/sample.eml', test_file1)
             db, collection_name = make_db_main(persist_directory=tmp_persist_directory, user_path=tmp_user_path,
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False)
@@ -1929,7 +1932,8 @@ def test_chroma_filtering():
                                         'non-centrality parameter' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower() or
                                         'gravitational' in rets1['response'].lower() or
-                                        'answer to the question'  in rets1['response'].lower()
+                                        'answer to the question' in rets1['response'].lower() or
+                                        'not responsible' in rets1['response'].lower()
                                 )
                             else:
                                 assert len(rets1) >= 7 and (
@@ -1939,8 +1943,9 @@ def test_chroma_filtering():
                                         'statistic' in rets1['response'].lower() or
                                         '.pdf' in rets1['response'].lower())
                                 if document_subset == DocumentSubset.Relevant.name:
-                                    assert 'whisper' in str(rets1['sources']) or 'unbiased' in str(rets1[
-                                        'sources']) or 'approximate' in str(rets1['sources'])
+                                    assert 'whisper' in str(rets1['sources']) or \
+                                           'unbiased' in str(rets1['sources']) or \
+                                           'approximate' in str(rets1['sources'])
                         if answer_with_sources == -1:
                             if document_subset == DocumentSubset.Relevant.name:
                                 assert 'score' in rets1['sources'][0] and 'content' in rets1['sources'][

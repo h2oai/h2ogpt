@@ -1,8 +1,10 @@
 import ast
 import time
+import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping
+from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -231,6 +233,7 @@ prompt_type_to_model_name = {
              'Qwen/Qwen1.5-0.5B-Chat-GGUF',
              ],
     "sealion": ['aisingapore/sea-lion-7b-instruct'],
+    "aya": ["CohereForAI/aya-101"],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -241,6 +244,9 @@ prompt_type_to_model_name['google'] = google_gpts
 
 mistralai_gpts = sorted(mistralai_mapping.keys())
 prompt_type_to_model_name['mistralai'] = mistralai_gpts
+
+groq_gpts = sorted(groq_mapping.keys())
+prompt_type_to_model_name['groq'] = groq_gpts
 
 model_names_curated_big = ['Yukang/LongAlpaca-70B',
                            'lmsys/vicuna-13b-v1.5-16k',
@@ -269,11 +275,28 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
-def is_vision_model(base_model):
+def is_gradio_vision_model(base_model):
+    if not base_model:
+        return False
     return base_model.startswith('llava-') or \
         base_model.startswith('liuhaotian/llava-') or \
         base_model.startswith('Qwen-VL') or \
         base_model.startswith('Qwen/Qwen-VL')
+
+
+def is_vision_model(base_model):
+    if not base_model:
+        return False
+    return is_gradio_vision_model(base_model) or \
+        base_model.startswith('claude-3-') or \
+        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
+        base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest"]
+
+
+def is_video_model(base_model):
+    if not base_model:
+        return False
+    return base_model in ["gemini-1.5-pro-latest"]
 
 
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
@@ -312,12 +335,19 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
         humanstr = prompt_dict.get('humanstr', '')
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
-                         PromptType.plain.name] or \
-            prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
-                            PromptType.llava.name]:
+                         PromptType.plain.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
-        chat_turn_sep = chat_sep = '\n'
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.llava.value, str(PromptType.llava.value),
+                         PromptType.llava.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_turn_sep = '\n'
+        chat_sep = ''
         # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
         humanstr = None
         botstr = None
@@ -695,7 +725,9 @@ ASSISTANT:
             prompt_type in [PromptType.google.value, str(PromptType.google.value),
                             PromptType.google.name] or \
             prompt_type in [PromptType.mistralai.value, str(PromptType.mistralai.value),
-                            PromptType.mistralai.name]:
+                            PromptType.mistralai.name] or \
+            prompt_type in [PromptType.groq.value, str(PromptType.groq.value),
+                            PromptType.groq.name]:
         can_handle_system_prompt = True  # handled via special messages/arguments not part of prompt
         # mistral safe_mode=True is same as this system prompt:
         # Always assist with care, respect, and truth. Respond with utmost utility yet securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies promote fairness and positivity.
@@ -708,7 +740,8 @@ ASSISTANT:
         PreInput = None
         PreResponse = ""
         terminate_response = []
-        chat_turn_sep = chat_sep = '\n'
+        chat_sep = ''
+        chat_turn_sep = '\n'
         humanstr = None
         botstr = None
 
@@ -1469,6 +1502,24 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '\n\n'
         humanstr = '### USER:'
         botstr = '### RESPONSE:'
+    elif prompt_type in [PromptType.aya.value, str(PromptType.aya.value),
+                             PromptType.aya.name]:
+        can_handle_system_prompt = True
+        # https://huggingface.co/CohereForAI/aya-101
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers."
+        promptA = promptB = """<|im_start|>system\n%s<|im_end|>\n""" % system_prompt if not reduced else ''
+
+        PreInstruct = """<|im_start|>user\n"""
+
+        PreInput = None
+
+        PreResponse = """<|im_end|>\n<|im_start|>assistant\n"""
+        terminate_response = ['<|im_end|>', '<|im_start|>']
+        chat_sep = ''
+        chat_turn_sep = '<|im_end|>\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
@@ -2155,3 +2206,47 @@ Score YES: If the existing answer is already YES or If the response for the quer
 Score NO: If the existing answer is NO and If the response for the query is in line with the context information provided.
 
 ###Feedback: """
+
+
+def gradio_to_llm(x, bot=False):
+    """
+    convert message (user or bot) in case message is tuple from gradio
+    """
+    gradio_tmp = get_gradio_tmp()
+    # handle if gradio tuples in messages
+    if x is None:
+        x = ''
+    if isinstance(x, (tuple, list)) and len(x) > 0:
+        x = list(x)
+        for insti, inst in enumerate(x):
+            if isinstance(inst, str) and \
+                    (inst.startswith('/tmp/gradio') or inst.startswith(gradio_tmp)) and \
+                    os.path.isfile(inst):
+                # below so if put into context gets rendered not as broken file
+                if bot:
+                    x[
+                        insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
+                else:
+                    x[insti] = 'file=' + inst
+        if len(x) == 1:
+            x = x[0]
+        x = str(x) if all(isinstance(x, str) for x in x) else ''
+    return x
+
+
+def history_for_llm(history):
+    history_new = []
+
+    # Loop through the history to remove gradio related things
+    for message1 in history:
+
+        if len(message1) != 2:
+            continue
+        if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+            # then not really part of LLM, internal, so avoid
+            continue
+        # can't keep any tuples for llm
+        history_new.append((gradio_to_llm(message1[0], bot=False),
+                            gradio_to_llm(message1[1], bot=True))
+                           )
+    return history_new

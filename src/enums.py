@@ -73,6 +73,8 @@ class PromptType(Enum):
     gemma = 67
     qwen = 68
     sealion = 69
+    groq = 70
+    aya = 71
 
 
 class DocumentSubset(Enum):
@@ -130,16 +132,19 @@ class LangChainAction(Enum):
     SUMMARIZE_REFINE = "Summarize_refine"
     EXTRACT = "Extract"
     IMAGE_GENERATE = "ImageGen"
-    IMAGE_GENERATE_HIGH = "ImageGenHigh"
     IMAGE_CHANGE = "ImageChange"
     IMAGE_QUERY = "ImageQuery"
+    IMAGE_STYLE = "ImageStyle"
 
+
+valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'playv2']
+valid_imagechange_models = ['sdxl_change']
+valid_imagestyle_models = ['sdxl_style']
 
 # rest are not implemented fully
 base_langchain_actions = [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
                           LangChainAction.EXTRACT.value,
                           LangChainAction.IMAGE_GENERATE.value,
-                          LangChainAction.IMAGE_GENERATE_HIGH.value,
                           LangChainAction.IMAGE_CHANGE.value,
                           LangChainAction.IMAGE_QUERY.value,
                           ]
@@ -177,6 +182,8 @@ gpt_token_mapping = {
     "gpt-3.5-turbo-instruct": 4096,
     "gpt-4-1106-preview": 128000,  # 4096 output
     "gpt-35-turbo-1106": 16385,  # 4096 output
+    "gpt-4-vision-preview": 128000,  # 4096 output
+    "gpt-4-1106-vision-preview": 128000,  # 4096 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -215,15 +222,46 @@ anthropic_mapping_outputs = {
     "claude-3-haiku-20240307": 4096,
 }
 
+claude3imagetag = 'claude-3-image'
+gpt4imagetag = 'gpt-4-image'
+geminiimagetag = 'gemini-image'
+
+# https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini
+#  Invalid argument provided to Gemini: 400 Please use fewer than 16 images in your request to models/gemini-pro-vision
+# 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
+geminiimage_num_max = 15
+# https://docs.anthropic.com/claude/docs/vision#image-best-practices
+# https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
+# 5MB per image
+claude3image_num_max = 20
+# https://platform.openai.com/docs/guides/vision
+# 20MB per image
+gpt4image_num_max = 10
+
+# can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
+llava_num_max = 10
+
+# https://ai.google.dev/models/gemini
+# gemini-1.0-pro
 google_mapping = {
-    "gemini-pro": 32768,
-    "gemini-pro-vision": 32768,
+    "gemini-pro": 30720,
+    "gemini-1.0-pro-latest": 30720,
+    "gemini-pro-vision": 12288,
+    "gemini-1.0-pro-vision-latest": 12288,
+    "gemini-1.0-ultra-latest": 30720,
+    "gemini-ultra": 30720,
+    "gemini-1.5-pro-latest": 1048576,
 }
 
 # FIXME: at least via current API:
 google_mapping_outputs = {
-    "gemini-pro": 8192,
-    "gemini-pro-vision": 2048,
+    "gemini-pro": 2048,
+    "gemini-1.0-pro-latest": 2048,
+    "gemini-pro-vision": 4096,
+    "gemini-1.0-pro-vision-latest": 4096,
+    "gemini-1.0-ultra-latest": 2048,
+    "gemini-ultra": 2048,
+    "gemini-1.5-pro-latest": 8192,
 }
 
 mistralai_mapping = {
@@ -255,7 +293,24 @@ openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106"]
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
-model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096, "gpt-35-turbo-1106": 4096})
+model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
+                                    "gpt-35-turbo-1106": 4096,
+                                    "gpt-4-vision-preview": 4096,
+                                    "gpt-4-1106-vision-preview": 4096,
+                                    }
+                                   )
+
+groq_mapping = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 8192,
+    "llama2-70b-4096": 4096,
+}
+
+groq_mapping_outputs = {
+    "mixtral-8x7b-32768": 32768,
+    "gemma-7b-it": 4096,
+    "llama2-70b-4096": 4096,
+}
 
 
 def does_support_functiontools(inference_server, model_name):
@@ -294,7 +349,8 @@ def t5_type(model_name):
     return 't5' == model_name.lower() or \
         't5-' in model_name.lower() or \
         'flan-' in model_name.lower() or \
-        'fastchat-t5' in model_name.lower()
+        'fastchat-t5' in model_name.lower() or \
+        'CohereForAI/aya-101' in model_name.lower()
 
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,
@@ -403,8 +459,8 @@ docs_ordering_types_default = 'best_near_prompt'
 docs_token_handling_default = 'split_or_merge'
 docs_joiner_default = '\n\n'
 
-db_types = ['chroma', 'weaviate']
-db_types_full = ['chroma', 'weaviate', 'faiss']
+db_types = ['chroma', 'weaviate', 'qdrant']
+db_types_full = ['chroma', 'weaviate', 'faiss', 'qdrant']
 
 auto_choices = [None, 'None', 'auto']
 
@@ -501,3 +557,5 @@ max_chunks_per_doc_public_api = 2 * max_chunks_per_doc_public
 user_prompt_for_fake_system_prompt = "Who are you and what do you do?"
 
 coqui_lock_name = 'coqui'
+
+split_google = "::::::::::"

@@ -13,14 +13,19 @@ def run_cli(  # for local function:
         examples=None, memory_restriction_level=None,
         # evaluate kwargs
         n_jobs=None, llamacpp_path=None, llamacpp_dict=None, exllama_dict=None, gptq_dict=None, attention_sinks=None,
-        sink_dict=None, truncation_generation=None, hf_model_dict=None, load_exllama=None,
+        sink_dict=None, truncation_generation=None,
+        hf_model_dict=None,
+        force_seq2seq_type=None, force_t5_type=None,
+        load_exllama=None,
 
         use_pymupdf=None,
         use_unstructured_pdf=None,
         use_pypdf=None,
         enable_pdf_ocr=None,
         enable_pdf_doctr=None,
-        enable_imagegen_high_sd=None,
+        enable_image=None,
+        visible_image_models=None,
+
         try_pdf_as_html=None,
         # for some evaluate args
         load_awq='',
@@ -28,7 +33,7 @@ def run_cli(  # for local function:
         prompt_type=None, prompt_dict=None, system_prompt=None,
         temperature=None, top_p=None, top_k=None, penalty_alpha=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
-        num_return_sequences=None, do_sample=None, chat=None,
+        num_return_sequences=None, do_sample=None, seed=None, chat=None,
         langchain_mode=None, langchain_action=None, langchain_agents=None,
         document_subset=None, document_choice=None,
         document_source_substrings=None,
@@ -75,9 +80,7 @@ def run_cli(  # for local function:
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
-        image_gen_loader=None,
-        image_gen_loader_high=None,
-        image_change_loader=None,
+        image_model_dict=None,
 
         asr_model=None,
         asr_loader=None,
@@ -126,7 +129,7 @@ def run_cli(  # for local function:
     logging.getLogger("transformers").setLevel(logging.ERROR)
 
     from_ui = False
-    check_locals(**locals())
+    check_locals(**locals().copy())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
     verifier_server = ""  # FIXME: For now, so user doesn't have to pass
@@ -151,7 +154,7 @@ def run_cli(  # for local function:
         fun = partial(evaluate,
                       *args,
                       **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
-                                   **locals()))
+                                   **locals().copy()))
 
         while True:
             clear_torch_cache(allow_skip=True)
@@ -168,8 +171,8 @@ def run_cli(  # for local function:
 
             # grab other parameters, like langchain_mode
             for k in eval_func_param_names:
-                if k in locals():
-                    eval_vars[eval_func_param_names.index(k)] = locals()[k]
+                if k in locals().copy():
+                    eval_vars[eval_func_param_names.index(k)] = locals().copy()[k]
 
             gener = fun(*tuple(eval_vars))
             outr = ''

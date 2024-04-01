@@ -56,10 +56,12 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Run on new LLM token. Only available when streaming is enabled."""
-        if self.tgen0 is not None and self.max_time is not None and (time.time() - self.tgen0) > self.max_time:
+        if False and \
+        self.tgen0 is not None and self.max_time is not None and (time.time() - self.tgen0) > self.max_time:
             if self.verbose:
                 print("Took too long in StreamingGradioCallbackHandler: %s" % (time.time() - self.tgen0), flush=True)
             self.text_queue.put(self.stop_signal)
+            self.do_stop = True
         else:
             self.text_queue.put(token)
 
@@ -463,7 +465,7 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
         max_tokens = 512
         # should be less than --max-client-batch-size=4096 for launching TEI
         # shoudl also be that max_tokens * 4 * max_batch_size <= 2MB
-        max_batch_size = 1024
+        max_batch_size = int(os.getenv('TEI_MAX_BATCH_SIZE', '1024'))
         verbose = False
 
         texts = [text.replace("\n", " ")[:4 * max_tokens] for text in texts]

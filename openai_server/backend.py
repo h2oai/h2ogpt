@@ -100,7 +100,12 @@ def get_client(user=None):
         password = ':'.join(user_split[1:])
         num_model_lock = client.predict(api_name='/num_model_lock')
         chatbots = [None] * (2 + num_model_lock)
-        client.predict(None, username, password, *tuple(chatbots), api_name='/login')
+        h2ogpt_key = ''
+        visible_models = []
+        client.predict(None,
+                       h2ogpt_key, visible_models,
+                       username, password,
+                       *tuple(chatbots), api_name='/login')
 
     return client
 
@@ -130,6 +135,8 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         # no sampling, make consistent
         gen_kwargs['top_p'] = 1.0
         gen_kwargs['top_k'] = 1
+    if gen_kwargs['seed'] is None:
+        gen_kwargs['seed'] = 0
 
     if gen_kwargs.get('repetition_penalty', 1) == 1 and gen_kwargs.get('presence_penalty', 0.0) != 0.0:
         # then user using presence_penalty, convert to repetition_penalty for h2oGPT

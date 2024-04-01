@@ -11,6 +11,7 @@ import typing
 import uuid
 import warnings
 from datetime import datetime
+from random import randint
 
 import httpx
 import requests
@@ -20,6 +21,7 @@ from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
 from src.image_utils import get_image_file
+from src.vision.utils_vision import get_image_model_dict
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -65,13 +67,15 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
-    generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic
+    generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
+    valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
+    groq_mapping_outputs, llava_num_max
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4
 
 start_faulthandler()
 import_matplotlib()
@@ -82,10 +86,11 @@ set_seed(SEED)
 from typing import Union
 
 import torch
-from transformers import GenerationConfig, AutoModel, TextIteratorStreamer
+from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, AutoTokenizer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
+    gradio_to_llm, history_for_llm, is_gradio_vision_model
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -201,6 +206,8 @@ def main(
         sink_dict: typing.Dict = dict(),
         truncation_generation: bool = False,
         hf_model_dict: typing.Dict = dict(),
+        force_seq2seq_type: bool = False,
+        force_t5_type: bool = False,
 
         model_lock: typing.List[typing.Dict[str, str]] = None,
         model_lock_columns: int = None,
@@ -216,6 +223,7 @@ def main(
         repetition_penalty: float = None,
         num_return_sequences: int = None,
         do_sample: bool = None,
+        seed: int = None,
         max_new_tokens: int = None,
         min_new_tokens: int = None,
         early_stopping: Union[bool, str] = None,
@@ -294,6 +302,7 @@ def main(
         auth_access: str = 'open',
         auth_freeze: bool = False,
         auth_message: str = None,
+        google_auth: bool = False,
         guest_name: str = "guest",
         enforce_h2ogpt_api_key: bool = None,
         enforce_h2ogpt_ui_key: bool = None,
@@ -313,6 +322,7 @@ def main(
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
         visible_doc_track: bool = True,
+
         visible_chat_tab: bool = True,
         visible_doc_selection_tab: bool = True,
         visible_doc_view_tab: bool = True,
@@ -323,6 +333,7 @@ def main(
         visible_tos_tab: bool = False,
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
+
         chat_tables: bool = False,
         visible_h2ogpt_links: bool = True,
         visible_h2ogpt_qrcode: bool = True,
@@ -503,12 +514,9 @@ def main(
         tts_stop_phrases: typing.List[str] = [],  # ['Yonder'],
         sst_floor: float = 100,
 
-        enable_imagegen: bool = False,  # experimental
-        enable_imagegen_high: bool = False,  # experimental
-        enable_imagegen_high_sd: bool = False,  # experimental
-        enable_imagechange: bool = False,  # experimental
-        imagegen_gpu_id: Union[str, int] = 'auto',
-        imagechange_gpu_id: Union[str, int] = 'auto',
+        enable_image: bool = False,
+        visible_image_models: typing.List[str] = [],
+        image_gpu_ids: typing.List[Union[str, int]] = None,
         enable_llava_chat: bool = False,
 
         # json
@@ -590,9 +598,14 @@ def main(
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
 
                               Or for groq, can use OpenAI API like:
-                              vllm:https://api.groq.com/openai:None:/v1:<api key>'
-                              with: other model_lock or CLI options: {'base_model':'mixtral-8x7b-32768', 'visible_models':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}
-                              i.e.ensure to use 'plain' prompt, not mixtral.
+                               GROQ IS BROKEN FOR OPENAI API:
+                                   vllm:https://api.groq.com/openai:None:/v1:<api key>'
+                                   with: other model_lock or CLI options: {'inference_server': 'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'visible_models':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}
+                                   i.e.ensure to use 'plain' prompt, not mixtral.
+                              For groq:
+                                 groq and ensures set env GROQ_API_KEY
+                                 or groq:<api key>
+                                 with: other model_lock or CLI options: {'inference_server': 'groq:<api key>', 'base_model':'mixtral-8x7b-32768', 'visible_models':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}
 
                              Or Address can be replicate:
                              Use:
@@ -710,6 +723,7 @@ def main(
         https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig.do_sample
         https://txt.cohere.com/llm-parameters-best-outputs-language-ai/
         https://medium.com/@daniel.puenteviejo/the-science-of-control-how-temperature-top-p-and-top-k-shape-large-language-models-853cb0480dae
+    :param seed: seed (0 means random seed, >0 uses that seed for sampling so reproducible even for sampling).  None becomes 0.
     :param max_new_tokens: generation max new tokens
     :param min_new_tokens: generation min tokens
     :param early_stopping: generation early stopping
@@ -834,6 +848,7 @@ def main(
          'closed': Stick to existing users
     :param auth_freeze: whether freeze authentication based upon current file, no longer update file
     :param auth_message: Message to show if having users login, fixed if passed, else dynamic internally
+    :param google_auth: Whether to use google auth
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
@@ -995,6 +1010,7 @@ def main(
                     'chroma' (for chroma >= 0.4)
                     'chroma_old' (for chroma < 0.4) -- recommended for large collections
                     'weaviate' for persisted on disk
+                    'qdrant' for a Qdrant server or an in-memory instance
     :param use_openai_embedding: Whether to use OpenAI embeddings for vector db
     :param use_openai_model: Whether to use OpenAI model for use with vector db
     :param hf_embedding_model: Which HF embedding model to use for vector db
@@ -1165,10 +1181,10 @@ def main(
            None means no such LLaVa support
     :param llava_prompt: Prompt passed to LLaVa for querying the image
 
-    :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A
+    :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
 
-    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v2 or microsoft/speecht5_asr
+    :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v3 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
     :param asr_gpu_id: Which GPU to put ASR model on (only used if preloading model)
@@ -1228,12 +1244,10 @@ def main(
 
     :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
 
-    :param enable_imagegen: Whether to enable image generation model
-    :param enable_imagegen_high: Whether to enable image generation model with high resolution
-    :param enable_imagegen_high_sd: Whether to use Stable Diffusion for high res model
-    :param enable_imagechange: Whether to enable image change model
-    :param imagegen_gpu_id: GPU id to use for imagegen model
-    :param imagechange_gpu_id: GPU id to use for imagechange model
+    :param enable_image: Whether to enable image generation model
+    :param visible_image_models: Which image gen models to include
+    :param image_gpu_ids: GPU ids to use for each visible image model
+
     :param enable_llava_chat: Whether to use LLaVa model to chat directly against instead of just for ingestion
 
     :param max_quality: Choose maximum quality ingestion with all available parsers
@@ -1265,6 +1279,13 @@ def main(
     roles_state0 = tts_coquiai_roles
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
+    visible_image_models = str_to_list(visible_image_models)
+    image_gpu_ids = str_to_list(image_gpu_ids)
+    assert len(image_gpu_ids) == len(visible_image_models)
+    if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
+        metadata_in_context = []
+    if seed is None:
+        seed = 0
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -1309,18 +1330,27 @@ def main(
     sink_dict = str_to_dict(sink_dict)
     hf_model_dict = str_to_dict(hf_model_dict)
 
+    enable_imagegen = enable_image and \
+                      len(set(visible_image_models).difference(valid_imagegen_models)) < len(set(visible_image_models))
+    enable_imagechange = enable_image and \
+                         len(set(visible_image_models).difference(valid_imagechange_models)) < len(
+        set(visible_image_models))
+    enable_imagestyle = enable_image and \
+                        len(set(visible_image_models).difference(valid_imagestyle_models)) < len(
+        set(visible_image_models))
+
     if os.environ.get('SERPAPI_API_KEY') is None and \
             LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
     if (not have_diffusers or not enable_imagegen) and \
             LangChainAction.IMAGE_GENERATE.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE.value)
-    if (not have_diffusers or not enable_imagegen_high) and \
-            LangChainAction.IMAGE_GENERATE_HIGH.value in visible_langchain_actions:
-        visible_langchain_actions.remove(LangChainAction.IMAGE_GENERATE_HIGH.value)
     if (not have_diffusers or not enable_imagechange) and \
             LangChainAction.IMAGE_CHANGE.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_CHANGE.value)
+    if (not have_diffusers or not enable_imagestyle) and \
+            LangChainAction.IMAGE_STYLE.value in visible_langchain_actions:
+        visible_langchain_actions.remove(LangChainAction.IMAGE_STYLE.value)
     if (not llava_model or not enable_llava or not enable_llava_chat) and \
             LangChainAction.IMAGE_QUERY.value in visible_langchain_actions:
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
@@ -1493,9 +1523,9 @@ def main(
         max_total_input_tokens = max_total_input_tokens_public if max_total_input_tokens is None else max_total_input_tokens
         allow_upload_to_user_data = False
         input_lines = 1  # ensure set, for ease of use
-        temperature = 0.2 if temperature is None else temperature
-        top_p = 0.85 if top_p is None else top_p
-        top_k = 70 if top_k is None else top_k
+        temperature = 0.3 if temperature is None else temperature
+        top_p = 1.0 if top_p is None else top_p
+        top_k = 1 if top_k is None else top_k
         penalty_alpha = 0.0 if penalty_alpha is None else penalty_alpha
         if is_hf:
             do_sample = True if do_sample is None else do_sample
@@ -1640,7 +1670,9 @@ def main(
         if score_model == 'auto':
             if n_gpus >= 2:
                 # will by default place scoring model on last GPU
-                score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+                # avoid score model for now, not really useful
+                # score_model = 'OpenAssistant/reward-model-deberta-v3-large-v2'
+                score_model = ''
             else:
                 score_model = ''
         if hf_embedding_model is None:
@@ -1709,7 +1741,7 @@ def main(
         caption_gpu = False
         asr_gpu = False
     if is_public:
-        stt_model = 'distil-whisper/distil-large-v2'
+        stt_model = 'distil-whisper/distil-large-v3'
 
     # defaults
     caption_loader = None
@@ -1719,7 +1751,7 @@ def main(
 
     image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
-        url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
+        url_loaders_options0, url_loaders_options = lg_to_gr(**locals().copy())
     jq_schema0 = jq_schema
     extract_frames0 = extract_frames
     # transcribe
@@ -1734,6 +1766,7 @@ def main(
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
+        seed, \
         src_lang, tgt_lang, \
         examples, \
         task_info = \
@@ -1750,6 +1783,7 @@ def main(
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
                             do_sample,
+                            seed,
                             top_k_docs,
                             chunk,
                             chunk_size,
@@ -1781,7 +1815,7 @@ def main(
                             )
 
     git_hash = get_githash()
-    locals_dict = locals()
+    locals_dict = locals().copy()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
         print(f"Generating model with params:\n{locals_print}", flush=True)
@@ -1908,26 +1942,9 @@ def main(
                                                      return_as_byte=return_as_byte,
                                                      verbose=verbose)
 
-    if enable_imagegen:
-        # always preloaded
-        from src.vision.sdxl import get_pipe_make_image
-        image_gen_loader = get_pipe_make_image(gpu_id=imagegen_gpu_id)
-    else:
-        image_gen_loader = None
-    if enable_imagegen_high:
-        # always preloaded
-        if enable_imagegen_high_sd:
-            from src.vision.stable_diffusion_xl import get_pipe_make_image
-        else:
-            from src.vision.playv2 import get_pipe_make_image
-        image_gen_loader_high = get_pipe_make_image(gpu_id=imagegen_gpu_id)
-    else:
-        image_gen_loader_high = None
-    if enable_imagechange:
-        from src.vision.sdxl import get_pipe_change_image
-        image_change_loader = get_pipe_change_image(gpu_id=imagegen_gpu_id)
-    else:
-        image_change_loader = None
+    # setup image models
+    image_model_dict = get_image_model_dict(enable_image, visible_image_models, image_gpu_ids)
+    visible_image_models_state0 = list(image_model_dict.keys())
 
     # DB SETUP
 
@@ -1959,7 +1976,7 @@ def main(
                                     migrate_embedding_model,
                                     auto_migrate_db,
                                     embedding_gpu_id=embedding_gpu_id,
-                                    kwargs_make_db=locals(),
+                                    kwargs_make_db=locals().copy(),
                                     verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
@@ -2001,11 +2018,15 @@ def main(
                                       sink_dict=sink_dict,
                                       truncation_generation=truncation_generation,
                                       hf_model_dict=hf_model_dict,
+                                      force_seq2seq_type=force_seq2seq_type,
+                                      force_t5_type=force_t5_type,
+                                      trust_remote_code=trust_remote_code,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
                             base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
+                            trust_remote_code=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
@@ -2206,15 +2227,15 @@ def main(
     # run
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, **locals()))
+        return run_cli(**get_kwargs(run_cli, **locals().copy()))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, **locals()))
+        return run_eval(**get_kwargs(run_eval, **locals().copy()))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
         # assume gradio needs everything
-        go_gradio(**locals())
+        go_gradio(**locals().copy())
 
 
 def get_config(base_model,
@@ -2246,7 +2267,7 @@ def get_config(base_model,
         except OSError as e:
             if raise_exception:
                 raise
-            if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + non_hf_types:
+            if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + groq_gpts + non_hf_types:
                 return None, None, max_seq_len
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e) or \
@@ -2449,9 +2470,9 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     gradio_auth = dict(auth=(username, password) if username and username else None)
 
-    if base_model and is_vision_model(base_model):
+    if base_model and is_gradio_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
-        gr_client = GradioClient(inference_server, check_hash=False, serialize=True, **gradio_auth)
+        gr_client = GradioClient(inference_server, check_hash=False, serialize=is_gradio_version4, **gradio_auth)
         gr_client.setup()
     elif headers is None:
         try:
@@ -2586,13 +2607,14 @@ def get_inf_models(inference_server):
             # Print the response content
             if 'models' in response:
                 models.extend([x['name'] for x in response['models']])
-
     elif inference_server.startswith('replicate'):
         pass
     elif inference_server.startswith('sagemaker'):
         pass
     elif inference_server.startswith('anthropic'):
         models.extend(list(anthropic_mapping.keys()))
+    elif inference_server.startswith('groq'):
+        models.extend(list(groq_mapping.keys()))
     elif inference_server.startswith('http'):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
         if gr_client is not None:
@@ -2640,6 +2662,8 @@ def get_model(
         exllama_dict=None,
         gptq_dict=None,
         hf_model_dict={},
+        force_seq2seq_type=False,
+        force_t5_type=False,
 
         verbose: bool = False,
 ):
@@ -2732,7 +2756,10 @@ def get_model(
                          rope_scaling=rope_scaling, max_seq_len=max_seq_len,
                          model_name_exllama_if_no_config=model_name_exllama_if_no_config,
                          exllama_dict=exllama_dict, gptq_dict=gptq_dict,
-                         hf_model_dict=hf_model_dict)
+                         hf_model_dict=hf_model_dict,
+                         force_seq2seq_type=force_seq2seq_type,
+                         force_t5_type=force_t5_type,
+                         )
     model_loader, tokenizer_loader, conditional_type = get_loaders(**loader_kwargs)
 
     if not tokenizer_base_model:
@@ -2802,6 +2829,8 @@ def get_model(
         raise ValueError("Must select inference server when choosing Google models")
     if base_model in mistralai_gpts and not inference_server:
         raise ValueError("Must select inference server when choosing MistralAI models")
+    if base_model in groq_gpts and not inference_server:
+        raise ValueError("Must select inference server when choosing Groq models")
 
     # see if we can set max_seq_len and tokenizer for non-HF models or check at least if set when required
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
@@ -2838,6 +2867,7 @@ def get_model(
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
+    google_client = None
     if inference_server.startswith('google'):
         t0 = time.time()
         import google.generativeai as genai
@@ -2867,6 +2897,7 @@ def get_model(
                          timeout=timeout)
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+        google_client = client
 
     if inference_server.startswith('mistralai'):
         t0 = time.time()
@@ -2897,6 +2928,28 @@ def get_model(
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
+    if inference_server.startswith('groq'):
+        if len(inference_server.split(':')) == 2:
+            groq_api_key = inference_server.split(':')[1]
+            inference_server = inference_server.split(':')[0]
+        else:
+            groq_api_key = os.getenv('GROQ_API_KEY')
+
+        t0 = time.time()
+        from groq import Client, AsyncClient
+
+        assert groq_api_key, "Missing Groq API key"
+        client = Client(api_key=groq_api_key)
+
+        async_client = AsyncClient(api_key=groq_api_key)
+
+        timeout = 600
+        if not regenerate_clients:
+            model = dict(client=client, async_client=async_client, inf_type='groq', base_url=None, api_key=groq_api_key,
+                         timeout=timeout)
+        if verbose:
+            print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
+
     if inf_server_for_max_seq_len_handling or \
             inference_server.startswith('openai') or \
             base_model in openai_gpts or \
@@ -2905,7 +2958,9 @@ def get_model(
             inference_server.startswith('google') or \
             base_model in google_gpts or \
             inference_server.startswith('mistralai') or \
-            base_model in mistralai_gpts:
+            base_model in mistralai_gpts or \
+            inference_server.startswith('groq') or \
+            base_model in groq_gpts:
         max_output_len = None
         if inference_server.startswith('openai') or base_model in openai_gpts:
             if inference_server.startswith('openai') and base_model in openai_gpts:
@@ -2960,6 +3015,12 @@ def get_model(
                 else:
                     max_output_seq_len = 8192  # estimate
                 max_output_len = max_output_seq_len
+
+            if google_client:
+                tokenizer = FakeTokenizer(model_max_length=max_seq_len,
+                                          is_google=True,
+                                          tokenizer=google_client.count_tokens)
+
         if inference_server.startswith('mistralai') or base_model in mistralai_gpts:
             if inference_server.startswith('mistralai'):
                 assert os.getenv('MISTRAL_API_KEY'), "Set environment for MISTRAL_API_KEY"
@@ -2977,6 +3038,37 @@ def get_model(
                 else:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
+
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
+                                      tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2'))
+
+        if inference_server.startswith('groq') or base_model in groq_gpts:
+            if inference_server.startswith('groq'):
+                assert os.getenv('GROQ_API_KEY'), "Set environment for GROQ_API_KEY"
+            # Don't return None, None for model, tokenizer so triggers
+            # include small token cushion
+            if base_model in groq_mapping:
+                max_seq_len = groq_mapping[base_model]
+            else:
+                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+            if base_model in groq_mapping_outputs:
+                max_output_len = groq_mapping_outputs[base_model]
+            else:
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_output_seq_len is not None, "Must set max_output_seq_len"
+                else:
+                    max_output_seq_len = 31768  # estimate
+                max_output_len = max_output_seq_len
+
+            if base_model == 'mixtral-8x7b-32768':
+                tokenizer_base_model = 'mistralai/Mistral-7B-Instruct-v0.2'
+            elif base_model == 'llama2-70b-4096':
+                tokenizer_base_model = 'h2oai/h2ogpt-4096-llama2-7b'
+            # elif base_model == 'gemma-7b-it':
+
+            tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
+                                      tokenizer=AutoTokenizer.from_pretrained(tokenizer_base_model))
+
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
             assert os.getenv('REPLICATE_API_TOKEN'), "Set environment for REPLICATE_API_TOKEN"
@@ -3004,9 +3096,11 @@ def get_model(
                 inference_server.startswith('google') or \
                 base_model in google_gpts or \
                 inference_server.startswith('mistralai') or \
-                base_model in mistralai_gpts:
+                base_model in mistralai_gpts or \
+                inference_server.startswith('groq') or \
+                base_model in groq_gpts:
             # must be set by now
-            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google or MistralAI models by now."
+            assert max_seq_len is not None, "max_seq_len should have been set for OpenAI or Anthropic or Google or MistralAI or Groq models by now."
 
         if tokenizer is None:
             # don't use fake (tiktoken) tokenizer for vLLM//replicate if know actual model with actual tokenizer
@@ -3085,6 +3179,8 @@ def get_model(
                         loader_kwargs=loader_kwargs,
                         gptq_dict=gptq_dict,
                         hf_model_dict=hf_model_dict,
+                        force_seq2seq_type=force_seq2seq_type,
+                        force_t5_type=force_t5_type,
 
                         verbose=verbose)
 
@@ -3121,6 +3217,8 @@ def get_hf_model(load_8bit: bool = False,
                  loader_kwargs=None,
                  gptq_dict=None,
                  hf_model_dict=None,
+                 force_seq2seq_type=None,
+                 force_t5_type=None,
 
                  verbose: bool = False,
                  ):
@@ -3449,6 +3547,8 @@ def get_score_model(score_model: str = None,
                     sink_dict: typing.Dict = None,
                     truncation_generation: bool = False,
                     hf_model_dict: typing.Dict = None,
+                    force_seq2seq_type: bool = False,
+                    force_t5_type: bool = False,
 
                     verbose: bool = False,
                     ):
@@ -3483,8 +3583,11 @@ def get_score_model(score_model: str = None,
         sink_dict = {}
         truncation_generation = False
         hf_model_dict = {}
+        force_seq2seq_type = False
+        force_t5_type = False
+
         smodel, stokenizer, sdevice = get_model(reward_type=True,
-                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals().copy()))
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
@@ -3524,6 +3627,8 @@ def evaluate(
         repetition_penalty,
         num_return_sequences,
         do_sample,
+        seed,
+
         chat,
         instruction_nochat,
         iinput_nochat,
@@ -3555,6 +3660,7 @@ def evaluate(
         extract_frames,
         llava_prompt,
         visible_models,
+        visible_image_models,
         h2ogpt_key,
         add_search_to_context,
 
@@ -3586,10 +3692,7 @@ def evaluate(
         doctr_loader=None,
         pix2struct_loader=None,
         llava_model=None,
-        image_gen_loader=None,
-        image_gen_loader_high=None,
-        image_change_loader=None,
-        enable_imagegen_high_sd=None,
+        image_model_dict=None,
 
         asr_model=None,
         asr_loader=None,
@@ -3650,6 +3753,8 @@ def evaluate(
         sink_dict=None,
         truncation_generation=None,
         hf_model_dict=None,
+        force_seq2seq_type=None,
+        force_t5_type=None,
 
         load_exllama=None,
         answer_with_sources=None,
@@ -3703,6 +3808,8 @@ def evaluate(
         jq_schema = jq_schema0
     if extract_frames is None:
         extract_frames = extract_frames0
+    if seed is None:
+        seed = 0
 
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
@@ -3725,22 +3832,14 @@ def evaluate(
         locals_dict.pop('model_states', None)
         print(locals_dict)
 
-    if langchain_action in [LangChainAction.IMAGE_GENERATE.value, LangChainAction.IMAGE_GENERATE_HIGH.value]:
+    if langchain_action in LangChainAction.IMAGE_GENERATE.value:
         t_generate = time.time()
+        if isinstance(visible_image_models, list):
+            assert len(visible_image_models) > 0, "visible_image_models is empty"
+            visible_image_models = visible_image_models[0]
+        image_model_dict = image_model_dict[visible_image_models]
+        pipe, make_image = image_model_dict['pipe'], image_model_dict['make_image']
 
-        if langchain_action in [LangChainAction.IMAGE_GENERATE.value]:
-            assert image_gen_loader, "Generating image, but image_gen_loader is None"
-            from src.vision.sdxl import make_image
-            pipe = image_gen_loader
-        elif langchain_action in [LangChainAction.IMAGE_GENERATE_HIGH.value]:
-            assert image_gen_loader_high, "Generating image, but image_gen_loader_high is None"
-            if enable_imagegen_high_sd:
-                from src.vision.stable_diffusion_xl import make_image
-            else:
-                from src.vision.playv2 import make_image
-            pipe = image_gen_loader_high
-        else:
-            raise ValueError("No such langchain_action=%s" % langchain_action)
         filename_image = sanitize_filename("image_%s_%s.png" % (instruction, str(uuid.uuid4())),
                                            file_length_limit=50)
         gradio_tmp = get_gradio_tmp()
@@ -3781,8 +3880,9 @@ def evaluate(
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
     no_llm_ok = langchain_action in [LangChainAction.IMAGE_GENERATE.value,
-                                     LangChainAction.IMAGE_GENERATE_HIGH.value,
                                      LangChainAction.IMAGE_CHANGE.value,
+                                     LangChainAction.IMAGE_QUERY.value,
+                                     LangChainAction.IMAGE_STYLE.value,
                                      ]
 
     chosen_model_state = model_state0
@@ -3862,16 +3962,23 @@ def evaluate(
     # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
     # below is for TGI server, not required for HF transformers
     # limits are chosen similar to gradio_runner.py sliders/numbers
-    top_p = min(max(1e-3, top_p), 1.0 - 1e-3)
+    top_p = min(max(1e-3, top_p), 1.0)
     top_k = min(max(1, int(top_k)), 100)
     penalty_alpha = min(2.0, max(0.0, penalty_alpha))
-    if temperature == 0.0:
-        # override
+    if temperature == 0.0 and top_p == 1.0 and top_k == 1:
         do_sample = False
+    if temperature > 0.0 or top_p < 1.0 or top_k > 1:
+        do_sample = True
+    if not do_sample:
+        temperature = 0
+        top_p = 1.0
+        top_k = 1
+        seed = 1
+    if seed == 0 and do_sample:
+        seed = randint(0, 32000)
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
-    temperature = min(max(0.01, temperature), 2.0)
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
@@ -3966,7 +4073,10 @@ def evaluate(
                            inference_server.startswith('openai_azure') or \
                            inference_server.startswith('anthropic') or \
                            inference_server.startswith('google') or \
-                           inference_server.startswith('mistralai')
+                           inference_server.startswith('mistralai') or \
+                           inference_server.startswith('groq') or \
+                           (image_file or image_control) and \
+                           inference_server.startswith('openai')
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
@@ -3979,6 +4089,7 @@ def evaluate(
         do_langchain_path = True
 
     gen_hyper_dict = dict(do_sample=do_sample,
+                          seed=seed,
                           temperature=temperature,
                           repetition_penalty=repetition_penalty,
                           top_p=top_p,
@@ -4153,6 +4264,8 @@ def evaluate(
                 sink_dict=sink_dict,
                 truncation_generation=truncation_generation,
                 hf_model_dict=hf_model_dict,
+                force_seq2seq_type=force_seq2seq_type,
+                force_t5_type=force_t5_type,
 
                 auto_reduce_chunks=auto_reduce_chunks,
                 max_chunks=max_chunks,
@@ -4209,6 +4322,7 @@ def evaluate(
                            iinput,
                            tokenizer,
                            prompter=prompter,
+                           base_model=base_model,
                            inference_server=inference_server,
                            # prompt_type=prompt_type,  # use prompter
                            # prompt_dict=prompt_dict,  # use prompter
@@ -4254,11 +4368,11 @@ def evaluate(
             stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
             max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
-            gen_server_kwargs = dict(temperature=temperature if do_sample else 0.001,
+            gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
                                      max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
                                      frequency_penalty=0,
-                                     seed=SEED,
+                                     seed=seed,
                                      n=num_return_sequences,
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
@@ -4373,58 +4487,16 @@ def evaluate(
                     except Exception as e:
                         print("Failed to close OpenAI client: %s" % str(e), flush=True)
 
-        elif inference_server.startswith('http') and is_vision_model(base_model):
-            where_from = "gr_client for llava"
-            sources = []
-            inference_server0 = inference_server
-            inference_server, _, _, _ = get_hf_server(inference_server)
-            if isinstance(model, GradioClient) and not regenerate_gradio_clients:
-                gr_client = model.clone()
-            elif isinstance(model, Client) and not regenerate_gradio_clients:
-                gr_client = model
-            else:
-                inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
-                                                                                          base_model=base_model)
-                assert gr_client is not None
-                assert hf_client is None
-
-            # NOTE: llava doesn't handle context or system prompt directly
-            img_file = get_image_file(image_file, image_control, document_choice)
-            llava_kwargs = dict(file=img_file,
-                                llava_model=inference_server,
-                                # prompt=instruction,
-                                prompt=prompt,  # prepared prompt with chat history etc.
-                                chat_conversation=chat_conversation,
-                                allow_prompt_auto=False,
-                                image_model=base_model, temperature=temperature,
-                                top_p=top_p, max_new_tokens=max_new_tokens,
-                                client=gr_client if not regenerate_gradio_clients else None,
-                                )
-            if not stream_output:
-                from src.vision.utils_vision import get_llava_response
-                response, _ = get_llava_response(**llava_kwargs)
-
-                yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
-                           response_no_refs=response, sources_str='', prompt_raw='')
-            else:
-                response = ''
-                tgen0 = time.time()
-                from src.vision.utils_vision import get_llava_stream
-                for response in get_llava_stream(**llava_kwargs):
-                    yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
-                               response_no_refs=response, sources_str='', prompt_raw='')
-
-                    if time.time() - tgen0 > max_time:
-                        if verbose:
-                            print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
-                        break
-
         elif inference_server.startswith('http'):
+            sources = []
             inference_server0 = inference_server
             inference_server, _, _, _ = get_hf_server(inference_server)
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient) and not regenerate_gradio_clients:
                 gr_client = model.clone()
+                hf_client = None
+            elif isinstance(model, Client) and not regenerate_gradio_clients:
+                gr_client = model
                 hf_client = None
             elif isinstance(model, HFClient) and not regenerate_gradio_clients:
                 gr_client = None
@@ -4432,6 +4504,31 @@ def evaluate(
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
                                                                                           base_model=base_model)
+            llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
+                                                                                      gr_client.endpoints]
+
+            if is_gradio_vision_model(base_model) and llava_direct_gradio:
+                where_from = "gr_client for llava"
+
+                # NOTE: llava doesn't handle context or system prompt directly
+                img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
+                img_file = img_file[:llava_num_max]
+                num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
+                llava_kwargs = dict(file=img_file,
+                                    llava_model=inference_server,
+                                    # prompt=instruction,
+                                    prompt=prompt,  # prepared prompt with chat history etc.
+                                    chat_conversation=chat_conversation,
+                                    allow_prompt_auto=False,
+                                    image_model=base_model,
+                                    temperature=temperature,
+                                    top_p=top_p,
+                                    max_new_tokens=max_new_tokens,
+                                    client=gr_client if not regenerate_gradio_clients else None,
+                                    )
+                if not stream_output and img_file == 1:
+                    from src.vision.utils_vision import get_llava_response
+                    response, _ = get_llava_response(**llava_kwargs)
 
             if gr_client is not None:
                 # Note: h2oGPT gradio server could handle input token size issues for prompt,
@@ -4624,25 +4721,225 @@ def evaluate(
                     response = prompter.get_response(prompt + text, prompt=prompt,
                                                      sanitize_bot_response=sanitize_bot_response)
                 else:
+                    response = ''
                     tgen0 = time.time()
-                    text = ""
-                    for responses in hf_client.generate_stream(prompt, **gen_server_kwargs):
-                        if not responses.token.special:
-                            # stop_sequences
-                            text_chunk = responses.token.text
-                            text += text_chunk
-                            response = prompter.get_response(prompt + text, prompt=prompt,
-                                                             sanitize_bot_response=sanitize_bot_response)
-                            sources = []
-                            yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
-                                       response_no_refs=response, sources_str='', prompt_raw='')
-                            time.sleep(0.01)
+                    from src.vision.utils_vision import get_llava_stream
+                    for response in get_llava_stream(**llava_kwargs):
+                        yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                                   response_no_refs=response, sources_str='', prompt_raw='')
+
                         if time.time() - tgen0 > max_time:
                             if verbose:
                                 print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
                             break
+
             else:
-                raise RuntimeError("Failed to get client: %s" % inference_server)
+                if gr_client is not None:
+                    # Note: h2oGPT gradio server could handle input token size issues for prompt,
+                    # but best to handle here so send less data to server
+
+                    chat_client = chat
+                    where_from = "gr_client"
+                    client_langchain_mode = 'Disabled'
+                    client_add_chat_history_to_context = add_chat_history_to_context
+                    client_add_search_to_context = False
+                    client_langchain_action = LangChainAction.QUERY.value
+                    client_langchain_agents = []
+                    gen_server_kwargs = dict(temperature=temperature,
+                                             top_p=top_p,
+                                             top_k=top_k,
+                                             penalty_alpha=penalty_alpha,
+                                             num_beams=num_beams,
+                                             max_new_tokens=max_new_tokens,
+                                             min_new_tokens=min_new_tokens,
+                                             early_stopping=early_stopping,
+                                             max_time=max_time,
+                                             repetition_penalty=repetition_penalty,
+                                             num_return_sequences=num_return_sequences,
+                                             do_sample=do_sample,
+                                             seed=seed,
+                                             chat=chat_client,
+                                             )
+                    # account for gradio into gradio that handles prompting, avoid duplicating prompter prompt injection
+                    if prompt_type in [None, '', PromptType.plain.name, PromptType.plain.value,
+                                       str(PromptType.plain.value)]:
+                        # if our prompt is plain, assume either correct or gradio server knows different prompt type,
+                        # so pass empty prompt_Type
+                        gr_prompt_type = ''
+                        gr_prompt_dict = ''
+                        gr_prompt = prompt  # already prepared prompt
+                        gr_context = ''
+                        gr_iinput = ''
+                    else:
+                        # if already have prompt_type that is not plain, None, or '', then already applied some prompting
+                        #  But assume server can handle prompting, and need to avoid double-up.
+                        #  Also assume server can do better job of using stopping.py to stop early, so avoid local prompting, let server handle
+                        #  So avoid "prompt" and let gradio server reconstruct from prompt_type we passed
+                        # Note it's ok that prompter.get_response() has prompt+text, prompt=prompt passed,
+                        #  because just means extra processing and removal of prompt, but that has no human-bot prompting doesn't matter
+                        #  since those won't appear
+                        gr_context = context
+                        gr_prompt = instruction
+                        gr_iinput = iinput
+                        gr_prompt_type = prompt_type
+                        gr_prompt_dict = prompt_dict
+
+                    # ensure image in correct format
+                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)  # comes out as list
+
+                    client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
+                                         iinput=gr_iinput,  # only for chat=True
+                                         context=gr_context,
+                                         # streaming output is supported, loops over and outputs each generation in streaming mode
+                                         # but leave stream_output=False for simple input/output mode
+                                         stream_output=stream_output,
+
+                                         **gen_server_kwargs,
+
+                                         prompt_type=gr_prompt_type,
+                                         prompt_dict=gr_prompt_dict,
+
+                                         instruction_nochat=gr_prompt if not chat_client else '',
+                                         iinput_nochat=gr_iinput,  # only for chat=False
+                                         langchain_mode=client_langchain_mode,
+
+                                         add_chat_history_to_context=client_add_chat_history_to_context,
+                                         chat_conversation=chat_conversation,
+                                         text_context_list=text_context_list,
+
+                                         chatbot_role=chatbot_role,
+                                         speaker=speaker,
+                                         tts_language=tts_language,
+                                         tts_speed=tts_speed,
+
+                                         langchain_action=client_langchain_action,
+                                         langchain_agents=client_langchain_agents,
+                                         top_k_docs=top_k_docs,
+                                         chunk=chunk,
+                                         chunk_size=chunk_size,
+                                         document_subset=DocumentSubset.Relevant.name,
+                                         document_choice=[DocumentChoice.ALL.value],
+                                         document_source_substrings=[],
+                                         document_source_substrings_op='and',
+                                         document_content_substrings=[],
+                                         document_content_substrings_op='and',
+                                         pre_prompt_query=pre_prompt_query,
+                                         prompt_query=prompt_query,
+                                         pre_prompt_summary=pre_prompt_summary,
+                                         prompt_summary=prompt_summary,
+                                         hyde_llm_prompt=hyde_llm_prompt,
+                                         system_prompt=system_prompt,
+                                         image_audio_loaders=image_audio_loaders,
+                                         pdf_loaders=pdf_loaders,
+                                         url_loaders=url_loaders,
+                                         jq_schema=jq_schema,
+                                         extract_frames=extract_frames,
+                                         llava_prompt=llava_prompt,
+                                         visible_models=visible_models,
+                                         visible_image_models=visible_image_models,
+                                         h2ogpt_key=h2ogpt_key,
+                                         add_search_to_context=client_add_search_to_context,
+                                         docs_ordering_type=docs_ordering_type,
+                                         min_max_new_tokens=min_max_new_tokens,
+                                         max_input_tokens=max_input_tokens,
+                                         max_total_input_tokens=max_total_input_tokens,
+                                         docs_token_handling=docs_token_handling,
+                                         docs_joiner=docs_joiner,
+                                         hyde_level=hyde_level,
+                                         hyde_template=hyde_template,
+                                         hyde_show_only_final=hyde_show_only_final,
+                                         doc_json_mode=doc_json_mode,
+                                         metadata_in_context=metadata_in_context,
+
+                                         image_file=img_file,
+                                         image_control=None,  # already stuffed into image_file
+                                         )
+                    assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
+                    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+                    response = ''
+                    text = ''
+                    sources = []
+                    strex = ''
+                    if not stream_output:
+                        res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
+                        res_dict = ast.literal_eval(res)
+                        text = res_dict['response']
+                        sources = res_dict['sources']
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        new_stream = False  # hanging for many chatbots
+                        gr_stream_kwargs = dict(client_kwargs=client_kwargs,
+                                                api_name=api_name,
+                                                prompt=prompt, prompter=prompter,
+                                                sanitize_bot_response=sanitize_bot_response,
+                                                max_time=max_time,
+                                                is_public=is_public,
+                                                verbose=verbose)
+                        if new_stream:
+                            res_dict = yield from gr_client.stream(**gr_stream_kwargs)
+                        else:
+                            res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
+                        response = res_dict.get('response', '')
+                    # listen to inner gradio
+                    num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', num_prompt_tokens)
+                    prompt = res_dict.get('prompt_raw', prompt)
+                elif hf_client:
+                    # quick sanity check to avoid long timeouts, just see if can reach server
+                    requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
+                    # HF inference server needs control over input tokens
+                    where_from = "hf_client"
+                    response = ''
+                    sources = []
+
+                    # prompt must include all human-bot like tokens, already added by prompt
+                    # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
+                    terminate_response = prompter.terminate_response or []
+                    stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
+                    stop_sequences = [x for x in stop_sequences if x]
+                    gen_server_kwargs = dict(do_sample=do_sample,
+                                             max_new_tokens=max_new_tokens,
+                                             # best_of=None,
+                                             repetition_penalty=repetition_penalty,
+                                             return_full_text=False,
+                                             seed=seed,
+                                             stop_sequences=stop_sequences,
+                                             temperature=max(1e-2, temperature),
+                                             top_k=top_k,
+                                             top_p=min(max(1e-2, top_p), 1.0 - 1e-3),
+                                             # truncate=False,  # behaves oddly
+                                             # typical_p=top_p,
+                                             # watermark=False,
+                                             # decoder_input_details=False,
+                                             )
+                    # work-around for timeout at constructor time, will be issue if multi-threading,
+                    # so just do something reasonable or max_time if larger
+                    # lower bound because client is re-used if multi-threading
+                    hf_client.timeout = max(300, max_time)
+                    if not stream_output:
+                        text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
+                        response = prompter.get_response(prompt + text, prompt=prompt,
+                                                         sanitize_bot_response=sanitize_bot_response)
+                    else:
+                        tgen0 = time.time()
+                        text = ""
+                        for responses in hf_client.generate_stream(prompt, **gen_server_kwargs):
+                            if not responses.token.special:
+                                # stop_sequences
+                                text_chunk = responses.token.text
+                                text += text_chunk
+                                response = prompter.get_response(prompt + text, prompt=prompt,
+                                                                 sanitize_bot_response=sanitize_bot_response)
+                                sources = []
+                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                           response_no_refs=response, sources_str='', prompt_raw='')
+                                time.sleep(0.01)
+                            if time.time() - tgen0 > max_time:
+                                if verbose:
+                                    print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
+                                break
+                else:
+                    raise RuntimeError("Failed to get client: %s" % inference_server)
         else:
             raise RuntimeError("No such inference_server  %s" % inference_server)
 
@@ -4709,6 +5006,7 @@ def evaluate(
     bad_word_ids = [tokenizer.eos_token_id]
     gen_config_kwargs = dict(num_beams=num_beams,
                              do_sample=do_sample,
+                             seed=seed,
                              repetition_penalty=float(repetition_penalty),
                              num_return_sequences=num_return_sequences,
                              renormalize_logits=True,
@@ -5046,6 +5344,7 @@ def get_generate_params(model_lower,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
                         do_sample,
+                        seed,
                         top_k_docs, chunk, chunk_size,
                         image_audio_loaders,
                         pdf_loaders,
@@ -5172,9 +5471,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     else:
         prompt_type = prompt_type or ''
     if use_defaults:
-        temperature = 1.0 if temperature is None else temperature
+        temperature = 0.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
-        top_k = 40 if top_k is None else top_k
+        top_k = 1 if top_k is None else top_k
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 512
@@ -5182,9 +5481,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
-        temperature = 0.1 if temperature is None else temperature
-        top_p = 0.75 if top_p is None else top_p
-        top_k = 40 if top_k is None else top_k
+        temperature = 0.0 if temperature is None else temperature
+        top_p = 1.0 if top_p is None else top_p
+        top_k = 1 if top_k is None else top_k
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 1024
@@ -5197,7 +5496,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
                    prompt_type, prompt_dict,
                    temperature, top_p, top_k, penalty_alpha, num_beams,
                    max_new_tokens, min_new_tokens,
-                   early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample]
+                   early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample, seed]
 
     if use_placeholder_instruction_as_example:
         examples += [[placeholder_instruction, ''] + params_list]
@@ -5263,6 +5562,7 @@ y = np.random.randint(0, 1, 100)
                     llava_prompt,
                     None,
                     None,
+                    None,
                     False,
                     None,
                     None,
@@ -5315,6 +5615,7 @@ y = np.random.randint(0, 1, 100)
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
         do_sample, \
+        seed, \
         src_lang, tgt_lang, \
         examples, \
         task_info
@@ -5503,29 +5804,6 @@ def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradi
     return text
 
 
-def gradio_to_llm(x, bot=False):
-    gradio_tmp = get_gradio_tmp()
-    # handle if gradio tuples in messages
-    if x is None:
-        x = ''
-    if isinstance(x, (tuple, list)) and len(x) > 0:
-        x = list(x)
-        for insti, inst in enumerate(x):
-            if isinstance(inst, str) and \
-                    (inst.startswith('/tmp/gradio') or inst.startswith(gradio_tmp)) and \
-                    os.path.isfile(inst):
-                # below so if put into context gets rendered not as broken file
-                if bot:
-                    x[
-                        insti] = 'Image Generated (in MarkDown that can be shown directly to user): ![image](file=' + inst + ')'
-                else:
-                    x[insti] = 'file=' + inst
-        if len(x) == 1:
-            x = x[0]
-        x = str(x) if all(isinstance(x, str) for x in x) else ''
-    return x
-
-
 def history_to_context(history, langchain_mode=None,
                        add_chat_history_to_context=None,
                        prompt_type=None, prompt_dict=None, model_max_length=None,
@@ -5541,7 +5819,6 @@ def history_to_context(history, langchain_mode=None,
     :param add_chat_history_to_context:
     :param prompt_type:
     :param prompt_dict:
-    :param chat:
     :param model_max_length:
     :param memory_restriction_level:
     :param keep_sources_in_context:
@@ -5620,11 +5897,36 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
     return max_new_tokens
 
 
+def apply_chat_template(instruction, system_prompt, history, tokenizer, verbose=False):
+    prompt = None
+
+    from openai_server.backend_utils import structure_to_messages
+
+    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] else None, None]
+    for si, system_prompt_to_use in enumerate(system_prompts_to_use):
+        try:
+            messages = structure_to_messages(instruction,
+                                             system_prompt_to_use,
+                                             history)
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            break
+        except Exception as e:
+            if si == 0 and 'Conversation roles must alternate' in str(e):
+                if verbose:
+                    print("No system prompt supported: %s" % str(e))
+                continue
+            else:
+                raise
+    assert prompt is not None, "Prompt was not set"
+    return prompt
+
+
 def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
                        estimated_instruction=None,
                        prompter=None,
+                       base_model=None,
                        inference_server=None,
                        prompt_type=None, prompt_dict=None, max_new_tokens=None,
                        system_prompt='',
@@ -5705,6 +6007,7 @@ def get_limited_prompt(instruction,
 
     # merge handles if chat_conversation is None
     history = []
+    history = history_for_llm(history)
     history = merge_chat_conversation_history(chat_conversation, history)
 
     history_to_context_func = functools.partial(history_to_context,
@@ -5712,7 +6015,8 @@ def get_limited_prompt(instruction,
                                                 add_chat_history_to_context=add_chat_history_to_context,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
-                                                model_max_length=model_max_length,  # still model_max_length because subtraction done again inside history_to_context
+                                                model_max_length=model_max_length,
+                                                # still model_max_length because subtraction done again inside history_to_context
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt,
@@ -5720,23 +6024,14 @@ def get_limited_prompt(instruction,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
 
-    from openai_server.backend_utils import structure_to_messages
     use_chat_template = prompt_type in [None, '', 'plain'] and \
                         (hasattr(tokenizer, 'chat_template') and
                          tokenizer.chat_template not in [None, ''] or
                          hasattr(tokenizer, 'default_chat_template') and
                          tokenizer.default_chat_template not in [None, '']
                          )
-
-    if use_chat_template:
-        messages = structure_to_messages(instruction,
-         system_prompt if system_prompt not in [None, '', 'auto'] else None,
-         history)
-        context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        iinput = ''
-        context = ''
-    else:
-        context2 = history_to_context_func(history)
+    if is_gradio_vision_model(base_model):
+        use_chat_template = False
 
     context1 = context
     if context1 is None:
@@ -5762,10 +6057,6 @@ def get_limited_prompt(instruction,
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
-    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                                 max_prompt_length=max_input_tokens)
-    if not use_chat_template:
-        context2 = context2_trial
 
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
@@ -5773,6 +6064,21 @@ def get_limited_prompt(instruction,
     system_prompt, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt, tokenizer,
                                                                               max_prompt_length=int(
                                                                                   max_input_tokens * 0.9))
+    if use_chat_template:
+        context2 = apply_chat_template(instruction, system_prompt, history, tokenizer)
+        iinput = ''
+        context1 = ''
+        num_context1_tokens = 0
+    else:
+        context2 = history_to_context_func(history)
+
+    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
+    if not use_chat_template:
+        context2 = context2_trial
+    else:
+        num_instruction_tokens = 0
+
     # limit system prompt
     if prompter:
         prompter.system_prompt = system_prompt
@@ -5841,8 +6147,9 @@ def get_limited_prompt(instruction,
                     history_to_use = history[0 + chat_index:]
 
                 if use_chat_template:
-                    messages = structure_to_messages(instruction, system_prompt, history_to_use)
-                    context2 = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                    instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                            max_prompt_length=non_doc_max_length)
+                    context2 = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer)
                 else:
                     context2 = history_to_context_func(history_to_use)
 
@@ -5865,9 +6172,11 @@ def get_limited_prompt(instruction,
                 else:
                     history_to_use_final = history[0 + best_index:]
             else:
-                history_to_use_final = history.copy()
+                chat_index = -1
+                # can't fit any history
+                history_to_use_final = []
             if verbose:
-                print("chat_conversation used %d out of %d" % (chat_index, len(history)), flush=True)
+                print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
         elif not use_chat_template and diff3 > 0 > diff2:
             # then may be able to do #1 + #2 + #3
             iinput = ''
@@ -5915,7 +6224,7 @@ def get_limited_prompt(instruction,
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
     if truncation_generation:
-        max_new_tokens = min(max_new_tokens, model_max_length - num_prompt_tokens)
+        max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
         if os.getenv('HARD_ASSERTS'):
             if max_new_tokens < min_max_new_tokens:
@@ -5941,7 +6250,8 @@ def get_limited_prompt(instruction,
         reduced = context_from_history
         prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
     else:
-        prompt = context
+        # assume inner gradio server handles.  if we point to gradio server (i.e. gradio_server=True) then we just pass instruction
+        prompt = instruction if gradio_server else context2
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \

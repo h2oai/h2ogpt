@@ -14,6 +14,8 @@ def get_loaders(model_name, reward_type, llama_type=None,
                 rope_scaling=None, max_seq_len=None, model_name_exllama_if_no_config='',
                 exllama_dict=None, gptq_dict=None,
                 hf_model_dict={},
+                force_seq2seq_type=False,
+                force_t5_type=False,
                 ):
     # NOTE: Some models need specific new prompt_type
     # E.g. t5_xxl_true_nli_mixture has input format: "premise: PREMISE_TEXT hypothesis: HYPOTHESIS_TEXT".)
@@ -104,7 +106,14 @@ def get_loaders(model_name, reward_type, llama_type=None,
         return model_loader, AutoTokenizer, False
     if llama_type is None:
         llama_type = "llama" in model_name.lower()
-    if llama_type and not load_gptq:
+    if force_seq2seq_type:
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        return functools.partial(AutoModelForSeq2SeqLM.from_pretrained,
+                                 **hf_model_dict), AutoTokenizer, False
+    elif force_t5_type:
+        from transformers import AutoTokenizer, T5ForConditionalGeneration
+        return functools.partial(T5ForConditionalGeneration.from_pretrained, **hf_model_dict), AutoTokenizer, True
+    elif llama_type and not load_gptq:
         from transformers import LlamaForCausalLM, LlamaTokenizer
         return functools.partial(LlamaForCausalLM.from_pretrained, **hf_model_dict), LlamaTokenizer, False
     elif 'distilgpt2' in model_name.lower():
@@ -128,6 +137,10 @@ def get_loaders(model_name, reward_type, llama_type=None,
     elif reward_type or 'OpenAssistant/reward-model'.lower() in model_name.lower():
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
         return functools.partial(AutoModelForSequenceClassification.from_pretrained, **hf_model_dict), AutoTokenizer, False
+    elif 'CohereForAI/aya-101'.lower() in model_name.lower():
+        from transformers import T5ForConditionalGeneration, AutoTokenizer
+        return functools.partial(T5ForConditionalGeneration.from_pretrained,
+                                 **hf_model_dict), AutoTokenizer, False
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
         model_loader = functools.partial(AutoModelForCausalLM.from_pretrained, **hf_model_dict)

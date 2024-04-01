@@ -1,5 +1,6 @@
 import os
 
+import torch
 from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType
 
@@ -17,6 +18,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  base_model=None,
                  stop=None,
                  truncation_generation=None,
+                 max_time=None,
                  verbose=False,
                  **kwargs):
         """
@@ -64,6 +66,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.base_model = base_model
         self.verbose = verbose
         self.truncation_generation = truncation_generation
+        self.max_time = max_time
 
     @staticmethod
     def get_token_count(x, tokenizer):
@@ -253,7 +256,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                                                   model_max_length=self.tokenizer.model_max_length,
                                                   prompter=self.prompter,
                                                   stop=stop,
-                                                  truncation_generation=self.truncation_generation)
+                                                  truncation_generation=self.truncation_generation,
+                                                  max_time=self.max_time)
             generate_kwargs['stopping_criteria'] = self.stopping_criteria
         generate_kwargs.pop('stop', None)
         # return super()._forward(model_inputs, **generate_kwargs)
@@ -293,6 +297,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                 generate_kwargs["min_length"] += prefix_length
 
         # BS x SL
+        seed = generate_kwargs.pop('seed', 1234)
+        torch.manual_seed(seed)
         generated_sequence = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, **generate_kwargs)
         out_b = generated_sequence.shape[0]
         if self.framework == "pt":
