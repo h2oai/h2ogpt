@@ -319,7 +319,11 @@ def get_llava_stream(file, llava_model,
 
     if len(jobs) > 1:
         # recurse without image(s)
+        ntexts_before = len(texts)
         texts = [x for x in texts if server_error_msg not in x]
+        ntexts_after = len(texts)
+        if ntexts_after != ntexts_before:
+            print("texts: %s -> %s" % (ntexts_before, ntexts_after))
         prompt_with_texts = get_prompt_with_texts(texts, prompt)
         text = ''
         for text in get_llava_stream(None,
