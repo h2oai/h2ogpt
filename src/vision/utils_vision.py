@@ -86,7 +86,7 @@ def llava_prep(file_list,
                llava_model,
                image_model='llava-v1.6-vicuna-13b',
                client=None):
-    assert client is not None
+    assert client is not None or len(file_list) == 1
 
     file_list_new = []
     image_model_list_new = []
@@ -179,6 +179,8 @@ def get_llava_response(file=None,
                        ):
     max_new_tokens = min(max_new_tokens, 1024)  # for hard_cutoff to be easy to know
 
+    kwargs = locals().copy()
+
     force_stream |= isinstance(file, list) and len(file) > 1
     if isinstance(file, str):
         file_list = [file]
@@ -186,8 +188,6 @@ def get_llava_response(file=None,
         file_list = file
     else:
         file_list = [None]
-
-    kwargs = locals().copy()
 
     if force_stream:
         text = ''
