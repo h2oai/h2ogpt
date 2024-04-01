@@ -309,6 +309,8 @@ def get_llava_stream(file, llava_model,
 
     if len(jobs) > 1:
         # recurse without image(s)
+        server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
+        texts = [x for x in texts if server_error_msg not in x]
         prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n' + 'Reduce the above information to single correct answer of the following question: ' + prompt
         text = ''
         for text in get_llava_stream(None,
