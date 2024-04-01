@@ -150,13 +150,15 @@ server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR RE
 
 
 def get_prompt_with_texts(texts, prompt, max_new_tokens):
+    user_part = 'Reduce the above information to single correct answer of the following question: ' + prompt
+
     # pure text cutoffs
-    hard_cutoff = (4096 - max_new_tokens) * 4
+    hard_cutoff = (4096 - max_new_tokens) * 4 - 10 - len(user_part)
 
     prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n'
     # same hard cut-off as on server
     prompt_with_texts = prompt_with_texts[:hard_cutoff]
-    prompt_with_texts += 'Reduce the above information to single correct answer of the following question: ' + prompt
+    prompt_with_texts += user_part
 
     return prompt_with_texts.replace('image', 'document').replace('Image', 'Document')
 
@@ -174,6 +176,8 @@ def get_llava_response(file=None,
                        max_time=None,
                        force_stream=True,
                        ):
+    max_new_tokens = min(max_new_tokens, 1024)  # for hard_cutoff to be easy to know
+
     force_stream |= isinstance(file, list) and len(file) > 1
     if isinstance(file, str):
         file_list = [file]
@@ -245,6 +249,8 @@ def get_llava_stream(file, llava_model,
                      max_time=None,
                      force_stream=True,  # dummy arg
                      ):
+    max_new_tokens = min(max_new_tokens, 1024)  # for hard_cutoff to be easy to know
+
     if isinstance(file, str):
         file_list = [file]
     elif isinstance(file, list):
