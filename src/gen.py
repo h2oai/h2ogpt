@@ -4529,6 +4529,7 @@ def evaluate(
                 if not stream_output and img_file == 1:
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
+                    
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
