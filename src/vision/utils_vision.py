@@ -149,9 +149,15 @@ def _llava_prep(file,
 server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
 
 
-def get_prompt_with_texts(texts, prompt):
-    prompt_with_texts = '\"\"\"' + '\n\n'.join(
-        texts) + '\"\"\"' + '\n' + 'Reduce the above information to single correct answer of the following question: ' + prompt
+def get_prompt_with_texts(texts, prompt, max_new_tokens):
+    # pure text cutoffs
+    hard_cutoff = (4096 - max_new_tokens) * 4
+
+    prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n'
+    # same hard cut-off as on server
+    prompt_with_texts = prompt_with_texts[:hard_cutoff]
+    prompt_with_texts += 'Reduce the above information to single correct answer of the following question: ' + prompt
+
     return prompt_with_texts.replace('image', 'document').replace('Image', 'Document')
 
 
@@ -209,7 +215,7 @@ def get_llava_response(file=None,
 
     if len(reses) > 1:
         reses = [x for x in reses if server_error_msg not in x]
-        prompt_with_texts = get_prompt_with_texts(reses, prompt)
+        prompt_with_texts = get_prompt_with_texts(reses, prompt, max_new_tokens)
         res = client.predict(prompt_with_texts,
                              chat_conversation,
                              None,
@@ -324,7 +330,7 @@ def get_llava_stream(file, llava_model,
         ntexts_after = len(texts)
         if ntexts_after != ntexts_before:
             print("texts: %s -> %s" % (ntexts_before, ntexts_after))
-        prompt_with_texts = get_prompt_with_texts(texts, prompt)
+        prompt_with_texts = get_prompt_with_texts(texts, prompt, max_new_tokens)
         text = ''
         for res in get_llava_stream(None,
                                     llava_model,
