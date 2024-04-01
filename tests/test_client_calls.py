@@ -4895,8 +4895,9 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert 'license' in response.lower()
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
-# (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 
+
+# (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
@@ -4937,13 +4938,13 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   langchain_action=langchain_action,
                   h2ogpt_key=h2ogpt_key)
     res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-    response = ast.literal_eval(res_dict)['response']
+    res_dict = ast.literal_eval(res_dict)
+    response = res_dict['response']
 
     if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in response:
         return
 
     # string of dict for output
-    response = ast.literal_eval(res_dict)['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
     assert 'REINFORCE'.lower() in response.lower()
