@@ -760,8 +760,9 @@ class GradioInference(H2Oagenerate, LLM):
                              image_control=self.image_control,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-        self.count_input_tokens += self.get_num_tokens(str(prompt))
-        self.prompts.append(prompt)
+        # let inner gradio count input tokens
+        # self.count_input_tokens += self.get_num_tokens(str(prompt))
+        # self.prompts.append(prompt)
 
         return client_kwargs, api_name
 
@@ -785,6 +786,7 @@ class GradioInference(H2Oagenerate, LLM):
         client = self.client.clone()
         from gradio_utils.grclient import check_job
 
+        res_dict = {}
         if not self.stream_output:
             res = client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
@@ -794,6 +796,7 @@ class GradioInference(H2Oagenerate, LLM):
             self.count_output_tokens += self.get_num_tokens(ret)
             if self.verbose:
                 print("end _call", flush=True)
+            self.use_gradio_return(res_dict, prompt)
             return ret
         else:
             text_callback = None
@@ -864,7 +867,12 @@ class GradioInference(H2Oagenerate, LLM):
             self.count_output_tokens += self.get_num_tokens(ret)
             if self.verbose:
                 print("end _call", flush=True)
+            self.use_gradio_return(res_dict, prompt)
             return ret
+
+    def use_gradio_return(self, res_dict, prompt_raw):
+        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', self.get_num_tokens(str(prompt_raw)))
+        self.prompts.append(res_dict.get('prompt_raw', prompt_raw))
 
     # copy-paste of streaming part of _call() with asyncio.sleep instead
     async def _acall(
@@ -5885,7 +5893,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             prompt = str(llm.pipeline.prompts)
     elif hasattr(llm, 'prompts') and llm.prompts:
         if isinstance(llm.prompts, list) and len(llm.prompts) == 1:
-            prompt = str(llm.prompts[0])
+            if hasattr(llm.prompts[0], 'text'):
+                prompt = str(llm.prompts[0].text)
+            else:
+                prompt = str(llm.prompts[0])
         else:
             prompt = str(llm.prompts)
     elif hasattr(llm, 'prompter') and llm.prompter.prompt:

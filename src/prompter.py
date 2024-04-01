@@ -293,6 +293,12 @@ def is_vision_model(base_model):
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest"]
 
 
+def is_video_model(base_model):
+    if not base_model:
+        return False
+    return base_model in ["gemini-1.5-pro-latest"]
+
+
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
                system_prompt=None, histi=-1):
     prompt_dict_error = ''
