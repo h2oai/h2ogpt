@@ -5838,7 +5838,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
                    response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
         return
-    if langchain_mode not in langchain_modes_non_db and not docs:
+    # if only images, then still can do valid summarization
+    if langchain_mode not in langchain_modes_non_db and not (docs or image_file):
         if langchain_action in [LangChainAction.SUMMARIZE_MAP.value,
                                 LangChainAction.SUMMARIZE_ALL.value,
                                 LangChainAction.SUMMARIZE_REFINE.value]:
