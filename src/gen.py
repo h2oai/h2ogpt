@@ -4531,42 +4531,6 @@ def evaluate(
                     response, _ = get_llava_response(**llava_kwargs)
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
-            elif hf_client:
-                # quick sanity check to avoid long timeouts, just see if can reach server
-                requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-                # HF inference server needs control over input tokens
-                where_from = "hf_client"
-                response = ''
-                sources = []
-
-                # prompt must include all human-bot like tokens, already added by prompt
-                # https://github.com/huggingface/text-generation-inference/tree/main/clients/python#types
-                terminate_response = prompter.terminate_response or []
-                stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
-                stop_sequences = [x for x in stop_sequences if x]
-                gen_server_kwargs = dict(do_sample=do_sample,
-                                         max_new_tokens=max_new_tokens,
-                                         # best_of=None,
-                                         repetition_penalty=repetition_penalty,
-                                         return_full_text=False,
-                                         seed=SEED,
-                                         stop_sequences=stop_sequences,
-                                         temperature=temperature,
-                                         top_k=top_k,
-                                         top_p=top_p,
-                                         # truncate=False,  # behaves oddly
-                                         # typical_p=top_p,
-                                         # watermark=False,
-                                         # decoder_input_details=False,
-                                         )
-                # work-around for timeout at constructor time, will be issue if multi-threading,
-                # so just do something reasonable or max_time if larger
-                # lower bound because client is re-used if multi-threading
-                hf_client.timeout = max(300, max_time)
-                if not stream_output:
-                    text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
-                    response = prompter.get_response(prompt + text, prompt=prompt,
-                                                     sanitize_bot_response=sanitize_bot_response)
                 else:
                     response = ''
                     tgen0 = time.time()
