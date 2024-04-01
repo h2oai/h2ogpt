@@ -75,7 +75,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4
 
 start_faulthandler()
 import_matplotlib()
@@ -1751,7 +1751,7 @@ def main(
 
     image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
-        url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
+        url_loaders_options0, url_loaders_options = lg_to_gr(**locals().copy())
     jq_schema0 = jq_schema
     extract_frames0 = extract_frames
     # transcribe
@@ -1815,7 +1815,7 @@ def main(
                             )
 
     git_hash = get_githash()
-    locals_dict = locals()
+    locals_dict = locals().copy()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
         print(f"Generating model with params:\n{locals_print}", flush=True)
@@ -1976,7 +1976,7 @@ def main(
                                     migrate_embedding_model,
                                     auto_migrate_db,
                                     embedding_gpu_id=embedding_gpu_id,
-                                    kwargs_make_db=locals(),
+                                    kwargs_make_db=locals().copy(),
                                     verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
@@ -2227,15 +2227,15 @@ def main(
     # run
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, **locals()))
+        return run_cli(**get_kwargs(run_cli, **locals().copy()))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, **locals()))
+        return run_eval(**get_kwargs(run_eval, **locals().copy()))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
         # assume gradio needs everything
-        go_gradio(**locals())
+        go_gradio(**locals().copy())
 
 
 def get_config(base_model,
@@ -2472,7 +2472,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if base_model and is_gradio_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
-        gr_client = GradioClient(inference_server, check_hash=False, serialize=True, **gradio_auth)
+        gr_client = GradioClient(inference_server, check_hash=False, serialize=is_gradio_version4, **gradio_auth)
         gr_client.setup()
     elif headers is None:
         try:
@@ -3587,7 +3587,7 @@ def get_score_model(score_model: str = None,
         force_t5_type = False
 
         smodel, stokenizer, sdevice = get_model(reward_type=True,
-                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals().copy()))
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice

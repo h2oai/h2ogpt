@@ -7,6 +7,7 @@ from io import BytesIO
 import numpy as np
 
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models
+from src.utils import is_gradio_version4
 
 
 def img_to_base64(image_file, str_bytes=True):
@@ -108,8 +109,11 @@ def llava_prep(file,
 
     if client is None:
         from gradio_utils.grclient import GradioClient
-        client = GradioClient(llava_model, check_hash=False, serialize=True)
+        client = GradioClient(llava_model, check_hash=False, serialize=is_gradio_version4)
         client.setup()
+
+    if not is_gradio_version4 and file and os.path.isfile(file):
+        file = img_to_base64(file)
 
     assert image_model, "No image model specified"
 
@@ -139,7 +143,7 @@ def get_llava_response(file=None,
         # llava only handles first image if list of images
         file = file[0]
 
-    kwargs = locals()
+    kwargs = locals().copy()
 
     if force_stream:
         text = ''
@@ -147,6 +151,7 @@ def get_llava_response(file=None,
             text = res
         return text, prompt
 
+    image_model = os.path.basename(image_model)  # in case passed HF link
     prompt = fix_llava_prompt(file, prompt, allow_prompt_auto=allow_prompt_auto)
 
     image_model, client, file = \

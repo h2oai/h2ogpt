@@ -165,7 +165,7 @@ def train(
 
     device_map = "auto"
 
-    locals_dict = locals()
+    locals_dict = locals().copy()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     log(f"Training model with params:\n{locals_print}")
     log("Command: %s\nHash: %s" % (str(' '.join(sys.argv)), get_githash()))
