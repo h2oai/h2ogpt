@@ -288,4 +288,5 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
             else:
                 img_file1 = None
         final_img_files.append(img_file1)
+    final_img_files = [x for x in final_img_files if x]
     return final_img_files
