@@ -4892,9 +4892,6 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
 
-    if 'no relevant documents to summarize'.lower() in response.lower() and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
-        return
-
     assert 'license' in response.lower()
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
@@ -4942,9 +4939,6 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     response = ast.literal_eval(res_dict)['response']
 
     if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in response:
-        return
-
-    if 'no relevant documents to summarize'.lower() in response.lower() and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
         return
 
     # string of dict for output
