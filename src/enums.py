@@ -238,6 +238,9 @@ claude3image_num_max = 20
 # 20MB per image
 gpt4image_num_max = 10
 
+# can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
+llava_num_max = 10
+
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
 google_mapping = {

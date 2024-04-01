@@ -626,14 +626,15 @@ if [ 1 -eq 1 ]
    then
 export CUDA_VISIBLE_DEVICES=1
 export worker_port=40000
-python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-vicuna-13b &> 2.log &
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-vicuna-13b --limit-model-concurrency 5 &> 2.log &
 fi
 
 if [ 1 -eq 1 ]
    then
 export CUDA_VISIBLE_DEVICES=3
 export worker_port=40002
-python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-34b &>> 34b.log &
+export GRADIO_SERVER_PORT=7860
+python -m llava.serve.model_worker --host 0.0.0.0 --controller http://xxx.xxx.xxx.144:$server_port --port $worker_port --worker http://xxx.xxx.xxx.144:$worker_port --model-path liuhaotian/llava-v1.6-34b --limit-model-concurrency 5 &>> 34b.log &
 fi
 
 sleep 30

@@ -4895,6 +4895,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert 'license' in response.lower()
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
+# (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
