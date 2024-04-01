@@ -262,7 +262,7 @@ def get_llava_stream(file, llava_model,
     job_outputs_nums = [0] * len(jobs)
     texts = [''] * len(jobs)
     done_all = False
-    reses = [None] * len(jobs)
+    reses = [''] * len(jobs)
     while True:
         for ji, job in enumerate(jobs):
             if verbose_level == 2:
@@ -309,10 +309,11 @@ def get_llava_stream(file, llava_model,
 
     if len(jobs) > 1:
         # recurse without image(s)
-        prompt_with_reses = '\"\"\"' + '\n\n'.join(reses) + '\"\"\"' + '\n' + prompt
-        text = get_llava_stream(None,
+        prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n' + 'Reduce the above information to single correct answer of the following question: ' + prompt
+        text = ''
+        for text in get_llava_stream(None,
                                 llava_model,
-                                prompt=prompt_with_reses,
+                                prompt=prompt_with_texts,
                                 chat_conversation=chat_conversation,
                                 allow_prompt_auto=allow_prompt_auto,
                                 image_model=image_model,
@@ -325,7 +326,8 @@ def get_llava_stream(file, llava_model,
                                 verbose_level=verbose_level,
                                 max_time=max_time,
                                 force_stream=force_stream,  # dummy arg
-                                )
+                                ):
+            yield text
     else:
         assert len(texts) == 1
         text = texts[0]
