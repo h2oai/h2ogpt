@@ -158,7 +158,7 @@ def get_prompt_with_texts(texts, prompt, max_new_tokens):
 
     prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n'
     # same hard cut-off as on server
-    prompt_with_texts = prompt_with_texts[:hard_cutoff]
+    prompt_with_texts = prompt_with_texts[-hard_cutoff:]
     prompt_with_texts += user_part
 
     return prompt_with_texts.replace('image', 'document').replace('Image', 'Document')
