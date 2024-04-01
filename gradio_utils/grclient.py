@@ -674,6 +674,7 @@ class GradioClient(Client):
         Returns: summary/answer: str or extraction List[str]
 
         """
+        print(model)
         if self.config is None:
             self.setup()
         if self.persist:
@@ -799,6 +800,7 @@ class GradioClient(Client):
             hyde_show_only_final=hyde_show_only_final,
             doc_json_mode=doc_json_mode,
             metadata_in_context=metadata_in_context,
+            model = model
         )
 
         # in case server changed, update in case clone()
@@ -976,6 +978,7 @@ class GradioClient(Client):
             time.sleep(0.01)
         # ensure get last output to avoid race
         res_all = job.outputs().copy()
+        print("res all", res_all)
         success = job.communicator.job.latest_status.success
         timeout = 0.1 if success else 10
         if len(res_all) > 0:
@@ -985,6 +988,7 @@ class GradioClient(Client):
                 strex = ''.join(traceback.format_tb(e.__traceback__))
 
             res = res_all[-1]
+            print("res_all", res_all, "res", res)
             res_dict = ast.literal_eval(res)
             text = res_dict['response']
             sources = res_dict.get('sources')

@@ -81,6 +81,7 @@ eval_func_param_names = ['instruction',
 
                          'image_file',
                          'image_control',
+                         'base_model'
                          ]
 
 # form evaluate defaults for submit_nochat_api
