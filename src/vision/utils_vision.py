@@ -152,7 +152,7 @@ server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR RE
 def get_prompt_with_texts(texts, prompt):
     prompt_with_texts = '\"\"\"' + '\n\n'.join(
         texts) + '\"\"\"' + '\n' + 'Reduce the above information to single correct answer of the following question: ' + prompt
-    return prompt_with_texts
+    return prompt_with_texts.replace('image', 'document').replace('Image', 'Document')
 
 
 def get_llava_response(file=None,
