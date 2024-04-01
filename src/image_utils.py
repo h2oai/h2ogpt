@@ -273,6 +273,8 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
 
     if not isinstance(img_file, list):
         img_file = [img_file]
+    if isinstance(img_file, list) and not img_file:
+        img_file = [None]
 
     final_img_files = []
     for img_file1 in img_file:
