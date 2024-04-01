@@ -153,7 +153,7 @@ def get_prompt_with_texts(texts, prompt, max_new_tokens):
     user_part = '\n\nReduce the above information to single correct answer of the following question: ' + prompt
 
     # pure text cutoffs
-    hard_cutoff = (4096 - max_new_tokens) * 4 - 10 - len(user_part)
+    hard_cutoff = (4096 - max_new_tokens) * 4 - 7 - 2 * len(texts) - len(user_part)
     hard_cutoff -= 50  # fudge
 
     prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n'
