@@ -4693,6 +4693,9 @@ def evaluate(
                         else:
                             res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
                         response = res_dict.get('response', '')
+                    # listen to inner gradio
+                    num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', num_prompt_tokens)
+                    prompt = res_dict.get('prompt_raw', prompt)
                 elif hf_client:
                     # quick sanity check to avoid long timeouts, just see if can reach server
                     requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
@@ -5885,7 +5888,7 @@ def get_limited_prompt(instruction,
     if not use_chat_template:
         context2 = context2_trial
     else:
-        num_context2_tokens = 0
+        num_instruction_tokens = 0
 
     # limit system prompt
     if prompter:
