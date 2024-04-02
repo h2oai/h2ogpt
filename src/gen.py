@@ -486,6 +486,12 @@ def main(
         image_file: str = None,
         image_control: str = None,
 
+        response_format: str = None,
+        guided_json: Union[str, dict] = None,
+        guided_regex: str = None,
+        guided_choice: str = None,
+        guided_grammar: str = None,
+
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
         asr_gpu_id: Union[int, str] = 'auto',
@@ -1186,6 +1192,13 @@ def main(
 
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
+
+    :param response_format: json_object or text
+    # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
+    :param guided_json:
+    :param guided_regex:
+    :param guided_choice:
+    :param guided_grammar:
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v3 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
@@ -3590,7 +3603,8 @@ def get_score_model(score_model: str = None,
         force_t5_type = False
 
         smodel, stokenizer, sdevice = get_model(reward_type=True,
-                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals().copy()))
+                                                **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                             **locals().copy()))
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
@@ -3688,6 +3702,12 @@ def evaluate(
 
         image_file,
         image_control,
+
+        response_format,
+        guided_json,
+        guided_regex,
+        guided_choice,
+        guided_grammar,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -4600,7 +4620,8 @@ def evaluate(
                         gr_prompt_dict = prompt_dict
 
                     # ensure image in correct format
-                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)  # comes out as list
+                    img_file = get_image_file(image_file, image_control, document_choice,
+                                              convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
                                          iinput=gr_iinput,  # only for chat=True
@@ -4697,7 +4718,8 @@ def evaluate(
                             res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
                         response = res_dict.get('response', '')
                     # listen to inner gradio
-                    num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', num_prompt_tokens)
+                    num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens',
+                                                                                                 num_prompt_tokens)
                     prompt = res_dict.get('prompt_raw', prompt)
                 elif hf_client:
                     # quick sanity check to avoid long timeouts, just see if can reach server
