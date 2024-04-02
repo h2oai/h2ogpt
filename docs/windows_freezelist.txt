@@ -167,7 +167,7 @@ langchain==0.0.354
 langchain-community==0.0.8
 langchain-core==0.1.6
 langchain-experimental==0.0.47
-langchain-google-genai==0.0.6
+langchain-google-genai==1.0.1
 langdetect==1.0.9
 langsmith==0.0.77
 layoutparser==0.3.4
