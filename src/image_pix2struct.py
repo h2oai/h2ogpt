@@ -8,7 +8,7 @@ Loader that uses Pix2Struct models to image caption
 from typing import List, Union, Any, Tuple
 
 from langchain.docstore.document import Document
-from langchain.document_loaders import ImageCaptionLoader
+from langchain_community.document_loaders import ImageCaptionLoader
 from utils import get_device, clear_torch_cache
 from PIL import Image
 

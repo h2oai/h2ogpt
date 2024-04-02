@@ -33,10 +33,10 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain.callbacks import streaming_stdout
+from langchain_community.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
-from langchain.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
-from langchain.embeddings import HuggingFaceInstructEmbeddings
+from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
@@ -81,6 +81,10 @@ from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
 
+# to check imports
+# find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
+# python go.py
+
 import_matplotlib()
 
 import numpy as np
@@ -91,7 +95,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , OutlookMessageLoader # GPL3
 # ImageCaptionLoader, # use our own wrapper
 #  ReadTheDocsLoader,  # no special file, some path, so have to give as special option
-from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
@@ -100,8 +104,8 @@ from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, Te
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
-from langchain.llms import HuggingFaceTextGenInference, HuggingFacePipeline
-from langchain.vectorstores import Chroma
+from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline
+from langchain_community.vectorstores import Chroma
 from chromamig import ChromaMig
 
 
@@ -139,12 +143,12 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
 
     # Create vector database
     if db_type == 'faiss':
-        from langchain.vectorstores import FAISS
+        from langchain_community.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
-        from langchain.vectorstores import Weaviate
+        from langchain_community.vectorstores import Weaviate
 
         if os.getenv('WEAVIATE_URL', None):
             client = _create_local_weaviate_client()
@@ -156,7 +160,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
     elif db_type == 'qdrant':
-        from langchain.vectorstores import Qdrant
+        from langchain_community.vectorstores import Qdrant
 
         qdrant_options = _get_qdrant_options()
 
@@ -462,7 +466,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
     return db
 
 
-from langchain.embeddings import FakeEmbeddings
+from langchain_community.embeddings import FakeEmbeddings
 
 
 class H2OFakeEmbeddings(FakeEmbeddings):
@@ -486,7 +490,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
     # Get embedding model
     if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
-        from langchain.embeddings import OpenAIEmbeddings
+        from langchain_community.embeddings import OpenAIEmbeddings
         embedding = OpenAIEmbeddings(disallowed_special=())
     elif hf_embedding_model == 'fake':
         embedding = H2OFakeEmbeddings(size=1)
@@ -508,7 +512,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
-            from langchain.embeddings import HuggingFaceEmbeddings
+            from langchain_community.embeddings import HuggingFaceEmbeddings
 
             if isinstance(gpu_id, int) or gpu_id == 'auto':
                 device, torch_dtype, context_class = get_device_dtype()
@@ -1307,10 +1311,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         # return _get_token_ids_default_method(text)
 
 
-from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
-from langchain.chat_models import ChatAnthropic as ChatAnthropic2
+from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
+from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2
 from langchain_anthropic import ChatAnthropic as ChatAnthropic3
-from langchain.llms import OpenAI, AzureOpenAI, Replicate
+from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
 
 
 class H2OOpenAI(OpenAI):
@@ -3387,7 +3391,7 @@ def file_to_doc(file,
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
-                from langchain.document_loaders import PlaywrightURLLoader
+                from langchain_community.document_loaders import PlaywrightURLLoader
                 docs1a = asyncio.run(PlaywrightURLLoader(urls=final_urls).aload())
                 # docs1 = PlaywrightURLLoader(urls=[file]).load()
                 docs1a = [x for x in docs1a if
@@ -3399,7 +3403,7 @@ def file_to_doc(file,
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
                 # Message: unknown error: cannot find Chrome binary
-                from langchain.document_loaders import SeleniumURLLoader
+                from langchain_community.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1a = SeleniumURLLoader(urls=final_urls).load()
@@ -3838,7 +3842,7 @@ def file_to_doc(file,
         e = None
         if have_pymupdf and (len(doc1) == 0 and use_pymupdf == 'auto' or use_pymupdf == 'on'):
             # GPL, only use if installed
-            from langchain.document_loaders import PyMuPDFLoader
+            from langchain_community.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1a = PyMuPDFLoader(file).load()
@@ -3890,7 +3894,7 @@ def file_to_doc(file,
         if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and tried_others):
             # try again in case only others used, but only if didn't already try (2nd part of and)
             # GPL, only use if installed
-            from langchain.document_loaders import PyMuPDFLoader
+            from langchain_community.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1a = PyMuPDFLoader(file).load()
@@ -3997,7 +4001,7 @@ def file_to_doc(file,
         add_meta(doc1, file, parser='TomlLoader')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.xml'):
-        from langchain.document_loaders import UnstructuredXMLLoader
+        from langchain_community.document_loaders import UnstructuredXMLLoader
         loader = UnstructuredXMLLoader(file_path=file)
         doc1 = loader.load()
         add_meta(doc1, file, parser='UnstructuredXMLLoader')
@@ -5259,8 +5263,8 @@ def large_chroma_db(db):
 
 
 def get_metadatas(db, full_required=True, k_max=10000):
-    from langchain.vectorstores import FAISS
-    from langchain.vectorstores import Qdrant
+    from langchain_community.vectorstores import FAISS
+    from langchain_community.vectorstores import Qdrant
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif is_chroma_db(db):
@@ -5317,8 +5321,8 @@ def get_documents(db):
 def _get_documents(db):
     # returns not just documents, but full dict of documents, metadatas, ids, embeddings
     # documents['documents] should be list of texts, not Document() type
-    from langchain.vectorstores import FAISS
-    from langchain.vectorstores import Qdrant
+    from langchain_community.vectorstores import FAISS
+    from langchain_community.vectorstores import Qdrant
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
@@ -5369,7 +5373,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None,
         db_documents += [x.page_content if hasattr(x, 'page_content') else x for x in text_context_list]
         db_metadatas += [x.metadata if hasattr(x, 'metadata') else {} for x in text_context_list]
 
-    from langchain.vectorstores import FAISS
+    from langchain_community.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         if top_k_docs == -1:
             limit = k_max
@@ -6632,7 +6636,7 @@ def get_chain(query=None,
         # from langchain_community.tools.file_management.read import ReadFileTool
         # from langchain_community.tools.file_management.write import WriteFileTool
         # file_tools = [WriteFileTool(), ReadFileTool()]
-        from langchain.tools import ShellTool
+        from langchain_community.tools import ShellTool
         shell_tool = ShellTool()
         shell_tool.description = shell_tool.description + f"args {shell_tool.args}".replace(
             "{", "{{"
@@ -6725,9 +6729,9 @@ def get_chain(query=None,
         else:
             tools.extend([sympy_tool])
 
-        from langchain.docstore import InMemoryDocstore
-        from langchain.embeddings import OpenAIEmbeddings
-        from langchain.vectorstores import FAISS
+        from langchain_community.docstore import InMemoryDocstore
+        from langchain_community.embeddings import OpenAIEmbeddings
+        from langchain_community.vectorstores import FAISS
 
         # Define your embedding model
         embeddings_model = OpenAIEmbeddings()
@@ -6899,7 +6903,7 @@ def get_chain(query=None,
                 data = json.loads(f.read())
             json_spec = JsonSpec(dict_=data, max_value_length=4000)
 
-            from langchain.agents.agent_toolkits import JsonToolkit
+            from langchain_community.agent_toolkits import JsonToolkit
             from langchain.agents import create_json_agent
 
             json_toolkit = JsonToolkit(spec=json_spec)
@@ -8811,7 +8815,7 @@ def _get_qdrant_options():
     return options
 
 def _get_unique_sources_in_qdrant(db):
-    from langchain.vectorstores import Qdrant
+    from langchain_community.vectorstores import Qdrant
     import grpc
 
     if not isinstance(db, Qdrant):

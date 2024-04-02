@@ -3701,7 +3701,7 @@ def test_client_summarization_from_text():
     download_simple(url, dest=test_file1)
 
     # Get text version of PDF
-    from langchain.document_loaders import PyMuPDFLoader
+    from langchain_community.document_loaders import PyMuPDFLoader
     # load() still chunks by pages, but every page has title at start to help
     doc1 = PyMuPDFLoader(test_file1).load()
     all_text_contents = '\n\n'.join([x.page_content for x in doc1])

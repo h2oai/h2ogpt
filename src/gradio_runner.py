@@ -56,7 +56,7 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google
+    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -1809,7 +1809,7 @@ def go_gradio(**kwargs):
                                                       interactive=not is_public,
                                                       )
 
-                        response_format = gr.Radio(kwargs['response_formats'],
+                        response_format = gr.Radio(response_formats,
                                                    label="response_format",
                                                    value=kwargs['response_format'],
                                                    interactive=True,
@@ -6790,7 +6790,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
                         )
         query_action = False  # long chunks like would be used for summarize
         # the below is as or filter, so will show doc or by chunk, unrestricted
-        from langchain.vectorstores import Chroma
+        from langchain_community.vectorstores import Chroma
         if isinstance(db, Chroma):
             # chroma >= 0.4
             if view_raw_text_checkbox1:

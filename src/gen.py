@@ -487,10 +487,10 @@ def main(
         image_control: str = None,
 
         response_format: str = 'text',
-        guided_json: str = None,
-        guided_regex: str = None,
-        guided_choice: str = None,
-        guided_grammar: str = None,
+        guided_json: str = '',
+        guided_regex: str = '',
+        guided_choice: str = '',
+        guided_grammar: str = '',
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,

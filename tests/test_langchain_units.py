@@ -1829,7 +1829,7 @@ def test_chroma_filtering():
         if chroma_new:
             # fresh, so chroma >= 0.4
             user_path = make_user_path_test()
-            from langchain.vectorstores import Chroma
+            from langchain_community.vectorstores import Chroma
             db, collection_name = make_db_main(user_path=user_path)
             assert isinstance(db, Chroma)
 
