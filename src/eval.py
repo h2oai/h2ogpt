@@ -93,6 +93,12 @@ def run_eval(  # for local function:
         image_file=None,
         image_control=None,
 
+        response_format=None,
+        guided_json=None,
+        guided_regex=None,
+        guided_choice=None,
+        guided_grammar=None,
+
         # for evaluate kwargs:
         captions_model=None,
         caption_loader=None,

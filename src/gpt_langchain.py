@@ -641,6 +641,12 @@ class GradioInference(H2Oagenerate, LLM):
     image_file: Any = None
     image_control: Any = None
 
+    response_format: Any = None
+    guided_json: Any = None
+    guided_regex: Any = None
+    guided_choice: Any = None
+    guided_grammar: Any = None
+
     async_sem: Any = None
     count_input_tokens: Any = 0
     prompts: Any = []
@@ -758,6 +764,12 @@ class GradioInference(H2Oagenerate, LLM):
 
                              image_file=self.image_file,
                              image_control=self.image_control,
+
+                             response_format=self.response_format,
+                             guided_json=self.guided_json,
+                             guided_regex=self.guided_regex,
+                             guided_choice=self.guided_choice,
+                             guided_grammar=self.guided_grammar,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         # let inner gradio count input tokens
@@ -2021,7 +2033,13 @@ def get_llm(use_openai_model=False,
 
             image_file=None,
             image_control=None,
-            document_choice=None
+            document_choice=None,
+
+            response_format=None,
+            guided_json=None,
+            guided_regex=None,
+            guided_choice=None,
+            guided_grammar=None,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2221,6 +2239,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
+                  response_format=dict(type=response_format),
                   temperature=temperature if do_sample else 0.0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
@@ -2328,6 +2347,8 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        # https://mistral.ai/news/mistral-large/
+
         llm = cls(model=model_name,
                   mistral_api_key=os.getenv('MISTRAL_API_KEY'),
                   top_p=top_p if do_sample else 1.0,
@@ -2544,6 +2565,11 @@ def get_llm(use_openai_model=False,
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
 
+                response_format=response_format,
+                guided_json=guided_json,
+                guided_regex=guided_regex,
+                guided_choice=guided_choice,
+                guided_grammar=guided_grammar,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -5403,6 +5429,13 @@ def run_qa_db(**kwargs):
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
     kwargs['load_awq'] = kwargs.get('load_awq', '')
+
+    kwargs['response_format'] = kwargs.get('response_format', 'text')
+    kwargs['guided_json'] = kwargs.get('guided_json', '')
+    kwargs['guided_regex'] = kwargs.get('guided_regex', '')
+    kwargs['guided_choice'] = kwargs.get('guided_choice', '')
+    kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -5555,6 +5588,12 @@ def _run_qa_db(query=None,
 
                image_file=None,
                image_control=None,
+
+               response_format=None,
+               guided_json=None,
+               guided_regex=None,
+               guided_choice=None,
+               guided_grammar=None,
                ):
     """
 
@@ -5731,6 +5770,12 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       image_file=image_file,
                       image_control=image_control,
                       document_choice=document_choice,
+
+                     response_format=response_format,
+                     guided_json=guided_json,
+                     guided_regex=guided_regex,
+                     guided_choice=guided_choice,
+                     guided_grammar=guided_grammar,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)

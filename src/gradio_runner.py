@@ -1808,6 +1808,30 @@ def go_gradio(**kwargs):
                                                       visible=False,  # no longer support nochat in UI
                                                       interactive=not is_public,
                                                       )
+
+                        response_format = gr.Radio(kwargs['response_formats'],
+                                                   label="response_format",
+                                                   value=kwargs['response_format'],
+                                                   interactive=True,
+                                                   visible=True,
+                                                   )
+                        guided_json = gr.components.Textbox(value=kwargs['guided_json'],
+                                                               label="guided_json",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_regex = gr.components.Textbox(value=kwargs['guided_regex'],
+                                                               label="guided_regex",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_choice = gr.components.Textbox(value=kwargs['guided_choice'],
+                                                               label="guided_choice",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_grammar = gr.components.Textbox(value=kwargs['guided_grammar'],
+                                                               label="guided_grammar",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
                         markdown_label = "Speech Control and Voice Cloning"

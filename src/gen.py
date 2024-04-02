@@ -69,7 +69,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs, llava_num_max
+    groq_mapping_outputs, llava_num_max, response_formats
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -486,8 +486,8 @@ def main(
         image_file: str = None,
         image_control: str = None,
 
-        response_format: str = None,
-        guided_json: Union[str, dict] = None,
+        response_format: str = 'text',
+        guided_json: str = None,
         guided_regex: str = None,
         guided_choice: str = None,
         guided_grammar: str = None,
@@ -1193,7 +1193,7 @@ def main(
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
 
-    :param response_format: json_object or text
+    :param response_format: text or json_object
     # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
     :param guided_json:
     :param guided_regex:
@@ -1302,6 +1302,13 @@ def main(
         metadata_in_context = []
     if seed is None:
         seed = 0
+
+    assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
+    response_format, response_formats)
+    assert isinstance(guided_json, str)
+    assert isinstance(guided_regex, str)
+    assert isinstance(guided_choice, str)
+    assert isinstance(guided_grammar, str)
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -1826,6 +1833,12 @@ def main(
                             tts_speed,
                             image_file,
                             image_control,
+
+                            response_format,
+                            guided_json,
+                            guided_regex,
+                            guided_choice,
+                            guided_grammar,
 
                             verbose,
                             )
@@ -3834,6 +3847,9 @@ def evaluate(
     if seed is None:
         seed = 0
 
+    assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
+    response_format, response_formats)
+
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
             # already list, but as string
@@ -4296,6 +4312,12 @@ def evaluate(
 
                 image_file=image_file,
                 image_control=image_control,
+
+                response_format=response_format,
+                guided_json=guided_json,
+                guided_regex=guided_regex,
+                guided_choice=guided_choice,
+                guided_grammar=guided_grammar,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
@@ -4411,6 +4433,7 @@ def evaluate(
                         other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
+                        response_format=dict(type=response_format),
                         prompt=prompt,
                         **gen_server_kwargs,
                         stop=stop_sequences,
@@ -4467,8 +4490,11 @@ def evaluate(
                                         {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
                     if prompt:
                         messages0.append({'role': 'user', 'content': prompt})
+
+                    # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
                     responses = openai_client.chat.completions.create(
                         model=base_model,
+                        response_format=dict(type=response_format),
                         messages=messages0,
                         stream=stream_output,
                         **gen_server_kwargs,
@@ -4689,6 +4715,12 @@ def evaluate(
 
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
+
+                                         response_format=response_format,
+                                         guided_json=guided_json,
+                                         guided_regex=guided_regex,
+                                         guided_choice=guided_choice,
+                                         guided_grammar=guided_grammar,
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -5208,6 +5240,12 @@ def get_generate_params(model_lower,
                         image_file,
                         image_control,
 
+                        response_format,
+                        guided_json,
+                        guided_regex,
+                        guided_choice,
+                        guided_grammar,
+
                         verbose,
                         ):
     use_defaults = False
@@ -5421,6 +5459,12 @@ y = np.random.randint(0, 1, 100)
                     tts_speed,
                     image_file,
                     image_control,
+
+                    response_format,
+                    guided_json,
+                    guided_regex,
+                    guided_choice,
+                    guided_grammar,
                     ]
         # adjust examples if non-chat mode
         if not chat:
