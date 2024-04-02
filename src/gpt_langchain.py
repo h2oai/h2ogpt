@@ -5254,7 +5254,7 @@ def get_metadatas(db, full_required=True, k_max=10000):
             docs1 = sim_search(db, k=k_max, with_score=False)
             metadatas = [x.metadata for x in docs1]
     elif isinstance(db, Qdrant):
-        points = db.client.scroll(db.collection_name, limit=k_max, with_payload=True)
+        points, _ = db.client.scroll(db.collection_name, limit=k_max, with_payload=True)
         metadatas = [point.payload["metadata"] for point in points]
     elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
