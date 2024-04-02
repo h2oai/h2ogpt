@@ -378,6 +378,7 @@ def main(
         langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
         langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
         detect_user_path_changes_every_query: bool = False,
+        update_selection_state_from_cli: bool = True,
 
         langchain_action: str = LangChainAction.QUERY.value,
         langchain_agents: list = [],
@@ -974,6 +975,8 @@ def main(
            The type is attempted to be inferred if directory already exists, then don't have to pass this
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
+    :param update_selection_state_from_cli: whether to update all user options (during login) with CLI options for langchain_modes, langchain_mode_paths, langchain_mode_types
+           If want user auth state to always be used regardless of changes to CLI options, then set False
 
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)

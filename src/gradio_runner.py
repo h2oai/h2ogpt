@@ -591,14 +591,16 @@ def go_gradio(**kwargs):
                     auth_user['selection_docs_state'][k].clear()
                     auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
                 else:
-                    selection_docs_state1[k].clear()
+                    if not kwargs['update_selection_state_from_cli']:
+                        selection_docs_state1[k].clear()
                     selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
             elif isinstance(selection_docs_state1[k], list):
                 if save:
                     auth_user['selection_docs_state'][k].clear()
                     auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
                 else:
-                    selection_docs_state1[k].clear()
+                    if not kwargs['update_selection_state_from_cli']:
+                        selection_docs_state1[k].clear()
                     selection_docs_state1[k].extend(auth_user['selection_docs_state'][k])
             else:
                 raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
