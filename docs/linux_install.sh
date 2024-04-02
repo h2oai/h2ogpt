@@ -14,6 +14,8 @@ fi
 conda install weasyprint pygobject -c conda-forge -y
 # Avoids library mismatch.
 
+# upgrade pip
+pip install --upgrade pip wheel
 
 #
 #* Install primary dependencies
