@@ -46,7 +46,10 @@ So allow your user session to run sudo for 60 minutes. Then the script will not 
   source $HOME/.bashrc
 
   # install h2ogpt env
-  conda remove -n h2ogpt --all -y
+
+  # Run below if have existing h2ogpt env
+  # conda remove -n h2ogpt --all -y
+
   conda update conda -y
   conda create -n h2ogpt -y
   conda activate h2ogpt
