@@ -33,7 +33,7 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain_community.callbacks import streaming_stdout
+from langchain_core.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
