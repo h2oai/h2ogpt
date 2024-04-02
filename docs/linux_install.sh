@@ -53,9 +53,9 @@ sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-de
 # Optional: For DocTR
 pip install -r reqs_optional/requirements_optional_doctr.txt -c reqs_optional/reqs_constraints.txt
 # For DocTR: go back to older onnx so Tesseract OCR still works
-pip install onnxruntime==1.15.0 -c reqs_optional/reqs_constraints.txt
+pip install onnxruntime==1.16.0 -c reqs_optional/reqs_constraints.txt
 # GPU only:
-pip install onnxruntime-gpu==1.15.0 -c reqs_optional/reqs_constraints.txt
+pip install onnxruntime-gpu==1.16.0 -c reqs_optional/reqs_constraints.txt
 
 # Optional: for supporting unstructured package
 for i in 1 2 3 4; do python -m nltk.downloader all && break || sleep 1; done  # retry as frequently fails with github downloading issues
