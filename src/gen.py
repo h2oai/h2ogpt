@@ -4532,7 +4532,7 @@ def evaluate(
                 if not stream_output and img_file == 1:
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
-
+                    
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
@@ -4668,6 +4668,7 @@ def evaluate(
 
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
+                                         base_model=base_model,
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -5399,6 +5400,7 @@ y = np.random.randint(0, 1, 100)
                     tts_speed,
                     image_file,
                     image_control,
+                    None,
                     ]
         # adjust examples if non-chat mode
         if not chat:
