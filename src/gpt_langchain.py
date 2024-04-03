@@ -33,10 +33,10 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain.callbacks import streaming_stdout
+from langchain_core.callbacks import streaming_stdout
 from langchain.callbacks.base import Callbacks
-from langchain.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
-from langchain.embeddings import HuggingFaceInstructEmbeddings
+from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.llms.huggingface_pipeline import VALID_TASKS
 from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
@@ -76,10 +76,14 @@ from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
-    is_vision_model, is_gradio_vision_model
+    is_vision_model, is_gradio_vision_model, is_json_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
+
+# to check imports
+# find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
+# python go.py
 
 import_matplotlib()
 
@@ -91,7 +95,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 # , OutlookMessageLoader # GPL3
 # ImageCaptionLoader, # use our own wrapper
 #  ReadTheDocsLoader,  # no special file, some path, so have to give as special option
-from langchain.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader, PythonLoader, TomlLoader, \
     UnstructuredURLLoader, UnstructuredHTMLLoader, UnstructuredWordDocumentLoader, UnstructuredMarkdownLoader, \
     EverNoteLoader, UnstructuredEmailLoader, UnstructuredODTLoader, UnstructuredPowerPointLoader, \
     UnstructuredEPubLoader, UnstructuredImageLoader, UnstructuredRTFLoader, ArxivLoader, UnstructuredPDFLoader, \
@@ -100,8 +104,8 @@ from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, Te
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
-from langchain.llms import HuggingFaceTextGenInference, HuggingFacePipeline
-from langchain.vectorstores import Chroma
+from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline
+from langchain_community.vectorstores import Chroma
 from chromamig import ChromaMig
 
 
@@ -139,12 +143,12 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
 
     # Create vector database
     if db_type == 'faiss':
-        from langchain.vectorstores import FAISS
+        from langchain_community.vectorstores import FAISS
         db = FAISS.from_documents(sources, embedding)
     elif db_type == 'weaviate':
         import weaviate
         from weaviate.embedded import EmbeddedOptions
-        from langchain.vectorstores import Weaviate
+        from langchain_community.vectorstores import Weaviate
 
         if os.getenv('WEAVIATE_URL', None):
             client = _create_local_weaviate_client()
@@ -156,14 +160,16 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         db = Weaviate.from_documents(documents=sources, embedding=embedding, client=client, by_text=False,
                                      index_name=index_name)
     elif db_type == 'qdrant':
-        from langchain.vectorstores import Qdrant
+        from langchain_community.vectorstores import Qdrant
 
         qdrant_options = _get_qdrant_options()
 
         if qdrant_options is not None:
-            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name, **qdrant_options)
+            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name,
+                                       **qdrant_options)
         else:
-            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name, location=":memory:")
+            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name,
+                                       location=":memory:")
 
     elif db_type in ['chroma', 'chroma_old']:
         assert persist_directory is not None
@@ -434,7 +440,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
         if client.collection_exists(collection_name):
             client.delete_collection(collection_name)
         if verbose:
-                print("Removing %s" % collection_name, flush=True)
+            print("Removing %s" % collection_name, flush=True)
     elif db_type in ['chroma', 'chroma_old']:
         pass
 
@@ -462,7 +468,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
     return db
 
 
-from langchain.embeddings import FakeEmbeddings
+from langchain_community.embeddings import FakeEmbeddings
 
 
 class H2OFakeEmbeddings(FakeEmbeddings):
@@ -486,7 +492,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
     # Get embedding model
     if use_openai_embedding:
         assert os.getenv("OPENAI_API_KEY") is not None, "Set ENV OPENAI_API_KEY"
-        from langchain.embeddings import OpenAIEmbeddings
+        from langchain_community.embeddings import OpenAIEmbeddings
         embedding = OpenAIEmbeddings(disallowed_special=())
     elif hf_embedding_model == 'fake':
         embedding = H2OFakeEmbeddings(size=1)
@@ -508,7 +514,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
-            from langchain.embeddings import HuggingFaceEmbeddings
+            from langchain_community.embeddings import HuggingFaceEmbeddings
 
             if isinstance(gpu_id, int) or gpu_id == 'auto':
                 device, torch_dtype, context_class = get_device_dtype()
@@ -641,6 +647,12 @@ class GradioInference(H2Oagenerate, LLM):
     image_file: Any = None
     image_control: Any = None
 
+    response_format: Any = None
+    guided_json: Any = None
+    guided_regex: Any = None
+    guided_choice: Any = None
+    guided_grammar: Any = None
+
     async_sem: Any = None
     count_input_tokens: Any = 0
     prompts: Any = []
@@ -758,6 +770,12 @@ class GradioInference(H2Oagenerate, LLM):
 
                              image_file=self.image_file,
                              image_control=self.image_control,
+
+                             response_format=self.response_format,
+                             guided_json=self.guided_json,
+                             guided_regex=self.guided_regex,
+                             guided_choice=self.guided_choice,
+                             guided_grammar=self.guided_grammar,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         # let inner gradio count input tokens
@@ -871,7 +889,9 @@ class GradioInference(H2Oagenerate, LLM):
             return ret
 
     def use_gradio_return(self, res_dict, prompt_raw):
-        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', self.get_num_tokens(str(prompt_raw)))
+        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens',
+                                                                                           self.get_num_tokens(
+                                                                                               str(prompt_raw)))
         self.prompts.append(res_dict.get('prompt_raw', prompt_raw))
 
     # copy-paste of streaming part of _call() with asyncio.sleep instead
@@ -1295,10 +1315,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
         # return _get_token_ids_default_method(text)
 
 
-from langchain.chat_models import ChatOpenAI, AzureChatOpenAI
-from langchain.chat_models import ChatAnthropic as ChatAnthropic2
+from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
+from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2
 from langchain_anthropic import ChatAnthropic as ChatAnthropic3
-from langchain.llms import OpenAI, AzureOpenAI, Replicate
+from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
 
 
 class H2OOpenAI(OpenAI):
@@ -1741,6 +1761,8 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
+        if self.response_format:
+            kwargs.update(dict(response_format=self.response_format))
         try:
             return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
         except Exception as e:
@@ -1764,6 +1786,8 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
+        if self.response_format:
+            kwargs.update(dict(response_format=self.response_format))
         try:
             return await self.agenerate(
                 prompt_messages, stop=stop, callbacks=callbacks, **kwargs
@@ -1873,6 +1897,7 @@ class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
     tokenizer: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    response_format: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1891,6 +1916,7 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
     stream_output: bool = True
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    response_format: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2021,7 +2047,13 @@ def get_llm(use_openai_model=False,
 
             image_file=None,
             image_control=None,
-            document_choice=None
+            document_choice=None,
+
+            response_format=None,
+            guided_json=None,
+            guided_regex=None,
+            guided_choice=None,
+            guided_grammar=None,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2155,11 +2187,25 @@ def get_llm(use_openai_model=False,
             azure_kwargs.update(response_format={"type": "json_object"})
 
         kwargs_extra = {}
+
+        vllm_extra_dict = get_vllm_extra_dict(tokenizer,
+                                              stop_sequences=prompter.stop_sequences if prompter else [],
+                                              # repetition_penalty=repetition_penalty,  # could pass
+                                              response_format=response_format if guided_json else 'text',
+                                              guided_json=guided_json,
+                                              guided_regex=guided_regex,
+                                              guided_choice=guided_choice,
+                                              guided_grammar=guided_grammar,
+                                              )
+
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
+                if response_format == 'json_object':
+                    # vllm without guided_json can't make json directly
+                    kwargs_extra.update(dict(type=response_format if guided_json else 'text'))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
@@ -2169,8 +2215,15 @@ def get_llm(use_openai_model=False,
                                          async_client=openai_async_client_completions,
                                          # async_sem=async_sem,
                                          ))
+                model_kwargs.update(vllm_extra_dict)
+            else:
+                if is_json_model(model_name, inference_server):
+                    kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
+            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name, inference_server):
+                # overrides doc_json_mode if set
+                azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
                 dict(system_prompt=system_prompt,
                      chat_conversation=chat_conversation,
@@ -2188,10 +2241,6 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                vllm_extra_dict = get_vllm_extra_dict(tokenizer,
-                                                      stop_sequences=prompter.stop_sequences,
-                                                      # repetition_penalty=repetition_penalty,  # could pass
-                                                      )
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -2239,6 +2288,10 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server.startswith('anthropic'):
+        # no explicit JSON mode for anthropic
+        # FIXME: Should use function calling
+        # https://docs.anthropic.com/claude/docs/control-output-format
+
         if model_name in ["claude-2.0", "claude-2"]:
             cls = H2OChatAnthropic2
         elif model_name == "claude-2.1":
@@ -2279,6 +2332,9 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server.startswith('google'):
+        # google doesn't have JSON mode but can use function calling so can give schema
+        # https://ai.google.dev/tutorials/structured_data_extraction
+
         cls = H2OChatGoogle
 
         # Langchain oddly passes some things directly and rest via model_kwargs
@@ -2328,6 +2384,14 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        # https://mistral.ai/news/mistral-large/
+
+        if is_json_model(model_name, inference_server):
+            # https://docs.mistral.ai/platform/client/#json-mode
+            # odd outputs for mistral-medium and mistral-tiny as of 04/02/2024
+            # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
+            kwargs_extra.update(dict(response_format=dict(type=response_format)))
+
         llm = cls(model=model_name,
                   mistral_api_key=os.getenv('MISTRAL_API_KEY'),
                   top_p=top_p if do_sample else 1.0,
@@ -2544,6 +2608,11 @@ def get_llm(use_openai_model=False,
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
 
+                response_format=response_format,
+                guided_json=guided_json,
+                guided_regex=guided_regex,
+                guided_choice=guided_choice,
+                guided_grammar=guided_grammar,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -3361,7 +3430,7 @@ def file_to_doc(file,
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
-                from langchain.document_loaders import PlaywrightURLLoader
+                from langchain_community.document_loaders import PlaywrightURLLoader
                 docs1a = asyncio.run(PlaywrightURLLoader(urls=final_urls).aload())
                 # docs1 = PlaywrightURLLoader(urls=[file]).load()
                 docs1a = [x for x in docs1a if
@@ -3373,7 +3442,7 @@ def file_to_doc(file,
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
                 # Message: unknown error: cannot find Chrome binary
-                from langchain.document_loaders import SeleniumURLLoader
+                from langchain_community.document_loaders import SeleniumURLLoader
                 from selenium.common.exceptions import WebDriverException
                 try:
                     docs1a = SeleniumURLLoader(urls=final_urls).load()
@@ -3812,7 +3881,7 @@ def file_to_doc(file,
         e = None
         if have_pymupdf and (len(doc1) == 0 and use_pymupdf == 'auto' or use_pymupdf == 'on'):
             # GPL, only use if installed
-            from langchain.document_loaders import PyMuPDFLoader
+            from langchain_community.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1a = PyMuPDFLoader(file).load()
@@ -3864,7 +3933,7 @@ def file_to_doc(file,
         if not did_pymupdf and ((have_pymupdf and len(doc1) == 0) and tried_others):
             # try again in case only others used, but only if didn't already try (2nd part of and)
             # GPL, only use if installed
-            from langchain.document_loaders import PyMuPDFLoader
+            from langchain_community.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
                 doc1a = PyMuPDFLoader(file).load()
@@ -3971,7 +4040,7 @@ def file_to_doc(file,
         add_meta(doc1, file, parser='TomlLoader')
         doc1 = chunk_sources(doc1)
     elif file.lower().endswith('.xml'):
-        from langchain.document_loaders import UnstructuredXMLLoader
+        from langchain_community.document_loaders import UnstructuredXMLLoader
         loader = UnstructuredXMLLoader(file_path=file)
         doc1 = loader.load()
         add_meta(doc1, file, parser='UnstructuredXMLLoader')
@@ -5233,8 +5302,8 @@ def large_chroma_db(db):
 
 
 def get_metadatas(db, full_required=True, k_max=10000):
-    from langchain.vectorstores import FAISS
-    from langchain.vectorstores import Qdrant
+    from langchain_community.vectorstores import FAISS
+    from langchain_community.vectorstores import Qdrant
     if isinstance(db, FAISS):
         metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif is_chroma_db(db):
@@ -5291,8 +5360,8 @@ def get_documents(db):
 def _get_documents(db):
     # returns not just documents, but full dict of documents, metadatas, ids, embeddings
     # documents['documents] should be list of texts, not Document() type
-    from langchain.vectorstores import FAISS
-    from langchain.vectorstores import Qdrant
+    from langchain_community.vectorstores import FAISS
+    from langchain_community.vectorstores import Qdrant
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
@@ -5343,7 +5412,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None,
         db_documents += [x.page_content if hasattr(x, 'page_content') else x for x in text_context_list]
         db_metadatas += [x.metadata if hasattr(x, 'metadata') else {} for x in text_context_list]
 
-    from langchain.vectorstores import FAISS
+    from langchain_community.vectorstores import FAISS
     if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
         if top_k_docs == -1:
             limit = k_max
@@ -5403,6 +5472,13 @@ def run_qa_db(**kwargs):
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
     kwargs['load_awq'] = kwargs.get('load_awq', '')
+
+    kwargs['response_format'] = kwargs.get('response_format', 'text')
+    kwargs['guided_json'] = kwargs.get('guided_json', '')
+    kwargs['guided_regex'] = kwargs.get('guided_regex', '')
+    kwargs['guided_choice'] = kwargs.get('guided_choice', '')
+    kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -5555,6 +5631,12 @@ def _run_qa_db(query=None,
 
                image_file=None,
                image_control=None,
+
+               response_format=None,
+               guided_json=None,
+               guided_regex=None,
+               guided_choice=None,
+               guided_grammar=None,
                ):
     """
 
@@ -5731,6 +5813,12 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       image_file=image_file,
                       image_control=image_control,
                       document_choice=document_choice,
+
+                      response_format=response_format,
+                      guided_json=guided_json,
+                      guided_regex=guided_regex,
+                      guided_choice=guided_choice,
+                      guided_grammar=guided_grammar,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -5830,11 +5918,15 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                       count_output_tokens=0,
                                       ))
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
+        if response_format == 'json_object':
+            ret = '{"response": "%s"}' % ret
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=sources, num_prompt_tokens=0,
                    llm_answers=llm_answers, response_no_refs='', sources_str=sources_str, prompt_raw=prompt_basic)
         return
     if langchain_agents and not chain:
         ret = '%s not supported by this model' % langchain_agents[0]
+        if response_format == 'json_object':
+            ret = '{"response": "%s"}' % ret
         sources = []
         yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
                    response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
@@ -5854,6 +5946,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             # if here then ok to continue using chain if exists.  E.g. use_llm_if_no_docs=True and doing query langchain_action
             ret = None
         if ret is not None:
+            if response_format == 'json_object':
+                ret = '{"response": "%s"}' % ret
             sources = []
             yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
                        response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
@@ -6587,7 +6681,7 @@ def get_chain(query=None,
         # from langchain_community.tools.file_management.read import ReadFileTool
         # from langchain_community.tools.file_management.write import WriteFileTool
         # file_tools = [WriteFileTool(), ReadFileTool()]
-        from langchain.tools import ShellTool
+        from langchain_community.tools import ShellTool
         shell_tool = ShellTool()
         shell_tool.description = shell_tool.description + f"args {shell_tool.args}".replace(
             "{", "{{"
@@ -6680,9 +6774,9 @@ def get_chain(query=None,
         else:
             tools.extend([sympy_tool])
 
-        from langchain.docstore import InMemoryDocstore
-        from langchain.embeddings import OpenAIEmbeddings
-        from langchain.vectorstores import FAISS
+        from langchain_community.docstore import InMemoryDocstore
+        from langchain_community.embeddings import OpenAIEmbeddings
+        from langchain_community.vectorstores import FAISS
 
         # Define your embedding model
         embeddings_model = OpenAIEmbeddings()
@@ -6854,7 +6948,7 @@ def get_chain(query=None,
                 data = json.loads(f.read())
             json_spec = JsonSpec(dict_=data, max_value_length=4000)
 
-            from langchain.agents.agent_toolkits import JsonToolkit
+            from langchain_community.agent_toolkits import JsonToolkit
             from langchain.agents import create_json_agent
 
             json_toolkit = JsonToolkit(spec=json_spec)
@@ -8741,7 +8835,8 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
-    
+
+
 def _get_qdrant_options():
     env_vars = os.environ.keys()
 
@@ -8765,8 +8860,9 @@ def _get_qdrant_options():
 
     return options
 
+
 def _get_unique_sources_in_qdrant(db):
-    from langchain.vectorstores import Qdrant
+    from langchain_community.vectorstores import Qdrant
     import grpc
 
     if not isinstance(db, Qdrant):
@@ -8787,9 +8883,9 @@ def _get_unique_sources_in_qdrant(db):
 
         # Qdrant client supports a REST and GPRC interface. So we need to handle the response differently
         stop_scrolling = next_offset is None or (
-            isinstance(next_offset, grpc.PointId)
-            and next_offset.num == 0
-            and next_offset.uuid == ""
+                isinstance(next_offset, grpc.PointId)
+                and next_offset.num == 0
+                and next_offset.uuid == ""
         )
 
         sources.extend(records)

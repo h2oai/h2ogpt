@@ -1,7 +1,7 @@
 import os
 import typing
 import json
-from langchain.llms import SagemakerEndpoint
+from langchain_community.llms import SagemakerEndpoint
 from langchain.llms.sagemaker_endpoint import LLMContentHandler
 from pydantic.v1 import root_validator
 

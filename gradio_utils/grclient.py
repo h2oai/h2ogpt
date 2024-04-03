@@ -637,6 +637,13 @@ class GradioClient(Client):
         metadata_in_context: list = [],
         image_file: Union[str, list] = None,
         image_control: str = None,
+
+        response_format: str = 'text',
+        guided_json: Union[str, dict] = '',
+        guided_regex: str = '',
+        guided_choice: str = '',
+        guided_grammar: str = '',
+
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
         jq_schema=".[]",
@@ -769,6 +776,13 @@ class GradioClient(Client):
 
             :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
             :param image_control: Initial image for UI Image Control
+
+            :param response_format: json_object or text
+            # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
+            :param guided_json:
+            :param guided_regex:
+            :param guided_choice:
+            :param guided_grammar:
 
             :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
             :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)

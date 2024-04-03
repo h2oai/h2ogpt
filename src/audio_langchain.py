@@ -288,9 +288,8 @@ https://huggingface.co/Salesforce/blip-image-captioning-base
 """
 from typing import List, Union, Any, Tuple
 
-import requests
 from langchain.docstore.document import Document
-from langchain.document_loaders import ImageCaptionLoader
+from langchain_community.document_loaders import ImageCaptionLoader
 
 from utils import get_device, NullContext, clear_torch_cache, have_use_faster, makedirs, get_gradio_tmp
 
