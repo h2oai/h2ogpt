@@ -5062,7 +5062,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     else:
         auth_kwargs = {}
         inference_server_for_get = inference_server
-    inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7860'
 
     from src.gen import get_inf_models
     base_models = get_inf_models(inference_server_for_get)
