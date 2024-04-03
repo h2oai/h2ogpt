@@ -143,6 +143,11 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
         gen_kwargs['repetition_penalty'] = 0.5 * (gen_kwargs['presence_penalty'] - 0.0) + 1.0
 
+    if gen_kwargs.get('response_format'):
+        # pydantic ensures type and key
+        # transcribe to h2oGPT way of just value
+        gen_kwargs['response_format'] = gen_kwargs.get('response_format')['type']
+
     kwargs.update(**gen_kwargs)
 
     # concurrent gradio client
