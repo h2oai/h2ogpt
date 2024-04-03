@@ -5074,10 +5074,10 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     client = Client(inference_server, *auth_kwargs)
 
     # string of dict for input
-    prompt = f"Give an example JSON for an employee profile that fits this schema: {TEST_SCHEMA}"
+    prompt = f"Give an example employee profile."
 
     for guided_json in ['', TEST_SCHEMA]:
-        print("Doing base_model=%s" % base_model)
+        print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
         kwargs = dict(instruction_nochat=prompt,
                       visible_models=base_model,
                       stream_output=False,
@@ -5095,13 +5095,14 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
         mydict = json.loads(response)
 
         check_keys = ['age', 'name', 'skills', 'work history']
-        check_keys2 = ['age', 'name', 'skills', 'work_history']
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
             pass
         else:
             cond1 = all([k in mydict for k in check_keys])
-            cond2 = sum([k in mydict for k in check_keys2]) >= 3
             if not guided_json:
-                assert cond1 or cond2, "Missing keys"
+                pass
             else:
                 assert cond1, "Missing keys"
+            if base_model == 'CohereForAI/c4ai-command-r-v01':
+                import jsonschema
+                jsonschema.validate(mydict, schema=guided_json)

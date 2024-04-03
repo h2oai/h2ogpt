@@ -5,6 +5,7 @@ import inspect
 import queue
 import sys
 import os
+import json
 import time
 import traceback
 import typing
@@ -2056,6 +2057,7 @@ def main(
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
+                            json_vllm=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
@@ -2220,6 +2222,7 @@ def main(
             continue
         model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
         model_state_trial.update(model_dict)
+        model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'], model_state_trial['inference_server'], verbose=verbose)
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
         print("Model %s" % model_dict, flush=True)
@@ -4079,22 +4082,35 @@ def evaluate(
                         system_prompt=system_prompt)
 
     if response_format == 'json_object':
-        json_vllm = is_json_vllm(model, base_model, inference_server, verbose=False)
         post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.'
-        if not is_json_model(base_model, inference_server):
-            instruction += post_instruction
-            if guided_json:
+        if isinstance(guided_json, str):
+            try:
+                guided_json_properties = json.loads(guided_json)
+            except (json.decoder.JSONDecodeError, TypeError):
+                guided_json_properties = {}
+        else:
+            guided_json_properties = guided_json or {}
+        assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
+        if 'properties' in guided_json_properties:
+            guided_json_properties = guided_json_properties['properties']
+
+        schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties
+        json_vllm = chosen_model_state['json_vllm']
+        if json_vllm:
+            # guided_json set or not, handled
+            pass
+        elif is_json_model(base_model, inference_server, json_vllm=json_vllm):
+            assert not json_vllm
+            # shouldn't have to tell to use json, but should tell schema
+            if guided_json_properties:
                 # FIXME: Do function calling if can instead
-                instruction += '\nEnsure you follow this schema:\n%s' % guided_json
-        elif inference_server and not inference_server.startswith('vllm'):
+                instruction += schema_instruction
+        else:
+            # have to tell to use json and give schema if present
             instruction += post_instruction
-            if guided_json:
+            if guided_json_properties:
                 # FIXME: Do function calling if can instead
-                instruction += '\nEnsure you follow this schema:\n%s\n' % guided_json
-        elif inference_server and inference_server.startswith('vllm') and json_vllm and not guided_json:
-            # vllm can't do just pure json without schema
-            # if no guided_json, ok to add extra instructions, but need to say text else won't get anything back
-            instruction += post_instruction
+                instruction += schema_instruction
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)

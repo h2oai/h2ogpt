@@ -299,7 +299,7 @@ def is_video_model(base_model):
     return base_model in ["gemini-1.5-pro-latest"]
 
 
-def is_json_model(base_model, inference_server):
+def is_json_model(base_model, inference_server, json_vllm=False):
     if not base_model:
         return False
     if inference_server.startswith('vllm'):
@@ -308,7 +308,7 @@ def is_json_model(base_model, inference_server):
         # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
         # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/model_executor/guided_decoding.py#L91
         # https://github.com/vllm-project/vllm/blob/b0925b38789bb3b20dcc39e229fcfe12a311e487/tests/entrypoints/test_openai_server.py#L477
-        return True
+        return json_vllm
     if inference_server.startswith('openai'):
         # not older models
         # https://platform.openai.com/docs/guides/text-generation/json-mode

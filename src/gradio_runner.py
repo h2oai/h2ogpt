@@ -67,7 +67,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username
+    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, is_json_vllm
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -6328,7 +6328,8 @@ def go_gradio(**kwargs):
                 model_state3['rag'] = True
                 model_state3['image'] = is_vision_model(base_model)
                 model_state3['video'] = is_video_model(base_model)
-                model_state3['json'] = is_json_model(base_model, inference_server)
+                json_vllm = model_state3.get('json_vllm', False)
+                model_state3['json'] = is_json_model(base_model, inference_server, json_vllm=json_vllm)
             key_list.extend(['llm', 'rag', 'image', 'video', 'json'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 

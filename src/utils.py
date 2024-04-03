@@ -2190,7 +2190,10 @@ def looks_like_json(text):
 
 
 def is_json_vllm(model, base_model, inference_server, verbose=False):
-    if isinstance(model, dict):
+    if inference_server and not inference_server.startswith('vllm') or not inference_server:
+        return False
+
+    if isinstance(model, dict) and 'client' in model:
         openai_client = model['client']
     else:
         openai_client, _, _, _, _, _, _ = set_openai(inference_server, model_name=base_model)
