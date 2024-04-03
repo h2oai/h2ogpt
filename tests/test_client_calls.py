@@ -5113,9 +5113,10 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
                 pass
             else:
                 # zephyr, mistralv0.2, mutate to workHistory workHistory
-                if base_model in ['HuggingFaceH4/zephyr-7b-beta',# until vLLM is upgraded
-                                  'mistralai/Mistral-7B-Instruct-v0.2',# until vLLM is upgraded
+                if base_model in ['HuggingFaceH4/zephyr-7b-beta',  # until vLLM is upgraded
+                                  'mistralai/Mistral-7B-Instruct-v0.2',  # until vLLM is upgraded
                                   'mistral-tiny',
+                                  'NousResearch/Nous-Capybara-34B',
                                   ]:
                     assert cond1 or cond2 or cond3, "Missing keys"
                 else:
