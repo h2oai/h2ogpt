@@ -4086,11 +4086,16 @@ def evaluate(
             if guided_json:
                 # FIXME: Do function calling if can instead
                 instruction += '\nEnsure you follow this schema:\n%s' % guided_json
-        elif inference_server and not inference_server.startswith('vllm') or not json_vllm:
+        elif inference_server and not inference_server.startswith('vllm'):
             instruction += post_instruction
             if guided_json:
                 # FIXME: Do function calling if can instead
                 instruction += '\nEnsure you follow this schema:\n%s\n' % guided_json
+        elif inference_server and inference_server.startswith('vllm') and json_vllm and not guided_json:
+            # vllm can't do just pure json without schema
+            # if no guided_json, ok to add extra instructions, but need to say text else won't get anything back
+            instruction += post_instruction
+            response_format = 'text'
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
