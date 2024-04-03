@@ -4896,7 +4896,6 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
-
 # (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
@@ -4982,8 +4981,11 @@ def test_get_image_file():
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 2
 
 
-gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'mistralai/Mixtral-8x7B-Instruct-v0.1', 'HuggingFaceH4/zephyr-7b-beta', 'gpt-3.5-turbo-0613', 'openchat/openchat-3.5-1210', 'mistralai/Mistral-7B-Instruct-v0.2', 'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B', 'databricks/dbrx-instruct', 'liuhaotian/llava-v1.6-vicuna-13b', 'liuhaotian/llava-v1.6-34b', 'h2oai/h2o-danube-1.8b-chat', 'google/gemma-7b-it']
-
+gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+              'HuggingFaceH4/zephyr-7b-beta', 'gpt-3.5-turbo-0613', 'openchat/openchat-3.5-1210',
+              'mistralai/Mistral-7B-Instruct-v0.2', 'h2oai/h2ogpt-32k-codellama-34b-instruct',
+              'NousResearch/Nous-Capybara-34B', 'databricks/dbrx-instruct', 'liuhaotian/llava-v1.6-vicuna-13b',
+              'liuhaotian/llava-v1.6-34b', 'h2oai/h2o-danube-1.8b-chat', 'google/gemma-7b-it']
 
 TEST_SCHEMA = {
     "type": "object",
@@ -5032,10 +5034,24 @@ TEST_CHOICE = [
     "Swift", "Kotlin"
 ]
 
+other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llama2-13b-chat',
+                     'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
+                     'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
+                     'mistralai/Mixtral-8x7B-Instruct-v0.1', 'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
+                     'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613', 'gpt-4-0613',
+                     'gpt-4-32k-0613', 'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
+                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
+                     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1',
+                     'h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-rag-v1', 'h2oai/h2o-danube-1.8b-chat',
+                     'google/gemma-7b-it', 'mixtral-8x7b-32768', 'h2oai/mixtral-gm-rag-experimental-v2',
+                     'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01', 'liuhaotian/llava-v1.6-vicuna-13b',
+                     'liuhaotian/llava-v1.6-34b']
+
 
 @wrap_test_forked
-#@pytest.mark.parametrize("base_model", [gpt_models[1]])
-@pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
+# @pytest.mark.parametrize("base_model", [gpt_models[1]])
+# @pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
+@pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
 def test_guided_json(langchain_action, langchain_mode, base_model):
