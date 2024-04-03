@@ -2138,6 +2138,9 @@ def get_json(response):
         return response0
     # Next, check if the response looks like JSON, return it if so
     if looks_like_json(response):
+        response = response.strip()
+        if response.endswith('```'):
+            response = response[:-3].strip()
         return response
     # If it doesn't look like JSON, return an empty string as a default case
     return invalid_json_str
@@ -2158,6 +2161,7 @@ def has_starting_code_block(text):
 
 
 pattern_extract_codeblock = re.compile(r"```[a-zA-Z]*\s*(.*?)(```|$)", re.DOTALL)
+#pattern_extract_codeblock = re.compile(r"```(?:[a-zA-Z]*\s*)(.*?)(?=```|$)", re.DOTALL)
 
 
 def extract_code_block_content(stream_content):
