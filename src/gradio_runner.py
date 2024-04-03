@@ -6323,12 +6323,13 @@ def go_gradio(**kwargs):
                 local_model_states = []
             for model_state3 in local_model_states:
                 base_model = model_state3.get('base_model', '')
+                inference_server = model_state3.get('inference_server', '')
                 model_state3['llm'] = True
                 model_state3['rag'] = True
                 model_state3['image'] = is_vision_model(base_model)
                 model_state3['video'] = is_video_model(base_model)
-                model_state3['video'] = is_json_model(base_model)
-            key_list.extend(['llm', 'rag', 'image', 'video'])
+                model_state3['json'] = is_json_model(base_model, inference_server)
+            key_list.extend(['llm', 'rag', 'image', 'video', 'json'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,

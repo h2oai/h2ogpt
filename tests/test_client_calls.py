@@ -5075,25 +5075,26 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     # string of dict for input
     prompt = f"Give an example JSON for an employee profile that fits this schema: {TEST_SCHEMA}"
 
-    print("Doing base_model=%s" % base_model)
-    kwargs = dict(instruction_nochat=prompt,
-                  visible_models=base_model,
-                  stream_output=False,
-                  langchain_mode=langchain_mode,
-                  langchain_action=langchain_action,
-                  h2ogpt_key=h2ogpt_key,
-                  response_format='json_object',
-                  guided_json=TEST_SCHEMA,
-                  )
-    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-    res_dict = ast.literal_eval(res)
-    response = res_dict['response']
-    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
-    print(response)
-    mydict = json.loads(response)
+    for response_format in ['', TEST_SCHEMA]:
+        print("Doing base_model=%s" % base_model)
+        kwargs = dict(instruction_nochat=prompt,
+                      visible_models=base_model,
+                      stream_output=False,
+                      langchain_mode=langchain_mode,
+                      langchain_action=langchain_action,
+                      h2ogpt_key=h2ogpt_key,
+                      response_format='json_object',
+                      guided_json=TEST_SCHEMA,
+                      )
+        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+        res_dict = ast.literal_eval(res)
+        response = res_dict['response']
+        print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
+        print(response)
+        mydict = json.loads(response)
 
-    check_keys = ['age', 'name', 'skills', 'work history']
-    if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
-        pass
-    else:
-        assert all([k in mydict for k in check_keys]), "Missing keys"
+        check_keys = ['age', 'name', 'skills', 'work history']
+        if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
+            pass
+        else:
+            assert all([k in mydict for k in check_keys]), "Missing keys"
