@@ -4094,9 +4094,9 @@ def evaluate(
         if 'properties' in guided_json_properties:
             guided_json_properties = guided_json_properties['properties']
         # back to string, so e.g. do not get ' in prompt but " for quotes etc.  gemma messes that up.
-        guided_json_properties = json.dumps(guided_json_properties)
+        guided_json_properties_json = json.dumps(guided_json_properties)
 
-        schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties
+        schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties_json
         json_vllm = chosen_model_state['json_vllm']
         if json_vllm:
             # guided_json set or not, handled
