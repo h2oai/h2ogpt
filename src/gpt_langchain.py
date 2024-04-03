@@ -2181,6 +2181,17 @@ def get_llm(use_openai_model=False,
             azure_kwargs.update(response_format={"type": "json_object"})
 
         kwargs_extra = {}
+
+        vllm_extra_dict = get_vllm_extra_dict(tokenizer,
+                                              stop_sequences=prompter.stop_sequences,
+                                              # repetition_penalty=repetition_penalty,  # could pass
+                                              response_format=response_format,
+                                              guided_json=guided_json,
+                                              guided_regex=guided_regex,
+                                              guided_choice=guided_choice,
+                                              guided_grammar=guided_grammar,
+                                              )
+
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
             cls = H2OChatOpenAI
@@ -2193,10 +2204,18 @@ def get_llm(use_openai_model=False,
                                          # batch_size=1,
                                          client=openai_client_completions,
                                          async_client=openai_async_client_completions,
+                                         response_format=dict(type=response_format),
                                          # async_sem=async_sem,
                                          ))
+                model_kwargs.update(vllm_extra_dict)
+            else:
+                kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
+            assert not guided_json and not guided_regex and not guided_choice and not guided_grammar
             cls = H2OAzureChatOpenAI
+            if 'response_format' not in azure_kwargs and response_format:
+                # overrides doc_json_mode if set
+                azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
                 dict(system_prompt=system_prompt,
                      chat_conversation=chat_conversation,
@@ -2204,6 +2223,7 @@ def get_llm(use_openai_model=False,
                      ))
             # FIXME: Support context, iinput
         elif inf_type == 'openai_azure':
+            assert not response_format and not guided_json and not guided_regex and not guided_choice and not guided_grammar
             cls = H2OAzureOpenAI
             kwargs_extra.update(
                 dict(**azure_kwargs,
@@ -2214,15 +2234,6 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type == 'vllm':
-                vllm_extra_dict = get_vllm_extra_dict(tokenizer,
-                                                      stop_sequences=prompter.stop_sequences,
-                                                      # repetition_penalty=repetition_penalty,  # could pass
-                                                      response_format=response_format,
-                                                      guided_json=guided_json,
-                                                      guided_regex=guided_regex,
-                                                      guided_choice=guided_choice,
-                                                      guided_grammar=guided_grammar,
-                                                      )
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -2252,7 +2263,6 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
-                  response_format=dict(type=response_format),
                   temperature=temperature if do_sample else 0.0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
                   max_tokens=max_new_tokens,
