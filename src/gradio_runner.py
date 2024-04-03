@@ -62,7 +62,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, is_gradio_vision_model, \
-    is_video_model
+    is_video_model, is_json_model
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
@@ -6327,6 +6327,7 @@ def go_gradio(**kwargs):
                 model_state3['rag'] = True
                 model_state3['image'] = is_vision_model(base_model)
                 model_state3['video'] = is_video_model(base_model)
+                model_state3['video'] = is_json_model(base_model)
             key_list.extend(['llm', 'rag', 'image', 'video'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 

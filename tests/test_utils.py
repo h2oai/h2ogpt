@@ -2,9 +2,10 @@ import sys
 
 import pytest
 
+from src.enums import invalid_json_str
 from src.gen import apply_chat_template
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
-    is_uuid4
+    is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json
 from tests.utils import wrap_test_forked
 import subprocess as sp
 
@@ -226,3 +227,150 @@ def test_chat_template():
         assert instruction in prompt
         assert history_to_use[0][0] in prompt
         assert history_to_use[0][1] in prompt
+
+
+def test_partial_codeblock():
+    import json
+    json.dumps(invalid_json_str)
+
+    # Example usages:
+    example_1 = "```code block starts immediately"
+    example_2 = "\n    ```code block after newline and spaces"
+    example_3 = "<br>```code block after HTML line break"
+    example_4 = "This is a regular text without a code block."
+
+    assert has_starting_code_block(example_1)
+    assert has_starting_code_block(example_2)
+    assert has_starting_code_block(example_3)
+    assert not has_starting_code_block(example_4)
+
+    # Example usages:
+    example_stream_1 = "```code block content here```more text"
+    example_stream_2 = "```code block content with no end yet..."
+    example_stream_3 = "```\ncode block content here\n```\nmore text"
+    example_stream_4 = "```\ncode block content \nwith no end yet..."
+    example_stream_5 = "\n ```\ncode block content here\n```\nmore text"
+    example_stream_6 = "\n ```\ncode block content \nwith no end yet..."
+
+    example_stream_7 = "more text"
+
+    assert extract_code_block_content(example_stream_1) == "block content here"
+    assert extract_code_block_content(example_stream_2) == "block content with no end yet..."
+    assert extract_code_block_content(example_stream_3) == "code block content here"
+    assert extract_code_block_content(example_stream_4) == "code block content \nwith no end yet..."
+    assert extract_code_block_content(example_stream_5) == "code block content here"
+    assert extract_code_block_content(example_stream_6) == "code block content \nwith no end yet..."
+    assert extract_code_block_content(example_stream_7) == ""
+
+    # Assuming the function extract_code_block_content is defined as previously described.
+
+    # Test case 1: Empty string
+    assert extract_code_block_content("") is '', "Test 1 Failed: Should return None for empty string"
+
+    # Test case 2: No starting code block
+    assert extract_code_block_content("No code block here") is '', "Test 2 Failed: Should return None if there's no starting code block"
+
+    # Test case 3: Code block at the start without ending
+    assert extract_code_block_content("```text\nStarting without end") == "Starting without end", "Test 3 Failed: Should return the content of code block starting at the beginning"
+
+    # Test case 4: Code block at the end without starting
+    assert extract_code_block_content("Text before code block```text\nEnding without start") == "Ending without start", "Test 4 Failed: Should extract text following starting delimiter regardless of position"
+
+    # Test case 5: Code block in the middle with proper closing
+    assert extract_code_block_content("Text before ```text\ncode block``` text after") == "code block", "Test 5 Failed: Should extract the code block in the middle"
+
+    # Test case 6: Multiple code blocks, only extracts the first one
+    assert extract_code_block_content("```text\nFirst code block``` Text in between ```Second code block```") == "First code block", "Test 6 Failed: Should only extract the first code block"
+
+    # Test case 7: Code block with only whitespace inside
+    assert extract_code_block_content("```   ```") == "", "Test 7 Failed: Should return an empty string for a code block with only whitespace"
+
+    # Test case 8: Newline characters inside code block
+    assert extract_code_block_content("```\nLine 1\nLine 2\n```") == "Line 1\nLine 2", "Test 8 Failed: Should preserve newline characters within code block but not leading/trailing newlines due to .strip()"
+
+    # Test case 9: Code block with special characters
+    special_characters = "```text\nSpecial characters !@#$%^&*()```"
+    assert extract_code_block_content(special_characters) == "Special characters !@#$%^&*()", "Test 9 Failed: Should correctly handle special characters"
+
+    # Test case 10: No starting code block but with ending delimiter
+    assert extract_code_block_content("Text with ending code block delimiter```") is '', "Test 10 Failed: Should return None if there's no starting code block but with an ending delimiter"
+
+    # Test cases
+    assert looks_like_json('{ "key": "value" }'), "Failed: JSON object"
+    assert looks_like_json('[1, 2, 3]'), "Failed: JSON array"
+    assert looks_like_json(' "string" '), "Failed: JSON string"
+    assert looks_like_json('null'), "Failed: JSON null"
+    assert looks_like_json(' true '), "Failed: JSON true"
+    assert looks_like_json('123'), "Failed: JSON number"
+    assert not looks_like_json('Just a plain text'), "Failed: Not JSON"
+    assert not looks_like_json('```code block```'), "Failed: Code block"
+
+    # Test cases
+    assert get_json('{"key": "value"}') == '{"key": "value"}', "Failed: Valid JSON object should be returned as is."
+    assert get_json('[1, 2, 3]') == '[1, 2, 3]', "Failed: Valid JSON array should be returned as is."
+    assert get_json('```text\nSome code```') == 'Some code', "Failed: Code block content should be returned."
+    assert get_json('Some random text') == invalid_json_str, "Failed: Random text should lead to 'invalid json' return."
+    assert get_json('```{"key": "value in code block"}```') == '{"key": "value in code block"}', "Failed: JSON in code block should be correctly extracted and returned."
+    assert get_json('```code\nmore code```') == 'more code', "Failed: Multi-line code block content should be returned."
+    assert get_json('```\n{"key": "value"}\n```') == '{"key": "value"}', "Failed: JSON object in code block with new lines should be correctly extracted and returned."
+    assert get_json('') == invalid_json_str, "Failed: Empty string should lead to 'invalid json' return."
+    assert get_json('True') == invalid_json_str, "Failed: Non-JSON 'True' value should lead to 'invalid json' return."
+    assert get_json('{"incomplete": true,') == '{"incomplete": true,', "Failed: Incomplete JSON should still be considered as JSON and returned as is."
+
+    answer = """Here is an example JSON that fits the provided schema:
+```json
+{
+  "name": "John Doe",
+  "age": 30,
+  "skills": ["Java", "Python", "JavaScript"],
+  "work history": [
+    {
+      "company": "ABC Corp",
+      "duration": "2018-2020",
+      "position": "Software Engineer"
+    },
+    {
+      "company": "XYZ Inc",
+      "position": "Senior Software Engineer",
+      "duration": "2020-Present"
+    }
+  ]
+}
+```
+Note that the `work history` array contains two objects, each with a `company`, `duration`, and `position` property. The `skills` array contains three string elements, each with a maximum length of 10 characters. The `name` and `age` properties are also present and are of the correct data types."""
+    assert get_json(answer) == """{
+  "name": "John Doe",
+  "age": 30,
+  "skills": ["Java", "Python", "JavaScript"],
+  "work history": [
+    {
+      "company": "ABC Corp",
+      "duration": "2018-2020",
+      "position": "Software Engineer"
+    },
+    {
+      "company": "XYZ Inc",
+      "position": "Senior Software Engineer",
+      "duration": "2020-Present"
+    }
+  ]
+}"""
+
+    # JSON within a code block
+    json_in_code_block = """
+    Here is an example JSON:
+    ```json
+    {"key": "value"}
+    ```
+    """
+
+    # Plain JSON response
+    plain_json_response = '{"key": "value"}'
+
+    # Invalid JSON or non-JSON response
+    non_json_response = "This is just some text."
+
+    # Tests
+    assert get_json(json_in_code_block).strip() == '{"key": "value"}', "Should extract and return JSON from a code block."
+    assert get_json(plain_json_response) == '{"key": "value"}', "Should return plain JSON as is."
+    assert get_json(non_json_response) == invalid_json_str, "Should return 'invalid json' for non-JSON response."

@@ -76,7 +76,7 @@ from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
-    is_vision_model, is_gradio_vision_model
+    is_vision_model, is_gradio_vision_model, is_json_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
@@ -1761,6 +1761,8 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
+        if self.response_format:
+            kwargs.update(dict(response_format=self.response_format))
         try:
             return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
         except Exception as e:
@@ -1784,6 +1786,8 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
+        if self.response_format:
+            kwargs.update(dict(response_format=self.response_format))
         try:
             return await self.agenerate(
                 prompt_messages, stop=stop, callbacks=callbacks, **kwargs
@@ -1893,6 +1897,7 @@ class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
     tokenizer: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    response_format: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -1911,6 +1916,7 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
     stream_output: bool = True
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    response_format: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2209,11 +2215,12 @@ def get_llm(use_openai_model=False,
                                          ))
                 model_kwargs.update(vllm_extra_dict)
             else:
-                kwargs_extra.update(dict(response_format=dict(type=response_format)))
+                if is_json_model(model_name, inference_server):
+                    kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             assert not guided_json and not guided_regex and not guided_choice and not guided_grammar
             cls = H2OAzureChatOpenAI
-            if 'response_format' not in azure_kwargs and response_format:
+            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name, inference_server):
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2223,7 +2230,6 @@ def get_llm(use_openai_model=False,
                      ))
             # FIXME: Support context, iinput
         elif inf_type == 'openai_azure':
-            assert not response_format and not guided_json and not guided_regex and not guided_choice and not guided_grammar
             cls = H2OAzureOpenAI
             kwargs_extra.update(
                 dict(**azure_kwargs,
@@ -2281,6 +2287,10 @@ def get_llm(use_openai_model=False,
             # vllm goes here
             prompt_type = prompt_type or 'plain'
     elif inference_server.startswith('anthropic'):
+        # no explicit JSON mode for anthropic
+        # FIXME: Should use function calling
+        # https://docs.anthropic.com/claude/docs/control-output-format
+
         if model_name in ["claude-2.0", "claude-2"]:
             cls = H2OChatAnthropic2
         elif model_name == "claude-2.1":
@@ -2321,6 +2331,9 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server.startswith('google'):
+        # google doesn't have JSON mode but can use function calling so can give schema
+        # https://ai.google.dev/tutorials/structured_data_extraction
+
         cls = H2OChatGoogle
 
         # Langchain oddly passes some things directly and rest via model_kwargs
@@ -2371,6 +2384,12 @@ def get_llm(use_openai_model=False,
 
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         # https://mistral.ai/news/mistral-large/
+
+        if is_json_model(model_name, inference_server):
+            # https://docs.mistral.ai/platform/client/#json-mode
+            # odd outputs for mistral-medium and mistral-tiny as of 04/02/2024
+            # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
+            kwargs_extra.update(dict(response_format=dict(type=response_format)))
 
         llm = cls(model=model_name,
                   mistral_api_key=os.getenv('MISTRAL_API_KEY'),

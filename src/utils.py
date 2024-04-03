@@ -38,7 +38,7 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import split_google
+from src.enums import split_google, invalid_json_str
 from src.utils_procs import reulimit
 
 reulimit()
@@ -1208,11 +1208,12 @@ class FakeTokenizer:
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
-            assert not (is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
+            assert not (
+                        is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
             model_max_length = 2048
         self.is_openai = is_openai
         self.is_anthropic = is_anthropic
-        self.is_google= is_google
+        self.is_google = is_google
         self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
@@ -2119,3 +2120,69 @@ def get_show_username(username1):
     else:
         show_username = username1
     return show_username
+
+
+# for extracting code blocks
+pattern = re.compile(r"```(.*?)(\n[\s\S]*?)?```", re.DOTALL)
+
+
+def get_code_blocks(response):
+    return pattern.findall(response)
+
+
+def get_json(response):
+    # First, try to extract code block content. If content is found (not an empty string), return None (or possibly an empty string as per updated logic)
+    response0 = extract_code_block_content(response)
+    if response0:
+        return response0
+    # Next, check if the response looks like JSON, return it if so
+    if looks_like_json(response):
+        return response
+    # If it doesn't look like JSON, return an empty string as a default case
+    return invalid_json_str
+
+
+# This pattern looks for the start of the text or any kind of newline followed by optional whitespace,
+# and then the code block delimiter (```).
+# It accounts for different newline characters and HTML line breaks.
+pattern_partial_codeblock = re.compile(r"(^|\n|\r|<br\s*/?>)\s*```")
+
+
+def has_starting_code_block(text):
+    # Search the text for the pattern
+    if pattern_partial_codeblock.search(text):
+        return True
+    else:
+        return False
+
+
+pattern_extract_codeblock = re.compile(r"```[a-zA-Z]*\s*(.*?)(```|$)", re.DOTALL)
+
+
+def extract_code_block_content(stream_content):
+    # This pattern matches content starting from an opening code block delimiter (```)
+    # and captures everything after it until a closing delimiter or the end of string if no closing delimiter is found.
+    # Non-greedy matching is used to ensure it captures the earliest possible ending.
+
+    match = pattern_extract_codeblock.search(stream_content)
+    if match:
+        # Returns the captured group which is the content of the code block.
+        # The .strip() is used to remove any leading or trailing whitespace that might be present.
+        return match.group(1).strip()
+    else:
+        return ''
+
+
+def looks_like_json(text):
+    # Strip leading whitespace and check the first non-whitespace character
+    stripped_text = text.lstrip()
+
+    # Check if the text starts with '{', '[', or potentially a JSON string
+    if stripped_text.startswith(('{', '[', '"')):
+        return True
+
+    # Optionally, check for simple numeric values or null, true, false which are valid JSON
+    if re.match(r'(-?\d+(\.\d+)?([eE][+-]?\d+)?|null|true|false)\s*($|[,\]}])', stripped_text):
+        return True
+
+    return False

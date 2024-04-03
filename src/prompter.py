@@ -3,7 +3,7 @@ import time
 import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
@@ -297,6 +297,36 @@ def is_video_model(base_model):
     if not base_model:
         return False
     return base_model in ["gemini-1.5-pro-latest"]
+
+
+def is_json_model(base_model, inference_server):
+    if not base_model:
+        return False
+    if inference_server.startswith('vllm'):
+        # assumes 0.4.0+ for vllm
+        # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+        # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
+        # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/model_executor/guided_decoding.py#L91
+        # https://github.com/vllm-project/vllm/blob/b0925b38789bb3b20dcc39e229fcfe12a311e487/tests/entrypoints/test_openai_server.py#L477
+        return True
+    if inference_server.startswith('openai'):
+        # not older models
+        # https://platform.openai.com/docs/guides/text-generation/json-mode
+        return base_model in openai_supports_json_mode
+    if inference_server.startswith('mistralai'):
+        # https://docs.mistral.ai/platform/client/#json-mode
+        # https://docs.mistral.ai/guides/prompting-capabilities/#include-a-confidence-score
+        return base_model in ["mistral-large-latest",
+                              #"mistral-medium"
+                              "mistral-small",
+                              #"mistral-tiny",
+                              #'open-mistral-7b',
+                              #'open-mixtral-8x7b',
+                              'mistral-small-latest',
+                              #'mistral-medium-latest',
+                              ]
+
+    return False
 
 
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,

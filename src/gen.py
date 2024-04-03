@@ -75,7 +75,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json
 
 start_faulthandler()
 import_matplotlib()
@@ -90,7 +90,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -4078,6 +4078,18 @@ def evaluate(
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                         system_prompt=system_prompt)
 
+    if response_format == 'json_object':
+        if not is_json_model(base_model, inference_server):
+            instruction += '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.'
+            if guided_json:
+                # FIXME: Do function calling if can instead
+                instruction += '\nEnsure you follow this schema:\n%s' % guided_json
+        elif inference_server and not inference_server.startswith('vllm'):
+            instruction += '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.'
+            if guided_json:
+                # FIXME: Do function calling if can instead
+                instruction += '\nEnsure you follow this schema:\n%s\n' % guided_json
+
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
     assert langchain_action in langchain_actions, "Invalid langchain_action %s not in %s" % (
@@ -4321,6 +4333,8 @@ def evaluate(
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
+            if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                response = get_json(response)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
@@ -4463,6 +4477,8 @@ def evaluate(
                             if delta:
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
+                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                    response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
@@ -4520,6 +4536,8 @@ def evaluate(
                                 text += delta
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
+                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                    response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
@@ -4584,6 +4602,8 @@ def evaluate(
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 
+                    if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                        response = get_json(response)
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
@@ -4591,6 +4611,8 @@ def evaluate(
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response in get_llava_stream(**llava_kwargs):
+                        if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                            response = get_json(response)
                         yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
 
@@ -4750,10 +4772,17 @@ def evaluate(
                                                 is_public=is_public,
                                                 verbose=verbose)
                         if new_stream:
-                            res_dict = yield from gr_client.stream(**gr_stream_kwargs)
+                            gener = gr_client.stream(**gr_stream_kwargs)
                         else:
-                            res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
-                        response = res_dict.get('response', '')
+                            gener = gr_client.simple_stream(**gr_stream_kwargs)
+                        response = ''
+                        for res_dict in gener:
+                            if 'response' in res_dict:
+                                response = res_dict['response']
+                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                    response = get_json(response)
+                                    res_dict['response'] = response
+                            yield res_dict
                     # listen to inner gradio
                     num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens',
                                                                                                  num_prompt_tokens)
@@ -4805,6 +4834,8 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 sources = []
+                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                    response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
                                 time.sleep(0.01)
