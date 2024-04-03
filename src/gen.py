@@ -4363,7 +4363,7 @@ def evaluate(
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
-            if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+            if response_format == 'json_object':
                 response = get_json(response)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
@@ -4497,6 +4497,8 @@ def evaluate(
                         text = responses.choices[0].text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        if response_format == 'json_object':
+                            response = get_json(response)
                     else:
                         collected_events = []
                         tgen0 = time.time()
@@ -4507,7 +4509,7 @@ def evaluate(
                             if delta:
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
-                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4564,6 +4566,8 @@ def evaluate(
                         text = responses.choices[0].message.content
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        if response_format == 'json_object':
+                            response = get_json(response)
                     else:
                         tgen0 = time.time()
                         for chunk in responses:
@@ -4572,7 +4576,7 @@ def evaluate(
                                 text += delta
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
-                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4638,7 +4642,7 @@ def evaluate(
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 
-                    if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+                    if response_format == 'json_object':
                         response = get_json(response)
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
@@ -4647,7 +4651,7 @@ def evaluate(
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response in get_llava_stream(**llava_kwargs):
-                        if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+                        if response_format == 'json_object':
                             response = get_json(response)
                         yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
@@ -4815,7 +4819,7 @@ def evaluate(
                         for res_dict in gener:
                             if 'response' in res_dict:
                                 response = res_dict['response']
-                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':
                                     response = get_json(response)
                                     res_dict['response'] = response
                             yield res_dict
@@ -4859,6 +4863,8 @@ def evaluate(
                         text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        if response_format == 'json_object':
+                            response = get_json(response)
                     else:
                         tgen0 = time.time()
                         text = ""
@@ -4870,7 +4876,7 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 sources = []
-                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -5055,6 +5061,8 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
+                            if response_format == 'json_object':
+                                response = get_json(response)
                             ret = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                             if stream_output:
@@ -5097,6 +5105,8 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
+                    if response_format == 'json_object':
+                        response = get_json(response)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
 
