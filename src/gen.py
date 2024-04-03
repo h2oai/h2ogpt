@@ -4466,19 +4466,21 @@ def evaluate(
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
             try:
+                if inf_type in ['vllm', 'vllm_chat']:
+                    vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
+                                                          response_format=response_format if guided_json else 'text',
+                                                          guided_json=guided_json,
+                                                          guided_regex=guided_regex,
+                                                          guided_choice=guided_choice,
+                                                          guided_grammar=guided_grammar,
+                                                          # repetition_penalty=repetition_penalty,  # could pass
+                                                          )
+                else:
+                    vllm_extra_dict = {}
                 if inf_type == 'vllm' or inf_type == 'openai':
                     if inf_type == 'vllm':
-                        vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                              response_format=response_format if guided_json else 'text',
-                                                              guided_json=guided_json,
-                                                              guided_regex=guided_regex,
-                                                              guided_choice=guided_choice,
-                                                              guided_grammar=guided_grammar,
-                                                              # repetition_penalty=repetition_penalty,  # could pass
-                                                              )
                         other_dict = dict(timeout=max_time)
                     else:
-                        vllm_extra_dict = {}
                         other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
@@ -4544,12 +4546,8 @@ def evaluate(
                     if prompt:
                         messages0.append({'role': 'user', 'content': prompt})
 
-                    if response_format == 'json_object':
-                        if inf_type == 'vllm_chat':
-                            # vllm without guided_json can't make json directly
-                            other_dict.update(dict(type=response_format if guided_json else 'text'))
-                        else:
-                            other_dict.update(dict(type=response_format))
+                    if response_format == 'json_object' and inf_type == 'openai_chat':
+                        other_dict.update(dict(type=response_format))
 
                     # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
                     responses = openai_client.chat.completions.create(
@@ -4557,6 +4555,7 @@ def evaluate(
                         messages=messages0,
                         stream=stream_output,
                         **gen_server_kwargs,
+                        **vllm_extra_dict,
                         **other_dict,
                     )
                     text = ""
