@@ -5074,4 +5074,10 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     response = res_dict['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
-    json.loads(response)
+    mydict = json.loads(response)
+
+    check_keys = ['age', 'name', 'skills', 'work history']
+    if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
+        pass
+    else:
+        assert all([k in mydict for k in check_keys]), "Missing keys"
