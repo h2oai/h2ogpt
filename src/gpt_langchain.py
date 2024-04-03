@@ -2191,7 +2191,7 @@ def get_llm(use_openai_model=False,
         vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                               stop_sequences=prompter.stop_sequences,
                                               # repetition_penalty=repetition_penalty,  # could pass
-                                              response_format=response_format,
+                                              response_format=response_format if guided_json else 'text',
                                               guided_json=guided_json,
                                               guided_regex=guided_regex,
                                               guided_choice=guided_choice,
@@ -2203,6 +2203,9 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
+                if response_format == 'json_object':
+                    # vllm without guided_json can't make json directly
+                    kwargs_extra.update(dict(type=response_format if guided_json else 'text'))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,
@@ -2210,7 +2213,6 @@ def get_llm(use_openai_model=False,
                                          # batch_size=1,
                                          client=openai_client_completions,
                                          async_client=openai_async_client_completions,
-                                         response_format=dict(type=response_format),
                                          # async_sem=async_sem,
                                          ))
                 model_kwargs.update(vllm_extra_dict)

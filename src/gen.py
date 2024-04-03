@@ -4095,7 +4095,6 @@ def evaluate(
             # vllm can't do just pure json without schema
             # if no guided_json, ok to add extra instructions, but need to say text else won't get anything back
             instruction += post_instruction
-            response_format = 'text'
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -4446,7 +4445,7 @@ def evaluate(
                 if inf_type == 'vllm' or inf_type == 'openai':
                     if inf_type == 'vllm':
                         vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                              response_format=response_format,
+                                                              response_format=response_format if guided_json else 'text',
                                                               guided_json=guided_json,
                                                               guided_regex=guided_regex,
                                                               guided_choice=guided_choice,
@@ -4519,10 +4518,16 @@ def evaluate(
                     if prompt:
                         messages0.append({'role': 'user', 'content': prompt})
 
+                    if response_format == 'json_object':
+                        if inf_type == 'vllm_chat':
+                            # vllm without guided_json can't make json directly
+                            other_dict.update(dict(type=response_format if guided_json else 'text'))
+                        else:
+                            other_dict.update(dict(type=response_format))
+
                     # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
                     responses = openai_client.chat.completions.create(
                         model=base_model,
-                        response_format=dict(type=response_format),
                         messages=messages0,
                         stream=stream_output,
                         **gen_server_kwargs,

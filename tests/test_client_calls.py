@@ -5062,6 +5062,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     else:
         auth_kwargs = {}
         inference_server_for_get = inference_server
+    inference_server = 'http://localhost:7860'
 
     from src.gen import get_inf_models
     base_models = get_inf_models(inference_server_for_get)
@@ -5075,7 +5076,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     # string of dict for input
     prompt = f"Give an example JSON for an employee profile that fits this schema: {TEST_SCHEMA}"
 
-    for response_format in ['', TEST_SCHEMA]:
+    for guided_json in ['', TEST_SCHEMA]:
         print("Doing base_model=%s" % base_model)
         kwargs = dict(instruction_nochat=prompt,
                       visible_models=base_model,
@@ -5084,7 +5085,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
                       langchain_action=langchain_action,
                       h2ogpt_key=h2ogpt_key,
                       response_format='json_object',
-                      guided_json=TEST_SCHEMA,
+                      guided_json=guided_json,
                       )
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
         res_dict = ast.literal_eval(res)
@@ -5094,7 +5095,13 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
         mydict = json.loads(response)
 
         check_keys = ['age', 'name', 'skills', 'work history']
+        check_keys2 = ['age', 'name', 'skills', 'work_history']
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
             pass
         else:
-            assert all([k in mydict for k in check_keys]), "Missing keys"
+            cond1 = all([k in mydict for k in check_keys])
+            cond2 = sum([k in mydict for k in check_keys2]) >= 3
+            if not guided_json:
+                assert cond1 or cond2, "Missing keys"
+            else:
+                assert cond1, "Missing keys"
