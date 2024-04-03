@@ -5112,7 +5112,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
             if not guided_json:
                 pass
             else:
-                # zephyr, mistralv0.2, mutate to workHistory workHistory
+                # zephyr, mistralv0.2, mutate to workHistory
                 if base_model in ['HuggingFaceH4/zephyr-7b-beta',  # until vLLM is upgraded
                                   'mistralai/Mistral-7B-Instruct-v0.2',  # until vLLM is upgraded
                                   'mistral-tiny',
