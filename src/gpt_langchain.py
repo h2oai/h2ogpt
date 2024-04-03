@@ -2220,7 +2220,6 @@ def get_llm(use_openai_model=False,
                 if is_json_model(model_name, inference_server):
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
-            assert not guided_json and not guided_regex and not guided_choice and not guided_grammar
             cls = H2OAzureChatOpenAI
             if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name, inference_server):
                 # overrides doc_json_mode if set

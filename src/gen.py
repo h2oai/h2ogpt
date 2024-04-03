@@ -4100,6 +4100,7 @@ def evaluate(
             # guided_json set or not, handled
             pass
         elif is_json_model(base_model, inference_server, json_vllm=json_vllm):
+            instruction += post_instruction  # OpenAI requires "json" to appear somewhere in messages
             assert not json_vllm
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
