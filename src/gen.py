@@ -4425,6 +4425,11 @@ def evaluate(
                 if inf_type == 'vllm' or inf_type == 'openai':
                     if inf_type == 'vllm':
                         vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
+                                                              response_format=response_format,
+                                                              guided_json=guided_json,
+                                                              guided_regex=guided_regex,
+                                                              guided_choice=guided_choice,
+                                                              guided_grammar=guided_grammar,
                                                               # repetition_penalty=repetition_penalty,  # could pass
                                                               )
                         other_dict = dict(timeout=max_time)
@@ -4433,7 +4438,7 @@ def evaluate(
                         other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
-                        response_format=dict(type=response_format),
+                        #response_format=dict(type=response_format),  Text Completions API can't handle
                         prompt=prompt,
                         **gen_server_kwargs,
                         stop=stop_sequences,

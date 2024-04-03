@@ -4980,3 +4980,99 @@ def test_get_image_file():
 
             image_file = ['tests/jon.png', 'tests/fastfood.jpg']
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 2
+
+
+gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'mistralai/Mixtral-8x7B-Instruct-v0.1', 'HuggingFaceH4/zephyr-7b-beta', 'gpt-3.5-turbo-0613', 'openchat/openchat-3.5-1210', 'mistralai/Mistral-7B-Instruct-v0.2', 'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B', 'databricks/dbrx-instruct', 'liuhaotian/llava-v1.6-vicuna-13b', 'liuhaotian/llava-v1.6-34b', 'h2oai/h2o-danube-1.8b-chat', 'google/gemma-7b-it']
+
+
+TEST_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "age": {
+            "type": "integer"
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "maxLength": 10
+            },
+            "minItems": 3
+        },
+        "work history": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "company": {
+                        "type": "string"
+                    },
+                    "duration": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "type": "string"
+                    }
+                },
+                "required": ["company", "position"]
+            }
+        }
+    },
+    "required": ["name", "age", "skills", "work history"]
+}
+
+TEST_REGEX = (r"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.){3}"
+              r"(25[0-5]|(2[0-4]|1\d|[1-9]|)\d)")
+
+TEST_CHOICE = [
+    "Python", "Java", "JavaScript", "C++", "C#", "PHP", "TypeScript", "Ruby",
+    "Swift", "Kotlin"
+]
+
+
+@wrap_test_forked
+#@pytest.mark.parametrize("base_model", [gpt_models[1]])
+@pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
+@pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_guided_json(langchain_action, langchain_mode, base_model):
+    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
+    if inference_server == 'https://gpt.h2o.ai':
+        auth_kwargs = dict(auth=('guest', 'guest'))
+        inference_server_for_get = inference_server + ':guest:guest'
+    else:
+        auth_kwargs = {}
+        inference_server_for_get = inference_server
+
+    from src.gen import get_inf_models
+    base_models = get_inf_models(inference_server_for_get)
+    base_models_touse = [base_model]
+    assert len(set(base_models_touse).difference(set(base_models))) == 0
+    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+
+    from gradio_client import Client
+    client = Client(inference_server, *auth_kwargs)
+
+    # string of dict for input
+    prompt=f"Give an example JSON for an employee profile that fits this schema: {TEST_SCHEMA}",
+
+    print("Doing base_model=%s" % base_model)
+    kwargs = dict(instruction_nochat=prompt,
+                  visible_models=base_model,
+                  stream_output=False,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
+                  h2ogpt_key=h2ogpt_key,
+                  response_format='json_object',
+                  guided_json=TEST_SCHEMA,
+                  )
+    res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
+    print(response)
+    json.loads(response)
+

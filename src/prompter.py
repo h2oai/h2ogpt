@@ -1889,7 +1889,13 @@ def step_back_prompts(which):
         raise ValueError("No such case for back prompts which=%d" % which)
 
 
-def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None):
+def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
+                        response_format=None,
+                        guided_json=None,
+                        guided_regex=None,
+                        guided_choice=None,
+                        guided_grammar=None,
+):
     stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
                       hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
     if hasattr(tokenizer, 'eos_token_id'):
@@ -1897,6 +1903,18 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None):
     vllm_extra_dict = dict(extra_body=dict(stop_token_ids=stop_token_ids))
     if repetition_penalty is not None:
         vllm_extra_dict['extra_body'].update(repetition_penalty=repetition_penalty)
+
+    if response_format:
+        vllm_extra_dict['extra_body'].update(response_format=response_format)
+    if guided_json:
+        vllm_extra_dict['extra_body'].update(guided_json=guided_json)
+    if guided_regex:
+        vllm_extra_dict['extra_body'].update(guided_regex=guided_regex)
+    if guided_choice:
+        vllm_extra_dict['extra_body'].update(guided_choice=guided_choice)
+    if guided_grammar:
+        vllm_extra_dict['extra_body'].update(guided_grammar=guided_grammar)
+
     return vllm_extra_dict
 
 

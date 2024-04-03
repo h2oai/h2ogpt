@@ -165,9 +165,11 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
         qdrant_options = _get_qdrant_options()
 
         if qdrant_options is not None:
-            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name, **qdrant_options)
+            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name,
+                                       **qdrant_options)
         else:
-            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name, location=":memory:")
+            db = Qdrant.from_documents(documents=sources, embedding=embedding, collection_name=collection_name,
+                                       location=":memory:")
 
     elif db_type in ['chroma', 'chroma_old']:
         assert persist_directory is not None
@@ -438,7 +440,7 @@ def create_or_update_db(db_type, persist_directory, collection_name,
         if client.collection_exists(collection_name):
             client.delete_collection(collection_name)
         if verbose:
-                print("Removing %s" % collection_name, flush=True)
+            print("Removing %s" % collection_name, flush=True)
     elif db_type in ['chroma', 'chroma_old']:
         pass
 
@@ -887,7 +889,9 @@ class GradioInference(H2Oagenerate, LLM):
             return ret
 
     def use_gradio_return(self, res_dict, prompt_raw):
-        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens', self.get_num_tokens(str(prompt_raw)))
+        self.count_input_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens',
+                                                                                           self.get_num_tokens(
+                                                                                               str(prompt_raw)))
         self.prompts.append(res_dict.get('prompt_raw', prompt_raw))
 
     # copy-paste of streaming part of _call() with asyncio.sleep instead
@@ -2213,6 +2217,11 @@ def get_llm(use_openai_model=False,
                 vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                                       stop_sequences=prompter.stop_sequences,
                                                       # repetition_penalty=repetition_penalty,  # could pass
+                                                      response_format=response_format,
+                                                      guided_json=guided_json,
+                                                      guided_regex=guided_regex,
+                                                      guided_choice=guided_choice,
+                                                      guided_grammar=guided_grammar,
                                                       )
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
@@ -5775,11 +5784,11 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       image_control=image_control,
                       document_choice=document_choice,
 
-                     response_format=response_format,
-                     guided_json=guided_json,
-                     guided_regex=guided_regex,
-                     guided_choice=guided_choice,
-                     guided_grammar=guided_grammar,
+                      response_format=response_format,
+                      guided_json=guided_json,
+                      guided_regex=guided_regex,
+                      guided_choice=guided_choice,
+                      guided_grammar=guided_grammar,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -8790,7 +8799,8 @@ def _create_local_weaviate_client():
     except Exception as e:
         print(f"Failed to create Weaviate client: {e}")
         return None
-    
+
+
 def _get_qdrant_options():
     env_vars = os.environ.keys()
 
@@ -8814,6 +8824,7 @@ def _get_qdrant_options():
 
     return options
 
+
 def _get_unique_sources_in_qdrant(db):
     from langchain_community.vectorstores import Qdrant
     import grpc
@@ -8836,9 +8847,9 @@ def _get_unique_sources_in_qdrant(db):
 
         # Qdrant client supports a REST and GPRC interface. So we need to handle the response differently
         stop_scrolling = next_offset is None or (
-            isinstance(next_offset, grpc.PointId)
-            and next_offset.num == 0
-            and next_offset.uuid == ""
+                isinstance(next_offset, grpc.PointId)
+                and next_offset.num == 0
+                and next_offset.uuid == ""
         )
 
         sources.extend(records)
