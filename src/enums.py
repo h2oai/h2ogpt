@@ -559,3 +559,7 @@ user_prompt_for_fake_system_prompt = "Who are you and what do you do?"
 coqui_lock_name = 'coqui'
 
 split_google = "::::::::::"
+
+response_formats = ['json_object', 'text']
+
+invalid_json_str = '{}'

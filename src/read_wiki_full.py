@@ -13,7 +13,7 @@ import pytest
 from matplotlib import pyplot as plt
 
 from langchain.docstore.document import Document
-from langchain.document_loaders import MWDumpLoader
+from langchain_community.document_loaders import MWDumpLoader
 
 # path where downloaded wiki files exist, to be processed
 root_path = "/data/jon/h2o-llm"

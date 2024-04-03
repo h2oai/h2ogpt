@@ -7,7 +7,7 @@ import json
 from threading import Thread
 import time
 from traceback import print_exception
-from typing import List, Dict
+from typing import List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
 import uvicorn
@@ -35,6 +35,12 @@ class Generation(BaseModel):
     min_p: float | None = 0.0
 
 
+class ResponseFormat(BaseModel):
+    # type must be "json_object" or "text"
+    type: str = Literal["text", "json_object"]
+
+
+# https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L62
 class H2oGPTParams(BaseModel):
     # keep in sync with evaluate()
     # handled by extra_body passed to OpenAI API
@@ -76,8 +82,8 @@ class H2oGPTParams(BaseModel):
     jq_schema: List | None = None
     extract_frames: int | None = 10
     llava_prompt: str | None = 'auto'
-    #visible_models
-    #h2ogpt_key,
+    # visible_models
+    # h2ogpt_key,
     add_search_to_context: bool | None = False
 
     chat_conversation: List | None = []
@@ -101,6 +107,30 @@ class H2oGPTParams(BaseModel):
 
     image_file: str | None = None
     image_control: str | None = None
+
+    response_format: Optional[ResponseFormat] = Field(
+        default=None,
+        description=
+        ("Similar to chat completion, this parameter specifies the format of "
+         "output. Only {'type': 'json_object'} or {'type': 'text' } is "
+         "supported."),
+    )
+    guided_json: Optional[Union[str, dict, BaseModel]] = Field(
+        default=None,
+        description="If specified, the output will follow the JSON schema.",
+    )
+    guided_regex: Optional[str] = Field(
+        default=None,
+        description=("If specified, the output will follow the regex pattern."),
+    )
+    guided_choice: Optional[List[str]] = Field(
+        default=None,
+        description="If specified, the output will be exactly one of the choices.",
+    )
+    guided_grammar: Optional[str] = Field(
+        default=None,
+        description="If specified, the output will follow the context free grammar.",
+    )
 
 
 class Params(H2oGPTParams):

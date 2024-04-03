@@ -10,7 +10,7 @@ from typing import List, Union, Any, Tuple, Optional
 import requests
 import torch
 from langchain.docstore.document import Document
-from langchain.document_loaders import ImageCaptionLoader
+from langchain_community.document_loaders import ImageCaptionLoader
 import numpy as np
 from utils import get_device, clear_torch_cache, NullContext
 from doctr.utils.common_types import AbstractFile

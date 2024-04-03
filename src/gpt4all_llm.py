@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List, Iterator
 import filelock
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.schema.output import GenerationChunk
-from langchain.llms import gpt4all
+from langchain_community.llms import gpt4all
 from pydantic.v1 import root_validator
 
 from src.enums import coqui_lock_name
@@ -333,7 +333,7 @@ class H2OGPT4All(gpt4all.GPT4All):
     #    return self.client.tokenize(b" " + text.encode("utf-8"))
 
 
-from langchain.llms import LlamaCpp
+from langchain_community.llms import LlamaCpp
 
 
 class H2OLlamaCpp(LlamaCpp):
