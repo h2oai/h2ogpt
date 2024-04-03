@@ -562,4 +562,4 @@ split_google = "::::::::::"
 
 response_formats = ['json_object', 'text']
 
-invalid_json_str = '["invalid json"]'
+invalid_json_str = '{}'

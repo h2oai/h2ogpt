@@ -1304,7 +1304,7 @@ def main(
         seed = 0
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
-    response_format, response_formats)
+        response_format, response_formats)
     assert isinstance(guided_json, str)
     assert isinstance(guided_regex, str)
     assert isinstance(guided_choice, str)
@@ -3848,7 +3848,7 @@ def evaluate(
         seed = 0
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
-    response_format, response_formats)
+        response_format, response_formats)
 
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
@@ -4079,13 +4079,14 @@ def evaluate(
                         system_prompt=system_prompt)
 
     if response_format == 'json_object':
+        post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a code block using backticks.'
         if not is_json_model(base_model, inference_server):
-            instruction += '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.'
+            instruction += post_instruction
             if guided_json:
                 # FIXME: Do function calling if can instead
                 instruction += '\nEnsure you follow this schema:\n%s' % guided_json
-        elif inference_server and not inference_server.startswith('vllm'):
-            instruction += '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.'
+        elif inference_server and not inference_server.startswith('vllm') or True:
+            instruction += post_instruction
             if guided_json:
                 # FIXME: Do function calling if can instead
                 instruction += '\nEnsure you follow this schema:\n%s\n' % guided_json
@@ -4333,7 +4334,7 @@ def evaluate(
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
-            if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+            if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                 response = get_json(response)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
@@ -4452,7 +4453,7 @@ def evaluate(
                         other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
-                        #response_format=dict(type=response_format),  Text Completions API can't handle
+                        # response_format=dict(type=response_format),  Text Completions API can't handle
                         prompt=prompt,
                         **gen_server_kwargs,
                         stop=stop_sequences,
@@ -4477,7 +4478,7 @@ def evaluate(
                             if delta:
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
-                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4536,7 +4537,7 @@ def evaluate(
                                 text += delta
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
-                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4602,7 +4603,7 @@ def evaluate(
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 
-                    if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                    if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                         response = get_json(response)
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
@@ -4611,7 +4612,7 @@ def evaluate(
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response in get_llava_stream(**llava_kwargs):
-                        if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                        if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                             response = get_json(response)
                         yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
@@ -4779,7 +4780,7 @@ def evaluate(
                         for res_dict in gener:
                             if 'response' in res_dict:
                                 response = res_dict['response']
-                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                                     response = get_json(response)
                                     res_dict['response'] = response
                             yield res_dict
@@ -4834,7 +4835,7 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 sources = []
-                                if response_format == 'json_object' and not is_json_model(base_model, inference_server):
+                                if response_format == 'json_object':  # and not is_json_model(base_model, inference_server):
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
