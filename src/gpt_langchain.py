@@ -5898,11 +5898,15 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                       count_output_tokens=0,
                                       ))
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
+        if response_format == 'json_object':
+            ret = '{"response": "%s"}' % ret
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=sources, num_prompt_tokens=0,
                    llm_answers=llm_answers, response_no_refs='', sources_str=sources_str, prompt_raw=prompt_basic)
         return
     if langchain_agents and not chain:
         ret = '%s not supported by this model' % langchain_agents[0]
+        if response_format == 'json_object':
+            ret = '{"response": "%s"}' % ret
         sources = []
         yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
                    response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
@@ -5922,6 +5926,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             # if here then ok to continue using chain if exists.  E.g. use_llm_if_no_docs=True and doing query langchain_action
             ret = None
         if ret is not None:
+            if response_format == 'json_object':
+                ret = '{"response": "%s"}' % ret
             sources = []
             yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
                        response_no_refs=ret, sources_str='', prompt_raw=prompt_basic)
