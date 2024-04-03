@@ -1905,7 +1905,7 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
         vllm_extra_dict['extra_body'].update(repetition_penalty=repetition_penalty)
 
     if response_format:
-        vllm_extra_dict['extra_body'].update(response_format=response_format)
+        vllm_extra_dict['extra_body'].update(dict(response_format={'type': response_format}))
     if guided_json:
         vllm_extra_dict['extra_body'].update(guided_json=guided_json)
     if guided_regex:
