@@ -2189,7 +2189,7 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
 
         vllm_extra_dict = get_vllm_extra_dict(tokenizer,
-                                              stop_sequences=prompter.stop_sequences,
+                                              stop_sequences=prompter.stop_sequences if prompter else [],
                                               # repetition_penalty=repetition_penalty,  # could pass
                                               response_format=response_format if guided_json else 'text',
                                               guided_json=guided_json,
