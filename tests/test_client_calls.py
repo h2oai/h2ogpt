@@ -5094,8 +5094,11 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
               file=sys.stderr)
         print(response)
 
-        if base_model in ['h2oai/h2o-danube-1.8b-chat', '']:
-            # just can't do it, messes up
+        if base_model in ['h2oai/h2o-danube-1.8b-chat']:
+            # just can't do it, messes up really bad
+            return
+        if base_model in ['google/gemma-7b-it']:
+            # messes things up a bit, like missing } at end
             return
 
         mydict = json.loads(response)
