@@ -560,4 +560,4 @@ coqui_lock_name = 'coqui'
 
 split_google = "::::::::::"
 
-response_formats = ['json', 'text']
+response_formats = ['json_object', 'text']

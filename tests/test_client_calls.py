@@ -5057,7 +5057,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     client = Client(inference_server, *auth_kwargs)
 
     # string of dict for input
-    prompt=f"Give an example JSON for an employee profile that fits this schema: {TEST_SCHEMA}",
+    prompt = f"Give an example JSON for an employee profile that fits this schema: {TEST_SCHEMA}"
 
     print("Doing base_model=%s" % base_model)
     kwargs = dict(instruction_nochat=prompt,
@@ -5075,4 +5075,3 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
     json.loads(response)
-
