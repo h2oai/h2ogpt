@@ -32,6 +32,7 @@ import pandas as pd
 import requests
 import uuid
 import re
+from packaging import version
 
 import tabulate
 from fire import inspectutils
@@ -2186,3 +2187,42 @@ def looks_like_json(text):
         return True
 
     return False
+
+
+def is_json_vllm(model, base_model, inference_server, verbose=False):
+    if isinstance(model, dict):
+        openai_client = model['client']
+    else:
+        openai_client, _, _, _, _, _, _ = set_openai(inference_server, model_name=base_model)
+
+    vllm_version = get_vllm_version(openai_client, inference_server, verbose=verbose)
+    json_vllm_version = "0.4.0"  # The version to compare against
+
+    # Parse the version strings into comparable objects
+    parsed_vllm_version = version.parse(vllm_version)
+    parsed_json_vllm_version = version.parse(json_vllm_version)
+
+    # Compare the versions
+    if parsed_vllm_version >= parsed_json_vllm_version:
+        return True
+    else:
+        return False
+
+
+def get_vllm_version(openai_client, inference_server, verbose=False):
+    vllm_version = '0.3.0'
+    if inference_server.startswith('vllm'):
+        # https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/api_server.py
+        parsed_url = str(openai_client.base_url).replace("/v1", "/version")
+        response = requests.get(parsed_url)
+        if response.status_code == 200:
+            # Parsing the JSON response content to a dictionary
+            data = response.json()
+            # Accessing the version from the response
+            vllm_version = data.get('version', vllm_version)
+            if verbose:
+                print(f"vLLM Server version: {vllm_version}")
+        else:
+            if verbose:
+                print(f"Failed to retrieve version, status code: {response.status_code}")
+    return vllm_version

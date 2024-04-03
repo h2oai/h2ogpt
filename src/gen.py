@@ -75,7 +75,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json, is_json_vllm
 
 start_faulthandler()
 import_matplotlib()
@@ -4079,13 +4079,14 @@ def evaluate(
                         system_prompt=system_prompt)
 
     if response_format == 'json_object':
-        post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a code block using backticks.'
+        json_vllm = is_json_vllm(model, base_model, inference_server, verbose=False)
+        post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.'
         if not is_json_model(base_model, inference_server):
             instruction += post_instruction
             if guided_json:
                 # FIXME: Do function calling if can instead
                 instruction += '\nEnsure you follow this schema:\n%s' % guided_json
-        elif inference_server and not inference_server.startswith('vllm') or True:
+        elif inference_server and not inference_server.startswith('vllm') or not json_vllm:
             instruction += post_instruction
             if guided_json:
                 # FIXME: Do function calling if can instead
