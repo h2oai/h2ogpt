@@ -712,6 +712,9 @@ class GradioInference(H2Oagenerate, LLM):
             prompt_type = noop_prompt_type
             # already did conversation as part of prompt
             client_chat_conversation = []
+            self.context = ''
+            self.iinput = ''
+            self.system_prompt = ''
 
         client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
                              iinput=self.iinput if self.chat_client else '',  # only for chat=True
