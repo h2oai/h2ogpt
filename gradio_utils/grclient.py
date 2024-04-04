@@ -1153,6 +1153,11 @@ class GradioClient(Client):
                 streaming=stream_output,
                 texts_in=len(text or []) + len(text_context_list or []),
                 texts_out=len(texts_out),
+                images=len(image_file)
+                if isinstance(image_file, list)
+                else 1
+                if image_file
+                else 0,
                 response_time=str(timedelta(seconds=t1 - t0)),
                 response_len=len(response),
                 llm=visible_models,

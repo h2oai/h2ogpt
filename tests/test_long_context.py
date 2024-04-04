@@ -1,6 +1,6 @@
 import pytest
 from tests.utils import wrap_test_forked
-from src.enums import LangChainAction
+from src.enums import LangChainAction, noop_prompt_type
 
 from importlib.metadata import version
 
@@ -105,7 +105,7 @@ def test_gradio_long_context_uuid_key_value_retrieval(base_model, rope_scaling, 
         main_kwargs = dict(base_model=base_model,
                            chat=True, stream_output=False,
                            gradio=True, num_beams=1,
-                           prompt_type='plain',  # prompting done explicitly above, so can use with generate() below
+                           prompt_type=noop_prompt_type,  # prompting done explicitly above, so can use with generate() below
                            block_gradio_exit=False,
                            rope_scaling=rope_scaling,
                            use_auth_token=True,

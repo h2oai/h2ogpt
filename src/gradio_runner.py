@@ -56,7 +56,8 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats
+    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
+    summary_prefix, extract_prefix, unknown_prompt_type
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -170,7 +171,7 @@ def get_prompt_type1(is_public, **kwargs):
         prompt_types_strings_used += [no_model_str]
         default_prompt_type = kwargs['prompt_type'] or no_model_str
     else:
-        default_prompt_type = kwargs['prompt_type'] or 'plain'
+        default_prompt_type = kwargs['prompt_type'] or unknown_prompt_type
     prompt_type = gr.Dropdown(prompt_types_strings_used,
                               value=default_prompt_type,
                               label="Choose/Select Prompt Type",
@@ -187,7 +188,7 @@ def get_prompt_type2(is_public, **kwargs):
         prompt_types_strings_used += [no_model_str]
         default_prompt_type = kwargs['prompt_type'] or no_model_str
     else:
-        default_prompt_type = kwargs['prompt_type'] or 'plain'
+        default_prompt_type = kwargs['prompt_type'] or unknown_prompt_type
     prompt_type2 = gr.Dropdown(prompt_types_strings_used,
                                value=default_prompt_type,
                                label="Choose/Select Prompt Type Model 2",
@@ -531,8 +532,8 @@ def go_gradio(**kwargs):
                 if not prompt_dict1 or which_model != 0:
                     prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
         if not global_scope and not prompt_type1:
-            # if still not defined, use plain
-            prompt_type1 = 'plain'
+            # if still not defined, use unknown
+            prompt_type1 = unknown_prompt_type
         return prompt_type1, prompt_dict1
 
     def visible_models_to_model_choice(visible_models1, api=False):
@@ -602,6 +603,9 @@ def go_gradio(**kwargs):
                     if not kwargs['update_selection_state_from_cli']:
                         selection_docs_state1[k].clear()
                     selection_docs_state1[k].extend(auth_user['selection_docs_state'][k])
+                    newlist = sorted(set(selection_docs_state1[k]))
+                    selection_docs_state1[k].clear()
+                    selection_docs_state1[k].extend(newlist)
             else:
                 raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
 
@@ -4210,6 +4214,13 @@ def go_gradio(**kwargs):
                     save_dict['sources'] = sources
                     save_dict['valid_key'] = valid_key
                     save_dict['h2ogpt_key'] = h2ogpt_key1
+
+                    # below works for both list and string for any reasonable string of image that's been byte encoded with b' to start or as file name
+                    image_file_check = args_list[eval_func_param_names.index('image_file')]
+                    save_dict['image_file_present'] = isinstance(image_file_check, (str, list, tuple)) and len(image_file_check) >= 1
+                    text_context_list_check = args_list[eval_func_param_names.index('text_context_list')]
+                    save_dict['text_context_list_present'] = isinstance(text_context_list_check, (list, tuple)) and len(text_context_list_check) >= 1
+
                     if str_api and plain_api:
                         save_dict['which_api'] = 'str_plain_api'
                     elif str_api:
@@ -4598,11 +4609,11 @@ def go_gradio(**kwargs):
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
             if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
-                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (
-                    langchain_mode1, document_subset1, document_choice1)
+                user_message1 = '%s%s, Subset: %s, Documents: %s' % (
+                    summary_prefix, langchain_mode1, document_subset1, document_choice1)
             if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
-                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (
-                    langchain_mode1, document_subset1, document_choice1)
+                user_message1 = '%s%s, Subset: %s, Documents: %s' % (
+                    extract_prefix, langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):

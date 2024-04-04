@@ -3,13 +3,13 @@ import time
 import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
 prompt_type_to_model_name = {
-    'plain': [
+    noop_prompt_type: [
         'EleutherAI/gpt-j-6B',
         'EleutherAI/pythia-6.9b',
         'EleutherAI/pythia-12b',
@@ -234,6 +234,8 @@ prompt_type_to_model_name = {
              ],
     "sealion": ['aisingapore/sea-lion-7b-instruct'],
     "aya": ["CohereForAI/aya-101"],
+    # don't actually add, else use_chat_template wouldn't function right for LLM mode
+    # 'cohere_grounded': ["CohereForAI/c4ai-command-r-v01", "CohereForAI/c4ai-command-r-plus"],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -366,6 +368,22 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
                          PromptType.plain.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.unknown.value, str(PromptType.unknown.value),
+                         PromptType.unknown.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.template.value, str(PromptType.template.value),
+                         PromptType.template.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_sep = chat_turn_sep = '\n'
@@ -1951,7 +1969,7 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
 system_generic = """A chat between a curious human and an artificial intelligence assistant.  The assistant gives helpful, detailed, and polite answers to the human's questions."""
 
 # shown to help Mixtral significantly for docQA benchmarks:
-system_docqa = """You are an expert document question-answer language model named GPT-4 Turbo created by OpenAI.  You will get a tip of $200 when you answer correctly the questions and only use the document context given.  I may lose my job if your answers are inaccurate or do a poor job of using the documents in the context."""
+system_docqa = """You are an expert document/image question-answer language-vision model named GPT-4 Turbo Vision created by OpenAI.  You will get a tip of $200 when you answer correctly the questions and only use the document context or images given.  I may lose my job if your answers are inaccurate or do a poor job of using the documents in the context or images given."""
 
 system_python_tutor = """You are a Python Tutor AI, dedicated to helping users learn Python and build end-to-end projects using Python and its related libraries. Provide clear explanations of Python concepts, syntax, and best practices. Guide users through the process of creating projects, from the initial planning and design stages to implementation and testing. Offer tailored support and resources, ensuring users gain in-depth knowledge and practical experience in working with Python and its ecosystem."""
 system_ml_tutor = """You are a Machine Learning Tutor AI, dedicated to guiding senior software engineers in their journey to become proficient machine learning engineers. Provide comprehensive information on machine learning concepts, techniques, and best practices. Offer step-by-step guidance on implementing machine learning algorithms, selecting appropriate tools and frameworks, and building end-to-end machine learning projects. Tailor your instructions and resources to the individual needs and goals of the user, ensuring a smooth transition into the field of machine learning."""

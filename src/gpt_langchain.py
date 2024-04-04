@@ -71,7 +71,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
-    geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max
+    geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
+    noop_prompt_type, unknown_prompt_type, template_prompt_type
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -662,6 +663,8 @@ class GradioInference(H2Oagenerate, LLM):
     max_input_tokens: Any = -1
     max_total_input_tokens: Any = -1
 
+    doing_grounding: bool = False
+
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that python package exists in environment."""
@@ -690,15 +693,29 @@ class GradioInference(H2Oagenerate, LLM):
         # This is good, so gradio server can also handle stopping.py conditions
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
+        # don't double-up langchain behavior, already did langchain part
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = self.add_chat_history_to_context
+        # already did search part
         client_add_search_to_context = False
+        # didn't do conversation part yet
         client_chat_conversation = self.chat_conversation
         client_langchain_action = LangChainAction.QUERY.value
         client_langchain_agents = []
         top_k_docs = 1
         chunk = True
         chunk_size = 512
+
+        prompt_type = self.prompter.prompt_type
+        if self.doing_grounding:
+            # avoid double prompting from grounded then normal template
+            prompt_type = noop_prompt_type
+            # already did conversation as part of prompt
+            client_chat_conversation = []
+            self.context = ''
+            self.iinput = ''
+            self.system_prompt = ''
+
         client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
                              iinput=self.iinput if self.chat_client else '',  # only for chat=True
                              # context shouldn't include conversation!
@@ -706,7 +723,7 @@ class GradioInference(H2Oagenerate, LLM):
                              # streaming output is supported, loops over and outputs each generation in streaming mode
                              # but leave stream_output=False for simple input/output mode
                              stream_output=stream_output,
-                             prompt_type=self.prompter.prompt_type,
+                             prompt_type=prompt_type,
                              prompt_dict='',
 
                              temperature=self.temperature,
@@ -2054,6 +2071,8 @@ def get_llm(use_openai_model=False,
             guided_regex=None,
             guided_choice=None,
             guided_grammar=None,
+
+            doing_grounding=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2221,7 +2240,8 @@ def get_llm(use_openai_model=False,
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name, inference_server):
+            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name,
+                                                                                           inference_server):
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2286,7 +2306,7 @@ def get_llm(use_openai_model=False,
             prompt_type = inference_server
         else:
             # vllm goes here
-            prompt_type = prompt_type or 'plain'
+            prompt_type = prompt_type or unknown_prompt_type
     elif inference_server.startswith('anthropic'):
         # no explicit JSON mode for anthropic
         # FIXME: Should use function calling
@@ -2613,6 +2633,8 @@ def get_llm(use_openai_model=False,
                 guided_regex=guided_regex,
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
+
+                doing_grounding=doing_grounding,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -5739,6 +5761,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if doc_json_mode:
         prompter.system_prompt = system_prompt = doc_json_mode_system_prompt
 
+    doing_grounding = tokenizer is not None and \
+                      hasattr(tokenizer, 'apply_grounded_generation_template') and \
+                      prompt_type not in [noop_prompt_type, template_prompt_type]
+
     # handle auto case
     if system_prompt == 'auto':
         changed = False
@@ -5819,6 +5845,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       guided_regex=guided_regex,
                       guided_choice=guided_choice,
                       guided_grammar=guided_grammar,
+
+                      doing_grounding=doing_grounding,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -5846,6 +5874,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     scores = []
     chain = None
+
+    if query.startswith(summary_prefix) or query.startswith(extract_prefix):
+        # avoid gradio_runner injection of user lead to query being filled
+        query = ''
 
     # basic version of prompt without docs etc.
     data_point = dict(context=context, instruction=query, input=iinput)
@@ -6617,6 +6649,8 @@ def get_chain(query=None,
 
               query_action=None,
               summarize_action=None,
+
+              doing_grounding=False,
               ):
     if inference_server is None:
         inference_server = ''
@@ -6632,7 +6666,6 @@ def get_chain(query=None,
     else:
         # these don't support allowing going beyond total context
         truncation_generation = True
-
     # default nothing
     docs = []
     target = None
@@ -7371,7 +7404,7 @@ def get_chain(query=None,
             estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
 
         # add metadata to documents and make new copy of docs with them to not contaminate originals
-        if metadata_in_context and not doc_json_mode and not hasattr(tokenizer, 'apply_grounded_generation_template'):
+        if metadata_in_context and not doc_json_mode and not doing_grounding:
             docs_with_score = [(Document(page_content='Begin Document:\n\n' +
                                                       'Metadata:\n' +
                                                       '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
@@ -7553,7 +7586,7 @@ def get_chain(query=None,
 
     if doc_json_mode:
         # make copy so don't change originals
-        if metadata_in_context and not hasattr(tokenizer, 'apply_grounded_generation_template'):
+        if metadata_in_context and not doing_grounding:
             docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content),
                                                                 {k: v for k, v in x.metadata.items() if
                                                                  v and k in metadata_in_context_set})),
@@ -7565,8 +7598,7 @@ def get_chain(query=None,
                     for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
-        if hasattr(tokenizer, 'apply_grounded_generation_template'):
-            assert prompt_type == 'plain'
+        if doing_grounding:
             # https://huggingface.co/CohereForAI/c4ai-command-r-v01
             prompt = PromptTemplate(
                 # input_variables=["summaries", "question"],
@@ -7601,7 +7633,8 @@ def get_chain(query=None,
                 chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
             else:
                 # unused normally except in testing
-                assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
+                assert use_openai_model or prompt_type in [noop_prompt_type,
+                                                           unknown_prompt_type], "Unexpected to use few-shot template for %s %s" % (
                     model_name, prompt_type)
                 chain = load_qa_with_sources_chain(llm)
             chain_kwargs = dict(input_documents=docs, question=query)
