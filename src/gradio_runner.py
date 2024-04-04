@@ -4210,6 +4210,13 @@ def go_gradio(**kwargs):
                     save_dict['sources'] = sources
                     save_dict['valid_key'] = valid_key
                     save_dict['h2ogpt_key'] = h2ogpt_key1
+
+                    # below works for both list and string for any reasonable string of image that's been byte encoded with b' to start or as file name
+                    image_file_check = args_list[eval_func_param_names.index('image_file')]
+                    save_dict['image_file_present'] = isinstance(image_file_check, (str, list, tuple)) and len(image_file_check) >= 1
+                    text_context_list_check = args_list[eval_func_param_names.index('text_context_list')]
+                    save_dict['text_context_list_present'] = isinstance(text_context_list_check, (list, tuple)) and len(text_context_list_check) >= 1
+
                     if str_api and plain_api:
                         save_dict['which_api'] = 'str_plain_api'
                     elif str_api:

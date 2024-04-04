@@ -296,14 +296,14 @@ def _tar_data(root_dirs=None, tar_file=None, base_dir='./'):
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                          extra_dict={}, error='', sources=[], which_api='', valid_key=None,
-                         h2ogpt_key='', return_dict=False):
+                         h2ogpt_key='', return_dict=False, **kwargs_extra):
     if not save_dir:
         return
     try:
         return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
                                      where_from=where_from, extra_dict=extra_dict, error=error, sources=sources,
                                      which_api=which_api, valid_key=valid_key, h2ogpt_key=h2ogpt_key,
-                                     return_dict=return_dict)
+                                     return_dict=return_dict, **kwargs_extra)
     except Exception as e:
         traceback.print_exc()
         print('Exception in saving: %s' % str(e))
@@ -322,7 +322,7 @@ def _save_generate_tokens(response_no_refs, extra_dict):
 def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                           extra_dict={}, error='', sources=[], which_api='',
                           valid_key=None, h2ogpt_key='',
-                          return_dict=False):
+                          return_dict=False, **kwargs_extra):
     """
     Save conversation to .json, row by row.
     json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
@@ -343,6 +343,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
                         h2ogpt_key=h2ogpt_key,
                         )
     dict_to_save.update(extra_dict)
+    dict_to_save.update(kwargs_extra)
 
     if return_dict:
         return dict_to_save
