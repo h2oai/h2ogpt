@@ -2223,7 +2223,8 @@ def main(
             continue
         model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
         model_state_trial.update(model_dict)
-        model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'], model_state_trial['inference_server'], verbose=verbose)
+        model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
+                                                      model_state_trial['inference_server'], verbose=verbose)
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
         print("Model %s" % model_dict, flush=True)
@@ -5496,7 +5497,8 @@ y = np.random.randint(0, 1, 100)
         ]
     # add summary example
     examples += [
-        [summarize_example1, 'Summarize' if prompt_type not in [noop_prompt_type, 'instruct_simple'] else ''] + params_list]
+        [summarize_example1,
+         'Summarize' if prompt_type not in [noop_prompt_type, 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"

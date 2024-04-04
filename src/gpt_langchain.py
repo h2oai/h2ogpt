@@ -663,6 +663,8 @@ class GradioInference(H2Oagenerate, LLM):
     max_input_tokens: Any = -1
     max_total_input_tokens: Any = -1
 
+    doing_grounding: bool = False
+
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that python package exists in environment."""
@@ -705,9 +707,7 @@ class GradioInference(H2Oagenerate, LLM):
         chunk_size = 512
 
         prompt_type = self.prompter.prompt_type
-        if self.tokenizer is not None and \
-                hasattr(self.tokenizer, 'apply_grounded_generation_template') and \
-                prompt_type != noop_prompt_type:
+        if self.doing_grounding:
             # avoid double prompting from grounded then normal template
             prompt_type = noop_prompt_type
             # already did conversation as part of prompt
@@ -2068,6 +2068,8 @@ def get_llm(use_openai_model=False,
             guided_regex=None,
             guided_choice=None,
             guided_grammar=None,
+
+            doing_grounding=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2628,6 +2630,8 @@ def get_llm(use_openai_model=False,
                 guided_regex=guided_regex,
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
+
+                doing_grounding=doing_grounding,
             )
         elif hf_client:
             # no need to pass original client, no state and fast, so can use same validate_environment from base class
@@ -5754,6 +5758,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if doc_json_mode:
         prompter.system_prompt = system_prompt = doc_json_mode_system_prompt
 
+    doing_grounding = tokenizer is not None and \
+                      hasattr(tokenizer, 'apply_grounded_generation_template') and \
+                      prompt_type != noop_prompt_type
+
     # handle auto case
     if system_prompt == 'auto':
         changed = False
@@ -5834,6 +5842,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       guided_regex=guided_regex,
                       guided_choice=guided_choice,
                       guided_grammar=guided_grammar,
+
+                      doing_grounding=doing_grounding,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -6636,6 +6646,8 @@ def get_chain(query=None,
 
               query_action=None,
               summarize_action=None,
+
+              doing_grounding=False,
               ):
     if inference_server is None:
         inference_server = ''
@@ -6651,7 +6663,6 @@ def get_chain(query=None,
     else:
         # these don't support allowing going beyond total context
         truncation_generation = True
-
     # default nothing
     docs = []
     target = None
@@ -7390,7 +7401,7 @@ def get_chain(query=None,
             estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
 
         # add metadata to documents and make new copy of docs with them to not contaminate originals
-        if metadata_in_context and not doc_json_mode and not hasattr(tokenizer, 'apply_grounded_generation_template'):
+        if metadata_in_context and not doc_json_mode and not doing_grounding:
             docs_with_score = [(Document(page_content='Begin Document:\n\n' +
                                                       'Metadata:\n' +
                                                       '\n'.join(['%s = %s' % (k, v) for k, v in x.metadata.items() if
@@ -7572,7 +7583,7 @@ def get_chain(query=None,
 
     if doc_json_mode:
         # make copy so don't change originals
-        if metadata_in_context and not hasattr(tokenizer, 'apply_grounded_generation_template'):
+        if metadata_in_context and not doing_grounding:
             docs = [Document(page_content=json.dumps(merge_dict(dict(ID=xi, content=x.page_content),
                                                                 {k: v for k, v in x.metadata.items() if
                                                                  v and k in metadata_in_context_set})),
@@ -7584,9 +7595,7 @@ def get_chain(query=None,
                     for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
-        if tokenizer is not None and \
-                hasattr(tokenizer, 'apply_grounded_generation_template') and \
-                prompt_type != noop_prompt_type:
+        if doing_grounding:
             # https://huggingface.co/CohereForAI/c4ai-command-r-v01
             prompt = PromptTemplate(
                 # input_variables=["summaries", "question"],
