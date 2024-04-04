@@ -594,9 +594,6 @@ def go_gradio(**kwargs):
                     if not kwargs['update_selection_state_from_cli']:
                         selection_docs_state1[k].clear()
                     selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
-                    newlist = sorted(set(selection_docs_state1[k]))
-                    selection_docs_state1[k].clear()
-                    selection_docs_state1[k].update(newlist)
             elif isinstance(selection_docs_state1[k], list):
                 if save:
                     auth_user['selection_docs_state'][k].clear()
