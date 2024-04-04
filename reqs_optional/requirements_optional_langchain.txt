@@ -12,7 +12,7 @@ langchain==0.1.14
 langchain_experimental==0.0.56
 langchain-community==0.0.31
 langsmith==0.1.38
-langchain-core==0.1.38
+langchain-core==0.1.40
 langchain-text-splitters==0.0.1
 
 pypdf>=3.17.1
@@ -35,7 +35,7 @@ langchain_mistralai==0.1.0
 mistralai==0.1.8
 
 groq==0.4.2
-langchain-groq==0.0.1
+langchain-groq==0.1.0
 
 # local vector db
 chromadb==0.4.23
