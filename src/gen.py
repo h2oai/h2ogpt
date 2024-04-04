@@ -70,7 +70,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type
+    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, template_prompt_type
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -5989,7 +5989,7 @@ def get_limited_prompt(instruction,
                                                 min_max_new_tokens=min_max_new_tokens)
 
     # not if plain prompt, only if unknown or unset
-    use_chat_template = prompt_type in [None, '', unknown_prompt_type] and \
+    use_chat_template = prompt_type in [None, '', unknown_prompt_type, template_prompt_type] and \
                         (hasattr(tokenizer, 'chat_template') and
                          tokenizer.chat_template not in [None, ''] or
                          hasattr(tokenizer, 'default_chat_template') and

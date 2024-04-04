@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class PromptType(Enum):
+    template = -3
     unknown = -2
     custom = -1
     plain = 0
@@ -570,3 +571,4 @@ extract_prefix = 'Extract Collection : '
 
 noop_prompt_type = 'plain'
 unknown_prompt_type = 'unknown'  # or None or '' are valid
+template_prompt_type = 'template'  # for only chat template but not other special (e.g. grounded) templates
