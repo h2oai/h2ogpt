@@ -56,7 +56,8 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats
+    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
+    summary_prefix, extract_prefix
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -4608,11 +4609,11 @@ def go_gradio(**kwargs):
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
             if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
-                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (
-                    langchain_mode1, document_subset1, document_choice1)
+                user_message1 = '%s%s, Subset: %s, Documents: %s' % (
+                    summary_prefix, langchain_mode1, document_subset1, document_choice1)
             if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
-                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (
-                    langchain_mode1, document_subset1, document_choice1)
+                user_message1 = '%s%s, Subset: %s, Documents: %s' % (
+                    extract_prefix, langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):

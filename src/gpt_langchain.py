@@ -71,7 +71,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
-    geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max
+    geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -5846,6 +5846,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     scores = []
     chain = None
+
+    if query.startswith(summary_prefix) or query.startswith(extract_prefix):
+        # avoid gradio_runner injection of user lead to query being filled
+        query = ''
 
     # basic version of prompt without docs etc.
     data_point = dict(context=context, instruction=query, input=iinput)

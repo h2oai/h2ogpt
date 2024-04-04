@@ -366,7 +366,7 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         prompt_query1 = "According to only the information in the document sources provided within the context above, write an insightful and well-structured response to: "
 
     pre_prompt_summary1 = """In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text."""
-    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
+    prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as about 10 bullet points)."
 
     hyde_llm_prompt1 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
@@ -563,3 +563,6 @@ split_google = "::::::::::"
 response_formats = ['json_object', 'text']
 
 invalid_json_str = '{}'
+
+summary_prefix = 'Summarize Collection : '
+extract_prefix = 'Extract Collection : '
