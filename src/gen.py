@@ -21,9 +21,6 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
-from src.image_utils import get_image_file
-from src.vision.utils_vision import get_image_model_dict
-
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -37,6 +34,9 @@ except (PackageNotFoundError, AssertionError):
 
 if have_hf_transfer:
     os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
+
+os.environ['SCARF_NO_ANALYTICS'] = 'true'
+os.environ['DO_NOT_TRACK'] = 'true'
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
@@ -1973,6 +1973,7 @@ def main(
                                                      verbose=verbose)
 
     # setup image models
+    from vision.utils_vision import get_image_model_dict
     image_model_dict = get_image_model_dict(enable_image, visible_image_models, image_gpu_ids)
     visible_image_models_state0 = list(image_model_dict.keys())
 
@@ -4622,6 +4623,7 @@ def evaluate(
                 where_from = "gr_client for llava"
 
                 # NOTE: llava doesn't handle context or system prompt directly
+                from image_utils import get_image_file
                 img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
                 img_file = img_file[:llava_num_max]
                 num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
@@ -4712,6 +4714,7 @@ def evaluate(
                         gr_prompt_dict = prompt_dict
 
                     # ensure image in correct format
+                    from image_utils import get_image_file
                     img_file = get_image_file(image_file, image_control, document_choice,
                                               convert=True)  # comes out as list
 
