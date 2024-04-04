@@ -6,6 +6,8 @@ from functools import wraps, partial
 
 import pytest
 
+from src.enums import noop_prompt_type
+
 if os.path.dirname('src') not in sys.path:
     sys.path.append('src')
 
@@ -111,7 +113,7 @@ def get_llama(llama_type=3):
     if llama_type == 1:
         file = 'ggml-model-q4_0_7b.bin'
         dest = 'models/7B/'
-        prompt_type = 'plain'
+        prompt_type = noop_prompt_type
     elif llama_type == 2:
         file = 'WizardLM-7B-uncensored.ggmlv3.q8_0.bin'
         dest = './'

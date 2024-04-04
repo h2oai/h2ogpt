@@ -3,13 +3,13 @@ import time
 import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
 prompt_type_to_model_name = {
-    'plain': [
+    noop_prompt_type: [
         'EleutherAI/gpt-j-6B',
         'EleutherAI/pythia-6.9b',
         'EleutherAI/pythia-12b',
@@ -234,6 +234,8 @@ prompt_type_to_model_name = {
              ],
     "sealion": ['aisingapore/sea-lion-7b-instruct'],
     "aya": ["CohereForAI/aya-101"],
+    # don't actually add, else use_chat_template wouldn't function right for LLM mode
+    # 'cohere_grounded': ["CohereForAI/c4ai-command-r-v01", "CohereForAI/c4ai-command-r-plus"],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -366,6 +368,14 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
                          PromptType.plain.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.unknown.value, str(PromptType.unknown.value),
+                         PromptType.unknown.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_sep = chat_turn_sep = '\n'

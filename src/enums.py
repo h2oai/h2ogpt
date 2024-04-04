@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class PromptType(Enum):
+    unknown = -2
     custom = -1
     plain = 0
     instruct = 1
@@ -566,3 +567,6 @@ invalid_json_str = '{}'
 
 summary_prefix = 'Summarize Collection : '
 extract_prefix = 'Extract Collection : '
+
+noop_prompt_type = 'plain'
+unknown_prompt_type = 'unknown'  # or None or '' are valid

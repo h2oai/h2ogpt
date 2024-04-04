@@ -70,7 +70,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs, llava_num_max, response_formats
+    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -2099,7 +2099,7 @@ def main(
         all_kwargs.update(base_model=verifier_model,
                           tokenizer_base_model=verifier_tokenizer_base_model,
                           inference_server=verifier_inference_server,
-                          prompt_type='plain', prompt_dict={},
+                          prompt_type=noop_prompt_type, prompt_dict={},
                           visible_models=None, h2ogpt_key=None)
         smodel, stokenizer, sdevice = get_model_retry(reward_type=False,
                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
@@ -2108,7 +2108,7 @@ def main(
                                        base_model=verifier_model,
                                        tokenizer_base_model=verifier_tokenizer_base_model,
                                        inference_server=verifier_inference_server,
-                                       prompt_type='plain',
+                                       prompt_type=noop_prompt_type,
                                        reward_model=False))
 
     # get default model(s)
@@ -5391,7 +5391,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
-        prompt_type = prompt_type or 'plain'
+        prompt_type = prompt_type or noop_prompt_type
         use_default_examples = True  # some will be odd "continuations" but can be ok
         use_placeholder_instruction_as_example = True
         task_info = "Auto-complete phrase, code, etc."
@@ -5408,13 +5408,13 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
                                                           llamacpp_dict=llamacpp_dict)
             if prompt_type_trial:
                 prompt_type = prompt_type_trial
-            # default is plain, because might rely upon trust_remote_code to handle prompting
+            # default is unknown, because might rely upon trust_remote_code to handle prompting
             if model_lower:
-                prompt_type = prompt_type or 'plain'
+                prompt_type = prompt_type or unknown_prompt_type
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
-        elif prompt_type == 'plain':
+        elif prompt_type in [noop_prompt_type, unknown_prompt_type]:
             task_info = "Auto-complete phrase, code, etc."
         elif prompt_type == 'human_bot':
             if chat:
@@ -5424,9 +5424,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
 
     # revert to plain if still nothing
     if model_lower:
-        prompt_type = prompt_type or 'plain'
+        prompt_type = prompt_type or unknown_prompt_type
     else:
-        prompt_type = prompt_type or ''
+        prompt_type = prompt_type or unknown_prompt_type
     if use_defaults:
         temperature = 0.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
@@ -5496,7 +5496,7 @@ y = np.random.randint(0, 1, 100)
         ]
     # add summary example
     examples += [
-        [summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
+        [summarize_example1, 'Summarize' if prompt_type not in [noop_prompt_type, 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"
@@ -5954,7 +5954,7 @@ def get_limited_prompt(instruction,
         # claude is unique also, by not allowing system prompt, but as conversation
         #   Also in list above, because get_limited_prompt called too late for it in gpt_langchain.py
         #   So needs to be added directly in the get_llm for anthropic there, so used in ExtraChat
-        generate_prompt_type = 'plain'
+        generate_prompt_type = noop_prompt_type
         # Chat APIs don't handle chat history via single prompt, but in messages, assumed to be handled outside this function
         # but we will need to compute good history for external use
         external_handle_chat_conversation = True
@@ -5986,7 +5986,8 @@ def get_limited_prompt(instruction,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
 
-    use_chat_template = prompt_type in [None, '', 'plain'] and \
+    # not if plain prompt, only if unknown or unset
+    use_chat_template = prompt_type in [None, '', unknown_prompt_type] and \
                         (hasattr(tokenizer, 'chat_template') and
                          tokenizer.chat_template not in [None, ''] or
                          hasattr(tokenizer, 'default_chat_template') and

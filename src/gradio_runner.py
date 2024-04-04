@@ -57,7 +57,7 @@ fix_pydantic_duplicate_validators_error()
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
     LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
-    summary_prefix, extract_prefix
+    summary_prefix, extract_prefix, unknown_prompt_type
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -171,7 +171,7 @@ def get_prompt_type1(is_public, **kwargs):
         prompt_types_strings_used += [no_model_str]
         default_prompt_type = kwargs['prompt_type'] or no_model_str
     else:
-        default_prompt_type = kwargs['prompt_type'] or 'plain'
+        default_prompt_type = kwargs['prompt_type'] or unknown_prompt_type
     prompt_type = gr.Dropdown(prompt_types_strings_used,
                               value=default_prompt_type,
                               label="Choose/Select Prompt Type",
@@ -188,7 +188,7 @@ def get_prompt_type2(is_public, **kwargs):
         prompt_types_strings_used += [no_model_str]
         default_prompt_type = kwargs['prompt_type'] or no_model_str
     else:
-        default_prompt_type = kwargs['prompt_type'] or 'plain'
+        default_prompt_type = kwargs['prompt_type'] or unknown_prompt_type
     prompt_type2 = gr.Dropdown(prompt_types_strings_used,
                                value=default_prompt_type,
                                label="Choose/Select Prompt Type Model 2",
@@ -532,8 +532,8 @@ def go_gradio(**kwargs):
                 if not prompt_dict1 or which_model != 0:
                     prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
         if not global_scope and not prompt_type1:
-            # if still not defined, use plain
-            prompt_type1 = 'plain'
+            # if still not defined, use unknown
+            prompt_type1 = unknown_prompt_type
         return prompt_type1, prompt_dict1
 
     def visible_models_to_model_choice(visible_models1, api=False):

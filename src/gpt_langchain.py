@@ -71,7 +71,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
-    geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix
+    geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
+    noop_prompt_type, unknown_prompt_type
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -690,15 +691,28 @@ class GradioInference(H2Oagenerate, LLM):
         # This is good, so gradio server can also handle stopping.py conditions
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
+        # don't double-up langchain behavior, already did langchain part
         client_langchain_mode = 'Disabled'
         client_add_chat_history_to_context = self.add_chat_history_to_context
+        # already did search part
         client_add_search_to_context = False
+        # didn't do conversation part yet
         client_chat_conversation = self.chat_conversation
         client_langchain_action = LangChainAction.QUERY.value
         client_langchain_agents = []
         top_k_docs = 1
         chunk = True
         chunk_size = 512
+
+        prompt_type = self.prompter.prompt_type
+        if self.tokenizer is not None and \
+                hasattr(self.tokenizer, 'apply_grounded_generation_template') and \
+                prompt_type != noop_prompt_type:
+            # avoid double prompting from grounded then normal template
+            prompt_type = noop_prompt_type
+            # already did conversation as part of prompt
+            client_chat_conversation = []
+
         client_kwargs = dict(instruction=prompt if self.chat_client else '',  # only for chat=True
                              iinput=self.iinput if self.chat_client else '',  # only for chat=True
                              # context shouldn't include conversation!
@@ -706,7 +720,7 @@ class GradioInference(H2Oagenerate, LLM):
                              # streaming output is supported, loops over and outputs each generation in streaming mode
                              # but leave stream_output=False for simple input/output mode
                              stream_output=stream_output,
-                             prompt_type=self.prompter.prompt_type,
+                             prompt_type=prompt_type,
                              prompt_dict='',
 
                              temperature=self.temperature,
@@ -2221,7 +2235,8 @@ def get_llm(use_openai_model=False,
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name, inference_server):
+            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name,
+                                                                                           inference_server):
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2286,7 +2301,7 @@ def get_llm(use_openai_model=False,
             prompt_type = inference_server
         else:
             # vllm goes here
-            prompt_type = prompt_type or 'plain'
+            prompt_type = prompt_type or unknown_prompt_type
     elif inference_server.startswith('anthropic'):
         # no explicit JSON mode for anthropic
         # FIXME: Should use function calling
@@ -7569,8 +7584,9 @@ def get_chain(query=None,
                     for xi, x in enumerate(docs)]
 
     if langchain_action == LangChainAction.QUERY.value:
-        if hasattr(tokenizer, 'apply_grounded_generation_template'):
-            assert prompt_type == 'plain'
+        if tokenizer is not None and \
+                hasattr(tokenizer, 'apply_grounded_generation_template') and \
+                prompt_type != noop_prompt_type:
             # https://huggingface.co/CohereForAI/c4ai-command-r-v01
             prompt = PromptTemplate(
                 # input_variables=["summaries", "question"],
@@ -7605,7 +7621,8 @@ def get_chain(query=None,
                 chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
             else:
                 # unused normally except in testing
-                assert use_openai_model or prompt_type == 'plain', "Unexpected to use few-shot template for %s %s" % (
+                assert use_openai_model or prompt_type in [noop_prompt_type,
+                                                           unknown_prompt_type], "Unexpected to use few-shot template for %s %s" % (
                     model_name, prompt_type)
                 chain = load_qa_with_sources_chain(llm)
             chain_kwargs = dict(input_documents=docs, question=query)

@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full
+    db_types_full, noop_prompt_type
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
@@ -46,7 +46,7 @@ def test_client1_lock_choose_model():
     base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     base2 = 'h2oai/h2o-danube-1.8b-chat'
     model_lock = [dict(base_model=base1, prompt_type='human_bot'),
-                  dict(base_model=base2, prompt_type='plain')]
+                  dict(base_model=base2, prompt_type=noop_prompt_type)]
     main(chat=False, model_lock=model_lock,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -63,14 +63,14 @@ def test_client1_lock_choose_model():
                    res_dict[
                        'response']
 
-    for prompt_type in ['plain', None, '']:
+    for prompt_type in [noop_prompt_type, None, '']:
         for visible_models in [1, base2]:
             prompt = 'The sky is'
             res_dict, _ = test_client_basic(visible_models=visible_models, prompt=prompt,
                                             prompt_type=prompt_type)
             assert res_dict['prompt'] == prompt
             assert res_dict['iinput'] == ''
-            if prompt_type == 'plain':
+            if prompt_type == noop_prompt_type:
                 assert 'The sky is a big, blue' in res_dict['response'] or 'blue' in res_dict['response']
             else:
                 assert 'The sky is a big, blue, and sometimes' in res_dict['response'] or 'blue' in res_dict['response']
@@ -196,17 +196,17 @@ def test_client1api_lean_lock_choose_model():
     base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     base2 = 'distilgpt2'
     model_lock = [dict(base_model=base1, prompt_type='human_bot'),
-                  dict(base_model=base2, prompt_type='plain')]
+                  dict(base_model=base2, prompt_type=noop_prompt_type)]
     save_dir = 'save_test'
     main(model_lock=model_lock, chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
     client = get_client(serialize=not is_gradio_version4)
-    for prompt_type in ['human_bot', None, '', 'plain']:
+    for prompt_type in ['human_bot', None, '', noop_prompt_type]:
         for visible_models in [None, 0, base1, 1, base2]:
             base_model = base1 if visible_models in [None, 0, base1] else base2
-            if base_model == base1 and prompt_type == 'plain':
+            if base_model == base1 and prompt_type == noop_prompt_type:
                 continue
             if base_model == base2 and prompt_type == 'human_bot':
                 continue
@@ -251,7 +251,7 @@ def test_client1api_lean_lock_choose_model():
                                       'model_name_exllama_if_no_config': ''}, 'rope_scaling': {}, 'max_seq_len': 2048,
                     'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
                     'truncation_generation': False, 'hf_model_dict': {}},
-                   {'base_model': 'distilgpt2', 'prompt_type': 'plain', 'prompt_dict': None, 'load_8bit': False,
+                   {'base_model': 'distilgpt2', 'prompt_type': noop_prompt_type, 'prompt_dict': None, 'load_8bit': False,
                     'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'use_flash_attention_2': False,
                     'load_gptq': '', 'load_awq': '', 'load_exllama': False, 'use_safetensors': False, 'revision': None,
                     'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None, 'use_cache': None,
@@ -1947,14 +1947,14 @@ def test_client_long():
     sys.modules.pop('langchain', None)
 
     from src.gen import main
-    main(base_model='mosaicml/mpt-7b-storywriter', prompt_type='plain', chat=False,
+    main(base_model='mosaicml/mpt-7b-storywriter', prompt_type=noop_prompt_type, chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     with open("/home/jon/Downloads/Gatsby_PDF_FullText.txt") as f:
         prompt = f.readlines()
 
     from src.client_test import run_client_nochat
-    res_dict, _ = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
+    res_dict, _ = run_client_nochat(prompt=prompt, prompt_type=noop_prompt_type, max_new_tokens=86000)
     print(res_dict['response'])
 
 
@@ -4410,9 +4410,9 @@ def test_client1_image_qa():
     main(
         model_lock=[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf', 'prompt_type': 'zephyr'},
                     {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': llava_model,
-                     'prompt_type': 'plain'},
+                     'prompt_type': noop_prompt_type},
                     {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': llava_model,
-                     'prompt_type': 'plain'}],
+                     'prompt_type': noop_prompt_type}],
         llava_model=llava_model,
         gradio=True, num_beams=1, block_gradio_exit=False,
     )
