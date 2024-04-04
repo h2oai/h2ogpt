@@ -5113,7 +5113,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
             cond2 = all([k in mydict for k in check_keys2])
             cond3 = all([k in mydict for k in check_keys3])
             if not guided_json:
-                pass
+                assert mydict, "Empty dict"
             else:
                 # zephyr, mistralv0.2, mutate to workHistory
                 if base_model in ['HuggingFaceH4/zephyr-7b-beta',  # until vLLM is upgraded

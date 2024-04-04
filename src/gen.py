@@ -4099,8 +4099,7 @@ def evaluate(
 
         schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties_json
         json_vllm = chosen_model_state['json_vllm']
-        if json_vllm:
-            # guided_json set or not, handled
+        if json_vllm and guided_json:
             pass
         elif is_json_model(base_model, inference_server, json_vllm=json_vllm):
             if inference_server and inference_server.startswith('mistral'):
@@ -4109,7 +4108,6 @@ def evaluate(
             else:
                 # OpenAI requires "json" to appear somewhere in messages
                 instruction += post_instruction
-            assert not json_vllm
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
                 # FIXME: Do function calling if can instead
