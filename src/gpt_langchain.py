@@ -5760,7 +5760,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     doing_grounding = tokenizer is not None and \
                       hasattr(tokenizer, 'apply_grounded_generation_template') and \
-                      prompt_type != noop_prompt_type
+                      prompt_type != noop_prompt_type and \
+                      os.getenv('ENABLE_GROUNDING', '1') == '1'
 
     # handle auto case
     if system_prompt == 'auto':
