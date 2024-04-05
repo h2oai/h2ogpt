@@ -2562,7 +2562,8 @@ def get_llm(use_openai_model=False,
         if regenerate_gradio_clients and gr_client:
             # regenerate or leave None for llava so created inside
             inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
-                                                                                      base_model=model_name)
+                                                                                      base_model=model_name,
+                                                                                      verbose=verbose)
         inference_server, _, _, _ = get_hf_server(inference_server)
 
         # quick sanity check to avoid long timeouts, just see if can reach server

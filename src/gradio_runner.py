@@ -6215,7 +6215,7 @@ def go_gradio(**kwargs):
                                                **noqueue_kwargs)
 
         def get_inf_models_gr(model_options_state1, model_choice1, server1):
-            models_new = get_inf_models(server1)
+            models_new = get_inf_models(server1, verbose=verbose)
             model_options_state1[0].extend(models_new)
             if no_model_str in model_options_state1[0]:
                 model_options_state1[0].remove(no_model_str)

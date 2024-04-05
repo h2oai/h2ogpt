@@ -337,14 +337,14 @@ class GradioClient(Client):
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
+        ret = "GET_GITHASH"
         try:
             if self.check_hash:
-                return super().submit(api_name="/system_hash").result()
-            else:
-                return "GET_GITHASH"
+                ret = super().submit(api_name="/system_hash").result()
+            return ret
         finally:
             if self.verbose:
-                print("duration server_hash: %s" % (time.time() - t0), flush=True)
+                print("duration server_hash: %s %s" % (time.time() - t0, ret), flush=True)
 
     def refresh_client_if_should(self):
         if self.config is None:

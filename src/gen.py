@@ -2499,7 +2499,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
     return model
 
 
-def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False):
+def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False, verbose=False):
     inference_server, headers, username, password = get_hf_server(inference_server)
     gr_client = None
     hf_client = None
@@ -2508,7 +2508,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if base_model and is_gradio_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
-        gr_client = GradioClient(inference_server, check_hash=False, serialize=is_gradio_version4, **gradio_auth)
+        gr_client = GradioClient(inference_server, check_hash=False, verbose=verbose, serialize=is_gradio_version4, **gradio_auth)
         gr_client.setup()
     elif headers is None:
         try:
@@ -2517,7 +2517,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
             print("GR Client Begin: %s %s" % (inference_server, base_model), flush=True)
             # first do sanity check if alive, else gradio client takes too long by default
             requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
-            gr_client = GradioClient(inference_server, **gradio_auth).setup()
+            gr_client = GradioClient(inference_server, verbose=verbose, **gradio_auth).setup()
             print("GR Client End: %s" % inference_server, flush=True)
         except (OSError, ValueError) as e:
             # Occurs when wrong endpoint and should have been HF client, so don't hard raise, just move to HF
@@ -2604,7 +2604,7 @@ def get_root_url(url):
     return reassembled_url
 
 
-def get_inf_models(inference_server):
+def get_inf_models(inference_server, verbose=False):
     models = []
     if inference_server.startswith('google'):
         import google.generativeai as genai
@@ -2652,7 +2652,7 @@ def get_inf_models(inference_server):
     elif inference_server.startswith('groq'):
         models.extend(list(groq_mapping.keys()))
     elif inference_server.startswith('http'):
-        inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server)
+        inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server, verbose=verbose)
         if gr_client is not None:
             res = gr_client.predict(api_name='/model_names')
             models.extend({x['base_model']: x['max_seq_len'] for x in ast.literal_eval(res)})
@@ -2851,7 +2851,8 @@ def get_model(
 
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
-                                                                                  base_model=base_model)
+                                                                                  base_model=base_model,
+                                                                                  verbose=verbose)
         model = gr_client or hf_client
         if tokenizer is not None:
             return model, tokenizer, inference_server
@@ -4637,7 +4638,8 @@ def evaluate(
                 hf_client = model
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
-                                                                                          base_model=base_model)
+                                                                                          base_model=base_model,
+                                                                                          verbose=verbose)
             llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
                                                                                       gr_client.endpoints]
 
