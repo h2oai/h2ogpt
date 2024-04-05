@@ -280,11 +280,12 @@ class GradioClient(Client):
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
         # threading.Thread(target=self._telemetry_thread, daemon=True).start()
-        self._refresh_heartbeat = threading.Event()
-        self._kill_heartbeat = threading.Event()
+        if is_gradio_client_version7plus:
+            self._refresh_heartbeat = threading.Event()
+            self._kill_heartbeat = threading.Event()
 
-        self.heartbeat = threading.Thread(target=self._stream_heartbeat, daemon=True)
-        self.heartbeat.start()
+            self.heartbeat = threading.Thread(target=self._stream_heartbeat, daemon=True)
+            self.heartbeat.start()
 
         self.server_hash = self.get_server_hash()
 
