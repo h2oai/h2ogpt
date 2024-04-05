@@ -319,15 +319,17 @@ def is_json_model(base_model, inference_server, json_vllm=False):
         # https://docs.mistral.ai/platform/client/#json-mode
         # https://docs.mistral.ai/guides/prompting-capabilities/#include-a-confidence-score
         return base_model in ["mistral-large-latest",
-                              #"mistral-medium"
+                              "mistral-medium"
                               "mistral-small",
-                              #"mistral-tiny",
-                              #'open-mistral-7b',
-                              #'open-mixtral-8x7b',
+                              "mistral-tiny",
+                              'open-mistral-7b',
+                              'open-mixtral-8x7b',
                               'mistral-small-latest',
-                              #'mistral-medium-latest',
+                              'mistral-medium-latest',
                               ]
-
+    if inference_server.startswith('anthropic'):
+        # but no streaming
+        return base_model.startswith('claude-3')
     return False
 
 

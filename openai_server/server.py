@@ -37,7 +37,7 @@ class Generation(BaseModel):
 
 class ResponseFormat(BaseModel):
     # type must be "json_object" or "text"
-    type: str = Literal["text", "json_object"]
+    type: str = Literal["text", "json_object", "json_code"]
 
 
 # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L62
@@ -112,7 +112,7 @@ class H2oGPTParams(BaseModel):
         default=None,
         description=
         ("Similar to chat completion, this parameter specifies the format of "
-         "output. Only {'type': 'json_object'} or {'type': 'text' } is "
+         "output. Only {'type': 'text' } or {'type': 'json_object'} or {'type': 'json_code'} are "
          "supported."),
     )
     guided_json: Optional[Union[str, dict, BaseModel]] = Field(

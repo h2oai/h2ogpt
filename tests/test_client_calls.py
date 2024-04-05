@@ -5004,7 +5004,7 @@ TEST_SCHEMA = {
             },
             "minItems": 3
         },
-        "work history": {
+        "workhistory": {
             "type": "array",
             "items": {
                 "type": "object",
@@ -5023,7 +5023,7 @@ TEST_SCHEMA = {
             }
         }
     },
-    "required": ["name", "age", "skills", "work history"]
+    "required": ["name", "age", "skills", "workhistory"]
 }
 
 TEST_REGEX = (r"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.){3}"
@@ -5049,12 +5049,13 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-lla
 
 
 @wrap_test_forked
+@pytest.mark.parametrize("base_model", other_base_models)
+@pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
 # @pytest.mark.parametrize("base_model", [gpt_models[1]])
 # @pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
-@pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
-def test_guided_json(langchain_action, langchain_mode, base_model):
+def test_guided_json(langchain_action, langchain_mode, response_format, base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
@@ -5084,7 +5085,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
                       langchain_mode=langchain_mode,
                       langchain_action=langchain_action,
                       h2ogpt_key=h2ogpt_key,
-                      response_format='json_object',
+                      response_format=response_format,
                       guided_json=guided_json,
                       )
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -5092,7 +5093,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
         response = res_dict['response']
         print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
               file=sys.stderr)
-        print(response)
+        print(response, file=sys.stderr)
 
         if base_model in ['h2oai/h2o-danube-1.8b-chat']:
             # just can't do it, messes up really bad
@@ -5103,9 +5104,10 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
 
         mydict = json.loads(response)
 
-        check_keys = ['age', 'name', 'skills', 'work history']
+        # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
+        check_keys = ['age', 'name', 'skills', 'workhistory']
         check_keys2 = ['age', 'name', 'skills', 'workHistory']
-        check_keys3 = ['age', 'name', 'skills', 'work\_history']
+        check_keys3 = ['age', 'name', 'skills', 'workhistory']
         if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
             pass
         else:
@@ -5118,8 +5120,7 @@ def test_guided_json(langchain_action, langchain_mode, base_model):
                 # zephyr, mistralv0.2, mutate to workHistory
                 if base_model in ['HuggingFaceH4/zephyr-7b-beta',  # until vLLM is upgraded
                                   'mistralai/Mistral-7B-Instruct-v0.2',  # until vLLM is upgraded
-                                  'mistral-tiny',
-                                  'NousResearch/Nous-Capybara-34B',
+                                  'NousResearch/Nous-Capybara-34B',  # until vLLM is upgraded
                                   ]:
                     assert cond1 or cond2 or cond3, "Missing keys"
                 else:

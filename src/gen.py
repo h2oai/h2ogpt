@@ -1194,7 +1194,9 @@ def main(
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
 
-    :param response_format: text or json_object
+    :param response_format: text or json_object or json_code
+        json_object means always try to use best mechanism to make JSON.
+        json_code means use code block method, not guided_json or built-in json mode
     # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
     :param guided_json:
     :param guided_regex:
@@ -4079,12 +4081,9 @@ def evaluate(
     stream_output0 = stream_output
     stream_output = gradio and num_beams == 1
 
-    # get prompter
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                        system_prompt=system_prompt)
-
-    if response_format == 'json_object':
-        post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.'
+    if response_format in ['json_object', 'json_code']:
+        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.\n\n'
+        pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block using backticks with the json language identifier.\n\n'
         if isinstance(guided_json, str):
             try:
                 guided_json_properties = json.loads(guided_json)
@@ -4098,27 +4097,34 @@ def evaluate(
         # back to string, so e.g. do not get ' in prompt but " for quotes etc.  gemma messes that up.
         guided_json_properties_json = json.dumps(guided_json_properties)
 
-        schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties_json
+        schema_instruction = '\nEnsure you follow this JSON schema:\n```json\n%s\n```\n' % guided_json_properties_json
         json_vllm = chosen_model_state['json_vllm']
-        if json_vllm and guided_json:
+
+        if json_vllm and guided_json and response_format == 'json_object':
             pass
-        elif is_json_model(base_model, inference_server, json_vllm=json_vllm):
+        elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and response_format == 'json_object':
             if inference_server and inference_server.startswith('mistral'):
                 # mistral-large gets confused with extra info, and not required
-                pass
-            else:
-                # OpenAI requires "json" to appear somewhere in messages
-                instruction += post_instruction
+                pre_instruction1 = ''
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
                 # FIXME: Do function calling if can instead
-                instruction += schema_instruction
+                instruction = pre_instruction1 + schema_instruction + '\n\n' + instruction
+            else:
+                # OpenAI requires "json" to appear somewhere in messages
+                instruction = pre_instruction1 + '\n\n' + instruction
         else:
+            system_prompt = ''  # can mess up the model, e.g. 70b
+            # json_code way
             # have to tell to use json and give schema if present
-            instruction += post_instruction
             if guided_json_properties:
-                # FIXME: Do function calling if can instead
-                instruction += schema_instruction
+                instruction = pre_instruction2 + schema_instruction + '\n\n' + instruction
+            else:
+                instruction = pre_instruction2 + '\n\n' + instruction
+
+    # get prompter
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
+                        system_prompt=system_prompt)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -4363,7 +4369,7 @@ def evaluate(
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
-            if response_format == 'json_object':
+            if response_format in ['json_object', 'json_code']:
                 response = get_json(response)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
@@ -4499,7 +4505,7 @@ def evaluate(
                         text = responses.choices[0].text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
-                        if response_format == 'json_object':
+                        if response_format in ['json_object', 'json_code']:
                             response = get_json(response)
                     else:
                         collected_events = []
@@ -4511,7 +4517,7 @@ def evaluate(
                             if delta:
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
-                                if response_format == 'json_object':
+                                if response_format in ['json_object', 'json_code']:
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4565,7 +4571,7 @@ def evaluate(
                         text = responses.choices[0].message.content
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
-                        if response_format == 'json_object':
+                        if response_format in ['json_object', 'json_code']:
                             response = get_json(response)
                     else:
                         tgen0 = time.time()
@@ -4575,7 +4581,7 @@ def evaluate(
                                 text += delta
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
-                                if response_format == 'json_object':
+                                if response_format in ['json_object', 'json_code']:
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4642,7 +4648,7 @@ def evaluate(
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 
-                    if response_format == 'json_object':
+                    if response_format in ['json_object', 'json_code']:
                         response = get_json(response)
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
@@ -4651,7 +4657,7 @@ def evaluate(
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response in get_llava_stream(**llava_kwargs):
-                        if response_format == 'json_object':
+                        if response_format in ['json_object', 'json_code']:
                             response = get_json(response)
                         yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
@@ -4820,7 +4826,7 @@ def evaluate(
                         for res_dict in gener:
                             if 'response' in res_dict:
                                 response = res_dict['response']
-                                if response_format == 'json_object':
+                                if response_format in ['json_object', 'json_code']:
                                     response = get_json(response)
                                     res_dict['response'] = response
                             yield res_dict
@@ -4864,7 +4870,7 @@ def evaluate(
                         text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
-                        if response_format == 'json_object':
+                        if response_format in ['json_object', 'json_code']:
                             response = get_json(response)
                     else:
                         tgen0 = time.time()
@@ -4877,7 +4883,7 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 sources = []
-                                if response_format == 'json_object':
+                                if response_format in ['json_object', 'json_code']:
                                     response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -5062,7 +5068,7 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
-                            if response_format == 'json_object':
+                            if response_format in ['json_object', 'json_code']:
                                 response = get_json(response)
                             ret = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
@@ -5106,7 +5112,7 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
-                    if response_format == 'json_object':
+                    if response_format in ['json_object', 'json_code']:
                         response = get_json(response)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]

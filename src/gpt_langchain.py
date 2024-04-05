@@ -1708,6 +1708,10 @@ class GenerateStream:
             **kwargs: Any,
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
+        have_tool = False
+        if hasattr(self, 'model_kwargs') and 'tools' in self.model_kwargs:
+            should_stream = False
+            have_tool = True
         kwargs.pop('stream', None)
         kwargs.pop('streaming', None)
         if should_stream:
@@ -1716,7 +1720,15 @@ class GenerateStream:
             )
             return generate_from_stream(stream_iter)
         else:
-            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            ret = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return self.tool_string_return(ret, have_tool)
+
+    def tool_string_return(self, ret, have_tool):
+        if have_tool and isinstance(ret.generations[0].text, list):
+            # overwrite
+            # -1 is last, to skip first thinking step for opus/sonnet
+            ret.generations[0].text = json.dumps(ret.generations[0].text[-1]['input'])
+        return ret
 
     async def _agenerate(
             self,
@@ -1727,6 +1739,10 @@ class GenerateStream:
             **kwargs: Any,
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
+        have_tool = False
+        if hasattr(self, 'model_kwargs') and 'tools' in self.model_kwargs:
+            should_stream = False
+            have_tool = True
         kwargs.pop('stream', None)
         kwargs.pop('streaming', None)
         if should_stream:
@@ -1735,7 +1751,8 @@ class GenerateStream:
             )
             return await agenerate_from_stream(stream_iter)
         else:
-            return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            ret = await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            return self.tool_string_return(ret, have_tool)
 
 
 class GenerateNormal:
@@ -2236,12 +2253,13 @@ def get_llm(use_openai_model=False,
                                          ))
                 model_kwargs.update(vllm_extra_dict)
             else:
-                if is_json_model(model_name, inference_server):
+                if is_json_model(model_name, inference_server) and response_format == 'json_object':
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name,
-                                                                                           inference_server):
+            if 'response_format' not in azure_kwargs and \
+                    response_format == 'json_object' and \
+                    is_json_model(model_name, inference_server):
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2326,7 +2344,18 @@ def get_llm(use_openai_model=False,
                     chat_conversation.append((img_file, claude3imagetag))
 
         # Langchain oddly passes some things directly and rest via model_kwargs
-        model_kwargs = dict()
+        # NOTE: claude requires keys of properties to match pattern '^[a-zA-Z0-9_-]{1,64}$'
+        # i.e. no spaces, while vLLM can handle spaces.
+        if is_json_model(model_name, inference_server) and guided_json and response_format == 'json_object':
+            model_kwargs = dict(tools=[
+                {
+                    "name": "JSON",
+                    "description": "Document, image, chat history conversion to strict JSON.",
+                    "input_schema": guided_json,
+                }
+            ])
+        else:
+            model_kwargs = {}
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
         if not regenerate_clients and isinstance(model, dict):
@@ -2406,7 +2435,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         # https://mistral.ai/news/mistral-large/
 
-        if is_json_model(model_name, inference_server):
+        if is_json_model(model_name, inference_server) and response_format == 'json_object':
             # https://docs.mistral.ai/platform/client/#json-mode
             # odd outputs for mistral-medium and mistral-tiny as of 04/02/2024
             # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
@@ -5878,6 +5907,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if query.startswith(summary_prefix) or query.startswith(extract_prefix):
         # avoid gradio_runner injection of user lead to query being filled
         query = ''
+    if inference_server.startswith('anthropic') and \
+            is_json_model(model_name, inference_server) and \
+            guided_json and response_format == 'json_object':
+        query += '\n\nUse the `JSON` tool.\n'
 
     # basic version of prompt without docs etc.
     data_point = dict(context=context, instruction=query, input=iinput)
@@ -5950,14 +5983,14 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                       count_output_tokens=0,
                                       ))
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
-        if response_format == 'json_object':
+        if response_format in ['json_object', 'json_code']:
             ret = '{"response": "%s"}' % ret
         yield dict(prompt=prompt_basic, response=formatted_doc_chunks, sources=sources, num_prompt_tokens=0,
                    llm_answers=llm_answers, response_no_refs='', sources_str=sources_str, prompt_raw=prompt_basic)
         return
     if langchain_agents and not chain:
         ret = '%s not supported by this model' % langchain_agents[0]
-        if response_format == 'json_object':
+        if response_format in ['json_object', 'json_code']:
             ret = '{"response": "%s"}' % ret
         sources = []
         yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
@@ -5978,7 +6011,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             # if here then ok to continue using chain if exists.  E.g. use_llm_if_no_docs=True and doing query langchain_action
             ret = None
         if ret is not None:
-            if response_format == 'json_object':
+            if response_format in ['json_object', 'json_code']:
                 ret = '{"response": "%s"}' % ret
             sources = []
             yield dict(prompt=prompt_basic, response=ret, sources=sources, num_prompt_tokens=0, llm_answers=llm_answers,
