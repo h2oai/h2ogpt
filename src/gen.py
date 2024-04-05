@@ -4081,12 +4081,9 @@ def evaluate(
     stream_output0 = stream_output
     stream_output = gradio and num_beams == 1
 
-    # get prompter
-    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                        system_prompt=system_prompt)
-
     if response_format in ['json_object', 'json_code']:
-        post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.'
+        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.\n\n'
+        pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block using backticks with the json language identifier.\n\n'
         if isinstance(guided_json, str):
             try:
                 guided_json_properties = json.loads(guided_json)
@@ -4100,7 +4097,7 @@ def evaluate(
         # back to string, so e.g. do not get ' in prompt but " for quotes etc.  gemma messes that up.
         guided_json_properties_json = json.dumps(guided_json_properties)
 
-        schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties_json
+        schema_instruction = '\nEnsure you follow this JSON schema:\n```json\n%s\n```\n' % guided_json_properties_json
         json_vllm = chosen_model_state['json_vllm']
 
         if json_vllm and guided_json and response_format == 'json_object':
@@ -4108,20 +4105,26 @@ def evaluate(
         elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and response_format == 'json_object':
             if inference_server and inference_server.startswith('mistral'):
                 # mistral-large gets confused with extra info, and not required
-                pass
-            else:
-                # OpenAI requires "json" to appear somewhere in messages
-                instruction += post_instruction
+                pre_instruction1 = ''
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
                 # FIXME: Do function calling if can instead
-                instruction += schema_instruction
+                instruction = pre_instruction1 + schema_instruction + '\n\n' + instruction
+            else:
+                # OpenAI requires "json" to appear somewhere in messages
+                instruction = pre_instruction1 + '\n\n' + instruction
         else:
+            system_prompt = ''  # can mess up the model, e.g. 70b
             # json_code way
             # have to tell to use json and give schema if present
-            instruction += post_instruction
             if guided_json_properties:
-                instruction += schema_instruction
+                instruction = pre_instruction2 + schema_instruction + '\n\n' + instruction
+            else:
+                instruction = pre_instruction2 + '\n\n' + instruction
+
+    # get prompter
+    prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
+                        system_prompt=system_prompt)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
