@@ -31,6 +31,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **OpenAI-compliant**
   - Server Proxy API (h2oGPT acts as drop-in-replacement to OpenAI server)
   - Python client API (to talk to Gradio server)
+- **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
 - **Evaluate** performance using reward models
