@@ -327,7 +327,9 @@ def is_json_model(base_model, inference_server, json_vllm=False):
                               'mistral-small-latest',
                               'mistral-medium-latest',
                               ]
-
+    if inference_server.startswith('anthropic'):
+        # but no streaming
+        return base_model.startswith('claude-3')
     return False
 
 

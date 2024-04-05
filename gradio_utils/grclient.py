@@ -795,7 +795,7 @@ class GradioClient(Client):
             :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
             :param image_control: Initial image for UI Image Control
 
-            :param response_format: json_object or text
+            :param response_format: text or json_object or json_code
             # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
             :param guided_json:
             :param guided_regex:
