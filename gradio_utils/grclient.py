@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent
 import difflib
+import threading
 import traceback
 import os
 import time
@@ -260,6 +261,7 @@ class GradioClient(Client):
             self.sse_url = urllib.parse.urljoin(
                 self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
             )
+            self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
             self.sse_data_url = urllib.parse.urljoin(
                 self.src,
                 utils.SSE_DATA_URL_V0 if self.protocol == "sse" else utils.SSE_DATA_URL,
@@ -271,13 +273,18 @@ class GradioClient(Client):
         self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
         if is_gradio_client_version7plus:
             self.app_version = version.parse(self.config.get("version", "2.0"))
-            self._info = None
+            self._info = self._get_api_info()
         self.session_hash = str(uuid.uuid4())
 
         self.get_endpoints(self)
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
-        # threading.Thread(target=self._telemetry_thread).start()
+        # threading.Thread(target=self._telemetry_thread, daemon=True).start()
+        self._refresh_heartbeat = threading.Event()
+        self._kill_heartbeat = threading.Event()
+
+        self.heartbeat = threading.Thread(target=self._stream_heartbeat, daemon=True)
+        self.heartbeat.start()
 
         self.server_hash = self.get_server_hash()
 
