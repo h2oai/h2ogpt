@@ -2252,12 +2252,13 @@ def get_llm(use_openai_model=False,
                                          ))
                 model_kwargs.update(vllm_extra_dict)
             else:
-                if is_json_model(model_name, inference_server):
+                if is_json_model(model_name, inference_server) and response_format == 'json_object':
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            if 'response_format' not in azure_kwargs and response_format and is_json_model(model_name,
-                                                                                           inference_server):
+            if 'response_format' not in azure_kwargs and \
+                    response_format == 'json_object' and \
+                    is_json_model(model_name, inference_server):
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2433,7 +2434,7 @@ def get_llm(use_openai_model=False,
         callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
         # https://mistral.ai/news/mistral-large/
 
-        if is_json_model(model_name, inference_server):
+        if is_json_model(model_name, inference_server) and response_format == 'json_object':
             # https://docs.mistral.ai/platform/client/#json-mode
             # odd outputs for mistral-medium and mistral-tiny as of 04/02/2024
             # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
