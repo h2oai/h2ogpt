@@ -5023,7 +5023,7 @@ TEST_SCHEMA = {
             }
         }
     },
-    "required": ["name", "age", "skills", "work history"]
+    "required": ["name", "age", "skills", "workhistory"]
 }
 
 TEST_REGEX = (r"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.){3}"
@@ -5093,7 +5093,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         response = res_dict['response']
         print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
               file=sys.stderr)
-        print(response)
+        print(response, file=sys.stderr)
 
         if base_model in ['h2oai/h2o-danube-1.8b-chat']:
             # just can't do it, messes up really bad

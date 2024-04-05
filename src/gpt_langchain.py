@@ -2345,7 +2345,7 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         # NOTE: claude requires keys of properties to match pattern '^[a-zA-Z0-9_-]{1,64}$'
         # i.e. no spaces, while vLLM can handle spaces.
-        if guided_json and response_format == 'json_object':
+        if is_json_model(model_name, inference_server) and guided_json and response_format == 'json_object':
             model_kwargs = dict(tools=[
                 {
                     "name": "JSON",
