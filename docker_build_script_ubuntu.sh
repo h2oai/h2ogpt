@@ -125,9 +125,13 @@ rm -rf /workspace/helm
 rm -rf /workspace/notebooks
 rm -rf /workspace/papers
 
+# Hotswap vulnerable dependencies
+wget https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/ubuntu20.04/apparmor_4.0.0~alpha2-0ubuntu5_amd64.deb
+wget https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/ubuntu20.04/libapparmor1_4.0.0~alpha2-0ubuntu5_amd64.deb
+dpkg -i libapparmor1_4.0.0~alpha2-0ubuntu5_amd64.deb
+dpkg -i apparmor_4.0.0~alpha2-0ubuntu5_amd64.deb
+rm -rf libapparmor1_4*.deb apparmor_4*.deb
 
-
-
-
-
-
+wget https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/ubuntu20.04/libarchive13_3.6.2-1ubuntu1_amd64.deb
+dpkg -i libarchive13_3.6.2-1ubuntu1_amd64.deb
+rm -rf libarchive13_3.6.2-1ubuntu1_amd64.deb
