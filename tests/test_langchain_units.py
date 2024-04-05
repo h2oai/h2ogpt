@@ -297,6 +297,8 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       llamacpp_path='llamacpp_path',
                       regenerate_gradio_clients=True,
                       max_output_seq_len=None,
+                      force_seq2seq_type=False,
+                      force_t5_type=False,
 
                       verbose=False)
     model, tokenizer, device = get_model_retry(reward_type=False,
@@ -1827,7 +1829,7 @@ def test_chroma_filtering():
         if chroma_new:
             # fresh, so chroma >= 0.4
             user_path = make_user_path_test()
-            from langchain.vectorstores import Chroma
+            from langchain_community.vectorstores import Chroma
             db, collection_name = make_db_main(user_path=user_path)
             assert isinstance(db, Chroma)
 

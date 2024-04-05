@@ -648,6 +648,13 @@ class GradioClient(Client):
         metadata_in_context: list = [],
         image_file: Union[str, list] = None,
         image_control: str = None,
+
+        response_format: str = 'text',
+        guided_json: Union[str, dict] = '',
+        guided_regex: str = '',
+        guided_choice: str = '',
+        guided_grammar: str = '',
+
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
         jq_schema=".[]",
@@ -780,6 +787,13 @@ class GradioClient(Client):
 
             :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
             :param image_control: Initial image for UI Image Control
+
+            :param response_format: json_object or text
+            # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
+            :param guided_json:
+            :param guided_regex:
+            :param guided_choice:
+            :param guided_grammar:
 
             :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
             :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -1132,8 +1146,13 @@ class GradioClient(Client):
                 if trial == trials - 1:
                     raise
                 else:
-                    print_warning("trying again: %s" % trial)
-                    time.sleep(1 * trial)
+                    # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
+                    if 'Overloaded' in str(traceback.format_tb(e.__traceback__)):
+                        sleep_time = 30 + 2 ** (trial + 1)
+                    else:
+                        sleep_time = 1 * trial
+                    print_warning("trying again: %s in %s seconds" % (trial, sleep_time))
+                    time.sleep(sleep_time)
             finally:
                 # in case server changed, update in case clone()
                 self.server_hash = client.server_hash
@@ -1145,6 +1164,11 @@ class GradioClient(Client):
                 streaming=stream_output,
                 texts_in=len(text or []) + len(text_context_list or []),
                 texts_out=len(texts_out),
+                images=len(image_file)
+                if isinstance(image_file, list)
+                else 1
+                if image_file
+                else 0,
                 response_time=str(timedelta(seconds=t1 - t0)),
                 response_len=len(response),
                 llm=visible_models,
@@ -1298,16 +1322,12 @@ class GradioClient(Client):
         response = prompter.get_response(
             prompt_and_text, prompt=prompt, sanitize_bot_response=sanitize_bot_response
         )
-        res_dict = dict(
+        res_dict.update(dict(
             response=response,
             sources=sources,
-            save_dict={},
             error=strex,
-            llm_answers={},
             response_no_refs=response,
-            sources_str="",
-            prompt_raw="",
-        )
+        ))
         yield res_dict
         return res_dict
 

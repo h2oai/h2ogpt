@@ -173,6 +173,13 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
 
                          image_file=None,
                          image_control=None,
+
+                         response_format=None,
+                         guided_json=None,
+                         guided_regex=None,
+                         guided_choice=None,
+                         guided_grammar=None,
+
                          )
     diff = 0
     from evaluate_params import eval_func_param_names

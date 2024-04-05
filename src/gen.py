@@ -5,6 +5,7 @@ import inspect
 import queue
 import sys
 import os
+import json
 import time
 import traceback
 import typing
@@ -20,9 +21,6 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
-from src.image_utils import get_image_file
-from src.vision.utils_vision import get_image_model_dict
-
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,6 +34,9 @@ except (PackageNotFoundError, AssertionError):
 
 if have_hf_transfer:
     os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
+
+os.environ['SCARF_NO_ANALYTICS'] = 'true'
+os.environ['DO_NOT_TRACK'] = 'true'
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
@@ -69,13 +70,13 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs
+    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, template_prompt_type
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json, is_json_vllm
 
 start_faulthandler()
 import_matplotlib()
@@ -89,8 +90,8 @@ import torch
 from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, AutoTokenizer
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
-    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, is_vision_model, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model
+    openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -378,6 +379,7 @@ def main(
         langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
         langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
         detect_user_path_changes_every_query: bool = False,
+        update_selection_state_from_cli: bool = True,
 
         langchain_action: str = LangChainAction.QUERY.value,
         langchain_agents: list = [],
@@ -484,6 +486,12 @@ def main(
 
         image_file: str = None,
         image_control: str = None,
+
+        response_format: str = 'text',
+        guided_json: str = '',
+        guided_regex: str = '',
+        guided_choice: str = '',
+        guided_grammar: str = '',
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
@@ -974,6 +982,8 @@ def main(
            The type is attempted to be inferred if directory already exists, then don't have to pass this
     :param detect_user_path_changes_every_query: whether to detect if any files changed or added every similarity search (by file hashes).
            Expensive for large number of files, so not done by default.  By default only detect changes during db loading.
+    :param update_selection_state_from_cli: whether to update all user options (during login) with CLI options for langchain_modes, langchain_mode_paths, langchain_mode_types
+           If want user auth state to always be used regardless of changes to CLI options, then set False
 
     :param langchain_action: Mode langchain operations in on documents.
             Query: Make query of document(s)
@@ -1184,6 +1194,13 @@ def main(
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
 
+    :param response_format: text or json_object
+    # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
+    :param guided_json:
+    :param guided_regex:
+    :param guided_choice:
+    :param guided_grammar:
+
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v3 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
     :param asr_gpu: Whether to use GPU for ASR model
@@ -1286,6 +1303,13 @@ def main(
         metadata_in_context = []
     if seed is None:
         seed = 0
+
+    assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
+        response_format, response_formats)
+    assert isinstance(guided_json, str)
+    assert isinstance(guided_regex, str)
+    assert isinstance(guided_choice, str)
+    assert isinstance(guided_grammar, str)
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -1751,7 +1775,7 @@ def main(
 
     image_audio_loaders_options0, image_audio_loaders_options, \
         pdf_loaders_options0, pdf_loaders_options, \
-        url_loaders_options0, url_loaders_options = lg_to_gr(**locals())
+        url_loaders_options0, url_loaders_options = lg_to_gr(**locals().copy())
     jq_schema0 = jq_schema
     extract_frames0 = extract_frames
     # transcribe
@@ -1811,11 +1835,17 @@ def main(
                             image_file,
                             image_control,
 
+                            response_format,
+                            guided_json,
+                            guided_regex,
+                            guided_choice,
+                            guided_grammar,
+
                             verbose,
                             )
 
     git_hash = get_githash()
-    locals_dict = locals()
+    locals_dict = locals().copy()
     locals_print = '\n'.join(['%s: %s' % (k, v) for k, v in locals_dict.items()])
     if verbose:
         print(f"Generating model with params:\n{locals_print}", flush=True)
@@ -1943,6 +1973,7 @@ def main(
                                                      verbose=verbose)
 
     # setup image models
+    from vision.utils_vision import get_image_model_dict
     image_model_dict = get_image_model_dict(enable_image, visible_image_models, image_gpu_ids)
     visible_image_models_state0 = list(image_model_dict.keys())
 
@@ -1976,7 +2007,7 @@ def main(
                                     migrate_embedding_model,
                                     auto_migrate_db,
                                     embedding_gpu_id=embedding_gpu_id,
-                                    kwargs_make_db=locals(),
+                                    kwargs_make_db=locals().copy(),
                                     verbose=verbose)
             finally:
                 # in case updated embeddings or created new embeddings
@@ -2027,6 +2058,7 @@ def main(
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
+                            json_vllm=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
@@ -2067,7 +2099,7 @@ def main(
         all_kwargs.update(base_model=verifier_model,
                           tokenizer_base_model=verifier_tokenizer_base_model,
                           inference_server=verifier_inference_server,
-                          prompt_type='plain', prompt_dict={},
+                          prompt_type=noop_prompt_type, prompt_dict={},
                           visible_models=None, h2ogpt_key=None)
         smodel, stokenizer, sdevice = get_model_retry(reward_type=False,
                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
@@ -2076,7 +2108,7 @@ def main(
                                        base_model=verifier_model,
                                        tokenizer_base_model=verifier_tokenizer_base_model,
                                        inference_server=verifier_inference_server,
-                                       prompt_type='plain',
+                                       prompt_type=noop_prompt_type,
                                        reward_model=False))
 
     # get default model(s)
@@ -2191,6 +2223,8 @@ def main(
             continue
         model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
         model_state_trial.update(model_dict)
+        model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
+                                                      model_state_trial['inference_server'], verbose=verbose)
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
         print("Model %s" % model_dict, flush=True)
@@ -2227,15 +2261,15 @@ def main(
     # run
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, **locals()))
+        return run_cli(**get_kwargs(run_cli, **locals().copy()))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, **locals()))
+        return run_eval(**get_kwargs(run_eval, **locals().copy()))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
         # assume gradio needs everything
-        go_gradio(**locals())
+        go_gradio(**locals().copy())
 
 
 def get_config(base_model,
@@ -2472,7 +2506,7 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if base_model and is_gradio_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
-        gr_client = GradioClient(inference_server, check_hash=False, serialize=True, **gradio_auth)
+        gr_client = GradioClient(inference_server, check_hash=False, serialize=is_gradio_version4, **gradio_auth)
         gr_client.setup()
     elif headers is None:
         try:
@@ -3587,7 +3621,8 @@ def get_score_model(score_model: str = None,
         force_t5_type = False
 
         smodel, stokenizer, sdevice = get_model(reward_type=True,
-                                                **get_kwargs(get_model, exclude_names=['reward_type'], **locals()))
+                                                **get_kwargs(get_model, exclude_names=['reward_type'],
+                                                             **locals().copy()))
     else:
         smodel, stokenizer, sdevice = None, None, None
     return smodel, stokenizer, sdevice
@@ -3685,6 +3720,12 @@ def evaluate(
 
         image_file,
         image_control,
+
+        response_format,
+        guided_json,
+        guided_regex,
+        guided_choice,
+        guided_grammar,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -3810,6 +3851,9 @@ def evaluate(
         extract_frames = extract_frames0
     if seed is None:
         seed = 0
+
+    assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
+        response_format, response_formats)
 
     if isinstance(langchain_agents, str):
         if langchain_agents.strip().startswith('['):
@@ -4038,6 +4082,43 @@ def evaluate(
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
                         system_prompt=system_prompt)
+
+    if response_format == 'json_object':
+        post_instruction = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.'
+        if isinstance(guided_json, str):
+            try:
+                guided_json_properties = json.loads(guided_json)
+            except (json.decoder.JSONDecodeError, TypeError):
+                guided_json_properties = {}
+        else:
+            guided_json_properties = guided_json or {}
+        assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
+        if 'properties' in guided_json_properties:
+            guided_json_properties = guided_json_properties['properties']
+        # back to string, so e.g. do not get ' in prompt but " for quotes etc.  gemma messes that up.
+        guided_json_properties_json = json.dumps(guided_json_properties)
+
+        schema_instruction = '\nEnsure you follow this schema:\n```json\n%s\n```\n' % guided_json_properties_json
+        json_vllm = chosen_model_state['json_vllm']
+        if json_vllm and guided_json:
+            pass
+        elif is_json_model(base_model, inference_server, json_vllm=json_vllm):
+            if inference_server and inference_server.startswith('mistral'):
+                # mistral-large gets confused with extra info, and not required
+                pass
+            else:
+                # OpenAI requires "json" to appear somewhere in messages
+                instruction += post_instruction
+            # shouldn't have to tell to use json, but should tell schema
+            if guided_json_properties:
+                # FIXME: Do function calling if can instead
+                instruction += schema_instruction
+        else:
+            # have to tell to use json and give schema if present
+            instruction += post_instruction
+            if guided_json_properties:
+                # FIXME: Do function calling if can instead
+                instruction += schema_instruction
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -4273,9 +4354,17 @@ def evaluate(
 
                 image_file=image_file,
                 image_control=image_control,
+
+                response_format=response_format,
+                guided_json=guided_json,
+                guided_regex=guided_regex,
+                guided_choice=guided_choice,
+                guided_grammar=guided_grammar,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
+            if response_format == 'json_object':
+                response = get_json(response)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
@@ -4377,17 +4466,25 @@ def evaluate(
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
             try:
+                if inf_type in ['vllm', 'vllm_chat']:
+                    vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
+                                                          response_format=response_format if guided_json else 'text',
+                                                          guided_json=guided_json,
+                                                          guided_regex=guided_regex,
+                                                          guided_choice=guided_choice,
+                                                          guided_grammar=guided_grammar,
+                                                          # repetition_penalty=repetition_penalty,  # could pass
+                                                          )
+                else:
+                    vllm_extra_dict = {}
                 if inf_type == 'vllm' or inf_type == 'openai':
                     if inf_type == 'vllm':
-                        vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                              # repetition_penalty=repetition_penalty,  # could pass
-                                                              )
                         other_dict = dict(timeout=max_time)
                     else:
-                        vllm_extra_dict = {}
                         other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
+                        # response_format=dict(type=response_format),  Text Completions API can't handle
                         prompt=prompt,
                         **gen_server_kwargs,
                         stop=stop_sequences,
@@ -4402,6 +4499,8 @@ def evaluate(
                         text = responses.choices[0].text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        if response_format == 'json_object':
+                            response = get_json(response)
                     else:
                         collected_events = []
                         tgen0 = time.time()
@@ -4412,6 +4511,8 @@ def evaluate(
                             if delta:
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
+                                if response_format == 'json_object':
+                                    response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
@@ -4444,11 +4545,17 @@ def evaluate(
                                         {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
                     if prompt:
                         messages0.append({'role': 'user', 'content': prompt})
+
+                    if response_format == 'json_object' and inf_type == 'openai_chat':
+                        other_dict.update(dict(type=response_format))
+
+                    # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
                     responses = openai_client.chat.completions.create(
                         model=base_model,
                         messages=messages0,
                         stream=stream_output,
                         **gen_server_kwargs,
+                        **vllm_extra_dict,
                         **other_dict,
                     )
                     text = ""
@@ -4458,6 +4565,8 @@ def evaluate(
                         text = responses.choices[0].message.content
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        if response_format == 'json_object':
+                            response = get_json(response)
                     else:
                         tgen0 = time.time()
                         for chunk in responses:
@@ -4466,6 +4575,8 @@ def evaluate(
                                 text += delta
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
+                                if response_format == 'json_object':
+                                    response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
@@ -4510,10 +4621,11 @@ def evaluate(
             if is_gradio_vision_model(base_model) and llava_direct_gradio:
                 where_from = "gr_client for llava"
 
-                num_prompt_tokens += 1500  # estimate for single image
-
                 # NOTE: llava doesn't handle context or system prompt directly
+                from image_utils import get_image_file
                 img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
+                img_file = img_file[:llava_num_max]
+                num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
                 llava_kwargs = dict(file=img_file,
                                     llava_model=inference_server,
                                     # prompt=instruction,
@@ -4526,10 +4638,12 @@ def evaluate(
                                     max_new_tokens=max_new_tokens,
                                     client=gr_client if not regenerate_gradio_clients else None,
                                     )
-                if not stream_output:
+                if not stream_output and img_file == 1:
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 
+                    if response_format == 'json_object':
+                        response = get_json(response)
                     yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
@@ -4537,6 +4651,8 @@ def evaluate(
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response in get_llava_stream(**llava_kwargs):
+                        if response_format == 'json_object':
+                            response = get_json(response)
                         yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
 
@@ -4597,7 +4713,9 @@ def evaluate(
                         gr_prompt_dict = prompt_dict
 
                     # ensure image in correct format
-                    img_file = get_image_file(image_file, image_control, document_choice, convert=True)  # comes out as list
+                    from image_utils import get_image_file
+                    img_file = get_image_file(image_file, image_control, document_choice,
+                                              convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
                                          iinput=gr_iinput,  # only for chat=True
@@ -4665,6 +4783,12 @@ def evaluate(
 
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
+
+                                         response_format=response_format,
+                                         guided_json=guided_json,
+                                         guided_regex=guided_regex,
+                                         guided_choice=guided_choice,
+                                         guided_grammar=guided_grammar,
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -4689,10 +4813,21 @@ def evaluate(
                                                 is_public=is_public,
                                                 verbose=verbose)
                         if new_stream:
-                            res_dict = yield from gr_client.stream(**gr_stream_kwargs)
+                            gener = gr_client.stream(**gr_stream_kwargs)
                         else:
-                            res_dict = yield from gr_client.simple_stream(**gr_stream_kwargs)
-                        response = res_dict.get('response', '')
+                            gener = gr_client.simple_stream(**gr_stream_kwargs)
+                        response = ''
+                        for res_dict in gener:
+                            if 'response' in res_dict:
+                                response = res_dict['response']
+                                if response_format == 'json_object':
+                                    response = get_json(response)
+                                    res_dict['response'] = response
+                            yield res_dict
+                    # listen to inner gradio
+                    num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens',
+                                                                                                 num_prompt_tokens)
+                    prompt = res_dict.get('prompt_raw', prompt)
                 elif hf_client:
                     # quick sanity check to avoid long timeouts, just see if can reach server
                     requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
@@ -4729,6 +4864,8 @@ def evaluate(
                         text = hf_client.generate(prompt, **gen_server_kwargs).generated_text
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
+                        if response_format == 'json_object':
+                            response = get_json(response)
                     else:
                         tgen0 = time.time()
                         text = ""
@@ -4740,6 +4877,8 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 sources = []
+                                if response_format == 'json_object':
+                                    response = get_json(response)
                                 yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
                                            response_no_refs=response, sources_str='', prompt_raw='')
                                 time.sleep(0.01)
@@ -4923,6 +5062,8 @@ def evaluate(
                             response = prompter.get_response(outputs, prompt=None,
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
+                            if response_format == 'json_object':
+                                response = get_json(response)
                             ret = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                             if stream_output:
@@ -4965,6 +5106,8 @@ def evaluate(
                     response = prompter.get_response(outputs, prompt=None,
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
+                    if response_format == 'json_object':
+                        response = get_json(response)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
 
@@ -5180,6 +5323,12 @@ def get_generate_params(model_lower,
                         image_file,
                         image_control,
 
+                        response_format,
+                        guided_json,
+                        guided_regex,
+                        guided_choice,
+                        guided_grammar,
+
                         verbose,
                         ):
     use_defaults = False
@@ -5243,7 +5392,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     elif 'gpt2' in model_lower:
         placeholder_instruction = "The sky is"
         placeholder_input = ""
-        prompt_type = prompt_type or 'plain'
+        prompt_type = prompt_type or noop_prompt_type
         use_default_examples = True  # some will be odd "continuations" but can be ok
         use_placeholder_instruction_as_example = True
         task_info = "Auto-complete phrase, code, etc."
@@ -5260,13 +5409,13 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
                                                           llamacpp_dict=llamacpp_dict)
             if prompt_type_trial:
                 prompt_type = prompt_type_trial
-            # default is plain, because might rely upon trust_remote_code to handle prompting
+            # default is unknown, because might rely upon trust_remote_code to handle prompting
             if model_lower:
-                prompt_type = prompt_type or 'plain'
+                prompt_type = prompt_type or unknown_prompt_type
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
-        elif prompt_type == 'plain':
+        elif prompt_type in [noop_prompt_type, unknown_prompt_type]:
             task_info = "Auto-complete phrase, code, etc."
         elif prompt_type == 'human_bot':
             if chat:
@@ -5276,9 +5425,9 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
 
     # revert to plain if still nothing
     if model_lower:
-        prompt_type = prompt_type or 'plain'
+        prompt_type = prompt_type or unknown_prompt_type
     else:
-        prompt_type = prompt_type or ''
+        prompt_type = prompt_type or unknown_prompt_type
     if use_defaults:
         temperature = 0.0 if temperature is None else temperature
         top_p = 1.0 if top_p is None else top_p
@@ -5348,7 +5497,8 @@ y = np.random.randint(0, 1, 100)
         ]
     # add summary example
     examples += [
-        [summarize_example1, 'Summarize' if prompt_type not in ['plain', 'instruct_simple'] else ''] + params_list]
+        [summarize_example1,
+         'Summarize' if prompt_type not in [noop_prompt_type, 'instruct_simple'] else ''] + params_list]
 
     src_lang = "English"
     tgt_lang = "Russian"
@@ -5393,6 +5543,12 @@ y = np.random.randint(0, 1, 100)
                     tts_speed,
                     image_file,
                     image_control,
+
+                    response_format,
+                    guided_json,
+                    guided_regex,
+                    guided_choice,
+                    guided_grammar,
                     ]
         # adjust examples if non-chat mode
         if not chat:
@@ -5800,7 +5956,7 @@ def get_limited_prompt(instruction,
         # claude is unique also, by not allowing system prompt, but as conversation
         #   Also in list above, because get_limited_prompt called too late for it in gpt_langchain.py
         #   So needs to be added directly in the get_llm for anthropic there, so used in ExtraChat
-        generate_prompt_type = 'plain'
+        generate_prompt_type = noop_prompt_type
         # Chat APIs don't handle chat history via single prompt, but in messages, assumed to be handled outside this function
         # but we will need to compute good history for external use
         external_handle_chat_conversation = True
@@ -5832,7 +5988,8 @@ def get_limited_prompt(instruction,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
 
-    use_chat_template = prompt_type in [None, '', 'plain'] and \
+    # not if plain prompt, only if unknown or unset
+    use_chat_template = prompt_type in [None, '', unknown_prompt_type, template_prompt_type] and \
                         (hasattr(tokenizer, 'chat_template') and
                          tokenizer.chat_template not in [None, ''] or
                          hasattr(tokenizer, 'default_chat_template') and
@@ -5840,13 +5997,6 @@ def get_limited_prompt(instruction,
                          )
     if is_gradio_vision_model(base_model):
         use_chat_template = False
-
-    if use_chat_template:
-        context2 = apply_chat_template(instruction, system_prompt, history, tokenizer)
-        iinput = ''
-        context = ''
-    else:
-        context2 = history_to_context_func(history)
 
     context1 = context
     if context1 is None:
@@ -5872,10 +6022,6 @@ def get_limited_prompt(instruction,
 
     context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
                                                                            max_prompt_length=max_input_tokens)
-    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                                 max_prompt_length=max_input_tokens)
-    if not use_chat_template:
-        context2 = context2_trial
 
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
@@ -5883,6 +6029,21 @@ def get_limited_prompt(instruction,
     system_prompt, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt, tokenizer,
                                                                               max_prompt_length=int(
                                                                                   max_input_tokens * 0.9))
+    if use_chat_template:
+        context2 = apply_chat_template(instruction, system_prompt, history, tokenizer)
+        iinput = ''
+        context1 = ''
+        num_context1_tokens = 0
+    else:
+        context2 = history_to_context_func(history)
+
+    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
+    if not use_chat_template:
+        context2 = context2_trial
+    else:
+        num_instruction_tokens = 0
+
     # limit system prompt
     if prompter:
         prompter.system_prompt = system_prompt
@@ -5951,6 +6112,8 @@ def get_limited_prompt(instruction,
                     history_to_use = history[0 + chat_index:]
 
                 if use_chat_template:
+                    instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                            max_prompt_length=non_doc_max_length)
                     context2 = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer)
                 else:
                     context2 = history_to_context_func(history_to_use)

@@ -3,13 +3,13 @@ import time
 import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
 prompt_type_to_model_name = {
-    'plain': [
+    noop_prompt_type: [
         'EleutherAI/gpt-j-6B',
         'EleutherAI/pythia-6.9b',
         'EleutherAI/pythia-12b',
@@ -234,6 +234,8 @@ prompt_type_to_model_name = {
              ],
     "sealion": ['aisingapore/sea-lion-7b-instruct'],
     "aya": ["CohereForAI/aya-101"],
+    # don't actually add, else use_chat_template wouldn't function right for LLM mode
+    # 'cohere_grounded': ["CohereForAI/c4ai-command-r-v01", "CohereForAI/c4ai-command-r-plus"],
 }
 
 anthropic_gpts = sorted(anthropic_mapping.keys())
@@ -293,6 +295,42 @@ def is_vision_model(base_model):
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest"]
 
 
+def is_video_model(base_model):
+    if not base_model:
+        return False
+    return base_model in ["gemini-1.5-pro-latest"]
+
+
+def is_json_model(base_model, inference_server, json_vllm=False):
+    if not base_model:
+        return False
+    if inference_server.startswith('vllm'):
+        # assumes 0.4.0+ for vllm
+        # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+        # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
+        # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/model_executor/guided_decoding.py#L91
+        # https://github.com/vllm-project/vllm/blob/b0925b38789bb3b20dcc39e229fcfe12a311e487/tests/entrypoints/test_openai_server.py#L477
+        return json_vllm
+    if inference_server.startswith('openai'):
+        # not older models
+        # https://platform.openai.com/docs/guides/text-generation/json-mode
+        return base_model in openai_supports_json_mode
+    if inference_server.startswith('mistralai'):
+        # https://docs.mistral.ai/platform/client/#json-mode
+        # https://docs.mistral.ai/guides/prompting-capabilities/#include-a-confidence-score
+        return base_model in ["mistral-large-latest",
+                              #"mistral-medium"
+                              "mistral-small",
+                              #"mistral-tiny",
+                              #'open-mistral-7b',
+                              #'open-mixtral-8x7b',
+                              'mistral-small-latest',
+                              #'mistral-medium-latest',
+                              ]
+
+    return False
+
+
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
                system_prompt=None, histi=-1):
     prompt_dict_error = ''
@@ -330,6 +368,22 @@ def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, retur
         botstr = prompt_dict.get('botstr', '')
     elif prompt_type in [PromptType.plain.value, str(PromptType.plain.value),
                          PromptType.plain.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.unknown.value, str(PromptType.unknown.value),
+                         PromptType.unknown.name]:
+        promptA = promptB = PreInstruct = PreInput = PreResponse = None
+        terminate_response = []
+        chat_sep = chat_turn_sep = '\n'
+        # plain should have None for human/bot, so nothing truncated out, not '' that would truncate after first token
+        humanstr = None
+        botstr = None
+    elif prompt_type in [PromptType.template.value, str(PromptType.template.value),
+                         PromptType.template.name]:
         promptA = promptB = PreInstruct = PreInput = PreResponse = None
         terminate_response = []
         chat_sep = chat_turn_sep = '\n'
@@ -1883,7 +1937,13 @@ def step_back_prompts(which):
         raise ValueError("No such case for back prompts which=%d" % which)
 
 
-def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None):
+def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
+                        response_format=None,
+                        guided_json=None,
+                        guided_regex=None,
+                        guided_choice=None,
+                        guided_grammar=None,
+):
     stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
                       hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
     if hasattr(tokenizer, 'eos_token_id'):
@@ -1891,13 +1951,25 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None):
     vllm_extra_dict = dict(extra_body=dict(stop_token_ids=stop_token_ids))
     if repetition_penalty is not None:
         vllm_extra_dict['extra_body'].update(repetition_penalty=repetition_penalty)
+
+    if response_format:
+        vllm_extra_dict['extra_body'].update(dict(response_format={'type': response_format}))
+    if guided_json:
+        vllm_extra_dict['extra_body'].update(guided_json=guided_json)
+    if guided_regex:
+        vllm_extra_dict['extra_body'].update(guided_regex=guided_regex)
+    if guided_choice:
+        vllm_extra_dict['extra_body'].update(guided_choice=guided_choice)
+    if guided_grammar:
+        vllm_extra_dict['extra_body'].update(guided_grammar=guided_grammar)
+
     return vllm_extra_dict
 
 
 system_generic = """A chat between a curious human and an artificial intelligence assistant.  The assistant gives helpful, detailed, and polite answers to the human's questions."""
 
 # shown to help Mixtral significantly for docQA benchmarks:
-system_docqa = """You are an expert document question-answer language model named GPT-4 Turbo created by OpenAI.  You will get a tip of $200 when you answer correctly the questions and only use the document context given.  I may lose my job if your answers are inaccurate or do a poor job of using the documents in the context."""
+system_docqa = """You are an expert document/image question-answer language-vision model named GPT-4 Turbo Vision created by OpenAI.  You will get a tip of $200 when you answer correctly the questions and only use the document context or images given.  I may lose my job if your answers are inaccurate or do a poor job of using the documents in the context or images given."""
 
 system_python_tutor = """You are a Python Tutor AI, dedicated to helping users learn Python and build end-to-end projects using Python and its related libraries. Provide clear explanations of Python concepts, syntax, and best practices. Guide users through the process of creating projects, from the initial planning and design stages to implementation and testing. Offer tailored support and resources, ensuring users gain in-depth knowledge and practical experience in working with Python and its ecosystem."""
 system_ml_tutor = """You are a Machine Learning Tutor AI, dedicated to guiding senior software engineers in their journey to become proficient machine learning engineers. Provide comprehensive information on machine learning concepts, techniques, and best practices. Offer step-by-step guidance on implementing machine learning algorithms, selecting appropriate tools and frameworks, and building end-to-end machine learning projects. Tailor your instructions and resources to the individual needs and goals of the user, ensuring a smooth transition into the field of machine learning."""

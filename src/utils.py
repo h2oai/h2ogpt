@@ -32,13 +32,14 @@ import pandas as pd
 import requests
 import uuid
 import re
+from packaging import version
 
 import tabulate
 from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import split_google
+from src.enums import split_google, invalid_json_str
 from src.utils_procs import reulimit
 
 reulimit()
@@ -295,14 +296,14 @@ def _tar_data(root_dirs=None, tar_file=None, base_dir='./'):
 
 def save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                          extra_dict={}, error='', sources=[], which_api='', valid_key=None,
-                         h2ogpt_key='', return_dict=False):
+                         h2ogpt_key='', return_dict=False, **kwargs_extra):
     if not save_dir:
         return
     try:
         return _save_generate_output(prompt=prompt, output=output, base_model=base_model, save_dir=save_dir,
                                      where_from=where_from, extra_dict=extra_dict, error=error, sources=sources,
                                      which_api=which_api, valid_key=valid_key, h2ogpt_key=h2ogpt_key,
-                                     return_dict=return_dict)
+                                     return_dict=return_dict, **kwargs_extra)
     except Exception as e:
         traceback.print_exc()
         print('Exception in saving: %s' % str(e))
@@ -321,7 +322,7 @@ def _save_generate_tokens(response_no_refs, extra_dict):
 def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=None, where_from='unknown where from',
                           extra_dict={}, error='', sources=[], which_api='',
                           valid_key=None, h2ogpt_key='',
-                          return_dict=False):
+                          return_dict=False, **kwargs_extra):
     """
     Save conversation to .json, row by row.
     json_file_path is path to final JSON file. If not in ., then will attempt to make directories.
@@ -342,6 +343,7 @@ def _save_generate_output(prompt=None, output=None, base_model=None, save_dir=No
                         h2ogpt_key=h2ogpt_key,
                         )
     dict_to_save.update(extra_dict)
+    dict_to_save.update(kwargs_extra)
 
     if return_dict:
         return dict_to_save
@@ -1208,11 +1210,12 @@ class FakeTokenizer:
                  tokenizer=None,
                  is_llama_cpp=False):
         if model_max_length is None:
-            assert not (is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
+            assert not (
+                        is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
             model_max_length = 2048
         self.is_openai = is_openai
         self.is_anthropic = is_anthropic
-        self.is_google= is_google
+        self.is_google = is_google
         self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
         self.tokenizer = tokenizer
@@ -2119,3 +2122,115 @@ def get_show_username(username1):
     else:
         show_username = username1
     return show_username
+
+
+# for extracting code blocks
+pattern = re.compile(r"```(.*?)(\n[\s\S]*?)?```", re.DOTALL)
+
+
+def get_code_blocks(response):
+    return pattern.findall(response)
+
+
+def get_json(response):
+    # First, try to extract code block content. If content is found (not an empty string), return None (or possibly an empty string as per updated logic)
+    response0 = extract_code_block_content(response)
+    if response0:
+        return response0
+    # Next, check if the response looks like JSON, return it if so
+    if looks_like_json(response):
+        response = response.strip()
+        if response.endswith('```'):
+            response = response[:-3].strip()
+        return response
+    # If it doesn't look like JSON, return an empty string as a default case
+    return invalid_json_str
+
+
+# This pattern looks for the start of the text or any kind of newline followed by optional whitespace,
+# and then the code block delimiter (```).
+# It accounts for different newline characters and HTML line breaks.
+pattern_partial_codeblock = re.compile(r"(^|\n|\r|<br\s*/?>)\s*```")
+
+
+def has_starting_code_block(text):
+    # Search the text for the pattern
+    if pattern_partial_codeblock.search(text):
+        return True
+    else:
+        return False
+
+
+pattern_extract_codeblock = re.compile(r"```[a-zA-Z]*\s*(.*?)(```|$)", re.DOTALL)
+#pattern_extract_codeblock = re.compile(r"```(?:[a-zA-Z]*\s*)(.*?)(?=```|$)", re.DOTALL)
+
+
+def extract_code_block_content(stream_content):
+    # This pattern matches content starting from an opening code block delimiter (```)
+    # and captures everything after it until a closing delimiter or the end of string if no closing delimiter is found.
+    # Non-greedy matching is used to ensure it captures the earliest possible ending.
+
+    match = pattern_extract_codeblock.search(stream_content)
+    if match:
+        # Returns the captured group which is the content of the code block.
+        # The .strip() is used to remove any leading or trailing whitespace that might be present.
+        return match.group(1).strip()
+    else:
+        return ''
+
+
+def looks_like_json(text):
+    # Strip leading whitespace and check the first non-whitespace character
+    stripped_text = text.lstrip()
+
+    # Check if the text starts with '{', '[', or potentially a JSON string
+    if stripped_text.startswith(('{', '[', '"')):
+        return True
+
+    # Optionally, check for simple numeric values or null, true, false which are valid JSON
+    if re.match(r'(-?\d+(\.\d+)?([eE][+-]?\d+)?|null|true|false)\s*($|[,\]}])', stripped_text):
+        return True
+
+    return False
+
+
+def is_json_vllm(model, base_model, inference_server, verbose=False):
+    if inference_server and not inference_server.startswith('vllm') or not inference_server:
+        return False
+
+    if isinstance(model, dict) and 'client' in model:
+        openai_client = model['client']
+    else:
+        openai_client, _, _, _, _, _, _ = set_openai(inference_server, model_name=base_model)
+
+    vllm_version = get_vllm_version(openai_client, inference_server, verbose=verbose)
+    json_vllm_version = "0.4.0"  # The version to compare against
+
+    # Parse the version strings into comparable objects
+    parsed_vllm_version = version.parse(vllm_version)
+    parsed_json_vllm_version = version.parse(json_vllm_version)
+
+    # Compare the versions
+    if parsed_vllm_version >= parsed_json_vllm_version:
+        return True
+    else:
+        return False
+
+
+def get_vllm_version(openai_client, inference_server, verbose=False):
+    vllm_version = '0.3.0'
+    if inference_server.startswith('vllm'):
+        # https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/api_server.py
+        parsed_url = str(openai_client.base_url).replace("/v1", "/version")
+        response = requests.get(parsed_url)
+        if response.status_code == 200:
+            # Parsing the JSON response content to a dictionary
+            data = response.json()
+            # Accessing the version from the response
+            vllm_version = data.get('version', vllm_version)
+            if verbose:
+                print(f"vLLM Server version: {vllm_version}")
+        else:
+            if verbose:
+                print(f"Failed to retrieve version, status code: {response.status_code}")
+    return vllm_version

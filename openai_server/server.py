@@ -7,7 +7,7 @@ import json
 from threading import Thread
 import time
 from traceback import print_exception
-from typing import List, Dict
+from typing import List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
 import uvicorn
@@ -35,6 +35,12 @@ class Generation(BaseModel):
     min_p: float | None = 0.0
 
 
+class ResponseFormat(BaseModel):
+    # type must be "json_object" or "text"
+    type: str = Literal["text", "json_object"]
+
+
+# https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L62
 class H2oGPTParams(BaseModel):
     # keep in sync with evaluate()
     # handled by extra_body passed to OpenAI API
@@ -76,8 +82,8 @@ class H2oGPTParams(BaseModel):
     jq_schema: List | None = None
     extract_frames: int | None = 10
     llava_prompt: str | None = 'auto'
-    #visible_models
-    #h2ogpt_key,
+    # visible_models
+    # h2ogpt_key,
     add_search_to_context: bool | None = False
 
     chat_conversation: List | None = []
@@ -101,6 +107,30 @@ class H2oGPTParams(BaseModel):
 
     image_file: str | None = None
     image_control: str | None = None
+
+    response_format: Optional[ResponseFormat] = Field(
+        default=None,
+        description=
+        ("Similar to chat completion, this parameter specifies the format of "
+         "output. Only {'type': 'json_object'} or {'type': 'text' } is "
+         "supported."),
+    )
+    guided_json: Optional[Union[str, dict, BaseModel]] = Field(
+        default=None,
+        description="If specified, the output will follow the JSON schema.",
+    )
+    guided_regex: Optional[str] = Field(
+        default=None,
+        description=("If specified, the output will follow the regex pattern."),
+    )
+    guided_choice: Optional[List[str]] = Field(
+        default=None,
+        description="If specified, the output will be exactly one of the choices.",
+    )
+    guided_grammar: Optional[str] = Field(
+        default=None,
+        description="If specified, the output will follow the context free grammar.",
+    )
 
 
 class Params(H2oGPTParams):
@@ -159,12 +189,19 @@ class ChatResponse(BaseModel):
     usage: dict
 
 
+class Model(BaseModel):
+    id: str
+    object: str = 'model'
+    created: str = 'na'
+    owned_by: str = 'H2O.ai'
+
+
 class ModelInfoResponse(BaseModel):
-    model_name: str
+    model_info: str
 
 
 class ModelListResponse(BaseModel):
-    model_names: List[str]
+    model_names: List[Model]
 
 
 def verify_api_key(authorization: str = Header(None)) -> None:
@@ -269,7 +306,7 @@ async def handle_models(request: Request):
     if not model_name:
         response = {
             "object": "list",
-            "data": base_models,
+            "data": [dict(id=x, object='model', created='NA', owned_by='H2O.ai') for x in base_models],
         }
     else:
         model_index = base_models.index(model_name)
@@ -290,7 +327,7 @@ async def handle_model_info():
 @app.get("/v1/internal/model/list", response_model=ModelListResponse, dependencies=check_key)
 async def handle_list_models():
     from openai_server.backend import get_model_list
-    return JSONResponse(content=get_model_list())
+    return JSONResponse(content=[dict(id=x) for x in get_model_list()])
 
 
 def run_server(host='0.0.0.0',

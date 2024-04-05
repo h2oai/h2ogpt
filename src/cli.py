@@ -74,6 +74,12 @@ def run_cli(  # for local function:
         image_file=None,
         image_control=None,
 
+        response_format=None,
+        guided_json=None,
+        guided_regex=None,
+        guided_choice=None,
+        guided_grammar=None,
+
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,
@@ -129,7 +135,7 @@ def run_cli(  # for local function:
     logging.getLogger("transformers").setLevel(logging.ERROR)
 
     from_ui = False
-    check_locals(**locals())
+    check_locals(**locals().copy())
 
     score_model = ""  # FIXME: For now, so user doesn't have to pass
     verifier_server = ""  # FIXME: For now, so user doesn't have to pass
@@ -154,7 +160,7 @@ def run_cli(  # for local function:
         fun = partial(evaluate,
                       *args,
                       **get_kwargs(evaluate, exclude_names=input_args_list + eval_func_param_names,
-                                   **locals()))
+                                   **locals().copy()))
 
         while True:
             clear_torch_cache(allow_skip=True)
@@ -171,8 +177,8 @@ def run_cli(  # for local function:
 
             # grab other parameters, like langchain_mode
             for k in eval_func_param_names:
-                if k in locals():
-                    eval_vars[eval_func_param_names.index(k)] = locals()[k]
+                if k in locals().copy():
+                    eval_vars[eval_func_param_names.index(k)] = locals().copy()[k]
 
             gener = fun(*tuple(eval_vars))
             outr = ''

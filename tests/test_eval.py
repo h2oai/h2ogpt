@@ -166,6 +166,11 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'tts_speed': 1.0,
                  'image_file': None,
                  'image_control': None,
+                 'response_format': 'text',
+                 'guided_json': '',
+                 'guided_regex': '',
+                 'guided_choice': '',
+                 'guided_grammar': '',
                  }
     if cpu and bits == 32:
         expected1.update({'image_audio_loaders': np.array([], dtype=object)})

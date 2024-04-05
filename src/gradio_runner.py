@@ -56,17 +56,19 @@ fix_pydantic_duplicate_validators_error()
 
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
-    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google
+    LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
+    summary_prefix, extract_prefix, unknown_prompt_type
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model
+    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, is_gradio_vision_model, \
+    is_video_model, is_json_model
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username
+    _save_generate_tokens, get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, is_json_vllm
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     evaluate_fake, merge_chat_conversation_history, switch_a_roo_llama, get_model_max_length_from_tokenizer, \
@@ -169,7 +171,7 @@ def get_prompt_type1(is_public, **kwargs):
         prompt_types_strings_used += [no_model_str]
         default_prompt_type = kwargs['prompt_type'] or no_model_str
     else:
-        default_prompt_type = kwargs['prompt_type'] or 'plain'
+        default_prompt_type = kwargs['prompt_type'] or unknown_prompt_type
     prompt_type = gr.Dropdown(prompt_types_strings_used,
                               value=default_prompt_type,
                               label="Choose/Select Prompt Type",
@@ -186,7 +188,7 @@ def get_prompt_type2(is_public, **kwargs):
         prompt_types_strings_used += [no_model_str]
         default_prompt_type = kwargs['prompt_type'] or no_model_str
     else:
-        default_prompt_type = kwargs['prompt_type'] or 'plain'
+        default_prompt_type = kwargs['prompt_type'] or unknown_prompt_type
     prompt_type2 = gr.Dropdown(prompt_types_strings_used,
                                value=default_prompt_type,
                                label="Choose/Select Prompt Type Model 2",
@@ -394,7 +396,7 @@ def go_gradio(**kwargs):
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     allow_upload_api = allow_api and allow_upload
 
-    kwargs.update(locals())
+    kwargs.update(locals().copy())
 
     # import control
     if kwargs['langchain_mode'] != 'Disabled':
@@ -530,8 +532,8 @@ def go_gradio(**kwargs):
                 if not prompt_dict1 or which_model != 0:
                     prompt_dict1 = model_state1.get('prompt_dict', prompt_dict1)
         if not global_scope and not prompt_type1:
-            # if still not defined, use plain
-            prompt_type1 = 'plain'
+            # if still not defined, use unknown
+            prompt_type1 = unknown_prompt_type
         return prompt_type1, prompt_dict1
 
     def visible_models_to_model_choice(visible_models1, api=False):
@@ -590,15 +592,20 @@ def go_gradio(**kwargs):
                     auth_user['selection_docs_state'][k].clear()
                     auth_user['selection_docs_state'][k].update(selection_docs_state1[k])
                 else:
-                    selection_docs_state1[k].clear()
+                    if not kwargs['update_selection_state_from_cli']:
+                        selection_docs_state1[k].clear()
                     selection_docs_state1[k].update(auth_user['selection_docs_state'][k])
             elif isinstance(selection_docs_state1[k], list):
                 if save:
                     auth_user['selection_docs_state'][k].clear()
                     auth_user['selection_docs_state'][k].extend(selection_docs_state1[k])
                 else:
-                    selection_docs_state1[k].clear()
+                    if not kwargs['update_selection_state_from_cli']:
+                        selection_docs_state1[k].clear()
                     selection_docs_state1[k].extend(auth_user['selection_docs_state'][k])
+                    newlist = sorted(set(selection_docs_state1[k]))
+                    selection_docs_state1[k].clear()
+                    selection_docs_state1[k].extend(newlist)
             else:
                 raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
 
@@ -1805,6 +1812,30 @@ def go_gradio(**kwargs):
                                                       visible=False,  # no longer support nochat in UI
                                                       interactive=not is_public,
                                                       )
+
+                        response_format = gr.Radio(response_formats,
+                                                   label="response_format",
+                                                   value=kwargs['response_format'],
+                                                   interactive=True,
+                                                   visible=True,
+                                                   )
+                        guided_json = gr.components.Textbox(value=kwargs['guided_json'],
+                                                               label="guided_json",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_regex = gr.components.Textbox(value=kwargs['guided_regex'],
+                                                               label="guided_regex",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_choice = gr.components.Textbox(value=kwargs['guided_choice'],
+                                                               label="guided_choice",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_grammar = gr.components.Textbox(value=kwargs['guided_grammar'],
+                                                               label="guided_grammar",
+                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
                         markdown_label = "Speech Control and Voice Cloning"
@@ -2820,7 +2851,7 @@ def go_gradio(**kwargs):
         # Get inputs to evaluate() and make_db()
         # don't deepcopy, can contain model itself
         all_kwargs = kwargs.copy()
-        all_kwargs.update(locals())
+        all_kwargs.update(locals().copy())
 
         refresh_sources1 = functools.partial(update_and_get_source_files_given_langchain_mode_gr,
                                              captions_model=captions_model,
@@ -4183,6 +4214,13 @@ def go_gradio(**kwargs):
                     save_dict['sources'] = sources
                     save_dict['valid_key'] = valid_key
                     save_dict['h2ogpt_key'] = h2ogpt_key1
+
+                    # below works for both list and string for any reasonable string of image that's been byte encoded with b' to start or as file name
+                    image_file_check = args_list[eval_func_param_names.index('image_file')]
+                    save_dict['image_file_present'] = isinstance(image_file_check, (str, list, tuple)) and len(image_file_check) >= 1
+                    text_context_list_check = args_list[eval_func_param_names.index('text_context_list')]
+                    save_dict['text_context_list_present'] = isinstance(text_context_list_check, (list, tuple)) and len(text_context_list_check) >= 1
+
                     if str_api and plain_api:
                         save_dict['which_api'] = 'str_plain_api'
                     elif str_api:
@@ -4571,11 +4609,11 @@ def go_gradio(**kwargs):
                     return history
             user_message1 = fix_text_for_gradio(user_message1)
             if not user_message1 and langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
-                user_message1 = 'Summarize Collection: %s, Subset: %s, Documents: %s' % (
-                    langchain_mode1, document_subset1, document_choice1)
+                user_message1 = '%s%s, Subset: %s, Documents: %s' % (
+                    summary_prefix, langchain_mode1, document_subset1, document_choice1)
             if not user_message1 and langchain_action1 == LangChainAction.EXTRACT.value:
-                user_message1 = 'Extract Collection: %s, Subset: %s, Documents: %s' % (
-                    langchain_mode1, document_subset1, document_choice1)
+                user_message1 = '%s%s, Subset: %s, Documents: %s' % (
+                    extract_prefix, langchain_mode1, document_subset1, document_choice1)
             return history + [[user_message1, None]]
 
         def user(*args, undo=False, retry=False, sanitize_user_prompt=False):
@@ -6294,6 +6332,16 @@ def go_gradio(**kwargs):
                 local_model_states = [model_state0]
             else:
                 local_model_states = []
+            for model_state3 in local_model_states:
+                base_model = model_state3.get('base_model', '')
+                inference_server = model_state3.get('inference_server', '')
+                model_state3['llm'] = True
+                model_state3['rag'] = True
+                model_state3['image'] = is_vision_model(base_model)
+                model_state3['video'] = is_video_model(base_model)
+                json_vllm = model_state3.get('json_vllm', False)
+                model_state3['json'] = is_json_model(base_model, inference_server, json_vllm=json_vllm)
+            key_list.extend(['llm', 'rag', 'image', 'video', 'json'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,
@@ -6562,7 +6610,7 @@ def go_gradio(**kwargs):
 
     if kwargs['prepare_offline_level'] > 0:
         from src.prepare_offline import go_prepare_offline
-        go_prepare_offline(**locals())
+        go_prepare_offline(**locals().copy())
         return
 
     scheduler = BackgroundScheduler()
@@ -6756,7 +6804,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
                         )
         query_action = False  # long chunks like would be used for summarize
         # the below is as or filter, so will show doc or by chunk, unrestricted
-        from langchain.vectorstores import Chroma
+        from langchain_community.vectorstores import Chroma
         if isinstance(db, Chroma):
             # chroma >= 0.4
             if view_raw_text_checkbox1:

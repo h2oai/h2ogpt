@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full
+    db_types_full, noop_prompt_type
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
@@ -46,7 +46,7 @@ def test_client1_lock_choose_model():
     base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     base2 = 'h2oai/h2o-danube-1.8b-chat'
     model_lock = [dict(base_model=base1, prompt_type='human_bot'),
-                  dict(base_model=base2, prompt_type='plain')]
+                  dict(base_model=base2, prompt_type=noop_prompt_type)]
     main(chat=False, model_lock=model_lock,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
@@ -63,14 +63,14 @@ def test_client1_lock_choose_model():
                    res_dict[
                        'response']
 
-    for prompt_type in ['plain', None, '']:
+    for prompt_type in [noop_prompt_type, None, '']:
         for visible_models in [1, base2]:
             prompt = 'The sky is'
             res_dict, _ = test_client_basic(visible_models=visible_models, prompt=prompt,
                                             prompt_type=prompt_type)
             assert res_dict['prompt'] == prompt
             assert res_dict['iinput'] == ''
-            if prompt_type == 'plain':
+            if prompt_type == noop_prompt_type:
                 assert 'The sky is a big, blue' in res_dict['response'] or 'blue' in res_dict['response']
             else:
                 assert 'The sky is a big, blue, and sometimes' in res_dict['response'] or 'blue' in res_dict['response']
@@ -196,17 +196,17 @@ def test_client1api_lean_lock_choose_model():
     base1 = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     base2 = 'distilgpt2'
     model_lock = [dict(base_model=base1, prompt_type='human_bot'),
-                  dict(base_model=base2, prompt_type='plain')]
+                  dict(base_model=base2, prompt_type=noop_prompt_type)]
     save_dir = 'save_test'
     main(model_lock=model_lock, chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
 
     client = get_client(serialize=not is_gradio_version4)
-    for prompt_type in ['human_bot', None, '', 'plain']:
+    for prompt_type in ['human_bot', None, '', noop_prompt_type]:
         for visible_models in [None, 0, base1, 1, base2]:
             base_model = base1 if visible_models in [None, 0, base1] else base2
-            if base_model == base1 and prompt_type == 'plain':
+            if base_model == base1 and prompt_type == noop_prompt_type:
                 continue
             if base_model == base2 and prompt_type == 'human_bot':
                 continue
@@ -251,7 +251,7 @@ def test_client1api_lean_lock_choose_model():
                                       'model_name_exllama_if_no_config': ''}, 'rope_scaling': {}, 'max_seq_len': 2048,
                     'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
                     'truncation_generation': False, 'hf_model_dict': {}},
-                   {'base_model': 'distilgpt2', 'prompt_type': 'plain', 'prompt_dict': None, 'load_8bit': False,
+                   {'base_model': 'distilgpt2', 'prompt_type': noop_prompt_type, 'prompt_dict': None, 'load_8bit': False,
                     'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'use_flash_attention_2': False,
                     'load_gptq': '', 'load_awq': '', 'load_exllama': False, 'use_safetensors': False, 'revision': None,
                     'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None, 'use_cache': None,
@@ -1947,14 +1947,14 @@ def test_client_long():
     sys.modules.pop('langchain', None)
 
     from src.gen import main
-    main(base_model='mosaicml/mpt-7b-storywriter', prompt_type='plain', chat=False,
+    main(base_model='mosaicml/mpt-7b-storywriter', prompt_type=noop_prompt_type, chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     with open("/home/jon/Downloads/Gatsby_PDF_FullText.txt") as f:
         prompt = f.readlines()
 
     from src.client_test import run_client_nochat
-    res_dict, _ = run_client_nochat(prompt=prompt, prompt_type='plain', max_new_tokens=86000)
+    res_dict, _ = run_client_nochat(prompt=prompt, prompt_type=noop_prompt_type, max_new_tokens=86000)
     print(res_dict['response'])
 
 
@@ -3701,7 +3701,7 @@ def test_client_summarization_from_text():
     download_simple(url, dest=test_file1)
 
     # Get text version of PDF
-    from langchain.document_loaders import PyMuPDFLoader
+    from langchain_community.document_loaders import PyMuPDFLoader
     # load() still chunks by pages, but every page has title at start to help
     doc1 = PyMuPDFLoader(test_file1).load()
     all_text_contents = '\n\n'.join([x.page_content for x in doc1])
@@ -4410,9 +4410,9 @@ def test_client1_image_qa():
     main(
         model_lock=[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf', 'prompt_type': 'zephyr'},
                     {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': llava_model,
-                     'prompt_type': 'plain'},
+                     'prompt_type': noop_prompt_type},
                     {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': llava_model,
-                     'prompt_type': 'plain'}],
+                     'prompt_type': noop_prompt_type}],
         llava_model=llava_model,
         gradio=True, num_beams=1, block_gradio_exit=False,
     )
@@ -4844,7 +4844,8 @@ vision_models = ['gpt-4-vision-preview', 'gemini-pro-vision',
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
-def test_client1_image_qa(langchain_mode, base_model):
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
@@ -4872,6 +4873,7 @@ def test_client1_image_qa(langchain_mode, base_model):
                   visible_models=base_model,
                   stream_output=False,
                   langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
                   h2ogpt_key=h2ogpt_key)
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -4889,15 +4891,17 @@ def test_client1_image_qa(langchain_mode, base_model):
     response = res_dict['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
-    assert 'license' in response.lower()
 
+    assert 'license' in response.lower()
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
+# (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
-def test_client1_images_qa(langchain_mode, base_model):
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     image_dir = 'pdf_images'
     makedirs(image_dir)
     os.system('pdftoppm tests/2403.09629.pdf %s/outputname -jpeg' % image_dir)
@@ -4930,15 +4934,16 @@ def test_client1_images_qa(langchain_mode, base_model):
                   visible_models=base_model,
                   stream_output=False,
                   langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
                   h2ogpt_key=h2ogpt_key)
     res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-    response = ast.literal_eval(res_dict)['response']
+    res_dict = ast.literal_eval(res_dict)
+    response = res_dict['response']
 
     if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in response:
         return
 
     # string of dict for output
-    response = ast.literal_eval(res_dict)['response']
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
     assert 'REINFORCE'.lower() in response.lower()
@@ -4974,3 +4979,151 @@ def test_get_image_file():
 
             image_file = ['tests/jon.png', 'tests/fastfood.jpg']
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 2
+
+
+gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+              'HuggingFaceH4/zephyr-7b-beta', 'gpt-3.5-turbo-0613', 'openchat/openchat-3.5-1210',
+              'mistralai/Mistral-7B-Instruct-v0.2', 'h2oai/h2ogpt-32k-codellama-34b-instruct',
+              'NousResearch/Nous-Capybara-34B', 'databricks/dbrx-instruct', 'liuhaotian/llava-v1.6-vicuna-13b',
+              'liuhaotian/llava-v1.6-34b', 'h2oai/h2o-danube-1.8b-chat', 'google/gemma-7b-it']
+
+TEST_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "age": {
+            "type": "integer"
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "maxLength": 10
+            },
+            "minItems": 3
+        },
+        "work history": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "company": {
+                        "type": "string"
+                    },
+                    "duration": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "type": "string"
+                    }
+                },
+                "required": ["company", "position"]
+            }
+        }
+    },
+    "required": ["name", "age", "skills", "work history"]
+}
+
+TEST_REGEX = (r"((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.){3}"
+              r"(25[0-5]|(2[0-4]|1\d|[1-9]|)\d)")
+
+TEST_CHOICE = [
+    "Python", "Java", "JavaScript", "C++", "C#", "PHP", "TypeScript", "Ruby",
+    "Swift", "Kotlin"
+]
+
+other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llama2-13b-chat',
+                     'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
+                     'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
+                     'mistralai/Mixtral-8x7B-Instruct-v0.1', 'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
+                     'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613', 'gpt-4-0613',
+                     'gpt-4-32k-0613', 'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
+                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
+                     'gemini-pro-vision', 'gemini-1.5-pro-latest',
+                     'h2oai/h2o-danube-1.8b-chat',
+                     'google/gemma-7b-it', 'mixtral-8x7b-32768', 'h2oai/mixtral-gm-rag-experimental-v2',
+                     'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01', 'liuhaotian/llava-v1.6-vicuna-13b',
+                     'liuhaotian/llava-v1.6-34b']
+
+
+@wrap_test_forked
+# @pytest.mark.parametrize("base_model", [gpt_models[1]])
+# @pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
+@pytest.mark.parametrize("base_model", other_base_models)
+@pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_guided_json(langchain_action, langchain_mode, base_model):
+    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
+    if inference_server == 'https://gpt.h2o.ai':
+        auth_kwargs = dict(auth=('guest', 'guest'))
+        inference_server_for_get = inference_server + ':guest:guest'
+    else:
+        auth_kwargs = {}
+        inference_server_for_get = inference_server
+    # inference_server = 'http://localhost:7860'
+
+    from src.gen import get_inf_models
+    base_models = get_inf_models(inference_server_for_get)
+    base_models_touse = [base_model]
+    assert len(set(base_models_touse).difference(set(base_models))) == 0
+    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+
+    from gradio_client import Client
+    client = Client(inference_server, *auth_kwargs)
+
+    # string of dict for input
+    prompt = f"Give an example employee profile."
+
+    for guided_json in ['', TEST_SCHEMA]:
+        print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
+        kwargs = dict(instruction_nochat=prompt,
+                      visible_models=base_model,
+                      stream_output=False,
+                      langchain_mode=langchain_mode,
+                      langchain_action=langchain_action,
+                      h2ogpt_key=h2ogpt_key,
+                      response_format='json_object',
+                      guided_json=guided_json,
+                      )
+        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+        res_dict = ast.literal_eval(res)
+        response = res_dict['response']
+        print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
+              file=sys.stderr)
+        print(response)
+
+        if base_model in ['h2oai/h2o-danube-1.8b-chat']:
+            # just can't do it, messes up really bad
+            return
+        if base_model in ['google/gemma-7b-it']:
+            # messes things up a bit, like missing } at end
+            return
+
+        mydict = json.loads(response)
+
+        check_keys = ['age', 'name', 'skills', 'work history']
+        check_keys2 = ['age', 'name', 'skills', 'workHistory']
+        check_keys3 = ['age', 'name', 'skills', 'work\_history']
+        if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
+            pass
+        else:
+            cond1 = all([k in mydict for k in check_keys])
+            cond2 = all([k in mydict for k in check_keys2])
+            cond3 = all([k in mydict for k in check_keys3])
+            if not guided_json:
+                assert mydict, "Empty dict"
+            else:
+                # zephyr, mistralv0.2, mutate to workHistory
+                if base_model in ['HuggingFaceH4/zephyr-7b-beta',  # until vLLM is upgraded
+                                  'mistralai/Mistral-7B-Instruct-v0.2',  # until vLLM is upgraded
+                                  'mistral-tiny',
+                                  'NousResearch/Nous-Capybara-34B',
+                                  ]:
+                    assert cond1 or cond2 or cond3, "Missing keys"
+                else:
+                    assert cond1, "Missing keys"
+                if base_model == 'CohereForAI/c4ai-command-r-v01':
+                    import jsonschema
+                    jsonschema.validate(mydict, schema=guided_json)
