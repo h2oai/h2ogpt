@@ -25,8 +25,8 @@ sentence_transformers>=2.2.2,<2.3.0
 
 # optional: for OpenAI endpoint or embeddings (requires key)
 replicate==0.25.1
-anthropic==0.21.3
-langchain-anthropic==0.1.4
+anthropic==0.23.1
+langchain-anthropic==0.1.6
 
 langchain-google-genai==1.0.1
 google-generativeai==0.4.1
