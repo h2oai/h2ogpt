@@ -4082,8 +4082,8 @@ def evaluate(
     stream_output = gradio and num_beams == 1
 
     if response_format in ['json_object', 'json_code']:
-        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block using backticks with the json language identifier.\n\n'
-        pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block using backticks with the json language identifier.\n\n'
+        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block with the json language identifier.\n\n'
+        pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
         if isinstance(guided_json, str):
             try:
                 guided_json_properties = json.loads(guided_json)
