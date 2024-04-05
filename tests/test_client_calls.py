@@ -5049,13 +5049,13 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-lla
 
 
 @wrap_test_forked
+@pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
 # @pytest.mark.parametrize("base_model", [gpt_models[1]])
 # @pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
-@pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
-def test_guided_json(langchain_action, langchain_mode, base_model, response_format):
+def test_guided_json(langchain_action, langchain_mode, response_format, base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))

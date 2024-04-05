@@ -1709,7 +1709,7 @@ class GenerateStream:
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         have_tool = False
-        if 'tools' in self.model_kwargs:
+        if hasattr(self, 'model_kwargs') and 'tools' in self.model_kwargs:
             should_stream = False
             have_tool = True
         kwargs.pop('stream', None)
@@ -1739,7 +1739,7 @@ class GenerateStream:
     ) -> ChatResult:
         should_stream = stream if stream is not None else self.streaming
         have_tool = False
-        if 'tools' in self.model_kwargs:
+        if hasattr(self, 'model_kwargs') and 'tools' in self.model_kwargs:
             should_stream = False
             have_tool = True
         kwargs.pop('stream', None)
