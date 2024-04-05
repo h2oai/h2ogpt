@@ -14,7 +14,7 @@ ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
 WORKDIR /workspace
 
-COPY . /workspace/
+COPY . .git /workspace/
 
 RUN cd /workspace && ./docker_build_script_ubuntu.sh
 
