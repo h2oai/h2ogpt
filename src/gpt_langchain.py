@@ -1727,7 +1727,11 @@ class GenerateStream:
         if have_tool and isinstance(ret.generations[0].text, list):
             # overwrite
             # -1 is last, to skip first thinking step for opus/sonnet
-            ret.generations[0].text = json.dumps(ret.generations[0].text[-1]['input'])
+            # bug in claude with sonnet:
+            result = ret.generations[0].text[-1]['input']
+            if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
+                result = result['properties']
+            ret.generations[0].text = json.dumps(result)
         return ret
 
     async def _agenerate(
@@ -2090,6 +2094,7 @@ def get_llm(use_openai_model=False,
             guided_grammar=None,
 
             doing_grounding=False,
+            json_vllm=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2239,7 +2244,7 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
-                if response_format == 'json_object':
+                if is_json_model(model_name, inference_server, json_vllm=json_vllm) and response_format == 'json_object':
                     # vllm without guided_json can't make json directly
                     kwargs_extra.update(dict(type=response_format if guided_json else 'text'))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
@@ -5529,6 +5534,7 @@ def run_qa_db(**kwargs):
     kwargs['guided_regex'] = kwargs.get('guided_regex', '')
     kwargs['guided_choice'] = kwargs.get('guided_choice', '')
     kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+    kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -5688,6 +5694,8 @@ def _run_qa_db(query=None,
                guided_regex=None,
                guided_choice=None,
                guided_grammar=None,
+
+               json_vllm=False,
                ):
     """
 
@@ -5876,6 +5884,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       guided_grammar=guided_grammar,
 
                       doing_grounding=doing_grounding,
+                      json_vllm=json_vllm,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
