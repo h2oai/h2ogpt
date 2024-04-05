@@ -1726,7 +1726,8 @@ class GenerateStream:
     def tool_string_return(self, ret, have_tool):
         if have_tool and isinstance(ret.generations[0].text, list):
             # overwrite
-            ret.generations[0].text = json.dumps(ret.generations[0].text[0]['input'])
+            # -1 is last, to skip first thinking step for opus/sonnet
+            ret.generations[0].text = json.dumps(ret.generations[0].text[-1]['input'])
         return ret
 
     async def _agenerate(
