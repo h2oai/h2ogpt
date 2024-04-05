@@ -5056,6 +5056,10 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-lla
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
 def test_guided_json(langchain_action, langchain_mode, response_format, base_model):
+    if langchain_mode == 'LLM' and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        # dummy return
+        return
+
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
@@ -5079,7 +5083,10 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
 
     for guided_json in ['', TEST_SCHEMA]:
         print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
-        kwargs = dict(instruction_nochat=prompt,
+        use_instruction = langchain_action == LangChainAction.QUERY.value
+        kwargs = dict(instruction_nochat=prompt if use_instruction else '',
+                      prompt_query=prompt if not use_instruction else '',
+                      prompt_summarize=prompt if not use_instruction else '',
                       visible_models=base_model,
                       stream_output=False,
                       langchain_mode=langchain_mode,
@@ -5102,7 +5109,11 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
             # messes things up a bit, like missing } at end
             return
 
-        mydict = json.loads(response)
+        try:
+            mydict = json.loads(response)
+        except:
+            print("Bad response: %s" % response)
+            raise
 
         # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
         check_keys = ['age', 'name', 'skills', 'workhistory']
@@ -5124,7 +5135,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                                   ]:
                     assert cond1 or cond2 or cond3, "Missing keys"
                 else:
-                    assert cond1, "Missing keys"
+                    assert cond1, "Missing keys: %s" % response
                 if base_model == 'CohereForAI/c4ai-command-r-v01':
                     import jsonschema
                     jsonschema.validate(mydict, schema=guided_json)

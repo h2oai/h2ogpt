@@ -4081,8 +4081,9 @@ def evaluate(
     stream_output0 = stream_output
     stream_output = gradio and num_beams == 1
 
+    json_vllm = False
     if response_format in ['json_object', 'json_code']:
-        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.  If any non-JSON text is generated, be sure the JSON is inside a Markdown code block with the json language identifier.\n\n'
+        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.\n\n'
         pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
         if isinstance(guided_json, str):
             try:
@@ -4100,27 +4101,41 @@ def evaluate(
         schema_instruction = '\nEnsure you follow this JSON schema:\n```json\n%s\n```\n' % guided_json_properties_json
         json_vllm = chosen_model_state['json_vllm']
 
-        if json_vllm and guided_json and response_format == 'json_object':
+        pre_instruction = ''
+        if guided_json and response_format == 'json_object' and (json_vllm or
+            inference_server and inference_server.startswith('anthropic') and
+            is_json_model(base_model, inference_server, json_vllm=json_vllm)):
+            # for vLLM or claude-3, support schema if given
+            # can't give schema both in prompt and tool/guided_json, messes model up
             pass
         elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and response_format == 'json_object':
+            # these models don't support schema if given
             if inference_server and inference_server.startswith('mistral'):
                 # mistral-large gets confused with extra info, and not required
                 pre_instruction1 = ''
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
                 # FIXME: Do function calling if can instead
-                instruction = pre_instruction1 + schema_instruction + '\n\n' + instruction
+                pre_instruction = pre_instruction1 + schema_instruction
             else:
                 # OpenAI requires "json" to appear somewhere in messages
-                instruction = pre_instruction1 + '\n\n' + instruction
+                pre_instruction = pre_instruction1
         else:
-            system_prompt = ''  # can mess up the model, e.g. 70b
             # json_code way
             # have to tell to use json and give schema if present
             if guided_json_properties:
-                instruction = pre_instruction2 + schema_instruction + '\n\n' + instruction
+                pre_instruction = pre_instruction2 + schema_instruction
             else:
-                instruction = pre_instruction2 + '\n\n' + instruction
+                pre_instruction = pre_instruction2
+        # ignore these, make no sense for JSON mode
+        system_prompt = ''  # can mess up the model, e.g. 70b
+        if instruction:
+            # FIXME: don't embed instruction with extra JSON stuff
+            instruction = pre_instruction + '\n\n' + instruction
+        pre_prompt_query = ''
+        prompt_query = pre_instruction + prompt_query
+        pre_prompt_summary = ''
+        prompt_summary = pre_instruction + prompt_summary
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
@@ -4366,6 +4381,8 @@ def evaluate(
                 guided_regex=guided_regex,
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
+
+                json_vllm=json_vllm,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
