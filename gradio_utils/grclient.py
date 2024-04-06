@@ -1152,6 +1152,7 @@ class GradioClient(Client):
                     # no need to do 3 trials if have disallowed stuff, unlikely that LLM will change its mind
                     raise
                 if trial == trials - 1:
+                    print_error("trying again failed: %s" % trial)
                     raise
                 else:
                     # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
