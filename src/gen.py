@@ -2499,7 +2499,8 @@ def get_non_lora_model(base_model, model_loader, load_half,
     return model
 
 
-def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False, verbose=False):
+def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False,
+                                     verbose=False):
     inference_server, headers, username, password = get_hf_server(inference_server)
     gr_client = None
     hf_client = None
@@ -2508,7 +2509,8 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
 
     if base_model and is_gradio_vision_model(base_model):
         from gradio_utils.grclient import GradioClient
-        gr_client = GradioClient(inference_server, check_hash=False, verbose=verbose, serialize=is_gradio_version4, **gradio_auth)
+        gr_client = GradioClient(inference_server, check_hash=False, verbose=verbose, serialize=is_gradio_version4,
+                                 **gradio_auth)
         gr_client.setup()
     elif headers is None:
         try:
@@ -4104,8 +4106,10 @@ def evaluate(
 
         pre_instruction = ''
         if guided_json and response_format == 'json_object' and (json_vllm or
-            inference_server and inference_server.startswith('anthropic') and
-            is_json_model(base_model, inference_server, json_vllm=json_vllm)):
+                                                                 inference_server and inference_server.startswith(
+                    'anthropic') and
+                                                                 is_json_model(base_model, inference_server,
+                                                                               json_vllm=json_vllm)):
             # for vLLM or claude-3, support schema if given
             # can't give schema both in prompt and tool/guided_json, messes model up
             pass
@@ -5934,6 +5938,7 @@ def get_limited_prompt(instruction,
                        truncation_generation=False,
                        gradio_server=False,
                        attention_sinks=False,
+                       doing_grounding=False,
                        ):
     if gradio_server or not inference_server:
         # can listen to truncation_generation
@@ -6080,7 +6085,16 @@ def get_limited_prompt(instruction,
 
     if text_context_list is None:
         text_context_list = []
-    num_doc_tokens = sum([get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list])
+
+    num_doc_overhead_tokens = count_overhead_tokens(tokenizer, doing_grounding=doing_grounding)
+    if doing_grounding:
+        docs_joiner = "Document xx"
+    else:
+        docs_joiner = docs_joiner_default
+    # handle overhead by lowering locally max input tokens, since not removable
+    max_input_tokens -= num_doc_overhead_tokens
+
+    num_doc_tokens = sum([get_token_count(x + docs_joiner, tokenizer) for x in text_context_list])
 
     num_prompt_tokens0 = (num_system_tokens or 0) + \
                          (num_instruction_tokens or 0) + \
@@ -6213,12 +6227,14 @@ def get_limited_prompt(instruction,
     # update max_new_tokens
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
-    if truncation_generation:
+    if not attention_sinks:
         max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
+    if max_new_tokens < min_max_new_tokens:
         if os.getenv('HARD_ASSERTS'):
-            if max_new_tokens < min_max_new_tokens:
-                raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
+            raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
+        else:
+            max_new_tokens = max(32, max_new_tokens)
 
     if prompter is None:
         # get prompter
@@ -6249,6 +6265,26 @@ def get_limited_prompt(instruction,
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         history_to_use_final, external_handle_chat_conversation, \
         top_k_docs, one_doc_size, truncation_generation, system_prompt
+
+
+def count_overhead_tokens(tokenizer, doing_grounding=False):
+    if doing_grounding:
+        from openai_server.backend_utils import structure_to_messages
+        system_prompt = ''
+        instruction = 'foo'
+        chat_conversation = []
+        prompt = tokenizer.apply_grounded_generation_template(
+            structure_to_messages(instruction,
+                                  system_prompt if system_prompt not in [None, '', 'auto'] else None,
+                                  chat_conversation),
+            documents=[dict(text='foo')],
+            citation_mode="accurate",  # or "fast"
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        return get_token_count(prompt, tokenizer)
+    else:
+        return 0
 
 
 def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):

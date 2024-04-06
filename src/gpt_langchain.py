@@ -2244,7 +2244,8 @@ def get_llm(use_openai_model=False,
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
-                if is_json_model(model_name, inference_server, json_vllm=json_vllm) and response_format == 'json_object':
+                if is_json_model(model_name, inference_server,
+                                 json_vllm=json_vllm) and response_format == 'json_object':
                     # vllm without guided_json can't make json directly
                     kwargs_extra.update(dict(type=response_format if guided_json else 'text'))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
@@ -2352,6 +2353,7 @@ def get_llm(use_openai_model=False,
         # NOTE: claude requires keys of properties to match pattern '^[a-zA-Z0-9_-]{1,64}$'
         # i.e. no spaces, while vLLM can handle spaces.
         if is_json_model(model_name, inference_server) and guided_json and response_format == 'json_object':
+            # https://docs.anthropic.com/claude/docs/tool-use#specifying-tools
             model_kwargs = dict(tools=[
                 {
                     "name": "JSON",
@@ -7435,6 +7437,7 @@ def get_chain(query=None,
                                                 gradio_server=gradio_server,
                                                 attention_sinks=attention_sinks,
                                                 hyde_level=hyde_level,
+                                                doing_grounding=doing_grounding,
                                                 )
 
     # NOTE: if map_reduce, then no need to auto reduce chunks
@@ -7473,7 +7476,12 @@ def get_chain(query=None,
                                                                                               docs_with_score],
                                                                            )
         # get updated llm
-        llm_kwargs.update(max_new_tokens=max_new_tokens, context=context, iinput=iinput, system_prompt=system_prompt)
+        llm_kwargs.update(max_new_tokens=max_new_tokens,
+                          max_input_tokens=max_input_tokens,
+                          max_total_input_tokens=max_total_input_tokens,
+                          context=context,
+                          iinput=iinput,
+                          system_prompt=system_prompt)
         if external_handle_chat_conversation:
             # should already have attribute, checking sanity
             assert hasattr(llm, 'chat_conversation')
@@ -7529,7 +7537,7 @@ def get_chain(query=None,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
                                                            docs_token_handling=docs_token_handling,
-                                                           joiner=docs_joiner,
+                                                           joiner=docs_joiner if not doing_grounding else "Document xx",
                                                            non_doc_prompt=estimated_full_prompt,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
@@ -7556,7 +7564,7 @@ def get_chain(query=None,
                 # imperfect calculation, so will see how testing does
                 assert max_new_tokens >= min_max_new_tokens - 50, "%s %s" % (max_new_tokens, min_max_new_tokens)
         # get updated llm
-        llm_kwargs.update(max_new_tokens=max_new_tokens)
+        llm_kwargs.update(max_new_tokens=max_new_tokens, max_input_tokens=max_input_tokens)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
             get_llm(**llm_kwargs)
 
@@ -7649,20 +7657,42 @@ def get_chain(query=None,
                 template='{context}{question}',  # ignored
             )
             chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
-            documents = [merge_dict(dict(text=x.page_content),
-                                    {k: v for k, v in x.metadata.items() if
-                                     v and k in metadata_in_context_set}) for x in docs]
             from openai_server.backend_utils import structure_to_messages
-            conversation = structure_to_messages(query,
-                                                 system_prompt if system_prompt not in [None, '', 'auto'] else None,
-                                                 chat_conversation)
-            query_with_docs = tokenizer.apply_grounded_generation_template(
-                conversation,
-                documents=documents,
-                citation_mode="accurate",  # or "fast"
-                tokenize=False,
-                add_generation_prompt=True,
-            )
+
+            while True:
+                conversation = structure_to_messages(query,
+                                                     system_prompt if system_prompt not in [None, '', 'auto'] else None,
+                                                     chat_conversation)
+                documents = [merge_dict(dict(text=x.page_content),
+                                        {k: v for k, v in x.metadata.items() if
+                                         v and k in metadata_in_context_set}) for x in docs]
+                query_with_docs = tokenizer.apply_grounded_generation_template(
+                    conversation,
+                    documents=documents,
+                    citation_mode="accurate",  # or "fast"
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+                grounded_tokens = len(tokenizer.encode(query_with_docs))
+                if grounded_tokens > max_input_tokens and len(docs) > 0:
+                    if docs_ordering_type in ['best_first']:
+                        docs.pop()
+                    elif docs_ordering_type in ['best_near_prompt', 'reverse_sort']:
+                        docs.pop(0)
+                    elif docs_ordering_type in ['', None, 'reverse_ucurve_sort']:
+                        del docs[len(docs) // 2]
+                    else:
+                        raise ValueError("No such docs_ordering_type=%s" % docs_ordering_type)
+
+                elif grounded_tokens > max_input_tokens and len(chat_conversation) > 0:
+                    chat_conversation = []
+                elif grounded_tokens > max_input_tokens and system_prompt:
+                    system_prompt = ''
+                else:
+                    if grounded_tokens > max_input_tokens:
+                        print("Failed to fit grounded tokens: %s %s" % (grounded_tokens, max_input_tokens))
+                    break
+
             chain_kwargs = dict(input_documents=[], question=query_with_docs)
         else:
             if use_template:
@@ -7768,13 +7798,8 @@ def get_max_input_tokens(llm=None, tokenizer=None, inference_server=None, model_
         # don't trust that fake tokenizer (e.g. GGUF/GGML) will make lots of tokens normally, allow more input
         max_input_tokens = model_max_length - min(256, max_new_tokens)
     else:
-        if 'falcon' in model_name or inference_server.startswith('http'):
-            # allow for more input for falcon, assume won't make as long outputs as default max_new_tokens
-            # Also allow if TGI or Gradio, because we tell it input may be same as output, even if model can't actually handle
-            max_input_tokens = model_max_length - min(256, max_new_tokens)
-        else:
-            # trust that maybe model will make so many tokens, so limit input
-            max_input_tokens = model_max_length - max_new_tokens
+        # trust that maybe model will make so many tokens, so limit input
+        max_input_tokens = model_max_length - max_new_tokens
 
     return max_input_tokens
 
