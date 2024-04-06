@@ -88,7 +88,7 @@ docker_build_deps:
 	s3cmd put prebuilt_deps/duckdb-0.8.2.dev4026+gdcd8c1ffc5-cp310-cp310-linux_x86_64.whl s3://artifacts.h2o.ai/deps/h2ogpt/ && \
 	s3cmd setacl s3://artifacts.h2o.ai/deps/h2ogpt/duckdb-0.8.2.dev4026+gdcd8c1ffc5-cp310-cp310-linux_x86_64.whl --acl-public
 
-docker_build: build_info.txt
+docker_build: build_info.txt git_hash.txt
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
 	@echo "Image already pushed to Harbor: $(DOCKER_TEST_IMAGE)"
 else
@@ -96,7 +96,7 @@ else
 	docker push $(DOCKER_TEST_IMAGE)
 endif
 
-just_docker_build: build_info.txt
+just_docker_build: build_info.txt git_hash.txt
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
 
 docker_build_runner: docker_build
