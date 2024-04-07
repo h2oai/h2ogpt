@@ -1,4 +1,4 @@
-# Offline Mode:
+# Offline Mode and Security:
 
 ## TL;DR
 
