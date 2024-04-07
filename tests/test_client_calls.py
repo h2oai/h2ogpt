@@ -4940,9 +4940,6 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     res_dict = ast.literal_eval(res_dict)
     response = res_dict['response']
 
-    if base_model in ['liuhaotian/llava-v1.6-vicuna-13b'] and """research paper or academic""" in response:
-        return
-
     # string of dict for output
     print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
     print(response)
