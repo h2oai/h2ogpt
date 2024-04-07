@@ -181,6 +181,10 @@ sed -i 's/posthog\.capture/return\n            posthog.capture/' $sp/chromadb/te
 ```
 or the equivalent for windows/mac using.  Or edit the file manually to just return in the `capture` function.
 
+This is automatically done if using `linux_install.sh` or `linux_install_full.sh`.
+
+### Disable h2oGPT telemetry
+
 To avoid h2oGPT monitoring which elements are clicked in UI, set the ENV `H2OGPT_ENABLE_HEAP_ANALYTICS=False` or pass
 ```bash
 python generate.py --enable-heap-analytics=False
