@@ -994,7 +994,7 @@ class GradioClient(Client):
                     except:
                         if os.getenv("HARD_ASSERTS"):
                             raise
-                        input_tokens = output_tokens = tokens_per_second = None
+                        input_tokens = output_tokens = tokens_per_second = 0
                     if asserts:
                         if text and not file and not url:
                             assert any(
@@ -1104,7 +1104,7 @@ class GradioClient(Client):
                         except:
                             if os.getenv("HARD_ASSERTS"):
                                 raise
-                            input_tokens = output_tokens = tokens_per_second = None
+                            input_tokens = output_tokens = tokens_per_second = 0
 
                         try:
                             actual_llm = res_dict["save_dict"][
