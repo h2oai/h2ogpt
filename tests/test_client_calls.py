@@ -4938,7 +4938,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
-    inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7860'
 
     from gradio_client import Client
     client = Client(inference_server, *auth_kwargs)
