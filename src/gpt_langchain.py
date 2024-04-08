@@ -5919,7 +5919,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if query.startswith(summary_prefix) or query.startswith(extract_prefix):
         # avoid gradio_runner injection of user lead to query being filled
         query = ''
-    if inference_server.startswith('anthropic') and \
+    if inference_server and \
+        inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
         query += '\n\nUse the `JSON` tool.\n'

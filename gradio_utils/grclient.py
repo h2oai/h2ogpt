@@ -994,7 +994,7 @@ class GradioClient(Client):
                     except:
                         if os.getenv("HARD_ASSERTS"):
                             raise
-                        input_tokens = output_tokens = tokens_per_second = None
+                        input_tokens = output_tokens = tokens_per_second = 0
                     if asserts:
                         if text and not file and not url:
                             assert any(
@@ -1104,7 +1104,7 @@ class GradioClient(Client):
                         except:
                             if os.getenv("HARD_ASSERTS"):
                                 raise
-                            input_tokens = output_tokens = tokens_per_second = None
+                            input_tokens = output_tokens = tokens_per_second = 0
 
                         try:
                             actual_llm = res_dict["save_dict"][
@@ -1152,6 +1152,7 @@ class GradioClient(Client):
                     # no need to do 3 trials if have disallowed stuff, unlikely that LLM will change its mind
                     raise
                 if trial == trials - 1:
+                    print_error("trying again failed: %s" % trial)
                     raise
                 else:
                     # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI

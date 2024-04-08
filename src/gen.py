@@ -6179,6 +6179,14 @@ def get_limited_prompt(instruction,
                 chat_index = -1
                 # can't fit any history
                 history_to_use_final = []
+            if use_chat_template:
+                instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                        max_prompt_length=non_doc_max_length)
+                context2 = apply_chat_template(instruction, system_prompt, history_to_use_final, tokenizer)
+            else:
+                context2 = history_to_context_func(history_to_use_final)
+
+            num_context2_tokens = get_token_count(context2, tokenizer)
             if verbose:
                 print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
         elif not use_chat_template and diff3 > 0 > diff2:
