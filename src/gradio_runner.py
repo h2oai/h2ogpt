@@ -3919,6 +3919,9 @@ def go_gradio(**kwargs):
             eventdb1e = eventdb1d.then(**show_sources_kwargs)
             eventdb1f = eventdb1e.then(**get_viewable_sources_args)
             eventdb1g = eventdb1f.then(**viewable_kwargs)
+            eventdb1h = eventdb1g.then(**update_chatbots_kwargs)
+            if kwargs['gradio_errors_to_chatbot']:
+                eventdb1i = eventdb1h.then(**update_chatbots_errors_kwargs)
 
             # add text by hitting enter
             eventdb3c = eventdb3.then(**get_sources_kwargs)
@@ -3961,8 +3964,7 @@ def go_gradio(**kwargs):
             event_attach5 = event_attach4.then(**show_sources_kwargs)
             event_attach6 = event_attach5.then(**get_viewable_sources_args)
             event_attach7 = event_attach6.then(**viewable_kwargs)
-            if kwargs['gradio_upload_to_chatbot']:
-                event_attach8 = event_attach7.then(**update_chatbots_kwargs)
+            event_attach8 = event_attach7.then(**update_chatbots_kwargs)
 
             sync2 = sync1.then(**get_sources_kwargs)
             sync3 = sync2.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
