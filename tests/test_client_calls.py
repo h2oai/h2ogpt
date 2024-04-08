@@ -4944,7 +4944,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     use_instruction = langchain_action == LangChainAction.QUERY.value
     kwargs = dict(instruction_nochat=prompt if use_instruction else '',
                   prompt_query=prompt if not use_instruction else '',
-                  prompt_summarize=prompt if not use_instruction else '',
+                  prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
                   stream_output=False,
@@ -5101,7 +5101,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         use_instruction = langchain_action == LangChainAction.QUERY.value
         kwargs = dict(instruction_nochat=prompt if use_instruction else '',
                       prompt_query=prompt if not use_instruction else '',
-                      prompt_summarize=prompt if not use_instruction else '',
+                      prompt_summary=prompt if not use_instruction else '',
                       visible_models=base_model,
                       stream_output=False,
                       langchain_mode=langchain_mode,
