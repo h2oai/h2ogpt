@@ -2224,17 +2224,22 @@ def get_vllm_version(openai_client, inference_server, verbose=False):
     if inference_server.startswith('vllm'):
         # https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/api_server.py
         parsed_url = str(openai_client.base_url).replace("/v1", "/version")
-        response = requests.get(parsed_url)
-        if response.status_code == 200:
-            # Parsing the JSON response content to a dictionary
-            data = response.json()
-            # Accessing the version from the response
-            vllm_version = data.get('version', vllm_version)
-            if verbose:
-                print(f"vLLM Server version: {vllm_version}")
-        else:
-            if verbose:
-                print(f"Failed to retrieve version, status code: {response.status_code}")
+        try:
+            response = requests.get(parsed_url, timeout=int(os.getenv('REQUEST_TIMEOUT', '30')))
+            if response.status_code == 200:
+                # Parsing the JSON response content to a dictionary
+                data = response.json()
+                # Accessing the version from the response
+                vllm_version = data.get('version', vllm_version)
+                if verbose:
+                    print(f"vLLM Server version: {vllm_version}")
+            else:
+                if verbose:
+                    print(f"Failed to retrieve version, status code: {response.status_code}")
+        except requests.exceptions.Timeout:
+            # if times out, assume new for newer usage
+            vllm_version = '0.4.0.post1'
+            print(f"vLLM Server version timeout, assuming: {vllm_version}")
     return vllm_version
 
 
