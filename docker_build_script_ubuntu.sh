@@ -32,7 +32,7 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     mkdir -p /h2ogpt_conda && \
     bash ./Miniconda3-latest-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
     conda update -n base conda && \
-    source /workspace/etc/profile.d/conda.sh && \
+    source /h2ogpt_conda/etc/profile.d/conda.sh && \
     conda create -n h2ogpt -y && \
     conda activate h2ogpt && \
     conda install python=3.10 pygobject weasyprint -c conda-forge -y && \
