@@ -1116,7 +1116,8 @@ def go_gradio(**kwargs):
                         max_quality = gr.Checkbox(label="Max Ingest Quality", value=kwargs['max_quality'],
                                                   visible=not is_public)
                         gradio_upload_to_chatbot = gr.Checkbox(label="Add Doc to Chat",
-                                                               value=kwargs['gradio_upload_to_chatbot'])
+                                                               value=kwargs['gradio_upload_to_chatbot'],
+                                                               visible=not is_public)
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
                                           max_lines=1,
