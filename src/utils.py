@@ -1211,7 +1211,7 @@ class FakeTokenizer:
                  is_llama_cpp=False):
         if model_max_length is None:
             assert not (
-                        is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
+                    is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
             model_max_length = 2048
         self.is_openai = is_openai
         self.is_anthropic = is_anthropic
@@ -2162,7 +2162,9 @@ def has_starting_code_block(text):
 
 
 pattern_extract_codeblock = re.compile(r"```[a-zA-Z]*\s*(.*?)(```|$)", re.DOTALL)
-#pattern_extract_codeblock = re.compile(r"```(?:[a-zA-Z]*\s*)(.*?)(?=```|$)", re.DOTALL)
+
+
+# pattern_extract_codeblock = re.compile(r"```(?:[a-zA-Z]*\s*)(.*?)(?=```|$)", re.DOTALL)
 
 
 def extract_code_block_content(stream_content):
