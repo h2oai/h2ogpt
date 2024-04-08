@@ -6,8 +6,8 @@ import uuid
 from io import BytesIO
 import numpy as np
 
-from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models
-from src.utils import is_gradio_version4
+from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default
+from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text
 
 
 def img_to_base64(image_file, str_bytes=True):
@@ -149,16 +149,33 @@ def _llava_prep(file,
 server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
 
 
-def get_prompt_with_texts(texts, prompt, max_new_tokens):
-    user_part = '\n\nReduce the above information to single correct answer of the following question: ' + prompt
+def get_prompt_with_texts(texts, prompt, max_new_tokens, min_max_new_tokens, tokenizer):
+    if tokenizer is None:
+        raise RuntimeError("Not setup for multi-image without tokenizer")
+        # from transformers import AutoTokenizer
+        # tokenizer = AutoTokenizer.from_pretrained(base_model)
+    if hasattr(tokenizer, 'model_max_length'):
+        model_max_length = tokenizer.model_max_length
+    else:
+        model_max_length = 4096
 
-    # pure text cutoffs
-    hard_cutoff = (4096 - max_new_tokens) * 4 - 7 - 2 * len(texts) - len(user_part)
-    hard_cutoff -= 50  # fudge
+    user_part = '\n\nReduce the above information into single correct answer to the following question: ' + prompt
+    user_part_tokens = len(tokenizer.encode(user_part))
 
-    prompt_with_texts = '\"\"\"' + '\n\n'.join(texts) + '\"\"\"' + '\n'
-    # same hard cut-off as on server
-    prompt_with_texts = prompt_with_texts[-hard_cutoff:]
+    text_context_list = ['Answer #%s:\n\n%s' % (ii, text) for ii, text in enumerate(texts)]
+
+    # see if too many tokens
+    text_tokens_trial = len(tokenizer.encode(docs_joiner_default.join(text_context_list)))
+    if user_part_tokens + text_tokens_trial + max_new_tokens >= model_max_length:
+        max_new_tokens = min_max_new_tokens
+    max_input_tokens = model_max_length - max_new_tokens - 50  # fudge for extra chars
+
+    top_k_docs, one_doc_size, num_doc_tokens = \
+        get_docs_tokens(tokenizer, text_context_list=text_context_list, max_input_tokens=max_input_tokens)
+    text_context_list_cut = text_context_list[:top_k_docs]
+    texts_joined = docs_joiner_default.join(text_context_list_cut)
+
+    prompt_with_texts = '\n"""\n' + texts_joined + '\n"""\n'
     prompt_with_texts += user_part
 
     return prompt_with_texts.replace('image', 'document').replace('Image', 'Document')
@@ -171,11 +188,14 @@ def get_llava_response(file=None,
                        allow_prompt_auto=False,
                        image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                        top_p=0.7, max_new_tokens=512,
+                       min_max_new_tokens=512,
+                       tokenizer=None,
                        image_process_mode="Default",
                        include_image=False,
                        client=None,
                        max_time=None,
                        force_stream=True,
+                       verbose=False,
                        ):
     max_new_tokens = min(max_new_tokens, 1024)  # for hard_cutoff to be easy to know
 
@@ -199,6 +219,14 @@ def get_llava_response(file=None,
 
     image_model = os.path.basename(image_model)  # in case passed HF link
     prompt = fix_llava_prompt(file_list, prompt, allow_prompt_auto=allow_prompt_auto)
+    max_new_tokens1 = max_new_tokens if len(file_list) <= 4 else min(max_new_tokens, min_max_new_tokens)
+    if tokenizer:
+        model_max_length = tokenizer.model_max_length
+    else:
+        model_max_length = 4096
+    image_tokens = 1500 if len(file_list) >= 1 and file_list[0] is not None else 0
+    hard_limit_tokens = model_max_length - max_new_tokens1 - 50 - image_tokens
+    prompt = get_limited_text(hard_limit_tokens, prompt, tokenizer, verbose=False)
 
     image_model, client, file_list = \
         llava_prep(file_list, llava_model,
@@ -215,14 +243,14 @@ def get_llava_response(file=None,
                              image_model,
                              temperature,
                              top_p,
-                             max_new_tokens,
+                             max_new_tokens1,
                              api_name='/textbox_api_submit')
         res = res[-1][-1]
         reses.append(res)
 
     if len(reses) > 1:
         reses = [x for x in reses if server_error_msg not in x]
-        prompt_with_texts = get_prompt_with_texts(reses, prompt, max_new_tokens)
+        prompt_with_texts = get_prompt_with_texts(reses, prompt, max_new_tokens, min_max_new_tokens, tokenizer)
         res = client.predict(prompt_with_texts,
                              chat_conversation,
                              None,
@@ -245,12 +273,15 @@ def get_llava_stream(file, llava_model,
                      allow_prompt_auto=False,
                      image_model='llava-v1.6-vicuna-13b', temperature=0.2,
                      top_p=0.7, max_new_tokens=512,
+                     min_max_new_tokens=512,
+                     tokenizer=None,
                      image_process_mode="Default",
                      include_image=False,
                      client=None,
                      verbose_level=0,
                      max_time=None,
                      force_stream=True,  # dummy arg
+                     verbose=False,
                      ):
     max_new_tokens = min(max_new_tokens, 1024)  # for hard_cutoff to be easy to know
 
@@ -265,6 +296,14 @@ def get_llava_stream(file, llava_model,
 
     image_model = os.path.basename(image_model)  # in case passed HF link
     prompt = fix_llava_prompt(file_list, prompt, allow_prompt_auto=allow_prompt_auto)
+    max_new_tokens1 = max_new_tokens if len(file_list) <= 4 else min(max_new_tokens, min_max_new_tokens)
+    if tokenizer:
+        model_max_length = tokenizer.model_max_length
+    else:
+        model_max_length = 4096
+    image_tokens = 1500 if len(file_list) >= 1 and file_list[0] is not None else 0
+    hard_limit_tokens = model_max_length - max_new_tokens1 - 50 - image_tokens
+    prompt = get_limited_text(hard_limit_tokens, prompt, tokenizer)
 
     image_model, client, file_list = \
         llava_prep(file_list, llava_model,
@@ -281,7 +320,7 @@ def get_llava_stream(file, llava_model,
                             image_model,
                             temperature,
                             top_p,
-                            max_new_tokens,
+                            max_new_tokens1,
                             api_name='/textbox_api_submit')
         jobs.append(job)
 
@@ -341,8 +380,9 @@ def get_llava_stream(file, llava_model,
         ntexts_after = len(texts)
         if ntexts_after != ntexts_before:
             print("texts: %s -> %s" % (ntexts_before, ntexts_after))
-        prompt_with_texts = get_prompt_with_texts(texts, prompt, max_new_tokens)
+        prompt_with_texts = get_prompt_with_texts(texts, prompt, max_new_tokens, min_max_new_tokens, tokenizer)
         text = ''
+        max_new_tokens = max_new_tokens if len(jobs) > 4 else min(max_new_tokens, min_max_new_tokens)
         for res in get_llava_stream(None,
                                     llava_model,
                                     prompt=prompt_with_texts,
@@ -351,13 +391,17 @@ def get_llava_stream(file, llava_model,
                                     image_model=image_model,
                                     temperature=temperature,
                                     top_p=top_p,
+                                    # avoid long outputs
                                     max_new_tokens=max_new_tokens,
+                                    min_max_new_tokens=min_max_new_tokens,
+                                    tokenizer=tokenizer,
                                     image_process_mode=image_process_mode,
                                     include_image=include_image,
                                     client=client,
                                     verbose_level=verbose_level,
                                     max_time=max_time,
                                     force_stream=force_stream,  # dummy arg
+                                    verbose=verbose,
                                     ):
             text = res
             yield text

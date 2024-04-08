@@ -251,7 +251,8 @@ def test_client1api_lean_lock_choose_model():
                                       'model_name_exllama_if_no_config': ''}, 'rope_scaling': {}, 'max_seq_len': 2048,
                     'exllama_dict': {}, 'gptq_dict': {}, 'attention_sinks': False, 'sink_dict': {},
                     'truncation_generation': False, 'hf_model_dict': {}},
-                   {'base_model': 'distilgpt2', 'prompt_type': noop_prompt_type, 'prompt_dict': None, 'load_8bit': False,
+                   {'base_model': 'distilgpt2', 'prompt_type': noop_prompt_type, 'prompt_dict': None,
+                    'load_8bit': False,
                     'load_4bit': False, 'low_bit_mode': 1, 'load_half': True, 'use_flash_attention_2': False,
                     'load_gptq': '', 'load_awq': '', 'load_exllama': False, 'use_safetensors': False, 'revision': None,
                     'use_gpu_id': True, 'gpu_id': 0, 'compile_model': None, 'use_cache': None,
@@ -4836,9 +4837,11 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
 
 
-vision_models = ['gpt-4-vision-preview', 'gemini-pro-vision',
-                 'gemini-1.5-pro-latest', 'claude-3-haiku-20240307', 'liuhaotian/llava-v1.6-34b',
-                 'liuhaotian/llava-v1.6-vicuna-13b']
+vision_models = ['gpt-4-vision-preview',
+                 'gemini-pro-vision', 'gemini-1.5-pro-latest',
+                 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
+                 'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
+                 ]
 
 
 @wrap_test_forked
@@ -4896,6 +4899,12 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
+def get_creation_date(file_path):
+  """Gets the creation date of a file."""
+  stat = os.stat(file_path)
+  return stat.st_ctime
+
+
 # (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", vision_models)
@@ -4907,6 +4916,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     os.system('pdftoppm tests/2403.09629.pdf %s/outputname -jpeg' % image_dir)
     pdf_images = os.listdir(image_dir)
     pdf_images = [os.path.join(image_dir, x) for x in pdf_images]
+    pdf_images.sort(key=get_creation_date)
 
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     if inference_server == 'https://gpt.h2o.ai':
@@ -4920,6 +4930,8 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
+    inference_server = 'http://localhost:7860'
+
     from gradio_client import Client
     client = Client(inference_server, *auth_kwargs)
 
@@ -4929,7 +4941,10 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
 
     print("Doing base_model=%s" % base_model)
-    kwargs = dict(instruction_nochat=prompt,
+    use_instruction = langchain_action == LangChainAction.QUERY.value
+    kwargs = dict(instruction_nochat=prompt if use_instruction else '',
+                  prompt_query=prompt if not use_instruction else '',
+                  prompt_summarize=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
                   stream_output=False,

@@ -76,7 +76,8 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
-    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json, is_json_vllm
+    have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json, is_json_vllm, \
+    get_docs_tokens
 
 start_faulthandler()
 import_matplotlib()
@@ -4665,7 +4666,10 @@ def evaluate(
                                     temperature=temperature,
                                     top_p=top_p,
                                     max_new_tokens=max_new_tokens,
+                                    min_max_new_tokens=min_max_new_tokens,
+                                    tokenizer=tokenizer,
                                     client=gr_client if not regenerate_gradio_clients else None,
+                                    verbose=verbose,
                                     )
                 if not stream_output and img_file == 1:
                     from src.vision.utils_vision import get_llava_response
@@ -6293,40 +6297,6 @@ def count_overhead_tokens(tokenizer, doing_grounding=False):
         return get_token_count(prompt, tokenizer)
     else:
         return 0
-
-
-def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None):
-    """
-    max_input_tokens: Over all LLM calls, upper limit of total token count,
-                      or single LLM call if want to know what docs fit into single call
-    """
-    if text_context_list is None or len(text_context_list) == 0:
-        return 0, None, 0
-    assert max_input_tokens is not None, "Must set max_input_tokens"
-    tokens = [get_token_count(x + docs_joiner_default, tokenizer) for x in text_context_list]
-    tokens_cumsum = np.cumsum(tokens)
-    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
-    # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
-    if where_res.shape[0] > 0:
-        top_k_docs = 1 + where_res[-1]
-        one_doc_size = None
-        num_doc_tokens = tokens_cumsum[top_k_docs - 1]  # by index
-    else:
-        # if here, means 0 and just do best with 1 doc
-        top_k_docs = 1
-        text_context_list = text_context_list[:top_k_docs]
-        # critical protection
-        from src.h2oai_pipeline import H2OTextGenerationPipeline
-        doc_content = text_context_list[0]
-        doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
-                                                                          tokenizer,
-                                                                          max_prompt_length=max_input_tokens)
-        text_context_list[0] = doc_content
-        one_doc_size = len(doc_content)
-        num_doc_tokens = get_token_count(doc_content + docs_joiner_default, tokenizer)
-        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
-            tokens[0], new_tokens0), flush=True)
-    return top_k_docs, one_doc_size, num_doc_tokens
 
 
 def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):

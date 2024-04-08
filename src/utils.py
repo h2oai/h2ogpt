@@ -39,7 +39,7 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import split_google, invalid_json_str
+from src.enums import split_google, invalid_json_str, docs_joiner_default
 from src.utils_procs import reulimit
 
 reulimit()
@@ -2234,3 +2234,76 @@ def get_vllm_version(openai_client, inference_server, verbose=False):
             if verbose:
                 print(f"Failed to retrieve version, status code: {response.status_code}")
     return vllm_version
+
+
+def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs_joiner=docs_joiner_default):
+    """
+    max_input_tokens: Over all LLM calls, upper limit of total token count,
+                      or single LLM call if want to know what docs fit into single call
+    """
+    if text_context_list is None or len(text_context_list) == 0:
+        return 0, None, 0
+    assert max_input_tokens is not None, "Must set max_input_tokens"
+    tokens = [get_token_count(x + docs_joiner, tokenizer) for x in text_context_list]
+    tokens_cumsum = np.cumsum(tokens)
+    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+    # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
+    if where_res.shape[0] > 0:
+        top_k_docs = 1 + where_res[-1]
+        one_doc_size = None
+        num_doc_tokens = tokens_cumsum[top_k_docs - 1]  # by index
+    else:
+        # if here, means 0 and just do best with 1 doc
+        top_k_docs = 1
+        text_context_list = text_context_list[:top_k_docs]
+        # critical protection
+        from src.h2oai_pipeline import H2OTextGenerationPipeline
+        doc_content = text_context_list[0]
+        doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
+                                                                          tokenizer,
+                                                                          max_prompt_length=max_input_tokens)
+        text_context_list[0] = doc_content
+        one_doc_size = len(doc_content)
+        num_doc_tokens = get_token_count(doc_content + docs_joiner, tokenizer)
+        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
+            tokens[0], new_tokens0), flush=True)
+    return top_k_docs, one_doc_size, num_doc_tokens
+
+
+def get_limited_text(hard_limit_tokens, text, tokenizer, verbose=False):
+    if tokenizer is None:
+        return text[:4 * hard_limit_tokens]
+
+    low = 0
+    high = len(text)
+    best_guess = text  # Initialize best_guess to ensure it's defined
+    ntokens0 = len(tokenizer.tokenize(best_guess))
+    ntokens = None
+
+    max_steps = 5
+    steps = 0
+    while low <= high:
+        mid = low + (high - low) // 2  # Calculate midpoint for current search interval
+        # Estimate a trial cut of the text based on mid
+        trial_text_length = max(int(mid * 4), 1)  # Using mid * 4 as an estimation, ensuring at least 1 character
+        trial_text = text[-trial_text_length:]  # Take text from the end, based on trial_text_length
+
+        # Tokenize the trial text and count tokens
+        ntokens = len(tokenizer.tokenize(trial_text))
+
+        if ntokens > hard_limit_tokens:
+            # If the trial exceeds the token limit, reduce 'high' to exclude the current trial length
+            high = mid - 1
+        else:
+            # If the trial does not exceed the token limit, update 'best_guess' and increase 'low'
+            best_guess = trial_text  # Update best_guess with the current trial_text
+            low = mid + 1  # Attempt to include more text in the next trial
+            if steps >= max_steps:
+                break
+        steps += 1
+
+    # 'best_guess' now contains the text that best fits the criteria
+    if verbose:
+        print("steps: %s ntokens0: %s/%s text0: %s ntokens: %s/%s text: %s" % (
+            steps, ntokens0, hard_limit_tokens, len(text), ntokens, hard_limit_tokens, len(best_guess)))
+    return best_guess

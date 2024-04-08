@@ -64,7 +64,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict
+    merge_dict, get_docs_tokens
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -74,7 +74,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type
 from evaluate_params import gen_hyper, gen_hyper0
-from gen import SEED, get_limited_prompt, get_docs_tokens, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
+from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
     is_vision_model, is_gradio_vision_model, is_json_model
@@ -1040,7 +1040,9 @@ class GradioLLaVaInference(GradioInference):
                              top_k=self.top_k,
                              penalty_alpha=self.penalty_alpha,
                              max_new_tokens=self.max_new_tokens,
+                             min_max_new_tokens=self.min_max_new_tokens,
                              min_new_tokens=self.min_new_tokens,
+                             verbose=self.verbose,
                              )
         # NOTE: Don't handle self.context
         if not self.add_chat_history_to_context:
@@ -1064,6 +1066,7 @@ class GradioLLaVaInference(GradioInference):
                             max_new_tokens=client_kwargs['max_new_tokens'],
                             client=self.client,
                             max_time=self.max_time,
+                            tokenizer=self.tokenizer,
                             )
         max_new_tokens = get_relaxed_max_new_tokens(prompt, tokenizer=self.tokenizer,
                                                     max_new_tokens=self.max_new_tokens,
@@ -3800,6 +3803,7 @@ def file_to_doc(file,
                                                        prompt=llava_prompt,
                                                        allow_prompt_auto=True,
                                                        max_time=60,  # not too much time for docQA
+                                                       verbose=verbose,
                                                        )
                 metadata = dict(source=file, date=str(datetime.now()), input_type='LLaVa')
                 docs1c = [Document(page_content=res, metadata=metadata)]
