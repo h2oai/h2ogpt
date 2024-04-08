@@ -32,7 +32,11 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     mkdir -p /h2ogpt_conda && \
     bash ./Miniconda3-latest-Linux-x86_64.sh -b -u -p /h2ogpt_conda && \
     conda update -n base conda && \
-    conda install python=3.10 pygobject weasyprint -c conda-forge -y
+    source ~/miniconda3/etc/profile.d/conda.sh && \
+    conda create -n h2ogpt -y && \
+    conda activate h2ogpt && \
+    conda install python=3.10 pygobject weasyprint -c conda-forge -y && \
+    echo "h2oGPT conda env: $CONDA_DEFAULT_ENV"
 
 # if building for CPU, would remove CMAKE_ARGS and avoid GPU image as base image
 export LLAMA_CUBLAS=1
@@ -81,14 +85,17 @@ print('Done!')
 ############################################################
 # vllm server
 export VLLM_CACHE=/workspace/.vllm_cache
-cd /h2ogpt_conda
-python -m venv vllm_env --system-site-packages
+conda create -n vllm -y
+source /h2ogpt_conda/etc/profile.d/conda.sh
+conda activate vllm
+echo "vLLM conda env: $CONDA_DEFAULT_ENV"
+
 # gputil is for rayWorker in vllm to run as non-root
 # below required outside docker:
 # apt-get install libnccl2
-/h2ogpt_conda/vllm_env/bin/python -m pip install vllm==0.4.0.post1
-/h2ogpt_conda/vllm_env/bin/python -m pip uninstall flash-attn -y
-/h2ogpt_conda/vllm_env/bin/python -m pip install gputil==1.4.0 flash-attn==2.5.6 hf_transfer==0.1.6
+python -m pip install vllm==0.4.0.post1
+python -m pip install gputil==1.4.0 hf_transfer==0.1.6
+python -m pip install flash-attn==2.5.6 --no-build-isolation --no-deps --no-cache-dir
 
 # pip install hf_transfer
 # pip install tiktoken accelerate flash_attn
@@ -96,8 +103,8 @@ mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
 # Make sure old python location works in case using scripts from old documentation
-mkdir -p /h2ogpt_conda/envs/vllm/bin
-ln -s /h2ogpt_conda/vllm_env/bin/python3.10 /h2ogpt_conda/envs/vllm/bin/python3.10
+mkdir -p /h2ogpt_conda/envs/vllm_env/bin
+ln -s /h2ogpt_conda/envs/vllm/bin/python3.10 /h2ogpt_conda/vllm_env/bin/python3.10
 
 # Track build info
 cp /workspace/build_info.txt /build_info.txt
