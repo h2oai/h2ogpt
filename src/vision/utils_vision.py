@@ -344,7 +344,7 @@ def get_llava_stream(file, llava_model,
                     print('Stream %d: %s' % (num, reses[ji]), flush=True)
                 elif verbose_level == 1:
                     print('Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-                if reses[ji] and len(reses[ji][0]) > 0:
+                if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
                     texts[ji] = reses[ji][-1][-1]
                     if len(jobs) == 1:
                         yield texts[ji]
@@ -357,15 +357,12 @@ def get_llava_stream(file, llava_model,
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
         for num in range(job_outputs_num_new):
-            # if max_time is not None and time.time() - t0 > max_time:
-            #    done_all = True
-            #    break
-            res = outputs_list[job_outputs_nums[ji] + num]
+            reses[ji] = outputs_list[job_outputs_nums[ji] + num]
             if verbose_level == 2:
-                print('Final Stream %d: %s' % (num, res), flush=True)
+                print('Final Stream %d: %s' % (num, reses[ji]), flush=True)
             elif verbose_level == 1:
                 print('Final Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-            if reses[ji] and len(reses[ji][0]) > 0:
+            if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
                 texts[ji] = reses[ji][-1][-1]
                 if len(jobs) == 1:
                     yield texts[ji]
