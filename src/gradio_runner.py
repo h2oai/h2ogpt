@@ -2395,6 +2395,15 @@ def go_gradio(**kwargs):
                                     system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
                                     system_text3 = gr.Textbox(label='Hash', interactive=False,
                                                               visible=not is_public, show_copy_button=True)
+                                    def get_hash():
+                                        return kwargs['git_hash']
+
+                                    system_event = system_btn3.click(get_hash,
+                                                                     outputs=system_text3,
+                                                                     api_name='system_hash' if allow_api else None,
+                                                                     **noqueue_kwargs,
+                                                                     )
+
                                     system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
                                     system_text4 = gr.Textbox(label='Model Names', interactive=False,
                                                               visible=not is_public, show_copy_button=True)
@@ -6324,15 +6333,6 @@ def go_gradio(**kwargs):
                                               api_name='system_info_dict' if allow_api else None,
                                               **noqueue_kwargs,  # queue to avoid spam
                                               )
-
-        def get_hash():
-            return kwargs['git_hash']
-
-        system_event = system_btn3.click(get_hash,
-                                         outputs=system_text3,
-                                         api_name='system_hash' if allow_api else None,
-                                         **noqueue_kwargs,
-                                         )
 
         def get_model_names():
             key_list = ['base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())

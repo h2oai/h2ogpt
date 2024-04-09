@@ -5,7 +5,7 @@ import pytest
 from src.enums import invalid_json_str
 from src.gen import apply_chat_template
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
-    is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json
+    is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash
 from tests.utils import wrap_test_forked
 import subprocess as sp
 
@@ -203,6 +203,13 @@ def test_is_uuid4():
 
     # Check each string and print whether it's a valid UUID v4
     assert [is_uuid4(s) for s in test_strings] == [True, False, False, False]
+
+
+def test_is_git_hash():
+    # Example usage:
+    hashes = ["1a3b5c7d9e1a3b5c7d9e1a3b5c7d9e1a3b5c7d9e", "1G3b5c7d9e1a3b5c7d9e1a3b5c7d9e1a3b5c7d9e", "1a3b5c7d"]
+
+    assert [is_full_git_hash(h) for h in hashes] == [True, False, False]
 
 
 def test_chat_template():

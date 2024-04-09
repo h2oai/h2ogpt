@@ -404,6 +404,13 @@ def get_githash():
                 githash = f.read()
         except:
             githash = "GET_GITHASH"
+
+    if githash == "GET_GITHASH":
+        try:
+            githash = $Format:%H$
+        except:
+            pass
+
     return githash
 
 
@@ -2114,6 +2121,11 @@ def is_uuid4(string):
     # Regular expression to match the UUID v4 format
     pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$', re.IGNORECASE)
     return bool(pattern.match(string))
+
+
+def is_full_git_hash(s):
+    # This regex checks for exactly 40 hexadecimal characters.
+    return bool(re.fullmatch(r'[0-9a-f]{40}', s))
 
 
 def get_show_username(username1):
