@@ -104,7 +104,7 @@ mkdir $VLLM_CACHE
 chmod -R a+rwx /h2ogpt_conda
 
 # Make sure old python location works in case using scripts from old documentation
-mkdir -p /h2ogpt_conda/vllm_env
+mkdir -p /h2ogpt_conda/vllm_env/bin/
 ln -s /h2ogpt_conda/envs/vllm/bin/python3.10 /h2ogpt_conda/vllm_env/bin/python3.10
 
 # Track build info
