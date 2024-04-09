@@ -412,6 +412,9 @@ def get_githash():
         except:
             pass
 
+    if os.getenv('HARD_ASSERTS'):
+        assert is_full_git_hash(githash)
+
     return githash
 
 
