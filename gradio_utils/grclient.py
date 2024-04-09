@@ -37,9 +37,9 @@ class ReturnType(BaseModel):
     prompt_raw: str | None
     actual_llm: str | None
     text_context_list: list[str] | None = []
-    input_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
-    tokens_per_second: Optional[float] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    tokens_per_second: float = 0.0
 
 
 try:
@@ -122,7 +122,6 @@ class GradioClient(Client):
         download_files: bool = True,  # TODO: consider setting to False in 1.0
         _skip_components: bool = True,  # internal parameter to skip values certain components (e.g. State) that do not need to be displayed to users.
         ssl_verify: bool = True,
-
         h2ogpt_key: str = None,
         persist: bool = False,
         check_hash: bool = True,
@@ -163,7 +162,14 @@ class GradioClient(Client):
             # 4.24.0:
             self._skip_components = _skip_components
             self.ssl_verify = ssl_verify
-            self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files, ssl_verify=ssl_verify))
+            self.kwargs.update(
+                dict(
+                    auth=auth,
+                    upload_files=upload_files,
+                    download_files=download_files,
+                    ssl_verify=ssl_verify,
+                )
+            )
 
         self.verbose = verbose
         self.hf_token = hf_token
@@ -256,7 +262,7 @@ class GradioClient(Client):
         self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
         if is_gradio_client_version7plus:
             self.protocol: Literal[
-            "ws", "sse", "sse_v1", "sse_v2", "sse_v2.1"
+                "ws", "sse", "sse_v1", "sse_v2", "sse_v2.1"
             ] = self.config.get("protocol", "ws")
             self.sse_url = urllib.parse.urljoin(
                 self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
@@ -284,7 +290,9 @@ class GradioClient(Client):
             self._refresh_heartbeat = threading.Event()
             self._kill_heartbeat = threading.Event()
 
-            self.heartbeat = threading.Thread(target=self._stream_heartbeat, daemon=True)
+            self.heartbeat = threading.Thread(
+                target=self._stream_heartbeat, daemon=True
+            )
             self.heartbeat.start()
 
         self.server_hash = self.get_server_hash()
@@ -344,7 +352,9 @@ class GradioClient(Client):
             return ret
         finally:
             if self.verbose:
-                print("duration server_hash: %s %s" % (time.time() - t0, ret), flush=True)
+                print(
+                    "duration server_hash: %s %s" % (time.time() - t0, ret), flush=True
+                )
 
     def refresh_client_if_should(self):
         if self.config is None:
@@ -584,7 +594,29 @@ class GradioClient(Client):
                 ).items()
             }
             diff = set(eval_func_param_names).difference(fun_kwargs)
-            assert len(diff) == 0, "Add entries: %s" % diff
+            assert len(diff) == 0, (
+                "Add query_or_summarize_or_extract entries: %s" % diff
+            )
+
+            extra_query_params = [
+                "file",
+                "bad_error_string",
+                "print_info",
+                "asserts",
+                "url",
+                "prompt_extraction",
+                "model",
+                "text",
+                "print_error",
+                "pre_prompt_extraction",
+                "embed",
+                "print_warning",
+                "sanitize_llm",
+            ]
+            diff = set(fun_kwargs).difference(
+                eval_func_param_names + extra_query_params
+            )
+            assert len(diff) == 0, "Add eval_func_params entries: %s" % diff
 
         return client_kwargs
 
@@ -656,13 +688,11 @@ class GradioClient(Client):
         metadata_in_context: list = [],
         image_file: Union[str, list] = None,
         image_control: str = None,
-
-        response_format: str = 'text',
-        guided_json: Union[str, dict] = '',
-        guided_regex: str = '',
-        guided_choice: str = '',
-        guided_grammar: str = '',
-
+        response_format: str = "text",
+        guided_json: Union[str, dict] = "",
+        guided_regex: str = "",
+        guided_choice: str = "",
+        guided_grammar: str = "",
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
         jq_schema=".[]",
@@ -971,9 +1001,7 @@ class GradioClient(Client):
                     prompt_raw = res_dict.get("prompt_raw", "")
 
                     try:
-                        actual_llm = res_dict["save_dict"][
-                            "base_model"
-                        ]  # fast path
+                        actual_llm = res_dict["save_dict"]["base_model"]  # fast path
                     except Exception as e:
                         print_warning(
                             f"Unable to access save_dict to get actual_llm: {str(e)}"
@@ -1156,11 +1184,13 @@ class GradioClient(Client):
                     raise
                 else:
                     # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
-                    if 'Overloaded' in str(traceback.format_tb(e.__traceback__)):
+                    if "Overloaded" in str(traceback.format_tb(e.__traceback__)):
                         sleep_time = 30 + 2 ** (trial + 1)
                     else:
                         sleep_time = 1 * trial
-                    print_warning("trying again: %s in %s seconds" % (trial, sleep_time))
+                    print_warning(
+                        "trying again: %s in %s seconds" % (trial, sleep_time)
+                    )
                     time.sleep(sleep_time)
             finally:
                 # in case server changed, update in case clone()
@@ -1331,12 +1361,14 @@ class GradioClient(Client):
         response = prompter.get_response(
             prompt_and_text, prompt=prompt, sanitize_bot_response=sanitize_bot_response
         )
-        res_dict.update(dict(
-            response=response,
-            sources=sources,
-            error=strex,
-            response_no_refs=response,
-        ))
+        res_dict.update(
+            dict(
+                response=response,
+                sources=sources,
+                error=strex,
+                response_no_refs=response,
+            )
+        )
         yield res_dict
         return res_dict
 
