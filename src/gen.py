@@ -4923,6 +4923,9 @@ def evaluate(
                                 break
                 else:
                     raise RuntimeError("Failed to get client: %s" % inference_server)
+            if isinstance(model, GradioClient) and not regenerate_gradio_clients and gr_client is not None:
+                if gr_client.server_hash != model.server_hash:
+                    model.refresh_client()
         else:
             raise RuntimeError("No such inference_server  %s" % inference_server)
 
