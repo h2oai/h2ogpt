@@ -88,6 +88,7 @@ export VLLM_CACHE=/workspace/.vllm_cache
 conda create -n vllm -y
 source /h2ogpt_conda/etc/profile.d/conda.sh
 conda activate vllm
+conda install python=3.10 -y
 echo "vLLM conda env: $CONDA_DEFAULT_ENV"
 
 # gputil is for rayWorker in vllm to run as non-root
