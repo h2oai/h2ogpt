@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# The path to the utils.py file relative to the root of the repository
+FILE_PATH="src/version.py"
+
+# Get the current git commit hash
+GITHASH=$(git rev-parse HEAD)
+
+# Update the __version__ variable in utils.py
+# This uses a Perl one-liner to find the __version__ line and replace it with the current GITHASH
+perl -pi -e "s/__version__ = \".*\"/__version__ = \"$GITHASH\"/" $FILE_PATH
+
+# Add the modified utils.py file to the commit
+git add $FILE_PATH
+
+# End of script
