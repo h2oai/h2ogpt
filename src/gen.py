@@ -4085,8 +4085,15 @@ def evaluate(
     stream_output0 = stream_output
     stream_output = gradio and num_beams == 1
 
+    from gradio_utils.grclient import GradioClient
+    from gradio_client import Client
+    gradio_server = inference_server.startswith('http') and (
+            isinstance(model, GradioClient) or isinstance(model, Client))
+
+    # don't repeat prompting if doing gradio server since inner prompting will handle
     json_vllm = False
-    if response_format in ['json_object', 'json_code']:
+    if not gradio_server and \
+        response_format in ['json_object', 'json_code']:
         pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.\n\n'
         pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
         if isinstance(guided_json, str):
@@ -4426,11 +4433,6 @@ def evaluate(
 
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
-    from gradio_utils.grclient import GradioClient
-    from gradio_client import Client
-    gradio_server = inference_server.startswith('http') and (
-            isinstance(model, GradioClient) or isinstance(model, Client))
-
     prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
