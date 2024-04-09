@@ -3443,7 +3443,7 @@ def go_gradio(**kwargs):
                                                 num_model_lock=len(text_outputs),
                                                 all_possible_visible_models=kwargs['all_possible_visible_models'])
         visible_models.change(fn=visible_models_func,
-                              inputs=[visible_models, compare_checkbox],
+                              inputs=[visible_models, compare_checkbox, visible_models_text],
                               outputs=[visible_models, visible_models_text, text_output, text_output2] + text_outputs,
                               ).then(**save_auth_kwargs)
 
