@@ -407,7 +407,8 @@ def get_githash():
 
     if githash == "GET_GITHASH":
         try:
-            githash = $Format:%H$
+            from src.version import __version__
+            githash = __version__
         except:
             pass
 
