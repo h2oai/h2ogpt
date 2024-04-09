@@ -696,7 +696,6 @@ class GradioClient(Client):
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
         jq_schema=".[]",
-        llava_model: str = None,
         llava_prompt: str = "auto",
         image_audio_loaders: list = None,
         url_loaders: list = None,
@@ -842,9 +841,6 @@ class GradioClient(Client):
 
             :param extract_frames: How many unique frames to extract from video (if 0, then just do audio if audio type file as well)
 
-            :param llava_model:  IP:port for h2oai version of LLaVa gradio server for hosted image chat
-                   E.g. http://192.168.1.46:7861
-                   None means no such LLaVa support
             :param llava_prompt: Prompt passed to LLaVa for querying the image
 
             :param image_audio_loaders: which loaders to use for image and audio parsing (None means default)
