@@ -1821,17 +1821,17 @@ def go_gradio(**kwargs):
                                                    visible=True,
                                                    )
                         guided_json = gr.components.Textbox(value=kwargs['guided_json'],
-                                                               label="guided_json",
-                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
-                                                               visible=True)
+                                                            label="guided_json",
+                                                            info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                            visible=True)
                         guided_regex = gr.components.Textbox(value=kwargs['guided_regex'],
-                                                               label="guided_regex",
-                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
-                                                               visible=True)
+                                                             label="guided_regex",
+                                                             info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                             visible=True)
                         guided_choice = gr.components.Textbox(value=kwargs['guided_choice'],
-                                                               label="guided_choice",
-                                                               info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
-                                                               visible=True)
+                                                              label="guided_choice",
+                                                              info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                              visible=True)
                         guided_grammar = gr.components.Textbox(value=kwargs['guided_grammar'],
                                                                label="guided_grammar",
                                                                info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
@@ -3420,24 +3420,31 @@ def go_gradio(**kwargs):
                     visible_list.append(False)
             return visible_list
 
-        def set_visible_models(visible_models1, num_model_lock=0, all_possible_visible_models=None):
+        def set_visible_models(visible_models1, compare_checkbox1, visible_models_text1, num_model_lock=0,
+                               all_possible_visible_models=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
-                ret_list = [gr.Textbox(visible=True)] * num_model_lock
+                ret_list = [gr.update(visible=True)] * num_model_lock
+                if not compare_checkbox1:
+                    ret_list[1] = gr.update(visible=False)
+                # in case switched from lock to not
+                visible_models_text1 = 'off'
             else:
                 assert isinstance(all_possible_visible_models, list)
                 assert num_model_lock == len(all_possible_visible_models)
                 visible_list = [False, False] + get_model_lock_visible_list(visible_models1,
                                                                             all_possible_visible_models)
-                ret_list = [gr.Textbox(visible=x) for x in visible_list]
+                ret_list = [gr.update(visible=x) for x in visible_list]
+            ret_list.insert(0, visible_models_text1)
+            ret_list.insert(0, gr.update(visible=visible_models_text1 == 'on'))
             return tuple(ret_list)
 
         visible_models_func = functools.partial(set_visible_models,
                                                 num_model_lock=len(text_outputs),
                                                 all_possible_visible_models=kwargs['all_possible_visible_models'])
         visible_models.change(fn=visible_models_func,
-                              inputs=visible_models,
-                              outputs=[text_output, text_output2] + text_outputs,
+                              inputs=[visible_models, compare_checkbox],
+                              outputs=[visible_models, visible_models_text, text_output, text_output2] + text_outputs,
                               ).then(**save_auth_kwargs)
 
         def add_langchain_mode(db1s, selection_docs_state1, requests_state1, langchain_mode1, y,
@@ -4220,9 +4227,11 @@ def go_gradio(**kwargs):
 
                     # below works for both list and string for any reasonable string of image that's been byte encoded with b' to start or as file name
                     image_file_check = args_list[eval_func_param_names.index('image_file')]
-                    save_dict['image_file_present'] = isinstance(image_file_check, (str, list, tuple)) and len(image_file_check) >= 1
+                    save_dict['image_file_present'] = isinstance(image_file_check, (str, list, tuple)) and len(
+                        image_file_check) >= 1
                     text_context_list_check = args_list[eval_func_param_names.index('text_context_list')]
-                    save_dict['text_context_list_present'] = isinstance(text_context_list_check, (list, tuple)) and len(text_context_list_check) >= 1
+                    save_dict['text_context_list_present'] = isinstance(text_context_list_check, (list, tuple)) and len(
+                        text_context_list_check) >= 1
 
                     if str_api and plain_api:
                         save_dict['which_api'] = 'str_plain_api'
