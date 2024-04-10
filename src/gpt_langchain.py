@@ -832,6 +832,11 @@ class GradioInference(H2Oagenerate, LLM):
             if self.verbose:
                 print("end _call", flush=True)
             self.use_gradio_return(res_dict, prompt)
+
+            # ensure parent client is updated if remote server changed
+            if client.server_hash != self.client.server_hash:
+                self.client.refresh_client()
+
             return ret
         else:
             text_callback = None
@@ -903,6 +908,12 @@ class GradioInference(H2Oagenerate, LLM):
             if self.verbose:
                 print("end _call", flush=True)
             self.use_gradio_return(res_dict, prompt)
+
+            # ensure parent client is updated if remote server changed
+            if client.server_hash != self.client.server_hash:
+                with filelock.FileLock(os.path.join('locks', 'gradio_client.lock')):
+                    self.client.refresh_client()
+
             return ret
 
     def use_gradio_return(self, res_dict, prompt_raw):

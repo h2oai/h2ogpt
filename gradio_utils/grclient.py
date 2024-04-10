@@ -338,13 +338,14 @@ class GradioClient(Client):
             print("duration endpoints: %s" % (time.time() - t0), flush=True)
 
     def get_server_hash(self):
-        t0 = time.time()
-        if self.config is None:
-            self.setup()
         """
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
+        t0 = time.time()
+        if self.config is None:
+            self.setup()
+        t1 = time.time()
         ret = "GET_GITHASH"
         try:
             if self.check_hash:
@@ -353,7 +354,7 @@ class GradioClient(Client):
         finally:
             if self.verbose:
                 print(
-                    "duration server_hash: %s %s" % (time.time() - t0, ret), flush=True
+                    "duration server_hash: %s full time: %s system_hash time: %s" % (ret, time.time() - t0, time.time() - t1), flush=True
                 )
 
     def refresh_client_if_should(self):
@@ -394,9 +395,10 @@ class GradioClient(Client):
         kwargs.pop("check_model_name", None)
         ntrials = 3
         client = None
-        for trial in range(0, ntrials + 1):
+        for trial in range(0, ntrials):
             try:
                 client = Client(*self.args, **kwargs)
+                break
             except ValueError as e:
                 if trial >= ntrials:
                     raise
