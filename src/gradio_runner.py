@@ -2395,6 +2395,7 @@ def go_gradio(**kwargs):
                                     system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
                                     system_text3 = gr.Textbox(label='Hash', interactive=False,
                                                               visible=not is_public, show_copy_button=True)
+
                                     def get_hash():
                                         return kwargs['git_hash']
 
