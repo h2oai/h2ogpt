@@ -22,6 +22,8 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
+from src.gradio_funcs import merge_chat_conversation_history
+
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -5761,26 +5763,6 @@ def get_minmax_top_k_docs(is_public, from_ui):
         max_top_k_docs = 1000
         label_top_k_docs = label_top_k_docs + " (-1 = auto fill model context, all pages/docs for summarize)"
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
-
-
-def merge_chat_conversation_history(chat_conversation1, history):
-    # chat_conversation and history ordered so largest index of list is most recent
-    if chat_conversation1:
-        chat_conversation1 = str_to_list(chat_conversation1)
-        for conv1 in chat_conversation1:
-            assert isinstance(conv1, (list, tuple))
-            assert len(conv1) == 2
-
-    if isinstance(history, list):
-        # make copy so only local change
-        if chat_conversation1:
-            # so priority will be newest that comes from actual chat history from UI, then chat_conversation
-            history = chat_conversation1 + history.copy()
-    elif chat_conversation1:
-        history = chat_conversation1
-    else:
-        history = []
-    return history
 
 
 def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot):
