@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent
 import difflib
+import re
 import threading
 import traceback
 import os
@@ -337,6 +338,12 @@ class GradioClient(Client):
         if verbose:
             print("duration endpoints: %s" % (time.time() - t0), flush=True)
 
+    @staticmethod
+    def is_full_git_hash(s):
+        # This regex checks for exactly 40 hexadecimal characters.
+        return bool(re.fullmatch(r'[0-9a-f]{40}', s))
+
+
     def get_server_hash(self):
         """
         Get server hash using super without any refresh action triggered
@@ -350,6 +357,7 @@ class GradioClient(Client):
         try:
             if self.check_hash:
                 ret = super().submit(api_name="/system_hash").result()
+                assert self.is_full_git_hash(ret), "ret is not a full git hash"
             return ret
         finally:
             if self.verbose:
