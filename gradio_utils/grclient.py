@@ -268,7 +268,10 @@ class GradioClient(Client):
             self.sse_url = urllib.parse.urljoin(
                 self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
             )
-            self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
+            if hasattr(utils, 'HEARTBEAT_URL'):
+                self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
+            else:
+                self.heartbeat_url = None
             self.sse_data_url = urllib.parse.urljoin(
                 self.src,
                 utils.SSE_DATA_URL_V0 if self.protocol == "sse" else utils.SSE_DATA_URL,
@@ -287,7 +290,7 @@ class GradioClient(Client):
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
         # threading.Thread(target=self._telemetry_thread, daemon=True).start()
-        if is_gradio_client_version7plus:
+        if is_gradio_client_version7plus and hasattr(utils, 'HEARTBEAT_URL'):
             self._refresh_heartbeat = threading.Event()
             self._kill_heartbeat = threading.Event()
 
