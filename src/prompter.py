@@ -575,12 +575,12 @@ Current Time: {}
         chat_turn_sep = eos
     elif prompt_type in [PromptType.danube.value, str(PromptType.danube.value),
                          PromptType.danube.name]:
-        can_handle_system_prompt = True  # so not part of pre-conversation
+        can_handle_system_prompt = False  # so uses pre-conversation
         prompt_tokens = "<|prompt|>"
         answer_tokens = "<|answer|>"
         if system_prompt in [None, 'None', 'auto']:
-            system_prompt = "I am H2O-Danube, a conversational chat assistant developed by H2O.ai."
-        promptA = promptB = system_prompt if not reduced else ''
+            system_prompt = ""
+        promptA = promptB = ''
         PreInstruct = prompt_tokens
         PreInput = None
         PreResponse = answer_tokens

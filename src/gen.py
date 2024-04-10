@@ -3976,6 +3976,9 @@ def evaluate(
     # prefer use input from API over model state
     prompt_type = prompt_type or chosen_model_state['prompt_type']
     prompt_dict = prompt_dict or chosen_model_state['prompt_dict']
+    if prompt_type == unknown_prompt_type and chosen_model_state['prompt_type'] not in [None, '', unknown_prompt_type]:
+        prompt_type = chosen_model_state['prompt_type']
+        prompt_dict = chosen_model_state['prompt_dict']
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)

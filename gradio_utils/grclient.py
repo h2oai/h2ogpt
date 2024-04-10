@@ -352,11 +352,11 @@ class GradioClient(Client):
         if self.config is None:
             self.setup()
         t1 = time.time()
-        ret = "GET_GITHASH"
+        ret = "GET_GITHASH_UNSET"
         try:
             if self.check_hash:
                 ret = super().submit(api_name="/system_hash").result()
-                assert self.is_full_git_hash(ret), "ret is not a full git hash"
+                assert self.is_full_git_hash(ret), f"ret is not a full git hash: {ret}"
             return ret
         finally:
             if self.verbose:
