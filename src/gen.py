@@ -4094,7 +4094,7 @@ def evaluate(
     # don't repeat prompting if doing gradio server since inner prompting will handle
     json_vllm = False
     if not gradio_server and \
-        response_format in ['json_object', 'json_code']:
+            response_format in ['json_object', 'json_code']:
         pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.\n\n'
         pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
         if isinstance(guided_json, str):
