@@ -395,9 +395,10 @@ class GradioClient(Client):
         kwargs.pop("check_model_name", None)
         ntrials = 3
         client = None
-        for trial in range(0, ntrials + 1):
+        for trial in range(0, ntrials):
             try:
                 client = Client(*self.args, **kwargs)
+                break
             except ValueError as e:
                 if trial >= ntrials:
                     raise
