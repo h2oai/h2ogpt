@@ -2,12 +2,13 @@
 
 ### JSON mode and other Guided Generations for vLLM >= 0.4.0
 
-- [x] Can pass in `response_format='json_object'` at CLI or API or UI to get json.  Works for most models even if don't support json mode directly, except smaller models like 1.8B Danube (many mistakes) or Google Gemma (one character mistakes).
+- [x] Can pass in `response_format=json_object` at CLI or API or UI to get json with best effort for each model type.
+- [x] Can pass in `response_format=json_code` at CLI or API or UI to get json via code block extraction and special prompting.  Works for most models even if don't support json mode directly, except smaller models like 1.8B Danube (many mistakes) or Google Gemma (one character mistakes).
 - [x] Can pass `guided_json` to specify the schema that should be a spec form with type and properties.  The actual json spec is inside properties.  See [vLLM guide](https://github.com/vllm-project/vllm/blob/c64cf38673780544087af5ad5d3baf879a29220b/tests/entrypoints/test_openai_server.py#L28-L73).
-- [x] If pass guided_json for vLLM >=0.4.0 instances, then strictly follows format including keys, types, etc.
+- [x] If pass `guided_json` for vLLM >=0.4.0 and Anthropic Claude-3 instances (soon Google, OpenAI, MistralAI), then strictly follows format including keys, types, etc.
 - [x] Can pass separately guided_regex, guided_choice, guided_grammar for similar control.  These only work for vLLM >= 0.4.0.
-- [x] Handle old vLLM and other models that do not have json mode by using code blocks.  Only small models like Danube and Google Gemma have issues.
-- [x] Handle mistral and openai directly for json mode
+- [x] Handle old vLLM and other models that do not have json mode by using `json_code` mode effectively.
+- [x] When making JSON without guided_json schema, handle MistralAI and OpenAI directly using their JSON mode.
 
 h2oGPT in general uses guided_json like defined below to tell LLM the schema as part of prompt, unless vLLM >= 0.4.0 when this is provided directly to vLLM.  Schemas like `guided_json` are not required for JSON mode, but to follow some schema it is required, and only vLLM >= 0.4.0 will strictly follow the schema due to guided generation using outlines package.
 
