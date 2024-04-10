@@ -857,6 +857,6 @@ def get_fun_with_dict_str_plain(default_kwargs, kwargs, kwargs_evaluate_nochat):
                                                 str_api=True,
                                                 plain_api=True,
                                                 kwargs=kwargs,
-                                                **kwargs_evaluate_nochat
+                                                **kwargs_evaluate_nochat,
                                                 )
     return fun_with_dict_str_plain
