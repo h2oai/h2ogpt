@@ -2401,7 +2401,7 @@ def go_gradio(**kwargs):
                                     system_event = system_btn3.click(get_hash,
                                                                      outputs=system_text3,
                                                                      api_name='system_hash' if allow_api else None,
-                                                                     **noqueue_kwargs,
+                                                                     **noqueue_kwargs_curl,
                                                                      )
 
                                     system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
