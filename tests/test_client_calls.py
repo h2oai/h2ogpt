@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full, noop_prompt_type
+    db_types_full, noop_prompt_type, git_hash_unset
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
@@ -134,7 +134,6 @@ def test_client1api_lean(save_dir, admin_pass):
     from src.gen import main
     base_model = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
     os.environ['ADMIN_PASS'] = admin_pass
-    os.environ['GET_GITHASH'] = '1'
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          save_dir=save_dir)
@@ -184,10 +183,10 @@ def test_client1api_lean(save_dir, admin_pass):
 
     client2.refresh_client()  # test refresh
     res = client.predict(api_name=api_name)
-    assert res in [get_githash(), 'GET_GITHASH']
+    assert res in [get_githash(), git_hash_unset]
 
     res = client2.get_server_hash()
-    assert res in [get_githash(), 'GET_GITHASH']
+    assert res in [get_githash(), git_hash_unset]
 
 
 @wrap_test_forked
@@ -4705,7 +4704,6 @@ def test_max_new_tokens(max_new_tokens, temperature):
     fudge_seed = 4
 
     from src.gen import main
-    os.environ['GET_GITHASH'] = '1'
     main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
 
     for base_model in base_models:

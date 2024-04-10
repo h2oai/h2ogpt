@@ -352,7 +352,7 @@ class GradioClient(Client):
         if self.config is None:
             self.setup()
         t1 = time.time()
-        ret = "GET_GITHASH"
+        ret = "GET_GITHASH_UNSET"
         try:
             if self.check_hash:
                 ret = super().submit(api_name="/system_hash").result()

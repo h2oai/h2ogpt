@@ -39,7 +39,7 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import split_google, invalid_json_str, docs_joiner_default
+from src.enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset
 from src.utils_procs import reulimit
 
 reulimit()
@@ -396,16 +396,21 @@ def _s3up(filename):
 
 
 def get_githash():
+    githash = git_hash_unset
     try:
         githash = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode('utf-8')[0:-1]
-    except:
+        if githash in ['', None]:
+            githash = git_hash_unset
+    except Exception as e:
+        print("git failed to run: %s" % str(e))
+    if githash == git_hash_unset:
         try:
             with open('git_hash.txt', 'rt') as f:
-                githash = f.read()
-        except:
-            githash = "GET_GITHASH"
+                githash = f.read().strip()
+        except Exception as e:
+            print("git_hash.txt failed to be found: %s" % str(e))
 
-    if githash == "GET_GITHASH":
+    if githash == git_hash_unset:
         try:
             from src.version import __version__
             githash = __version__
