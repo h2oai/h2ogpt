@@ -30,12 +30,14 @@ def run_server(host: str = '0.0.0.0',
                app: Union[str, FastAPI] = None,
                ):
     if workers == 0:
-        workers = os.cpu_count() * 2 + 1
+        workers = min(16, os.cpu_count() * 2 + 1)
     assert app is not None
 
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
     os.environ['GRADIO_SERVER_PORT'] = gradio_port or '7860'
+    if h2ogpt_key == 'None':
+        h2ogpt_key = None
     os.environ['GRADIO_H2OGPT_H2OGPT_KEY'] = h2ogpt_key or ''  # don't use H2OGPT_H2OGPT_KEY, mixes things up
     # use h2ogpt_key if no server api key, so OpenAI inherits key by default if any keys set and enforced via API for h2oGPT
     # but OpenAI key cannot be '', so dummy value is EMPTY and if EMPTY we ignore the key in authorization

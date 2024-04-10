@@ -38,8 +38,8 @@ def test_openai_client_test2(stream_output, chat, local_server):
 
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
-@pytest.mark.parametrize("local_server", [True])
-@pytest.mark.parametrize("openai_workers", [1, 8])
+@pytest.mark.parametrize("local_server", [True])  # choose False if start local server
+@pytest.mark.parametrize("openai_workers", [1, 0])  # choose 0 to test multi-worker case
 @pytest.mark.parametrize("prompt", ["Who are you?", "Tell a very long kid's story about birds."])
 @pytest.mark.parametrize("api_key", [None, "EMPTY", os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
