@@ -911,7 +911,8 @@ class GradioInference(H2Oagenerate, LLM):
 
             # ensure parent client is updated if remote server changed
             if client.server_hash != self.client.server_hash:
-                self.client.refresh_client()
+                with filelock.FileLock(os.path.join('locks', 'gradio_client.lock')):
+                    self.client.refresh_client()
 
             return ret
 
