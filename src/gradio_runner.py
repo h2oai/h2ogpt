@@ -6730,7 +6730,8 @@ def go_gradio(**kwargs):
         print("Use local URL: %s" % demo.local_url, flush=True)
 
     if kwargs['openai_server']:
-        from openai_server.server import run
+        from openai_server.server_start import run
+        from openai_server.server import app
         url_split = demo.local_url.split(':')
         if len(url_split) == 3:
             gradio_prefix = ':'.join(url_split[0:1]).replace('//', '')
@@ -6753,6 +6754,8 @@ def go_gradio(**kwargs):
             auth=kwargs['auth'],
             auth_access=kwargs['auth_access'],
             guest_name=kwargs['guest_name'],
+            app=app if kwargs['openai_workers'] == 1 else 'server:app',
+            workers=kwargs['openai_workers'],
             )
 
     if kwargs['block_gradio_exit']:

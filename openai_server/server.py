@@ -4,21 +4,17 @@ import os
 import sys
 import ast
 import json
-from threading import Thread
 import time
 from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
-import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
-
-from openai_server.log import logger
 
 sys.path.append('openai_server')
 
@@ -328,47 +324,3 @@ async def handle_model_info():
 async def handle_list_models():
     from openai_server.backend import get_model_list
     return JSONResponse(content=[dict(id=x) for x in get_model_list()])
-
-
-def run_server(host='0.0.0.0',
-               port=5000,
-               ssl_certfile=None,
-               ssl_keyfile=None,
-               gradio_prefix=None,
-               gradio_host=None,
-               gradio_port=None,
-               h2ogpt_key=None,
-               auth=None,
-               auth_access='open',
-               guest_name='',
-               ):
-    os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
-    os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
-    os.environ['GRADIO_SERVER_PORT'] = gradio_port or '7860'
-    os.environ['GRADIO_H2OGPT_H2OGPT_KEY'] = h2ogpt_key or ''  # don't use H2OGPT_H2OGPT_KEY, mixes things up
-    # use h2ogpt_key if no server api key, so OpenAI inherits key by default if any keys set and enforced via API for h2oGPT
-    # but OpenAI key cannot be '', so dummy value is EMPTY and if EMPTY we ignore the key in authorization
-    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', os.environ['GRADIO_H2OGPT_H2OGPT_KEY']) or 'EMPTY'
-    os.environ['H2OGPT_OPENAI_API_KEY'] = server_api_key
-
-    os.environ['GRADIO_AUTH'] = str(auth)
-    os.environ['GRADIO_AUTH_ACCESS'] = auth_access
-    os.environ['GRADIO_GUEST_NAME'] = guest_name
-
-    port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
-    ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
-    ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
-
-    prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
-    logger.info(f'OpenAI API URL: {prefix}://{host}:{port}')
-    logger.info(f'OpenAI API key: {server_api_key}')
-
-    logging.getLogger("uvicorn.error").propagate = False
-    uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile)
-
-
-def run(wait=True, **kwargs):
-    if wait:
-        run_server(**kwargs)
-    else:
-        Thread(target=run_server, kwargs=kwargs, daemon=True).start()
