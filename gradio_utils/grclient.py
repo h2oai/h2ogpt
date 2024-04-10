@@ -341,8 +341,7 @@ class GradioClient(Client):
     @staticmethod
     def is_full_git_hash(s):
         # This regex checks for exactly 40 hexadecimal characters.
-        return bool(re.fullmatch(r'[0-9a-f]{40}', s))
-
+        return bool(re.fullmatch(r"[0-9a-f]{40}", s))
 
     def get_server_hash(self):
         """
@@ -362,7 +361,9 @@ class GradioClient(Client):
         finally:
             if self.verbose:
                 print(
-                    "duration server_hash: %s full time: %s system_hash time: %s" % (ret, time.time() - t0, time.time() - t1), flush=True
+                    "duration server_hash: %s full time: %s system_hash time: %s"
+                    % (ret, time.time() - t0, time.time() - t1),
+                    flush=True,
                 )
 
     def refresh_client_if_should(self):
