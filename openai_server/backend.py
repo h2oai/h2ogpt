@@ -4,6 +4,8 @@ import time
 import uuid
 from collections import deque
 
+import filelock
+
 from log import logger
 from openai_server.backend_utils import convert_messages_to_structure
 
@@ -88,6 +90,10 @@ def get_client(user=None):
         client = get_gradio_client(user=user)
     elif hasattr(gradio_client, 'clone'):
         client = gradio_client.clone()
+        if client.get_server_hash() != gradio_client.server_hash:
+            os.makedirs('locks', exist_ok=True)
+            with filelock.FileLock(os.path.join('locks', 'openai_gradio_client.lock')):
+                gradio_client.refresh_client()
     else:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.")
