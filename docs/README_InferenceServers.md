@@ -282,23 +282,27 @@ conda create -n vllm -y
 conda activate vllm
 conda install python=3.10 -y
 ```
+Install required NCCL:
+```bash
+sudo apt update
+sudo apt install libnccl2 libnccl-dev
+```
+Ensure cuda 12.1 installed, and can choose to avoid overwriting original link if want.  E.g. for Ubuntu:
+```bash
+# https://developer.nvidia.com/cuda-12-1-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local
+ wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
+sudo sh cuda_12.1.0_530.30.02_linux.run
+sudo chmod -R a+rwx /usr/local/
+```
 Assuming torch was installed with CUDA 12.1, and you have installed cuda locally in `/usr/local/cuda-12.1`:
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
-pip install mosaicml-turbo megablocks==0.5.1 --upgrade  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
-pip install fschat==0.2.34 ray pandas gputil==1.4.0 uvicorn[standard]
-# optional:
-pip install flash-attn==2.4.2
-# optional:
-pip install autoawq==0.1.8
-# CHOOSE VLLM:
-# for latest vllm:
-# pip install git+https://github.com/vllm-project/vllm.git
-# for h2oai vllm with reversion of memory changes on 0.3.0:
-pip install git+https://github.com/h2oai/vllm.git@v0.3.0h2oai  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
-# standard 0.3.0:
-# pip install vllm==0.3.0
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/lib64:$HOME/extras/CUPTI/lib64
+export PATH=$PATH:$CUDA_HOME/bin
+pip install vllm
+pip install flash-attn==2.5.3
 ```
 Then can start in OpenAI compliant mode, e.g. for LLaMa 65B on 2*A100 GPUs:
 ```
