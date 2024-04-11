@@ -285,6 +285,7 @@ def main(
         concurrency_count: int = None,
         api_open: bool = False,
         allow_api: bool = True,
+        system_api_open: bool = False,
         input_lines: int = 1,
         gradio_size: str = None,
         show_copy_button: bool = True,
