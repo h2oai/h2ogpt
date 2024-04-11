@@ -610,6 +610,19 @@ def go_gradio(**kwargs):
                 raise RuntimeError("Bad type: %s" % selection_docs_state1[k])
 
     # BEGIN AUTH THINGS
+    def get_auth_password(username1, auth_filename):
+        with filelock.FileLock(auth_filename + '.lock'):
+            auth_dict = {}
+            if os.path.isfile(auth_filename):
+                try:
+                    with open(auth_filename, 'rt') as f:
+                        auth_dict = json.load(f)
+                except json.decoder.JSONDecodeError as e:
+                    print("Auth exception: %s" % str(e), flush=True)
+                    shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
+                    auth_dict = {}
+        return auth_dict.get(username1, {}).get('password')
+
     def auth_func(username1, password1, auth_pairs=None, auth_filename=None,
                   auth_access=None,
                   auth_freeze=None,
@@ -2976,7 +2989,9 @@ def go_gradio(**kwargs):
             # use full auth login to allow new users if open access etc.
             if pre_authorized:
                 username1 = requests_state1.get('username')
-                password1 = username1
+                password1 = get_auth_password(username1, auth_filename)
+                if password1 in [None, '']:
+                    password1 = username1
                 authorized1 = True
             else:
                 authorized1 = False
