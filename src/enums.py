@@ -574,3 +574,14 @@ unknown_prompt_type = 'unknown'  # or None or '' are valid
 template_prompt_type = 'template'  # for only chat template but not other special (e.g. grounded) templates
 
 git_hash_unset = "GET_GITHASH_UNSET"
+
+my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
+langchain_modes0 = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value,
+                                 LangChainMode.DISABLED.value]
+langchain_mode_paths0 = {LangChainMode.USER_DATA.value: None}
+langchain_mode_types0 = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value}
+selection_docs_state0 = dict(langchain_modes=langchain_modes0,
+                             langchain_mode_paths=langchain_mode_paths0,
+                             langchain_mode_types=langchain_mode_types0)
+requests_state0 = dict(headers='', host='', username='')
+roles_state0 = dict()

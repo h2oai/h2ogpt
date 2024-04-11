@@ -8,17 +8,17 @@ import uuid
 import filelock
 
 from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
-    DocumentSubset, unknown_prompt_type
+    DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list
 from src.db_utils import length_db1
 from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides
 
 
 def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, kwargs={},
-                    my_db_state0=[],
-                    selection_docs_state0=[],
-                    requests_state0=[],
-                    roles_state0={},
+                    my_db_state1=my_db_state0,
+                    selection_docs_state1=selection_docs_state0,
+                    requests_state1=requests_state0,
+                    roles_state1=roles_state0,
                     model_states=[],
                     is_public=False,
                     verbose=False,
@@ -32,10 +32,10 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 args_list.insert(0, kwargs['model_state_none'].copy())
             else:
                 args_list.insert(0, kwargs['verifier_model_state0'].copy())
-            args_list.insert(1, my_db_state0.copy())
-            args_list.insert(2, selection_docs_state0.copy())
-            args_list.insert(3, requests_state0.copy())
-            args_list.insert(4, roles_state0.copy())
+            args_list.insert(1, my_db_state1.copy())
+            args_list.insert(2, selection_docs_state1.copy())
+            args_list.insert(3, requests_state1.copy())
+            args_list.insert(4, roles_state1.copy())
         user_kwargs = args_list[len(input_args_list)]
         assert isinstance(user_kwargs, str)
         user_kwargs = ast.literal_eval(user_kwargs)
@@ -135,7 +135,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     stream_output1 = args_list[eval_func_param_names.index('stream_output')]
     if len(model_states) >= 1:
         visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-        model_active_choice1 = visible_models_to_model_choice(visible_models1, api=True)
+        model_active_choice1 = visible_models_to_model_choice(visible_models1, model_states, api=True)
         model_state1 = model_states[model_active_choice1 % len(model_states)]
         for key in key_overrides:
             if user_kwargs.get(key) is None and model_state1.get(key) is not None:
@@ -153,7 +153,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     # else controlled by evaluate()
     if 'visible_models' in model_state1 and model_state1['visible_models'] is not None:
         assert isinstance(model_state1['visible_models'], (int, str, list, tuple))
-        which_model = visible_models_to_model_choice(model_state1['visible_models'])
+        which_model = visible_models_to_model_choice(model_state1['visible_models'], model_states)
         args_list[eval_func_param_names.index('visible_models')] = which_model
     if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
         # remote server key if present
@@ -178,7 +178,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         valid_key, h2ogpt_key1, \
         max_time1, stream_output1, \
         chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1 = \
-        prep_bot(*args_list_bot, kwargs_eval=kwargs1, plain_api=plain_api)
+        prep_bot(*args_list_bot, kwargs_eval=kwargs1, plain_api=plain_api, kwargs=kwargs, verbose=verbose)
 
     save_dict = dict()
     ret = {}
@@ -194,7 +194,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                                 tts_speed1,
                                 langchain_action1,
                                 kwargs=kwargs,
-                                api=True):
+                                api=True,
+                                verbose=verbose):
             history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
             res_dict = {}
             res_dict['response'] = history[-1][1] or ''
@@ -326,7 +327,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
 
     finally:
         clear_torch_cache(allow_skip=True)
-        clear_embeddings(user_kwargs['langchain_mode'], my_db_state1)
+        db1s = my_db_state1
+        clear_embeddings(user_kwargs['langchain_mode'], kwargs['db_type'], db1s, kwargs['dbs'])
         for image_file1 in image_files_to_delete:
             if os.path.isfile(image_file1):
                 remove(image_file1)
@@ -513,6 +515,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
 def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1, kwargs={},
                   verbose=False):
+    assert kwargs
     from src.tts_sentence_parsing import init_sentence_state
     sentence_state = init_sentence_state()
     if langchain_action1 in [LangChainAction.EXTRACT.value]:
@@ -571,6 +574,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
          API only called for which_model=0, default for inputs_list, but rest should ignore inputs_list
     :return: last element is True if should run bot, False if should just yield history
     """
+    assert kwargs
     isize = len(input_args_list) + 1  # states + chat history
     # don't deepcopy, can contain model itself
     # NOTE: Update plain_api in evaluate_nochat too
@@ -642,7 +646,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
 
     # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
     prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,
-                                               which_model=which_model)
+                                               which_model=which_model, **kwargs)
     # apply back to args_list for evaluate()
     args_list[eval_func_param_names.index('prompt_type')] = prompt_type1
     args_list[eval_func_param_names.index('prompt_dict')] = prompt_dict1
@@ -829,6 +833,7 @@ def allow_empty_instruction(langchain_mode1, document_subset1, langchain_action1
 
 
 def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0, global_scope=False, **kwargs):
+    assert kwargs
     if not prompt_type1 or which_model != 0:
         # keep prompt_type and prompt_dict in sync if possible
         prompt_type1 = kwargs.get('prompt_type', prompt_type1)
@@ -851,7 +856,7 @@ def update_prompt(prompt_type1, prompt_dict1, model_state1, which_model=0, globa
     return prompt_type1, prompt_dict1
 
 
-def get_fun_with_dict_str_plain(default_kwargs, kwargs, kwargs_evaluate_nochat):
+def get_fun_with_dict_str_plain(default_kwargs, kwargs, **kwargs_evaluate_nochat):
     fun_with_dict_str_plain = functools.partial(evaluate_nochat,
                                                 default_kwargs1=default_kwargs,
                                                 str_api=True,

@@ -73,7 +73,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, template_prompt_type
+    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, template_prompt_type, \
+    langchain_modes0, langchain_mode_types0, langchain_mode_paths0
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -380,10 +381,9 @@ def main(
 
         langchain_mode: str = None,
         user_path: str = None,
-        langchain_modes: list = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value,
-                                 LangChainMode.DISABLED.value],
-        langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
-        langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
+        langchain_modes: list = langchain_modes0,
+        langchain_mode_paths: dict = langchain_mode_paths0,
+        langchain_mode_types: dict = langchain_mode_types0,
         detect_user_path_changes_every_query: bool = False,
         update_selection_state_from_cli: bool = True,
 
@@ -2070,7 +2070,6 @@ def main(
                             json_vllm=None,
                             )
     model_state_none.update(other_model_state_defaults)
-    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)

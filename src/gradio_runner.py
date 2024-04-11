@@ -10,7 +10,6 @@ import pprint
 import random
 import shutil
 import sys
-import tempfile
 import time
 import traceback
 import uuid
@@ -22,12 +21,11 @@ from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
-from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct
+from src.db_utils import set_userid, get_username_direct, get_userid_direct
 from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, fix_text_for_gradio, get_response, \
     my_db_state_done, update_langchain_mode_paths, process_audio, is_valid_key, is_from_ui, get_llm_history, prep_bot, \
     allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain
 from src.tts_utils import combine_audios
-from src.vision.utils_vision import base64_to_img
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -60,7 +58,7 @@ fix_pydantic_duplicate_validators_error()
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
     LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
-    summary_prefix, extract_prefix, unknown_prompt_type
+    summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -299,7 +297,6 @@ def go_gradio(**kwargs):
     # for dynamic state per user session in gradio
     model_state0 = kwargs['model_state0']
     score_model_state0 = kwargs['score_model_state0']
-    my_db_state0 = kwargs['my_db_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
     visible_models_state0 = kwargs['visible_models_state0']
     visible_image_models_state0 = kwargs['visible_image_models_state0']
@@ -438,6 +435,7 @@ def go_gradio(**kwargs):
                       model_state1=model_state0,
                       which_model=visible_models_to_model_choice(kwargs['visible_models'], model_states),
                       global_scope=True,  # don't assume state0 is the prompt for all models
+                      **kwargs,
                       )
     for k in no_default_param_names:
         default_kwargs[k] = ''
@@ -752,7 +750,6 @@ def go_gradio(**kwargs):
         viewable_docs_state = gr.State(viewable_docs_state0)
         selection_docs_state0 = update_langchain_mode_paths(selection_docs_state0)
         selection_docs_state = gr.State(selection_docs_state0)
-        requests_state0 = dict(headers='', host='', username='')
         requests_state = gr.State(requests_state0)
 
         if description is None:
@@ -3864,7 +3861,6 @@ def go_gradio(**kwargs):
         # nominally never want sources appended for API calls, which is what nochat used for primarily
         kwargs_evaluate_nochat.update(dict(append_sources_to_answer=False,
                                            from_ui=False, append_sources_to_chat=False,
-                                           my_db_state0=my_db_state0,
                                            selection_docs_state0=selection_docs_state0,
                                            requests_state0=requests_state0,
                                            roles_state0=roles_state0,
@@ -4198,7 +4194,7 @@ def go_gradio(**kwargs):
                 valid_key, h2ogpt_key1, \
                 max_time1, stream_output1, \
                 chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
-                langchain_action1 = prep_bot(*args, retry=retry)
+                langchain_action1 = prep_bot(*args, retry=retry, kwargs_eval=kwargs_evaluate, kwargs=kwargs, verbose=verbose)
             save_dict = dict()
             error = ''
             error_with_str = ''
@@ -4215,7 +4211,10 @@ def go_gradio(**kwargs):
                 for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                         tts_speed1,
                                         langchain_action1,
-                                        api=False):
+                                        kwargs=kwargs,
+                                        api=False,
+                                        verbose=verbose,
+                                        ):
                     do_yield = False
                     history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
                     error_with_str = get_accordion_named(choose_exc(error), "Generate Error",
@@ -4347,7 +4346,7 @@ def go_gradio(**kwargs):
                         max_time1, stream_output1, \
                         chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
                         langchain_action1 = \
-                        prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti)
+                        prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti, kwargs_eval=kwargs_evaluate, kwargs=kwargs, verbose=verbose)
                     if num_visible_bots == 1:
                         # no need to lag, will be faster this way
                         lag = 0
@@ -4361,7 +4360,9 @@ def go_gradio(**kwargs):
                                             roles_state1 if first_visible else {},
                                             tts_speed1 if first_visible else 1.0,
                                             langchain_action1,
+                                            kwargs=kwargs,
                                             api=False,
+                                            verbose=verbose,
                                             )
                         # FIXME: only first visible chatbot is allowed to speak for now
                         first_visible = False

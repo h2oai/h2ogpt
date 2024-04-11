@@ -1,6 +1,6 @@
 import uuid
 
-from enums import LangChainMode
+from src.enums import LangChainMode
 
 
 def set_userid(db1s, requests_state1, get_userid_auth, guest_name=''):
