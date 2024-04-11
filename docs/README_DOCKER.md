@@ -52,7 +52,7 @@ All available public h2oGPT docker images can be found in [Google Container Regi
 
 Ensure image is up-to-date by running:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 ```
 
 An example running h2oGPT via docker using Zephyr 7B Beta model is:
@@ -88,7 +88,7 @@ docker run \
        -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        -v "${HOME}"/h2ogpt_auth:/workspace/h2ogpt_auth \
        -e GRADIO_SERVER_PORT=$GRADIO_SERVER_PORT \
-       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/generate.py \
           --base_model=HuggingFaceH4/zephyr-7b-beta \
           --use_safetensors=True \
           --prompt_type=zephyr \
@@ -119,7 +119,7 @@ One can run an inference server in one docker and h2oGPT in another docker.
 
 For the vLLM server running on 2 GPUs using h2oai/h2ogpt-4096-llama2-7b-chat model, run:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 unset CUDA_VISIBLE_DEVICES
 mkdir -p $HOME/.cache/huggingface/hub
 mkdir -p $HOME/save
@@ -136,7 +136,7 @@ docker run \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-7b-chat \
@@ -171,7 +171,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
@@ -201,7 +201,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
@@ -341,7 +341,7 @@ docker run \
        -v "${HOME}"/save:/workspace/save \
        -v "${HOME}"/user_path:/workspace/user_path \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
-       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/src/make_db.py
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/src/make_db.py
 ```
 
 Once db is made, can use in generate.py like:
@@ -370,7 +370,7 @@ docker run \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
-       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --use_safetensors=True \
           --prompt_type=llama2 \
@@ -391,7 +391,7 @@ For a more detailed description of other parameters of the make_db script, check
 touch build_info.txt
 docker build -t h2ogpt .
 ```
-then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0` with `h2ogpt:latest` in above run command.
+then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0` with `h2ogpt:latest` in above run command.
 
 ## Docker Compose Setup & Inference
 

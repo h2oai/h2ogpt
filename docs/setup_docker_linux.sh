@@ -42,7 +42,7 @@ sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 
 # no need to reboot
 

@@ -412,7 +412,7 @@ The vLLMs/TGIs are started with these options on various machines.
 
 For 8*A100 80GB, `go_VLLM.12.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
 
 docker run -d \
@@ -427,7 +427,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat \
@@ -450,7 +450,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0-180 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0-180 -m vllm.entrypoints.openai.api_server \
         --port=5002 \
         --host=0.0.0.0 \
         --model=HuggingFaceH4/zephyr-7b-beta \
@@ -474,7 +474,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5001 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-13b-chat \
@@ -497,7 +497,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5003 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-32k-codellama-34b-instruct \
@@ -520,7 +520,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5004 \
         --host=0.0.0.0 \
         --model=mistralai/Mistral-7B-Instruct-v0.2 \
@@ -534,7 +534,7 @@ and run `bash ./go_VLLM.12.sh` on that machine.
 
 On another 4*A100 80GB, `go_VLLM.28.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
 
 # TGI
@@ -552,7 +552,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5001 \
         --host=0.0.0.0 \
         --model=Nexusflow/NexusRaven-V2-13B \
@@ -574,7 +574,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5005 \
         --host=0.0.0.0 \
         --model=openchat/openchat-3.5-1210 \
@@ -586,7 +586,7 @@ and run `bash ./go_VLLM.28.sh`.
 
 For another 4*A100 80GB, `go_VLLM.22.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
 
 docker run -d \
@@ -601,7 +601,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=NousResearch/Nous-Capybara-34B \
@@ -627,7 +627,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5016 \
         --host=0.0.0.0 \
         --model=google/gemma-7b-it \
@@ -643,7 +643,7 @@ and run `bash ./go_VLLM.144.sh`.
 
 For another 2*A10G, `go_VLLM.199.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
 
 docker run -d \
@@ -658,7 +658,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5014 \
         --host=0.0.0.0 \
         --model=h2oai/h2o-danube-1.8b-chat \
@@ -1140,7 +1140,7 @@ docker run \
       -u `id -u`:`id -g` \
       -v "${HOME}"/.cache:/workspace/.cache \
       -v "${HOME}"/save:/workspace/save \
-      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 /workspace/generate.py \
+      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/generate.py \
          --base_model=HuggingFaceH4/zephyr-7b-beta \
          --use_safetensors=True \
          --prompt_type=zephyr \

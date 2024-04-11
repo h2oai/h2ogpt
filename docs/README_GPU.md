@@ -105,7 +105,7 @@ docker run -d \
     -u `id -u`:`id -g` \
     -v "${HOME}"/.cache:/workspace/.cache \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.1.0 -m vllm.entrypoints.openai.api_server \
+    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
