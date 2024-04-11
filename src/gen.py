@@ -35,7 +35,7 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_hf_transfer = False
 
-if have_hf_transfer:
+if have_hf_transfer and os.getenv('HF_HUB_ENABLE_HF_TRANSFER', 'None') != '0':
     os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
 
 os.environ['SCARF_NO_ANALYTICS'] = 'true'
@@ -290,6 +290,7 @@ def main(
         concurrency_count: int = None,
         api_open: bool = False,
         allow_api: bool = True,
+        system_api_open: bool = False,
         input_lines: int = 1,
         gradio_size: str = None,
         show_copy_button: bool = True,

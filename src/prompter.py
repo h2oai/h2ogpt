@@ -110,7 +110,7 @@ prompt_type_to_model_name = {
     "vicuna11nosys": ['lmsys/vicuna-13b-v1.5-16k',
                       # system prompt doesn't work, no evidence was trained with it from model card.
                       ],
-    "one_shot": ['lmsys/fastchat-t5-3b-v1.0'],
+    "one_shot": ['lmsys/fastchat-t5-3b-v1.0', 'mistral-community/Mixtral-8x22B-v0.1'],
     "falcon": ['tiiuae/falcon-40b-instruct', 'tiiuae/falcon-7b-instruct'],
     "llama2": [
         'meta-llama/Llama-2-7b-chat-hf',
@@ -1852,6 +1852,10 @@ class Prompter(object):
         if prompt_type1 == 'vicuna11':
             # hack bug in NousResearch/Nous-Capybara-34B that used different tokenizer and training, so no single token is stop token
             hfix = '</s'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
+        if prompt_type1 == 'one_shot':
+            hfix = '### Human'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
         return text1
