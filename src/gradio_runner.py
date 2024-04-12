@@ -637,11 +637,15 @@ def go_gradio(**kwargs):
         assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
-        if auth_access == 'open' and username1.startswith(guest_name):
+        if auth_access == 'open' and guest_name and username1.startswith(guest_name):
             return True
         if username1 == '':
             # some issue with login
             return False
+        if guest_name and username1.startswith(guest_name):
+            # for random access with persistent password in auth case
+            # username1 here only for auth check, rest of time full guest name used
+            username1 = guest_name
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
