@@ -135,5 +135,7 @@ dpkg -i apparmor_4.0.0~alpha2-0ubuntu5_amd64.deb
 rm -rf libapparmor1_4*.deb apparmor_4*.deb
 
 wget https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/libarchive13_3.6.2-1ubuntu1_amd64.deb
+wget https://s3.amazonaws.com/artifacts.h2o.ai/deps/h2ogpt/libarchive-dev_3.6.2-1ubuntu1_amd64.deb
 dpkg -i libarchive13_3.6.2-1ubuntu1_amd64.deb
-rm -rf libarchive13_3.6.2-1ubuntu1_amd64.deb
+dpkg -i libarchive-dev_3.6.2-1ubuntu1_amd64.deb
+rm -rf libarchive13_3.6.2-1ubuntu1_amd64.deb libarchive-dev_3.6.2-1ubuntu1_amd64.deb
