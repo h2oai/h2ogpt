@@ -5912,6 +5912,7 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
 
 def apply_chat_template(instruction, system_prompt, history, tokenizer, verbose=False):
     prompt = None
+    exceptions = []
 
     from openai_server.backend_utils import structure_to_messages
 
@@ -5924,13 +5925,16 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, verbose=
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             break
         except Exception as e:
-            if si == 0 and 'Conversation roles must alternate' in str(e):
+            # try no direct system prompt, but add as conversation history
+            history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
+
+            exceptions.append(e)
+            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
                 if verbose:
                     print("No system prompt supported: %s" % str(e))
-                continue
-            else:
+            elif os.getenv('HARD_ASSERTS'):
                 raise
-    assert prompt is not None, "Prompt was not set"
+    assert prompt is not None, "Prompt was not set: %s" % str(exceptions)
     return prompt
 
 
