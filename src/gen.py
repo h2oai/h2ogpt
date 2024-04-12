@@ -285,6 +285,7 @@ def main(
         concurrency_count: int = None,
         api_open: bool = False,
         allow_api: bool = True,
+        system_api_open: bool = False,
         input_lines: int = 1,
         gradio_size: str = None,
         show_copy_button: bool = True,
@@ -306,7 +307,7 @@ def main(
         auth_freeze: bool = False,
         auth_message: str = None,
         google_auth: bool = False,
-        guest_name: str = "guest",
+        guest_name: str = None,
         enforce_h2ogpt_api_key: bool = None,
         enforce_h2ogpt_ui_key: bool = None,
         h2ogpt_api_keys: Union[list, str] = [],
@@ -861,6 +862,8 @@ def main(
     :param google_auth: Whether to use google auth
     :param guest_name: guess name if using auth and have open access.
            If '', then no guest allowed even if open access, then all databases for each user always persisted
+           If None, then set to 'guest' for open access, or '' for closed access
+           For open or closed access, if guest_name is set, that forms prefix of actual internal userID apart from authentication and can serve as way to access UI or API freshly via auth with fixed password with no document persistence beyond that single session.
     :param enforce_h2ogpt_api_key: Whether to enforce h2oGPT token usage for API
     :param enforce_h2ogpt_ui_key: Whether to enforce h2oGPT token usage for UI (same keys as API assumed)
     :param h2ogpt_api_keys: list of tokens allowed for API access or file accessed on demand for json of list of keys
@@ -1449,9 +1452,12 @@ def main(
         auth_filename = "auth.json"
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
 
-    if auth_access == 'closed':
-        # ensure, but should be protected inside anyways
-        guest_name = ''
+    if guest_name is None:
+        if auth_access == 'closed':
+            # ensure, but should be protected inside anyways
+            guest_name = ''
+        elif auth_access == 'open':
+            guest_name = "guest"
 
     h2ogpt_pid = os.getpid() if close_button and not is_public else None
 
