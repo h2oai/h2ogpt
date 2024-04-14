@@ -6,3 +6,4 @@ nltk
 rouge_score>=0.1.2
 # below install tensorflow and downgrades numpy, so heavy dependency
 git+https://github.com/google-research/bleurt.git
+transformers>=4.38.0 # not directly required, pinned by Snyk to avoid a vulnerability
