@@ -245,7 +245,6 @@ def get_llava_response(file=None,
                              top_p,
                              max_new_tokens1,
                              api_name='/textbox_api_submit')
-        res = res[-1][-1]
         reses.append(res)
 
     if len(reses) > 1:
@@ -344,8 +343,8 @@ def get_llava_stream(file, llava_model,
                     print('Stream %d: %s' % (num, reses[ji]), flush=True)
                 elif verbose_level == 1:
                     print('Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-                if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
-                    texts[ji] = reses[ji][-1][-1]
+                if reses[ji]:
+                    texts[ji] = reses[ji]
                     if len(jobs) == 1:
                         yield texts[ji]
             job_outputs_nums[ji] += job_outputs_num_new
@@ -362,8 +361,8 @@ def get_llava_stream(file, llava_model,
                 print('Final Stream %d: %s' % (num, reses[ji]), flush=True)
             elif verbose_level == 1:
                 print('Final Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-            if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
-                texts[ji] = reses[ji][-1][-1]
+            if reses[ji]:
+                texts[ji] = reses[ji]
                 if len(jobs) == 1:
                     yield texts[ji]
         job_outputs_nums[ji] += job_outputs_num_new
