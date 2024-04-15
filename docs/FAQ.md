@@ -1,5 +1,58 @@
 ## Known issues
 
+### nginx and K8s multi-pod support
+
+Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
+
+Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.2
+```
+If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.1
+```
+
+### llama.cpp + Audio streaming (XTTS model) failure
+
+```text
+CUDA error: an illegal memory access was encountered
+```
+
+With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
+
+Other workarounds:
+
+* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
+
+* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
+    ```bash
+    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+    export FORCE_CMAKE=1
+    pip install llama_cpp_python==0.2.26 --no-cache-dir
+    ```
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
+
+
+
+
+## Frequently asked questions
+
+### Mixtral AWQ
+
+In our testing, most AWQ Mixtral builds are bad, e.g. `TheBloke/dolphin-2.7-mixtral-8x7b-AWQ` and `TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ`, generating repeats with RAG or no output at all.  We only found one that [works well](https://huggingface.co/casperhansen/mixtral-instruct-awq).  The vLLM options to run are:
+
+```
+... --port=5000 --host=0.0.0.0 --model casperhansen/mixtral-instruct-awq --seed 1234 --tensor-parallel-size=2 --max-num-batched-tokens=8192 --max-log-len=100 --trust-remote-code --worker-use-ray --enforce-eager --gpu-memory-utilization 0.98 --quantization awq
+```
+for 2 GPUs here, replacing ... with rest of docker or vLLM python commands.
+
 ### JSON mode and other Guided Generations for vLLM >= 0.4.0
 
 - [x] Can pass in `response_format=json_object` at CLI or API or UI to get json with best effort for each model type.
@@ -76,57 +129,6 @@ although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
 
 ![aya.png](aya.png)
 
-### Gradio UI Audio Streaming
-
-Gradio 4.18.0+ fails to work for streaming audio from UI.  No audio is generated.  Waiting for bug fix: https://github.com/gradio-app/gradio/issues/7497.
-
-Workaround: Use gradio 4.17.0 or lower:
-```bash
-pip uninstall gradio gradio_client -y
-pip install gradio==4.17.0
-```
-
-### nginx and K8s multi-pod support
-
-Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
-
-Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
-```bash
-pip uninstall gradio gradio_client gradio_pdf -y
-pip install gradio==3.50.2
-```
-If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
-```bash
-pip uninstall gradio gradio_client gradio_pdf -y
-pip install gradio==3.50.1
-```
-
-### llama.cpp + Audio streaming (XTTS model) failure
-
-```text
-CUDA error: an illegal memory access was encountered
-```
-
-With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
-
-A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
-
-Other workarounds:
-
-* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
-
-* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
-    ```bash
-    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-    export LLAMA_CUBLAS=1
-    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
-    export FORCE_CMAKE=1
-    pip install llama_cpp_python==0.2.26 --no-cache-dir
-    ```
-    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
-
-## Frequently asked questions
-
 ### Running oLLaMa vs. h2oGPT as inference server
 
 * Run oLLaMa as server for h2oGPT frontend.
@@ -174,7 +176,6 @@ Examples of what to put into "server" in UI or for `<server>` when using `--infe
 * oLLaMa: `vllm_chat:http://localhost:11434/v1/`
 * vLLM: `vllm:111.111.111.111:5005`
    * For llama-13b, e.g. `--model_lock="[{'inference_server':'vllm:111.11.111.111:5001', 'base_model':'h2oai/h2ogpt-4096-llama2-13b-chat'}`
-   * For groq, ensure groq API key is used,, e.g. `--model_lock="[{'inference_server':'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}]"`
 * vLLM Chat API: `vllm_chat`
   * E.g. `vllm_chat:https://gpt.h2o.ai:5000/v1` (only for no auth setup)
   * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD` (keyed access)

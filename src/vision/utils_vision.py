@@ -6,6 +6,7 @@ import uuid
 from io import BytesIO
 import numpy as np
 
+from gradio_utils.grclient import check_job
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default
 from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text
 
@@ -245,7 +246,6 @@ def get_llava_response(file=None,
                              top_p,
                              max_new_tokens1,
                              api_name='/textbox_api_submit')
-        res = res[-1][-1]
         reses.append(res)
 
     if len(reses) > 1:
@@ -333,6 +333,9 @@ def get_llava_stream(file, llava_model,
         for ji, job in enumerate(jobs):
             if verbose_level == 2:
                 print("Inside: %s" % llava_model, time.time() - t0, flush=True)
+            e = check_job(job, timeout=0, raise_exception=False)
+            if e is not None:
+                continue
             if max_time is not None and time.time() - t0 > max_time:
                 done_all = True
                 break
@@ -344,8 +347,8 @@ def get_llava_stream(file, llava_model,
                     print('Stream %d: %s' % (num, reses[ji]), flush=True)
                 elif verbose_level == 1:
                     print('Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-                if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
-                    texts[ji] = reses[ji][-1][-1]
+                if reses[ji]:
+                    texts[ji] = reses[ji]
                     if len(jobs) == 1:
                         yield texts[ji]
             job_outputs_nums[ji] += job_outputs_num_new
@@ -354,6 +357,9 @@ def get_llava_stream(file, llava_model,
             break
 
     for ji, job in enumerate(jobs):
+        e = check_job(job, timeout=0, raise_exception=False)
+        if e is not None:
+            continue
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
         for num in range(job_outputs_num_new):
@@ -362,8 +368,8 @@ def get_llava_stream(file, llava_model,
                 print('Final Stream %d: %s' % (num, reses[ji]), flush=True)
             elif verbose_level == 1:
                 print('Final Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-            if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
-                texts[ji] = reses[ji][-1][-1]
+            if reses[ji]:
+                texts[ji] = reses[ji]
                 if len(jobs) == 1:
                     yield texts[ji]
         job_outputs_nums[ji] += job_outputs_num_new

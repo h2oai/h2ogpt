@@ -14,7 +14,7 @@ from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
     db_types_full, noop_prompt_type, git_hash_unset
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
-    is_gradio_version4
+    is_gradio_version4, get_hf_server
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
 
 
@@ -5063,8 +5063,8 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-lla
                      'gpt-4-32k-0613', 'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest',
-                     'h2oai/h2o-danube-1.8b-chat',
-                     'google/gemma-7b-it', 'mixtral-8x7b-32768', 'h2oai/mixtral-gm-rag-experimental-v2',
+                     'h2oai/h2o-danube2-1.8b-chat',
+                     'google/gemma-1.1-7b-it', 'mixtral-8x7b-32768', 'h2oai/mixtral-gm-rag-experimental-v2',
                      'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01', 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b']
 
@@ -5090,14 +5090,18 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         inference_server_for_get = inference_server
     # inference_server = 'http://localhost:7860'
 
+    base_models_touse = [base_model]
     from src.gen import get_inf_models
     base_models = get_inf_models(inference_server_for_get)
-    base_models_touse = [base_model]
     assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
+    inference_server, headers, username, password = get_hf_server(inference_server)
+    if username and password:
+        auth_kwargs = dict(auth=(username, password))
+
     from gradio_client import Client
-    client = Client(inference_server, *auth_kwargs)
+    client = Client(inference_server, **auth_kwargs)
 
     # string of dict for input
     prompt = f"Give an example employee profile."
@@ -5122,13 +5126,6 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
               file=sys.stderr)
         print(response, file=sys.stderr)
-
-        if base_model in ['h2oai/h2o-danube-1.8b-chat']:
-            # just can't do it, messes up really bad
-            return
-        if base_model in ['google/gemma-7b-it']:
-            # messes things up a bit, like missing } at end
-            return
 
         try:
             mydict = json.loads(response)
