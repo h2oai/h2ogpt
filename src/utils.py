@@ -1193,12 +1193,21 @@ def get_hf_server(inference_server):
             # i.e. just DNS or IP and no port or IP + port
             user = None
             password = None
-        elif len(inf_split) in [3, 4]:
+        elif len(inf_split) == 3:
             # i.e. just DNS or IP, no port + user + pass = 3
-            # i.e. DNS/IP + port + user + pass = 4
             user = inf_split[len(inf_split) - 2]
             password = inf_split[len(inf_split) - 1]
             ip_port_vllm = ':'.join(inf_split[:len(inf_split) - 2])
+        elif len(inf_split) == 4:
+            # i.e. DNS/IP + port + user + pass = 4
+            port = inf_split[len(inf_split) - 3]
+            user = inf_split[len(inf_split) - 2]
+            password = inf_split[len(inf_split) - 1]
+            if port not in [None, 'None']:
+                ip_port_vllm = ':'.join([inf_split[0], port])
+            else:
+                ip_port_vllm = inf_split[0]
+
         else:
             raise ValueError("Malformed inference_server=%s" % inference_server)
 

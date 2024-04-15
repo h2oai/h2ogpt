@@ -226,11 +226,7 @@ def test_chat_template():
 
         prompt = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer, verbose=True)
 
-        if base_model in supports_system_prompt:
-            assert 'Be kind' in prompt
-        else:
-            assert 'Be kind' not in prompt
-
+        assert 'Be kind' in prompt  # put into pre-conversation if no actual system prompt
         assert instruction in prompt
         assert history_to_use[0][0] in prompt
         assert history_to_use[0][1] in prompt

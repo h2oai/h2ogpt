@@ -4131,7 +4131,9 @@ def evaluate(
             # for vLLM or claude-3, support schema if given
             # can't give schema both in prompt and tool/guided_json, messes model up
             pass
-        elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and response_format == 'json_object':
+        elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and \
+              response_format == 'json_object' and \
+              not (json_vllm and not guided_json):
             # these models don't support schema if given
             if inference_server and inference_server.startswith('mistral'):
                 # mistral-large gets confused with extra info, and not required

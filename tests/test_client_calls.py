@@ -14,7 +14,7 @@ from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
     db_types_full, noop_prompt_type, git_hash_unset
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
-    is_gradio_version4
+    is_gradio_version4, get_hf_server
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
 
 
@@ -5096,8 +5096,12 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
     assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
+    inference_server, headers, username, password = get_hf_server(inference_server)
+    if username and password:
+        auth_kwargs = dict(auth=(username, password))
+
     from gradio_client import Client
-    client = Client(inference_server, *auth_kwargs)
+    client = Client(inference_server, **auth_kwargs)
 
     # string of dict for input
     prompt = f"Give an example employee profile."
