@@ -6,8 +6,10 @@ sentencepiece==0.2.0
 
 # gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.25.0-py3-none-any.whl
 # gradio_client @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_client-0.15.0-py3-none-any.whl
-gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
-gradio_client==0.11.0
+#gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
+#gradio_client==0.11.0
+gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.25.0-py3-none-any.whl
+gradio_client @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_client-0.15.0-py3-none-any.whl
 
 sse_starlette==1.8.2
 # consrained by tokenizers etc.:
