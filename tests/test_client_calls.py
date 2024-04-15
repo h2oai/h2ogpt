@@ -5088,13 +5088,12 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
     else:
         auth_kwargs = {}
         inference_server_for_get = inference_server
-    inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7860'
 
     base_models_touse = [base_model]
-    if False:
-        from src.gen import get_inf_models
-        base_models = get_inf_models(inference_server_for_get)
-        assert len(set(base_models_touse).difference(set(base_models))) == 0
+    from src.gen import get_inf_models
+    base_models = get_inf_models(inference_server_for_get)
+    assert len(set(base_models_touse).difference(set(base_models))) == 0
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
     inference_server, headers, username, password = get_hf_server(inference_server)
