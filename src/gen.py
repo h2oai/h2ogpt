@@ -4099,10 +4099,11 @@ def evaluate(
     from gradio_client import Client
     gradio_server = inference_server.startswith('http') and (
             isinstance(model, GradioClient) or isinstance(model, Client))
+    h2ogpt_gradio_server = gradio_server and not is_gradio_vision_model(base_model)
 
     # don't repeat prompting if doing gradio server since inner prompting will handle
     json_vllm = False
-    if not gradio_server and \
+    if not h2ogpt_gradio_server and \
             response_format in ['json_object', 'json_code']:
         pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.\n\n'
         pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
@@ -4697,9 +4698,11 @@ def evaluate(
                     response = ''
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
-                    for response in get_llava_stream(**llava_kwargs):
+                    for response1 in get_llava_stream(**llava_kwargs):
                         if response_format in ['json_object', 'json_code']:
-                            response = get_json(response)
+                            response = get_json(response1)
+                        else:
+                            response = response1
                         yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
                                    response_no_refs=response, sources_str='', prompt_raw='')
 

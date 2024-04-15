@@ -6,6 +6,7 @@ import uuid
 from io import BytesIO
 import numpy as np
 
+from gradio_utils.grclient import check_job
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default
 from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text
 
@@ -332,6 +333,9 @@ def get_llava_stream(file, llava_model,
         for ji, job in enumerate(jobs):
             if verbose_level == 2:
                 print("Inside: %s" % llava_model, time.time() - t0, flush=True)
+            e = check_job(job, timeout=0, raise_exception=False)
+            if e is not None:
+                continue
             if max_time is not None and time.time() - t0 > max_time:
                 done_all = True
                 break
@@ -353,6 +357,9 @@ def get_llava_stream(file, llava_model,
             break
 
     for ji, job in enumerate(jobs):
+        e = check_job(job, timeout=0, raise_exception=False)
+        if e is not None:
+            continue
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
         for num in range(job_outputs_num_new):
