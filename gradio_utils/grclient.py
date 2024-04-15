@@ -109,7 +109,7 @@ class GradioClient(Client):
 
     def reset_session(self) -> None:
         self.session_hash = str(uuid.uuid4())
-        if hasattr(self, 'include_heartbeat'):
+        if hasattr(self, 'include_heartbeat') and self.include_heartbeat:
             self._refresh_heartbeat.set()
 
     def __init__(
