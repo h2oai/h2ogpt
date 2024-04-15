@@ -3875,6 +3875,8 @@ def evaluate(
         else:
             # just 1 item and make list
             langchain_agents = [langchain_agents]
+    if langchain_agents is None:
+        langchain_agents = []
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
 
