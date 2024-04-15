@@ -4131,7 +4131,9 @@ def evaluate(
                                                                                json_vllm=json_vllm)):
             # for vLLM or claude-3, support schema if given
             # can't give schema both in prompt and tool/guided_json, messes model up
-            pass
+            if json_vllm:
+                # e.g. for llama2-13b https://github.com/vllm-project/vllm/issues/4093
+                pre_instruction = schema_instruction
         elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and \
               response_format == 'json_object' and \
               not (json_vllm and not guided_json):
