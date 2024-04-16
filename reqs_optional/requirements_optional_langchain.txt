@@ -31,7 +31,7 @@ langchain-anthropic==0.1.6
 langchain-google-genai==1.0.1
 google-generativeai==0.4.1
 
-langchain_mistralai==0.1.0
+langchain_mistralai==0.1.2
 mistralai==0.1.8
 
 groq==0.4.2

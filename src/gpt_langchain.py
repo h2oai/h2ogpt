@@ -1740,12 +1740,15 @@ class GenerateStream:
     def tool_string_return(self, ret, have_tool):
         if have_tool and isinstance(ret.generations[0].text, list):
             # overwrite
-            # -1 is last, to skip first thinking step for opus/sonnet
-            # bug in claude with sonnet:
-            result = ret.generations[0].text[-1]['input']
-            if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
-                result = result['properties']
-            ret.generations[0].text = json.dumps(result)
+            if not ret.generations[0].text:
+                ret.generations[0].text = json.dumps({})
+            else:
+                # -1 is last, to skip first thinking step for opus/sonnet
+                # bug in claude with sonnet:
+                result = ret.generations[0].text[-1]['input']
+                if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
+                    result = result['properties']
+                ret.generations[0].text = json.dumps(result)
         return ret
 
     async def _agenerate(
