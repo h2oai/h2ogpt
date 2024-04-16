@@ -16,6 +16,7 @@ from random import randint
 
 import filelock
 import httpx
+import pydantic_core
 import requests
 from requests import ConnectTimeout, JSONDecodeError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionError
@@ -2632,8 +2633,12 @@ def get_inf_models(inference_server, verbose=False):
         assert api_key, "Missing MistralAI API key"
         client = MistralClient(api_key=api_key)
 
-        list_models_response = client.list_models()
-        models.extend([x.id for x in dict(list_models_response)['data']])
+        try:
+            list_models_response = client.list_models()
+            models.extend([x.id for x in dict(list_models_response)['data']])
+        except pydantic_core.ValidationError as e:
+            print("mistrail ai issue: %s" % str(e))
+            # https://github.com/mistralai/client-python/issues/83
     elif inference_server.startswith('openai') or inference_server.startswith('vllm'):
         openai_client, openai_async_client, \
             inf_type, deployment_type, base_url, api_version, api_key = \
@@ -2955,16 +2960,20 @@ def get_model(
         assert api_key, "Missing MistralAI API key"
         client = MistralClient(api_key=api_key)
 
-        list_models_response = client.list_models()
-        see_model = False
-        models = [x.id for x in dict(list_models_response)['data']]
-        for name in models:
-            see_model |= base_model == name
-            if name not in mistralai_mapping:
-                if os.getenv('HARD_ASSERTS'):
-                    raise ValueError("%s not in mistralai_mapping" % name)
-                mistralai_mapping[name] = 31768  # estimate
-        assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+        try:
+            list_models_response = client.list_models()
+            see_model = False
+            models = [x.id for x in dict(list_models_response)['data']]
+            for name in models:
+                see_model |= base_model == name
+                if name not in mistralai_mapping:
+                    if os.getenv('HARD_ASSERTS'):
+                        raise ValueError("%s not in mistralai_mapping" % name)
+                    mistralai_mapping[name] = 31768  # estimate
+            assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+        except pydantic_core.ValidationError as e:
+            print("mistrail ai issue: %s" % str(e))
+            # https://github.com/mistralai/client-python/issues/83
 
         async_client = MistralAsyncClient(api_key=api_key)
 
