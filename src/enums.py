@@ -574,3 +574,5 @@ unknown_prompt_type = 'unknown'  # or None or '' are valid
 template_prompt_type = 'template'  # for only chat template but not other special (e.g. grounded) templates
 
 git_hash_unset = "GET_GITHASH_UNSET"
+
+none = ['', '\n', None]

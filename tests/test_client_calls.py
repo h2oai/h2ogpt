@@ -5116,14 +5116,15 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
     client = Client(inference_server, **auth_kwargs)
 
     # string of dict for input
-    prompt = f"Give an example employee profile."
+    prompt = "Give an example employee profile."
 
     for guided_json in ['', TEST_SCHEMA]:
         print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
         use_instruction = langchain_action == LangChainAction.QUERY.value
         kwargs = dict(instruction_nochat=prompt if use_instruction else '',
                       prompt_query=prompt if not use_instruction else '',
-                      prompt_summary=prompt if not use_instruction else '',
+                      # below make-up line required for opus, else too "smart" and doesn't fulfill request and instead asks for more information, even though I just said give "example".
+                      prompt_summary=prompt + '  Make up values if required, do not ask further questions.' if not use_instruction else '',
                       visible_models=base_model,
                       text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
                           'Henry is a good AI scientist.'],

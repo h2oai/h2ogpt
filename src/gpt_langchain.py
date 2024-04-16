@@ -72,7 +72,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
-    noop_prompt_type, unknown_prompt_type, template_prompt_type
+    noop_prompt_type, unknown_prompt_type, template_prompt_type, none
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -5938,7 +5938,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
-        query += '\n\nUse the `JSON` tool.\n'
+        extra = '\n\nUse the `JSON` tool.\n'
+        if query_action:
+            query += extra
+        prompt_summary += extra
 
     # basic version of prompt without docs etc.
     data_point = dict(context=context, instruction=query, input=iinput)
@@ -7931,8 +7934,6 @@ def get_template(query, iinput,
                     template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
-        none = ['', '\n', None]
-
         # modify prompt_summary if user passes query or iinput
         if query not in none and iinput not in none:
             prompt_summary = "Focusing on %s, %s, %s" % (query_esc, iinput, prompt_summary)
