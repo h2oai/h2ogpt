@@ -8,11 +8,11 @@ torch==2.2.1; sys_platform == "darwin" and platform_machine == "arm64"
 #langchain-core==0.1.10
 
 # optional for chat with PDF
-langchain==0.1.14
-langchain_experimental==0.0.56
-langchain-community==0.0.31
-langsmith==0.1.38
-langchain-core==0.1.40
+langchain==0.1.16
+langchain_experimental==0.0.57
+langchain-community==0.0.33
+langsmith==0.1.48
+langchain-core==0.1.43
 langchain-text-splitters==0.0.1
 
 pypdf>=3.17.1
