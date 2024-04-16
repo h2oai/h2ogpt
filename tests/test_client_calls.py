@@ -4902,9 +4902,9 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
 
 
 def get_creation_date(file_path):
-  """Gets the creation date of a file."""
-  stat = os.stat(file_path)
-  return stat.st_ctime
+    """Gets the creation date of a file."""
+    stat = os.stat(file_path)
+    return stat.st_ctime
 
 
 # (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
@@ -5069,15 +5069,27 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-lla
                      'liuhaotian/llava-v1.6-34b']
 
 
+vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llama2-13b-chat',
+                     'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
+                     'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
+                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
+                     'h2oai/h2o-danube2-1.8b-chat',
+                     'google/gemma-1.1-7b-it', 'h2oai/mixtral-gm-rag-experimental-v2',
+                     'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01']
+
+
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
 # @pytest.mark.parametrize("base_model", [gpt_models[1]])
 # @pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
-@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
+                                              LangChainAction.EXTRACT.value])
 def test_guided_json(langchain_action, langchain_mode, response_format, base_model):
-    if langchain_mode == 'LLM' and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+    if langchain_mode == 'LLM' and \
+            (langchain_action == LangChainAction.SUMMARIZE_MAP.value or
+             langchain_action == LangChainAction.EXTRACT.value):
         # dummy return
         return
 
@@ -5113,6 +5125,8 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                       prompt_query=prompt if not use_instruction else '',
                       prompt_summary=prompt if not use_instruction else '',
                       visible_models=base_model,
+                      text_context_list=[] if langchain_action == LangChainAction.QUERY else [
+                          'Henry is a good AI scientist.'],
                       stream_output=False,
                       langchain_mode=langchain_mode,
                       langchain_action=langchain_action,
@@ -5127,6 +5141,12 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
               file=sys.stderr)
         print(response, file=sys.stderr)
 
+        # just take first for testing
+        if langchain_action == LangChainAction.EXTRACT.value:
+            response = ast.literal_eval(response)
+            assert isinstance(response, list), str(response)
+            response = response[0]
+
         try:
             mydict = json.loads(response)
         except:
@@ -5137,23 +5157,15 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         check_keys = ['age', 'name', 'skills', 'workhistory']
         check_keys2 = ['age', 'name', 'skills', 'workHistory']
         check_keys3 = ['age', 'name', 'skills', 'workhistory']
-        if langchain_action == LangChainAction.SUMMARIZE_MAP.value and langchain_mode == LangChainMode.MY_DATA.value:
-            pass
+
+        cond1 = all([k in mydict for k in check_keys])
+        cond2 = all([k in mydict for k in check_keys2])
+        cond3 = all([k in mydict for k in check_keys3])
+        if not guided_json:
+            assert mydict, "Empty dict"
         else:
-            cond1 = all([k in mydict for k in check_keys])
-            cond2 = all([k in mydict for k in check_keys2])
-            cond3 = all([k in mydict for k in check_keys3])
-            if not guided_json:
-                assert mydict, "Empty dict"
-            else:
-                # zephyr, mistralv0.2, mutate to workHistory
-                if base_model in ['HuggingFaceH4/zephyr-7b-beta',  # until vLLM is upgraded
-                                  'mistralai/Mistral-7B-Instruct-v0.2',  # until vLLM is upgraded
-                                  'NousResearch/Nous-Capybara-34B',  # until vLLM is upgraded
-                                  ]:
-                    assert cond1 or cond2 or cond3, "Missing keys"
-                else:
-                    assert cond1, "Missing keys: %s" % response
-                if base_model == 'CohereForAI/c4ai-command-r-v01':
-                    import jsonschema
-                    jsonschema.validate(mydict, schema=guided_json)
+            # zephyr, mistralv0.2, mutate to workHistory
+            assert cond1, "Missing keys: %s" % response
+            if base_model in vllm_base_models:
+                import jsonschema
+                jsonschema.validate(mydict, schema=guided_json)

@@ -2163,6 +2163,16 @@ def get_code_blocks(response):
 
 
 def get_json(response):
+    is_list = isinstance(response, list)
+    if not is_list:
+        response = [response]
+    response_new = [_get_json(x) for x in response]
+    if not is_list:
+        response_new = response_new[0]
+    return response_new
+
+
+def _get_json(response):
     # First, try to extract code block content. If content is found (not an empty string), return None (or possibly an empty string as per updated logic)
     response0 = extract_code_block_content(response)
     if response0:
