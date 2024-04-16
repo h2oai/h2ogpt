@@ -107,6 +107,11 @@ class GradioClient(Client):
     To handle automatically refreshing client if detect gradio server changed
     """
 
+    def reset_session(self) -> None:
+        self.session_hash = str(uuid.uuid4())
+        if hasattr(self, 'include_heartbeat') and self.include_heartbeat:
+            self._refresh_heartbeat.set()
+
     def __init__(
         self,
         src: str,
@@ -127,6 +132,7 @@ class GradioClient(Client):
         persist: bool = False,
         check_hash: bool = True,
         check_model_name: bool = False,
+        include_heartbeat: bool = False,
     ):
         """
         Parameters:
@@ -154,6 +160,7 @@ class GradioClient(Client):
             persist=persist,
             check_hash=check_hash,
             check_model_name=check_model_name,
+            include_heartbeat=include_heartbeat,
         )
         if is_gradio_client_version7plus:
             # 4.18.0:
@@ -200,6 +207,7 @@ class GradioClient(Client):
         self.persist = persist
         self.check_hash = check_hash
         self.check_model_name = check_model_name
+        self.include_heartbeat = include_heartbeat
 
         self.chat_conversation = []  # internal for persist=True
         self.server_hash = None  # internal
@@ -268,7 +276,7 @@ class GradioClient(Client):
             self.sse_url = urllib.parse.urljoin(
                 self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
             )
-            if hasattr(utils, 'HEARTBEAT_URL'):
+            if hasattr(utils, 'HEARTBEAT_URL') and self.include_heartbeat:
                 self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
             else:
                 self.heartbeat_url = None
@@ -290,7 +298,7 @@ class GradioClient(Client):
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
         # threading.Thread(target=self._telemetry_thread, daemon=True).start()
-        if is_gradio_client_version7plus and hasattr(utils, 'HEARTBEAT_URL'):
+        if is_gradio_client_version7plus and hasattr(utils, 'HEARTBEAT_URL') and self.include_heartbeat:
             self._refresh_heartbeat = threading.Event()
             self._kill_heartbeat = threading.Event()
 
@@ -405,6 +413,7 @@ class GradioClient(Client):
         kwargs.pop("persist", None)
         kwargs.pop("check_hash", None)
         kwargs.pop("check_model_name", None)
+        kwargs.pop("include_heartbeat", None)
         ntrials = 3
         client = None
         for trial in range(0, ntrials):
