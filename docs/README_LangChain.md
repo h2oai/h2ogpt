@@ -230,6 +230,49 @@ python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None 
 ```
 or choose 13B.  And watch out for the use of whitespace.  For `langchain_mode_paths` you can pass surrounded by "'s and have spaces.
 
+### Per-User DataBase
+
+See discussion [here](https://github.com/h2oai/h2ogpt/issues/1550#issuecomment-2059793978).
+
+E.g. a folder might already have some databases, like for user *jon* be:
+```text
+(h2ogpt) jon@pseudotensor:~/h2ogpt$ ls -alrt users/jon/
+total 84
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_yuppy/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_xxx/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_testsum1/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_feefef/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_dudedata/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_dogdata1/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_dogdata/
+drwx------   2 jon jon  4096 Apr  8 01:49 db_dir_aaaaa/
+drwx------  12 jon jon  4096 Apr  8 02:11 ./
+drwx------   3 jon jon  4096 Apr  8 02:12 db_dir_asdfasdf/
+drwx------   3 jon jon  4096 Apr  9 08:44 db_dir_MyData/
+drwx------ 431 jon jon 36864 Apr 16 11:20 ../
+```
+for personal collections.
+
+To make a new one for the user, fill `user_path_jon` with documents (can be soft or hard linked to avoid dups across multiple users), do:
+```bash
+python src/make_db.py --user_path=user_path_jon --collection_name=JonData --langchain_type=personal --hf_embedding_model=hkunlp/instructor-large --persist_directory=users/jon/db_dir_JonData
+```
+
+Then you'll have:
+```text
+(h2ogpt) jon@pseudotensor:~/h2ogpt$ ls -alrt users/jon/db_dir_JonData/
+total 264
+drwx------ 13 jon jon   4096 Apr 16 12:28 ../
+drwx------  2 jon jon   4096 Apr 16 12:28 d7ccacb6-93fe-4380-9340-b7f5edffb655/
+-rw-------  1 jon jon 249856 Apr 16 12:28 chroma.sqlite3
+-rw-------  1 jon jon     41 Apr 16 12:28 embed_info
+drwx------  3 jon jon   4096 Apr 16 12:28 ./
+```
+
+You can add that database to the `auth.json` for their entry if using `auth.json` type file, and they will see when they login.
+
+Or you can have the user add that collection by name (JonData).  i.e. In *Document Selection* they would go to *Add Collection* and enter `JonData, personal`.  A path could be added if you want them to be able to add to the path, else avoid.  After hitting enter they will see the collection and it will become the default with the documents you added tot he database.
+
 ### Choosing document types
 
 ```python
