@@ -4851,20 +4851,8 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         # dummy return
         return
 
-    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    if inference_server == 'https://gpt.h2o.ai':
-        auth_kwargs = dict(auth=('guest', 'guest'))
-    else:
-        auth_kwargs = {}
-
-    from src.gen import get_inf_models
-    base_models = get_inf_models(inference_server)
-    base_models_touse = [base_model]
-    assert len(set(base_models_touse).difference(set(base_models))) == 0
+    client, base_models = get_test_server_client(base_model)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
-
-    from gradio_client import Client
-    client = Client(inference_server, *auth_kwargs)
 
     # string of dict for input
     prompt = 'What do you see?'
@@ -5078,6 +5066,31 @@ vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llam
                      'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01']
 
 
+def get_test_server_client(base_model):
+    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
+    if inference_server == 'https://gpt.h2o.ai':
+        auth_kwargs = dict(auth=('guest', 'guest'))
+        inference_server_for_get = inference_server + ':guest:guest'
+    else:
+        auth_kwargs = {}
+        inference_server_for_get = inference_server
+    # inference_server = 'http://localhost:7860'
+
+    base_models_touse = [base_model]
+    from src.gen import get_inf_models
+    base_models = get_inf_models(inference_server_for_get)
+    assert len(set(base_models_touse).difference(set(base_models))) == 0
+
+    inference_server, headers, username, password = get_hf_server(inference_server)
+    if username and password:
+        auth_kwargs = dict(auth=(username, password))
+
+    from gradio_client import Client
+    client = Client(inference_server, **auth_kwargs)
+
+    return client, base_models
+
+
 @wrap_test_forked
 @pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
@@ -5093,27 +5106,8 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         # dummy return
         return
 
-    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    if inference_server == 'https://gpt.h2o.ai':
-        auth_kwargs = dict(auth=('guest', 'guest'))
-        inference_server_for_get = inference_server + ':guest:guest'
-    else:
-        auth_kwargs = {}
-        inference_server_for_get = inference_server
-    # inference_server = 'http://localhost:7860'
-
-    base_models_touse = [base_model]
-    from src.gen import get_inf_models
-    base_models = get_inf_models(inference_server_for_get)
-    assert len(set(base_models_touse).difference(set(base_models))) == 0
+    client, base_models = get_test_server_client(base_model)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
-
-    inference_server, headers, username, password = get_hf_server(inference_server)
-    if username and password:
-        auth_kwargs = dict(auth=(username, password))
-
-    from gradio_client import Client
-    client = Client(inference_server, **auth_kwargs)
 
     # string of dict for input
     prompt = "Give an example employee profile."
