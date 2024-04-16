@@ -5125,7 +5125,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                       prompt_query=prompt if not use_instruction else '',
                       prompt_summary=prompt if not use_instruction else '',
                       visible_models=base_model,
-                      text_context_list=[] if langchain_action == LangChainAction.QUERY else [
+                      text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
                           'Henry is a good AI scientist.'],
                       stream_output=False,
                       langchain_mode=langchain_mode,
