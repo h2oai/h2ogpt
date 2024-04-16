@@ -5155,12 +5155,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
 
         # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
         check_keys = ['age', 'name', 'skills', 'workhistory']
-        check_keys2 = ['age', 'name', 'skills', 'workHistory']
-        check_keys3 = ['age', 'name', 'skills', 'workhistory']
-
         cond1 = all([k in mydict for k in check_keys])
-        cond2 = all([k in mydict for k in check_keys2])
-        cond3 = all([k in mydict for k in check_keys3])
         if not guided_json:
             assert mydict, "Empty dict"
         else:
