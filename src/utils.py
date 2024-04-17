@@ -2162,26 +2162,32 @@ def get_code_blocks(response):
     return pattern.findall(response)
 
 
-def get_json(response):
+def get_json(response, fixup=True):
     is_list = isinstance(response, list)
     if not is_list:
         response = [response]
-    response_new = [_get_json(x) for x in response]
+    response_new = [_get_json(x, fixup=fixup) for x in response]
     if not is_list:
         response_new = response_new[0]
     return response_new
 
 
-def _get_json(response):
+def _get_json(response, fixup=True):
     # First, try to extract code block content. If content is found (not an empty string), return None (or possibly an empty string as per updated logic)
     response0 = extract_code_block_content(response)
     if response0:
+        if fixup:
+            from json_repair import repair_json
+            response0 = repair_json(response0)
         return response0
     # Next, check if the response looks like JSON, return it if so
     if looks_like_json(response):
         response = response.strip()
         if response.endswith('```'):
             response = response[:-3].strip()
+        if fixup:
+            from json_repair import repair_json
+            response = repair_json(response)
         return response
     # If it doesn't look like JSON, return an empty string as a default case
     return invalid_json_str

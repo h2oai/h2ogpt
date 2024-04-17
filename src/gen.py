@@ -3652,7 +3652,7 @@ def get_score_model(score_model: str = None,
 
 def evaluate_fake(*args, **kwargs):
     yield dict(response=invalid_key_msg, sources='', save_dict=dict(extra_dict=dict(base_model='')),
-               llm_answers={}, response_no_refs='',
+               llm_answers=dict(response_raw=response_raw), response_no_refs='',
                sources_str='', audio=None, prompt_raw='')
     return
 
@@ -3923,7 +3923,7 @@ def evaluate(
                           prompt_type=prompt_type,
                           base_model=LangChainAction.IMAGE_GENERATE.value)
         save_dict = dict(prompt=instruction, output=response, extra_dict=extra_dict)
-        yield dict(response=response, sources=[], save_dict=save_dict, llm_answers={},
+        yield dict(response=response, sources=[], save_dict=save_dict, llm_answers=dict(response_raw=response_raw),
                    response_no_refs="Generated image for %s" % instruction,
                    sources_str="", prompt_raw=instruction)
         return
@@ -4146,8 +4146,8 @@ def evaluate(
                 # e.g. for llama2-13b https://github.com/vllm-project/vllm/issues/4093
                 pre_instruction = schema_instruction
         elif is_json_model(base_model, inference_server, json_vllm=json_vllm) and \
-              response_format == 'json_object' and \
-              not (json_vllm and not guided_json):
+                response_format == 'json_object' and \
+                not (json_vllm and not guided_json):
             # these models don't support schema if given
             if inference_server and inference_server.startswith('mistral'):
                 # mistral-large gets confused with extra info, and not required
@@ -4271,6 +4271,7 @@ def evaluate(
         sources = []
         sources_str = ''
         response = ''
+        response_raw = ''
         response_no_refs = ''
         prompt_raw = ''
         # use smaller cut_distance for wiki_full since so many matches could be obtained, and often irrelevant unless close
@@ -4426,10 +4427,14 @@ def evaluate(
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
             if response_format in ['json_object', 'json_code']:
+                response_raw = response if isinstance(response, str) else response.copy()
                 response = get_json(response)
+            else:
+                response_raw = response
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
+            llm_answers['response_raw'] = response_raw
             response_no_refs = r['response_no_refs']
             sources_str = r['sources_str']
             prompt_raw = str(r['prompt_raw'])
@@ -4552,6 +4557,7 @@ def evaluate(
                     text = ''
                     sources = []
                     response = ''
+                    response_raw = ''
                     if not stream_output:
                         text = responses.choices[0].text
                         response = prompter.get_response(prompt + text, prompt=prompt,
@@ -4569,8 +4575,10 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 if response_format in ['json_object', 'json_code']:
+                                    response_raw = response
                                     response = get_json(response)
-                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                yield dict(response=response, sources=sources, save_dict={},
+                                           llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
                                 if verbose:
@@ -4615,14 +4623,16 @@ def evaluate(
                         **vllm_extra_dict,
                         **other_dict,
                     )
-                    text = ""
+                    text = ''
                     sources = []
-                    response = ""
+                    response = ''
+                    response_raw = ''
                     if not stream_output:
                         text = responses.choices[0].message.content
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
+                            response_raw = response
                             response = get_json(response)
                     else:
                         tgen0 = time.time()
@@ -4633,8 +4643,10 @@ def evaluate(
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 if response_format in ['json_object', 'json_code']:
+                                    response_raw = response
                                     response = get_json(response)
-                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                yield dict(response=response, sources=sources, save_dict={},
+                                           llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
                             if time.time() - tgen0 > max_time:
                                 if verbose:
@@ -4704,19 +4716,24 @@ def evaluate(
                     response, _ = get_llava_response(**llava_kwargs)
 
                     if response_format in ['json_object', 'json_code']:
+                        response_raw = response
                         response = get_json(response)
-                    yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                    yield dict(response=response, sources=[], save_dict={}, error='',
+                               llm_answers=dict(response_raw=response_raw),
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
                     response = ''
+                    response_raw = ''
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response1 in get_llava_stream(**llava_kwargs):
                         if response_format in ['json_object', 'json_code']:
+                            response_raw = response1
                             response = get_json(response1)
                         else:
                             response = response1
-                        yield dict(response=response, sources=[], save_dict={}, error='', llm_answers={},
+                        yield dict(response=response, sources=[], save_dict={}, error='',
+                                   llm_answers=dict(response_raw=response_raw),
                                    response_no_refs=response, sources_str='', prompt_raw='')
 
                         if time.time() - tgen0 > max_time:
@@ -4856,6 +4873,7 @@ def evaluate(
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
                     response = ''
+                    response_raw = ''
                     text = ''
                     sources = []
                     strex = ''
@@ -4880,12 +4898,16 @@ def evaluate(
                         else:
                             gener = gr_client.simple_stream(**gr_stream_kwargs)
                         response = ''
+                        response_raw = ''
                         for res_dict in gener:
                             if 'response' in res_dict:
                                 response = res_dict['response']
                                 if response_format in ['json_object', 'json_code']:
+                                    response_raw = response
                                     response = get_json(response)
                                     res_dict['response'] = response
+                                    res_dict['llm_answers'] = res_dict.get('llm_answers', {})
+                                    res_dict['llm_answers']['response_raw'] = response_raw
                             yield res_dict
                     # listen to inner gradio
                     num_prompt_tokens += res_dict.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens',
@@ -4897,6 +4919,7 @@ def evaluate(
                     # HF inference server needs control over input tokens
                     where_from = "hf_client"
                     response = ''
+                    response_raw = ''
                     sources = []
 
                     # prompt must include all human-bot like tokens, already added by prompt
@@ -4928,6 +4951,7 @@ def evaluate(
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
+                            response_raw = response
                             response = get_json(response)
                     else:
                         tgen0 = time.time()
@@ -4941,8 +4965,10 @@ def evaluate(
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 sources = []
                                 if response_format in ['json_object', 'json_code']:
+                                    response_raw = response
                                     response = get_json(response)
-                                yield dict(response=response, sources=sources, save_dict={}, llm_answers={},
+                                yield dict(response=response, sources=sources, save_dict={},
+                                           llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
                                 time.sleep(0.01)
                             if time.time() - tgen0 > max_time:
@@ -4969,7 +4995,7 @@ def evaluate(
                                ))
         save_dict.update(dict(prompt=prompt, output=text, where_from=where_from, extra_dict=extra_dict))
         # if not streaming, only place yield should be done
-        yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+        yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=dict(response_raw=response_raw),
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
         return
     else:
@@ -4985,7 +5011,7 @@ def evaluate(
         sources = []
         response = model(prompt, max_length=max_new_tokens)[0][key]
         yield dict(response=response, sources=sources, save_dict=save_dict,
-                   llm_answers={},
+                   llm_answers=dict(response_raw=response_raw),
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
         return
 
@@ -5101,6 +5127,7 @@ def evaluate(
                 print('Pre-Generate: %s' % str(datetime.now()), flush=True)
             decoded_output = ''
             response = ''
+            response_raw = ''
             with context_class("generate.lock"):
                 if verbose:
                     print('Generate: %s' % str(datetime.now()), flush=True)
@@ -5116,7 +5143,7 @@ def evaluate(
                     bucket = queue.Queue()
                     thread = EThread(target=target, streamer=streamer, bucket=bucket)
                     thread.start()
-                    ret = dict(response='', sources='', save_dict=dict(), llm_answers={},
+                    ret = dict(response='', sources='', save_dict=dict(), llm_answers=dict(response_raw=response_raw),
                                response_no_refs='', sources_str='', prompt_raw=prompt)
                     outputs = ""
                     sources = []
@@ -5130,8 +5157,10 @@ def evaluate(
                                                              only_new_text=True,
                                                              sanitize_bot_response=sanitize_bot_response)
                             if response_format in ['json_object', 'json_code']:
+                                response_raw = response
                                 response = get_json(response)
-                            ret = dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+                            ret = dict(response=response, sources=sources, save_dict=save_dict,
+                                       llm_answers=dict(response_raw=response_raw),
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
                             if stream_output:
                                 yield ret
@@ -5174,6 +5203,7 @@ def evaluate(
                                                      only_new_text=True,
                                                      sanitize_bot_response=sanitize_bot_response)
                     if response_format in ['json_object', 'json_code']:
+                        response_raw = response
                         response = get_json(response)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
@@ -5190,7 +5220,8 @@ def evaluate(
             save_dict.update(dict(prompt=prompt, output=decoded_output,
                                   where_from="evaluate_%s" % str(stream_output),
                                   extra_dict=extra_dict))
-            yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers={},
+            yield dict(response=response, sources=sources, save_dict=save_dict,
+                       llm_answers=dict(response_raw=response_raw),
                        response_no_refs=response, sources_str='', prompt_raw=prompt)
             if torch.cuda.is_available() and device not in ['cpu', 'mps']:
                 torch.cuda.empty_cache()
@@ -6104,8 +6135,8 @@ def get_limited_prompt(instruction,
                                                                        max_prompt_length=max_input_tokens)
     # leave bit for instruction regardless of system prompt
     system_prompt_to_use, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt_to_use, tokenizer,
-                                                                              max_prompt_length=int(
-                                                                                  max_input_tokens * 0.9))
+                                                                                     max_prompt_length=int(
+                                                                                         max_input_tokens * 0.9))
     if use_chat_template:
         context2 = apply_chat_template(instruction, system_prompt_to_use, history, tokenizer)
         iinput = ''
