@@ -6037,8 +6037,11 @@ def get_limited_prompt(instruction,
                          allow_chat_system_prompt
     if chat_system_prompt and system_prompt:
         chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
+        # nuke system prompt else will double-up
+        system_prompt_to_use = ''
     else:
         chat_conversation_system_prompt = []
+        system_prompt_to_use = system_prompt
     chat_conversation = chat_conversation_system_prompt + chat_conversation
 
     # merge handles if chat_conversation is None
@@ -6055,7 +6058,7 @@ def get_limited_prompt(instruction,
                                                 # still model_max_length because subtraction done again inside history_to_context
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
-                                                system_prompt=system_prompt,
+                                                system_prompt=system_prompt_to_use,
                                                 hyde_level=hyde_level,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
@@ -6098,11 +6101,11 @@ def get_limited_prompt(instruction,
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
     # leave bit for instruction regardless of system prompt
-    system_prompt, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt, tokenizer,
+    system_prompt_to_use, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt_to_use, tokenizer,
                                                                               max_prompt_length=int(
                                                                                   max_input_tokens * 0.9))
     if use_chat_template:
-        context2 = apply_chat_template(instruction, system_prompt, history, tokenizer)
+        context2 = apply_chat_template(instruction, system_prompt_to_use, history, tokenizer)
         iinput = ''
         context1 = ''
         num_context1_tokens = 0
@@ -6118,7 +6121,7 @@ def get_limited_prompt(instruction,
 
     # limit system prompt
     if prompter:
-        prompter.system_prompt = system_prompt
+        prompter.system_prompt = system_prompt_to_use
     if external_handle_chat_conversation:
         pass
     else:
@@ -6195,7 +6198,7 @@ def get_limited_prompt(instruction,
                 if use_chat_template:
                     instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                             max_prompt_length=non_doc_max_length)
-                    context2 = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer)
+                    context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, tokenizer)
                 else:
                     context2 = history_to_context_func(history_to_use)
 
@@ -6224,7 +6227,7 @@ def get_limited_prompt(instruction,
             if use_chat_template:
                 instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                         max_prompt_length=non_doc_max_length)
-                context2 = apply_chat_template(instruction, system_prompt, history_to_use_final, tokenizer)
+                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, tokenizer)
             else:
                 context2 = history_to_context_func(history_to_use_final)
 
@@ -6291,7 +6294,7 @@ def get_limited_prompt(instruction,
         debug = False
         stream_output = False  # doesn't matter
         prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                            system_prompt=system_prompt)
+                            system_prompt=system_prompt_to_use)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type
