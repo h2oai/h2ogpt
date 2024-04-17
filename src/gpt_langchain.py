@@ -7974,6 +7974,7 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
     if llm_answers and hyde_show_intermediate_in_accordion:
         for title, content in llm_answers.items():
             if title == 'response_raw':
+                count += 1
                 continue
             if count + 1 == all_count:
                 # skip one just generating or just generated.  Either not ready yet or final answer not in accordion
