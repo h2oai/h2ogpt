@@ -5759,6 +5759,12 @@ def _run_qa_db(query=None,
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
 
+    # avoid source stuff in response if not textual, e.g. json
+    if response_format != 'text':
+        answer_with_sources = False
+        append_sources_to_answer = False
+        hyde_show_intermediate_in_accordion = False
+
     # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
     max_new_tokens0 = max_new_tokens
 
@@ -5988,7 +5994,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
 
-    llm_answers = {}
+    llm_answers = dict(reponse_raw='')
     if hyde_level is not None and hyde_level > 0 and query_action and document_subset not in non_query_commands:
         query_embedding, llm_answers = yield from run_hyde(**locals().copy())
         sim_kwargs['query_embedding'] = query_embedding
@@ -6136,7 +6142,7 @@ def run_target(query='',
                llm=None,
                streamer=None,
                prompter=None,
-               llm_answers={},
+               llm_answers=dict(responses_raw=''),
                llm_answers_key='llm_answer_final',
                async_output=False,
                only_new_text=True,
@@ -7967,6 +7973,9 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
     all_count = len(llm_answers)
     if llm_answers and hyde_show_intermediate_in_accordion:
         for title, content in llm_answers.items():
+            if title == 'response_raw':
+                count += 1
+                continue
             if count + 1 == all_count:
                 # skip one just generating or just generated.  Either not ready yet or final answer not in accordion
                 count += 1
