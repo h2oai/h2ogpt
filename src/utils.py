@@ -2178,7 +2178,11 @@ def _get_json(response, fixup=True):
     if response0:
         if fixup:
             from json_repair import repair_json
-            response0 = repair_json(response0)
+            try:
+                response0 = repair_json(response0)
+            except Exception as e:
+                # best effort, don't understand if package will hae issues
+                print("repair_json exception1: %s: %s" % (str(e), response))
         return response0
     # Next, check if the response looks like JSON, return it if so
     if looks_like_json(response):
@@ -2187,7 +2191,11 @@ def _get_json(response, fixup=True):
             response = response[:-3].strip()
         if fixup:
             from json_repair import repair_json
-            response = repair_json(response)
+            try:
+                response = repair_json(response)
+            except Exception as e:
+                # best effort, don't understand if package will hae issues
+                print("repair_json exception2: %s: %s" % (str(e), response))
         return response
     # If it doesn't look like JSON, return an empty string as a default case
     return invalid_json_str
