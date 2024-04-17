@@ -5759,6 +5759,11 @@ def _run_qa_db(query=None,
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
 
+    # avoid source stuff in response if not textual, e.g. json
+    if response_format != 'text':
+        answer_with_sources = False
+        append_sources_to_answer = False
+
     # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
     max_new_tokens0 = max_new_tokens
 
@@ -7967,6 +7972,8 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
     all_count = len(llm_answers)
     if llm_answers and hyde_show_intermediate_in_accordion:
         for title, content in llm_answers.items():
+            if title == 'response_raw':
+                continue
             if count + 1 == all_count:
                 # skip one just generating or just generated.  Either not ready yet or final answer not in accordion
                 count += 1
