@@ -5763,6 +5763,7 @@ def _run_qa_db(query=None,
     if response_format != 'text':
         answer_with_sources = False
         append_sources_to_answer = False
+        hyde_show_intermediate_in_accordion = False
 
     # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
     max_new_tokens0 = max_new_tokens
