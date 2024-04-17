@@ -5988,7 +5988,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
 
-    llm_answers = {}
+    llm_answers = dict(reponse_raw='')
     if hyde_level is not None and hyde_level > 0 and query_action and document_subset not in non_query_commands:
         query_embedding, llm_answers = yield from run_hyde(**locals().copy())
         sim_kwargs['query_embedding'] = query_embedding
@@ -6136,7 +6136,7 @@ def run_target(query='',
                llm=None,
                streamer=None,
                prompter=None,
-               llm_answers={},
+               llm_answers=dict(responses_raw=''),
                llm_answers_key='llm_answer_final',
                async_output=False,
                only_new_text=True,
