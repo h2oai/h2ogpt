@@ -4117,6 +4117,7 @@ def evaluate(
     if not h2ogpt_gradio_server and \
             response_format in ['json_object', 'json_code']:
         pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.\n\n'
+        pre_instruction1_simpler = '\nEnsure your response is strictly valid JSON text.\n\n'
         pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
         if isinstance(guided_json, str):
             try:
@@ -4151,7 +4152,9 @@ def evaluate(
             # these models don't support schema if given
             if inference_server and inference_server.startswith('mistral'):
                 # mistral-large gets confused with extra info, and not required
-                pre_instruction1 = ''
+                # updates, things changed, revise again
+                # https://docs.mistral.ai/capabilities/json_mode/
+                pre_instruction1 = pre_instruction1_simpler
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
                 # FIXME: Do function calling if can instead
