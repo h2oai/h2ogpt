@@ -6042,7 +6042,9 @@ def get_limited_prompt(instruction,
     else:
         chat_conversation_system_prompt = []
         system_prompt_to_use = system_prompt
-    chat_conversation = chat_conversation_system_prompt + chat_conversation
+    if not gradio_server:
+        # else inner calls will handle LLM prompting and system prompt, so don't double up
+        chat_conversation = chat_conversation_system_prompt + chat_conversation
 
     # merge handles if chat_conversation is None
     history = []
@@ -6311,6 +6313,12 @@ def get_limited_prompt(instruction,
     else:
         # assume inner gradio server handles.  if we point to gradio server (i.e. gradio_server=True) then we just pass instruction
         prompt = instruction if gradio_server else context2
+        if gradio_server and not prompter.can_handle_system_prompt and system_prompt:
+            # then must have added in pre-conversation, remove for inner gradio to handle, here we just wanted to count accurately
+            if history_to_use_final and history_to_use_final[0][1] == system_prompt_to_use:
+                # protection just in case logic isn't perfect
+                history_to_use_final.pop(0)
+
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
     return prompt, \
