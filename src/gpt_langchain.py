@@ -72,7 +72,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
     user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
-    noop_prompt_type, unknown_prompt_type, template_prompt_type, none
+    noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
+    gpt4_image_tokens
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -1649,16 +1650,16 @@ class ExtraChat:
                         if img_tag in [claude3imagetag]:
                             # https://docs.anthropic.com/claude/docs/vision#image-costs
                             # for roughly 1kx1k image
-                            self.count_input_tokens += 1334
+                            self.count_input_tokens += claude3_image_tokens
                         if img_tag in [geminiimagetag]:
                             # https://cloud.google.com/vertex-ai/generative-ai/pricing
                             # gemini gives $ cost per image, not by tokens, just estimate
                             # $0.0025 per image and $0.000125/1k tokens, 4 chars/token, so image like 20k chars or 5k tokens
-                            self.count_input_tokens += 5000
+                            self.count_input_tokens += gemini_image_tokens
                         if img_tag in [gpt4imagetag]:
                             # https://openai.com/pricing
                             # for 1kx1k costs $0.00765 while $10/M tokens, so image is like 765 tokens
-                            self.count_input_tokens += 1000
+                            self.count_input_tokens += gpt4_image_tokens
 
                         num_images += 1
                         if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:

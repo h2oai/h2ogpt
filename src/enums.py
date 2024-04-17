@@ -228,6 +228,14 @@ claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
 
+claude3_image_tokens = 1334
+gemini_image_tokens = 5000
+gpt4_image_tokens = 1000
+
+llava16_image_tokens = 2880
+llava16_model_max_length = 4096
+llava16_image_fudge = 50
+
 # https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini
 #  Invalid argument provided to Gemini: 400 Please use fewer than 16 images in your request to models/gemini-pro-vision
 # 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
