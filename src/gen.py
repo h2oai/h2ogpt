@@ -3652,7 +3652,7 @@ def get_score_model(score_model: str = None,
 
 def evaluate_fake(*args, **kwargs):
     yield dict(response=invalid_key_msg, sources='', save_dict=dict(extra_dict=dict(base_model='')),
-               llm_answers=dict(response_raw=response_raw), response_no_refs='',
+               llm_answers=dict(response_raw=''), response_no_refs='',
                sources_str='', audio=None, prompt_raw='')
     return
 
@@ -3923,7 +3923,7 @@ def evaluate(
                           prompt_type=prompt_type,
                           base_model=LangChainAction.IMAGE_GENERATE.value)
         save_dict = dict(prompt=instruction, output=response, extra_dict=extra_dict)
-        yield dict(response=response, sources=[], save_dict=save_dict, llm_answers=dict(response_raw=response_raw),
+        yield dict(response=response, sources=[], save_dict=save_dict, llm_answers=dict(response_raw=''),
                    response_no_refs="Generated image for %s" % instruction,
                    sources_str="", prompt_raw=instruction)
         return
@@ -4427,10 +4427,8 @@ def evaluate(
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']
             if response_format in ['json_object', 'json_code']:
-                response_raw = response if isinstance(response, str) else response.copy()
-                response = get_json(response)
-            else:
                 response_raw = response
+                response = get_json(response)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
@@ -4711,6 +4709,8 @@ def evaluate(
                                     client=gr_client if not regenerate_gradio_clients else None,
                                     verbose=verbose,
                                     )
+                response = ''
+                response_raw = ''
                 if not stream_output and img_file == 1:
                     from src.vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
@@ -4722,8 +4722,6 @@ def evaluate(
                                llm_answers=dict(response_raw=response_raw),
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
-                    response = ''
-                    response_raw = ''
                     tgen0 = time.time()
                     from src.vision.utils_vision import get_llava_stream
                     for response1 in get_llava_stream(**llava_kwargs):
