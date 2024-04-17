@@ -1,4 +1,7 @@
+import functools
+import json
 import sys
+import time
 
 import pytest
 
@@ -233,7 +236,6 @@ def test_chat_template():
 
 
 def test_partial_codeblock():
-    import json
     json.dumps(invalid_json_str)
 
     # Example usages:
@@ -309,16 +311,17 @@ def test_partial_codeblock():
     assert not looks_like_json('```code block```'), "Failed: Code block"
 
     # Test cases
-    assert get_json('{"key": "value"}') == '{"key": "value"}', "Failed: Valid JSON object should be returned as is."
-    assert get_json('[1, 2, 3]') == '[1, 2, 3]', "Failed: Valid JSON array should be returned as is."
-    assert get_json('```text\nSome code```') == 'Some code', "Failed: Code block content should be returned."
-    assert get_json('Some random text') == invalid_json_str, "Failed: Random text should lead to 'invalid json' return."
-    assert get_json('```{"key": "value in code block"}```') == '{"key": "value in code block"}', "Failed: JSON in code block should be correctly extracted and returned."
-    assert get_json('```code\nmore code```') == 'more code', "Failed: Multi-line code block content should be returned."
-    assert get_json('```\n{"key": "value"}\n```') == '{"key": "value"}', "Failed: JSON object in code block with new lines should be correctly extracted and returned."
-    assert get_json('') == invalid_json_str, "Failed: Empty string should lead to 'invalid json' return."
-    assert get_json('True') == invalid_json_str, "Failed: Non-JSON 'True' value should lead to 'invalid json' return."
-    assert get_json('{"incomplete": true,') == '{"incomplete": true,', "Failed: Incomplete JSON should still be considered as JSON and returned as is."
+    get_json_nofixup = functools.partial(get_json, fixup=False)
+    assert get_json_nofixup('{"key": "value"}') == '{"key": "value"}', "Failed: Valid JSON object should be returned as is."
+    assert get_json_nofixup('[1, 2, 3]') == '[1, 2, 3]', "Failed: Valid JSON array should be returned as is."
+    assert get_json_nofixup('```text\nSome code```') == 'Some code', "Failed: Code block content should be returned."
+    assert get_json_nofixup('Some random text') == invalid_json_str, "Failed: Random text should lead to 'invalid json' return."
+    assert get_json_nofixup('```{"key": "value in code block"}```') == '{"key": "value in code block"}', "Failed: JSON in code block should be correctly extracted and returned."
+    assert get_json_nofixup('```code\nmore code```') == 'more code', "Failed: Multi-line code block content should be returned."
+    assert get_json_nofixup('```\n{"key": "value"}\n```') == '{"key": "value"}', "Failed: JSON object in code block with new lines should be correctly extracted and returned."
+    assert get_json_nofixup('') == invalid_json_str, "Failed: Empty string should lead to 'invalid json' return."
+    assert get_json_nofixup('True') == invalid_json_str, "Failed: Non-JSON 'True' value should lead to 'invalid json' return."
+    assert get_json_nofixup('{"incomplete": true,') == '{"incomplete": true,', "Failed: Incomplete JSON should still be considered as JSON and returned as is."
 
     answer = """Here is an example JSON that fits the provided schema:
 ```json
@@ -341,7 +344,7 @@ def test_partial_codeblock():
 }
 ```
 Note that the `work history` array contains two objects, each with a `company`, `duration`, and `position` property. The `skills` array contains three string elements, each with a maximum length of 10 characters. The `name` and `age` properties are also present and are of the correct data types."""
-    assert get_json(answer) == """{
+    assert get_json_nofixup(answer) == """{
   "name": "John Doe",
   "age": 30,
   "skills": ["Java", "Python", "JavaScript"],
@@ -374,12 +377,60 @@ Note that the `work history` array contains two objects, each with a `company`, 
     non_json_response = "This is just some text."
 
     # Tests
-    assert get_json(json_in_code_block).strip() == '{"key": "value"}', "Should extract and return JSON from a code block."
-    assert get_json(plain_json_response) == '{"key": "value"}', "Should return plain JSON as is."
-    assert get_json(non_json_response) == invalid_json_str, "Should return 'invalid json' for non-JSON response."
+    assert get_json_nofixup(json_in_code_block).strip() == '{"key": "value"}', "Should extract and return JSON from a code block."
+    assert get_json_nofixup(plain_json_response) == '{"key": "value"}', "Should return plain JSON as is."
+    assert get_json_nofixup(non_json_response) == invalid_json_str, "Should return 'invalid json' for non-JSON response."
 
 
     # Test with the provided example
     stream_content = """ {\n \"name\": \"John Doe\",\n \"email\": \"john.doe@example.com\",\n \"jobTitle\": \"Software Developer\",\n \"department\": \"Technology\",\n \"hireDate\": \"2020-01-01\",\n \"employeeId\": 123456,\n \"manager\": {\n \"name\": \"Jane Smith\",\n \"email\": \"jane.smith@example.com\",\n \"jobTitle\": \"Senior Software Developer\"\n },\n \"skills\": [\n \"Java\",\n \"Python\",\n \"JavaScript\",\n \"React\",\n \"Spring\"\n ],\n \"education\": {\n \"degree\": \"Bachelor's Degree\",\n \"field\": \"Computer Science\",\n \"institution\": \"Example University\",\n \"graduationYear\": 2018\n },\n \"awards\": [\n {\n \"awardName\": \"Best Developer of the Year\",\n \"year\": 2021\n },\n {\n \"awardName\": \"Most Valuable Team Player\",\n \"year\": 2020\n }\n ],\n \"performanceRatings\": {\n \"communication\": 4.5,\n \"teamwork\": 4.8,\n \"creativity\": 4.2,\n \"problem-solving\": 4.6,\n \"technical skills\": 4.7\n }\n}\n```"""
-    extracted_content = get_json(stream_content)
+    extracted_content = get_json_nofixup(stream_content)
     assert extracted_content == """{\n \"name\": \"John Doe\",\n \"email\": \"john.doe@example.com\",\n \"jobTitle\": \"Software Developer\",\n \"department\": \"Technology\",\n \"hireDate\": \"2020-01-01\",\n \"employeeId\": 123456,\n \"manager\": {\n \"name\": \"Jane Smith\",\n \"email\": \"jane.smith@example.com\",\n \"jobTitle\": \"Senior Software Developer\"\n },\n \"skills\": [\n \"Java\",\n \"Python\",\n \"JavaScript\",\n \"React\",\n \"Spring\"\n ],\n \"education\": {\n \"degree\": \"Bachelor's Degree\",\n \"field\": \"Computer Science\",\n \"institution\": \"Example University\",\n \"graduationYear\": 2018\n },\n \"awards\": [\n {\n \"awardName\": \"Best Developer of the Year\",\n \"year\": 2021\n },\n {\n \"awardName\": \"Most Valuable Team Player\",\n \"year\": 2020\n }\n ],\n \"performanceRatings\": {\n \"communication\": 4.5,\n \"teamwork\": 4.8,\n \"creativity\": 4.2,\n \"problem-solving\": 4.6,\n \"technical skills\": 4.7\n }\n}"""
+
+
+def test_repair_json():
+    a = """{
+    "Supplementary Leverage Ratio": [7.0, 5.8, 5.7],
+    "Liquidity Metrics": {
+    "End of Period Liabilities and Equity": [2260, 2362, 2291],
+    "Liquidity Coverage Ratio": [118, 115, 115],
+    "Trading-Related Liabilities(7)": [84, 72, 72],
+    "Total Available Liquidty Resources": [972, 994, 961],
+    "Deposits Balance Sheet": [140, 166, 164],
+    "Other Liabilities(7)": {},
+    "LTD": {},
+    "Equity": {
+    "Book Value per share": [86.43, 92.16, 92.21],
+    "Tangible Book Value per share": [73.67, 79.07, 79.16]
+    }
+    },
+    "Capital and Balance Sheet ($ in B)": {
+    "Risk-based Capital Metrics(1)": {
+    "End of Period Assets": [2260, 2362, 2291],
+    "CET1 Capital": [147, 150, 150],
+    "Standardized RWAs": [1222, 1284, 1224],
+    "Investments, net": {},
+    "CET1 Capital Ratio - Standardized": [12.1, 11.7, 12.2],
+    "Advanced RWAs": [1255, 1265, 1212],
+    "Trading-Related Assets(5)": [670, 681, 659],
+    "CET1 Capital Ratio - Advanced": [11.7, 11.8, 12.4],
+    "Loans, net(6)": {},
+    "Other(5)": [182, 210, 206]
+    }
+    }
+    }
+    
+    Note: Totals may not sum due to rounding. LTD: Long-term debt. All information for 4Q21 is preliminary. All footnotes are presented on Slide 26."""
+
+    from json_repair import repair_json
+
+    for i in range(len(a)):
+        text = a[:i]
+        t0 = time.time()
+        good_json_string = repair_json(text)
+        if i > 50:
+            assert len(good_json_string) > 5
+        tdelta = time.time() - t0
+        assert tdelta < 0.002, "Too slow: %s" % tdelta
+        print("%s : %s : %s" % (i, tdelta, good_json_string))
+        json.loads(good_json_string)
