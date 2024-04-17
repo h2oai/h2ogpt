@@ -5008,6 +5008,7 @@ def evaluate(
         # NOTE: uses max_length only
         sources = []
         response = model(prompt, max_length=max_new_tokens)[0][key]
+        response_raw = ''
         yield dict(response=response, sources=sources, save_dict=save_dict,
                    llm_answers=dict(response_raw=response_raw),
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
