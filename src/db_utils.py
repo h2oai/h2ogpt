@@ -120,10 +120,10 @@ def fetch_user(auth_filename, username, verbose=False):
             assert isinstance(user_details, dict)
             return {username: user_details}
         else:
-            return {username: dict(userid=str(uuid.uuid4()))}
+            return {}
     except Exception as e:
         print(f"An error occurred: {e}")
-        return {username: dict(userid=str(uuid.uuid4()))}
+        return {}
     finally:
         # Close the database connection
         conn.close()
