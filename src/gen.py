@@ -3104,12 +3104,12 @@ def get_model(
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
-            #try:
+            # try:
             #    from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
             #    raise RuntimeError("WIP")
             #    tokenizer = MistralTokenizer.from_model(base_model)
             #    tokenizer.model_max_length = max_seq_len
-            #except Exception as e:
+            # except Exception as e:
             #    # FIXME: not all models, only some, so do what can
             #    print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
             tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
@@ -3140,7 +3140,10 @@ def get_model(
             # elif base_model == 'gemma-7b-it':
 
             tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
-                                      tokenizer=AutoTokenizer.from_pretrained(tokenizer_base_model))
+                                      tokenizer=AutoTokenizer.from_pretrained(tokenizer_base_model,
+                                                                              token=use_auth_token,
+                                                                              trust_remote_code=trust_remote_code,
+                                                                              ))
 
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
