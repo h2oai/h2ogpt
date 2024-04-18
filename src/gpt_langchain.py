@@ -5945,7 +5945,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         # avoid gradio_runner injection of user lead to query being filled
         query = ''
     if inference_server and \
-        inference_server.startswith('anthropic') and \
+            inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
         extra = '\n\nUse the `JSON` tool.\n'
@@ -8247,8 +8247,9 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
     if file is None:
         raise RuntimeError("Don't use change, use input")
 
-    if langchain_mode in ['LLM', 'Disabled']:
-        return None, langchain_mode, "", "", None, None
+    # can't do below, langchain_mode can change, e.g. LLM -> MyData and UI will reflect
+    # if langchain_mode in ['LLM', 'Disabled']:
+    #    return None, langchain_mode, "", "", None, None
 
     kwargs.update(selection_docs_state1)
     set_userid(db1s, requests_state1, get_userid_auth)
