@@ -104,6 +104,9 @@ def fetch_user(auth_filename, username, verbose=False):
     elif not os.path.isfile(db_filename):
         create_table(db_filename)
 
+    if username in [None, '']:
+        return {}
+
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
 
