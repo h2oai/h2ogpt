@@ -130,11 +130,6 @@ def fetch_user(auth_filename, username, verbose=False):
 
 
 def upsert_user(db_filename, username, user_details, verbose=False):
-    with filelock.FileLock(db_filename + '.lock'):
-        return _upsert_user(db_filename, username, user_details, verbose=verbose)
-
-
-def _upsert_user(db_filename, username, user_details, verbose=False):
     # Connect to the SQLite database
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
