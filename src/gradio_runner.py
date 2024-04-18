@@ -18,6 +18,8 @@ import filelock
 import numpy as np
 import pandas as pd
 import requests
+import ujson
+
 from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
@@ -650,6 +652,7 @@ def go_gradio(**kwargs):
             auth_dict = {}
             if os.path.isfile(auth_filename):
                 try:
+                    print("Auth access: %s" % username1)
                     with open(auth_filename, 'rt') as f:
                         auth_dict = json.load(f)
                 except json.decoder.JSONDecodeError as e:
@@ -3168,7 +3171,7 @@ def go_gradio(**kwargs):
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
                     with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
+                        auth_dict = ujson.load(f)
                         if username1 in auth_dict:
                             auth_user = auth_dict[username1]
                             if password_to_check:
@@ -3294,7 +3297,7 @@ def go_gradio(**kwargs):
                 shutil.copy(auth_filename, backup_file)
             try:
                 with open(auth_filename, 'wt') as f:
-                    f.write(json.dumps(auth_dict, indent=2))
+                    f.write(ujson.dumps(auth_dict, indent=2))
                 remove(backup_file)
             except BaseException as e:
                 print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
@@ -3327,7 +3330,7 @@ def go_gradio(**kwargs):
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
                     with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
+                        auth_dict = ujson.load(f)
                     if username1 in auth_dict:
                         auth_user = auth_dict[username1]
                         if selection_docs_state1:

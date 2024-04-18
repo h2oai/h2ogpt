@@ -6,10 +6,10 @@ from enums import LangChainMode
 def set_userid(db1s, requests_state1, get_userid_auth, guest_name=''):
     force = requests_state1 and 'username' in requests_state1
     db1 = db1s[LangChainMode.MY_DATA.value]
-    assert db1 is not None and len(db1) == length_db1()
+    assert db1 is not None and len(db1) == length_db1(), "%s %s" % (len(db1), length_db1())
     if not db1[1] or force:
         db1[1] = get_userid_auth(requests_state1, id0=db1[1])
-    if not db1[2] or force:
+    if force or len(db1) == length_db1() and not db1[2]:
         username1 = None
         if 'username' in requests_state1:
             username1 = requests_state1['username']

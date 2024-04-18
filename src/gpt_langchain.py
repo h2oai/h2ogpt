@@ -8174,25 +8174,7 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                 get_userid_auth=None,
                 n_jobs=-1,
                 ):
-    for k in db1s:
-        set_dbid(db1s[k])
-    langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-    langchain_mode_types = selection_docs_state1['langchain_mode_types']
-    set_userid(db1s, requests_state1, get_userid_auth)
-    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
-                    dbs=dbs,
-                    load_db_if_exists=load_db_if_exists,
-                    db_type=db_type,
-                    use_openai_embedding=use_openai_embedding,
-                    hf_embedding_model=hf_embedding_model,
-                    migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
-                    for_sources_list=True,
-                    verbose=verbose,
-                    n_jobs=n_jobs,
-                    )
-
-    if langchain_mode in ['LLM'] or db is None:
+    if langchain_mode in ['LLM', 'Disabled']:
         source_files_added = "NA"
         source_list = []
         num_chunks = 0
@@ -8203,46 +8185,72 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
         source_list = []
         num_chunks = 0
         num_sources_str = str(0)
-    elif db is not None:
-        metadatas = get_metadatas(db, full_required=False)
-        metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
-        exception_metadatas_sources = [x['source'] for x in metadatas if x.get('exception', '')]
-        source_list = sorted(set(metadatas_sources))
-        source_files_added = '\n'.join(source_list)
-        num_chunks = len(metadatas_sources)
-        num_sources_str = ">=%d" % len(source_list)
-        if is_chroma_db(db):
-            num_chunks_real = db._collection.count()  # includes exceptions
-            num_chunks_real -= len(exception_metadatas_sources)  # exclude exceptions
-            if num_chunks_real == num_chunks:
-                num_sources_str = "=%d" % len(source_list)
-            else:
-                num_chunks = num_chunks_real
     else:
-        source_list = []
-        source_files_added = "None"
-        num_chunks = 0
-        num_sources_str = str(0)
-    sources_dir = "sources_dir"
-    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
-    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
-    with open(sources_file, "wt", encoding="utf-8") as f:
-        f.write(source_files_added)
+        for k in db1s:
+            set_dbid(db1s[k])
+        langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+        langchain_mode_types = selection_docs_state1['langchain_mode_types']
+        set_userid(db1s, requests_state1, get_userid_auth)
+        db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                        dbs=dbs,
+                        load_db_if_exists=load_db_if_exists,
+                        db_type=db_type,
+                        use_openai_embedding=use_openai_embedding,
+                        hf_embedding_model=hf_embedding_model,
+                        migrate_embedding_model=migrate_embedding_model,
+                        auto_migrate_db=auto_migrate_db,
+                        for_sources_list=True,
+                        verbose=verbose,
+                        n_jobs=n_jobs,
+                        )
+        if db is not None:
+            metadatas = get_metadatas(db, full_required=False)
+            metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
+            exception_metadatas_sources = [x['source'] for x in metadatas if x.get('exception', '')]
+            source_list = sorted(set(metadatas_sources))
+            source_files_added = '\n'.join(source_list)
+            num_chunks = len(metadatas_sources)
+            num_sources_str = ">=%d" % len(source_list)
+            if is_chroma_db(db):
+                num_chunks_real = db._collection.count()  # includes exceptions
+                num_chunks_real -= len(exception_metadatas_sources)  # exclude exceptions
+                if num_chunks_real == num_chunks:
+                    num_sources_str = "=%d" % len(source_list)
+                else:
+                    num_chunks = num_chunks_real
+        else:
+            source_list = []
+            source_files_added = "None"
+            num_chunks = 0
+            num_sources_str = str(0)
+    sources_file = make_sources_file(langchain_mode, source_files_added)
     source_list = docs_state0 + source_list
     if DocumentChoice.ALL.value in source_list:
         source_list.remove(DocumentChoice.ALL.value)
     return sources_file, source_list, num_chunks, num_sources_str, db
 
 
+def make_sources_file(langchain_mode, source_files_added):
+    sources_dir = "sources_dir"
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
+    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
+    with open(sources_file, "wt", encoding="utf-8") as f:
+        f.write(source_files_added)
+    return sources_file
+
+
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
                    langchain_mode=None,
                    get_userid_auth=None,
                    **kwargs):
-    kwargs.update(selection_docs_state1)
-    set_userid(db1s, requests_state1, get_userid_auth)
-
     if file is None:
         raise RuntimeError("Don't use change, use input")
+
+    if langchain_mode in ['LLM', 'Disabled']:
+        return None, langchain_mode, "", "", None, None
+
+    kwargs.update(selection_docs_state1)
+    set_userid(db1s, requests_state1, get_userid_auth)
 
     try:
         return _update_user_db(file, db1s=db1s,
@@ -8619,6 +8627,9 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                                           get_userid_auth=None,
                                           delete_sources=False,
                                           n_jobs=-1):
+    if langchain_mode in ['LLM', 'Disabled']:
+        return "Sources: N/A"
+
     langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
     langchain_mode_types = selection_docs_state1['langchain_mode_types']
     set_userid(db1s, requests_state1, get_userid_auth)
@@ -8637,7 +8648,7 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
     if delete_sources:
         del_from_db(db, document_choice1, db_type=db_type)
 
-    if langchain_mode in ['LLM'] or db is None:
+    if db is None:
         return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
 
@@ -8791,6 +8802,9 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      text_limit=None,
                                                      db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None, get_userid_auth=None):
+    if langchain_mode in ['LLM', 'Disabled']:
+        return get_source_files(db=None, exceptions=None, metadatas=None)
+
     set_userid(db1s, requests_state, get_userid_auth)
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
