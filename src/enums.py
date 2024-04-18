@@ -281,6 +281,7 @@ mistralai_mapping = {
     "mistral-tiny": 32768,
     'open-mistral-7b': 32768,
     'open-mixtral-8x7b': 32768,
+    'open-mixtral-8x22b': 32768*2,
     'mistral-small-latest': 32768,
     'mistral-medium-latest': 32768,
 }
@@ -292,6 +293,7 @@ mistralai_mapping_outputs = {
     "mistral-tiny": 32768,
     'open-mistral-7b': 32768,
     'open-mixtral-8x7b': 32768,
+    'open-mixtral-8x22b': 32768*2,
     'mistral-small-latest': 32768,
     'mistral-medium-latest': 32768,
 }

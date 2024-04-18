@@ -33,6 +33,7 @@ google-generativeai==0.4.1
 
 langchain_mistralai==0.1.2
 mistralai==0.1.8
+mistral-common==1.0.2
 
 groq==0.4.2
 langchain-groq==0.1.0
