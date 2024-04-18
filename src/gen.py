@@ -3097,6 +3097,7 @@ def get_model(
 
             from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
             try:
+                raise RuntimeError("WIP")
                 tokenizer = MistralTokenizer.from_model(base_model)
                 tokenizer.model_max_length = max_seq_len
             except Exception as e:
