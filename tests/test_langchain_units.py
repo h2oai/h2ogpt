@@ -14,7 +14,8 @@ from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3,
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice, \
     docs_joiner_default, docs_token_handling_default, db_types, db_types_full
-from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs, \
+    get_hyde_acc
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
     FakeTokenizer, get_token_count, flatten_list, tar_data
 
@@ -2071,6 +2072,21 @@ def test_crawl():
     final_urls = Crawler(urls=['https://github.com/h2oai/h2ogpt'], verbose=True).run()
     assert 'https://github.com/h2oai/h2ogpt/blob/main/docs/README_GPU.md' in final_urls
     print(final_urls)
+
+
+@wrap_test_forked
+def test_hyde_acc():
+    answer = 'answer'
+    llm_answers = dict(response_raw='raw')
+    hyde_show_intermediate_in_accordion = False
+    hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
+    assert hyde == ''
+
+    answer = ['answer']
+    llm_answers = dict(response_raw='raw')
+    hyde_show_intermediate_in_accordion = False
+    hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
+    assert hyde is None
 
 
 if __name__ == '__main__':

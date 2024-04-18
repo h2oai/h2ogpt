@@ -5994,7 +5994,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
 
-    llm_answers = dict(reponse_raw='')
+    llm_answers = dict(response_raw='')
     if hyde_level is not None and hyde_level > 0 and query_action and document_subset not in non_query_commands:
         query_embedding, llm_answers = yield from run_hyde(**locals().copy())
         sim_kwargs['query_embedding'] = query_embedding
@@ -6556,7 +6556,8 @@ def run_hyde(*args, **kwargs):
             response = response_prefix + ret['response']
             if not hyde_show_only_final:
                 pre_answer = get_hyde_acc(answer, llm_answers, get_answer_kwargs['hyde_show_intermediate_in_accordion'])
-                response = pre_answer + response
+                if pre_answer:
+                    response = pre_answer + response
                 yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
                            num_prompt_tokens=ret['num_prompt_tokens'],
                            llm_answers=ret['llm_answers'],
@@ -7968,6 +7969,8 @@ def get_template(query, iinput,
 
 
 def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
+    if not isinstance(answer, str):
+        return None
     pre_answer = ''
     count = 0
     all_count = len(llm_answers)
