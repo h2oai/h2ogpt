@@ -8174,6 +8174,7 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                 get_userid_auth=None,
                 n_jobs=-1,
                 ):
+    db = None
     if langchain_mode in ['LLM', 'Disabled']:
         source_files_added = "NA"
         source_list = []
