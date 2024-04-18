@@ -3,6 +3,8 @@ import os
 import sqlite3
 import uuid
 
+import filelock
+
 from src.enums import LangChainMode
 
 
@@ -76,7 +78,7 @@ def create_table(auth_filename):
     conn.close()
 
 
-def fetch_user(auth_filename, username):
+def fetch_user(auth_filename, username, verbose=False):
     # Connect to an SQLite database (change the database path as necessary)
     if auth_filename.endswith('.json'):
         json_filename = auth_filename
@@ -96,7 +98,7 @@ def fetch_user(auth_filename, username):
         with open(json_filename, 'rt') as f:
             auth_dict = json.load(f)
         create_table(db_filename)
-        upsert_auth_dict(db_filename, auth_dict, verbose=True)
+        upsert_auth_dict(db_filename, auth_dict, verbose=verbose)
         # Slow way:
         # [upsert_user(db_filename, username1, auth_dict[username1]) for username1 in auth_dict]
     elif not os.path.isfile(db_filename):
@@ -127,7 +129,12 @@ def fetch_user(auth_filename, username):
         conn.close()
 
 
-def upsert_user(db_filename, username, user_details):
+def upsert_user(db_filename, username, user_details, verbose=False):
+    with filelock.FileLock(db_filename + '.lock'):
+        return _upsert_user(db_filename, username, user_details, verbose=verbose)
+
+
+def _upsert_user(db_filename, username, user_details, verbose=False):
     # Connect to the SQLite database
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
@@ -147,7 +154,8 @@ def upsert_user(db_filename, username, user_details):
         # Execute the UPSERT command
         cursor.execute(sql_command, (username, data_string))
         conn.commit()  # Commit the changes to the database
-        print(f"User '{username}' updated or inserted successfully.")
+        if verbose:
+            print(f"User '{username}' updated or inserted successfully.")
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
@@ -155,7 +163,7 @@ def upsert_user(db_filename, username, user_details):
         conn.close()
 
 
-def upsert_auth_dict(db_filename, auth_dict, verbose=True):
+def upsert_auth_dict(db_filename, auth_dict, verbose=False):
     # Connect to the SQLite database
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()

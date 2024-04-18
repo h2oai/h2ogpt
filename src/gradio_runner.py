@@ -617,7 +617,7 @@ def go_gradio(**kwargs):
             auth_dict = {}
             if os.path.isfile(auth_filename):
                 if auth_filename.endswith('.db'):
-                    auth_dict = fetch_user(auth_filename, username1)
+                    auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
                 else:
                     try:
                         with open(auth_filename, 'rt') as f:
@@ -656,7 +656,7 @@ def go_gradio(**kwargs):
             if os.path.isfile(auth_filename):
                 print("Auth access: %s" % username1)
                 if auth_filename.endswith('.db'):
-                    auth_dict = fetch_user(auth_filename, username1)
+                    auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
                 else:
                     try:
                         with open(auth_filename, 'rt') as f:
@@ -720,7 +720,7 @@ def go_gradio(**kwargs):
                 with filelock.FileLock(auth_filename + '.lock'):
                     if os.path.isfile(auth_filename):
                         if auth_filename.endswith('.db'):
-                            auth_dict = fetch_user(auth_filename, username1)
+                            auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
                         else:
                             with open(auth_filename, 'rt') as f:
                                 auth_dict = json.load(f)
@@ -3180,7 +3180,7 @@ def go_gradio(**kwargs):
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
                     if auth_filename.endswith('.db'):
-                        auth_dict = fetch_user(auth_filename, username1)
+                        auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
                     else:
                         with open(auth_filename, 'rt') as f:
                             auth_dict = ujson.load(f)
@@ -3305,7 +3305,7 @@ def go_gradio(**kwargs):
 
         def save_auth_dict(auth_dict, auth_filename, username1):
             if auth_filename.endswith('.db'):
-                upsert_user(auth_filename, username1, auth_dict[username1])
+                upsert_user(auth_filename, username1, auth_dict[username1], verbose=verbose)
             else:
                 backup_file = auth_filename + '.bak' + str(uuid.uuid4())
                 if os.path.isfile(auth_filename):
@@ -3345,7 +3345,7 @@ def go_gradio(**kwargs):
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
                     if auth_filename.endswith('.db'):
-                        auth_dict = fetch_user(auth_filename, username1)
+                        auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
                     else:
                         with open(auth_filename, 'rt') as f:
                             auth_dict = ujson.load(f)
