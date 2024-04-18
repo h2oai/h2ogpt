@@ -3095,6 +3095,14 @@ def get_model(
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
+            #try:
+            #    from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+            #    raise RuntimeError("WIP")
+            #    tokenizer = MistralTokenizer.from_model(base_model)
+            #    tokenizer.model_max_length = max_seq_len
+            #except Exception as e:
+            #    # FIXME: not all models, only some, so do what can
+            #    print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
             tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
                                       tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2'))
 
