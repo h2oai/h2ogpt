@@ -1460,7 +1460,7 @@ def main(
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
     if auth_filename.endswith('.db'):
         # this migrates json to db
-        assert fetch_user(auth_filename, '', verbose=verbose)
+        assert fetch_user(auth_filename, '', verbose=verbose) == {}
 
     if guest_name is None:
         if auth_access == 'closed':
