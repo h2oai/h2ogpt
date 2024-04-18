@@ -18,11 +18,13 @@ import filelock
 import numpy as np
 import pandas as pd
 import requests
+import ujson
+
 from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
-from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct
+from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import base64_to_img
 
@@ -614,13 +616,16 @@ def go_gradio(**kwargs):
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
-                try:
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    print("Auth exception: %s" % str(e), flush=True)
-                    shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
-                    auth_dict = {}
+                if auth_filename.endswith('.db'):
+                    auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                else:
+                    try:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = json.load(f)
+                    except json.decoder.JSONDecodeError as e:
+                        print("Auth exception: %s" % str(e), flush=True)
+                        shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
+                        auth_dict = {}
         return auth_dict.get(username1, {}).get('password')
 
     def auth_func(username1, password1, auth_pairs=None, auth_filename=None,
@@ -649,18 +654,22 @@ def go_gradio(**kwargs):
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
-                try:
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    print("Auth exception: %s" % str(e), flush=True)
-                    shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
-                    auth_dict = {}
+                print("Auth access: %s" % username1)
+                if auth_filename.endswith('.db'):
+                    auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                else:
+                    try:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = json.load(f)
+                    except json.decoder.JSONDecodeError as e:
+                        print("Auth exception: %s" % str(e), flush=True)
+                        shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
+                        auth_dict = {}
             if username1 in auth_dict and username1 in auth_pairs:
                 if password1 == auth_dict[username1]['password'] and password1 == auth_pairs[username1]:
                     auth_user = auth_dict[username1]
                     update_auth_selection(auth_user, selection_docs_state1)
-                    save_auth_dict(auth_dict, auth_filename)
+                    save_auth_dict(auth_dict, auth_filename, username1)
                     return True
                 else:
                     return False
@@ -668,7 +677,7 @@ def go_gradio(**kwargs):
                 if password1 == auth_dict[username1]['password']:
                     auth_user = auth_dict[username1]
                     update_auth_selection(auth_user, selection_docs_state1)
-                    save_auth_dict(auth_dict, auth_filename)
+                    save_auth_dict(auth_dict, auth_filename, username1)
                     return True
                 else:
                     return False
@@ -677,7 +686,7 @@ def go_gradio(**kwargs):
                 auth_dict[username1] = dict(password=auth_pairs[username1], userid=id0 or str(uuid.uuid4()))
                 auth_user = auth_dict[username1]
                 update_auth_selection(auth_user, selection_docs_state1)
-                save_auth_dict(auth_dict, auth_filename)
+                save_auth_dict(auth_dict, auth_filename, username1)
                 return True
             else:
                 if auth_access == 'closed':
@@ -686,7 +695,7 @@ def go_gradio(**kwargs):
                 auth_dict[username1] = dict(password=password1, userid=id0 or str(uuid.uuid4()))
                 auth_user = auth_dict[username1]
                 update_auth_selection(auth_user, selection_docs_state1)
-                save_auth_dict(auth_dict, auth_filename)
+                save_auth_dict(auth_dict, auth_filename, username1)
                 if auth_access == 'open':
                     return True
                 else:
@@ -710,8 +719,11 @@ def go_gradio(**kwargs):
                     return str(uuid.uuid4())
                 with filelock.FileLock(auth_filename + '.lock'):
                     if os.path.isfile(auth_filename):
-                        with open(auth_filename, 'rt') as f:
-                            auth_dict = json.load(f)
+                        if auth_filename.endswith('.db'):
+                            auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                        else:
+                            with open(auth_filename, 'rt') as f:
+                                auth_dict = json.load(f)
                         if username1 in auth_dict:
                             return auth_dict[username1]['userid']
         # if here, then not persistently associated with username1,
@@ -3167,97 +3179,100 @@ def go_gradio(**kwargs):
             success1 = False
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
-                        if username1 in auth_dict:
-                            auth_user = auth_dict[username1]
-                            if password_to_check:
-                                if auth_user['password'] != password_to_check:
-                                    return False, "Invalid password for user %s" % username1, \
-                                        text_output1, text_output21, text_outputs1, \
-                                        langchain_mode1, h2ogpt_key2, visible_models1, \
-                                        side_bar_text1, doc_count_text1, submit_buttons_text1, visible_models_text1, \
-                                        chat_tab_text1, doc_selection_tab_text1, doc_view_tab_text1, chat_history_tab_text1, \
-                                        expert_tab_text1, models_tab_text1, system_tab_text1, tos_tab_text1, \
-                                        login_tab_text1, hosts_tab_text1
-                            if username_override:
-                                # then use original user id
-                                set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
-                            if 'selection_docs_state' in auth_user:
-                                update_auth_selection(auth_user, selection_docs_state1)
-                            if 'roles_state' in auth_user:
-                                roles_state1.update(auth_user['roles_state'])
-                            if 'model_options_state' in auth_user and \
-                                    model_options_state1 and \
-                                    auth_user['model_options_state']:
-                                model_options_state1[0].extend(auth_user['model_options_state'][0])
-                                model_options_state1[0] = [x for x in model_options_state1[0] if
-                                                           x != no_model_str and x]
-                                model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
-                            if 'lora_options_state' in auth_user and \
-                                    lora_options_state1 and \
-                                    auth_user['lora_options_state']:
-                                lora_options_state1[0].extend(auth_user['lora_options_state'][0])
-                                lora_options_state1[0] = [x for x in lora_options_state1[0] if x != no_lora_str and x]
-                                lora_options_state1[0] = [no_lora_str] + sorted(set(lora_options_state1[0]))
-                            if 'server_options_state' in auth_user and \
-                                    server_options_state1 and \
-                                    auth_user['server_options_state']:
-                                server_options_state1[0].extend(auth_user['server_options_state'][0])
-                                server_options_state1[0] = [x for x in server_options_state1[0] if
-                                                            x != no_server_str and x]
-                                server_options_state1[0] = [no_server_str] + sorted(set(server_options_state1[0]))
-                            if 'chat_state' in auth_user:
-                                chat_state1.update(auth_user['chat_state'])
-                            if 'text_output' in auth_user:
-                                text_output1 = auth_user['text_output']
-                            if 'text_output2' in auth_user:
-                                text_output21 = auth_user['text_output2']
-                            if 'text_outputs' in auth_user:
-                                text_outputs1 = auth_user['text_outputs']
-                            if 'langchain_mode' in auth_user:
-                                langchain_mode1 = auth_user['langchain_mode']
-                            if 'h2ogpt_key' in auth_user:
-                                h2ogpt_key2 = auth_user['h2ogpt_key']
-                            if 'visible_models' in auth_user:
-                                visible_models1 = auth_user['visible_models']
+                    if auth_filename.endswith('.db'):
+                        auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                    else:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = ujson.load(f)
+                    if username1 in auth_dict:
+                        auth_user = auth_dict[username1]
+                        if password_to_check:
+                            if auth_user['password'] != password_to_check:
+                                return False, "Invalid password for user %s" % username1, \
+                                    text_output1, text_output21, text_outputs1, \
+                                    langchain_mode1, h2ogpt_key2, visible_models1, \
+                                    side_bar_text1, doc_count_text1, submit_buttons_text1, visible_models_text1, \
+                                    chat_tab_text1, doc_selection_tab_text1, doc_view_tab_text1, chat_history_tab_text1, \
+                                    expert_tab_text1, models_tab_text1, system_tab_text1, tos_tab_text1, \
+                                    login_tab_text1, hosts_tab_text1
+                        if username_override:
+                            # then use original user id
+                            set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
+                        if 'selection_docs_state' in auth_user:
+                            update_auth_selection(auth_user, selection_docs_state1)
+                        if 'roles_state' in auth_user:
+                            roles_state1.update(auth_user['roles_state'])
+                        if 'model_options_state' in auth_user and \
+                                model_options_state1 and \
+                                auth_user['model_options_state']:
+                            model_options_state1[0].extend(auth_user['model_options_state'][0])
+                            model_options_state1[0] = [x for x in model_options_state1[0] if
+                                                       x != no_model_str and x]
+                            model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
+                        if 'lora_options_state' in auth_user and \
+                                lora_options_state1 and \
+                                auth_user['lora_options_state']:
+                            lora_options_state1[0].extend(auth_user['lora_options_state'][0])
+                            lora_options_state1[0] = [x for x in lora_options_state1[0] if x != no_lora_str and x]
+                            lora_options_state1[0] = [no_lora_str] + sorted(set(lora_options_state1[0]))
+                        if 'server_options_state' in auth_user and \
+                                server_options_state1 and \
+                                auth_user['server_options_state']:
+                            server_options_state1[0].extend(auth_user['server_options_state'][0])
+                            server_options_state1[0] = [x for x in server_options_state1[0] if
+                                                        x != no_server_str and x]
+                            server_options_state1[0] = [no_server_str] + sorted(set(server_options_state1[0]))
+                        if 'chat_state' in auth_user:
+                            chat_state1.update(auth_user['chat_state'])
+                        if 'text_output' in auth_user:
+                            text_output1 = auth_user['text_output']
+                        if 'text_output2' in auth_user:
+                            text_output21 = auth_user['text_output2']
+                        if 'text_outputs' in auth_user:
+                            text_outputs1 = auth_user['text_outputs']
+                        if 'langchain_mode' in auth_user:
+                            langchain_mode1 = auth_user['langchain_mode']
+                        if 'h2ogpt_key' in auth_user:
+                            h2ogpt_key2 = auth_user['h2ogpt_key']
+                        if 'visible_models' in auth_user:
+                            visible_models1 = auth_user['visible_models']
 
-                            # other toggles
-                            if 'side_bar_text' in auth_user:
-                                side_bar_text1 = auth_user['side_bar_text']
-                            if 'doc_count_text' in auth_user:
-                                doc_count_text1 = auth_user['doc_count_text']
-                            if 'submit_buttons_text' in auth_user:
-                                submit_buttons_text1 = auth_user['submit_buttons_text']
-                            if 'visible_models_text' in auth_user:
-                                visible_models_text1 = auth_user['visible_models_text']
+                        # other toggles
+                        if 'side_bar_text' in auth_user:
+                            side_bar_text1 = auth_user['side_bar_text']
+                        if 'doc_count_text' in auth_user:
+                            doc_count_text1 = auth_user['doc_count_text']
+                        if 'submit_buttons_text' in auth_user:
+                            submit_buttons_text1 = auth_user['submit_buttons_text']
+                        if 'visible_models_text' in auth_user:
+                            visible_models_text1 = auth_user['visible_models_text']
 
-                            # gr.TabItem(s)
-                            if 'chat_tab_text' in auth_user:
-                                chat_tab_text1 = auth_user['chat_tab_text']
-                            if 'doc_selection_tab_text' in auth_user:
-                                doc_selection_tab_text1 = auth_user['doc_selection_tab_text']
-                            if 'doc_view_tab_text' in auth_user:
-                                doc_view_tab_text1 = auth_user['doc_view_tab_text']
-                            if 'chat_history_tab_text' in auth_user:
-                                chat_history_tab_text1 = auth_user['chat_history_tab_text']
-                            if 'expert_tab_text' in auth_user:
-                                expert_tab_text1 = auth_user['expert_tab_text']
-                            if 'models_tab_text' in auth_user:
-                                models_tab_text1 = auth_user['models_tab_text']
-                            if 'system_tab_text' in auth_user:
-                                system_tab_text1 = auth_user['system_tab_text']
-                            if 'tos_tab_text' in auth_user:
-                                tos_tab_text1 = auth_user['tos_tab_text']
-                            if 'login_tab_text' in auth_user:
-                                login_tab_text1 = auth_user['login_tab_text']
-                            if 'hosts_tab_text' in auth_user:
-                                hosts_tab_text1 = auth_user['hosts_tab_text']
+                        # gr.TabItem(s)
+                        if 'chat_tab_text' in auth_user:
+                            chat_tab_text1 = auth_user['chat_tab_text']
+                        if 'doc_selection_tab_text' in auth_user:
+                            doc_selection_tab_text1 = auth_user['doc_selection_tab_text']
+                        if 'doc_view_tab_text' in auth_user:
+                            doc_view_tab_text1 = auth_user['doc_view_tab_text']
+                        if 'chat_history_tab_text' in auth_user:
+                            chat_history_tab_text1 = auth_user['chat_history_tab_text']
+                        if 'expert_tab_text' in auth_user:
+                            expert_tab_text1 = auth_user['expert_tab_text']
+                        if 'models_tab_text' in auth_user:
+                            models_tab_text1 = auth_user['models_tab_text']
+                        if 'system_tab_text' in auth_user:
+                            system_tab_text1 = auth_user['system_tab_text']
+                        if 'tos_tab_text' in auth_user:
+                            tos_tab_text1 = auth_user['tos_tab_text']
+                        if 'login_tab_text' in auth_user:
+                            login_tab_text1 = auth_user['login_tab_text']
+                        if 'hosts_tab_text' in auth_user:
+                            hosts_tab_text1 = auth_user['hosts_tab_text']
 
-                            text_result = "Successful login for %s" % get_show_username(username1)
-                            success1 = True
-                        else:
-                            text_result = "No user %s" % get_show_username(username1)
+                        text_result = "Successful login for %s" % get_show_username(username1)
+                        success1 = True
+                    else:
+                        text_result = "No user %s" % get_show_username(username1)
                 else:
                     text_result = "No auth file"
             if num_model_lock is not None:
@@ -3288,21 +3303,24 @@ def go_gradio(**kwargs):
                 expert_tab_text1, models_tab_text1, system_tab_text1, tos_tab_text1, \
                 login_tab_text1, hosts_tab_text1
 
-        def save_auth_dict(auth_dict, auth_filename):
-            backup_file = auth_filename + '.bak' + str(uuid.uuid4())
-            if os.path.isfile(auth_filename):
-                shutil.copy(auth_filename, backup_file)
-            try:
-                with open(auth_filename, 'wt') as f:
-                    f.write(json.dumps(auth_dict, indent=2))
-                remove(backup_file)
-            except BaseException as e:
-                print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
-                      flush=True)
-                shutil.copy(backup_file, auth_dict)
-                if os.getenv('HARD_ASSERTS'):
-                    # unexpected in testing or normally
-                    raise
+        def save_auth_dict(auth_dict, auth_filename, username1):
+            if auth_filename.endswith('.db'):
+                upsert_user(auth_filename, username1, auth_dict[username1], verbose=verbose)
+            else:
+                backup_file = auth_filename + '.bak' + str(uuid.uuid4())
+                if os.path.isfile(auth_filename):
+                    shutil.copy(auth_filename, backup_file)
+                try:
+                    with open(auth_filename, 'wt') as f:
+                        f.write(ujson.dumps(auth_dict, indent=2))
+                    remove(backup_file)
+                except BaseException as e:
+                    print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
+                          flush=True)
+                    shutil.copy(backup_file, auth_dict)
+                    if os.getenv('HARD_ASSERTS'):
+                        # unexpected in testing or normally
+                        raise
 
         def save_auth(selection_docs_state1, requests_state1, roles_state1,
                       model_options_state1, lora_options_state1, server_options_state1,
@@ -3326,8 +3344,11 @@ def go_gradio(**kwargs):
             username1 = get_username(requests_state1)
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
+                    if auth_filename.endswith('.db'):
+                        auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                    else:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = ujson.load(f)
                     if username1 in auth_dict:
                         auth_user = auth_dict[username1]
                         if selection_docs_state1:
@@ -3392,7 +3413,7 @@ def go_gradio(**kwargs):
                         if hosts_tab_text1:
                             auth_user['hosts_tab_text'] = hosts_tab_text1
 
-                        save_auth_dict(auth_dict, auth_filename)
+                        save_auth_dict(auth_dict, auth_filename, username1)
 
         def save_auth_wrap(*args, **kwargs):
             save_auth(args[0], args[1], args[2],

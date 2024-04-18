@@ -23,6 +23,8 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
+from src.db_utils import fetch_user
+
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -850,11 +852,15 @@ def main(
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
-                 e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required)
-                 e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename good idea to control location)
+                 e.g. --auth=auth.db to specify persisted state file with name auth.db (auth_filename then not required)
+                 e.g. --auth='' will use default auth.db as file name for persisted state file (auth_filename good idea to control location)
                  e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
     :param auth_filename:
          Set auth filename, used only if --auth= was passed list of user/passwords
+
+    If use auth.db will use sqlite3 database for auth for faster access for large number of users
+    If you had .json and want to use faster .db, just pass filename with .db instead of .json and at startup it will be migrated automatically to .db and used.
+
     :param auth_access:
          'open': Allow new users to be added
          'closed': Stick to existing users
@@ -1450,8 +1456,11 @@ def main(
     if isinstance(auth, str) and auth:
         auth_filename = auth
     if not auth_filename:
-        auth_filename = "auth.json"
+        auth_filename = "auth.db"
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
+    if auth_filename.endswith('.db'):
+        # this migrates json to db
+        assert fetch_user(auth_filename, '', verbose=verbose) == {}
 
     if guest_name is None:
         if auth_access == 'closed':
