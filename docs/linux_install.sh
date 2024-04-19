@@ -81,7 +81,7 @@ pip install TTS deepspeed noisereduce emoji ffmpeg-python==0.2.0 trainer pysbd c
 # for Coqui XTTS language helpers (specific versions probably not required)
 pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1 -c reqs_optional/reqs_constraints.txt
 # For faster whisper:
-pip install git+https://github.com/SYSTRAN/faster-whisper.git -c reqs_optional/reqs_constraints.txt
+#pip install git+https://github.com/SYSTRAN/faster-whisper.git -c reqs_optional/reqs_constraints.txt
 # needed for librosa/soundfile to work, but violates TTS, but that's probably just too strict as we have seen before)
 pip install numpy==1.23.0 --no-deps --upgrade -c reqs_optional/reqs_constraints.txt
 # TTS or other deps load old librosa, fix:
