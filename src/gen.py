@@ -3034,12 +3034,14 @@ def get_model(
                 assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
             # Don't return None, None for model, tokenizer so triggers
             if base_model in model_token_mapping:
-                max_seq_len = model_token_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = model_token_mapping[base_model]
             else:
                 print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
                     base_model, inference_server))
             if base_model in model_token_mapping_outputs:
-                max_output_len = model_token_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = model_token_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3052,11 +3054,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in anthropic_mapping:
-                max_seq_len = anthropic_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = anthropic_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in anthropic_mapping_outputs:
-                max_output_len = anthropic_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = anthropic_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3069,11 +3073,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in google_mapping:
-                max_seq_len = google_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = google_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in google_mapping_outputs:
-                max_output_len = google_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = google_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3092,11 +3098,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in mistralai_mapping:
-                max_seq_len = mistralai_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = mistralai_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in mistralai_mapping_outputs:
-                max_output_len = mistralai_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = mistralai_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3121,11 +3129,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in groq_mapping:
-                max_seq_len = groq_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = groq_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in groq_mapping_outputs:
-                max_output_len = groq_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = groq_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"

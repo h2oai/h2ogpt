@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import contextlib
 import functools
 import gc
@@ -482,18 +483,23 @@ class ThreadException(Exception):
 class EThread(threading.Thread):
     # Function that raises the custom exception
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None):
+                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None,
+                 async_output=False):
         self.bucket = bucket
         self.streamer = streamer
         self.exc = None
         self._return = None
+        self.async_output = async_output
         super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def run(self):
         # Variable that stores the exception, if raised by someFunction
         try:
             if self._target is not None:
-                self._return = self._target(*self._args, **self._kwargs)
+                if self.async_output:
+                    self._return = asyncio.run(self._target(*self._args, **self._kwargs))
+                else:
+                    self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
             print("thread exception: %s" % str(traceback.format_exc()))
             self.bucket.put(sys.exc_info())

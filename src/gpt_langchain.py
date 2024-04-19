@@ -5756,7 +5756,7 @@ def _run_qa_db(query=None,
     else:
         if stream_output0:
             # threads and asyncio don't mix
-            async_output = False
+            async_output = True
         else:
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
@@ -6171,7 +6171,7 @@ def run_target(query='',
                 answer = None
                 import queue
                 bucket = queue.Queue()
-                thread = EThread(target=chain, streamer=streamer, bucket=bucket)
+                thread = EThread(target=chain, streamer=streamer, bucket=bucket, async_output=async_output)
                 thread.start()
                 outputs = ""
                 output1_old = ''
