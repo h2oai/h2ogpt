@@ -132,6 +132,13 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
         encounters += [1] * len(stop)
         handle_newlines += [False] * len(stop)
 
+    # e.g. for llama-3
+    # https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
+    if '<|eot_id|>' in tokenizer.added_tokens_encoder:
+        stop_words.extend(['<|eot_id|>'])
+    if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
+        stop_words.extend([tokenizer.eos_token])
+
     # get stop tokens
     stop_words_ids = [
         tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]

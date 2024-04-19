@@ -23,6 +23,8 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
+from src.db_utils import fetch_user
+
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -94,7 +96,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, get_use_chat_template
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -850,11 +852,15 @@ def main(
     :param auth: gradio auth for launcher in form [(user1, pass1), (user2, pass2), ...]
                  e.g. --auth=[('jon','password')] with no spaces
                  e.g. --auth="[('jon', 'password)())(')]" so any special characters can be used
-                 e.g. --auth=auth.json to specify persisted state file with name auth.json (auth_filename then not required)
-                 e.g. --auth='' will use default auth.json as file name for persisted state file (auth_filename good idea to control location)
+                 e.g. --auth=auth.db to specify persisted state file with name auth.db (auth_filename then not required)
+                 e.g. --auth='' will use default auth.db as file name for persisted state file (auth_filename good idea to control location)
                  e.g. --auth=None will use no auth, but still keep track of auth state, just not from logins
     :param auth_filename:
          Set auth filename, used only if --auth= was passed list of user/passwords
+
+    If use auth.db will use sqlite3 database for auth for faster access for large number of users
+    If you had .json and want to use faster .db, just pass filename with .db instead of .json and at startup it will be migrated automatically to .db and used.
+
     :param auth_access:
          'open': Allow new users to be added
          'closed': Stick to existing users
@@ -1450,8 +1456,11 @@ def main(
     if isinstance(auth, str) and auth:
         auth_filename = auth
     if not auth_filename:
-        auth_filename = "auth.json"
+        auth_filename = "auth.db"
     assert isinstance(auth, (str, list, tuple, type(None))), "Unknown type %s for auth=%s" % (type(auth), auth)
+    if auth_filename.endswith('.db'):
+        # this migrates json to db
+        assert fetch_user(auth_filename, '', verbose=verbose) == {}
 
     if guest_name is None:
         if auth_access == 'closed':
@@ -3095,12 +3104,12 @@ def get_model(
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
-            #try:
+            # try:
             #    from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
             #    raise RuntimeError("WIP")
             #    tokenizer = MistralTokenizer.from_model(base_model)
             #    tokenizer.model_max_length = max_seq_len
-            #except Exception as e:
+            # except Exception as e:
             #    # FIXME: not all models, only some, so do what can
             #    print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
             tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
@@ -3131,7 +3140,10 @@ def get_model(
             # elif base_model == 'gemma-7b-it':
 
             tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
-                                      tokenizer=AutoTokenizer.from_pretrained(tokenizer_base_model))
+                                      tokenizer=AutoTokenizer.from_pretrained(tokenizer_base_model,
+                                                                              token=use_auth_token,
+                                                                              trust_remote_code=trust_remote_code,
+                                                                              ))
 
         if inference_server.startswith('replicate'):
             assert len(inference_server.split(':')) >= 3, "Expected replicate:model string, got %s" % inference_server
@@ -4189,7 +4201,7 @@ def evaluate(
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                        system_prompt=system_prompt)
+                        system_prompt=system_prompt, tokenizer=tokenizer)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -6107,12 +6119,7 @@ def get_limited_prompt(instruction,
                                                 min_max_new_tokens=min_max_new_tokens)
 
     # not if plain prompt, only if unknown or unset
-    use_chat_template = prompt_type in [None, '', unknown_prompt_type, template_prompt_type] and \
-                        (hasattr(tokenizer, 'chat_template') and
-                         tokenizer.chat_template not in [None, ''] or
-                         hasattr(tokenizer, 'default_chat_template') and
-                         tokenizer.default_chat_template not in [None, '']
-                         )
+    use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
     if is_gradio_vision_model(base_model):
         use_chat_template = False
 
@@ -6337,7 +6344,7 @@ def get_limited_prompt(instruction,
         debug = False
         stream_output = False  # doesn't matter
         prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                            system_prompt=system_prompt_to_use)
+                            system_prompt=system_prompt_to_use, tokenizer=tokenizer)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type
