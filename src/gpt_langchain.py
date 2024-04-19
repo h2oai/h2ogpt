@@ -5756,7 +5756,9 @@ def _run_qa_db(query=None,
     else:
         if stream_output0:
             # threads and asyncio don't mix
-            async_output = True
+            # but if do asyncio inside thread, all fine
+            # async_output = True
+            pass
         else:
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
