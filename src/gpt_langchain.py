@@ -33,7 +33,7 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain_core.callbacks import streaming_stdout
+from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
@@ -42,8 +42,9 @@ from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
+from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
+from langchain_core.outputs import ChatResult, RunInfo
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -1859,6 +1860,104 @@ class GenerateStream2:
                 )
             else:
                 raise
+
+    async def agenerate(
+        self,
+        messages: List[List[BaseMessage]],
+        stop: Optional[List[str]] = None,
+        callbacks: Callbacks = None,
+        *,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        run_name: Optional[str] = None,
+        run_id: Optional[uuid.UUID] = None,
+        **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False)
+
+        params = self._get_invocation_params(stop=stop, **kwargs)
+        options = {"stop": stop}
+
+        callback_manager = AsyncCallbackManager.configure(
+            callbacks,
+            self.callbacks,
+            self.verbose,
+            tags,
+            self.tags,
+            metadata,
+            self.metadata,
+        )
+
+        run_managers = await callback_manager.on_chat_model_start(
+            dumpd(self),
+            messages,
+            invocation_params=params,
+            options=options,
+            name=run_name,
+            batch_size=len(messages),
+            run_id=run_id,
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(run_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+
+        results = await asyncio.gather(
+            *[
+                self._agenerate_with_cache(
+                    m,
+                    stop=stop,
+                    run_manager=run_managers[i] if run_managers else None,
+                    **kwargs,
+                )
+                for i, m in enumerate(messages)
+            ],
+            return_exceptions=True,
+        )
+        exceptions = []
+        for i, res in enumerate(results):
+            if isinstance(res, BaseException):
+                if run_managers:
+                    await run_managers[i].on_llm_error(
+                        res, response=LLMResult(generations=[])
+                    )
+                exceptions.append(res)
+        if exceptions:
+            if run_managers:
+                await asyncio.gather(
+                    *[
+                        run_manager.on_llm_end(
+                            LLMResult(
+                                generations=[res.generations],  # type: ignore[list-item, union-attr]
+                                llm_output=res.llm_output,  # type: ignore[list-item, union-attr]
+                            )
+                        )
+                        for run_manager, res in zip(run_managers, results)
+                        if not isinstance(res, Exception)
+                    ]
+                )
+            raise exceptions[0]
+        flattened_outputs = [
+            LLMResult(generations=[res.generations], llm_output=res.llm_output)  # type: ignore[list-item, union-attr]
+            for res in results
+        ]
+        llm_output = self._combine_llm_outputs([res.llm_output for res in results])  # type: ignore[union-attr]
+        generations = [res.generations for res in results]  # type: ignore[union-attr]
+        output = LLMResult(generations=generations, llm_output=llm_output)  # type: ignore[arg-type]
+        await asyncio.gather(
+            *[
+                run_manager.on_llm_end(flattened_output)
+                for run_manager, flattened_output in zip(
+                    run_managers, flattened_outputs
+                )
+            ]
+        )
+        if run_managers:
+            output.run = [
+                RunInfo(run_id=run_manager.run_id) for run_manager in run_managers
+            ]
+        return output
 
 
 class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
