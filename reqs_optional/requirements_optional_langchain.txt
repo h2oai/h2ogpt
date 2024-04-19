@@ -56,8 +56,9 @@ pydantic-settings>=2.1.0
 
 # strong support for images
 # Requires on Ubuntu: sudo apt-get install libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-unstructured[local-inference]==0.12.5
-unstructured[all-docs]==0.12.5
+unstructured[local-inference]==0.13.0
+unstructured[all-docs]==0.13.0
+unstructured-inference==0.7.25
 docx2txt==0.8
 python-docx==1.1.0
 #pdf2image==1.16.3

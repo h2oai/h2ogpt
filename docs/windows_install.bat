@@ -36,9 +36,9 @@ REM     # Note: for Selenium, we match versions of playwright so above installer
 REM    # Optional: For DocTR
 CALL pip install -r reqs_optional/requirements_optional_doctr.txt -c reqs_optional/reqs_constraints.txt
 REM      # For DocTR: go back to older onnx so Tesseract OCR still works
-CALL pip install onnxruntime==1.15.0 -c reqs_optional/reqs_constraints.txt
+CALL pip install onnxruntime==1.16.0 -c reqs_optional/reqs_constraints.txt
 REM      # GPU only:
-CALL pip install onnxruntime-gpu==1.15.0 -c reqs_optional/reqs_constraints.txt
+CALL pip install onnxruntime-gpu==1.16.0 -c reqs_optional/reqs_constraints.txt
 
 REM # Audio transcription from Youtube videos and local mp3 files:
 REM Only for Microsoft TTS, not Coqui
