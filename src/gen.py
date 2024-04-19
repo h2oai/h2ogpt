@@ -96,7 +96,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, get_use_chat_template
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -4201,7 +4201,7 @@ def evaluate(
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                        system_prompt=system_prompt)
+                        system_prompt=system_prompt, tokenizer=tokenizer)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -6119,12 +6119,7 @@ def get_limited_prompt(instruction,
                                                 min_max_new_tokens=min_max_new_tokens)
 
     # not if plain prompt, only if unknown or unset
-    use_chat_template = prompt_type in [None, '', unknown_prompt_type, template_prompt_type] and \
-                        (hasattr(tokenizer, 'chat_template') and
-                         tokenizer.chat_template not in [None, ''] or
-                         hasattr(tokenizer, 'default_chat_template') and
-                         tokenizer.default_chat_template not in [None, '']
-                         )
+    use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
     if is_gradio_vision_model(base_model):
         use_chat_template = False
 
@@ -6349,7 +6344,7 @@ def get_limited_prompt(instruction,
         debug = False
         stream_output = False  # doesn't matter
         prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                            system_prompt=system_prompt_to_use)
+                            system_prompt=system_prompt_to_use, tokenizer=tokenizer)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type

@@ -116,7 +116,8 @@ def test_limited_prompt(instruction, chat_conversation, iinput, context, system_
     from src.prompter import Prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug,
                         stream_output=stream_output,
-                        system_prompt=system_prompt)
+                        system_prompt=system_prompt,
+                        tokenizer=tokenizer)
 
     min_max_new_tokens = 512  # like in get_limited_prompt()
     max_input_tokens = -1

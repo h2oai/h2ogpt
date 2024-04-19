@@ -3,7 +3,8 @@ import time
 import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, \
+    unknown_prompt_type, template_prompt_type
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
@@ -1675,9 +1676,21 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
     return prompt
 
 
+def get_use_chat_template(tokenizer, prompt_type=None):
+    if tokenizer is None:
+        return False
+    use_chat_template = prompt_type in [None, '', unknown_prompt_type, template_prompt_type] and \
+                        (hasattr(tokenizer, 'chat_template') and
+                         tokenizer.chat_template not in [None, ''] or
+                         hasattr(tokenizer, 'default_chat_template') and
+                         tokenizer.default_chat_template not in [None, '']
+                         )
+    return use_chat_template
+
+
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
-                 allowed_repeat_line_length=10, system_prompt=None):
+                 allowed_repeat_line_length=10, system_prompt=None, tokenizer=None):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
@@ -1694,6 +1707,18 @@ class Prompter(object):
             self.generates_leading_space, self.system_prompt, self.can_handle_system_prompt = \
             get_prompt(self.prompt_type, self.prompt_dict, context, reduced, making_context,
                        system_prompt=system_prompt)
+        if tokenizer is not None:
+            use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
+            if use_chat_template:
+                # add terminations
+                if self.terminate_response is None:
+                    self.terminate_response = []
+                # like in stopping.py
+                if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
+                    self.terminate_response.extend([tokenizer.eos_token])
+                if '<|eot_id|>' in tokenizer.added_tokens_encoder:
+                    self.terminate_response.extend(['<|eot_id|>'])
+
         self.pre_response = self.PreResponse
 
     @property
