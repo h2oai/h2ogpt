@@ -32,6 +32,8 @@ langchain-google-genai==1.0.1
 google-generativeai==0.4.1
 
 #langchain_mistralai==0.1.2  # tokenizers<0.16.0, but transformers requires >=0.19
+httpx>=0.25.2
+httpx-sse>=0.3.1
 mistralai==0.1.8
 mistral-common==1.0.2
 
