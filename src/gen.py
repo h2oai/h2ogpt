@@ -447,6 +447,7 @@ def main(
         hyde_template: str = None,
         hyde_show_only_final: bool = False,
         hyde_show_intermediate_in_accordion: bool = True,
+        map_reduce_show_intermediate_in_accordion: bool = True,
         doc_json_mode: bool = False,
         metadata_in_context: Union[str, list] = 'auto',
 
@@ -904,6 +905,7 @@ def main(
                  '{query}' is minimal template one can pass
     :param hyde_show_only_final:  Whether to show only last result of HYDE, not intermediate steps
     :param hyde_show_intermediate_in_accordion: Whether to show intermediate HYDE, but inside HTML accordion
+    :param map_reduce_show_intermediate_in_accordion: Whether to show intermediate map_reduce, but inside HTML accordion
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -3824,6 +3826,7 @@ def evaluate(
         text_limit=None,
         show_accordions=None,
         hyde_show_intermediate_in_accordion=None,
+        map_reduce_show_intermediate_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         langchain_instruct_mode=None,
@@ -4374,6 +4377,7 @@ def evaluate(
                 text_limit=text_limit,
                 show_accordions=show_accordions,
                 hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
+                map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                 top_k_docs_max_show=top_k_docs_max_show,
                 show_link_in_sources=show_link_in_sources,
                 langchain_instruct_mode=langchain_instruct_mode,
@@ -4456,6 +4460,8 @@ def evaluate(
                 guided_grammar=guided_grammar,
 
                 json_vllm=json_vllm,
+
+                from_ui=from_ui,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']

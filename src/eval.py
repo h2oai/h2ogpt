@@ -84,6 +84,7 @@ def run_eval(  # for local function:
         hyde_template=None,
         hyde_show_only_final=None,
         hyde_show_intermediate_in_accordion=None,
+        map_reduce_show_intermediate_in_accordion=None,
         doc_json_mode=None,
         metadata_in_context=None,
         chatbot_role=None,

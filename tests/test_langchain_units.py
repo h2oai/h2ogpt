@@ -2079,13 +2079,15 @@ def test_hyde_acc():
     answer = 'answer'
     llm_answers = dict(response_raw='raw')
     hyde_show_intermediate_in_accordion = False
-    hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
+    map_reduce_show_intermediate_in_accordion = False
+    hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion)
     assert hyde == ''
 
     answer = ['answer']
     llm_answers = dict(response_raw='raw')
     hyde_show_intermediate_in_accordion = False
-    hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
+    map_reduce_show_intermediate_in_accordion = False
+    hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion)
     assert hyde is None
 
 

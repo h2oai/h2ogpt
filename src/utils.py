@@ -743,6 +743,7 @@ def get_source(x):
 
 
 def get_accordion_named(content, title, font_size=8):
+    content = content.replace('\n', '<br>')
     return f"""<details><summary><font size="{font_size}">{title}</font></summary><font size="{font_size}">{content}</font></details>"""
 
 

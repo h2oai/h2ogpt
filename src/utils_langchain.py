@@ -32,7 +32,7 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
     Similar to H2OTextIteratorStreamer that is for HF backend, but here LangChain backend
     """
 
-    def __init__(self, timeout: Optional[float] = None, block=True, max_time=None, verbose=False):
+    def __init__(self, timeout: Optional[float] = None, block=True, max_time=None, verbose=False, raise_stop=True):
         super().__init__()
         self.text_queue = queue.SimpleQueue()
         self.stop_signal = None
@@ -42,6 +42,7 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
         self.max_time = max_time
         self.tgen0 = None
         self.verbose = verbose
+        self.raise_stop = raise_stop
 
     def on_llm_start(
             self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
@@ -92,7 +93,9 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
             except queue.Empty:
                 time.sleep(0.01)
         if value == self.stop_signal:
-            raise StopIteration()
+            if self.raise_stop:
+                raise StopIteration()
+            return None
         else:
             return value
 
@@ -215,6 +218,7 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             result, extra_return_dict = self.reduce_documents_chain.combine_docs(
                 result_docs, token_max=token_max, callbacks=callbacks, **kwargs
             )
+            self.terminate_callbacks()
             if self.return_intermediate_steps:
                 intermediate_steps = [r[question_result_key] for r in map_results]
                 extra_return_dict["intermediate_steps"] = intermediate_steps
@@ -255,10 +259,19 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             result, extra_return_dict = await self.reduce_documents_chain.acombine_docs(
                 result_docs, token_max=token_max, callbacks=callbacks, **kwargs
             )
+            self.terminate_callbacks()
             if self.return_intermediate_steps:
                 intermediate_steps = [r[question_result_key] for r in map_results]
                 extra_return_dict["intermediate_steps"] = intermediate_steps
         return result, extra_return_dict
+
+    def terminate_callbacks(self):
+        if self.llm_chain.llm.callbacks:
+            for callback in self.llm_chain.llm.callbacks:
+                if isinstance(callback, StreamingGradioCallbackHandler):
+                    if not callback.raise_stop:
+                        callback.raise_stop = True
+                        callback.text_queue.put(None)
 
     @property
     def _chain_type(self) -> str:
