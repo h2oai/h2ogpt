@@ -6343,13 +6343,13 @@ def run_target(query='',
                                     output1 = outputs
                                 # in-place change to this key so exposed outside this generator
                                 if llm_answers_key in ['map_reduce_', 'map_']:
-                                    llm_answers[llm_answers_key + '%s' % count_map_reduces] = output1
+                                    llm_answers[llm_answers_key + '%s' % (1 + count_map_reduces)] = output1
                                     if llm_answers_key == 'map_reduce_':
-                                        response_prefix = "Computing Summarize Step %d:\n------------------\n" % (
-                                                    1 + count_map_reduces)
+                                        response_prefix = "Computing Summarization Step %d:\n------------------\n" % (
+                                                1 + count_map_reduces)
                                     else:
                                         response_prefix = "Computing Extraction Step %d:\n------------------\n" % (
-                                                    1 + count_map_reduces)
+                                                1 + count_map_reduces)
                                 else:
                                     llm_answers[llm_answers_key] = output1
                                 res_dict = dict(prompt=query, response=response_prefix + output1,
