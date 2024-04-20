@@ -33,7 +33,7 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler
+from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler, BaseCallbackManager
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
@@ -42,6 +42,8 @@ from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
+from langchain_core.globals import get_llm_cache
+from langchain_core.language_models.llms import aget_prompts, aupdate_cache
 from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult, RunInfo
@@ -609,7 +611,265 @@ class H2Oagenerate:
                 await self._acall(prompt, stop=stop, **kwargs)
 
 
-class GradioInference(H2Oagenerate, LLM):
+class AGenerateStreamFirst:
+    # from:
+    # langchain_core/language_models/llms.py
+    async def agenerate(
+        self,
+        prompts: List[str],
+        stop: Optional[List[str]] = None,
+        callbacks: Optional[typing.Union[Callbacks, List[Callbacks]]] = None,
+        *,
+        tags: Optional[typing.Union[List[str], List[List[str]]]] = None,
+        metadata: Optional[typing.Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+        run_name: Optional[typing.Union[str, List[str]]] = None,
+        run_id: Optional[typing.Union[uuid.UUID, List[Optional[uuid.UUID]]]] = None,
+        **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False) or kwargs.get('streaming', False)
+
+        # Create callback managers
+        if isinstance(callbacks, list) and (
+            isinstance(callbacks[0], (list, BaseCallbackManager))
+            or callbacks[0] is None
+        ):
+            # We've received a list of callbacks args to apply to each input
+            assert len(callbacks) == len(prompts)
+            assert tags is None or (
+                isinstance(tags, list) and len(tags) == len(prompts)
+            )
+            assert metadata is None or (
+                isinstance(metadata, list) and len(metadata) == len(prompts)
+            )
+            assert run_name is None or (
+                isinstance(run_name, list) and len(run_name) == len(prompts)
+            )
+            callbacks = typing.cast(List[Callbacks], callbacks)
+            tags_list = typing.cast(List[Optional[List[str]]], tags or ([None] * len(prompts)))
+            metadata_list = typing.cast(
+                List[Optional[Dict[str, Any]]], metadata or ([{}] * len(prompts))
+            )
+            run_name_list = run_name or typing.cast(
+                List[Optional[str]], ([None] * len(prompts))
+            )
+            callback_managers = [
+                AsyncCallbackManager.configure(
+                    callback,
+                    self.callbacks,
+                    self.verbose,
+                    tag,
+                    self.tags,
+                    meta,
+                    self.metadata,
+                )
+                for callback, tag, meta in zip(callbacks, tags_list, metadata_list)
+            ]
+        else:
+            # We've received a single callbacks arg to apply to all inputs
+            callback_managers = [
+                AsyncCallbackManager.configure(
+                    typing.cast(Callbacks, callbacks),
+                    self.callbacks,
+                    self.verbose,
+                    typing.cast(List[str], tags),
+                    self.tags,
+                    typing.cast(Dict[str, Any], metadata),
+                    self.metadata,
+                )
+            ] * len(prompts)
+            run_name_list = [typing.cast(Optional[str], run_name)] * len(prompts)
+        run_ids_list = self._get_run_ids_list(run_id, prompts)
+        params = self.dict()
+        params["stop"] = stop
+        options = {"stop": stop}
+        (
+            existing_prompts,
+            llm_string,
+            missing_prompt_idxs,
+            missing_prompts,
+        ) = await aget_prompts(params, prompts, self.cache)
+
+        # Verify whether the cache is set, and if the cache is set,
+        # verify whether the cache is available.
+        new_arg_supported = inspect.signature(self._agenerate).parameters.get(
+            "run_manager"
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(callback_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+        if (self.cache is None and get_llm_cache() is None) or self.cache is False:
+            run_managers = await asyncio.gather(
+                *[
+                    callback_manager.on_llm_start(
+                        dumpd(self),
+                        [prompt],
+                        invocation_params=params,
+                        options=options,
+                        name=run_name,
+                        batch_size=len(prompts),
+                        run_id=run_id_,
+                    )
+                    for callback_manager, prompt, run_name, run_id_ in zip(
+                        callback_managers, prompts, run_name_list, run_ids_list
+                    )
+                ]
+            )
+            run_managers = [r[0] for r in run_managers]  # type: ignore[misc]
+            output = await self._agenerate_helper(
+                prompts,
+                stop,
+                run_managers,  # type: ignore[arg-type]
+                bool(new_arg_supported),
+                **kwargs,  # type: ignore[arg-type]
+            )
+            return output
+        if len(missing_prompts) > 0:
+            run_managers = await asyncio.gather(
+                *[
+                    callback_managers[idx].on_llm_start(
+                        dumpd(self),
+                        [prompts[idx]],
+                        invocation_params=params,
+                        options=options,
+                        name=run_name_list[idx],
+                        batch_size=len(missing_prompts),
+                    )
+                    for idx in missing_prompt_idxs
+                ]
+            )
+            run_managers = [r[0] for r in run_managers]  # type: ignore[misc]
+            new_results = await self._agenerate_helper(
+                missing_prompts,
+                stop,
+                run_managers,  # type: ignore[arg-type]
+                bool(new_arg_supported),
+                **kwargs,  # type: ignore[arg-type]
+            )
+            llm_output = await aupdate_cache(
+                self.cache,
+                existing_prompts,
+                llm_string,
+                missing_prompt_idxs,
+                new_results,
+                prompts,
+            )
+            run_info = (
+                [RunInfo(run_id=run_manager.run_id) for run_manager in run_managers]  # type: ignore[attr-defined]
+                if run_managers
+                else None
+            )
+        else:
+            llm_output = {}
+            run_info = None
+        generations = [existing_prompts[i] for i in range(len(prompts))]
+        return LLMResult(generations=generations, llm_output=llm_output, run=run_info)
+
+
+class ChatAGenerateStreamFirst:
+    # from
+    # langchain_core/language_models/chat_models.py
+    async def agenerate(
+            self,
+            messages: List[List[BaseMessage]],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            *,
+            tags: Optional[List[str]] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+            run_name: Optional[str] = None,
+            run_id: Optional[uuid.UUID] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False) or kwargs.get('streaming', False)
+
+        params = self._get_invocation_params(stop=stop, **kwargs)
+        options = {"stop": stop}
+
+        callback_manager = AsyncCallbackManager.configure(
+            callbacks,
+            self.callbacks,
+            self.verbose,
+            tags,
+            self.tags,
+            metadata,
+            self.metadata,
+        )
+
+        run_managers = await callback_manager.on_chat_model_start(
+            dumpd(self),
+            messages,
+            invocation_params=params,
+            options=options,
+            name=run_name,
+            batch_size=len(messages),
+            run_id=run_id,
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(run_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+
+        results = await asyncio.gather(
+            *[
+                self._agenerate_with_cache(
+                    m,
+                    stop=stop,
+                    run_manager=run_managers[i] if run_managers else None,
+                    **kwargs,
+                )
+                for i, m in enumerate(messages)
+            ],
+            return_exceptions=True,
+        )
+        exceptions = []
+        for i, res in enumerate(results):
+            if isinstance(res, BaseException):
+                if run_managers:
+                    await run_managers[i].on_llm_error(
+                        res, response=LLMResult(generations=[])
+                    )
+                exceptions.append(res)
+        if exceptions:
+            if run_managers:
+                await asyncio.gather(
+                    *[
+                        run_manager.on_llm_end(
+                            LLMResult(
+                                generations=[res.generations],  # type: ignore[list-item, union-attr]
+                                llm_output=res.llm_output,  # type: ignore[list-item, union-attr]
+                            )
+                        )
+                        for run_manager, res in zip(run_managers, results)
+                        if not isinstance(res, Exception)
+                    ]
+                )
+            raise exceptions[0]
+        flattened_outputs = [
+            LLMResult(generations=[res.generations], llm_output=res.llm_output)  # type: ignore[list-item, union-attr]
+            for res in results
+        ]
+        llm_output = self._combine_llm_outputs([res.llm_output for res in results])  # type: ignore[union-attr]
+        generations = [res.generations for res in results]  # type: ignore[union-attr]
+        output = LLMResult(generations=generations, llm_output=llm_output)  # type: ignore[arg-type]
+        await asyncio.gather(
+            *[
+                run_manager.on_llm_end(flattened_output)
+                for run_manager, flattened_output in zip(
+                    run_managers, flattened_outputs
+                )
+            ]
+        )
+        if run_managers:
+            output.run = [
+                RunInfo(run_id=run_manager.run_id) for run_manager in run_managers
+            ]
+        return output
+
+
+class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     """
     Gradio generation inference API.
     """
@@ -1191,7 +1451,7 @@ class GradioLLaVaInference(GradioInference):
         return text
 
 
-class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
+class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     seed: int = 0
@@ -1505,7 +1765,17 @@ class H2OOpenAI(OpenAI):
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
         self.count_llm_calls += len(prompts)
-        if self.batch_size > 1 or self.streaming:
+
+        if False:
+            self.prompts.extend(prompts)
+            run_managers = [run_manager] * len(prompts)
+            run_managers = [x if i == 0 else None for i, x in enumerate(run_managers)]
+            tasks = [
+                asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager1, **kwargs))
+                for run_manager1, prompt in zip(run_managers, prompts)]
+            llm_results = await asyncio.gather(*tasks)
+            return self.collect_llm_results(llm_results)
+        elif self.batch_size > 1 or self.streaming:
             rets = await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
             self.count_out_tokens(rets)
             return rets
@@ -1539,7 +1809,7 @@ class H2OOpenAI(OpenAI):
             return super().get_token_ids(text)
 
 
-class H2OReplicate(Replicate):
+class H2OReplicate(AGenerateStreamFirst, Replicate):
     stop_sequences: Any = None
     sanitize_bot_response: bool = False
     prompter: Any = None
@@ -1861,106 +2131,8 @@ class GenerateStream2:
             else:
                 raise
 
-    async def agenerate(
-            self,
-            messages: List[List[BaseMessage]],
-            stop: Optional[List[str]] = None,
-            callbacks: Callbacks = None,
-            *,
-            tags: Optional[List[str]] = None,
-            metadata: Optional[Dict[str, Any]] = None,
-            run_name: Optional[str] = None,
-            run_id: Optional[uuid.UUID] = None,
-            **kwargs: Any,
-    ) -> LLMResult:
-        # NOTE: overwrite of base class so can specify which messages will have callbacks
-        callbacks_only_first = kwargs.get('stream', False)
 
-        params = self._get_invocation_params(stop=stop, **kwargs)
-        options = {"stop": stop}
-
-        callback_manager = AsyncCallbackManager.configure(
-            callbacks,
-            self.callbacks,
-            self.verbose,
-            tags,
-            self.tags,
-            metadata,
-            self.metadata,
-        )
-
-        run_managers = await callback_manager.on_chat_model_start(
-            dumpd(self),
-            messages,
-            invocation_params=params,
-            options=options,
-            name=run_name,
-            batch_size=len(messages),
-            run_id=run_id,
-        )
-        if callbacks_only_first:
-            for ii, run_manager in enumerate(run_managers):
-                if ii > 0:
-                    run_manager.handlers = []
-
-        results = await asyncio.gather(
-            *[
-                self._agenerate_with_cache(
-                    m,
-                    stop=stop,
-                    run_manager=run_managers[i] if run_managers else None,
-                    **kwargs,
-                )
-                for i, m in enumerate(messages)
-            ],
-            return_exceptions=True,
-        )
-        exceptions = []
-        for i, res in enumerate(results):
-            if isinstance(res, BaseException):
-                if run_managers:
-                    await run_managers[i].on_llm_error(
-                        res, response=LLMResult(generations=[])
-                    )
-                exceptions.append(res)
-        if exceptions:
-            if run_managers:
-                await asyncio.gather(
-                    *[
-                        run_manager.on_llm_end(
-                            LLMResult(
-                                generations=[res.generations],  # type: ignore[list-item, union-attr]
-                                llm_output=res.llm_output,  # type: ignore[list-item, union-attr]
-                            )
-                        )
-                        for run_manager, res in zip(run_managers, results)
-                        if not isinstance(res, Exception)
-                    ]
-                )
-            raise exceptions[0]
-        flattened_outputs = [
-            LLMResult(generations=[res.generations], llm_output=res.llm_output)  # type: ignore[list-item, union-attr]
-            for res in results
-        ]
-        llm_output = self._combine_llm_outputs([res.llm_output for res in results])  # type: ignore[union-attr]
-        generations = [res.generations for res in results]  # type: ignore[union-attr]
-        output = LLMResult(generations=generations, llm_output=llm_output)  # type: ignore[arg-type]
-        await asyncio.gather(
-            *[
-                run_manager.on_llm_end(flattened_output)
-                for run_manager, flattened_output in zip(
-                    run_managers, flattened_outputs
-                )
-            ]
-        )
-        if run_managers:
-            output.run = [
-                RunInfo(run_id=run_manager.run_id) for run_manager in run_managers
-            ]
-        return output
-
-
-class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
+class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpenAI):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
@@ -1978,7 +2150,7 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
             return super().get_token_ids(text)
 
 
-class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
+class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, AzureChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1988,7 +2160,7 @@ class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
-class H2OChatAnthropic2(GenerateNormal, ExtraChat, ChatAnthropic2):
+class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, ChatAnthropic2):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -2004,7 +2176,7 @@ class H2OChatAnthropic2Sys(H2OChatAnthropic2):
     pass
 
 
-class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
+class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatAnthropic3):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -2028,7 +2200,7 @@ from langchain_core.language_models.chat_models import (
 )
 
 
-class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
+class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -2045,7 +2217,7 @@ class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
-class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
+class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -2064,7 +2236,7 @@ class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
             return FakeTokenizer().encode(text)['input_ids']
 
 
-class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
+class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -2083,11 +2255,11 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
             return FakeTokenizer().encode(text)['input_ids']
 
 
-class H2OAzureOpenAI(AzureOpenAI):
+class H2OAzureOpenAI(AGenerateStreamFirst, AzureOpenAI):
     max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
-class H2OHuggingFacePipeline(HuggingFacePipeline):
+class H2OHuggingFacePipeline(AGenerateStreamFirst, HuggingFacePipeline):
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
@@ -2254,6 +2426,7 @@ def get_llm(use_openai_model=False,
     n_gpus = n_gpus_global
     if inference_server is None:
         inference_server = ''
+
     if inference_server.startswith('replicate'):
         model_string = ':'.join(inference_server.split(':')[1:])
         if 'meta/llama' in model_string:
