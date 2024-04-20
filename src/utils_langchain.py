@@ -218,10 +218,10 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             result, extra_return_dict = self.reduce_documents_chain.combine_docs(
                 result_docs, token_max=token_max, callbacks=callbacks, **kwargs
             )
-            self.terminate_callbacks()
             if self.return_intermediate_steps:
                 intermediate_steps = [r[question_result_key] for r in map_results]
                 extra_return_dict["intermediate_steps"] = intermediate_steps
+        self.terminate_callbacks()
         return result, extra_return_dict
 
     async def acombine_docs(
@@ -259,10 +259,10 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             result, extra_return_dict = await self.reduce_documents_chain.acombine_docs(
                 result_docs, token_max=token_max, callbacks=callbacks, **kwargs
             )
-            self.terminate_callbacks()
             if self.return_intermediate_steps:
                 intermediate_steps = [r[question_result_key] for r in map_results]
                 extra_return_dict["intermediate_steps"] = intermediate_steps
+        self.terminate_callbacks()
         return result, extra_return_dict
 
     def terminate_callbacks(self):
