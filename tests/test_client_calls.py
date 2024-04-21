@@ -136,6 +136,7 @@ def test_client1api_lean(save_dir, admin_pass):
     os.environ['ADMIN_PASS'] = admin_pass
     main(base_model=base_model, prompt_type='human_bot', chat=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         system_api_open=True,
          save_dir=save_dir)
 
     client1 = get_client(serialize=False)
@@ -4912,22 +4913,8 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     pdf_images = [os.path.join(image_dir, x) for x in pdf_images]
     pdf_images.sort(key=get_creation_date)
 
-    inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    if inference_server == 'https://gpt.h2o.ai':
-        auth_kwargs = dict(auth=('guest', 'guest'))
-    else:
-        auth_kwargs = {}
-
-    from src.gen import get_inf_models
-    base_models = get_inf_models(inference_server)
-    base_models_touse = [base_model]
-    assert len(set(base_models_touse).difference(set(base_models))) == 0
+    client, base_models = get_test_server_client(base_model)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
-
-    # inference_server = 'http://localhost:7860'
-
-    from gradio_client import Client
-    client = Client(inference_server, *auth_kwargs)
 
     prompt = 'What is used to optimize the likelihoods of the rationales?'
 
