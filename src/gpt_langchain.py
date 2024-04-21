@@ -783,7 +783,12 @@ class ChatAGenerateStreamFirst:
             **kwargs: Any,
     ) -> LLMResult:
         # NOTE: overwrite of base class so can specify which messages will have callbacks
-        callbacks_only_first = kwargs.get('stream', False) or kwargs.get('streaming', False)
+        callbacks_only_first = kwargs.get('stream', False) or \
+                                kwargs.get('streaming', False) or \
+                                hasattr(self, 'streaming') and self.streaming or \
+                                hasattr(self, 'stream') and self.stream
+        if self.verbose:
+            print("messages: %s" % len(messages))
 
         params = self._get_invocation_params(stop=stop, **kwargs)
         options = {"stop": stop}
@@ -1615,27 +1620,7 @@ from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
 
 
-class H2OOpenAI(OpenAI):
-    """
-    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
-    Handles prompting that OpenAI doesn't need, stopping as well
-
-    assume stop is used to keep out trailing text, and only generate new text,
-    so don't use self.prompter.get_response as becomes too complex
-    """
-    stop_sequences: Any = None
-    sanitize_bot_response: bool = False
-    prompter: Any = None
-    context: Any = ''
-    iinput: Any = ''
-    tokenizer: Any = None
-    async_sem: Any = None
-    count_input_tokens: Any = 0
-    prompts: Any = []
-    count_output_tokens: Any = 0
-    max_new_tokens0: Any = None
-    count_llm_calls: Any = 0
-
+class H2OTextGenOpenAI:
     def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
@@ -1801,7 +1786,7 @@ class H2OOpenAI(OpenAI):
             prompts = [prompt]
             # update for each async call
             kwargs = self.update_kwargs(prompts, kwargs)
-            return await super(H2OOpenAI, self)._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1811,7 +1796,29 @@ class H2OOpenAI(OpenAI):
             return super().get_token_ids(text)
 
 
-class H2OReplicate(AGenerateStreamFirst, Replicate):
+class H2OOpenAI(OpenAI):
+    """
+    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
+    Handles prompting that OpenAI doesn't need, stopping as well
+
+    assume stop is used to keep out trailing text, and only generate new text,
+    so don't use self.prompter.get_response as becomes too complex
+    """
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
+
+
+class H2OReplicate(Replicate):
     stop_sequences: Any = None
     sanitize_bot_response: bool = False
     prompter: Any = None
@@ -2257,11 +2264,22 @@ class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq
             return FakeTokenizer().encode(text)['input_ids']
 
 
-class H2OAzureOpenAI(AGenerateStreamFirst, AzureOpenAI):
-    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+class H2OAzureOpenAI(H2OTextGenOpenAI, AzureOpenAI):
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
 
 
-class H2OHuggingFacePipeline(AGenerateStreamFirst, HuggingFacePipeline):
+class H2OHuggingFacePipeline(HuggingFacePipeline):
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
