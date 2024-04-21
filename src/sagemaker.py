@@ -39,7 +39,7 @@ class BaseContentHandler(LLMContentHandler):
         return response_json[0]["generation"]
 
 
-class H2OSagemakerEndpoint(AGenerateStreamFirst, SagemakerEndpoint):
+class H2OSagemakerEndpoint(SagemakerEndpoint):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     tokenizer: typing.Any = None

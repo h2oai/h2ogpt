@@ -2453,6 +2453,7 @@ def get_llm(use_openai_model=False,
         inference_server = ''
 
     if inference_server.startswith('replicate'):
+        async_output = False  # no real async
         model_string = ':'.join(inference_server.split(':')[1:])
         if 'meta/llama' in model_string:
             temperature = max(0.01, temperature if do_sample else 0)
@@ -2826,8 +2827,10 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server and inference_server.startswith('sagemaker'):
+        async_output = False  # no real async
         callbacks = [streaming_callback]  # FIXME
         streamer = None
+        async_output = False  # no real async
 
         endpoint_name = ':'.join(inference_server.split(':')[1:2])
         region_name = ':'.join(inference_server.split(':')[2:])
@@ -3025,7 +3028,7 @@ def get_llm(use_openai_model=False,
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
-        async_output = False  # FIXME: not implemented yet
+        async_output = False  # FIXME: not implemented yet, and wouldn't make much sense as won't be faster
         assert langchain_only_model
         if model_name == 'llama':
             callbacks = [streaming_callback]
