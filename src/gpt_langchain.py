@@ -627,7 +627,11 @@ class AGenerateStreamFirst:
         **kwargs: Any,
     ) -> LLMResult:
         # NOTE: overwrite of base class so can specify which messages will have callbacks
-        callbacks_only_first = kwargs.get('stream', False) or kwargs.get('streaming', False)
+        callbacks_only_first = kwargs.get('stream', False) or \
+                                kwargs.get('streaming', False) or \
+                                hasattr(self, 'streaming') and self.streaming or \
+                                hasattr(self, 'stream') and self.stream or \
+                                hasattr(self, 'stream_output') and self.stream_output
 
         # Create callback managers
         if isinstance(callbacks, list) and (
@@ -786,7 +790,8 @@ class ChatAGenerateStreamFirst:
         callbacks_only_first = kwargs.get('stream', False) or \
                                 kwargs.get('streaming', False) or \
                                 hasattr(self, 'streaming') and self.streaming or \
-                                hasattr(self, 'stream') and self.stream
+                                hasattr(self, 'stream') and self.stream or \
+                                hasattr(self, 'stream_output') and self.stream_output
         if self.verbose:
             print("messages: %s" % len(messages))
 
