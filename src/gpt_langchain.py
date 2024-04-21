@@ -6904,7 +6904,7 @@ def run_hyde(*args, **kwargs):
             response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
                 if hyde_level1 < hyde_level else ''
         else:
-            response_perfix = ''
+            response_prefix = ''
         answer = ''
         for ret in run_target_func(query=query,
                                    chain=chain,
