@@ -1855,13 +1855,17 @@ class H2OReplicate(Replicate):
         response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
         return response
 
-    def get_token_ids(self, text: str) -> List[int]:
-        return self.tokenizer.encode(text)
-        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
-        # return _get_token_ids_default_method(text)
-
 
 class ExtraChat:
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            if isinstance(self.tokenizer, FakeTokenizer):
+                return self.tokenizer.encode(text)['input_ids']
+            else:
+                return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
+
     def get_messages(self, prompts):
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
@@ -2235,14 +2239,6 @@ class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoo
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
 
 class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
     system_prompt: Any = None
@@ -2256,12 +2252,6 @@ class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, Cha
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
-
 
 class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
@@ -2272,14 +2262,6 @@ class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     response_format: Any = None
-
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
 
 
 class H2OAzureOpenAI(H2OTextGenOpenAI, AzureOpenAI):
