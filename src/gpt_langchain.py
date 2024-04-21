@@ -6555,6 +6555,7 @@ def run_target(query='',
                                         response_prefix = "Computing Extraction Step %d:\n------------------\n" % (
                                                 1 + count_map_reduces)
                                 else:
+                                    response_prefix = ''
                                     llm_answers[llm_answers_key] = output1
                                 res_dict = dict(prompt=query, response=response_prefix + output1,
                                                 sources='', num_prompt_tokens=0,
