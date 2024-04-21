@@ -1753,7 +1753,8 @@ class H2OOpenAI(OpenAI):
             **kwargs: Any,
     ) -> typing.AsyncIterator[GenerationChunk]:
         kwargs = self.update_kwargs([prompt], kwargs)
-        return await super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        async for chunk in super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs):
+            yield chunk
 
     async def _agenerate(
             self,
@@ -1766,16 +1767,17 @@ class H2OOpenAI(OpenAI):
         self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
         self.count_llm_calls += len(prompts)
 
-        if False:
+        if self.streaming:
             self.prompts.extend(prompts)
             run_managers = [run_manager] * len(prompts)
+            # only stream first if doing async
             run_managers = [x if i == 0 else None for i, x in enumerate(run_managers)]
             tasks = [
                 asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager1, **kwargs))
                 for run_manager1, prompt in zip(run_managers, prompts)]
             llm_results = await asyncio.gather(*tasks)
             return self.collect_llm_results(llm_results)
-        elif self.batch_size > 1 or self.streaming:
+        elif self.batch_size > 1:
             rets = await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
             self.count_out_tokens(rets)
             return rets
