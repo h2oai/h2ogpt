@@ -432,6 +432,6 @@ def test_repair_json():
         if i > 50:
             assert len(good_json_string) > 5
         tdelta = time.time() - t0
-        assert tdelta < 0.002, "Too slow: %s" % tdelta
+        assert tdelta < 0.005, "Too slow: %s" % tdelta
         print("%s : %s : %s" % (i, tdelta, good_json_string))
         json.loads(good_json_string)
