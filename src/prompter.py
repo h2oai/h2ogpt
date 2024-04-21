@@ -1718,6 +1718,8 @@ class Prompter(object):
                     self.terminate_response.extend([tokenizer.eos_token])
                 if '<|eot_id|>' in tokenizer.added_tokens_encoder:
                     self.terminate_response.extend(['<|eot_id|>'])
+                if '<|im_end|>' in tokenizer.added_tokens_encoder:
+                    self.terminate_response.extend(['<|im_end|>'])
 
         self.pre_response = self.PreResponse
 
@@ -1881,6 +1883,14 @@ class Prompter(object):
                 text1 = text1[:-len(hfix)]
         if prompt_type1 == 'one_shot':
             hfix = '### Human'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
+        # chat templates don't properly give ending tokens, e.g. for dbrx for turns for llama-3
+        if prompt_type1 == unknown_prompt_type:
+            hfix = '<|endoftext|>'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
+            hfix = '<|im_end|>'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
         return text1

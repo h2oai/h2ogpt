@@ -2700,7 +2700,7 @@ def go_gradio(**kwargs):
                      eventdb3a, eventdb3]
         db_events.extend([event_attach1, event_attach2])
 
-        get_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=docs_state0,
+        get_sources_fun_kwargs = dict(dbs=dbs, docs_state0=docs_state0,
                                          load_db_if_exists=load_db_if_exists,
                                          db_type=db_type,
                                          use_openai_embedding=use_openai_embedding,
@@ -2714,6 +2714,8 @@ def go_gradio(**kwargs):
                                          enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                          h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                          )
+
+        get_sources1 = functools.partial(get_sources_gr, **get_sources_fun_kwargs)
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice(langchain_mode1):
@@ -6641,6 +6643,14 @@ def go_gradio(**kwargs):
                                           outputs=login_outputs)
         if load_func and auth:
             if not kwargs['large_file_count_mode']:
+                get_sources_fun_kwargs_login = get_sources_fun_kwargs.copy()
+                get_sources_fun_kwargs_login['for_login'] = True
+                get_sources1_login = functools.partial(get_sources_gr, **get_sources_fun_kwargs_login)
+                get_sources_kwargs_login = dict(fn=get_sources1_login,
+                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                                  h2ogpt_key],
+                                          outputs=[file_source, docs_state, text_doc_count],
+                                          queue=queue)
                 load_event3 = load_event2.then(**get_sources_kwargs)
                 load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
                 load_event5 = load_event4.then(**show_sources_kwargs)
@@ -7158,6 +7168,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    enforce_h2ogpt_api_key=True,
                    enforce_h2ogpt_ui_key=True,
                    h2ogpt_api_keys=[],
+                   for_login=False,
                    ):
     valid_key = is_valid_key(enforce_h2ogpt_api_key,
                              enforce_h2ogpt_ui_key,
@@ -7167,7 +7178,10 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                              )
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
-        raise ValueError(invalid_key_msg)
+        if for_login:
+            return '', [], ''
+        else:
+            raise ValueError(invalid_key_msg)
 
     from src.gpt_langchain import get_sources
     sources_file, source_list, num_chunks, num_sources_str, db = \
