@@ -6297,6 +6297,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                         stream_output=stream_output,
                                         lora_weights=lora_weights, max_time=max_time,
                                         sanitize_bot_response=sanitize_bot_response,
+                                        from_ui=from_ui,
                                         verbose=verbose,
                                         langchain_action=langchain_action,
                                         query_action=query_action,
@@ -6307,6 +6308,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                              lora_weights=lora_weights, max_time=max_time,
                                              sanitize_bot_response=sanitize_bot_response,
                                              allow_response_no_refs=False,
+                                             from_ui=from_ui,
                                              verbose=verbose,
                                              langchain_action=langchain_action,
                                              query_action=query_action,
@@ -6479,6 +6481,7 @@ def run_target(query='',
                max_time=0,
                sanitize_bot_response=False,
                allow_response_no_refs=True,
+               from_ui=True,
                verbose=False):
     if not for_hyde and not query_action:
         if langchain_action == LangChainAction.EXTRACT.value:
@@ -6543,7 +6546,9 @@ def run_target(query='',
                                 # in-place change to this key so exposed outside this generator
                                 if llm_answers_key in ['map_reduce_', 'map_']:
                                     llm_answers[llm_answers_key + '%s' % (1 + count_map_reduces)] = output1
-                                    if llm_answers_key == 'map_reduce_':
+                                    if not from_ui:
+                                        response_prefix = ''
+                                    elif llm_answers_key == 'map_reduce_':
                                         response_prefix = "Computing Summarization Step %d:\n------------------\n" % (
                                                 1 + count_map_reduces)
                                     else:
@@ -6858,6 +6863,7 @@ def run_hyde(*args, **kwargs):
     append_sources_to_chat = kwargs['append_sources_to_chat']
     prompt_basic = kwargs['prompt_basic']
     docs_joiner = kwargs['docs_joiner']
+    from_ui = kwargs['from_ui']
 
     # get llm answer
     auto_hyde = """%s {query}""" % escape_braces(hyde_llm_prompt)
@@ -6895,8 +6901,11 @@ def run_hyde(*args, **kwargs):
         # get answer, updates llm_answers internally too
         llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level1
         # for LLM, query remains same each time
-        response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
-            if hyde_level1 < hyde_level else ''
+        if from_ui:
+            response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
+                if hyde_level1 < hyde_level else ''
+        else:
+            response_perfix = ''
         answer = ''
         for ret in run_target_func(query=query,
                                    chain=chain,
