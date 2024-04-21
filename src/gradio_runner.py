@@ -2820,7 +2820,7 @@ def go_gradio(**kwargs):
             return gr.Dropdown(choices=x,
                                value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
-        get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0,
+        get_viewable_sources1_fun_kwargs = dict(dbs=dbs, docs_state0=viewable_docs_state0,
                                                   load_db_if_exists=load_db_if_exists,
                                                   db_type=db_type,
                                                   use_openai_embedding=use_openai_embedding,
@@ -2834,6 +2834,8 @@ def go_gradio(**kwargs):
                                                   enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                                   h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
                                                   )
+
+        get_viewable_sources1 = functools.partial(get_sources_gr, **get_viewable_sources1_fun_kwargs)
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                                  h2ogpt_key],
@@ -6667,9 +6669,19 @@ def go_gradio(**kwargs):
                                                          langchain_mode,
                                                          h2ogpt_key],
                                                  outputs=sources_text)
-
                 load_event5 = load_event4.then(**show_sources_kwargs_login)
-                load_event6 = load_event5.then(**get_viewable_sources_args)
+
+
+                get_viewable_sources1_fun_kwargs_login = get_viewable_sources1_fun_kwargs.copy()
+                get_viewable_sources1_fun_kwargs_login['for_login'] = True
+                get_viewable_sources1_login = functools.partial(get_sources_gr, **get_viewable_sources1_fun_kwargs_login)
+                get_viewable_sources_args_login = dict(fn=get_viewable_sources1_login,
+                                                 inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
+                                                         h2ogpt_key],
+                                                 outputs=[file_source, viewable_docs_state, text_viewable_doc_count],
+                                                 queue=queue)
+
+                load_event6 = load_event5.then(**get_viewable_sources_args_login)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
