@@ -414,7 +414,7 @@ def main(
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = False,
         append_sources_to_chat: bool = True,
-        show_accordions: bool = True,
+        sources_show_text_in_accordion: bool = True,
         top_k_docs_max_show: int = 10,
         show_link_in_sources: bool = True,
         langchain_instruct_mode: bool = True,
@@ -447,6 +447,7 @@ def main(
         hyde_template: str = None,
         hyde_show_only_final: bool = False,
         hyde_show_intermediate_in_accordion: bool = True,
+        map_reduce_show_intermediate_in_accordion: bool = True,
         doc_json_mode: bool = False,
         metadata_in_context: Union[str, list] = 'auto',
 
@@ -904,6 +905,7 @@ def main(
                  '{query}' is minimal template one can pass
     :param hyde_show_only_final:  Whether to show only last result of HYDE, not intermediate steps
     :param hyde_show_intermediate_in_accordion: Whether to show intermediate HYDE, but inside HTML accordion
+    :param map_reduce_show_intermediate_in_accordion: Whether to show intermediate map_reduce, but inside HTML accordion
 
     :param visible_models: Which models in model_lock list to show by default
            Takes integers of position in model_lock (model_states) list or strings of base_model names
@@ -1051,7 +1053,7 @@ def main(
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param append_sources_to_chat: Whether to place sources information in chat response but in separate chat turn (ignored by LLM).  Always disabled for API.
-    :param show_accordions: whether to show accordion for document references in chatbot UI
+    :param sources_show_text_in_accordion: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
            If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
@@ -3034,12 +3036,14 @@ def get_model(
                 assert api_key, "No OpenAI key detected.  Set environment for OPENAI_API_KEY or add to inference server line: %s" % inference_server
             # Don't return None, None for model, tokenizer so triggers
             if base_model in model_token_mapping:
-                max_seq_len = model_token_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = model_token_mapping[base_model]
             else:
                 print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
                     base_model, inference_server))
             if base_model in model_token_mapping_outputs:
-                max_output_len = model_token_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = model_token_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3052,11 +3056,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in anthropic_mapping:
-                max_seq_len = anthropic_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = anthropic_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in anthropic_mapping_outputs:
-                max_output_len = anthropic_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = anthropic_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3069,11 +3075,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in google_mapping:
-                max_seq_len = google_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = google_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in google_mapping_outputs:
-                max_output_len = google_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = google_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3092,11 +3100,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in mistralai_mapping:
-                max_seq_len = mistralai_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = mistralai_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in mistralai_mapping_outputs:
-                max_output_len = mistralai_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = mistralai_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3121,11 +3131,13 @@ def get_model(
             # Don't return None, None for model, tokenizer so triggers
             # include small token cushion
             if base_model in groq_mapping:
-                max_seq_len = groq_mapping[base_model]
+                if max_seq_len is None:
+                    max_seq_len = groq_mapping[base_model]
             else:
                 raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
             if base_model in groq_mapping_outputs:
-                max_output_len = groq_mapping_outputs[base_model]
+                if max_output_len is None:
+                    max_output_len = groq_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
@@ -3812,8 +3824,9 @@ def evaluate(
         n_jobs=None,
         first_para=None,
         text_limit=None,
-        show_accordions=None,
+        sources_show_text_in_accordion=None,
         hyde_show_intermediate_in_accordion=None,
+        map_reduce_show_intermediate_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         langchain_instruct_mode=None,
@@ -4362,8 +4375,9 @@ def evaluate(
                 auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
-                show_accordions=show_accordions,
+                sources_show_text_in_accordion=sources_show_text_in_accordion,
                 hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
+                map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                 top_k_docs_max_show=top_k_docs_max_show,
                 show_link_in_sources=show_link_in_sources,
                 langchain_instruct_mode=langchain_instruct_mode,
@@ -4446,6 +4460,8 @@ def evaluate(
                 guided_grammar=guided_grammar,
 
                 json_vllm=json_vllm,
+
+                from_ui=from_ui,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']

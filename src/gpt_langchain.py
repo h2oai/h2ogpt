@@ -33,7 +33,7 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain_core.callbacks import streaming_stdout
+from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler, BaseCallbackManager
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
@@ -42,12 +42,15 @@ from langchain.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
+from langchain_core.globals import get_llm_cache
+from langchain_core.language_models.llms import aget_prompts, aupdate_cache
+from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
+from langchain_core.outputs import ChatResult, RunInfo
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
-#from langchain_mistralai import ChatMistralAI
+# from langchain_mistralai import ChatMistralAI
 from src.langchain_mistralai.chat_models import ChatMistralAI
 from langchain_groq import ChatGroq
 from pydantic.v1 import root_validator
@@ -65,7 +68,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -82,7 +85,7 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
     is_vision_model, is_gradio_vision_model, is_json_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
-    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
+    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -608,7 +611,275 @@ class H2Oagenerate:
                 await self._acall(prompt, stop=stop, **kwargs)
 
 
-class GradioInference(H2Oagenerate, LLM):
+class AGenerateStreamFirst:
+    # from:
+    # langchain_core/language_models/llms.py
+    async def agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            callbacks: Optional[typing.Union[Callbacks, List[Callbacks]]] = None,
+            *,
+            tags: Optional[typing.Union[List[str], List[List[str]]]] = None,
+            metadata: Optional[typing.Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+            run_name: Optional[typing.Union[str, List[str]]] = None,
+            run_id: Optional[typing.Union[uuid.UUID, List[Optional[uuid.UUID]]]] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False) or \
+                               kwargs.get('streaming', False) or \
+                               hasattr(self, 'streaming') and self.streaming or \
+                               hasattr(self, 'stream') and self.stream or \
+                               hasattr(self, 'stream_output') and self.stream_output
+
+        # Create callback managers
+        if isinstance(callbacks, list) and (
+                isinstance(callbacks[0], (list, BaseCallbackManager))
+                or callbacks[0] is None
+        ):
+            # We've received a list of callbacks args to apply to each input
+            assert len(callbacks) == len(prompts)
+            assert tags is None or (
+                    isinstance(tags, list) and len(tags) == len(prompts)
+            )
+            assert metadata is None or (
+                    isinstance(metadata, list) and len(metadata) == len(prompts)
+            )
+            assert run_name is None or (
+                    isinstance(run_name, list) and len(run_name) == len(prompts)
+            )
+            callbacks = typing.cast(List[Callbacks], callbacks)
+            tags_list = typing.cast(List[Optional[List[str]]], tags or ([None] * len(prompts)))
+            metadata_list = typing.cast(
+                List[Optional[Dict[str, Any]]], metadata or ([{}] * len(prompts))
+            )
+            run_name_list = run_name or typing.cast(
+                List[Optional[str]], ([None] * len(prompts))
+            )
+            callback_managers = [
+                AsyncCallbackManager.configure(
+                    callback,
+                    self.callbacks,
+                    self.verbose,
+                    tag,
+                    self.tags,
+                    meta,
+                    self.metadata,
+                )
+                for callback, tag, meta in zip(callbacks, tags_list, metadata_list)
+            ]
+        else:
+            # We've received a single callbacks arg to apply to all inputs
+            callback_managers = [
+                                    AsyncCallbackManager.configure(
+                                        typing.cast(Callbacks, callbacks),
+                                        self.callbacks,
+                                        self.verbose,
+                                        typing.cast(List[str], tags),
+                                        self.tags,
+                                        typing.cast(Dict[str, Any], metadata),
+                                        self.metadata,
+                                    )
+                                ] * len(prompts)
+            run_name_list = [typing.cast(Optional[str], run_name)] * len(prompts)
+        run_ids_list = self._get_run_ids_list(run_id, prompts)
+        params = self.dict()
+        params["stop"] = stop
+        options = {"stop": stop}
+        (
+            existing_prompts,
+            llm_string,
+            missing_prompt_idxs,
+            missing_prompts,
+        ) = await aget_prompts(params, prompts, self.cache)
+
+        # Verify whether the cache is set, and if the cache is set,
+        # verify whether the cache is available.
+        new_arg_supported = inspect.signature(self._agenerate).parameters.get(
+            "run_manager"
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(callback_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+        if (self.cache is None and get_llm_cache() is None) or self.cache is False:
+            run_managers = await asyncio.gather(
+                *[
+                    callback_manager.on_llm_start(
+                        dumpd(self),
+                        [prompt],
+                        invocation_params=params,
+                        options=options,
+                        name=run_name,
+                        batch_size=len(prompts),
+                        run_id=run_id_,
+                    )
+                    for callback_manager, prompt, run_name, run_id_ in zip(
+                        callback_managers, prompts, run_name_list, run_ids_list
+                    )
+                ]
+            )
+            run_managers = [r[0] for r in run_managers]  # type: ignore[misc]
+            output = await self._agenerate_helper(
+                prompts,
+                stop,
+                run_managers,  # type: ignore[arg-type]
+                bool(new_arg_supported),
+                **kwargs,  # type: ignore[arg-type]
+            )
+            return output
+        if len(missing_prompts) > 0:
+            run_managers = await asyncio.gather(
+                *[
+                    callback_managers[idx].on_llm_start(
+                        dumpd(self),
+                        [prompts[idx]],
+                        invocation_params=params,
+                        options=options,
+                        name=run_name_list[idx],
+                        batch_size=len(missing_prompts),
+                    )
+                    for idx in missing_prompt_idxs
+                ]
+            )
+            run_managers = [r[0] for r in run_managers]  # type: ignore[misc]
+            new_results = await self._agenerate_helper(
+                missing_prompts,
+                stop,
+                run_managers,  # type: ignore[arg-type]
+                bool(new_arg_supported),
+                **kwargs,  # type: ignore[arg-type]
+            )
+            llm_output = await aupdate_cache(
+                self.cache,
+                existing_prompts,
+                llm_string,
+                missing_prompt_idxs,
+                new_results,
+                prompts,
+            )
+            run_info = (
+                [RunInfo(run_id=run_manager.run_id) for run_manager in run_managers]  # type: ignore[attr-defined]
+                if run_managers
+                else None
+            )
+        else:
+            llm_output = {}
+            run_info = None
+        generations = [existing_prompts[i] for i in range(len(prompts))]
+        return LLMResult(generations=generations, llm_output=llm_output, run=run_info)
+
+
+class ChatAGenerateStreamFirst:
+    # from
+    # langchain_core/language_models/chat_models.py
+    async def agenerate(
+            self,
+            messages: List[List[BaseMessage]],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            *,
+            tags: Optional[List[str]] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+            run_name: Optional[str] = None,
+            run_id: Optional[uuid.UUID] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False) or \
+                               kwargs.get('streaming', False) or \
+                               hasattr(self, 'streaming') and self.streaming or \
+                               hasattr(self, 'stream') and self.stream or \
+                               hasattr(self, 'stream_output') and self.stream_output
+        if self.verbose:
+            print("messages: %s" % len(messages))
+
+        params = self._get_invocation_params(stop=stop, **kwargs)
+        options = {"stop": stop}
+
+        callback_manager = AsyncCallbackManager.configure(
+            callbacks,
+            self.callbacks,
+            self.verbose,
+            tags,
+            self.tags,
+            metadata,
+            self.metadata,
+        )
+
+        run_managers = await callback_manager.on_chat_model_start(
+            dumpd(self),
+            messages,
+            invocation_params=params,
+            options=options,
+            name=run_name,
+            batch_size=len(messages),
+            run_id=run_id,
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(run_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+
+        results = await asyncio.gather(
+            *[
+                self._agenerate_with_cache(
+                    m,
+                    stop=stop,
+                    run_manager=run_managers[i] if run_managers else None,
+                    **kwargs,
+                )
+                for i, m in enumerate(messages)
+            ],
+            return_exceptions=True,
+        )
+        exceptions = []
+        for i, res in enumerate(results):
+            if isinstance(res, BaseException):
+                if run_managers:
+                    await run_managers[i].on_llm_error(
+                        res, response=LLMResult(generations=[])
+                    )
+                exceptions.append(res)
+        if exceptions:
+            if run_managers:
+                await asyncio.gather(
+                    *[
+                        run_manager.on_llm_end(
+                            LLMResult(
+                                generations=[res.generations],  # type: ignore[list-item, union-attr]
+                                llm_output=res.llm_output,  # type: ignore[list-item, union-attr]
+                            )
+                        )
+                        for run_manager, res in zip(run_managers, results)
+                        if not isinstance(res, Exception)
+                    ]
+                )
+            raise exceptions[0]
+        flattened_outputs = [
+            LLMResult(generations=[res.generations], llm_output=res.llm_output)  # type: ignore[list-item, union-attr]
+            for res in results
+        ]
+        llm_output = self._combine_llm_outputs([res.llm_output for res in results])  # type: ignore[union-attr]
+        generations = [res.generations for res in results]  # type: ignore[union-attr]
+        output = LLMResult(generations=generations, llm_output=llm_output)  # type: ignore[arg-type]
+        await asyncio.gather(
+            *[
+                run_manager.on_llm_end(flattened_output)
+                for run_manager, flattened_output in zip(
+                    run_managers, flattened_outputs
+                )
+            ]
+        )
+        if run_managers:
+            output.run = [
+                RunInfo(run_id=run_manager.run_id) for run_manager in run_managers
+            ]
+        return output
+
+
+class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     """
     Gradio generation inference API.
     """
@@ -1190,7 +1461,7 @@ class GradioLLaVaInference(GradioInference):
         return text
 
 
-class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
+class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     seed: int = 0
@@ -1354,27 +1625,7 @@ from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
 
 
-class H2OOpenAI(OpenAI):
-    """
-    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
-    Handles prompting that OpenAI doesn't need, stopping as well
-
-    assume stop is used to keep out trailing text, and only generate new text,
-    so don't use self.prompter.get_response as becomes too complex
-    """
-    stop_sequences: Any = None
-    sanitize_bot_response: bool = False
-    prompter: Any = None
-    context: Any = ''
-    iinput: Any = ''
-    tokenizer: Any = None
-    async_sem: Any = None
-    count_input_tokens: Any = 0
-    prompts: Any = []
-    count_output_tokens: Any = 0
-    max_new_tokens0: Any = None
-    count_llm_calls: Any = 0
-
+class H2OTextGenOpenAI:
     def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
@@ -1492,7 +1743,8 @@ class H2OOpenAI(OpenAI):
             **kwargs: Any,
     ) -> typing.AsyncIterator[GenerationChunk]:
         kwargs = self.update_kwargs([prompt], kwargs)
-        return await super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        async for chunk in super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs):
+            yield chunk
 
     async def _agenerate(
             self,
@@ -1504,7 +1756,18 @@ class H2OOpenAI(OpenAI):
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
         self.count_llm_calls += len(prompts)
-        if self.batch_size > 1 or self.streaming:
+
+        if self.streaming:
+            self.prompts.extend(prompts)
+            run_managers = [run_manager] * len(prompts)
+            # only stream first if doing async
+            run_managers = [x if i == 0 else None for i, x in enumerate(run_managers)]
+            tasks = [
+                asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager1, **kwargs))
+                for run_manager1, prompt in zip(run_managers, prompts)]
+            llm_results = await asyncio.gather(*tasks)
+            return self.collect_llm_results(llm_results)
+        elif self.batch_size > 1:
             rets = await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
             self.count_out_tokens(rets)
             return rets
@@ -1528,7 +1791,7 @@ class H2OOpenAI(OpenAI):
             prompts = [prompt]
             # update for each async call
             kwargs = self.update_kwargs(prompts, kwargs)
-            return await super(H2OOpenAI, self)._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1536,6 +1799,28 @@ class H2OOpenAI(OpenAI):
         else:
             # OpenAI uses tiktoken
             return super().get_token_ids(text)
+
+
+class H2OOpenAI(H2OTextGenOpenAI, OpenAI):
+    """
+    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
+    Handles prompting that OpenAI doesn't need, stopping as well
+
+    assume stop is used to keep out trailing text, and only generate new text,
+    so don't use self.prompter.get_response as becomes too complex
+    """
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
 
 
 class H2OReplicate(Replicate):
@@ -1570,13 +1855,17 @@ class H2OReplicate(Replicate):
         response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
         return response
 
-    def get_token_ids(self, text: str) -> List[int]:
-        return self.tokenizer.encode(text)
-        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
-        # return _get_token_ids_default_method(text)
-
 
 class ExtraChat:
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            if isinstance(self.tokenizer, FakeTokenizer):
+                return self.tokenizer.encode(text)['input_ids']
+            else:
+                return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
+
     def get_messages(self, prompts):
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
@@ -1741,6 +2030,7 @@ class GenerateStream:
 
     def tool_string_return(self, ret, have_tool):
         if have_tool and isinstance(ret.generations[0].text, list):
+            # prior beta
             # overwrite
             if not ret.generations[0].text:
                 ret.generations[0].text = json.dumps({})
@@ -1748,6 +2038,18 @@ class GenerateStream:
                 # -1 is last, to skip first thinking step for opus/sonnet
                 # bug in claude with sonnet:
                 result = ret.generations[0].text[-1]['input']
+                if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
+                    result = result['properties']
+                ret.generations[0].text = json.dumps(result)
+        elif have_tool and isinstance(ret.generations[0].message.content, list):
+            # new beta
+            # overwrite
+            if not ret.generations[0].message.content:
+                ret.generations[0].text = json.dumps({})
+            else:
+                # -1 is last, to skip first thinking step for opus/sonnet
+                # bug in claude with sonnet:
+                result = ret.generations[0].message.content[-1]['input']
                 if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
                     result = result['properties']
                 ret.generations[0].text = json.dumps(result)
@@ -1861,7 +2163,7 @@ class GenerateStream2:
                 raise
 
 
-class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
+class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpenAI):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
@@ -1879,7 +2181,7 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
             return super().get_token_ids(text)
 
 
-class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
+class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, AzureChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1889,7 +2191,7 @@ class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
-class H2OChatAnthropic2(GenerateNormal, ExtraChat, ChatAnthropic2):
+class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, ChatAnthropic2):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1905,7 +2207,7 @@ class H2OChatAnthropic2Sys(H2OChatAnthropic2):
     pass
 
 
-class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
+class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatAnthropic3):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1929,7 +2231,7 @@ from langchain_core.language_models.chat_models import (
 )
 
 
-class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
+class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1937,16 +2239,8 @@ class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
 
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-
-class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
+class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1958,14 +2252,8 @@ class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
 
-
-class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
+class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
     chat_conversation: Any = []
     prompts: Any = []
@@ -1975,17 +2263,20 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
     count_output_tokens: Any = 0
     response_format: Any = None
 
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
-
-
-class H2OAzureOpenAI(AzureOpenAI):
-    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+class H2OAzureOpenAI(H2OTextGenOpenAI, AzureOpenAI):
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
@@ -2114,6 +2405,9 @@ def get_llm(use_openai_model=False,
 
             doing_grounding=False,
             json_vllm=False,
+
+            query_action=True,
+            summarize_action=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2145,12 +2439,16 @@ def get_llm(use_openai_model=False,
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
 
+    streaming_callback = StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose, raise_stop=query_action)
+
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     n_gpus = n_gpus_global
     if inference_server is None:
         inference_server = ''
+
     if inference_server.startswith('replicate'):
+        async_output = False  # no real async
         model_string = ':'.join(inference_server.split(':')[1:])
         if 'meta/llama' in model_string:
             temperature = max(0.01, temperature if do_sample else 0)
@@ -2173,7 +2471,7 @@ def get_llm(use_openai_model=False,
 
         # replicate handles prompting if no conversation, but in general has no chat API, so do all handling of prompting in h2oGPT
         if stream_output:
-            callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+            callbacks = [streaming_callback]
             streamer = callbacks[0] if stream_output else None
             llm = H2OReplicate(
                 streaming=True,
@@ -2330,7 +2628,7 @@ def get_llm(use_openai_model=False,
             if img_file:
                 chat_conversation.append((img_file, gpt4imagetag))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.0,
@@ -2388,7 +2686,7 @@ def get_llm(use_openai_model=False,
             # FIXME: _AnthropicCommon ignores these and makes no client anyways
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
                   max_tokens=max_new_tokens,
@@ -2429,7 +2727,7 @@ def get_llm(use_openai_model=False,
                 if '-vision' in model_name:
                     model_name = model_name.replace('-vision', '')
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
                   top_p=top_p if do_sample else 1.0,
@@ -2458,7 +2756,7 @@ def get_llm(use_openai_model=False,
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         # https://mistral.ai/news/mistral-large/
 
         if is_json_model(model_name, inference_server) and response_format == 'json_object':
@@ -2503,7 +2801,7 @@ def get_llm(use_openai_model=False,
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   groq_api_key=groq_api_key,
                   temperature=temperature if do_sample else 0,
@@ -2524,8 +2822,10 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server and inference_server.startswith('sagemaker'):
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]  # FIXME
+        async_output = False  # no real async
+        callbacks = [streaming_callback]  # FIXME
         streamer = None
+        async_output = False  # no real async
 
         endpoint_name = ':'.join(inference_server.split(':')[1:2])
         region_name = ':'.join(inference_server.split(':')[2:])
@@ -2589,7 +2889,7 @@ def get_llm(use_openai_model=False,
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
 
@@ -2723,10 +3023,10 @@ def get_llm(use_openai_model=False,
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
-        async_output = False  # FIXME: not implemented yet
+        async_output = False  # FIXME: not implemented yet, and wouldn't make much sense as won't be faster
         assert langchain_only_model
         if model_name == 'llama':
-            callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+            callbacks = [streaming_callback]
             streamer = callbacks[0] if stream_output else None
         else:
             # stream_output = False
@@ -2737,7 +3037,7 @@ def get_llm(use_openai_model=False,
             prompt_type = prompter.prompt_type
         else:
             prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
-            tokenizer=tokenizer)
+                                tokenizer=tokenizer)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name=model_name,
@@ -2764,7 +3064,7 @@ def get_llm(use_openai_model=False,
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         streamer = callbacks[0] if stream_output else None
 
         if exllama_dict is None:
@@ -5538,8 +5838,9 @@ def run_qa_db(**kwargs):
     # hard-coded defaults
     kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
     kwargs['show_rank'] = kwargs.get('show_rank', False)
-    kwargs['show_accordions'] = kwargs.get('show_accordions', True)
+    kwargs['sources_show_text_in_accordion'] = kwargs.get('sources_show_text_in_accordion', True)
     kwargs['hyde_show_intermediate_in_accordion'] = kwargs.get('hyde_show_intermediate_in_accordion', True)
+    kwargs['map_reduce_show_intermediate_in_accordion'] = kwargs.get('map_reduce_show_intermediate_in_accordion', True)
     kwargs['show_link_in_sources'] = kwargs.get('show_link_in_sources', True)
     kwargs['top_k_docs_max_show'] = kwargs.get('top_k_docs_max_show', 10)
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
@@ -5559,6 +5860,8 @@ def run_qa_db(**kwargs):
     kwargs['guided_choice'] = kwargs.get('guided_choice', '')
     kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
+
+    kwargs['from_ui'] = kwargs.get('from_ui', True)
 
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -5643,8 +5946,9 @@ def _run_qa_db(query=None,
                allow_chat_system_prompt=True,
                sanitize_bot_response=False,
                show_rank=False,
-               show_accordions=True,
+               sources_show_text_in_accordion=True,
                hyde_show_intermediate_in_accordion=True,
+               map_reduce_show_intermediate_in_accordion=True,
                show_link_in_sources=True,
                top_k_docs_max_show=10,
                use_llm_if_no_docs=True,
@@ -5720,6 +6024,8 @@ def _run_qa_db(query=None,
                guided_grammar=None,
 
                json_vllm=False,
+
+               from_ui=True,
                ):
     """
 
@@ -5756,16 +6062,19 @@ def _run_qa_db(query=None,
     else:
         if stream_output0:
             # threads and asyncio don't mix
-            async_output = False
+            # but if do asyncio inside thread, all fine
+            # async_output = True
+            pass
         else:
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
 
     # avoid source stuff in response if not textual, e.g. json
-    if response_format != 'text':
-        answer_with_sources = False
+    # also doesn't make much sense to get accordion stuff from API
+    if response_format != 'text' or not from_ui:
         append_sources_to_answer = False
         hyde_show_intermediate_in_accordion = False
+        map_reduce_show_intermediate_in_accordion = False
 
     # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
     max_new_tokens0 = max_new_tokens
@@ -5915,6 +6224,9 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
                       doing_grounding=doing_grounding,
                       json_vllm=json_vllm,
+
+                      query_action=query_action,
+                      summarize_action=summarize_action,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -5950,7 +6262,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
-        extra = '\n\nUse the `JSON` tool.\n'
+        extra = '\n\nUse the `JSON` tool.  Do not respond with thinking, just use the tool right away.\n'
         if query_action:
             query += extra
         prompt_summary += extra
@@ -5970,8 +6282,9 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if isinstance(document_content_substrings, str):
         document_content_substrings = [document_content_substrings]
 
-    get_answer_kwargs = dict(show_accordions=show_accordions,
+    get_answer_kwargs = dict(sources_show_text_in_accordion=sources_show_text_in_accordion,
                              hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
+                             map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
                              verbose=verbose,
@@ -5982,14 +6295,23 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                         stream_output=stream_output,
                                         lora_weights=lora_weights, max_time=max_time,
                                         sanitize_bot_response=sanitize_bot_response,
-                                        verbose=verbose)
+                                        from_ui=from_ui,
+                                        verbose=verbose,
+                                        langchain_action=langchain_action,
+                                        query_action=query_action,
+                                        )
 
     run_target_func_hyde = functools.partial(run_target,
                                              stream_output=stream_output,
                                              lora_weights=lora_weights, max_time=max_time,
                                              sanitize_bot_response=sanitize_bot_response,
                                              allow_response_no_refs=False,
-                                             verbose=verbose)
+                                             from_ui=from_ui,
+                                             verbose=verbose,
+                                             langchain_action=langchain_action,
+                                             query_action=query_action,
+                                             for_hyde=True,
+                                             )
 
     func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
@@ -6146,6 +6468,9 @@ def run_target(query='',
                prompter=None,
                llm_answers=dict(responses_raw=''),
                llm_answers_key='llm_answer_final',
+               query_action=True,
+               langchain_action=None,
+               for_hyde=False,
                async_output=False,
                only_new_text=True,
                # things below are fixed for entire _run_qa_db() call once hit get_llm() and so on
@@ -6154,7 +6479,14 @@ def run_target(query='',
                max_time=0,
                sanitize_bot_response=False,
                allow_response_no_refs=True,
+               from_ui=True,
                verbose=False):
+    if not for_hyde and not query_action:
+        if langchain_action == LangChainAction.EXTRACT.value:
+            llm_answers_key = 'map_'
+        else:
+            llm_answers_key = 'map_reduce_'
+
     # context stuff similar to used in evaluate()
     import torch
     device, torch_dtype, context_class = get_device_dtype()
@@ -6168,12 +6500,16 @@ def run_target(query='',
             context_class_cast = NullContext
         with context_class_cast(device):
             if stream_output and streamer:
+                count_map_reduces = 0
                 answer = None
                 import queue
                 bucket = queue.Queue()
-                thread = EThread(target=chain, streamer=streamer, bucket=bucket)
+                thread = EThread(target=chain, streamer=streamer, bucket=bucket, async_output=async_output)
                 thread.start()
-                outputs = ""
+                if not for_hyde and not query_action:
+                    outputs = ""
+                else:
+                    outputs = ""
                 output1_old = ''
                 res_dict = dict(prompt=query, response='', sources='', num_prompt_tokens=0, llm_answers=llm_answers,
                                 response_no_refs='', sources_str='', prompt_raw=query)
@@ -6183,40 +6519,60 @@ def run_target(query='',
                         # print("new_text: %s" % new_text, flush=True)
                         if bucket.qsize() > 0 or thread.exc:
                             thread.join()
-                        outputs += new_text
-                        if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                            if conditional_type:
-                                if prompter.botstr:
-                                    prompt = prompter.botstr
-                                    output_with_prompt = prompt + outputs
-                                    only_new_text = False  # override llm return
+                        if new_text is not None:
+                            if new_text:
+                                outputs += new_text
+                                if prompter:  # and False:  # FIXME: pipeline can already use prompter
+                                    if conditional_type:
+                                        if prompter.botstr:
+                                            prompt = prompter.botstr
+                                            output_with_prompt = prompt + outputs
+                                            only_new_text = False  # override llm return
+                                        else:
+                                            prompt = None
+                                            output_with_prompt = outputs
+                                            only_new_text = True  # override llm return
+                                    else:
+                                        prompt = None  # FIXME
+                                        output_with_prompt = outputs
+                                        # don't specify only_new_text here, use get_llm() value
+                                    output1 = prompter.get_response(output_with_prompt, prompt=prompt,
+                                                                    only_new_text=only_new_text,
+                                                                    sanitize_bot_response=sanitize_bot_response)
                                 else:
-                                    prompt = None
-                                    output_with_prompt = outputs
-                                    only_new_text = True  # override llm return
-                            else:
-                                prompt = None  # FIXME
-                                output_with_prompt = outputs
-                                # don't specify only_new_text here, use get_llm() value
-                            output1 = prompter.get_response(output_with_prompt, prompt=prompt,
-                                                            only_new_text=only_new_text,
-                                                            sanitize_bot_response=sanitize_bot_response)
+                                    output1 = outputs
+                                # in-place change to this key so exposed outside this generator
+                                if llm_answers_key in ['map_reduce_', 'map_']:
+                                    llm_answers[llm_answers_key + '%s' % (1 + count_map_reduces)] = output1
+                                    if not from_ui:
+                                        response_prefix = ''
+                                    elif llm_answers_key == 'map_reduce_':
+                                        response_prefix = "Computing Summarization Step %d:\n------------------\n" % (
+                                                1 + count_map_reduces)
+                                    else:
+                                        response_prefix = "Computing Extraction Step %d:\n------------------\n" % (
+                                                1 + count_map_reduces)
+                                else:
+                                    response_prefix = ''
+                                    llm_answers[llm_answers_key] = output1
+                                res_dict = dict(prompt=query, response=response_prefix + output1,
+                                                sources='', num_prompt_tokens=0,
+                                                llm_answers=llm_answers,
+                                                response_no_refs=output1 if allow_response_no_refs else '',
+                                                sources_str='',
+                                                prompt_raw=query)
+                                if output1 != output1_old:
+                                    yield res_dict
+                                    output1_old = output1
+                                if time.time() - tgen0 > max_time:
+                                    if verbose:
+                                        print("Took too long EThread for %s" % (time.time() - tgen0), flush=True)
+                                    break
                         else:
-                            output1 = outputs
-                        # in-place change to this key so exposed outside this generator
-                        llm_answers[llm_answers_key] = output1
-                        res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0,
-                                        llm_answers=llm_answers,
-                                        response_no_refs=output1 if allow_response_no_refs else '',
-                                        sources_str='',
-                                        prompt_raw=query)
-                        if output1 != output1_old:
-                            yield res_dict
-                            output1_old = output1
-                        if time.time() - tgen0 > max_time:
-                            if verbose:
-                                print("Took too long EThread for %s" % (time.time() - tgen0), flush=True)
-                            break
+                            # start fresh
+                            outputs = ''
+                            output1_old = ''
+                            count_map_reduces += 1
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
                 except BaseException:
@@ -6506,6 +6862,7 @@ def run_hyde(*args, **kwargs):
     append_sources_to_chat = kwargs['append_sources_to_chat']
     prompt_basic = kwargs['prompt_basic']
     docs_joiner = kwargs['docs_joiner']
+    from_ui = kwargs['from_ui']
 
     # get llm answer
     auto_hyde = """%s {query}""" % escape_braces(hyde_llm_prompt)
@@ -6543,8 +6900,11 @@ def run_hyde(*args, **kwargs):
         # get answer, updates llm_answers internally too
         llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level1
         # for LLM, query remains same each time
-        response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
-            if hyde_level1 < hyde_level else ''
+        if from_ui:
+            response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
+                if hyde_level1 < hyde_level else ''
+        else:
+            response_prefix = ''
         answer = ''
         for ret in run_target_func(query=query,
                                    chain=chain,
@@ -6557,7 +6917,11 @@ def run_hyde(*args, **kwargs):
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
             if not hyde_show_only_final:
-                pre_answer = get_hyde_acc(answer, llm_answers, get_answer_kwargs['hyde_show_intermediate_in_accordion'])
+                ret['response'], pre_answer, get_hyde_acc(ret['response'], llm_answers,
+                                                          get_answer_kwargs['hyde_show_intermediate_in_accordion'],
+                                                          get_answer_kwargs[
+                                                              'map_reduce_show_intermediate_in_accordion'],
+                                                          )
                 if pre_answer:
                     response = pre_answer + response
                 yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
@@ -7970,13 +8334,16 @@ def get_template(query, iinput,
     return template, template_if_no_docs, auto_reduce_chunks, query
 
 
-def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
+def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion):
     if not isinstance(answer, str):
-        return None
+        return answer, None
     pre_answer = ''
     count = 0
     all_count = len(llm_answers)
-    if llm_answers and hyde_show_intermediate_in_accordion:
+    do_acc = hyde_show_intermediate_in_accordion and 'llm_answers_hyde_level_' in str(list(llm_answers.keys()))
+    do_acc |= map_reduce_show_intermediate_in_accordion and 'map_reduce_' in str(list(llm_answers.keys()))
+    do_acc |= map_reduce_show_intermediate_in_accordion and 'map_' in str(list(llm_answers.keys()))
+    if llm_answers and do_acc:
         for title, content in llm_answers.items():
             if title == 'response_raw':
                 count += 1
@@ -7996,10 +8363,17 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
                 title = hyde_titles(3)
             elif 'llm_answers_hyde_level_4' == title:
                 title = hyde_titles(4)
+            elif 'map_reduce_' in title:
+                title = 'Summarize Step %s' % title.split('map_reduce_')[1]
+            elif 'map_' in title:
+                title = 'Extraction Step %s' % title.split('map_')[1]
             pre_answer += get_accordion_named(content, title, font_size=3)
             count += 1
 
-    return pre_answer
+    if pre_answer and is_markdown(answer):
+        answer = markdown_to_html(answer)
+
+    return answer, pre_answer
 
 
 def get_sources_answer(query, docs, answer,
@@ -8008,8 +8382,9 @@ def get_sources_answer(query, docs, answer,
                        answer_with_sources,
                        append_sources_to_answer,
                        append_sources_to_chat,
-                       show_accordions=True,
+                       sources_show_text_in_accordion=True,
                        hyde_show_intermediate_in_accordion=True,
+                       map_reduce_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
                        verbose=False,
@@ -8019,7 +8394,8 @@ def get_sources_answer(query, docs, answer,
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer, flush=True)
 
-    pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
+    answer, pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion,
+                                      map_reduce_show_intermediate_in_accordion)
     if pre_answer:
         pre_answer = pre_answer + '<br>'
         answer_with_acc = pre_answer + answer
@@ -8048,7 +8424,7 @@ def get_sources_answer(query, docs, answer,
                        get_url(doc, font_size=font_size),
                        get_accordion(doc, font_size=font_size, head_acc=head_acc)) for score, doc in
                       zip(scores, docs)]
-    if not show_accordions:
+    if not sources_show_text_in_accordion:
         answer_sources_dict = defaultdict(list)
         [answer_sources_dict[url].append((score, accordion)) for score, url, accordion in answer_sources]
         answers_dict = {}
@@ -8065,7 +8441,7 @@ def get_sources_answer(query, docs, answer,
         answer_sources = answer_sources[:top_k_docs_max_show]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
-        if show_accordions:
+        if sources_show_text_in_accordion:
             if show_link_in_sources:
                 answer_sources = ['<font size="%s"><li>%.2g | %s</li>%s</font>' % (font_size, score, url, accordion)
                                   for score, url, accordion in answer_sources]
@@ -8080,7 +8456,7 @@ def get_sources_answer(query, docs, answer,
                 answer_sources = ['<font size="%s"><li>%.2g</li></font>' % (font_size, score)
                                   for score, url, accordion in answer_sources]
         answer_sources = answer_sources[:top_k_docs_max_show]
-        if show_accordions:
+        if sources_show_text_in_accordion:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
         else:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
@@ -8231,15 +8607,6 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     if DocumentChoice.ALL.value in source_list:
         source_list.remove(DocumentChoice.ALL.value)
     return sources_file, source_list, num_chunks, num_sources_str, db
-
-
-def make_sources_file(langchain_mode, source_files_added):
-    sources_dir = "sources_dir"
-    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
-    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
-    with open(sources_file, "wt", encoding="utf-8") as f:
-        f.write(source_files_added)
-    return sources_file
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,

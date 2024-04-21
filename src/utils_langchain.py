@@ -19,7 +19,7 @@ from langchain.chains.summarize import map_reduce_prompt, LoadingCallable, _load
 from langchain.schema.language_model import BaseLanguageModel
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 
-from src.utils import hash_file, get_sha, split_list
+from src.utils import hash_file, get_sha, split_list, makedirs
 
 from langchain.callbacks.base import BaseCallbackHandler, Callbacks
 from langchain.schema import LLMResult
@@ -32,7 +32,7 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
     Similar to H2OTextIteratorStreamer that is for HF backend, but here LangChain backend
     """
 
-    def __init__(self, timeout: Optional[float] = None, block=True, max_time=None, verbose=False):
+    def __init__(self, timeout: Optional[float] = None, block=True, max_time=None, verbose=False, raise_stop=True):
         super().__init__()
         self.text_queue = queue.SimpleQueue()
         self.stop_signal = None
@@ -42,6 +42,7 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
         self.max_time = max_time
         self.tgen0 = None
         self.verbose = verbose
+        self.raise_stop = raise_stop
 
     def on_llm_start(
             self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
@@ -92,7 +93,9 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
             except queue.Empty:
                 time.sleep(0.01)
         if value == self.stop_signal:
-            raise StopIteration()
+            if self.raise_stop:
+                raise StopIteration()
+            return None
         else:
             return value
 
@@ -218,6 +221,7 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             if self.return_intermediate_steps:
                 intermediate_steps = [r[question_result_key] for r in map_results]
                 extra_return_dict["intermediate_steps"] = intermediate_steps
+        self.terminate_callbacks()
         return result, extra_return_dict
 
     async def acombine_docs(
@@ -258,7 +262,16 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
             if self.return_intermediate_steps:
                 intermediate_steps = [r[question_result_key] for r in map_results]
                 extra_return_dict["intermediate_steps"] = intermediate_steps
+        self.terminate_callbacks()
         return result, extra_return_dict
+
+    def terminate_callbacks(self):
+        if self.llm_chain.llm.callbacks:
+            for callback in self.llm_chain.llm.callbacks:
+                if isinstance(callback, StreamingGradioCallbackHandler):
+                    if not callback.raise_stop:
+                        callback.raise_stop = True
+                        callback.text_queue.put(None)
 
     @property
     def _chain_type(self) -> str:
@@ -487,3 +500,12 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
             if verbose:
                 print("done batch %s %s %s" % (ii, len(text_batch), batchii), flush=True)
         return rets
+
+
+def make_sources_file(langchain_mode, source_files_added):
+    sources_dir = "sources_dir"
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
+    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
+    with open(sources_file, "wt", encoding="utf-8") as f:
+        f.write(source_files_added)
+    return sources_file
