@@ -742,8 +742,42 @@ def get_source(x):
     return x.metadata.get('source', "UNKNOWN SOURCE")
 
 
+def markdown_to_html(content):
+    import markdown
+
+    # Create a Markdown object
+    markdowner = markdown.Markdown()
+
+    # Convert the Markdown block to HTML
+    try:
+        html = markdowner.reset().convert(content)
+    except Exception as e:
+        # FIXME:
+        print("Invalid conversion of markdown to html: %s\n\n%s" % (content, str(e)))
+        html = content
+
+    return html
+
+
+def is_markdown(string):
+    """Returns True if the string is markdown, False otherwise."""
+
+    # Check for the presence of double square brackets
+    if re.search(r'\[\[.+?\]\]', string):
+        return True
+
+    # Check for the presence of angle brackets
+    if re.search(r'<.+?>', string):
+        return False
+
+    # If neither of the above patterns are found, assume the string is markdown
+    return True
+
+
 def get_accordion_named(content, title, font_size=8):
-    content = content.replace('\n', '<br>')
+    # content = content.replace('\n', '<br>')
+    if is_markdown(content):
+        content = markdown_to_html(content)
     return f"""<details><summary><font size="{font_size}">{title}</font></summary><font size="{font_size}">{content}</font></details>"""
 
 

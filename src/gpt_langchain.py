@@ -68,7 +68,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -6917,10 +6917,11 @@ def run_hyde(*args, **kwargs):
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
             if not hyde_show_only_final:
-                pre_answer = get_hyde_acc(answer, llm_answers,
-                                          get_answer_kwargs['hyde_show_intermediate_in_accordion'],
-                                          get_answer_kwargs['map_reduce_show_intermediate_in_accordion'],
-                                          )
+                ret['response'], pre_answer, get_hyde_acc(ret['response'], llm_answers,
+                                                          get_answer_kwargs['hyde_show_intermediate_in_accordion'],
+                                                          get_answer_kwargs[
+                                                              'map_reduce_show_intermediate_in_accordion'],
+                                                          )
                 if pre_answer:
                     response = pre_answer + response
                 yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
@@ -8335,7 +8336,7 @@ def get_template(query, iinput,
 
 def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion):
     if not isinstance(answer, str):
-        return None
+        return answer, None
     pre_answer = ''
     count = 0
     all_count = len(llm_answers)
@@ -8369,7 +8370,10 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_r
             pre_answer += get_accordion_named(content, title, font_size=3)
             count += 1
 
-    return pre_answer
+    if pre_answer and is_markdown(answer):
+        answer = markdown_to_html(answer)
+
+    return answer, pre_answer
 
 
 def get_sources_answer(query, docs, answer,
@@ -8390,11 +8394,11 @@ def get_sources_answer(query, docs, answer,
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer, flush=True)
 
-    pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion,
-                              map_reduce_show_intermediate_in_accordion)
+    answer, pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion,
+                                      map_reduce_show_intermediate_in_accordion)
     if pre_answer:
         pre_answer = pre_answer + '<br>'
-        answer_with_acc = pre_answer + answer.replace('\n', '<br>')
+        answer_with_acc = pre_answer + answer
     else:
         # e.g. extract goes here, list not str
         answer_with_acc = answer
