@@ -414,7 +414,7 @@ def main(
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = False,
         append_sources_to_chat: bool = True,
-        sources_show_in_accordion: bool = True,
+        sources_show_text_in_accordion: bool = True,
         top_k_docs_max_show: int = 10,
         show_link_in_sources: bool = True,
         langchain_instruct_mode: bool = True,
@@ -1053,7 +1053,7 @@ def main(
     :param answer_with_sources: Whether to determine (and return) sources
     :param append_sources_to_answer: Whether to place source information in chat response (ignored by LLM).  Always disabled for API.
     :param append_sources_to_chat: Whether to place sources information in chat response but in separate chat turn (ignored by LLM).  Always disabled for API.
-    :param sources_show_in_accordion: whether to show accordion for document references in chatbot UI
+    :param sources_show_text_in_accordion: whether to show accordion for document references in chatbot UI
     :param top_k_docs_max_show: Max number of docs to show in UI for sources
            If web search is enabled, then this is modified to be max(top_k_docs_max_show, number of links used in search)
     :param show_link_in_sources: Whether to show URL link to source document in references
@@ -3824,7 +3824,7 @@ def evaluate(
         n_jobs=None,
         first_para=None,
         text_limit=None,
-        sources_show_in_accordion=None,
+        sources_show_text_in_accordion=None,
         hyde_show_intermediate_in_accordion=None,
         map_reduce_show_intermediate_in_accordion=None,
         top_k_docs_max_show=None,
@@ -4375,7 +4375,7 @@ def evaluate(
                 auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
-                sources_show_in_accordion=sources_show_in_accordion,
+                sources_show_text_in_accordion=sources_show_text_in_accordion,
                 hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                 map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                 top_k_docs_max_show=top_k_docs_max_show,

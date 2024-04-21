@@ -4106,8 +4106,8 @@ def go_gradio(**kwargs):
             # control kwargs1 for evaluate
             if 'answer_with_sources' not in user_kwargs:
                 kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
-            if 'sources_show_in_accordion' not in user_kwargs:
-                kwargs1['sources_show_in_accordion'] = False
+            if 'sources_show_text_in_accordion' not in user_kwargs:
+                kwargs1['sources_show_text_in_accordion'] = False
             if 'append_sources_to_chat' not in user_kwargs:
                 kwargs1['append_sources_to_chat'] = False
             if 'append_sources_to_answer' not in user_kwargs:

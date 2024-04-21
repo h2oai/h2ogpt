@@ -133,7 +133,7 @@ def run_eval(  # for local function:
         answer_with_sources=None,
         append_sources_to_answer=None,
         append_sources_to_chat=None,
-        sources_show_in_accordion=None,
+        sources_show_text_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         langchain_instruct_mode=None,
