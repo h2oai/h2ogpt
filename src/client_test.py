@@ -454,7 +454,7 @@ def run_client_chat(prompt='',
 def run_client(client, prompt, args, kwargs, do_md_to_text=True, verbose=False):
     if is_gradio_version4:
         kwargs['answer_with_sources'] = True
-        kwargs['show_accordions'] = True
+        kwargs['sources_show_in_accordion'] = True
         kwargs['append_sources_to_answer'] = True
         kwargs['append_sources_to_chat'] = False
         kwargs['show_link_in_sources'] = True

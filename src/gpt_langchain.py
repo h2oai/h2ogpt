@@ -5840,7 +5840,7 @@ def run_qa_db(**kwargs):
     # hard-coded defaults
     kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
     kwargs['show_rank'] = kwargs.get('show_rank', False)
-    kwargs['show_accordions'] = kwargs.get('show_accordions', True)
+    kwargs['sources_show_in_accordion'] = kwargs.get('sources_show_in_accordion', True)
     kwargs['hyde_show_intermediate_in_accordion'] = kwargs.get('hyde_show_intermediate_in_accordion', True)
     kwargs['map_reduce_show_intermediate_in_accordion'] = kwargs.get('map_reduce_show_intermediate_in_accordion', True)
     kwargs['show_link_in_sources'] = kwargs.get('show_link_in_sources', True)
@@ -5948,7 +5948,7 @@ def _run_qa_db(query=None,
                allow_chat_system_prompt=True,
                sanitize_bot_response=False,
                show_rank=False,
-               show_accordions=True,
+               sources_show_in_accordion=True,
                hyde_show_intermediate_in_accordion=True,
                map_reduce_show_intermediate_in_accordion=True,
                show_link_in_sources=True,
@@ -6284,7 +6284,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if isinstance(document_content_substrings, str):
         document_content_substrings = [document_content_substrings]
 
-    get_answer_kwargs = dict(show_accordions=show_accordions,
+    get_answer_kwargs = dict(sources_show_in_accordion=sources_show_in_accordion,
                              hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                              map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                              show_link_in_sources=show_link_in_sources,
@@ -8370,7 +8370,7 @@ def get_sources_answer(query, docs, answer,
                        answer_with_sources,
                        append_sources_to_answer,
                        append_sources_to_chat,
-                       show_accordions=True,
+                       sources_show_in_accordion=True,
                        hyde_show_intermediate_in_accordion=True,
                        map_reduce_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
@@ -8412,7 +8412,7 @@ def get_sources_answer(query, docs, answer,
                        get_url(doc, font_size=font_size),
                        get_accordion(doc, font_size=font_size, head_acc=head_acc)) for score, doc in
                       zip(scores, docs)]
-    if not show_accordions:
+    if not sources_show_in_accordion:
         answer_sources_dict = defaultdict(list)
         [answer_sources_dict[url].append((score, accordion)) for score, url, accordion in answer_sources]
         answers_dict = {}
@@ -8429,7 +8429,7 @@ def get_sources_answer(query, docs, answer,
         answer_sources = answer_sources[:top_k_docs_max_show]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
-        if show_accordions:
+        if sources_show_in_accordion:
             if show_link_in_sources:
                 answer_sources = ['<font size="%s"><li>%.2g | %s</li>%s</font>' % (font_size, score, url, accordion)
                                   for score, url, accordion in answer_sources]
@@ -8444,7 +8444,7 @@ def get_sources_answer(query, docs, answer,
                 answer_sources = ['<font size="%s"><li>%.2g</li></font>' % (font_size, score)
                                   for score, url, accordion in answer_sources]
         answer_sources = answer_sources[:top_k_docs_max_show]
-        if show_accordions:
+        if sources_show_in_accordion:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
         else:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
