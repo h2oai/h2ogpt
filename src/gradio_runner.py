@@ -6651,7 +6651,7 @@ def go_gradio(**kwargs):
                                                   h2ogpt_key],
                                           outputs=[file_source, docs_state, text_doc_count],
                                           queue=queue)
-                load_event3 = load_event2.then(**get_sources_kwargs)
+                load_event3 = load_event2.then(**get_sources_kwargs_login)
                 load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
                 load_event5 = load_event4.then(**show_sources_kwargs)
                 load_event6 = load_event5.then(**get_viewable_sources_args)
