@@ -1796,7 +1796,7 @@ class H2OTextGenOpenAI:
             return super().get_token_ids(text)
 
 
-class H2OOpenAI(OpenAI):
+class H2OOpenAI(H2OTextGenOpenAI, OpenAI):
     """
     New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
     Handles prompting that OpenAI doesn't need, stopping as well
