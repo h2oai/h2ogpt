@@ -2026,6 +2026,7 @@ class GenerateStream:
 
     def tool_string_return(self, ret, have_tool):
         if have_tool and isinstance(ret.generations[0].text, list):
+            # prior beta
             # overwrite
             if not ret.generations[0].text:
                 ret.generations[0].text = json.dumps({})
@@ -2033,6 +2034,18 @@ class GenerateStream:
                 # -1 is last, to skip first thinking step for opus/sonnet
                 # bug in claude with sonnet:
                 result = ret.generations[0].text[-1]['input']
+                if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
+                    result = result['properties']
+                ret.generations[0].text = json.dumps(result)
+        elif have_tool and isinstance(ret.generations[0].message.content, list):
+            # new beta
+            # overwrite
+            if not ret.generations[0].message.content:
+                ret.generations[0].text = json.dumps({})
+            else:
+                # -1 is last, to skip first thinking step for opus/sonnet
+                # bug in claude with sonnet:
+                result = ret.generations[0].message.content[-1]['input']
                 if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
                     result = result['properties']
                 ret.generations[0].text = json.dumps(result)
@@ -6267,7 +6280,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
-        extra = '\n\nUse the `JSON` tool.\n'
+        extra = '\n\nUse the `JSON` tool.  Do not respond with thinking, just use the tool right away.\n'
         if query_action:
             query += extra
         prompt_summary += extra
