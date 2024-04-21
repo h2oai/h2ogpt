@@ -615,39 +615,39 @@ class AGenerateStreamFirst:
     # from:
     # langchain_core/language_models/llms.py
     async def agenerate(
-        self,
-        prompts: List[str],
-        stop: Optional[List[str]] = None,
-        callbacks: Optional[typing.Union[Callbacks, List[Callbacks]]] = None,
-        *,
-        tags: Optional[typing.Union[List[str], List[List[str]]]] = None,
-        metadata: Optional[typing.Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
-        run_name: Optional[typing.Union[str, List[str]]] = None,
-        run_id: Optional[typing.Union[uuid.UUID, List[Optional[uuid.UUID]]]] = None,
-        **kwargs: Any,
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            callbacks: Optional[typing.Union[Callbacks, List[Callbacks]]] = None,
+            *,
+            tags: Optional[typing.Union[List[str], List[List[str]]]] = None,
+            metadata: Optional[typing.Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+            run_name: Optional[typing.Union[str, List[str]]] = None,
+            run_id: Optional[typing.Union[uuid.UUID, List[Optional[uuid.UUID]]]] = None,
+            **kwargs: Any,
     ) -> LLMResult:
         # NOTE: overwrite of base class so can specify which messages will have callbacks
         callbacks_only_first = kwargs.get('stream', False) or \
-                                kwargs.get('streaming', False) or \
-                                hasattr(self, 'streaming') and self.streaming or \
-                                hasattr(self, 'stream') and self.stream or \
-                                hasattr(self, 'stream_output') and self.stream_output
+                               kwargs.get('streaming', False) or \
+                               hasattr(self, 'streaming') and self.streaming or \
+                               hasattr(self, 'stream') and self.stream or \
+                               hasattr(self, 'stream_output') and self.stream_output
 
         # Create callback managers
         if isinstance(callbacks, list) and (
-            isinstance(callbacks[0], (list, BaseCallbackManager))
-            or callbacks[0] is None
+                isinstance(callbacks[0], (list, BaseCallbackManager))
+                or callbacks[0] is None
         ):
             # We've received a list of callbacks args to apply to each input
             assert len(callbacks) == len(prompts)
             assert tags is None or (
-                isinstance(tags, list) and len(tags) == len(prompts)
+                    isinstance(tags, list) and len(tags) == len(prompts)
             )
             assert metadata is None or (
-                isinstance(metadata, list) and len(metadata) == len(prompts)
+                    isinstance(metadata, list) and len(metadata) == len(prompts)
             )
             assert run_name is None or (
-                isinstance(run_name, list) and len(run_name) == len(prompts)
+                    isinstance(run_name, list) and len(run_name) == len(prompts)
             )
             callbacks = typing.cast(List[Callbacks], callbacks)
             tags_list = typing.cast(List[Optional[List[str]]], tags or ([None] * len(prompts)))
@@ -672,16 +672,16 @@ class AGenerateStreamFirst:
         else:
             # We've received a single callbacks arg to apply to all inputs
             callback_managers = [
-                AsyncCallbackManager.configure(
-                    typing.cast(Callbacks, callbacks),
-                    self.callbacks,
-                    self.verbose,
-                    typing.cast(List[str], tags),
-                    self.tags,
-                    typing.cast(Dict[str, Any], metadata),
-                    self.metadata,
-                )
-            ] * len(prompts)
+                                    AsyncCallbackManager.configure(
+                                        typing.cast(Callbacks, callbacks),
+                                        self.callbacks,
+                                        self.verbose,
+                                        typing.cast(List[str], tags),
+                                        self.tags,
+                                        typing.cast(Dict[str, Any], metadata),
+                                        self.metadata,
+                                    )
+                                ] * len(prompts)
             run_name_list = [typing.cast(Optional[str], run_name)] * len(prompts)
         run_ids_list = self._get_run_ids_list(run_id, prompts)
         params = self.dict()
@@ -788,10 +788,10 @@ class ChatAGenerateStreamFirst:
     ) -> LLMResult:
         # NOTE: overwrite of base class so can specify which messages will have callbacks
         callbacks_only_first = kwargs.get('stream', False) or \
-                                kwargs.get('streaming', False) or \
-                                hasattr(self, 'streaming') and self.streaming or \
-                                hasattr(self, 'stream') and self.stream or \
-                                hasattr(self, 'stream_output') and self.stream_output
+                               kwargs.get('streaming', False) or \
+                               hasattr(self, 'streaming') and self.streaming or \
+                               hasattr(self, 'stream') and self.stream or \
+                               hasattr(self, 'stream_output') and self.stream_output
         if self.verbose:
             print("messages: %s" % len(messages))
 
