@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import contextlib
 import functools
 import gc
@@ -482,18 +483,23 @@ class ThreadException(Exception):
 class EThread(threading.Thread):
     # Function that raises the custom exception
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None):
+                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None,
+                 async_output=False):
         self.bucket = bucket
         self.streamer = streamer
         self.exc = None
         self._return = None
+        self.async_output = async_output
         super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def run(self):
         # Variable that stores the exception, if raised by someFunction
         try:
             if self._target is not None:
-                self._return = self._target(*self._args, **self._kwargs)
+                if self.async_output:
+                    self._return = asyncio.run(self._target(*self._args, **self._kwargs))
+                else:
+                    self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
             print("thread exception: %s" % str(traceback.format_exc()))
             self.bucket.put(sys.exc_info())
@@ -736,7 +742,42 @@ def get_source(x):
     return x.metadata.get('source', "UNKNOWN SOURCE")
 
 
+def markdown_to_html(content):
+    import markdown
+
+    # Create a Markdown object
+    markdowner = markdown.Markdown()
+
+    # Convert the Markdown block to HTML
+    try:
+        html = markdowner.reset().convert(content)
+    except Exception as e:
+        # FIXME:
+        print("Invalid conversion of markdown to html: %s\n\n%s" % (content, str(e)))
+        html = content
+
+    return html
+
+
+def is_markdown(string):
+    """Returns True if the string is markdown, False otherwise."""
+
+    # Check for the presence of double square brackets
+    if re.search(r'\[\[.+?\]\]', string):
+        return True
+
+    # Check for the presence of angle brackets
+    if re.search(r'<.+?>', string):
+        return False
+
+    # If neither of the above patterns are found, assume the string is markdown
+    return True
+
+
 def get_accordion_named(content, title, font_size=8):
+    # content = content.replace('\n', '<br>')
+    if is_markdown(content):
+        content = markdown_to_html(content)
     return f"""<details><summary><font size="{font_size}">{title}</font></summary><font size="{font_size}">{content}</font></details>"""
 
 

@@ -136,6 +136,8 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
     # https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
     if '<|eot_id|>' in tokenizer.added_tokens_encoder:
         stop_words.extend(['<|eot_id|>'])
+    if '<|im_end|>' in tokenizer.added_tokens_encoder:
+        stop_words.extend(['<|im_end|>'])
     if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
         stop_words.extend([tokenizer.eos_token])
 
