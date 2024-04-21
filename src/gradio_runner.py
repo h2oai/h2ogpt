@@ -6671,7 +6671,6 @@ def go_gradio(**kwargs):
                                                  outputs=sources_text)
                 load_event5 = load_event4.then(**show_sources_kwargs_login)
 
-
                 get_viewable_sources1_fun_kwargs_login = get_viewable_sources1_fun_kwargs.copy()
                 get_viewable_sources1_fun_kwargs_login['for_login'] = True
                 get_viewable_sources1_login = functools.partial(get_sources_gr, **get_viewable_sources1_fun_kwargs_login)
@@ -7206,7 +7205,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
         if for_login:
-            sources_file = make_sources_file(langchain_mode, [])
+            sources_file = make_sources_file(langchain_mode, '')
             return sources_file, [], ''
         else:
             raise ValueError(invalid_key_msg)
