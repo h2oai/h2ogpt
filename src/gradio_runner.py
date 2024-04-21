@@ -26,6 +26,7 @@ from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
+from src.utils_langchain import make_sources_file
 from src.vision.utils_vision import base64_to_img
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
@@ -2786,8 +2787,7 @@ def go_gradio(**kwargs):
 
         # show button, else only show when add.
         # Could add to above get_sources for download/dropdown, but bit much maybe
-        show_sources1 = functools.partial(get_source_files_given_langchain_mode_gr,
-                                          dbs=dbs,
+        show_sources1_fun_kwargs = dict(dbs=dbs,
                                           load_db_if_exists=load_db_if_exists,
                                           db_type=db_type,
                                           use_openai_embedding=use_openai_embedding,
@@ -2800,6 +2800,9 @@ def go_gradio(**kwargs):
                                           enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
                                           enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
                                           h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                          )
+        show_sources1 = functools.partial(get_source_files_given_langchain_mode_gr,
+                                          **show_sources1_fun_kwargs,
                                           )
         eventdb8a = show_sources_btn.click(user_state_setup,
                                            inputs=[my_db_state, requests_state, guest_name, show_sources_btn,
@@ -6653,7 +6656,12 @@ def go_gradio(**kwargs):
                                           queue=queue)
                 load_event3 = load_event2.then(**get_sources_kwargs_login)
                 load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-                load_event5 = load_event4.then(**show_sources_kwargs)
+                show_sources1_fun_kwargs_login = show_sources1_fun_kwargs.copy()
+                show_sources1_fun_kwargs_login['for_login'] = True
+                show_sources_kwargs_login = functools.partial(get_source_files_given_langchain_mode_gr,
+                                                  **show_sources1_fun_kwargs_login,
+                                                  )
+                load_event5 = load_event4.then(**show_sources_kwargs_login)
                 load_event6 = load_event5.then(**get_viewable_sources_args)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
@@ -7179,7 +7187,8 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
         if for_login:
-            return '', [], ''
+            sources_file = make_sources_file(langchain_mode, [])
+            return sources_file, [], ''
         else:
             raise ValueError(invalid_key_msg)
 
@@ -7222,6 +7231,7 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              enforce_h2ogpt_api_key=True,
                                              enforce_h2ogpt_ui_key=True,
                                              h2ogpt_api_keys=[],
+                                             for_login=False,
                                              ):
     valid_key = is_valid_key(enforce_h2ogpt_api_key,
                              enforce_h2ogpt_ui_key,
@@ -7231,7 +7241,10 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                              )
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
-        raise ValueError(invalid_key_msg)
+        if for_login:
+            return "Sources: N/A"
+        else:
+            raise ValueError(invalid_key_msg)
 
     from src.gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, None,

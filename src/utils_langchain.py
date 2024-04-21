@@ -19,7 +19,7 @@ from langchain.chains.summarize import map_reduce_prompt, LoadingCallable, _load
 from langchain.schema.language_model import BaseLanguageModel
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 
-from src.utils import hash_file, get_sha, split_list
+from src.utils import hash_file, get_sha, split_list, makedirs
 
 from langchain.callbacks.base import BaseCallbackHandler, Callbacks
 from langchain.schema import LLMResult
@@ -500,3 +500,12 @@ class H2OHuggingFaceHubEmbeddings(HuggingFaceHubEmbeddings):
             if verbose:
                 print("done batch %s %s %s" % (ii, len(text_batch), batchii), flush=True)
         return rets
+
+
+def make_sources_file(langchain_mode, source_files_added):
+    sources_dir = "sources_dir"
+    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
+    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
+    with open(sources_file, "wt", encoding="utf-8") as f:
+        f.write(source_files_added)
+    return sources_file

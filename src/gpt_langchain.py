@@ -85,7 +85,7 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
     is_vision_model, is_gradio_vision_model, is_json_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
-    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
+    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -8621,15 +8621,6 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
     if DocumentChoice.ALL.value in source_list:
         source_list.remove(DocumentChoice.ALL.value)
     return sources_file, source_list, num_chunks, num_sources_str, db
-
-
-def make_sources_file(langchain_mode, source_files_added):
-    sources_dir = "sources_dir"
-    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
-    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
-    with open(sources_file, "wt", encoding="utf-8") as f:
-        f.write(source_files_added)
-    return sources_file
 
 
 def update_user_db(file, db1s, selection_docs_state1, requests_state1,
