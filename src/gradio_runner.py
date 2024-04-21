@@ -2702,19 +2702,19 @@ def go_gradio(**kwargs):
         db_events.extend([event_attach1, event_attach2])
 
         get_sources_fun_kwargs = dict(dbs=dbs, docs_state0=docs_state0,
-                                         load_db_if_exists=load_db_if_exists,
-                                         db_type=db_type,
-                                         use_openai_embedding=use_openai_embedding,
-                                         hf_embedding_model=hf_embedding_model,
-                                         migrate_embedding_model=migrate_embedding_model,
-                                         auto_migrate_db=auto_migrate_db,
-                                         verbose=verbose,
-                                         get_userid_auth=get_userid_auth,
-                                         n_jobs=n_jobs,
-                                         enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
-                                         enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
-                                         h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
-                                         )
+                                      load_db_if_exists=load_db_if_exists,
+                                      db_type=db_type,
+                                      use_openai_embedding=use_openai_embedding,
+                                      hf_embedding_model=hf_embedding_model,
+                                      migrate_embedding_model=migrate_embedding_model,
+                                      auto_migrate_db=auto_migrate_db,
+                                      verbose=verbose,
+                                      get_userid_auth=get_userid_auth,
+                                      n_jobs=n_jobs,
+                                      enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                      enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                      h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                      )
 
         get_sources1 = functools.partial(get_sources_gr, **get_sources_fun_kwargs)
 
@@ -2788,19 +2788,19 @@ def go_gradio(**kwargs):
         # show button, else only show when add.
         # Could add to above get_sources for download/dropdown, but bit much maybe
         show_sources1_fun_kwargs = dict(dbs=dbs,
-                                          load_db_if_exists=load_db_if_exists,
-                                          db_type=db_type,
-                                          use_openai_embedding=use_openai_embedding,
-                                          hf_embedding_model=hf_embedding_model,
-                                          migrate_embedding_model=migrate_embedding_model,
-                                          auto_migrate_db=auto_migrate_db,
-                                          verbose=verbose,
-                                          get_userid_auth=get_userid_auth,
-                                          n_jobs=n_jobs,
-                                          enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
-                                          enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
-                                          h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
-                                          )
+                                        load_db_if_exists=load_db_if_exists,
+                                        db_type=db_type,
+                                        use_openai_embedding=use_openai_embedding,
+                                        hf_embedding_model=hf_embedding_model,
+                                        migrate_embedding_model=migrate_embedding_model,
+                                        auto_migrate_db=auto_migrate_db,
+                                        verbose=verbose,
+                                        get_userid_auth=get_userid_auth,
+                                        n_jobs=n_jobs,
+                                        enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                        enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                        h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                        )
         show_sources1 = functools.partial(get_source_files_given_langchain_mode_gr,
                                           **show_sources1_fun_kwargs,
                                           )
@@ -6650,17 +6650,24 @@ def go_gradio(**kwargs):
                 get_sources_fun_kwargs_login['for_login'] = True
                 get_sources1_login = functools.partial(get_sources_gr, **get_sources_fun_kwargs_login)
                 get_sources_kwargs_login = dict(fn=get_sources1_login,
-                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                                  h2ogpt_key],
-                                          outputs=[file_source, docs_state, text_doc_count],
-                                          queue=queue)
+                                                inputs=[my_db_state, selection_docs_state, requests_state,
+                                                        langchain_mode,
+                                                        h2ogpt_key],
+                                                outputs=[file_source, docs_state, text_doc_count],
+                                                queue=queue)
                 load_event3 = load_event2.then(**get_sources_kwargs_login)
                 load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
                 show_sources1_fun_kwargs_login = show_sources1_fun_kwargs.copy()
                 show_sources1_fun_kwargs_login['for_login'] = True
-                show_sources_kwargs_login = functools.partial(get_source_files_given_langchain_mode_gr,
-                                                  **show_sources1_fun_kwargs_login,
-                                                  )
+                show_sources1_login = functools.partial(get_source_files_given_langchain_mode_gr,
+                                                        **show_sources1_fun_kwargs_login,
+                                                        )
+                show_sources_kwargs_login = dict(fn=show_sources1_login,
+                                                 inputs=[my_db_state, selection_docs_state, requests_state,
+                                                         langchain_mode,
+                                                         h2ogpt_key],
+                                                 outputs=sources_text)
+
                 load_event5 = load_event4.then(**show_sources_kwargs_login)
                 load_event6 = load_event5.then(**get_viewable_sources_args)
                 load_event7 = load_event6.then(**viewable_kwargs)
