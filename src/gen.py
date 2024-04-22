@@ -518,7 +518,7 @@ def main(
         tts_model: str = 'microsoft/speecht5_tts',
 
         tts_gan_model: str = 'microsoft/speecht5_hifigan',
-        tts_coquiai_deepspeed: bool = True,
+        tts_coquiai_deepspeed: bool = False,
         tts_coquiai_roles: dict = None,
 
         chatbot_role: str = "None",  # "Female AI Assistant",
@@ -1253,6 +1253,7 @@ def main(
 
     :param tts_gan_model: For microsoft model, which gan model to use, e.g. 'microsoft/speecht5_hifigan'
     :param tts_coquiai_deepspeed: For coqui.ai models, whether to use deepspeed for faster inference
+        Disabled by default, saw compilation hang recently
     :param tts_coquiai_roles: role dictionary mapping name (key) to wave file (value)
            If None, then just use default from get_role_to_wave_map()
 
