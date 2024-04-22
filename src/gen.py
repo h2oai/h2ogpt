@@ -271,9 +271,12 @@ def main(
         chat: bool = True,
         chat_conversation: typing.List[typing.Tuple[str, str]] = None,
         text_context_list: typing.List[str] = None,
+
         stream_output: bool = True,
         async_output: bool = True,
         num_async: int = 3,
+        stream_map: bool = False,
+
         show_examples: bool = None,
         verbose: bool = False,
         h2ocolors: bool = True,
@@ -802,6 +805,7 @@ def main(
            It does *not* require chat=True, so works with nochat_api etc.
     :param text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
            Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
+
     :param stream_output: whether to stream output
     :param async_output: Whether to do asyncio handling
            For summarization
@@ -809,6 +813,9 @@ def main(
            Only if stream_output=False in CLI, UI, or API
     :param num_async: Number of simultaneously allowed asyncio calls to make for async_output
            Too many will overload inference server, too few will be too slow
+    :param stream_map: Whether to stream map_reduce fully even while doing async (if async, then only first map in any group map will be streamed)
+                       Experimental, not working fully.
+
     :param show_examples: whether to show clickable examples in gradio
     :param verbose: whether to show verbose prints
     :param h2ocolors: whether to use H2O.ai theme
@@ -1743,6 +1750,8 @@ def main(
         stream_output = False
         # else prompt removal can mess up output
         chat = False
+    if not stream_output:
+        stream_map = False
     # hard-coded defaults
     first_para = False
     text_limit = None
@@ -3875,6 +3884,8 @@ def evaluate(
         try_pdf_as_html=None,
 
         load_awq=None,
+
+        stream_map=None,
 ):
     # ensure passed these
     assert concurrency_count is not None
@@ -4463,6 +4474,7 @@ def evaluate(
                 json_vllm=json_vllm,
 
                 from_ui=from_ui,
+                stream_map=stream_map,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']

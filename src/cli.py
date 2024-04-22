@@ -29,7 +29,7 @@ def run_cli(  # for local function:
         try_pdf_as_html=None,
         # for some evaluate args
         load_awq='',
-        stream_output=None, async_output=None, num_async=None,
+        stream_output=None, async_output=None, num_async=None, stream_map=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
         temperature=None, top_p=None, top_k=None, penalty_alpha=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,

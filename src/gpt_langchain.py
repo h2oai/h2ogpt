@@ -2416,6 +2416,7 @@ def get_llm(use_openai_model=False,
 
             query_action=True,
             summarize_action=False,
+            stream_map=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2447,7 +2448,8 @@ def get_llm(use_openai_model=False,
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
 
-    streaming_callback = StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose, raise_stop=query_action)
+    streaming_callback = StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose,
+                                                        raise_stop=not stream_map or query_action)
 
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
@@ -5870,6 +5872,7 @@ def run_qa_db(**kwargs):
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 
     kwargs['from_ui'] = kwargs.get('from_ui', True)
+    kwargs['stream_map'] = kwargs.get('stream_map', False)
 
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -6034,6 +6037,7 @@ def _run_qa_db(query=None,
                json_vllm=False,
 
                from_ui=True,
+               stream_map=False,
                ):
     """
 
@@ -6235,6 +6239,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
                       query_action=query_action,
                       summarize_action=summarize_action,
+                      stream_map=stream_map,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
