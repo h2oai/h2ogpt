@@ -74,10 +74,10 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
+    does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
-    gpt4_image_tokens
+    gpt4_image_tokens, user_prompt_for_fake_system_prompt0
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -911,8 +911,13 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     client: Any = None
     tokenizer: Any = None
 
-    chat_conversation: Any = []
     add_chat_history_to_context: bool = True
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
+    json_object_prompt: Any = None
+    json_object_prompt_simpler: Any = None
+    json_code_prompt: Any = None
+    json_schema_instruction: Any = None
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -1029,11 +1034,16 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              document_source_substrings_op='and',
                              document_content_substrings=[],
                              document_content_substrings_op='and',
-                             pre_prompt_query=None,
-                             prompt_query=None,
-                             pre_prompt_summary=None,
-                             prompt_summary=None,
-                             hyde_llm_prompt=None,
+                             pre_prompt_query=None,  # no further langchain query
+                             prompt_query=None,  # no further langchain query
+                             pre_prompt_summary=None,  # no further langchain summary
+                             prompt_summary=None,  # no further langchain summary
+                             hyde_llm_prompt=None,  # no further HYDE
+                             user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                             json_object_prompt=self.json_object_prompt,
+                             json_object_prompt_simpler=self.json_object_prompt_simpler,
+                             json_code_prompt=self.json_code_prompt,
+                             json_schema_instruction=self.json_schema_instruction,
                              system_prompt=self.system_prompt,
                              image_audio_loaders=None,  # don't need to further do doc specific things
                              pdf_loaders=None,  # don't need to further do doc specific things
@@ -1872,6 +1882,7 @@ class ExtraChat:
         count_input_tokens_start = self.count_input_tokens
         if self.system_prompt:
             if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys):
+                user_prompt_for_fake_system_prompt = self.user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -2167,6 +2178,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpe
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
@@ -2184,6 +2196,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpe
 class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, AzureChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
@@ -2202,6 +2215,7 @@ class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, Az
 class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, ChatAnthropic2):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = True
     count_input_tokens: Any = 0
@@ -2218,6 +2232,7 @@ class H2OChatAnthropic2Sys(H2OChatAnthropic2):
 class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatAnthropic3):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = True
     count_input_tokens: Any = 0
@@ -2242,6 +2257,7 @@ from langchain_core.language_models.chat_models import (
 class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = False
     count_input_tokens: Any = 0
@@ -2251,6 +2267,7 @@ class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoo
 class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     stream_output: bool = True
     tokenizer: Any = None
@@ -2264,6 +2281,7 @@ class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, Cha
 class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     tokenizer: Any = None
     stream_output: bool = True
@@ -2381,6 +2399,13 @@ def get_llm(use_openai_model=False,
             chat_conversation=None,
             add_chat_history_to_context=True,
             sanitize_bot_response=False,
+
+            user_prompt_for_fake_system_prompt=None,
+            json_object_prompt=None,
+            json_object_prompt_simpler=None,
+            json_code_prompt=None,
+            json_schema_instruction=None,
+
             system_prompt='',
             allow_chat_system_prompt=True,
             visible_models=0,
@@ -2567,7 +2592,9 @@ def get_llm(use_openai_model=False,
                                               )
 
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
-            kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+            kwargs_extra.update(dict(system_prompt=system_prompt,
+                                     chat_conversation=chat_conversation,
+                                     user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
@@ -2598,6 +2625,7 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(
                 dict(system_prompt=system_prompt,
                      chat_conversation=chat_conversation,
+                     user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                      **azure_kwargs,
                      ))
             # FIXME: Support context, iinput
@@ -2691,7 +2719,8 @@ def get_llm(use_openai_model=False,
         else:
             model_kwargs = {}
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             # FIXME: _AnthropicCommon ignores these and makes no client anyways
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
@@ -2723,7 +2752,8 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
@@ -2762,7 +2792,8 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
@@ -2807,7 +2838,8 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
@@ -2934,6 +2966,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 add_chat_history_to_context=add_chat_history_to_context,
                 # visible_models=visible_models,
                 visible_models=model_name,
@@ -2980,6 +3013,13 @@ def get_llm(use_openai_model=False,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
                 tokenizer=tokenizer,
+
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                json_object_prompt=json_object_prompt,
+                json_object_prompt_simpler=json_object_prompt_simpler,
+                json_code_prompt=json_code_prompt,
+                json_schema_instruction=json_schema_instruction,
+
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
                 add_chat_history_to_context=add_chat_history_to_context,
@@ -5999,6 +6039,13 @@ def _run_qa_db(query=None,
                hyde_llm_prompt=None,
                text_context_list=None,
                chat_conversation=None,
+
+               user_prompt_for_fake_system_prompt=None,
+               json_object_prompt=None,
+               json_object_prompt_simpler=None,
+               json_code_prompt=None,
+               json_schema_instruction=None,
+
                visible_models=None,
                h2ogpt_key=None,
                docs_ordering_type=docs_ordering_types_default,
@@ -6205,6 +6252,13 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       context=context,
                       iinput=iinput,
                       sanitize_bot_response=sanitize_bot_response,
+
+                      user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                      json_object_prompt=json_object_prompt,
+                      json_object_prompt_simpler=json_object_prompt_simpler,
+                      json_code_prompt=json_code_prompt,
+                      json_schema_instruction=json_schema_instruction,
+
                       system_prompt=system_prompt,
                       chat_conversation=chat_conversation,
                       add_chat_history_to_context=add_chat_history_to_context,
@@ -6930,7 +6984,7 @@ def run_hyde(*args, **kwargs):
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
             if not hyde_show_only_final:
-                ret['response'], pre_answer, get_hyde_acc(ret['response'], llm_answers,
+                ret['response'], pre_answer = get_hyde_acc(ret['response'], llm_answers,
                                                           get_answer_kwargs['hyde_show_intermediate_in_accordion'],
                                                           get_answer_kwargs[
                                                               'map_reduce_show_intermediate_in_accordion'],
@@ -7066,6 +7120,7 @@ def get_chain(query=None,
               hyde_llm_prompt=None,
               text_context_list=None,
               chat_conversation=None,
+              user_prompt_for_fake_system_prompt=None,
 
               n_jobs=-1,
               # beyond run_db_query:
@@ -7834,6 +7889,7 @@ def get_chain(query=None,
                                                 allow_chat_system_prompt=allow_chat_system_prompt,
                                                 context=context,
                                                 chat_conversation=chat_conversation,
+                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 model_max_length=model_max_length,
