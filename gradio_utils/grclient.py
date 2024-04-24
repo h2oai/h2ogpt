@@ -1309,7 +1309,7 @@ class GradioClient(Client):
         prompt="",
         prompter=None,
         sanitize_bot_response=False,
-        max_time=None,
+        max_time=300,
         is_public=False,
         raise_exception=True,
         verbose=False,
@@ -1340,11 +1340,14 @@ class GradioClient(Client):
                 res_dict = ast.literal_eval(res)
                 text = res_dict["response"]
                 prompt_and_text = prompt + text
-                response = prompter.get_response(
-                    prompt_and_text,
-                    prompt=prompt,
-                    sanitize_bot_response=sanitize_bot_response,
-                )
+                if prompter:
+                    response = prompter.get_response(
+                        prompt_and_text,
+                        prompt=prompt,
+                        sanitize_bot_response=sanitize_bot_response,
+                    )
+                else:
+                    response = text
                 text_chunk = response[len(text0) :]
                 if not text_chunk:
                     # just need some sleep for threads to switch
@@ -1352,15 +1355,15 @@ class GradioClient(Client):
                     continue
                 # save old
                 text0 = response
-                yield dict(
-                    response=response,
-                    sources=sources,
-                    save_dict={},
-                    llm_answers={},
-                    response_no_refs=response,
-                    sources_str="",
-                    prompt_raw="",
+                res_dict.update(
+                    dict(
+                        response=response,
+                        sources=sources,
+                        error=strex,
+                        response_no_refs=response,
+                    )
                 )
+                yield res_dict
                 if time.time() - tgen0 > max_time:
                     if verbose:
                         print(
@@ -1407,9 +1410,12 @@ class GradioClient(Client):
                 flush=True,
             )
         prompt_and_text = prompt + text
-        response = prompter.get_response(
-            prompt_and_text, prompt=prompt, sanitize_bot_response=sanitize_bot_response
-        )
+        if prompter:
+            response = prompter.get_response(
+                prompt_and_text, prompt=prompt, sanitize_bot_response=sanitize_bot_response
+            )
+        else:
+            response = text
         res_dict.update(
             dict(
                 response=response,
