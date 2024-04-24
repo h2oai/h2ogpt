@@ -110,7 +110,7 @@ class GradioClient(Client):
 
     def reset_session(self) -> None:
         self.session_hash = str(uuid.uuid4())
-        if hasattr(self, 'include_heartbeat') and self.include_heartbeat:
+        if hasattr(self, "include_heartbeat") and self.include_heartbeat:
             self._refresh_heartbeat.set()
 
     def __init__(
@@ -277,7 +277,7 @@ class GradioClient(Client):
             self.sse_url = urllib.parse.urljoin(
                 self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
             )
-            if hasattr(utils, 'HEARTBEAT_URL') and self.include_heartbeat:
+            if hasattr(utils, "HEARTBEAT_URL") and self.include_heartbeat:
                 self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
             else:
                 self.heartbeat_url = None
@@ -299,7 +299,11 @@ class GradioClient(Client):
 
         # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
         # threading.Thread(target=self._telemetry_thread, daemon=True).start()
-        if is_gradio_client_version7plus and hasattr(utils, 'HEARTBEAT_URL') and self.include_heartbeat:
+        if (
+            is_gradio_client_version7plus
+            and hasattr(utils, "HEARTBEAT_URL")
+            and self.include_heartbeat
+        ):
             self._refresh_heartbeat = threading.Event()
             self._kill_heartbeat = threading.Event()
 
@@ -665,7 +669,6 @@ class GradioClient(Client):
         file: list[str] | str | None = None,
         url: list[str] | str | None = None,
         embed: bool = True,
-
         chunk: bool = True,
         chunk_size: int = 512,
         langchain_mode: str = None,
@@ -679,7 +682,6 @@ class GradioClient(Client):
         document_content_substrings: Union[str, List[str]] = [],
         document_content_substrings_op: str = "and",
         system_prompt: str | None = "",
-
         pre_prompt_query: str | None = pre_prompt_query0,
         prompt_query: str | None = prompt_query0,
         pre_prompt_summary: str | None = pre_prompt_summary0,
@@ -687,13 +689,11 @@ class GradioClient(Client):
         pre_prompt_extraction: str | None = pre_prompt_extraction0,
         prompt_extraction: str | None = prompt_extraction0,
         hyde_llm_prompt: str | None = hyde_llm_prompt0,
-
         user_prompt_for_fake_system_prompt: str = None,
         json_object_prompt: str = None,
         json_object_prompt_simpler: str = None,
         json_code_prompt: str = None,
         json_schema_instruction: str = None,
-
         model: str | int | None = None,
         stream_output: bool = False,
         do_sample: bool = False,
@@ -741,7 +741,6 @@ class GradioClient(Client):
         tts_speed: float = 1.0,
         visible_image_models: List[str] = [],
         visible_models: Union[str, int, list] = None,
-
         # don't use the below (no doc string stuff) block
         num_return_sequences: int = None,
         chat: bool = True,
@@ -752,7 +751,6 @@ class GradioClient(Client):
         instruction_nochat: str = "",
         context: str = "",
         num_beams: int = 1,
-
         asserts: bool = False,
     ) -> Generator[ReturnType, None, None]:
         """
@@ -1100,7 +1098,13 @@ class GradioClient(Client):
                             prompt_raw = res_dict.get(
                                 "prompt_raw", ""
                             )  # only filled at end
-                            text_chunk = response[len(text0) :]  # only keep new stuff
+                            if prompt_raw:
+                                if langchain_action != LangChainAction.EXTRACT.value:
+                                    text_chunk = response.strip()
+                                else:
+                                    text_chunk = [r.strip() for r in ast.literal_eval(response)]
+                            else:
+                                text_chunk = response[len(text0) :]  # only keep new stuff
                             if not text_chunk:
                                 time.sleep(0.001)
                                 continue
@@ -1148,26 +1152,25 @@ class GradioClient(Client):
                         texts_out = [x["content"] for x in sources]
                         t_taken_s = time.time() - t0
                         t_taken = "%.4f" % t_taken_s
-                        if langchain_action != LangChainAction.EXTRACT.value:
-                            if not (response.strip()):
-                                actual_llm = (
-                                    sanitize_llm(visible_models)
-                                    if sanitize_llm is not None
-                                    else visible_models
-                                )
-                                raise TimeoutError(
-                                    f"No output from LLM {actual_llm} after {t_taken} seconds."
-                                )
+
+                        if prompt_raw:
+                            if langchain_action != LangChainAction.EXTRACT.value:
+                                text_chunk = response.strip()
+                            else:
+                                text_chunk = [r.strip() for r in ast.literal_eval(response)]
                         else:
-                            if not all(r.strip() for r in ast.literal_eval(response)):
-                                actual_llm = (
-                                    sanitize_llm(visible_models)
-                                    if sanitize_llm is not None
-                                    else visible_models
-                                )
-                                raise TimeoutError(
-                                    f"No output from LLM {actual_llm} after {t_taken} seconds."
-                                )
+                            text_chunk = response[len(text0) :]  # only keep new stuff
+
+                        if not text_chunk:
+                            actual_llm = (
+                                sanitize_llm(visible_models)
+                                if sanitize_llm is not None
+                                else visible_models
+                            )
+                            raise TimeoutError(
+                                f"No output from LLM {actual_llm} after {t_taken} seconds."
+                            )
+
                         try:
                             extra_dict = res_dict["save_dict"]["extra_dict"]
                             input_tokens = extra_dict["num_prompt_tokens"]
@@ -1200,7 +1203,7 @@ class GradioClient(Client):
                         if time_to_first_token is None:
                             time_to_first_token = time.time() - t0
                         yield ReturnType(
-                            reply=response[len(text0) :],
+                            reply=text_chunk,
                             text_context_list=texts_out,
                             prompt_raw=prompt_raw,
                             actual_llm=actual_llm,
@@ -1412,7 +1415,9 @@ class GradioClient(Client):
         prompt_and_text = prompt + text
         if prompter:
             response = prompter.get_response(
-                prompt_and_text, prompt=prompt, sanitize_bot_response=sanitize_bot_response
+                prompt_and_text,
+                prompt=prompt,
+                sanitize_bot_response=sanitize_bot_response,
             )
         else:
             response = text
