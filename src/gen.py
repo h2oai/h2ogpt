@@ -6097,7 +6097,7 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, user_pro
             break
         except Exception as e:
             if test_only:
-                break
+                return ''
             # try no direct system prompt, but add as conversation history
             user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
             history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
