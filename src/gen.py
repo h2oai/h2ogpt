@@ -71,10 +71,12 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     docs_ordering_types_default, docs_token_handling_default, max_input_tokens_public, max_total_input_tokens_public, \
     max_top_k_docs_public, max_top_k_docs_default, max_total_input_tokens_public_api, max_top_k_docs_public_api, \
     max_input_tokens_public_api, model_token_mapping_outputs, anthropic_mapping, anthropic_mapping_outputs, \
-    user_prompt_for_fake_system_prompt, base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
+    base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
-    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, template_prompt_type
+    groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
+    json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
+    json_schema_instruction0
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -427,6 +429,13 @@ def main(
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
         hyde_llm_prompt: str = None,
+
+        user_prompt_for_fake_system_prompt: str = None,
+        json_object_prompt=None,
+        json_object_prompt_simpler=None,
+        json_code_prompt=None,
+        json_schema_instruction=None,
+
         add_chat_history_to_context: bool = True,
         add_search_to_context: bool = False,
         context: str = '',
@@ -1097,6 +1106,13 @@ def main(
     {fstring} is some document chunks separated by {docs_joiner}
 
     :param hyde_llm_prompt: hyde prompt for first step when using LLM
+
+    :param user_prompt_for_fake_system_prompt: user part of pre-conversation if LLM doesn't handle system prompt
+    :param json_object_prompt: prompt for getting LLM to do JSON object
+    :param json_object_prompt_simpler: simpler of "" for MistralAI
+    :param json_code_prompt: prompt for getting LLm to do JSON in code block
+    :param json_schema_instruction: prompt for LLM to use schema
+
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param metadata_in_context: Keys of metadata to include in LLM context for Query
            'all': Include all metadata
@@ -1835,6 +1851,13 @@ def main(
                             system_prompt,
                             pre_prompt_query, prompt_query,
                             pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+
+                            user_prompt_for_fake_system_prompt,
+                            json_object_prompt,
+                            json_object_prompt_simpler,
+                            json_code_prompt,
+                            json_schema_instruction,
+
                             temperature, top_p, top_k, penalty_alpha, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
                             repetition_penalty, num_return_sequences,
@@ -2214,6 +2237,12 @@ def main(
         pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
         prompt_summary = prompt_summary or prompt_summary1
         hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
+
+        user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
+        json_object_prompt = json_object_prompt or json_object_prompt0
+        json_object_prompt_simpler = json_object_prompt_simpler or json_object_prompt_simpler0
+        json_code_prompt = json_code_prompt or json_code_prompt0
+        json_schema_instruction = json_schema_instruction or json_schema_instruction0
 
         # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
         if prompt_type_infer:
@@ -3750,6 +3779,13 @@ def evaluate(
         pre_prompt_summary,
         prompt_summary,
         hyde_llm_prompt,
+
+        user_prompt_for_fake_system_prompt,
+        json_object_prompt,
+        json_object_prompt_simpler,
+        json_code_prompt,
+        json_schema_instruction,
+
         system_prompt,
 
         image_audio_loaders,
@@ -4161,9 +4197,16 @@ def evaluate(
     json_vllm = False
     if not h2ogpt_gradio_server and \
             response_format in ['json_object', 'json_code']:
-        pre_instruction1 = '\nEnsure your entire response is outputted as a single piece of strict valid JSON text.\n\n'
-        pre_instruction1_simpler = '\nEnsure your response is strictly valid JSON text.\n\n'
-        pre_instruction2 = '\nEnsure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.\n\n'
+
+        json_object_prompt = json_object_prompt or json_object_prompt0
+        json_object_prompt = '\n' + json_object_prompt + '\n\n'
+        json_object_prompt_simpler = json_object_prompt_simpler or json_object_prompt_simpler0
+        json_object_prompt_simpler = '\n' + json_object_prompt_simpler + '\n\n'
+        json_code_prompt = json_code_prompt or json_code_prompt0
+        json_code_prompt = '\n' + json_code_prompt + '\n\n'
+        json_schema_instruction = json_schema_instruction or json_schema_instruction0
+        json_schema_instruction = '\n' + json_schema_instruction + '\n\n'
+
         if isinstance(guided_json, str):
             try:
                 guided_json_properties = json.loads(guided_json)
@@ -4177,7 +4220,7 @@ def evaluate(
         # back to string, so e.g. do not get ' in prompt but " for quotes etc.  gemma messes that up.
         guided_json_properties_json = json.dumps(guided_json_properties)
 
-        schema_instruction = '\nEnsure you follow this JSON schema:\n```json\n%s\n```\n' % guided_json_properties_json
+        schema_instruction = json_schema_instruction.format(properties_schema=guided_json_properties_json)
         json_vllm = chosen_model_state['json_vllm']
 
         pre_instruction = ''
@@ -4199,21 +4242,21 @@ def evaluate(
                 # mistral-large gets confused with extra info, and not required
                 # updates, things changed, revise again
                 # https://docs.mistral.ai/capabilities/json_mode/
-                pre_instruction1 = pre_instruction1_simpler
+                json_object_prompt = json_object_prompt_simpler
             # shouldn't have to tell to use json, but should tell schema
             if guided_json_properties:
                 # FIXME: Do function calling if can instead
-                pre_instruction = pre_instruction1 + schema_instruction
+                pre_instruction = json_object_prompt + schema_instruction
             else:
                 # OpenAI requires "json" to appear somewhere in messages
-                pre_instruction = pre_instruction1
+                pre_instruction = json_object_prompt
         else:
             # json_code way
             # have to tell to use json and give schema if present
             if guided_json_properties:
-                pre_instruction = pre_instruction2 + schema_instruction
+                pre_instruction = json_code_prompt + schema_instruction
             else:
-                pre_instruction = pre_instruction2
+                pre_instruction = json_code_prompt
         # ignore these, make no sense for JSON mode
         system_prompt = ''  # can mess up the model, e.g. 70b
         if instruction:
@@ -4422,6 +4465,13 @@ def evaluate(
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
                 hyde_llm_prompt=hyde_llm_prompt,
+
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                json_object_prompt=json_object_prompt,
+                json_object_prompt_simpler=json_object_prompt_simpler,
+                json_code_prompt=json_code_prompt,
+                json_schema_instruction=json_schema_instruction,
+
                 text_context_list=text_context_list,
                 chat_conversation=chat_conversation,
                 visible_models=visible_models,
@@ -4533,6 +4583,7 @@ def evaluate(
                            allow_chat_system_prompt=allow_chat_system_prompt,
                            context=context,
                            chat_conversation=chat_conversation,
+                           user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                            keep_sources_in_context=keep_sources_in_context,
                            model_max_length=model_max_length,
                            memory_restriction_level=memory_restriction_level,
@@ -4888,6 +4939,13 @@ def evaluate(
                                          pre_prompt_summary=pre_prompt_summary,
                                          prompt_summary=prompt_summary,
                                          hyde_llm_prompt=hyde_llm_prompt,
+
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                                         json_object_prompt=json_object_prompt,
+                                         json_object_prompt_simpler=json_object_prompt_simpler,
+                                         json_code_prompt=json_code_prompt,
+                                         json_schema_instruction=json_schema_instruction,
+
                                          system_prompt=system_prompt,
                                          image_audio_loaders=image_audio_loaders,
                                          pdf_loaders=pdf_loaders,
@@ -5441,6 +5499,11 @@ def get_generate_params(model_lower,
                         system_prompt,
                         pre_prompt_query, prompt_query,
                         pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+                        user_prompt_for_fake_system_prompt,
+                        json_object_prompt,
+                        json_object_prompt_simpler,
+                        json_code_prompt,
+                        json_schema_instruction,
                         temperature, top_p, top_k, penalty_alpha, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -5661,6 +5724,13 @@ y = np.random.randint(0, 1, 100)
                     [], 'and', [], 'and',
                     pre_prompt_query, prompt_query,
                     pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+
+                    user_prompt_for_fake_system_prompt,
+                    json_object_prompt,
+                    json_object_prompt_simpler,
+                    json_code_prompt,
+                    json_schema_instruction,
+
                     system_prompt,
                     image_audio_loaders,
                     pdf_loaders,
@@ -6010,7 +6080,8 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
     return max_new_tokens
 
 
-def apply_chat_template(instruction, system_prompt, history, tokenizer, verbose=False):
+def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
+                        verbose=False):
     prompt = None
     exceptions = []
 
@@ -6026,6 +6097,7 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, verbose=
             break
         except Exception as e:
             # try no direct system prompt, but add as conversation history
+            user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
             history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
 
             exceptions.append(e)
@@ -6048,7 +6120,9 @@ def get_limited_prompt(instruction,
                        prompt_type=None, prompt_dict=None, max_new_tokens=None,
                        system_prompt='',
                        allow_chat_system_prompt=None,
-                       context='', chat_conversation=None, text_context_list=None,
+                       context='', chat_conversation=None,
+                       user_prompt_for_fake_system_prompt=None,
+                       text_context_list=None,
                        keep_sources_in_context=False,
                        gradio_errors_to_chatbot=True,
                        model_max_length=None, memory_restriction_level=0,
@@ -6118,6 +6192,7 @@ def get_limited_prompt(instruction,
                          not can_handle_system_prompt and \
                          allow_chat_system_prompt
     if chat_system_prompt and system_prompt:
+        user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
         chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
         # nuke system prompt else will double-up
         system_prompt_to_use = ''
@@ -6184,7 +6259,8 @@ def get_limited_prompt(instruction,
                                                                                      max_prompt_length=int(
                                                                                          max_input_tokens * 0.9))
     if use_chat_template:
-        context2 = apply_chat_template(instruction, system_prompt_to_use, history, tokenizer)
+        context2 = apply_chat_template(instruction, system_prompt_to_use, history, tokenizer,
+                                       user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         iinput = ''
         context1 = ''
         num_context1_tokens = 0
@@ -6277,7 +6353,8 @@ def get_limited_prompt(instruction,
                 if use_chat_template:
                     instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                             max_prompt_length=non_doc_max_length)
-                    context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, tokenizer)
+                    context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, tokenizer,
+                                                   user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
                 else:
                     context2 = history_to_context_func(history_to_use)
 
@@ -6306,7 +6383,8 @@ def get_limited_prompt(instruction,
             if use_chat_template:
                 instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                         max_prompt_length=non_doc_max_length)
-                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, tokenizer)
+                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, tokenizer,
+                                               user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
             else:
                 context2 = history_to_context_func(history_to_use_final)
 

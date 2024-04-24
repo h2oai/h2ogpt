@@ -1658,6 +1658,21 @@ def go_gradio(**kwargs):
                                                       info="LLaVa prompt",
                                                       value=kwargs['llava_prompt'],
                                                       lines=2)
+                            user_prompt_for_fake_system_prompt = gr.Textbox(label="User System Prompt",
+                                                         info="user part of pre-conversation if LLM doesn't handle system prompt.",
+                                                         value=kwargs['user_prompt_for_fake_system_prompt'] or '')
+                            json_object_prompt = gr.Textbox(label="JSON Object Prompt",
+                                                         info="prompt for getting LLM to do JSON object",
+                                                         value=kwargs['json_object_prompt'] or '')
+                            json_object_prompt_simpler = gr.Textbox(label="Simpler JSON Object Prompt",
+                                                         info="Simpler prompt for getting LLM to do JSON object (for MistralAI)",
+                                                         value=kwargs['json_object_prompt_simpler'] or '')
+                            json_code_prompt = gr.Textbox(label="JSON Code Prompt",
+                                                         info="prompt for getting LLm to do JSON in code block",
+                                                         value=kwargs['json_code_prompt'] or '')
+                            json_schema_instruction = gr.Textbox(label="JSON Schema Prompt",
+                                                         info="prompt for LLM to use schema",
+                                                         value=kwargs['json_schema_instruction'] or '')
 
                             def show_llava(x):
                                 return x
