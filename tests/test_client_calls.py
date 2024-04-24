@@ -5043,14 +5043,13 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-lla
                      'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01', 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b']
 
-
 vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llama2-13b-chat',
-                     'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
-                     'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
-                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
-                     'h2oai/h2o-danube2-1.8b-chat',
-                     'google/gemma-1.1-7b-it', 'h2oai/mixtral-gm-rag-experimental-v2',
-                     'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01']
+                    'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
+                    'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
+                    'mistralai/Mixtral-8x7B-Instruct-v0.1',
+                    'h2oai/h2o-danube2-1.8b-chat',
+                    'google/gemma-1.1-7b-it', 'h2oai/mixtral-gm-rag-experimental-v2',
+                    'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01']
 
 
 def get_test_server_client(base_model):
@@ -5073,13 +5072,14 @@ def get_test_server_client(base_model):
     if username and password:
         auth_kwargs = dict(auth=(username, password))
 
-    from gradio_client import Client
-    client = Client(inference_server, **auth_kwargs)
+    from gradio_utils.grclient import GradioClient
+    client = GradioClient(inference_server, **auth_kwargs)
 
     return client, base_models
 
 
 @wrap_test_forked
+@pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
 # @pytest.mark.parametrize("base_model", [gpt_models[1]])
@@ -5087,7 +5087,7 @@ def get_test_server_client(base_model):
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
                                               LangChainAction.EXTRACT.value])
-def test_guided_json(langchain_action, langchain_mode, response_format, base_model):
+def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output):
     if langchain_mode == 'LLM' and \
             (langchain_action == LangChainAction.SUMMARIZE_MAP.value or
              langchain_action == LangChainAction.EXTRACT.value):
@@ -5095,6 +5095,9 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         return
 
     client, base_models = get_test_server_client(base_model)
+    from gradio_utils.grclient import GradioClient
+    if isinstance(client, GradioClient):
+        client.setup()
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
     # string of dict for input
@@ -5110,15 +5113,21 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                       visible_models=base_model,
                       text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
                           'Henry is a good AI scientist.'],
-                      stream_output=False,
+                      stream_output=stream_output,
                       langchain_mode=langchain_mode,
                       langchain_action=langchain_action,
                       h2ogpt_key=h2ogpt_key,
                       response_format=response_format,
                       guided_json=guided_json,
                       )
-        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-        res_dict = ast.literal_eval(res)
+        res_dict = {}
+        if stream_output:
+            for res_dict1 in client.simple_stream(client_kwargs=kwargs):
+                res_dict = res_dict1.copy()
+        else:
+            res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+            res_dict = ast.literal_eval(res_dict)
+
         response = res_dict['response']
         print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
               file=sys.stderr)
