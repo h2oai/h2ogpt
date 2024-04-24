@@ -41,6 +41,7 @@ class ReturnType(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     tokens_per_second: float = 0.0
+    time_to_first_token: float = 0.0
 
 
 try:
@@ -664,6 +665,7 @@ class GradioClient(Client):
         file: list[str] | str | None = None,
         url: list[str] | str | None = None,
         embed: bool = True,
+
         chunk: bool = True,
         chunk_size: int = 512,
         langchain_mode: str = None,
@@ -677,6 +679,7 @@ class GradioClient(Client):
         document_content_substrings: Union[str, List[str]] = [],
         document_content_substrings_op: str = "and",
         system_prompt: str | None = "",
+
         pre_prompt_query: str | None = pre_prompt_query0,
         prompt_query: str | None = prompt_query0,
         pre_prompt_summary: str | None = pre_prompt_summary0,
@@ -684,6 +687,13 @@ class GradioClient(Client):
         pre_prompt_extraction: str | None = pre_prompt_extraction0,
         prompt_extraction: str | None = prompt_extraction0,
         hyde_llm_prompt: str | None = hyde_llm_prompt0,
+
+        user_prompt_for_fake_system_prompt: str = None,
+        json_object_prompt: str = None,
+        json_object_prompt_simpler: str = None,
+        json_code_prompt: str = None,
+        json_schema_instruction: str = None,
+
         model: str | int | None = None,
         stream_output: bool = False,
         do_sample: bool = False,
@@ -731,15 +741,18 @@ class GradioClient(Client):
         tts_speed: float = 1.0,
         visible_image_models: List[str] = [],
         visible_models: Union[str, int, list] = None,
-        num_return_sequences: int = None,  # don't use
-        chat: bool = True,  # don't use
-        min_new_tokens: int = None,  # don't use
-        early_stopping: Union[bool, str] = None,  # don't use
-        iinput: str = "",  # don't use
-        iinput_nochat: str = "",  # don't use
-        instruction_nochat: str = "",  # don't use
-        context: str = "",  # don't use
-        num_beams: int = 1,  # don't use
+
+        # don't use the below (no doc string stuff) block
+        num_return_sequences: int = None,
+        chat: bool = True,
+        min_new_tokens: int = None,
+        early_stopping: Union[bool, str] = None,
+        iinput: str = "",
+        iinput_nochat: str = "",
+        instruction_nochat: str = "",
+        context: str = "",
+        num_beams: int = 1,
+
         asserts: bool = False,
     ) -> Generator[ReturnType, None, None]:
         """
@@ -764,31 +777,31 @@ class GradioClient(Client):
             url: a url to give or urls to use
             embed: whether to embed content uploaded
 
-            langchain_mode: "LLM" to talk to LLM with no docs, "MyData" for personal docs, "UserData" for shared docs, etc.
-            langchain_action: Action to take, "Query" or "Summarize" or "Extract"
-            langchain_agents: Which agents to use, if any
-            top_k_docs: number of document parts.
+            :param langchain_mode: "LLM" to talk to LLM with no docs, "MyData" for personal docs, "UserData" for shared docs, etc.
+            :param langchain_action: Action to take, "Query" or "Summarize" or "Extract"
+            :param langchain_agents: Which agents to use, if any
+            :param top_k_docs: number of document parts.
                         When doing query, number of chunks
                         When doing summarization, not related to vectorDB chunks that are not used
                         E.g. if PDF, then number of pages
-            chunk: whether to chunk sources for document Q/A
-            chunk_size: Size in characters of chunks
-            document_choice: Which documents ("All" means all) -- need to use upload_api API call to get server's name if want to select
-            document_subset: Type of query, see src/gen.py
-            document_source_substrings: See gen.py
-            document_source_substrings_op: See gen.py
-            document_content_substrings: See gen.py
-            document_content_substrings_op: See gen.py
+            :param chunk: whether to chunk sources for document Q/A
+            :param chunk_size: Size in characters of chunks
+            :param document_choice: Which documents ("All" means all) -- need to use upload_api API call to get server's name if want to select
+            :param document_subset: Type of query, see src/gen.py
+            :param document_source_substrings: See gen.py
+            :param document_source_substrings_op: See gen.py
+            :param document_content_substrings: See gen.py
+            :param document_content_substrings_op: See gen.py
 
-            system_prompt: pass system prompt to models that support it.
+            :param system_prompt: pass system prompt to models that support it.
               If 'auto' or None, then use automatic version
               If '', then use no system prompt (default)
-            pre_prompt_query: Prompt that comes before document part
-            prompt_query: Prompt that comes after document part
-            pre_prompt_summary: Prompt that comes before document part
+            :param pre_prompt_query: Prompt that comes before document part
+            :param prompt_query: Prompt that comes after document part
+            :param pre_prompt_summary: Prompt that comes before document part
                None makes h2oGPT internally use its defaults
                E.g. "In order to write a concise single-paragraph or bulleted list summary, pay attention to the following text"
-            prompt_summary: Prompt that comes after document part
+            :param prompt_summary: Prompt that comes after document part
               None makes h2oGPT internally use its defaults
               E.g. "Using only the text above, write a condensed and concise summary of key results (preferably as bullet points):\n"
             i.e. for some internal document part fstring, the template looks like:
@@ -797,53 +810,59 @@ class GradioClient(Client):
                 %s
                 \"\"\"
                 %s" % (pre_prompt_summary, fstring, prompt_summary)
-            hyde_llm_prompt: hyde prompt for first step when using LLM
-            h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
-            model: base_model name or integer index of model_lock on h2oGPT server
+            :param hyde_llm_prompt: hyde prompt for first step when using LLM
+
+            :param user_prompt_for_fake_system_prompt: user part of pre-conversation if LLM doesn't handle system prompt
+            :param json_object_prompt: prompt for getting LLM to do JSON object
+            :param json_object_prompt_simpler: simpler of "" for MistralAI
+            :param json_code_prompt: prompt for getting LLm to do JSON in code block
+            :param json_schema_instruction: prompt for LLM to use schema
+
+            :param h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
+            :param model: base_model name or integer index of model_lock on h2oGPT server
                             None results in use of first (0th index) model in server
                    to get list of models do client.list_models()
-            pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
-            prompt_extraction: Same as prompt_summary but for when doing extraction
-            do_sample: see src/gen.py
-            seed: see src/gen.py
-            temperature: see src/gen.py
-            top_p: see src/gen.py
-            top_k: see src/gen.py
-            repetition_penalty: see src/gen.py
-            penalty_alpha: see src/gen.py
-            max_new_tokens: see src/gen.py
-            min_max_new_tokens: see src/gen.py
-            max_input_tokens: see src/gen.py
-            max_total_input_tokens: see src/gen.py
-            stream_output: Whether to stream output
-            max_time: how long to take
+            :param pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
+            :param prompt_extraction: Same as prompt_summary but for when doing extraction
+            :param do_sample: see src/gen.py
+            :param seed: see src/gen.py
+            :param temperature: see src/gen.py
+            :param top_p: see src/gen.py
+            :param top_k: see src/gen.py
+            :param repetition_penalty: see src/gen.py
+            :param penalty_alpha: see src/gen.py
+            :param max_new_tokens: see src/gen.py
+            :param min_max_new_tokens: see src/gen.py
+            :param max_input_tokens: see src/gen.py
+            :param max_total_input_tokens: see src/gen.py
+            :param stream_output: Whether to stream output
+            :param max_time: how long to take
 
-            add_search_to_context: Whether to do web search and add results to context
-            chat_conversation: List of tuples for (human, bot) conversation that will be pre-appended to an (instruction, None) case for a query
-            text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
+            :param add_search_to_context: Whether to do web search and add results to context
+            :param chat_conversation: List of tuples for (human, bot) conversation that will be pre-appended to an (instruction, None) case for a query
+            :param text_context_list: List of strings to add to context for non-database version of document Q/A for faster handling via API etc.
                Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
-            docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
-            max_input_tokens: Max input tokens to place into model context for each LLM call
+            :param docs_ordering_type: By default uses 'reverse_ucurve_sort' for optimal retrieval
+            :param max_input_tokens: Max input tokens to place into model context for each LLM call
                                      -1 means auto, fully fill context for query, and fill by original document chunk for summarization
                                      >=0 means use that to limit context filling to that many tokens
-            max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
-            max_new_tokens: Maximum new tokens
-            min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
+            :param max_total_input_tokens: like max_input_tokens but instead of per LLM call, applies across all LLM calls for single summarization/extraction action
+            :param max_new_tokens: Maximum new tokens
+            :param min_max_new_tokens: minimum value for max_new_tokens when auto-adjusting for content of prompt, docs, etc.
 
-            docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
+            :param docs_token_handling: 'chunk' means fill context with top_k_docs (limited by max_input_tokens or model_max_len) chunks for query
                                                                              or top_k_docs original document chunks summarization
                                         None or 'split_or_merge' means same as 'chunk' for query, while for summarization merges documents to fill up to max_input_tokens or model_max_len tokens
-            docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
-            hyde_level: 0-3 for HYDE.
+            :param docs_joiner: string to join lists of text when doing split_or_merge.  None means '\n\n'
+            :param hyde_level: 0-3 for HYDE.
                         0 uses just query to find similarity with docs
                         1 uses query + pure LLM response to find similarity with docs
                         2: uses query + LLM response using docs to find similarity with docs
                         3+: etc.
-            hyde_template: see src/gen.py
-            hyde_show_only_final: see src/gen.py
-            doc_json_mode: see src/gen.py
-            metadata_in_context: see src/gen.py
-
+            :param hyde_template: see src/gen.py
+            :param hyde_show_only_final: see src/gen.py
+            :param doc_json_mode: see src/gen.py
+            :param metadata_in_context: see src/gen.py
 
             :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
             :param image_control: Initial image for UI Image Control
@@ -889,7 +908,7 @@ class GradioClient(Client):
                       and the value is not used to access the inference server.
                       If need a visible_models for an inference server, then use --model_lock and group together.
 
-            asserts: whether to do asserts to ensure handling is correct
+            :param asserts: whether to do asserts to ensure handling is correct
 
         Returns: summary/answer: str or extraction List[str]
 
@@ -997,6 +1016,8 @@ class GradioClient(Client):
         texts_out = []
         trials = 3
         t0 = time.time()
+        time_to_first_token = None
+        t_taken_s = None
         for trial in range(trials):
             t0 = time.time()
             try:
@@ -1005,6 +1026,8 @@ class GradioClient(Client):
                         str(dict(client_kwargs)),
                         api_name=api_name,
                     )
+                    if time_to_first_token is None:
+                        time_to_first_token = time.time() - t0
                     t_taken_s = time.time() - t0
                     # in case server changed, update in case clone()
                     self.server_hash = client.server_hash
@@ -1058,6 +1081,7 @@ class GradioClient(Client):
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         tokens_per_second=tokens_per_second,
+                        time_to_first_token=time_to_first_token,
                     )
 
                     self.chat_conversation[-1] = (instruction, response)
@@ -1082,11 +1106,14 @@ class GradioClient(Client):
                                 continue
                             text0 = response
                             assert text_chunk, "must yield non-empty string"
+                            if time_to_first_token is None:
+                                time_to_first_token = time.time() - t0
                             yield ReturnType(
                                 reply=text_chunk,
                                 text_context_list=texts_out,
                                 prompt_raw=prompt_raw,
                                 actual_llm=actual_llm,
+                                time_to_first_token=time_to_first_token,
                             )
                         time.sleep(0.01)
 
@@ -1170,6 +1197,8 @@ class GradioClient(Client):
                         if text_context_list:
                             assert texts_out, "No texts_out 1"
 
+                        if time_to_first_token is None:
+                            time_to_first_token = time.time() - t0
                         yield ReturnType(
                             reply=response[len(text0) :],
                             text_context_list=texts_out,
@@ -1178,6 +1207,7 @@ class GradioClient(Client):
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
                             tokens_per_second=tokens_per_second,
+                            time_to_first_token=time_to_first_token,
                         )
 
                         self.chat_conversation[-1] = (

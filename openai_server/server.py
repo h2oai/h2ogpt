@@ -74,6 +74,13 @@ class H2oGPTParams(BaseModel):
     pre_prompt_summary: str | None = None
     prompt_summary: str | None = None
     hyde_llm_prompt: str | None = None
+
+    user_prompt_for_fake_system_prompt: str | None = None
+    json_object_prompt: str | None = None
+    json_object_prompt_simpler: str | None = None
+    json_code_prompt: str | None = None
+    json_schema_instruction: str | None = None
+
     system_prompt: str | None = 'auto'
 
     image_audio_loaders: List | None = None

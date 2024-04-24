@@ -279,14 +279,10 @@ These are not part of normal installation instructions and are experimental.
 - To run h2oGPT tests:
     ```bash
     pip install requirements-parser pytest-instafail pytest-random-order playsound==1.3.0
-    conda install -c conda-forge gst-python
+    conda install -c conda-forge gst-python -y
     sudo apt-get install gstreamer-1.0
     pip install pygame
     pytest --instafail -s -v tests
-    # for client tests
-    make -C client setup
-    make -C client build
-    pytest --instafail -s -v client/tests
     # for openai server test on already-running local server
     pytest -s -v -n 4 openai_server/test_openai_server.py::test_openai_client
     ```
