@@ -41,6 +41,7 @@ class ReturnType(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     tokens_per_second: float = 0.0
+    time_to_first_token: float = 0.0
 
 
 try:
@@ -1015,6 +1016,8 @@ class GradioClient(Client):
         texts_out = []
         trials = 3
         t0 = time.time()
+        time_to_first_token = None
+        t_taken_s = None
         for trial in range(trials):
             t0 = time.time()
             try:
@@ -1023,6 +1026,8 @@ class GradioClient(Client):
                         str(dict(client_kwargs)),
                         api_name=api_name,
                     )
+                    if time_to_first_token is None:
+                        time_to_first_token = time.time() - t0
                     t_taken_s = time.time() - t0
                     # in case server changed, update in case clone()
                     self.server_hash = client.server_hash
@@ -1076,6 +1081,7 @@ class GradioClient(Client):
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         tokens_per_second=tokens_per_second,
+                        time_to_first_token=time_to_first_token,
                     )
 
                     self.chat_conversation[-1] = (instruction, response)
@@ -1100,11 +1106,14 @@ class GradioClient(Client):
                                 continue
                             text0 = response
                             assert text_chunk, "must yield non-empty string"
+                            if time_to_first_token is None:
+                                time_to_first_token = time.time() - t0
                             yield ReturnType(
                                 reply=text_chunk,
                                 text_context_list=texts_out,
                                 prompt_raw=prompt_raw,
                                 actual_llm=actual_llm,
+                                time_to_first_token=time_to_first_token,
                             )
                         time.sleep(0.01)
 
@@ -1188,6 +1197,8 @@ class GradioClient(Client):
                         if text_context_list:
                             assert texts_out, "No texts_out 1"
 
+                        if time_to_first_token is None:
+                            time_to_first_token = time.time() - t0
                         yield ReturnType(
                             reply=response[len(text0) :],
                             text_context_list=texts_out,
@@ -1196,6 +1207,7 @@ class GradioClient(Client):
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
                             tokens_per_second=tokens_per_second,
+                            time_to_first_token=time_to_first_token,
                         )
 
                         self.chat_conversation[-1] = (
