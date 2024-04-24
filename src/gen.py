@@ -6081,8 +6081,8 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
 
 
 def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
-                        verbose=False):
-    prompt = None
+                        test_only=False, verbose=False):
+    prompt = ''
     exceptions = []
 
     from openai_server.backend_utils import structure_to_messages
@@ -6096,6 +6096,8 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, user_pro
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             break
         except Exception as e:
+            if test_only:
+                break
             # try no direct system prompt, but add as conversation history
             user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
             history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
@@ -6106,7 +6108,7 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, user_pro
                     print("No system prompt supported: %s" % str(e))
             elif os.getenv('HARD_ASSERTS'):
                 raise
-    assert prompt is not None, "Prompt was not set: %s" % str(exceptions)
+    assert prompt, "Prompt was not set: %s" % str(exceptions)
     return prompt
 
 
@@ -6188,6 +6190,18 @@ def get_limited_prompt(instruction,
         # Chat APIs don't handle chat history via single prompt, but in messages, assumed to be handled outside this function
         # but we will need to compute good history for external use
         external_handle_chat_conversation = True
+
+    # not if plain prompt, only if unknown or unset
+    use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
+    if is_gradio_vision_model(base_model):
+        use_chat_template = False
+
+    if use_chat_template:
+        # see if chat template handles system prompt
+        if system_prompt in apply_chat_template("Test", system_prompt, [], tokenizer,
+                                                test_only=True, user_prompt_for_fake_system_prompt=None):
+            can_handle_system_prompt = True
+
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
                          allow_chat_system_prompt
@@ -6221,11 +6235,6 @@ def get_limited_prompt(instruction,
                                                 hyde_level=hyde_level,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
-
-    # not if plain prompt, only if unknown or unset
-    use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
-    if is_gradio_vision_model(base_model):
-        use_chat_template = False
 
     context1 = context
     if context1 is None:
