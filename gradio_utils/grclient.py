@@ -1361,7 +1361,6 @@ class GradioClient(Client):
                 res_dict.update(
                     dict(
                         response=response,
-                        sources=sources,
                         error=strex,
                         response_no_refs=response,
                     )
@@ -1424,7 +1423,6 @@ class GradioClient(Client):
         res_dict.update(
             dict(
                 response=response,
-                sources=sources,
                 error=strex,
                 response_no_refs=response,
             )
