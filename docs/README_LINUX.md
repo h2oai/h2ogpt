@@ -7,6 +7,12 @@ This page describes how to manually install and run h2oGPT on Linux. Note that t
 
 ## Quick Install
 
+Ensure cuda toolkit is installed, e.g. for CUDA 12.1 on Ubuntu 22:
+```bash
+wget https://developer.download.nvidia.com/compute/cuda/12.1.1/local_installers/cuda_12.1.1_530.30.02_linux.run
+sudo sh cuda_12.1.1_530.30.02_linux.run
+```
+One only needs to install the toolkit, and one does not have to overwrite the symlink.  Then run:
 ```bash
 curl -fsSL https://h2o-release.s3.amazonaws.com/h2ogpt/linux_install_full.sh | bash
 ```
@@ -71,7 +77,12 @@ So allow your user session to run sudo for 60 minutes. Then the script will not 
   ```
   On some systems, `pip` still refers back to the system one, then one can use `python -m pip` or `pip3` instead of `pip` or try `python3` instead of `python`.
 
-* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS use of deepspeed, by going to [CUDA Toolkit](INSTALL.md#install-cuda-toolkit).  E.g. [CUDA 12.1 Toolkit](https://developer.nvidia.com/cuda-12-1-1-download-archive).  In order to avoid removing the original CUDA toolkit/driver you have, on NVIDIA's website, use the `runfile (local)` installer, and choose to not install driver or overwrite `/usr/local/cuda` link and just install the toolkit, and rely upon the `CUDA_HOME` env to point to the desired CUDA version.  Then do:
+* For GPU: Install CUDA ToolKit with ability to compile using nvcc for some packages like llama-cpp-python, AutoGPTQ, exllama, flash attention, TTS use of deepspeed, by going to [CUDA Toolkit](INSTALL.md#install-cuda-toolkit).  E.g. [CUDA 12.1 Toolkit](https://developer.nvidia.com/cuda-12-1-1-download-archive).  In order to avoid removing the original CUDA toolkit/driver you have, on NVIDIA's website, use the `runfile (local)` installer, and choose to not install driver or overwrite `/usr/local/cuda` link and just install the toolkit, and rely upon the `CUDA_HOME` env to point to the desired CUDA version.  E.g. for CUDA 12.1 do:
+```bash
+wget https://developer.download.nvidia.com/compute/cuda/12.1.1/local_installers/cuda_12.1.1_530.30.02_linux.run
+sudo sh cuda_12.1.1_530.30.02_linux.run
+```
+* Then do:
   ```bash
   echo 'export CUDA_HOME=/usr/local/cuda-12.1' >> $HOME/.bashrc
   echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64' >> $HOME/.bashrc

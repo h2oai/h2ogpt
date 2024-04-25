@@ -4336,7 +4336,15 @@ def go_gradio(**kwargs):
                         only_stream = ['response', 'llm_answers', 'audio']
                         for key in res_dict:
                             if key not in only_stream:
-                                res_dict_yield.pop(key)
+                                if isinstance(res_dict[key], str):
+                                    res_dict_yield[key] = ''
+                                elif isinstance(res_dict[key], list):
+                                    res_dict_yield[key] = []
+                                elif isinstance(res_dict[key], dict):
+                                    res_dict_yield[key] = {}
+                                else:
+                                    print("Unhandled pop: %s" % key)
+                                    res_dict_yield.pop(key)
                         ret = res_dict_yield
                     elif kwargs['langchain_mode'] == 'Disabled':
                         ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False,
