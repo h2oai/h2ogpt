@@ -269,9 +269,10 @@ class H2OMapReduceDocumentsChain(MapReduceDocumentsChain):
         if self.llm_chain.llm.callbacks:
             for callback in self.llm_chain.llm.callbacks:
                 if isinstance(callback, StreamingGradioCallbackHandler):
-                    if not callback.raise_stop:
+                    if not callback.raise_stop or not callback.do_stop:
                         callback.raise_stop = True
-                        callback.text_queue.put(None)
+                        # callback.on_llm_end(response)
+                    callback.text_queue.put(None)
 
     @property
     def _chain_type(self) -> str:

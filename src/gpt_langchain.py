@@ -630,7 +630,7 @@ class AGenerateStreamFirst:
         callbacks_only_first = kwargs.get('stream', False) or \
                                kwargs.get('streaming', False) or \
                                hasattr(self, 'streaming') and self.streaming or \
-                               hasattr(self, 'stream') and self.stream or \
+                               hasattr(self, 'stream') and isinstance(self.stream, bool) and self.stream or \
                                hasattr(self, 'stream_output') and self.stream_output
 
         # Create callback managers
@@ -790,7 +790,7 @@ class ChatAGenerateStreamFirst:
         callbacks_only_first = kwargs.get('stream', False) or \
                                kwargs.get('streaming', False) or \
                                hasattr(self, 'streaming') and self.streaming or \
-                               hasattr(self, 'stream') and self.stream or \
+                               hasattr(self, 'stream') and isinstance(self.stream, bool) and self.stream or \
                                hasattr(self, 'stream_output') and self.stream_output
         if self.verbose:
             print("messages: %s" % len(messages))
