@@ -858,10 +858,9 @@ def go_gradio(**kwargs):
         mic_sources_kwargs = dict(source='microphone')
 
     if kwargs['model_lock']:
-        have_vision_models = any([x.get('inference_server', '').startswith('http') and \
-                                  is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
+        have_vision_models = any([is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
     else:
-        have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
+        have_vision_models = is_vision_model(kwargs['base_model'])
 
     is_gradio_h2oai = get_is_gradio_h2oai()
 
