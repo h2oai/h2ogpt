@@ -4685,7 +4685,7 @@ def evaluate(
                                 if verbose:
                                     print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                                 break
-                            time.sleep(0.01)
+                            time.sleep(0.005)
                 elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
                     other_dict = dict(timeout=max_time)
                     if system_prompt in [None, 'None', 'auto']:
