@@ -1632,7 +1632,7 @@ def main(
         if not max_max_time:
             max_max_time = max_time
         if not max_new_tokens:
-            max_new_tokens = 256
+            max_new_tokens = 512
         if not max_max_new_tokens:
             max_max_new_tokens = 512
     else:
