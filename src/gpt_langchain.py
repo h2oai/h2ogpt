@@ -1160,7 +1160,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                     if text_callback:
                         text_callback(text_chunk)
 
-                time.sleep(0.01)
+                time.sleep(0.005)
 
             # ensure get last output to avoid race
             res_all = job.outputs().copy()
@@ -1411,7 +1411,7 @@ class GradioLLaVaInference(GradioInference):
                 text0 = text
                 if text_callback:
                     text_callback(text_chunk)
-                time.sleep(0.01)
+                time.sleep(0.005)
 
                 if self.max_time is not None and time.time() - t_start > self.max_time:
                     if self.verbose:

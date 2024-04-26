@@ -5078,7 +5078,7 @@ def evaluate(
                                 yield dict(response=response, sources=sources, save_dict={},
                                            llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
-                                time.sleep(0.01)
+                                time.sleep(0.005)
                             if time.time() - tgen0 > max_time:
                                 if verbose:
                                     print("Took too long for TGI: %s" % (time.time() - tgen0), flush=True)
@@ -5405,7 +5405,7 @@ class H2OTextIteratorStreamer(TextIteratorStreamer):
                 value = self.text_queue.get(block=self.block, timeout=self.timeout)
                 break
             except queue.Empty:
-                time.sleep(0.01)
+                time.sleep(0.005)
         if value == self.stop_signal:
             self.clear_queue()
             self.do_stop = False
