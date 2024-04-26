@@ -356,7 +356,7 @@ def get_llava_stream(file, llava_model,
                     if len(jobs) == 1:
                         yield texts[ji]
             job_outputs_nums[ji] += job_outputs_num_new
-            time.sleep(0.01)
+            time.sleep(0.005)
         if done_all or all([job.done() for job in jobs]):
             break
 
