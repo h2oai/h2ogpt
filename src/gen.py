@@ -98,7 +98,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, get_use_chat_template
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, get_use_chat_template, apply_chat_template
 from stopping import get_stopping
 
 langchain_actions = [x.value for x in list(LangChainAction)]
@@ -1357,7 +1357,7 @@ def main(
         if not model_path_llama:
             model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
         if not prompt_type:
-            prompt_type = 'llama2'
+            prompt_type = 'unknown'
     elif base_model == 'gptj' and not model_name_gptj:
         model_name_gptj = 'ggml-gpt4all-j-v1.3-groovy.bin'
     elif base_model == 'gpt4all_llama' and not model_name_gpt4all_llama:
@@ -3262,13 +3262,16 @@ def get_model(
 
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
-        model, tokenizer, device = get_model_tokenizer_gpt4all(base_model,
+        model, tokenizer_llamacpp, device = get_model_tokenizer_gpt4all(base_model,
                                                                n_jobs=n_jobs,
                                                                gpu_id=gpu_id,
                                                                n_gpus=n_gpus,
                                                                max_seq_len=max_seq_len,
                                                                llamacpp_dict=llamacpp_dict,
                                                                llamacpp_path=llamacpp_path)
+        # give chance to use tokenizer_base_model
+        if tokenizer is None:
+            tokenizer = tokenizer_llamacpp
         return model, tokenizer, device
     if load_exllama:
         return model_loader, tokenizer, 'cuda' if n_gpus != 0 else 'cpu'
@@ -6078,38 +6081,6 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
         else:
             return max_new_tokens0
     return max_new_tokens
-
-
-def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
-                        test_only=False, verbose=False):
-    prompt = ''
-    exceptions = []
-
-    from openai_server.backend_utils import structure_to_messages
-
-    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] else None, None]
-    for si, system_prompt_to_use in enumerate(system_prompts_to_use):
-        try:
-            messages = structure_to_messages(instruction,
-                                             system_prompt_to_use,
-                                             history)
-            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            break
-        except Exception as e:
-            if test_only:
-                return ''
-            # try no direct system prompt, but add as conversation history
-            user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
-            history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
-
-            exceptions.append(e)
-            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
-                if verbose:
-                    print("No system prompt supported: %s" % str(e))
-            elif os.getenv('HARD_ASSERTS'):
-                raise
-    assert prompt, "Prompt was not set: %s" % str(exceptions)
-    return prompt
 
 
 def get_limited_prompt(instruction,

@@ -1493,6 +1493,8 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     async_sem: Any = None
     count_input_tokens: Any = 0
     prompts: Any = []
@@ -1520,7 +1522,10 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
 
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
 
@@ -1608,7 +1613,10 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
 
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
 
         gen_text = await super()._acall(prompt, stop=stop, run_manager=run_manager, **kwargs)
 
@@ -1648,7 +1656,10 @@ class H2OTextGenOpenAI:
             prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
             # NOTE: OpenAI/vLLM server does not add prompting, so must do here
             data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-            prompt = self.prompter.generate_prompt(data_point)
+            prompt = self.prompter.generate_prompt(data_point,
+                                                   chat_conversation=self.chat_conversation,
+                                                   user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                                   )
             prompts[prompti] = prompt
 
         kwargs = self.update_kwargs(prompts, kwargs)
@@ -1825,6 +1836,8 @@ class H2OOpenAI(H2OTextGenOpenAI, OpenAI):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     async_sem: Any = None
     count_input_tokens: Any = 0
     prompts: Any = []
@@ -1840,6 +1853,8 @@ class H2OReplicate(Replicate):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
 
     def _call(
@@ -1860,7 +1875,10 @@ class H2OReplicate(Replicate):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
         # Note Replicate handles the prompting of the specific model, but not if history, so just do it all on our side
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
 
         response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
         return response
@@ -2520,6 +2538,8 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 verbose=verbose,
             )
         else:
@@ -2534,6 +2554,8 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 verbose=verbose,
             )
     elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -2647,6 +2669,8 @@ def get_llm(use_openai_model=False,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
+                                         chat_conversation=chat_conversation,
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          openai_api_base=base_url,
                                          openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
@@ -3064,6 +3088,8 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
                 async_sem=async_sem,
@@ -3105,6 +3131,9 @@ def get_llm(use_openai_model=False,
                               prompter=prompter,
                               context=context,
                               iinput=iinput,
+                              tokenizer=tokenizer,
+                              chat_conversation=chat_conversation,
+                              user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                               max_seq_len=model_max_length,
                               llamacpp_path=llamacpp_path,
                               llamacpp_dict=llamacpp_dict,
@@ -3144,6 +3173,8 @@ def get_llm(use_openai_model=False,
                       prompter=prompter,
                       context=context,
                       iinput=iinput,
+                      chat_conversation=chat_conversation,
+                      user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                       )
     else:
         async_output = False  # FIXME: not implemented yet
@@ -3207,6 +3238,8 @@ def get_llm(use_openai_model=False,
                                          prompter=prompter,
                                          context=context,
                                          iinput=iinput,
+                                         chat_conversation=chat_conversation,
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          prompt_type=prompt_type,
                                          prompt_dict=prompt_dict,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -6985,10 +7018,10 @@ def run_hyde(*args, **kwargs):
             response = response_prefix + ret['response']
             if not hyde_show_only_final:
                 ret['response'], pre_answer = get_hyde_acc(ret['response'], llm_answers,
-                                                          get_answer_kwargs['hyde_show_intermediate_in_accordion'],
-                                                          get_answer_kwargs[
-                                                              'map_reduce_show_intermediate_in_accordion'],
-                                                          )
+                                                           get_answer_kwargs['hyde_show_intermediate_in_accordion'],
+                                                           get_answer_kwargs[
+                                                               'map_reduce_show_intermediate_in_accordion'],
+                                                           )
                 if pre_answer:
                     response = pre_answer + response
                 yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
@@ -7947,7 +7980,7 @@ def get_chain(query=None,
                           context=context,
                           iinput=iinput,
                           system_prompt=system_prompt)
-        if external_handle_chat_conversation:
+        if external_handle_chat_conversation or prompter.prompt_type in ['template', 'unknown']:
             # should already have attribute, checking sanity
             assert hasattr(llm, 'chat_conversation')
             llm_kwargs.update(chat_conversation=history_to_use_final)
@@ -8019,7 +8052,10 @@ def get_chain(query=None,
         else:
             estimated_prompt_no_docs = query
         data_point = dict(context=context, instruction=estimated_prompt_no_docs or ' ', input=iinput)
-        prompt_basic = prompter.generate_prompt(data_point)
+        prompt_basic = prompter.generate_prompt(data_point,
+                                                chat_conversation=chat_conversation,
+                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                                                )
         num_prompt_basic_tokens = get_token_count(prompt_basic, tokenizer)
 
         if truncation_generation:

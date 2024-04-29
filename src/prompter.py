@@ -4,7 +4,7 @@ import os
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
     anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, \
-    unknown_prompt_type, template_prompt_type
+    unknown_prompt_type, template_prompt_type, user_prompt_for_fake_system_prompt0
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
@@ -1554,7 +1554,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         humanstr = '### USER:'
         botstr = '### RESPONSE:'
     elif prompt_type in [PromptType.aya.value, str(PromptType.aya.value),
-                             PromptType.aya.name]:
+                         PromptType.aya.name]:
         can_handle_system_prompt = True
         # https://huggingface.co/CohereForAI/aya-101
         if system_prompt in [None, 'None', 'auto']:
@@ -1690,7 +1690,7 @@ def get_use_chat_template(tokenizer, prompt_type=None):
 
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
-                 allowed_repeat_line_length=10, system_prompt=None, tokenizer=None):
+                 allowed_repeat_line_length=10, system_prompt=None, tokenizer=None, verbose=False):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
@@ -1707,9 +1707,11 @@ class Prompter(object):
             self.generates_leading_space, self.system_prompt, self.can_handle_system_prompt = \
             get_prompt(self.prompt_type, self.prompt_dict, context, reduced, making_context,
                        system_prompt=system_prompt)
+        self.use_chat_template = False
+        self.tokenizer = tokenizer
         if tokenizer is not None:
-            use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
-            if use_chat_template:
+            self.use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
+            if self.use_chat_template:
                 # add terminations
                 if self.terminate_response is None:
                     self.terminate_response = []
@@ -1722,6 +1724,7 @@ class Prompter(object):
                     self.terminate_response.extend(['<|im_end|>'])
 
         self.pre_response = self.PreResponse
+        self.verbose = verbose
 
     @property
     def stop_sequences(self):
@@ -1730,7 +1733,8 @@ class Prompter(object):
         stop_sequences = [x for x in stop_sequences if x]
         return stop_sequences
 
-    def generate_prompt(self, data_point, reduced=False, context_from_history=None):
+    def generate_prompt(self, data_point, reduced=False, context_from_history=None, chat_conversation=[],
+                        user_prompt_for_fake_system_prompt=None):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
         :param data_point:
@@ -1739,6 +1743,17 @@ class Prompter(object):
            In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
+        if self.prompt_type in ['template', 'unknown']:
+            assert self.use_chat_template
+            assert self.tokenizer is not None
+            from src.gen import apply_chat_template
+            instruction = data_point['instruction']
+            # ignore context and iinput when using chat template
+            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, self.tokenizer,
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                                         test_only=False, verbose=self.verbose)
+            return prompt
+
         if context_from_history is None and data_point.get('context'):
             context_from_history = True
             reduced = True
@@ -1984,7 +1999,7 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
                         guided_regex=None,
                         guided_choice=None,
                         guided_grammar=None,
-):
+                        ):
     stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
                       hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
     if hasattr(tokenizer, 'eos_token_id'):
@@ -2377,3 +2392,48 @@ def history_for_llm(history):
                             gradio_to_llm(message1[1], bot=True))
                            )
     return history_new
+
+
+def get_llm_history(history):
+    # avoid None users used for sources, errors, etc.
+    if history is None:
+        history = []
+    for ii in range(len(history) - 1, -1, -1):
+        if history[ii] and history[ii][0] is not None:
+            last_user_ii = ii
+            history = history[:last_user_ii + 1]
+            break
+    return history
+
+
+def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
+                        test_only=False, verbose=False):
+    history = get_llm_history(history)
+    prompt = ''
+    exceptions = []
+
+    from openai_server.backend_utils import structure_to_messages
+
+    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] else None, None]
+    for si, system_prompt_to_use in enumerate(system_prompts_to_use):
+        try:
+            messages = structure_to_messages(instruction,
+                                             system_prompt_to_use,
+                                             history)
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            break
+        except Exception as e:
+            if test_only:
+                return ''
+            # try no direct system prompt, but add as conversation history
+            user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
+            history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
+
+            exceptions.append(e)
+            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
+                if verbose:
+                    print("No system prompt supported: %s" % str(e))
+            elif os.getenv('HARD_ASSERTS'):
+                raise
+    assert prompt, "Prompt was not set: %s" % str(exceptions)
+    return prompt
