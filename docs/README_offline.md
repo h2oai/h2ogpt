@@ -10,14 +10,14 @@ To run offline, either do smart or manual way.
 E.g.
 ```bash
 # online do:
-python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096
+python generate.py --base_model=TheBloke/zephyr-7B-beta-GGUF --prompt_type=zephyr --max_seq_len=4096 --add_disk_models_to_ui=False
 # Then use h2oGPT as might normally for any tasks.
 # Once offline do:
-TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 # or:
-TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 # or if choosing in UI do (be sure to choose correct prompt_type too):
-TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 ```
 
 * Manual Download
@@ -29,11 +29,11 @@ TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
 wget https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q5_K_M.gguf?download=true -O llamacpp_path/zephyr-7b-beta.Q5_K_M.gguf
 # Then use normally for any tasks one expects to do offline.
 # Once offline do:
-TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 # or:
-TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=zephyr-7b-beta.Q5_K_M.gguf --prompt_type=zephyr --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 # or if choosing in UI do (be sure to choose correct prompt_type too):
-TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False
+TRANSFORMERS_OFFLINE=1 python generate.py --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 ```
 
 NOTE: If set `--prepare_offline_level=2` for first online call, h2oGPT will get standard models for offline use, but that may be more than you require.  You can tune the code `../src/prepare_offline.py` to get only the models you require.
@@ -55,7 +55,7 @@ If you can run on same (or better) system that will be like that in offline mode
 * `~/.cache/selenium/`
 * `~/nltk_data/`
 ```bash
-python generate.py --score_model=None --gradio_size=small --model_lock="[{'base_model': 'h2oai/h2ogpt-4096-llama2-7b-chat'}]" --save_dir=save_fastup_chat --prepare_offline_level=2
+python generate.py --score_model=None --gradio_size=small --model_lock="[{'base_model': 'h2oai/h2ogpt-4096-llama2-7b-chat'}]" --save_dir=save_fastup_chat --prepare_offline_level=2 --add_disk_models_to_ui=False
 # below are already in docker
 python -m nltk.downloader all
 playwright install --with-deps
@@ -162,7 +162,7 @@ Otherwise, vLLM will try to contact Hugging Face servers.
 
 You can also do same for h2oGPT, but take note that if you pass absolute path for base model, you have to specify the `--prompt_type`.
 ```bash
-python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model='$HOME/.cache/huggingface/hub/models--meta-llama--Llama-2-13b-chat-hf/snapshots/c2f3ec81aac798ae26dcc57799a994dfbf521496' --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --max_seq_len=4096 --max_max_new_tokens=2048 --concurrency_count=64 --batch_size=16 --prompt_type=llama2
+python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model='$HOME/.cache/huggingface/hub/models--meta-llama--Llama-2-13b-chat-hf/snapshots/c2f3ec81aac798ae26dcc57799a994dfbf521496' --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --max_seq_len=4096 --max_max_new_tokens=2048 --concurrency_count=64 --batch_size=16 --prompt_type=llama2 --add_disk_models_to_ui=False
 ```
 
 ### Disable access or port
@@ -187,6 +187,6 @@ This is automatically done if using `linux_install.sh` or `linux_install_full.sh
 
 To avoid h2oGPT monitoring which elements are clicked in UI, set the ENV `H2OGPT_ENABLE_HEAP_ANALYTICS=False` or pass
 ```bash
-python generate.py --enable-heap-analytics=False
+python generate.py --enable-heap-analytics=False ...
 ```
 Note that no data or user inputs are included, only raw svelte UI element IDs and nothing from the user inputs or data.

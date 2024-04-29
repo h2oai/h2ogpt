@@ -6506,6 +6506,9 @@ def get_on_disk_models(llamacpp_path, use_auth_token, trust_remote_code):
                 text_hf_models.append(x)
         except Exception as e:
             print("No loading model %s because %s" % (x, str(e)))
+            if 'Checkout your internet connection' in str(e):
+                # do not continue if no internet
+                break
     print("End auto-detect HF cache text generation models", flush=True)
 
     print("Begin auto-detect llama.cpp models", flush=True)
