@@ -181,7 +181,7 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
                     yield response
                 last_response = response
             job_outputs_num += job_outputs_num_new
-            time.sleep(0.01)
+            time.sleep(0.005)
 
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])

@@ -4079,7 +4079,7 @@ def test_client1_tts_stream(tts_model, base_model):
                 print('Stream %d' % (job_outputs_num + num), flush=True)
             play_audio(res_dict['audio'], sr=sr)
         job_outputs_num += job_outputs_num_new
-        time.sleep(0.01)
+        time.sleep(0.005)
 
     outputs_list = job.outputs().copy()
     job_outputs_num_new = len(outputs_list[job_outputs_num:])

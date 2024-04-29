@@ -91,7 +91,7 @@ class StreamingGradioCallbackHandler(BaseCallbackHandler):
                 value = self.text_queue.get(block=self.block, timeout=self.timeout)
                 break
             except queue.Empty:
-                time.sleep(0.01)
+                time.sleep(0.005)
         if value == self.stop_signal:
             if self.raise_stop:
                 raise StopIteration()

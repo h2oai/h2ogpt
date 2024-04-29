@@ -1119,7 +1119,7 @@ class GradioClient(Client):
                                 actual_llm=actual_llm,
                                 time_to_first_token=time_to_first_token,
                             )
-                        time.sleep(0.01)
+                        time.sleep(0.005)
 
                     # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
                     res_all = job.outputs().copy()
@@ -1373,7 +1373,7 @@ class GradioClient(Client):
                             flush=True,
                         )
                     break
-            time.sleep(0.01)
+            time.sleep(0.005)
         # ensure get last output to avoid race
         res_all = job.outputs().copy()
         success = job.communicator.job.latest_status.success
@@ -1604,5 +1604,5 @@ class GradioClient(Client):
             return res_dict, text0
         if do_yield:
             yield res_dict
-            time.sleep(0.01)
+            time.sleep(0.005)
         return res_dict, text0
