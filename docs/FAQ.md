@@ -60,7 +60,7 @@ and one should at least pass `max_seq_len` as well.  This ensures accurate promp
 
 To use offline, then do:
 ```bash
-python generate.py --base_model=llama --model_path_llama=Meta-Llama-3-8B-Instruct.Q5_K_M.gguf --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192 --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=Meta-Llama-3-8B-Instruct.Q5_K_M.gguf --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192 --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 ```
 which assumes the model was downloaded to default location of `llamacpp_path`.  This works for offline if previously used the earlier command that got the tokenizer.
 
