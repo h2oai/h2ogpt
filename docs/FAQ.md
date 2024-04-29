@@ -58,6 +58,12 @@ python generate.py --base_model=llama --model_path_llama=https://huggingface.co/
 ```
 and one should at least pass `max_seq_len` as well.  This ensures accurate prompting using the Meta chat template.  Note the download link just comes from picking the model in the model card's files section and clicking the up arrow then when the download file link is provided you can right click and copy that link.  HF keep changing how they present the download file, so adapt as required.
 
+To use offline, then do:
+```bash
+python generate.py --base_model=llama --model_path_llama=Meta-Llama-3-8B-Instruct.Q5_K_M.gguf --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192 --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
+```
+which assumes the model was downloaded to default location of `llamacpp_path`.  This works for offline if previously used the earlier command that got the tokenizer.
+
 ### Mixtral AWQ
 
 In our testing, most AWQ Mixtral builds are bad, e.g. `TheBloke/dolphin-2.7-mixtral-8x7b-AWQ` and `TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ`, generating repeats with RAG or no output at all.  We only found one that [works well](https://huggingface.co/casperhansen/mixtral-instruct-awq).  The vLLM options to run are:
