@@ -66,7 +66,7 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
     get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, is_gradio_vision_model, \
-    is_video_model, is_json_model
+    is_video_model, is_json_model, get_llm_history
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, get_local_ip, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
@@ -4748,17 +4748,6 @@ def go_gradio(**kwargs):
             else:
                 return 2000
 
-        def get_llm_history(history):
-            # avoid None users used for sources, errors, etc.
-            if history is None:
-                history = []
-            for ii in range(len(history) - 1, -1, -1):
-                if history[ii] and history[ii][0] is not None:
-                    last_user_ii = ii
-                    history = history[:last_user_ii + 1]
-                    break
-            return history
-
         def prep_bot(*args, retry=False, which_model=0, kwargs_eval=None, plain_api=False):
             """
 
@@ -6045,6 +6034,8 @@ def go_gradio(**kwargs):
             # reasonable default for easy UI/UX even if not optimal
             if 'llama2' in model_name and max_seq_len1 in [-1, None]:
                 max_seq_len1 = 4096
+            elif 'llama3' in model_name and max_seq_len1 in [-1, None]:
+                max_seq_len1 = 8192
             elif 'mistral' in model_name and max_seq_len1 in [-1, None]:
                 max_seq_len1 = 4096
             else:

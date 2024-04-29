@@ -128,10 +128,13 @@ def get_llm_gpt4all(model_name=None,
                     top_p=0.7,
                     streaming=False,
                     callbacks=None,
+                    tokenizer=None,
                     prompter=None,
                     max_time=None,
                     context='',
                     iinput='',
+                    chat_conversation=[],
+                    user_prompt_for_fake_system_prompt=None,
                     n_jobs=None,
                     n_gpus=None,
                     main_gpu=0,
@@ -187,7 +190,10 @@ def get_llm_gpt4all(model_name=None,
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(dict(model_path=model_path, callbacks=callbacks, streaming=streaming,
                                  prompter=prompter, context=context, iinput=iinput,
-                                 n_gpus=n_gpus, max_time=max_time))
+                                 tokenizer=tokenizer,
+                                 chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                                 n_gpus=n_gpus, max_time=max_time, ))
 
         # migration to  new langchain fix:
         odd_keys = ['model_kwargs', 'grammar_path', 'grammar']
@@ -228,7 +234,11 @@ def get_llm_gpt4all(model_name=None,
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='llama', callbacks=callbacks, streaming=streaming,
-                 prompter=prompter, context=context, iinput=iinput))
+                 prompter=prompter, context=context, iinput=iinput,
+                 tokenizer=tokenizer,
+                 chat_conversation=chat_conversation,
+                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                 ))
         llm = cls(**model_kwargs)
         inner_model = llm.client
         inner_tokenizer = FakeTokenizer(model_max_length=max_seq_len)
@@ -250,7 +260,11 @@ def get_llm_gpt4all(model_name=None,
         model_kwargs = get_model_kwargs(llamacpp_dict, default_kwargs, cls, exclude_list=['lc_kwargs'])
         model_kwargs.update(
             dict(model=model_path, backend='gptj', callbacks=callbacks, streaming=streaming,
-                 prompter=prompter, context=context, iinput=iinput))
+                 prompter=prompter, context=context, iinput=iinput,
+                 tokenizer=tokenizer,
+                 chat_conversation=chat_conversation,
+                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                 ))
         llm = cls(**model_kwargs)
         inner_model = llm.client
         inner_tokenizer = FakeTokenizer(model_max_length=max_seq_len)
@@ -264,9 +278,12 @@ def get_llm_gpt4all(model_name=None,
 
 class H2OGPT4All(gpt4all.GPT4All):
     model: Any
+    tokenizer: Any = None
     prompter: Any
     context: Any = ''
     iinput: Any = ''
+    chat_conversation = []
+    user_prompt_for_fake_system_prompt: Any = None
     """Path to the pre-trained GPT4All model file."""
 
     @root_validator()
@@ -320,7 +337,10 @@ class H2OGPT4All(gpt4all.GPT4All):
 
         # use instruct prompting
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
 
         verbose = False
         if verbose:
@@ -339,14 +359,17 @@ from langchain_community.llms import LlamaCpp
 class H2OLlamaCpp(LlamaCpp):
     """Path to the pre-trained GPT4All model file."""
     model_path: Any
+    tokenizer: Any = None
     prompter: Any
     context: Any
     iinput: Any
+    chat_conversation = []
     count_input_tokens: Any = 0
     prompts: Any = []
     count_output_tokens: Any = 0
     n_gpus: Any = -1
     max_time: Any = None
+    user_prompt_for_fake_system_prompt: Any = None
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -420,7 +443,10 @@ class H2OLlamaCpp(LlamaCpp):
 
         # use instruct prompting
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
         self.count_input_tokens += self.get_num_tokens(prompt)
         self.prompts.append(prompt)
         if stop is None:

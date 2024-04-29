@@ -6,7 +6,7 @@ import time
 import pytest
 
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
-from src.gen import apply_chat_template
+from src.prompter import apply_chat_template
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash
 from tests.utils import wrap_test_forked
