@@ -7980,7 +7980,7 @@ def get_chain(query=None,
                           context=context,
                           iinput=iinput,
                           system_prompt=system_prompt)
-        if external_handle_chat_conversation or prompter.prompt_type in ['template', 'unknown']:
+        if external_handle_chat_conversation or prompter.prompt_type in [template_prompt_type, unknown_prompt_type]:
             # should already have attribute, checking sanity
             assert hasattr(llm, 'chat_conversation')
             llm_kwargs.update(chat_conversation=history_to_use_final)
