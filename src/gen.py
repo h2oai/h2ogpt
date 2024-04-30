@@ -98,8 +98,9 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, get_use_chat_template, apply_chat_template
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, apply_chat_template
 from stopping import get_stopping
+from prompter_utils import get_use_chat_template
 
 langchain_actions = [x.value for x in list(LangChainAction)]
 
@@ -3263,12 +3264,12 @@ def get_model(
     if base_model in non_hf_types:
         from gpt4all_llm import get_model_tokenizer_gpt4all
         model, tokenizer_llamacpp, device = get_model_tokenizer_gpt4all(base_model,
-                                                               n_jobs=n_jobs,
-                                                               gpu_id=gpu_id,
-                                                               n_gpus=n_gpus,
-                                                               max_seq_len=max_seq_len,
-                                                               llamacpp_dict=llamacpp_dict,
-                                                               llamacpp_path=llamacpp_path)
+                                                                        n_jobs=n_jobs,
+                                                                        gpu_id=gpu_id,
+                                                                        n_gpus=n_gpus,
+                                                                        max_seq_len=max_seq_len,
+                                                                        llamacpp_dict=llamacpp_dict,
+                                                                        llamacpp_path=llamacpp_path)
         # give chance to use tokenizer_base_model
         if tokenizer is None:
             tokenizer = tokenizer_llamacpp
