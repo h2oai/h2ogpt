@@ -20,7 +20,7 @@ def update_terminate_responses(terminate_response, tokenizer=None):
             elif isinstance(tokenizer.eos_token, list):
                 terminate_response.extend(tokenizer.eos_token)
 
-        if hasattr(tokenizer, 'name_or_path'):
+        if hasattr(tokenizer, 'name_or_path') and hasattr(tokenizer, 'vocab'):
             reverse_vocab = {v: k for k, v in tokenizer.vocab.items()}
             generate_eos_token_id = GenerationConfig.from_pretrained(tokenizer.name_or_path).eos_token_id
             if isinstance(generate_eos_token_id, list):
@@ -179,7 +179,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
     if tokenizer._bos_token:  # use hidden variable to avoid annoying properly logger bug
         stop_words_ids = [x[1:] if x[0] == tokenizer.bos_token_id and len(x) > 1 else x for x in stop_words_ids]
         stop_words_ids = [x[:-1] if x[-1] == tokenizer.bos_token_id and len(x) > 1 else x for x in stop_words_ids]
-    if base_model and t5_type(base_model):
+    if base_model and t5_type(base_model) and hasattr(tokenizer, 'vocab'):
         # T5 encoder converts internal double space to space+new line, so fix
         for stopi, stop_word_id in enumerate(stop_words_ids):
             start = stop_word_id[0:1]
