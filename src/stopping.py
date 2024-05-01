@@ -12,7 +12,7 @@ def update_terminate_responses(terminate_response, tokenizer=None):
         terminate_response = []
     if tokenizer is not None:
         # e.g. for dbrx
-        if '<|im_end|>' in tokenizer.added_tokens_encoder:
+        if hasattr(tokenizer, 'added_tokens_encoder') and '<|im_end|>' in tokenizer.added_tokens_encoder:
             terminate_response.extend(['<|im_end|>'])
         if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
             if isinstance(tokenizer.eos_token, str):
