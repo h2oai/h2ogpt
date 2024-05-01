@@ -1,9 +1,37 @@
 import time
 
 import torch
-from transformers import StoppingCriteria, StoppingCriteriaList
+from transformers import StoppingCriteria, StoppingCriteriaList, GenerationConfig
 
 from enums import PromptType, t5_type
+from src.prompter_utils import get_use_chat_template
+
+
+def update_terminate_responses(terminate_response, tokenizer=None):
+    if terminate_response is None:
+        terminate_response = []
+    if tokenizer is not None:
+        # e.g. for dbrx
+        if '<|im_end|>' in tokenizer.added_tokens_encoder:
+            terminate_response.extend(['<|im_end|>'])
+        if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
+            if isinstance(tokenizer.eos_token, str):
+                terminate_response.extend([tokenizer.eos_token])
+            elif isinstance(tokenizer.eos_token, list):
+                terminate_response.extend(tokenizer.eos_token)
+
+        if hasattr(tokenizer, 'name_or_path'):
+            reverse_vocab = {v: k for k, v in tokenizer.vocab.items()}
+            generate_eos_token_id = GenerationConfig.from_pretrained(tokenizer.name_or_path).eos_token_id
+            if isinstance(generate_eos_token_id, list):
+                for eos_token_id in generate_eos_token_id:
+                    terminate_response.extend([reverse_vocab[eos_token_id]])
+            else:
+                terminate_response.extend([reverse_vocab[generate_eos_token_id]])
+        terminate_response_tmp = terminate_response.copy()
+        terminate_response.clear()
+        [terminate_response.append(x) for x in terminate_response_tmp if x not in terminate_response]
+    return terminate_response
 
 
 class StoppingCriteriaSub(StoppingCriteria):
@@ -132,14 +160,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
         encounters += [1] * len(stop)
         handle_newlines += [False] * len(stop)
 
-    # e.g. for llama-3
-    # https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
-    if '<|eot_id|>' in tokenizer.added_tokens_encoder:
-        stop_words.extend(['<|eot_id|>'])
-    if '<|im_end|>' in tokenizer.added_tokens_encoder:
-        stop_words.extend(['<|im_end|>'])
-    if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
-        stop_words.extend([tokenizer.eos_token])
+    stop_words = update_terminate_responses(stop_words, tokenizer=tokenizer)
 
     # get stop tokens
     stop_words_ids = [

@@ -1,10 +1,13 @@
 import ast
 import time
 import os
+
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
     anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, \
-    unknown_prompt_type, template_prompt_type, user_prompt_for_fake_system_prompt0
+    unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type
+from src.prompter_utils import get_use_chat_template
+from src.stopping import update_terminate_responses
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
@@ -1676,18 +1679,6 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
     return prompt
 
 
-def get_use_chat_template(tokenizer, prompt_type=None):
-    if tokenizer is None:
-        return False
-    use_chat_template = prompt_type in [None, '', unknown_prompt_type, template_prompt_type] and \
-                        (hasattr(tokenizer, 'chat_template') and
-                         tokenizer.chat_template not in [None, ''] or
-                         hasattr(tokenizer, 'default_chat_template') and
-                         tokenizer.default_chat_template not in [None, '']
-                         )
-    return use_chat_template
-
-
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
                  allowed_repeat_line_length=10, system_prompt=None, tokenizer=None, verbose=False):
@@ -1709,20 +1700,11 @@ class Prompter(object):
                        system_prompt=system_prompt)
         self.use_chat_template = False
         self.tokenizer = tokenizer
-        if tokenizer is not None:
-            self.use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
-            if self.use_chat_template:
-                # add terminations
-                if self.terminate_response is None:
-                    self.terminate_response = []
-                # like in stopping.py
-                if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
-                    self.terminate_response.extend([tokenizer.eos_token])
-                if '<|eot_id|>' in tokenizer.added_tokens_encoder:
-                    self.terminate_response.extend(['<|eot_id|>'])
-                if '<|im_end|>' in tokenizer.added_tokens_encoder:
-                    self.terminate_response.extend(['<|im_end|>'])
-
+        if self.terminate_response is None:
+            self.terminate_response = []
+        self.use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
+        self.terminate_response = update_terminate_responses(self.terminate_response,
+                                                             tokenizer=tokenizer)
         self.pre_response = self.PreResponse
         self.verbose = verbose
 
@@ -1743,7 +1725,7 @@ class Prompter(object):
            In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
-        if self.prompt_type in ['template', 'unknown']:
+        if self.prompt_type in [template_prompt_type, unknown_prompt_type]:
             assert self.use_chat_template
             assert self.tokenizer is not None
             from src.gen import apply_chat_template
