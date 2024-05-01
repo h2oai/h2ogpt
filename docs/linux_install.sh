@@ -138,7 +138,17 @@ chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
 # visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
 # E.g.
 sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
-sudo wget https://storage.googleapis.com/chrome-for-testing-public/"$chromeVersion"/linux64/chromedriver-linux64.zip
+
+# Attempt to download matching version of ChromeDriver
+sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
+if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${chromeVersion}/linux64/chromedriver-linux64.zip"; then
+    echo "Failed to download ChromeDriver for version ${chromeVersion}, attempting to download known working version 124.0.6367.91."
+    if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.91/linux64/chromedriver-linux64.zip"; then
+        echo "Failed to download fallback ChromeDriver version 124.0.6367.91."
+        exit 1
+    fi
+fi
+
 sudo unzip -o chromedriver-linux64.zip
 sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
 sudo chown root:root /usr/bin/chromedriver
