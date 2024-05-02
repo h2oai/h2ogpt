@@ -267,7 +267,7 @@ spec:
           {{- end }}
           {{- if .Values.h2ogpt.externalLLM.enabled }}
           - name: H2OGPT_MODEL_LOCK
-            value: {{ toJson .Values.h2ogpt.externalLLM.modelLock | quote }}
+            value: {{ toJson .Values.h2ogpt.externalLLM.modelLock }}
           - name: H2OGPT_SCORE_MODEL
             value: None
           {{- end }}
