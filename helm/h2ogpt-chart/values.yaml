@@ -38,9 +38,18 @@ h2ogpt:
       enabled: false
 
     openAI:
-      enabled: False
+      enabled: false
 
     replicate: 
+      enabled: false
+    
+    mistral:
+      enabled: false
+    
+    google:
+      enabled: false
+
+    anthropic:
       enabled: false
 
 # -- Example configs to use when not using Model Lock and External LLM
