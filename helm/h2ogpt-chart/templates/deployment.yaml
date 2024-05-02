@@ -265,6 +265,27 @@ spec:
                 name: {{ .Values.h2ogpt.externalLLM.secret }}
                 key: REPLICATE_API_TOKEN
           {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.google.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: GOOGLE_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: GOOGLE_API_KEY
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.mistral.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: MISTRAL_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: MISTRAL_API_KEY
+          {{- end }}
+          {{- if and .Values.h2ogpt.externalLLM.anthropic.enabled .Values.h2ogpt.externalLLM.enabled }}
+          - name: ANTHROPIC_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.h2ogpt.externalLLM.secret }}
+                key: ANTHROPIC_API_KEY
+          {{- end }}
           {{- if .Values.h2ogpt.externalLLM.enabled }}
           - name: H2OGPT_MODEL_LOCK
             value: {{ toJson .Values.h2ogpt.externalLLM.modelLock }}
