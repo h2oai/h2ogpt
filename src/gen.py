@@ -3163,7 +3163,10 @@ def get_model(
             #    # FIXME: not all models, only some, so do what can
             #    print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
             tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
-                                      tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2'))
+                                      tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2',
+                                                                              token=use_auth_token,
+                                                                              trust_remote_code=trust_remote_code,
+                                                                              ))
 
         if inference_server.startswith('groq') or base_model in groq_gpts:
             if inference_server.startswith('groq'):
