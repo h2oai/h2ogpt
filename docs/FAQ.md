@@ -1392,6 +1392,74 @@ print(res)
 ```
 or other API endpoints.
 
+### OpenAI Auth access
+
+When auth access is enabled on Gradio server it is enabled for OpenAI proxy server as well.  In that case, if access is closed (`--auth_access=closed`), then one must set the env `H2OGPT_OPENAI_USER` before launching h2oGPT, so that it can know which user and password to use.  For open access a guest or random uuid is used.  The `H2OGPT_OPENAI_USER` should be a string with `user:password` form similar to required when accessing the OpenAI proxy server with OpenAI client.
+
+For OpenAI client access, one uses the `user` parameter and fills it with the `user:password` string for the user and password that is valid for h2oGPT server access.  Example client call for guided json call with authentication:
+```python
+from openai import OpenAI
+
+base_url = 'http://127.0.0.1:5000/v1'
+api_key = '<fill me if API access set for client calls in h2oGPT server>'
+
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+TEST_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "age": {
+            "type": "integer"
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "maxLength": 10
+            },
+            "minItems": 3
+        },
+        "workhistory": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "company": {
+                        "type": "string"
+                    },
+                    "duration": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "type": "string"
+                    }
+                },
+                "required": ["company", "position"]
+            }
+        }
+    },
+    "required": ["name", "age", "skills", "workhistory"]
+}
+
+prompt = "Give an example employee profile."
+
+messages = [{'role': 'user', 'content': prompt}]
+stream = False
+client_kwargs = dict(model='mistralai/Mixtral-8x7B-Instruct-v0.1',
+                     max_tokens=2048, stream=stream, messages=messages,
+                     response_format=dict(type='json_object'),
+                     extra_body=dict(guided_json=TEST_SCHEMA))
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```
+
 ### Google Auth Access
 
 * Go to [Google Console](https://console.cloud.google.com/) and make a project, e.g. h2ogpt
