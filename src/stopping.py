@@ -1,3 +1,4 @@
+import os
 import time
 
 import torch
@@ -7,7 +8,8 @@ from enums import PromptType, t5_type
 from src.prompter_utils import get_use_chat_template
 
 
-def update_terminate_responses(terminate_response, tokenizer=None):
+def update_terminate_responses(terminate_response, tokenizer=None, trust_remote_code=True):
+    # FIXME: make trust_remote_code passed in from above, but generation config should be relatively safe
     if terminate_response is None:
         terminate_response = []
     if tokenizer is not None:
@@ -22,7 +24,11 @@ def update_terminate_responses(terminate_response, tokenizer=None):
 
         if hasattr(tokenizer, 'name_or_path') and hasattr(tokenizer, 'vocab'):
             reverse_vocab = {v: k for k, v in tokenizer.vocab.items()}
-            generate_eos_token_id = GenerationConfig.from_pretrained(tokenizer.name_or_path).eos_token_id
+            generate_eos_token_id = GenerationConfig.from_pretrained(tokenizer.name_or_path,
+                                                                     token=os.getenv('HUGGING_FACE_HUB_TOKEN'),
+                                                                     trust_remote_code=trust_remote_code,
+
+                                                                     ).eos_token_id
             if isinstance(generate_eos_token_id, list):
                 for eos_token_id in generate_eos_token_id:
                     terminate_response.extend([reverse_vocab[eos_token_id]])
