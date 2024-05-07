@@ -7982,7 +7982,7 @@ def get_chain(query=None,
                           system_prompt=system_prompt)
         if external_handle_chat_conversation or prompter.prompt_type in [template_prompt_type, unknown_prompt_type]:
             # should already have attribute, checking sanity
-            assert hasattr(llm, 'chat_conversation')
+            assert hasattr(llm, 'chat_conversation') or isinstance(llm, H2OHuggingFacePipeline)
             llm_kwargs.update(chat_conversation=history_to_use_final)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
             get_llm(**llm_kwargs)
