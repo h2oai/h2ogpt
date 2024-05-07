@@ -6,6 +6,7 @@ import inspect
 import itertools
 import json
 import os
+import platform
 import pprint
 import random
 import shutil
@@ -6832,7 +6833,13 @@ def go_gradio(**kwargs):
             gradio_port = ':'.join(url_split[1:]).split('/')[0]
         h2ogpt_key1 = get_one_key(kwargs['h2ogpt_api_keys'], kwargs['enforce_h2ogpt_api_key'])
         # ensure can reach out
-        openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
+        if platform.system() in ['Darwin', 'Windows']:
+            openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
+        else:
+            if gradio_host not in ['localhost', '127.0.0.1']:
+                openai_host = gradio_host = '0.0.0.0'
+            else:
+                openai_host = gradio_host
         run(wait=False,
             host=openai_host,
             port=kwargs['openai_port'],
