@@ -64,7 +64,16 @@ def get_gradio_client(user=None):
             assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
             auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
         elif guest_name:
-            auth_kwargs = dict(auth=(guest_name, guest_name))
+            if auth_access == 'closed':
+                if os.getenv('H2OGPT_OPENAI_USER'):
+                    user = os.getenv('H2OGPT_OPENAI_USER')
+                    user_split = user.split(':')
+                    assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
+                    auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
+                else:
+                    raise ValueError("If closed access, must set ENV H2OGPT_OPENAI_USER (e.g. as 'user:pass' combination) to login from OpenAI->Gradio with some specific user.")
+            else:
+                auth_kwargs = dict(auth=(guest_name, guest_name))
         elif auth_access == 'open':
             auth_kwargs = dict(auth=(str(uuid.uuid4()), str(uuid.uuid4())))
         else:
