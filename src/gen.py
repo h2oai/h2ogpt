@@ -1500,6 +1500,8 @@ def main(
 
     # allow set token directly
     use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
+    if isinstance(use_auth_token, str) and use_auth_token and 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        os.environ['HUGGING_FACE_HUB_TOKEN'] = use_auth_token
     allow_upload_to_user_data = bool(
         int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
     allow_upload_to_my_data = bool(int(os.environ.get("allow_upload_to_my_data", str(int(allow_upload_to_my_data)))))
@@ -3854,6 +3856,8 @@ def evaluate(
         save_dir=None,
         sanitize_bot_response=False,
         model_state0=None,
+        use_auth_token=None,
+        trust_remote_code=None,
         memory_restriction_level=None,
         max_max_new_tokens=None,
         is_public=None,
@@ -5170,6 +5174,8 @@ def evaluate(
                              remove_invalid_values=True,
                              use_cache=use_cache,
                              max_new_tokens=max_new_tokens,  # unsure if required here
+                             token=use_auth_token,
+                             trust_remote_code=trust_remote_code,
                              )
     if do_sample:
         gen_config_kwargs.update(dict(temperature=float(temperature),

@@ -5151,7 +5151,6 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         if not guided_json:
             assert mydict, "Empty dict"
         else:
-            # zephyr, mistralv0.2, mutate to workHistory
             assert cond1, "Missing keys: %s" % response
             if base_model in vllm_base_models:
                 import jsonschema

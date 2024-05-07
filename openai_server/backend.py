@@ -1,5 +1,6 @@
 import ast
 import os
+import platform
 import time
 import uuid
 from collections import deque
@@ -47,7 +48,10 @@ def get_gradio_client(user=None):
         concurrent_client = False
 
     gradio_prefix = os.getenv('GRADIO_PREFIX', 'http')
-    gradio_host = os.getenv('GRADIO_SERVER_HOST', 'localhost')
+    if platform.system() in ['Darwin', 'Windows']:
+        gradio_host = os.getenv('GRADIO_SERVER_HOST', '127.0.0.1')
+    else:
+        gradio_host = os.getenv('GRADIO_SERVER_HOST', '0.0.0.0')
     gradio_port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     gradio_url = f'{gradio_prefix}://{gradio_host}:{gradio_port}'
 
@@ -60,7 +64,16 @@ def get_gradio_client(user=None):
             assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
             auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
         elif guest_name:
-            auth_kwargs = dict(auth=(guest_name, guest_name))
+            if auth_access == 'closed':
+                if os.getenv('H2OGPT_OPENAI_USER'):
+                    user = os.getenv('H2OGPT_OPENAI_USER')
+                    user_split = user.split(':')
+                    assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
+                    auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
+                else:
+                    raise ValueError("If closed access, must set ENV H2OGPT_OPENAI_USER (e.g. as 'user:pass' combination) to login from OpenAI->Gradio with some specific user.")
+            else:
+                auth_kwargs = dict(auth=(guest_name, guest_name))
         elif auth_access == 'open':
             auth_kwargs = dict(auth=(str(uuid.uuid4()), str(uuid.uuid4())))
         else:
@@ -104,12 +117,32 @@ def get_client(user=None):
         user_split = user.split(':')
         username = user_split[0]
         password = ':'.join(user_split[1:])
-        num_model_lock = client.predict(api_name='/num_model_lock')
+        num_model_lock = int(client.predict(api_name='/num_model_lock'))
         chatbots = [None] * (2 + num_model_lock)
         h2ogpt_key = ''
         visible_models = []
+        side_bar_text = ''
+        doc_count_text = ''
+        submit_buttons_text = ''
+        visible_models_text = ''
+        chat_tab_text = ''
+        doc_selection_tab_text = ''
+        doc_view_tab_text = ''
+        chat_history_tab_text = ''
+        expert_tab_text = ''
+        models_tab_text = ''
+        system_tab_text = ''
+        tos_tab_text = ''
+        login_tab_text = ''
+        hosts_tab_text = ''
         client.predict(None,
                        h2ogpt_key, visible_models,
+
+                       side_bar_text, doc_count_text, submit_buttons_text, visible_models_text,
+                       chat_tab_text, doc_selection_tab_text, doc_view_tab_text, chat_history_tab_text,
+                       expert_tab_text, models_tab_text, system_tab_text, tos_tab_text,
+                       login_tab_text, hosts_tab_text,
+
                        username, password,
                        *tuple(chatbots), api_name='/login')
 
@@ -149,10 +182,10 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
         gen_kwargs['repetition_penalty'] = 0.5 * (gen_kwargs['presence_penalty'] - 0.0) + 1.0
 
-    if gen_kwargs.get('response_format'):
+    if gen_kwargs.get('response_format') and hasattr(gen_kwargs.get('response_format'), 'type'):
         # pydantic ensures type and key
         # transcribe to h2oGPT way of just value
-        gen_kwargs['response_format'] = gen_kwargs.get('response_format')['type']
+        gen_kwargs['response_format'] = gen_kwargs.get('response_format').type
 
     kwargs.update(**gen_kwargs)
 

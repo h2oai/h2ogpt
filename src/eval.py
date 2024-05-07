@@ -127,6 +127,8 @@ def run_eval(  # for local function:
         allow_chat_system_prompt=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
+        use_auth_token=None,
+        trust_remote_code=None,
         score_model_state0=None,
         max_max_new_tokens=None,
         is_public=None,
