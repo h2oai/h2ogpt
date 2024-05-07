@@ -178,7 +178,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                        location=":memory:")
 
     elif db_type in ['chroma', 'chroma_old']:
-        assert persist_directory is not None
+        assert persist_directory, "persist_directory not filled"
         # use_base already handled when making persist_directory, unless was passed into get_db()
         makedirs(persist_directory, exist_ok=True)
 
@@ -9042,7 +9042,9 @@ def _update_user_db(file,
             persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
                                                                       langchain_type=langchain_type)
             langchain_mode_types[langchain_mode] = langchain_type
-            if langchain_mode in dbs and dbs[langchain_mode] is not None:
+            if not persist_directory:
+                raise ValueError("Switch to valid Collection, not %s" % langchain_mode)
+            elif langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
                                                                       use_openai_embedding=use_openai_embedding,
