@@ -6836,7 +6836,7 @@ def go_gradio(**kwargs):
         if platform.system() in ['Darwin', 'Windows']:
             openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
         else:
-            if gradio_host not in ['localhost', '127.0.0.1']:
+            if gradio_host in ['localhost', '127.0.0.1']:
                 openai_host = gradio_host = '0.0.0.0'
             else:
                 openai_host = gradio_host
