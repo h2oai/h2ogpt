@@ -47,7 +47,10 @@ def get_gradio_client(user=None):
         concurrent_client = False
 
     gradio_prefix = os.getenv('GRADIO_PREFIX', 'http')
-    gradio_host = os.getenv('GRADIO_SERVER_HOST', 'localhost')
+    if platform.system() in ['Darwin', 'Windows']:
+        gradio_host = os.getenv('GRADIO_SERVER_HOST', '127.0.0.1')
+    else:
+        gradio_host = os.getenv('GRADIO_SERVER_HOST', '0.0.0.0')
     gradio_port = int(os.getenv('GRADIO_SERVER_PORT', '7860'))
     gradio_url = f'{gradio_prefix}://{gradio_host}:{gradio_port}'
 
@@ -104,12 +107,32 @@ def get_client(user=None):
         user_split = user.split(':')
         username = user_split[0]
         password = ':'.join(user_split[1:])
-        num_model_lock = client.predict(api_name='/num_model_lock')
+        num_model_lock = int(client.predict(api_name='/num_model_lock'))
         chatbots = [None] * (2 + num_model_lock)
         h2ogpt_key = ''
         visible_models = []
+        side_bar_text = ''
+        doc_count_text = ''
+        submit_buttons_text = ''
+        visible_models_text = ''
+        chat_tab_text = ''
+        doc_selection_tab_text = ''
+        doc_view_tab_text = ''
+        chat_history_tab_text = ''
+        expert_tab_text = ''
+        models_tab_text = ''
+        system_tab_text = ''
+        tos_tab_text = ''
+        login_tab_text = ''
+        hosts_tab_text = ''
         client.predict(None,
                        h2ogpt_key, visible_models,
+
+                       side_bar_text, doc_count_text, submit_buttons_text, visible_models_text,
+                       chat_tab_text, doc_selection_tab_text, doc_view_tab_text, chat_history_tab_text,
+                       expert_tab_text, models_tab_text, system_tab_text, tos_tab_text,
+                       login_tab_text, hosts_tab_text,
+
                        username, password,
                        *tuple(chatbots), api_name='/login')
 

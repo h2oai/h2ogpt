@@ -2484,7 +2484,7 @@ def go_gradio(**kwargs):
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     num_lock_button = gr.Button(visible=False)
-                    num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False)
+                    num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False, precision=0)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
                     # WIP
                     if (kwargs['auth'] or kwargs['google_auth']) and is_gradio_h2oai:
@@ -3126,7 +3126,7 @@ def go_gradio(**kwargs):
                                             num_model_lock=len(text_outputs),
                                             pre_authorized=True,
                                             )
-        # get_client() in openai server backend.py needs updating if login_inputs changes
+        # FIXME: get_client() in openai server backend.py needs updating if login_inputs changes
         login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state,
                         model_options_state, lora_options_state, server_options_state,
                         chat_state, langchain_mode,
