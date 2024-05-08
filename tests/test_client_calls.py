@@ -4545,8 +4545,30 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     chatbots = [None] * (2 + num_model_lock)
     h2ogpt_key = ''
     visible_models = []
+
+    side_bar_text = ''
+    doc_count_text = ''
+    submit_buttons_text = ''
+    visible_models_text = ''
+    chat_tab_text = ''
+    doc_selection_tab_text = ''
+    doc_view_tab_text = ''
+    chat_history_tab_text = ''
+    expert_tab_text = ''
+    models_tab_text = ''
+    system_tab_text = ''
+    tos_tab_text = ''
+    login_tab_text = ''
+    hosts_tab_text = ''
+
     gr_client.predict(None,
                       h2ogpt_key, visible_models,
+
+                      side_bar_text, doc_count_text, submit_buttons_text, visible_models_text,
+                      chat_tab_text, doc_selection_tab_text, doc_view_tab_text, chat_history_tab_text,
+                      expert_tab_text, models_tab_text, system_tab_text, tos_tab_text,
+                      login_tab_text, hosts_tab_text,
+
                       username, password,
                       *tuple(chatbots), api_name='/login')
 
