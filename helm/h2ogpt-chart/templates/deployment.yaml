@@ -158,7 +158,7 @@ spec:
             python3 /workspace/generate.py
           {{- end }}
           {{- if not .Values.h2ogpt.stack.enabled }}
-          {{- if and .Values.vllm.enabled }}
+          {{- if .Values.vllm.enabled }}
           args:
           - >
             until wget -O- http://{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}/v1/models >/dev/null 2>&1;
@@ -169,7 +169,7 @@ spec:
               
             python3 /workspace/generate.py
           {{- end }}
-          {{- if and .Values.tgi.enabled }}
+          {{- if .Values.tgi.enabled }}
           args:
           - >
             until wget -O- http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}/ >/dev/null 2>&1;
