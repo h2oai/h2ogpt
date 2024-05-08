@@ -5074,6 +5074,7 @@ def get_test_server_client(base_model):
 
     from gradio_utils.grclient import GradioClient
     client = GradioClient(inference_server, **auth_kwargs)
+    client.setup()
 
     return client, base_models
 
