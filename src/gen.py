@@ -4642,7 +4642,7 @@ def evaluate(
             try:
                 if inf_type in ['vllm', 'vllm_chat']:
                     vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                          response_format=response_format if guided_json else 'text',
+                                                          response_format='json_object' if guided_json else 'text',
                                                           guided_json=guided_json,
                                                           guided_regex=guided_regex,
                                                           guided_choice=guided_choice,

@@ -2149,7 +2149,7 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
-        if self.response_format:
+        if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
         try:
             return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
@@ -2174,7 +2174,7 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
-        if self.response_format:
+        if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
         try:
             return await self.agenerate(
@@ -2606,7 +2606,7 @@ def get_llm(use_openai_model=False,
         vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                               stop_sequences=prompter.stop_sequences if prompter else [],
                                               # repetition_penalty=repetition_penalty,  # could pass
-                                              response_format=response_format if guided_json else 'text',
+                                              response_format='json_object' if guided_json else 'text',
                                               guided_json=guided_json,
                                               guided_regex=guided_regex,
                                               guided_choice=guided_choice,
