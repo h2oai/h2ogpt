@@ -1641,6 +1641,7 @@ from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2
 from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
+from langchain_together import ChatTogether
 
 
 class H2OTextGenOpenAI:
