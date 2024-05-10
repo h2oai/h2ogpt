@@ -44,7 +44,16 @@ Other workarounds:
 
 ## Frequently asked questions
 
-### LLaMa-3
+### Loading forever in UI
+
+Check Chrome developer console.  If you see something like:
+```text
+Failed to load resource: the server responded with a status of 404 (Not Found)
+127.0.0.1/:1 Uncaught (in promise) TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:7860/custom_component/c866d1d814ade494ac522de29fd71dcd/component/index.js
+```
+then need to delete your Chrome cache.
+
+### LLaMa-3 or other chat template based models
 
 LLaMa-3 and other newer models use a HuggingFace chat template to ensure accurate behavior.  So to run the models just do:
 ```bash
