@@ -38,7 +38,7 @@ from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.llms.huggingface_pipeline import VALID_TASKS
-from langchain.llms.utils import enforce_stop_tokens
+from langchain_community.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
@@ -65,7 +65,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
+    get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
     merge_dict, get_docs_tokens, markdown_to_html, is_markdown
@@ -112,7 +112,6 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline
 from langchain_community.vectorstores import Chroma
-from chromamig import ChromaMig
 
 
 def get_context_cast():
@@ -129,7 +128,6 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
            collection_name=None,
            hf_embedding_model=None,
            migrate_embedding_model=False,
-           auto_migrate_db=False,
            n_jobs=-1,
            verbose=False):
     if not sources:
@@ -187,7 +185,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             get_existing_db(None, persist_directory, load_db_if_exists, db_type,
                             use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             verbose=False,
                             n_jobs=n_jobs)
         if db is None:
@@ -197,8 +195,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                 from chromadb.config import Settings
                 settings_extra_kwargs = dict(is_persistent=True)
             else:
-                from chromamigdb.config import Settings
-                settings_extra_kwargs = dict(chroma_db_impl="duckdb+parquet")
+                raise RuntimeError("Migration no longer supported")
             client_settings = Settings(anonymized_telemetry=False,
                                        persist_directory=persist_directory,
                                        **settings_extra_kwargs)
@@ -228,7 +225,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
                     db.persist()
             else:
-                db = ChromaMig.from_documents(documents=sources, **from_kwargs)
+                raise RuntimeError("Migration no longer supported")
             clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
@@ -408,7 +405,7 @@ def add_to_db(db, sources, db_type='faiss',
 def create_or_update_db(db_type, persist_directory, collection_name,
                         user_path, langchain_type,
                         sources, use_openai_embedding, add_if_exists, verbose,
-                        hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                        hf_embedding_model, migrate_embedding_model,
                         n_jobs=-1):
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):
@@ -466,7 +463,6 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                 langchain_mode_types={collection_name: langchain_type},
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
-                auto_migrate_db=auto_migrate_db,
                 n_jobs=n_jobs,
                 verbose=verbose,
                 )
@@ -1641,6 +1637,7 @@ from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2
 from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
+from langchain_together import ChatTogether
 
 
 class H2OTextGenOpenAI:
@@ -2603,15 +2600,18 @@ def get_llm(use_openai_model=False,
 
         kwargs_extra = {}
 
-        vllm_extra_dict = get_vllm_extra_dict(tokenizer,
-                                              stop_sequences=prompter.stop_sequences if prompter else [],
-                                              # repetition_penalty=repetition_penalty,  # could pass
-                                              response_format='json_object' if guided_json else 'text',
-                                              guided_json=guided_json,
-                                              guided_regex=guided_regex,
-                                              guided_choice=guided_choice,
-                                              guided_grammar=guided_grammar,
-                                              )
+        if json_vllm:
+            vllm_extra_dict = get_vllm_extra_dict(tokenizer,
+                                                  stop_sequences=prompter.stop_sequences if prompter else [],
+                                                  # repetition_penalty=repetition_penalty,  # could pass
+                                                  response_format='json_object' if guided_json else 'text',
+                                                  guided_json=guided_json,
+                                                  guided_regex=guided_regex,
+                                                  guided_choice=guided_choice,
+                                                  guided_grammar=guided_grammar,
+                                                  )
+        else:
+            vllm_extra_dict = {}
 
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt,
@@ -4980,7 +4980,6 @@ def prep_langchain(persist_directory,
                    langchain_mode, langchain_mode_paths, langchain_mode_types,
                    hf_embedding_model,
                    migrate_embedding_model,
-                   auto_migrate_db,
                    n_jobs=-1, embedding_gpu_id=0,
                    kwargs_make_db={},
                    verbose=False):
@@ -5005,7 +5004,7 @@ def prep_langchain(persist_directory,
             get_existing_db(None, persist_directory, load_db_if_exists,
                             db_type, use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             n_jobs=n_jobs, embedding_gpu_id=embedding_gpu_id)
     else:
         if db_dir_exists and user_path is not None:
@@ -5068,7 +5067,7 @@ def get_hf_embedding_model_name(hf_embedding_model):
 def check_update_chroma_embedding(db,
                                   db_type,
                                   use_openai_embedding,
-                                  hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                                  hf_embedding_model, migrate_embedding_model,
                                   langchain_mode, langchain_mode_paths, langchain_mode_types,
                                   n_jobs=-1,
                                   verbose=False):
@@ -5099,7 +5098,6 @@ def check_update_chroma_embedding(db,
                     collection_name=None,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     n_jobs=n_jobs,
                     verbose=verbose,
                     )
@@ -5150,7 +5148,6 @@ def get_existing_db(db, persist_directory,
                     langchain_mode, langchain_mode_paths, langchain_mode_types,
                     hf_embedding_model,
                     migrate_embedding_model,
-                    auto_migrate_db=False,
                     verbose=False, check_embedding=True, migrate_meta=True,
                     n_jobs=-1,
                     embedding_gpu_id=0):
@@ -5158,28 +5155,14 @@ def get_existing_db(db, persist_directory,
         if os.path.isfile(os.path.join(persist_directory, 'chroma.sqlite3')):
             must_migrate = False
         elif os.path.isdir(os.path.join(persist_directory, 'index')):
-            must_migrate = True
+            raise RuntimeError("Migration no longer supported")
         else:
             return db, use_openai_embedding, hf_embedding_model
         chroma_settings = dict(is_persistent=True)
         use_chromamigdb = False
         if must_migrate:
-            if auto_migrate_db:
-                print("Detected chromadb<0.4 database, require migration, doing now....", flush=True)
-                from chroma_migrate.import_duckdb import migrate_from_duckdb
-                import chromadb
-                api = chromadb.PersistentClient(path=persist_directory)
-                did_migration = migrate_from_duckdb(api, persist_directory)
-                assert did_migration, "Failed to migrate chroma collection at %s, see https://docs.trychroma.com/migration for CLI tool" % persist_directory
-            elif have_chromamigdb:
-                print(
-                    "Detected chroma<0.4 database but --auto_migrate_db=False, but detected chromamigdb package, so using old database that still requires duckdb",
-                    flush=True)
-                chroma_settings = dict(chroma_db_impl="duckdb+parquet")
-                use_chromamigdb = True
-            else:
-                raise ValueError(
-                    "Detected chromadb<0.4 database, require migration, but did not detect chromamigdb package or did not choose auto_migrate_db=False (see FAQ.md)")
+            raise ValueError(
+                "Detected chromadb<0.4 database, not supported")
 
         if db is None:
             if verbose:
@@ -5203,9 +5186,7 @@ def get_existing_db(db, persist_directory,
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             if use_chromamigdb:
-                from chromamigdb.config import Settings
-                chroma_class = ChromaMig
-                api_kwargs = {}
+                raise RuntimeError("Migration no longer supported")
             else:
                 from chromadb.config import Settings
                 chroma_class = Chroma
@@ -5258,7 +5239,6 @@ def get_existing_db(db, persist_directory,
                                                                  use_openai_embedding,
                                                                  hf_embedding_model,
                                                                  migrate_embedding_model,
-                                                                 auto_migrate_db,
                                                                  langchain_mode,
                                                                  langchain_mode_paths,
                                                                  langchain_mode_types,
@@ -5476,7 +5456,6 @@ def check_persist_directory(persist_directory):
 def _make_db(use_openai_embedding=False,
              hf_embedding_model=None,
              migrate_embedding_model=False,
-             auto_migrate_db=False,
              first_para=False, text_limit=None,
              chunk=True, chunk_size=512,
 
@@ -5534,7 +5513,7 @@ def _make_db(use_openai_embedding=False,
         get_existing_db(db, persist_directory, load_db_if_exists, db_type,
                         use_openai_embedding,
                         langchain_mode, langchain_mode_paths, langchain_mode_types,
-                        hf_embedding_model, migrate_embedding_model, auto_migrate_db, verbose=verbose,
+                        hf_embedding_model, migrate_embedding_model, verbose=verbose,
                         n_jobs=n_jobs)
     if db_trial is not None:
         db = db_trial
@@ -5662,7 +5641,6 @@ def _make_db(use_openai_embedding=False,
                         langchain_mode_types=langchain_mode_types,
                         hf_embedding_model=hf_embedding_model,
                         migrate_embedding_model=migrate_embedding_model,
-                        auto_migrate_db=auto_migrate_db,
                         n_jobs=n_jobs,
                         verbose=verbose)
             if verbose:
@@ -5684,17 +5662,14 @@ def _make_db(use_openai_embedding=False,
 
 
 def is_chroma_db(db):
-    return isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)
+    return isinstance(db, Chroma)
 
 
 def is_new_chroma_db(db):
     if isinstance(db, Chroma):
         return True
-    if isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
-        return False
-    if os.getenv('HARD_ASSERTS'):
-        raise RuntimeError("Shouldn't reach here, unknown db: %s" % str(db))
-    return False
+    else:
+        raise RuntimeError("Migration no longer supported")
 
 
 def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk_id_filter=None,
@@ -5828,7 +5803,7 @@ def _get_documents(db):
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
-    elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
+    elif isinstance(db, Chroma):
         documents = db.get()
         if documents is None:
             documents = dict(documents=[], metadatas=[], ids=[])
@@ -5876,7 +5851,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None,
         db_metadatas += [x.metadata if hasattr(x, 'metadata') else {} for x in text_context_list]
 
     from langchain_community.vectorstores import FAISS
-    if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
+    if isinstance(db, Chroma):
         if top_k_docs == -1:
             limit = k_max
         else:
@@ -6009,7 +5984,6 @@ def _run_qa_db(query=None,
                load_awq='',
                hf_embedding_model=None,
                migrate_embedding_model=False,
-               auto_migrate_db=False,
                stream_output0=False,
                stream_output=False,
                async_output=True,
@@ -7120,7 +7094,6 @@ def get_chain(query=None,
               langchain_only_model=False,
               hf_embedding_model=None,
               migrate_embedding_model=False,
-              auto_migrate_db=False,
               prompter=None,
               prompt_type=None,
               prompt_dict=None,
@@ -7612,7 +7585,6 @@ def get_chain(query=None,
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
                                                         migrate_embedding_model=migrate_embedding_model,
-                                                        auto_migrate_db=auto_migrate_db,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk, chunk_size=chunk_size,
 
@@ -8601,7 +8573,7 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                dbs=None,
                load_db_if_exists=None, db_type=None,
                use_openai_embedding=None,
-               hf_embedding_model=None, migrate_embedding_model=None, auto_migrate_db=None,
+               hf_embedding_model=None, migrate_embedding_model=None,
                for_sources_list=False,
                verbose=False,
                n_jobs=-1,
@@ -8629,7 +8601,7 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
             get_existing_db(db, persist_directory, load_db_if_exists, db_type,
                             use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             verbose=verbose, n_jobs=n_jobs)
         if db is not None:
             # if found db, then stuff into state, so don't have to reload again that takes time
@@ -8652,7 +8624,6 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                 use_openai_embedding=None,
                 hf_embedding_model=None,
                 migrate_embedding_model=None,
-                auto_migrate_db=None,
                 verbose=False,
                 get_userid_auth=None,
                 n_jobs=-1,
@@ -8682,7 +8653,6 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                         use_openai_embedding=use_openai_embedding,
                         hf_embedding_model=hf_embedding_model,
                         migrate_embedding_model=migrate_embedding_model,
-                        auto_migrate_db=auto_migrate_db,
                         for_sources_list=True,
                         verbose=verbose,
                         n_jobs=n_jobs,
@@ -8815,7 +8785,6 @@ def _update_user_db(file,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     migrate_embedding_model=None,
-                    auto_migrate_db=None,
                     verbose=None,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
@@ -8833,7 +8802,6 @@ def _update_user_db(file,
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
-    assert auto_migrate_db is not None
     assert caption_loader is not None
     assert asr_loader is not None
     assert doctr_loader is not None
@@ -9023,7 +8991,6 @@ def _update_user_db(file,
                             langchain_mode_types=langchain_mode_types,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model,
-                            auto_migrate_db=auto_migrate_db,
                             n_jobs=n_jobs,
                             verbose=verbose)
             if db is not None:
@@ -9060,7 +9027,6 @@ def _update_user_db(file,
                             langchain_mode_types=langchain_mode_types,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model,
-                            auto_migrate_db=auto_migrate_db,
                             n_jobs=n_jobs,
                             verbose=verbose)
             dbs[langchain_mode] = db
@@ -9100,7 +9066,6 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                                           use_openai_embedding=None,
                                           hf_embedding_model=None,
                                           migrate_embedding_model=None,
-                                          auto_migrate_db=None,
                                           verbose=False,
                                           get_userid_auth=None,
                                           delete_sources=False,
@@ -9118,7 +9083,6 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -9276,7 +9240,6 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      hf_embedding_model=None,
                                                      use_openai_embedding=None,
                                                      migrate_embedding_model=None,
-                                                     auto_migrate_db=None,
                                                      text_limit=None,
                                                      db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None, get_userid_auth=None):
@@ -9286,7 +9249,6 @@ def update_and_get_source_files_given_langchain_mode(db1s,
     set_userid(db1s, requests_state, get_userid_auth)
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
-    assert auto_migrate_db is not None
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
     langchain_mode_types = selection_docs_state['langchain_mode_types']
     has_path = {k: v for k, v in langchain_mode_paths.items() if v}
@@ -9303,7 +9265,6 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -9315,7 +9276,6 @@ def update_and_get_source_files_given_langchain_mode(db1s,
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
                                                         hf_embedding_model=hf_embedding_model,
                                                         migrate_embedding_model=migrate_embedding_model,
-                                                        auto_migrate_db=auto_migrate_db,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,

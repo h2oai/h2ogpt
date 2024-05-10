@@ -117,7 +117,7 @@ def run_cli(  # for local function:
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None,
-        hf_embedding_model=None, migrate_embedding_model=None, auto_migrate_db=None,
+        hf_embedding_model=None, migrate_embedding_model=None,
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,

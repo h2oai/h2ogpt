@@ -78,7 +78,7 @@ text-generation>=0.6.1
 tiktoken>=0.5.2
 
 # optional: for OpenAI endpoint
-openai>=1.12.0
+openai>=1.27.0
 
 requests>=2.31.0
 httpx>=0.24.1

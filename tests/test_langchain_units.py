@@ -523,7 +523,6 @@ def test_make_add_db(repeat, db_type):
                     kwargs = dict(use_openai_embedding=False,
                                   hf_embedding_model='hkunlp/instructor-large',
                                   migrate_embedding_model=True,
-                                  auto_migrate_db=False,
                                   caption_loader=False,
                                   doctr_loader=False,
                                   asr_loader=False,
@@ -591,7 +590,6 @@ def test_make_add_db(repeat, db_type):
                                    db_type=db_type,
                                    hf_embedding_model=kwargs['hf_embedding_model'],
                                    migrate_embedding_model=kwargs['migrate_embedding_model'],
-                                   auto_migrate_db=kwargs['auto_migrate_db'],
                                    load_db_if_exists=True,
                                    n_jobs=-1, verbose=False)
                     update_and_get_source_files_given_langchain_mode(db1,
@@ -1804,7 +1802,6 @@ def test_chroma_filtering():
     load_db_if_exists1 = True
     use_openai_embedding1 = False
     migrate_embedding_model_or_db1 = False
-    auto_migrate_db1 = False
 
     def get_userid_auth_fake(requests_state1, auth_filename=None, auth_access=None, guest_name=None, **kwargs):
         return str(uuid.uuid4())
@@ -1813,7 +1810,6 @@ def test_chroma_filtering():
                         db_type1=db_type1,
                         use_openai_embedding1=use_openai_embedding1,
                         migrate_embedding_model_or_db1=migrate_embedding_model_or_db1,
-                        auto_migrate_db1=auto_migrate_db1,
                         verbose1=verbose1,
                         get_userid_auth1=get_userid_auth_fake,
                         max_raw_chunks=max_raw_chunks,
@@ -1838,16 +1834,7 @@ def test_chroma_filtering():
             langchain_mode1 = collection_name
             query = 'What is h2oGPT?'
         else:
-            # old, was with chroma < 0.4
-            # has no user_path
-            db, collection_name = make_db_main(download_some=True)
-            from src.gpt_langchain import ChromaMig
-            assert isinstance(db, ChromaMig)
-            assert ChromaMig.__name__ in str(db)
-            query = 'What is whisper?'
-
-            hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-            langchain_mode1 = collection_name
+            raise RuntimeError("Migration no longer supported")
 
         db1s = {langchain_mode1: [None] * length_db1(), mydata_mode1: [None] * length_db1()}
 
