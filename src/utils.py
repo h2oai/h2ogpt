@@ -1155,13 +1155,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     pass
 
-have_chromamigdb = False
-try:
-    assert distribution('chromamigdb') is not None
-    have_chromamigdb = True
-except (PackageNotFoundError, AssertionError):
-    pass
-
 have_serpapi = False
 try:
     assert distribution('google-search-results') is not None

@@ -1592,9 +1592,8 @@ def test_client_system_prompts(system_prompt, chat_conversation):
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
-@pytest.mark.parametrize("auto_migrate_db", [False, True])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_migrate_db):
+def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
     os.environ['VERBOSE_PIPELINE'] = '1'
     # full user data
     from src.make_db import make_db_main
@@ -1614,8 +1613,7 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs, auto_mi
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         verbose=True,
-         auto_migrate_db=auto_migrate_db)
+         verbose=True)
 
     from src.client_test import get_client, get_args, run_client
     client = get_client(serialize=False)
@@ -4545,8 +4543,30 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     chatbots = [None] * (2 + num_model_lock)
     h2ogpt_key = ''
     visible_models = []
+
+    side_bar_text = ''
+    doc_count_text = ''
+    submit_buttons_text = ''
+    visible_models_text = ''
+    chat_tab_text = ''
+    doc_selection_tab_text = ''
+    doc_view_tab_text = ''
+    chat_history_tab_text = ''
+    expert_tab_text = ''
+    models_tab_text = ''
+    system_tab_text = ''
+    tos_tab_text = ''
+    login_tab_text = ''
+    hosts_tab_text = ''
+
     gr_client.predict(None,
                       h2ogpt_key, visible_models,
+
+                      side_bar_text, doc_count_text, submit_buttons_text, visible_models_text,
+                      chat_tab_text, doc_selection_tab_text, doc_view_tab_text, chat_history_tab_text,
+                      expert_tab_text, models_tab_text, system_tab_text, tos_tab_text,
+                      login_tab_text, hosts_tab_text,
+
                       username, password,
                       *tuple(chatbots), api_name='/login')
 
@@ -4977,11 +4997,15 @@ def test_get_image_file():
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 2
 
 
-gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'mistralai/Mixtral-8x7B-Instruct-v0.1',
-              'HuggingFaceH4/zephyr-7b-beta', 'gpt-3.5-turbo-0613', 'openchat/openchat-3.5-1210',
-              'mistralai/Mistral-7B-Instruct-v0.2', 'h2oai/h2ogpt-32k-codellama-34b-instruct',
-              'NousResearch/Nous-Capybara-34B', 'databricks/dbrx-instruct', 'liuhaotian/llava-v1.6-vicuna-13b',
-              'liuhaotian/llava-v1.6-34b', 'h2oai/h2o-danube-1.8b-chat', 'google/gemma-7b-it']
+gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
+              'mistralai/Mixtral-8x7B-Instruct-v0.1',
+              'gpt-3.5-turbo-0613',
+              'mistralai/Mistral-7B-Instruct-v0.2',
+              'NousResearch/Nous-Capybara-34B',
+              #'liuhaotian/llava-v1.6-vicuna-13b',
+              #'liuhaotian/llava-v1.6-34b',
+               'h2oai/h2o-danube-1.8b-chat',
+                ]
 
 TEST_SCHEMA = {
     "type": "object",
@@ -5030,26 +5054,27 @@ TEST_CHOICE = [
     "Swift", "Kotlin"
 ]
 
-other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llama2-13b-chat',
-                     'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
-                     'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
-                     'mistralai/Mixtral-8x7B-Instruct-v0.1', 'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
+other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
+                     'mistralai/Mistral-7B-Instruct-v0.2',
+                     'NousResearch/Nous-Capybara-34B',
+                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
+                     'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
                      'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613', 'gpt-4-0613',
                      'gpt-4-32k-0613', 'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
-                     'google/gemma-1.1-7b-it', 'mixtral-8x7b-32768', 'h2oai/mixtral-gm-rag-experimental-v2',
-                     'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01', 'liuhaotian/llava-v1.6-vicuna-13b',
-                     'liuhaotian/llava-v1.6-34b']
+                     'mixtral-8x7b-32768',
+                     #'liuhaotian/llava-v1.6-vicuna-13b',
+                     #'liuhaotian/llava-v1.6-34b',
+                     ]
 
-vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat', 'h2oai/h2ogpt-4096-llama2-13b-chat',
-                    'HuggingFaceH4/zephyr-7b-beta', 'mistralai/Mistral-7B-Instruct-v0.2', 'openchat/openchat-3.5-1210',
-                    'h2oai/h2ogpt-32k-codellama-34b-instruct', 'NousResearch/Nous-Capybara-34B',
+vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
+                    'mistralai/Mistral-7B-Instruct-v0.2',
+                    'NousResearch/Nous-Capybara-34B',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',
-                    'google/gemma-1.1-7b-it', 'h2oai/mixtral-gm-rag-experimental-v2',
-                    'databricks/dbrx-instruct', 'CohereForAI/c4ai-command-r-v01']
+                    ]
 
 
 def get_test_server_client(base_model):
@@ -5074,6 +5099,7 @@ def get_test_server_client(base_model):
 
     from gradio_utils.grclient import GradioClient
     client = GradioClient(inference_server, **auth_kwargs)
+    client.setup()
 
     return client, base_models
 

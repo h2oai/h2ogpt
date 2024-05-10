@@ -415,7 +415,6 @@ def main(
         use_openai_model: bool = False,
         hf_embedding_model: str = None,
         migrate_embedding_model: str = False,
-        auto_migrate_db: bool = False,
         cut_distance: float = 1.64,
         answer_with_sources: bool = True,
         append_sources_to_answer: bool = False,
@@ -618,12 +617,17 @@ def main(
                               Use: "vllm:https://IP/v1" for OpenAI-compliant vLLM endpoint
                               Use: "vllm_chat:https://IP/v1" for OpenAI-Chat-compliant vLLM endpoint
 
-                              For example, for non-standard URL and API key for vllm, one would do:
+                              For example, for standard URL and API key for vllm, one would do:
+                                 vllm_chat:https://vllm.h2o.ai:None:/v1:1234ABCD
+                                 or for non-standard URL:
                                  vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
                                  where vllm.h2o.ai is the DNS name of the IP, None means no extra port, so will be dropped from base_url when using API, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
                               Or for example:
                                  vllm_chat:https://vllm.h2o.ai:5001:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
+
+                            For together.ai that is OpenAI compliant, use:
+                                vllm_chat:https://api.together.xyz:None:/v1:1234ABCD
 
                               Or for groq, can use OpenAI API like:
                                GROQ IS BROKEN FOR OPENAI API:
@@ -1063,7 +1067,6 @@ def main(
            used to migrate all embeddings to a new one, but will take time to re-embed.
            Default (False) is to use the prior embedding for existing databases, and only use hf_embedding_model for new databases
            If had old database without embedding saved, then hf_embedding_model is also used.
-    :param auto_migrate_db: whether to automatically migrate any chroma<0.4 database from duckdb -> sqlite version
     :param cut_distance: Distance to cut off references with larger distances when showing references.
            1.64 is good to avoid dropping references for all-MiniLM-L6-v2, but instructor-large will always show excessive references.
            For all-MiniLM-L6-v2, a value of 1.5 can push out even more references, or a large value of 100 can avoid any loss of references.
@@ -2063,7 +2066,6 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
-                                    auto_migrate_db,
                                     embedding_gpu_id=embedding_gpu_id,
                                     kwargs_make_db=locals().copy(),
                                     verbose=verbose)
@@ -2370,6 +2372,7 @@ def get_config(base_model,
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e) or \
                     'OSError: You are trying to access a gated repo.' in str(e) or \
+                    'Repository Not Found for url' in str(e) or \
                     'does not appear to have a file' in str(e) or \
                     'ncorrect path_or_model_id' in str(e):
                 # e.g. llama, gpjt, etc.
@@ -3875,7 +3878,6 @@ def evaluate(
         use_openai_model=None,
         hf_embedding_model=None,
         migrate_embedding_model=None,
-        auto_migrate_db=None,
         cut_distance=None,
         db_type=None,
         n_jobs=None,
@@ -3942,7 +3944,6 @@ def evaluate(
     assert use_openai_model is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
-    assert auto_migrate_db is not None
     assert db_type is not None
     assert top_k_docs is not None and isinstance(top_k_docs, int)
     assert chunk is not None and isinstance(chunk, bool)
@@ -4299,7 +4300,6 @@ def evaluate(
                         use_openai_embedding=use_openai_embedding,
                         hf_embedding_model=hf_embedding_model,
                         migrate_embedding_model=migrate_embedding_model,
-                        auto_migrate_db=auto_migrate_db,
                         for_sources_list=True,
                         verbose=verbose,
                         n_jobs=n_jobs,
@@ -4438,7 +4438,6 @@ def evaluate(
                 use_openai_model=use_openai_model,
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
-                auto_migrate_db=auto_migrate_db,
                 first_para=first_para,
                 text_limit=text_limit,
                 sources_show_text_in_accordion=sources_show_text_in_accordion,
@@ -4640,7 +4639,7 @@ def evaluate(
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
             try:
-                if inf_type in ['vllm', 'vllm_chat']:
+                if inf_type in ['vllm', 'vllm_chat'] and chosen_model_state['json_vllm']:
                     vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
                                                           response_format='json_object' if guided_json else 'text',
                                                           guided_json=guided_json,

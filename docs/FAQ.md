@@ -1619,29 +1619,6 @@ python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lm
 
 If the model is Hugging Face-based and already has a `config.json` entry with `rope_scaling` in it, we will use that if you do not pass `--rope_scaling`.
 
-### Migration from Chroma < 0.4 to > 0.4
-
-#### Option 1: Use old Chroma for old DBs
-
-No action is required from the user. By default, h2oGPT will not migrate for old databases. This is managed internally through requirements added in `requirements_optional_langchain.txt`, which adds special wheels for old versions of `chromadb` and `hnswlib`. This ensures smooth migration handling better than `chromadb` itself.
-
-#### Option 2: Automatically Migrate
-
-By default, h2oGPT does not migrate automatically with `--auto_migrate_db=False` for `generate.py`. You can set this to `True` for auto-migration, which may take some time for larger databases.  This will occur on-demand when accessing a database.  This takes about 0.03s per chunk.
-
-#### Option 3: Manually Migrate
-
-You can set `--auto_migrate_db=False` and manually migrate databases by doing the following.
-
-* Install and run migration tool
-  ```
-  pip install chroma-migrate
-  chroma-migrate
-  ```
-* Choose DuckDB
-* Choose "Files I can use ..."
-* Choose your collection path, e.g. `db_dir_UserData` for collection name `UserData`
-
 ### Model Usage Notes
 
 * [amazon/MistralLite](https://huggingface.co/amazon/MistralLite)
