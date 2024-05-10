@@ -37,7 +37,8 @@ google-generativeai==0.5.2
 httpx>=0.25.2
 httpx-sse>=0.3.1
 mistralai==0.1.8
-mistral-common==1.0.2
+# pydantic issue, don't need yet
+#mistral-common==1.0.2
 
 groq==0.5.0
 langchain-groq==0.1.3
