@@ -27,6 +27,7 @@ sentence_transformers>=2.2.2,<2.3.0
 replicate==0.25.2
 anthropic==0.25.8
 langchain-anthropic>=0.1.6
+together==1.1.5
 langchain_together==0.1.1
 langchain-openai==0.1.6
 langchain-google-genai==1.0.3
