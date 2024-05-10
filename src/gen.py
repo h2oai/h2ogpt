@@ -2372,6 +2372,7 @@ def get_config(base_model,
             if 'not a local folder and is not a valid model identifier listed on' in str(
                     e) or '404 Client Error' in str(e) or "couldn't connect" in str(e) or \
                     'OSError: You are trying to access a gated repo.' in str(e) or \
+                    'Repository Not Found for url' in str(e) or \
                     'does not appear to have a file' in str(e) or \
                     'ncorrect path_or_model_id' in str(e):
                 # e.g. llama, gpjt, etc.
