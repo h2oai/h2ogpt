@@ -180,6 +180,11 @@ spec:
               
             python3 /workspace/generate.py
           {{- end }}
+          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled)) }}
+          args:
+          - >
+            python3 /workspace/generate.py
+          {{- end }}
           {{- end }}
           ports:
             - name: http
