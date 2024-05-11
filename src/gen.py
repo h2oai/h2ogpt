@@ -2119,6 +2119,7 @@ def main(
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
                             json_vllm=None,
+                            display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
     my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
@@ -2139,7 +2140,7 @@ def main(
 
     # get score model
     score_model_state0 = dict(model=None, tokenizer=None, device=None,
-                              base_model=None, tokenizer_base_model='', lora_weights='',
+                              base_model=None, display_name=None, tokenizer_base_model='', lora_weights='',
                               inference_server='', prompt_type='', prompt_dict='',
                               visible_models=None, h2ogpt_key=None,
                               reward_model=None)
@@ -2176,6 +2177,7 @@ def main(
     model_list = [dict(base_model=base_model, base_model0=base_model0,
                        tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                        inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                       display_name=base_model,
                        visible_models=None, h2ogpt_key=None)]
     model_list[0].update(other_model_state_defaults)
     # FIXME: hyper per model, not about model loading
@@ -2192,6 +2194,7 @@ def main(
         # handle defaults user didn't have to pass
         # special defaults, ignore defaults for these if not specifically set, replace with ''
         model_dict['base_model'] = model_dict.get('base_model', '')
+        model_dict['display_name'] = model_dict.get('display_name', '')
         model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
         model_dict['lora_weights'] = model_dict.get('lora_weights', '')
         model_dict['inference_server'] = model_dict.get('inference_server', '')
