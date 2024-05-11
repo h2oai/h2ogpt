@@ -85,7 +85,8 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
     is_vision_model, is_gradio_vision_model, is_json_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
-    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file
+    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
+    split_merge_docs
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -3613,6 +3614,9 @@ def file_to_doc(file,
 
                 is_public=False,
                 from_ui=True,
+
+                hf_embedding_model=None,
+                use_openai_embedding=False,
                 ):
     # SOME AUTODETECTION LOGIC FOR URL VS TEXT
 
@@ -3669,7 +3673,9 @@ def file_to_doc(file,
         set_audio_types1 = set_audio_types
 
     assert db_type is not None
-    chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
+    chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type,
+                                      hf_embedding_model=hf_embedding_model, use_openai_embedding=use_openai_embedding,
+                                      verbose=verbose)
     add_meta = functools.partial(_add_meta, headsize=headsize, filei=filei)
     # FIXME: if zip, file index order will not be correct if other files involved
     path_to_docs_func = functools.partial(path_to_docs,
@@ -3723,6 +3729,9 @@ def file_to_doc(file,
 
                                           is_public=is_public,
                                           from_ui=from_ui,
+
+                                          hf_embedding_model=hf_embedding_model,
+                                          use_openai_embedding=use_openai_embedding,
                                           )
 
     if file is None:
@@ -4619,6 +4628,9 @@ def path_to_doc1(file,
 
                  is_public=False,
                  from_ui=True,
+
+                 hf_embedding_model=None,
+                 use_openai_embedding=False,
                  ):
     assert db_type is not None
     if verbose:
@@ -4681,6 +4693,9 @@ def path_to_doc1(file,
                           selected_file_types=selected_file_types,
                           is_public=is_public,
                           from_ui=from_ui,
+
+                          hf_embedding_model=hf_embedding_model,
+                          use_openai_embedding=use_openai_embedding,
                           )
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
@@ -4764,6 +4779,9 @@ def path_to_docs(path_or_paths,
                  selected_file_types=None,
 
                  from_ui=True,
+
+                 use_openai_embedding=False,
+                 hf_embedding_model=None,
                  ):
     if verbose:
         print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
@@ -4906,6 +4924,9 @@ def path_to_docs(path_or_paths,
 
                   is_public=is_public,
                   from_ui=from_ui,
+
+                  hf_embedding_model=hf_embedding_model,
+                  use_openai_embedding=use_openai_embedding,
                   )
 
     if is_public:
@@ -4923,6 +4944,7 @@ def path_to_docs(path_or_paths,
     filei0 = filei
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
+        kwargs['hf_embedding_model'] = None  # can't fork and use CUDA
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
@@ -5520,7 +5542,9 @@ def _make_db(use_openai_embedding=False,
 
     sources = []
     if not db:
-        chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
+        chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type,
+                                          hf_embedding_model=hf_embedding_model,
+                                          use_openai_embedding=use_openai_embedding, verbose=verbose)
         if langchain_mode in ['wiki_full']:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -5602,6 +5626,9 @@ def _make_db(use_openai_embedding=False,
 
                                 is_public=False,
                                 from_ui=True,
+
+                                hf_embedding_model=hf_embedding_model,
+                                use_openai_embedding=use_openai_embedding,
                                 )
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
@@ -6777,168 +6804,6 @@ def _get_docs_with_score(query, k_db,
     return docs_with_score
 
 
-def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
-    if top_k_docs > 0:
-        docs_with_score = docs_with_score[:top_k_docs]
-    elif one_doc_size is not None:
-        docs_with_score = [(docs_with_score[0][:one_doc_size], docs_with_score[0][1])]
-    else:
-        # do nothing
-        pass
-    return docs_with_score
-
-
-class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
-    def __init__(
-            self,
-            separators: Optional[List[str]] = None,
-            keep_separator: bool = True,
-            is_separator_regex: bool = False,
-            **kwargs: Any,
-    ) -> None:
-        """Create a new TextSplitter."""
-        super().__init__(separators=separators, keep_separator=keep_separator, is_separator_regex=is_separator_regex,
-                         **kwargs)
-        self._separators = separators or ["\n\n", "\n", "  ", " ", ""]
-
-    @classmethod
-    def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
-        def _huggingface_tokenizer_length(text: str) -> int:
-            return get_token_count(text, tokenizer, add_special_tokens=False)
-
-        return cls(length_function=_huggingface_tokenizer_length, **kwargs)
-
-
-def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, docs_token_handling=None,
-                     joiner=docs_joiner_default,
-                     non_doc_prompt='',
-                     do_split=True,
-                     do_first_semantic_split=False,
-                     hf_embedding_model=None,
-                     verbose=False):
-    # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
-    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len and is per-llm call
-    if max_input_tokens is not None:
-        max_input_tokens -= get_token_count(non_doc_prompt, tokenizer)
-
-    if docs_token_handling in ['chunk']:
-        return docs_with_score, 0
-    elif docs_token_handling in [None, 'split_or_merge']:
-        assert tokenizer
-        # see if need to split
-        # account for joiner tokens
-        joiner_tokens = get_token_count(joiner, tokenizer)
-        doc_chunk_size = max(64, min(max_input_tokens,
-                                     max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
-
-        if do_first_semantic_split and hf_embedding_model is not None and 'model' in hf_embedding_model:
-            # https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/semantic-chunker/
-            from langchain_experimental.text_splitter import SemanticChunker
-            text_splitter0 = SemanticChunker(hf_embedding_model['model'])
-        else:
-            text_splitter0 = None
-
-        # skip split if not necessary, since expensive for some reason
-        text_splitter1 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
-            separators=[". "],
-        )
-        text_splitter2 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
-        )
-        # https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/recursive_text_splitter/
-        text_splitter3 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
-            separators=[
-                "\n\n",
-                "\n",
-                " ",
-                ".",
-                ",",
-                "\u200b",  # Zero-width space
-                "\uff0c",  # Fullwidth comma
-                "\u3001",  # Ideographic comma
-                "\uff0e",  # Fullwidth full stop
-                "\u3002",  # Ideographic full stop
-                "",
-            ],
-        )
-        text_splitters = dict(semantic=text_splitter0, sentence=text_splitter1, normal=text_splitter2,
-                              multilingual=text_splitter3)
-        text_splitters = {k: v for k, v in text_splitters.items() if v is not None}
-
-        did_split = False
-        for splitter_type, text_splitter in text_splitters.items():
-            tokens_before_split = [get_token_count(x + joiner, tokenizer) for x in
-                                   [x[0].page_content for x in docs_with_score]]
-
-            do_split &= any([x > max_input_tokens for x in tokens_before_split])
-            if not do_split:
-                break
-            did_split = True
-
-            if verbose:
-                print('tokens_before_split=%s' % tokens_before_split, flush=True)
-
-            [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in
-             enumerate(docs_with_score)]
-            docs = [x[0] for x in docs_with_score]
-            # only split those that need to be split, else recursive splitter goes too nuts and takes too long
-            docs_to_split = [x for x in docs if x.metadata['ntokens'] > doc_chunk_size]
-            docs_to_not_split = [x for x in docs if x.metadata['ntokens'] <= doc_chunk_size]
-            docs_split_new = flatten_list([text_splitter.split_documents([x]) for x in docs_to_split])
-            docs_new = docs_to_not_split + docs_split_new
-            doci_new = [x.metadata['doci'] for x in docs_new]
-            # order back by doci
-            docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
-            docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
-
-            if verbose:
-                tokens_after_split = [get_token_count(x + joiner, tokenizer) for x in
-                                      [x[0].page_content for x in docs_with_score]]
-                print('tokens_after_split=%s' % tokens_after_split, flush=True)
-
-            if splitter_type == 'sentence' and len(docs_with_score) > 1:
-                # puts '. ' on next end of chunk, re-attach to end of previous chunk
-                docs_with_score = [
-                    (Document(x[0].page_content[2 if xi > 0 else 0:] + '.', metadata=x[0].metadata), x[1]) for xi, x in
-                    enumerate(docs_with_score)]
-
-        docs_with_score_new = []
-        k = 0
-        while k < len(docs_with_score):
-            # means use max_input_tokens to ensure model gets no more than max_input_tokens each map
-            top_k_docs, one_doc_size, num_doc_tokens = \
-                get_docs_tokens(tokenizer,
-                                text_context_list=[x[0].page_content for x in docs_with_score[k:]],
-                                max_input_tokens=max_input_tokens)
-            docs_with_score1 = select_docs_with_score(docs_with_score[k:], top_k_docs, one_doc_size)
-            new_score = docs_with_score1[0][1]
-            new_page_content = joiner.join([x[0].page_content for x in docs_with_score1])
-            new_metadata = docs_with_score1[0][0].metadata.copy()
-            new_metadata['source'] = joiner.join(set([x[0].metadata['source'] for x in docs_with_score1]))
-            doc1 = Document(page_content=new_page_content, metadata=new_metadata)
-            docs_with_score_new.append((doc1, new_score))
-
-            if did_split:
-                assert one_doc_size is None, "Split failed: %s" % one_doc_size
-            elif one_doc_size is not None:
-                # chopped
-                assert top_k_docs == 1
-            assert top_k_docs >= 1
-            k += top_k_docs
-
-        tokens_after_merge = [get_token_count(x + joiner, tokenizer) for x in
-                              [x[0].page_content for x in docs_with_score_new]]
-        if verbose:
-            print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
-
-        max_tokens_after_merge = max(tokens_after_merge) if tokens_after_merge else 0
-        return docs_with_score_new, max_tokens_after_merge
-    else:
-        raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
-
-
 def get_single_document(document_choice, db, extension=None):
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -8060,13 +7925,6 @@ def get_chain(query=None,
                                            # nothing, just getting base amount for each call
                                            )
 
-        # group docs if desired/can to fill context to avoid multiple LLM calls or too large chunks
-        # only do first semantic split if have GPU
-        if 'model' in hf_embedding_model and not use_openai_embedding and hasattr(hf_embedding_model['model'],
-                                                                                  'model_kwargs'):
-            do_first_semantic_split = hf_embedding_model['model'].model_kwargs.get('device') not in ['cpu']
-        else:
-            do_first_semantic_split = False
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
@@ -8074,7 +7932,6 @@ def get_chain(query=None,
                                                            joiner=docs_joiner if not doing_grounding else "Document xx",
                                                            non_doc_prompt=estimated_full_prompt,
                                                            hf_embedding_model=hf_embedding_model,
-                                                           do_first_semantic_split=do_first_semantic_split,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
         if top_k_docs > 0:
@@ -9016,6 +8873,9 @@ def _update_user_db(file,
 
                            is_public=is_public,
                            from_ui=from_ui,
+
+                           use_openai_embedding=use_openai_embedding,
+                           hf_embedding_model=hf_embedding_model,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
