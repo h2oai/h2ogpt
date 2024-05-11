@@ -5,11 +5,12 @@ import time
 
 import pytest
 
+from tests.utils import wrap_test_forked
+from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
+    is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
+    deduplicate_names
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
-from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
-    is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash
-from tests.utils import wrap_test_forked
 import subprocess as sp
 
 
@@ -192,6 +193,7 @@ def check_gradio():
     assert gr.__h2oai__
 
 
+@wrap_test_forked
 def test_is_uuid4():
     # Example usage:
     test_strings = [
@@ -209,6 +211,7 @@ def test_is_uuid4():
     assert [is_uuid4(s) for s in test_strings] == [True, False, False, False]
 
 
+@wrap_test_forked
 def test_is_git_hash():
     # Example usage:
     hashes = ["1a3b5c7d9e1a3b5c7d9e1a3b5c7d9e1a3b5c7d9e", "1G3b5c7d9e1a3b5c7d9e1a3b5c7d9e1a3b5c7d9e", "1a3b5c7d"]
@@ -216,6 +219,7 @@ def test_is_git_hash():
     assert [is_full_git_hash(h) for h in hashes] == [True, False, False]
 
 
+@wrap_test_forked
 def test_chat_template():
     instruction = "Who are you?"
     system_prompt = "Be kind"
@@ -239,6 +243,7 @@ def test_chat_template():
         assert history_to_use[0][1] in prompt
 
 
+@wrap_test_forked
 def test_partial_codeblock():
     json.dumps(invalid_json_str)
 
@@ -409,6 +414,7 @@ Note that the `work history` array contains two objects, each with a `company`, 
     assert extracted_content == """{\n \"name\": \"John Doe\",\n \"email\": \"john.doe@example.com\",\n \"jobTitle\": \"Software Developer\",\n \"department\": \"Technology\",\n \"hireDate\": \"2020-01-01\",\n \"employeeId\": 123456,\n \"manager\": {\n \"name\": \"Jane Smith\",\n \"email\": \"jane.smith@example.com\",\n \"jobTitle\": \"Senior Software Developer\"\n },\n \"skills\": [\n \"Java\",\n \"Python\",\n \"JavaScript\",\n \"React\",\n \"Spring\"\n ],\n \"education\": {\n \"degree\": \"Bachelor's Degree\",\n \"field\": \"Computer Science\",\n \"institution\": \"Example University\",\n \"graduationYear\": 2018\n },\n \"awards\": [\n {\n \"awardName\": \"Best Developer of the Year\",\n \"year\": 2021\n },\n {\n \"awardName\": \"Most Valuable Team Player\",\n \"year\": 2020\n }\n ],\n \"performanceRatings\": {\n \"communication\": 4.5,\n \"teamwork\": 4.8,\n \"creativity\": 4.2,\n \"problem-solving\": 4.6,\n \"technical skills\": 4.7\n }\n}"""
 
 
+@wrap_test_forked
 def test_repair_json():
     a = """{
     "Supplementary Leverage Ratio": [7.0, 5.8, 5.7],
@@ -455,3 +461,10 @@ def test_repair_json():
         assert tdelta < 0.005, "Too slow: %s" % tdelta
         print("%s : %s : %s" % (i, tdelta, good_json_string))
         json.loads(good_json_string)
+
+
+@wrap_test_forked
+def test_dedup():
+    # Example usage:
+    names_list = ['Alice', 'Bob', 'Alice', 'Charlie', 'Bob', 'Alice']
+    assert deduplicate_names(names_list) == ['Alice', 'Bob', 'Alice_1', 'Charlie', 'Bob_1', 'Alice_2']

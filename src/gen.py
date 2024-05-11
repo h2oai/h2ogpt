@@ -83,7 +83,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     url_alive, have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
     have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, is_gradio_version4, get_json, is_json_vllm, \
-    get_docs_tokens
+    get_docs_tokens, deduplicate_names
 
 start_faulthandler()
 import_matplotlib()
@@ -2304,12 +2304,15 @@ def main(
         assert len(model_state_none) == len(model_state0)
 
     visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
-    all_possible_visible_models = [
+    all_possible_display_names = [
         x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
                                    not x.get('llamacpp_dict').get('model_path_llama', '')
         else x.get('llamacpp_dict').get('model_path_llama', '')
         for xi, x in enumerate(model_states)]
-    visible_models_state0 = [x for xi, x in enumerate(all_possible_visible_models) if
+    display_names = deduplicate_names([x for x in all_possible_display_names])
+    all_possible_display_names = display_names
+    [x.update(dict(display_name=display_names[xi])) for xi, x in enumerate(model_states)]
+    visible_models_state0 = [x for xi, x in enumerate(all_possible_display_names) if
                              visible_models is None or
                              x in visible_models or
                              xi in visible_models]
