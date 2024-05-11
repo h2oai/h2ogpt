@@ -4074,6 +4074,7 @@ def evaluate(
     tokenizer = chosen_model_state['tokenizer']
     device = chosen_model_state['device']
     base_model = chosen_model_state['base_model']
+    display_name = chosen_model_state['display_name']
     tokenizer_base_model = chosen_model_state['tokenizer_base_model']
     lora_weights = chosen_model_state['lora_weights']
     inference_server = chosen_model_state['inference_server']
@@ -4350,6 +4351,7 @@ def evaluate(
                           )
     extra_dict = gen_hyper_dict.copy()
     extra_dict.update(dict(base_model=base_model,
+                           display_name=display_name,
                            prompt_type=prompt_type,
                            inference_server=inference_server,
                            langchain_mode=langchain_mode,
@@ -4369,7 +4371,7 @@ def evaluate(
                            tokens_persecond=None,
                            llamacpp_dict=llamacpp_dict,
                            ))
-    save_dict = dict(base_model=base_model, save_dir=save_dir, extra_dict=extra_dict)
+    save_dict = dict(base_model=base_model, display_name=display_name, save_dir=save_dir, extra_dict=extra_dict)
 
     if do_langchain_path:
         text = ''

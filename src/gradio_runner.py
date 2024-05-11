@@ -892,6 +892,7 @@ def go_gradio(**kwargs):
         model_state = gr.State(
             value=dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
                        base_model=kwargs['base_model'],
+                       display_name=kwargs['base_model'],
                        tokenizer_base_model=kwargs['tokenizer_base_model'],
                        lora_weights=kwargs['lora_weights'],
                        inference_server=kwargs['inference_server'],
@@ -6065,7 +6066,9 @@ def go_gradio(**kwargs):
                                               context='', reduced=False, making_context=False,
                                               return_dict=True, system_prompt=system_prompt1)
             model_state_new = dict(model=model1, tokenizer=tokenizer1, device=device1,
-                                   base_model=model_name, tokenizer_base_model=tokenizer_base_model,
+                                   base_model=model_name,
+                                   display_name=model_name,
+                                   tokenizer_base_model=tokenizer_base_model,
                                    lora_weights=lora_weights, inference_server=server_name,
                                    prompt_type=prompt_type1, prompt_dict=prompt_dict1,
                                    # FIXME: not typically required, unless want to expose adding h2ogpt endpoint in UI
@@ -6386,7 +6389,7 @@ def go_gradio(**kwargs):
                                               )
 
         def get_model_names():
-            key_list = ['base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())
+            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
             if len(model_states) >= 1:
