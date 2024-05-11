@@ -7720,8 +7720,6 @@ def get_chain(query=None,
                                                            text_context_list=text_context_list,
                                                            chunk_id_filter=chunk_id_filter)
 
-        if top_k_docs == -1:
-            top_k_docs = len(db_documents)
         # similar to langchain's chroma's _results_to_docs_and_scores
         docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                            for result in zip(db_documents, db_metadatas)]
@@ -7754,7 +7752,8 @@ def get_chain(query=None,
                                     ]
         docs_with_score = docs_with_score2
 
-        docs_with_score = docs_with_score[:top_k_docs]
+        top_k_docs_sample = len(db_documents) if top_k_docs == -1 else top_k_docs
+        docs_with_score = docs_with_score[:top_k_docs_sample]
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
     else:
@@ -7883,15 +7882,16 @@ def get_chain(query=None,
             get_llm(**llm_kwargs)
 
         # avoid craziness
+        top_k_docs_sample = len(docs_with_score) if top_k_docs == -1 else top_k_docs
         if 0 < top_k_docs_trial < max_chunks:
             # avoid craziness
             if top_k_docs == -1:
-                top_k_docs = top_k_docs_trial
+                top_k_docs_sample = top_k_docs_trial
             else:
-                top_k_docs = min(top_k_docs, top_k_docs_trial)
+                top_k_docs_sample = min(top_k_docs, top_k_docs_trial)
         elif top_k_docs_trial >= max_chunks:
-            top_k_docs = max_chunks
-        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+            top_k_docs_sample = max_chunks
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs_sample, one_doc_size)
     else:
         # don't reduce, except listen to top_k_docs and max_total_input_tokens
         one_doc_size = None
