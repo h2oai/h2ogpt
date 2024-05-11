@@ -2410,3 +2410,25 @@ def get_limited_text(hard_limit_tokens, text, tokenizer, verbose=False):
         print("steps: %s ntokens0: %s/%s text0: %s ntokens: %s/%s text: %s" % (
             steps, ntokens0, hard_limit_tokens, len(text), ntokens, hard_limit_tokens, len(best_guess)))
     return best_guess
+
+
+def deduplicate_names(names):
+    # Dictionary to hold the counts of each name
+    name_counts = {}
+    # List to store the final results
+    deduplicated_names = []
+
+    for name in names:
+        # Check if the name already exists in the dictionary
+        if name in name_counts:
+            # Increment the count for this name
+            name_counts[name] += 1
+            # Append the new name with the count as a suffix
+            deduplicated_names.append(f"{name}_{name_counts[name]}")
+        else:
+            # Add the name to the dictionary with a count of 0
+            name_counts[name] = 0
+            # Append the name as it is the first occurrence
+            deduplicated_names.append(name)
+
+    return deduplicated_names

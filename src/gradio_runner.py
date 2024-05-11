@@ -552,18 +552,14 @@ def go_gradio(**kwargs):
             model_active_choice1 = visible_models1
         if model_active_choice1 is not None:
             if isinstance(model_active_choice1, str):
-                base_model_list = [
-                    x['base_model'] if x['base_model'] != 'llama' or not x.get("llamacpp_dict", {}).get(
-                        'model_path_llama', '') else x.get("llamacpp_dict", {})[
-                        'model_path_llama'] for x in model_states]
-                if model_active_choice1 in base_model_list:
-                    # if dups, will just be first one
-                    model_active_choice1 = base_model_list.index(model_active_choice1)
+                display_model_list = [x['display_name'] for x in model_states]
+                if model_active_choice1 in display_model_list:
+                    model_active_choice1 = display_model_list.index(model_active_choice1)
                 else:
                     # NOTE: Could raise, but sometimes raising in certain places fails too hard and requires UI restart
                     if api:
                         raise ValueError(
-                            "Invalid model %s, valid models are: %s" % (model_active_choice1, base_model_list))
+                            "Invalid model %s, valid models are: %s" % (model_active_choice1, display_model_list))
                     model_active_choice1 = 0
         else:
             model_active_choice1 = 0
@@ -1320,7 +1316,7 @@ def go_gradio(**kwargs):
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
                             with gr.Row(visible=not kwargs['actions_in_sidebar'] or visible_model_choice):
-                                visible_models = gr.Dropdown(kwargs['all_possible_visible_models'],
+                                visible_models = gr.Dropdown(kwargs['all_possible_display_names'],
                                                              label="Visible Models",
                                                              value=visible_models_state0,
                                                              interactive=True,
@@ -1328,7 +1324,7 @@ def go_gradio(**kwargs):
                                                              visible=visible_model_choice,
                                                              elem_id="multi-selection-models" if kwargs[
                                                                                                      'max_visible_models'] is None or is_gradio_h2oai else None,
-                                                             filterable=len(kwargs['all_possible_visible_models']) > 5,
+                                                             filterable=len(kwargs['all_possible_display_names']) > 5,
                                                              max_choices=kwargs['max_visible_models'],
                                                              )
                                 if not image_tab_visible:
@@ -3473,9 +3469,9 @@ def go_gradio(**kwargs):
         h2ogpt_key.blur(**save_auth_kwargs)
         h2ogpt_key.submit(**save_auth_kwargs)
 
-        def get_model_lock_visible_list(visible_models1, all_possible_visible_models):
+        def get_model_lock_visible_list(visible_models1, all_possible_display_names):
             visible_list = []
-            for modeli, model in enumerate(all_possible_visible_models):
+            for modeli, model in enumerate(all_possible_display_names):
                 if visible_models1 is None or \
                         isinstance(model, str) and model in visible_models1 or \
                         isinstance(modeli, int) and modeli in visible_models1:
@@ -3485,7 +3481,7 @@ def go_gradio(**kwargs):
             return visible_list
 
         def set_visible_models(visible_models1, compare_checkbox1, visible_models_text1, num_model_lock=0,
-                               all_possible_visible_models=None):
+                               all_possible_display_names=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
                 ret_list = [gr.update(visible=True)] * num_model_lock
@@ -3494,10 +3490,10 @@ def go_gradio(**kwargs):
                 # in case switched from lock to not
                 visible_models_text1 = 'off'
             else:
-                assert isinstance(all_possible_visible_models, list)
-                assert num_model_lock == len(all_possible_visible_models)
+                assert isinstance(all_possible_display_names, list)
+                assert num_model_lock == len(all_possible_display_names)
                 visible_list = [False, False] + get_model_lock_visible_list(visible_models1,
-                                                                            all_possible_visible_models)
+                                                                            all_possible_display_names)
                 ret_list = [gr.update(visible=x) for x in visible_list]
             ret_list.insert(0, visible_models_text1)
             ret_list.insert(0, gr.update(visible=visible_models_text1 == 'on'))
@@ -3505,7 +3501,7 @@ def go_gradio(**kwargs):
 
         visible_models_func = functools.partial(set_visible_models,
                                                 num_model_lock=len(text_outputs),
-                                                all_possible_visible_models=kwargs['all_possible_visible_models'])
+                                                all_possible_display_names=kwargs['all_possible_display_names'])
         visible_models.change(fn=visible_models_func,
                               inputs=[visible_models, compare_checkbox, visible_models_text],
                               outputs=[visible_models, visible_models_text, text_output, text_output2] + text_outputs,
@@ -3899,7 +3895,7 @@ def go_gradio(**kwargs):
 
             def update_chatbots(*args,
                                 num_model_lock=0,
-                                all_possible_visible_models=None,
+                                all_possible_display_names=None,
                                 for_errors=False,
                                 gradio_errors_to_chatbot=False):
                 args_list = list(args)
@@ -3923,12 +3919,12 @@ def go_gradio(**kwargs):
                 if num_model_lock > 0:
                     visible_models1 = args_list[3]
                     assert isinstance(visible_models1, list)
-                    assert isinstance(all_possible_visible_models, list)
-                    visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+                    assert isinstance(all_possible_display_names, list)
+                    visible_list = get_model_lock_visible_list(visible_models1, all_possible_display_names)
                     visible_list = [False, False] + visible_list
 
                     history_list = args_list[-num_model_lock - 2:]
-                    assert len(all_possible_visible_models) + 2 == len(history_list)
+                    assert len(all_possible_display_names) + 2 == len(history_list)
                 else:
                     visible_list = [True, compare_checkbox1]
                     history_list = args_list[-num_model_lock - 2:]
@@ -3947,7 +3943,7 @@ def go_gradio(**kwargs):
 
             update_chatbots_func = functools.partial(update_chatbots,
                                                      num_model_lock=len(text_outputs),
-                                                     all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                     all_possible_display_names=kwargs['all_possible_display_names']
                                                      )
             update_chatbots_kwargs = dict(fn=update_chatbots_func,
                                           inputs=[gradio_upload_to_chatbot,
@@ -3960,8 +3956,8 @@ def go_gradio(**kwargs):
 
             update_chatbots_errors_func = functools.partial(update_chatbots,
                                                             num_model_lock=len(text_outputs),
-                                                            all_possible_visible_models=kwargs[
-                                                                'all_possible_visible_models'],
+                                                            all_possible_display_names=kwargs[
+                                                                'all_possible_display_names'],
                                                             for_errors=True,
                                                             gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'],
                                                             )
@@ -4703,15 +4699,15 @@ def go_gradio(**kwargs):
             return update_history(*args, undo=undo, retry=retry, sanitize_user_prompt=sanitize_user_prompt)
 
         def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0,
-                     all_possible_visible_models=None):
+                     all_possible_display_names=None):
             args_list = list(args)
 
             visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-            assert isinstance(all_possible_visible_models, list)
-            visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+            assert isinstance(all_possible_display_names, list)
+            visible_list = get_model_lock_visible_list(visible_models1, all_possible_display_names)
 
             history_list = args_list[-num_model_lock:]
-            assert len(all_possible_visible_models) == len(history_list)
+            assert len(all_possible_display_names) == len(history_list)
             assert len(history_list) > 0, "Bad history list: %s" % history_list
             for hi, history in enumerate(history_list):
                 if not visible_list[hi]:
@@ -5127,7 +5123,7 @@ def go_gradio(**kwargs):
             save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
-        def all_bot(*args, retry=False, model_states1=None, all_possible_visible_models=None):
+        def all_bot(*args, retry=False, model_states1=None, all_possible_display_names=None):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
@@ -5137,9 +5133,9 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
 
             visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-            assert isinstance(all_possible_visible_models, list)
-            assert len(all_possible_visible_models) == len(model_states1)
-            visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+            assert isinstance(all_possible_display_names, list)
+            assert len(all_possible_display_names) == len(model_states1)
+            visible_list = get_model_lock_visible_list(visible_models1, all_possible_display_names)
 
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
 
@@ -5344,7 +5340,7 @@ def go_gradio(**kwargs):
 
             # save
             for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts,
-                                                             all_possible_visible_models):
+                                                             all_possible_display_names):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 if requests_state1:
@@ -5415,20 +5411,20 @@ def go_gradio(**kwargs):
         all_user_args = dict(fn=functools.partial(all_user,
                                                   sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                   num_model_lock=len(text_outputs),
-                                                  all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                  all_possible_display_names=kwargs['all_possible_display_names']
                                                   ),
                              inputs=inputs_list + text_outputs,
                              outputs=text_outputs,
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
-                                                 all_possible_visible_models=kwargs['all_possible_visible_models']),
+                                                 all_possible_display_names=kwargs['all_possible_display_names']),
                             inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, roles_state] +
                                    text_outputs,
                             outputs=text_outputs + [chat_exception_text, speech_bot],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
-                                                       all_possible_visible_models=kwargs[
-                                                           'all_possible_visible_models'],
+                                                       all_possible_display_names=kwargs[
+                                                           'all_possible_display_names'],
                                                        retry=True),
                                   inputs=inputs_list + [my_db_state, selection_docs_state, requests_state,
                                                         roles_state] +
@@ -5438,8 +5434,8 @@ def go_gradio(**kwargs):
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
                                                         sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                         num_model_lock=len(text_outputs),
-                                                        all_possible_visible_models=kwargs[
-                                                            'all_possible_visible_models']
+                                                        all_possible_display_names=kwargs[
+                                                            'all_possible_display_names']
                                                         ),
                                    inputs=inputs_list + text_outputs,
                                    outputs=text_outputs,
@@ -5447,7 +5443,7 @@ def go_gradio(**kwargs):
         all_undo_user_args = dict(fn=functools.partial(all_user, undo=True,
                                                        sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                        num_model_lock=len(text_outputs),
-                                                       all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                       all_possible_display_names=kwargs['all_possible_display_names']
                                                        ),
                                   inputs=inputs_list + text_outputs,
                                   outputs=text_outputs,

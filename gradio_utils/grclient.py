@@ -90,7 +90,7 @@ pre_prompt_query0 = "Pay attention and remember the information below, which wil
 prompt_query0 = "According to only the information in the document sources provided within the context above: "
 
 pre_prompt_summary0 = """"""
-prompt_summary0 = "Using only the information in the document sources above, write a condensed and concise summary of key results (preferably as bullet points)."
+prompt_summary0 = "Using only the information in the document sources above, write a condensed and concise well-structured Markdown summary of key results."
 
 pre_prompt_extraction0 = (
     """In order to extract information, pay attention to the following text."""
