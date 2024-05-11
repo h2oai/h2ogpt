@@ -7018,7 +7018,8 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            content = f"```text\n{content}\n```"
+            #content = f"```text\n{content}\n```"
+            content = text_to_html(content, api=api)
             return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret

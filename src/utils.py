@@ -1698,6 +1698,12 @@ def dict_to_html(x, small=True, api=False):
             return res
 
 
+def split_into_sentences(text):
+    # Split text by specified punctuation followed by space or end of text
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    return sentences
+
+
 def text_to_html(x, api=False):
     if api:
         return x
@@ -1711,11 +1717,11 @@ def text_to_html(x, api=False):
         white-space: -o-pre-wrap;
         word-wrap: break-word;
       }
-    </style>
+</style>
 <pre>
 %s
 </pre>
-""" % x
+""" % '<br>'.join(split_into_sentences(x))
 
 
 def lg_to_gr(
