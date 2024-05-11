@@ -1703,6 +1703,8 @@ class H2OTextGenOpenAI:
 
         llm_output = {"token_usage": token_usage, "model_name": self.model_name}
         self.count_output_tokens += token_usage.get('completion_tokens', 0)
+        if self.count_output_tokens == 0:
+            self.count_output_tokens += sum([self.get_num_tokens(x[0].text) for x in generations if len(x) > 0])
         return LLMResult(generations=generations, llm_output=llm_output)
 
     def _generate(
@@ -8463,11 +8465,11 @@ def get_sources_answer(query, docs, answer,
                 answer_sources)
         if verbose or True:
             if t_run is not None and int(t_run) > 0:
-                sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
+                sorted_sources_urls += 'Total Time: %d [s]<br>' % t_run
             if count_input_tokens and count_output_tokens:
-                sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
+                sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<br>' % (
                     count_input_tokens, count_output_tokens)
-        sorted_sources_urls += "Total document chunks used: %s<p>" % len(docs)
+        sorted_sources_urls += "Total document chunks used: %s<br>" % len(docs)
         sorted_sources_urls += f"<font size=\"{font_size}\"></ul></p>{source_postfix}</font>"
         title_overall = "Sources"
         sorted_sources_urls = f"""<details><summary><font size="{font_size}">{title_overall}</font></summary><font size="{font_size}">{sorted_sources_urls}</font></details>"""
