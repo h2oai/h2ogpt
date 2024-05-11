@@ -167,7 +167,8 @@ class LangChainAgent(Enum):
 
 no_server_str = no_lora_str = no_model_str = '[]'
 
-# from site-packages/langchain/llms/openai.py
+# from:
+# /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/langchain_community/llms/openai.py
 # but needed since ChatOpenAI doesn't have this information
 gpt_token_mapping = {
     "gpt-4": 8192,
@@ -186,6 +187,7 @@ gpt_token_mapping = {
     "gpt-35-turbo-1106": 16385,  # 4096 output
     "gpt-4-vision-preview": 128000,  # 4096 output
     "gpt-4-1106-vision-preview": 128000,  # 4096 output
+    "gpt-4-turbo-2024-04-09":  128000,  # 4096 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -299,9 +301,9 @@ mistralai_mapping_outputs = {
 }
 
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
-                                 "gpt-4-1106-preview", "gpt-35-turbo-1106"]
+                                 "gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09"]
 
-openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106"]
+openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09"]
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
@@ -309,6 +311,7 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
                                     "gpt-35-turbo-1106": 4096,
                                     "gpt-4-vision-preview": 4096,
                                     "gpt-4-1106-vision-preview": 4096,
+                                    "gpt-4-turbo-2024-04-09":  4096,
                                     }
                                    )
 
