@@ -6789,10 +6789,21 @@ def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
 
 
 class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
+    def __init__(
+        self,
+        separators: Optional[List[str]] = None,
+        keep_separator: bool = True,
+        is_separator_regex: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Create a new TextSplitter."""
+        super().__init__(separators=separators, keep_separator=keep_separator, is_separator_regex=is_separator_regex, **kwargs)
+        self._separators = separators or ["\n\n", "\n", "  ", " ", ""]
+
     @classmethod
     def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
         def _huggingface_tokenizer_length(text: str) -> int:
-            return get_token_count(text, tokenizer)
+            return get_token_count(text, tokenizer, add_special_tokens=False)
 
         return cls(length_function=_huggingface_tokenizer_length, **kwargs)
 
@@ -6801,6 +6812,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
                      joiner=docs_joiner_default,
                      non_doc_prompt='',
                      do_split=True,
+                     do_first_semantic_split=False,
+                     hf_embedding_model=None,
                      verbose=False):
     # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
     # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len and is per-llm call
@@ -6816,6 +6829,11 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
         # skip split if not necessary, since expensive for some reason
         do_split &= any([x > max_input_tokens for x in tokens_before_split])
         if do_split:
+
+            if do_first_semantic_split and hf_embedding_model is not None and 'model' in hf_embedding_model:
+                from langchain_experimental.text_splitter import SemanticChunker
+                text_splitter = SemanticChunker(hf_embedding_model['model'])
+                docs_with_score = text_splitter.create_documents(docs_with_score)
 
             if verbose:
                 print('tokens_before_split=%s' % tokens_before_split, flush=True)
@@ -8009,6 +8027,7 @@ def get_chain(query=None,
                                                            docs_token_handling=docs_token_handling,
                                                            joiner=docs_joiner if not doing_grounding else "Document xx",
                                                            non_doc_prompt=estimated_full_prompt,
+                                                           hf_embedding_model=hf_embedding_model,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
         if top_k_docs > 0:

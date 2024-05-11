@@ -1993,14 +1993,15 @@ def str_to_dict(x):
     return x
 
 
-def get_token_count(x, tokenizer, token_count_fun=None):
+def get_token_count(x, tokenizer, token_count_fun=None, add_special_tokens=True):
     # NOTE: Somewhat duplicates H2OTextGenerationPipeline.get_token_count()
     # handle ambiguity in if get dict or list
+    other_kwargs = dict(add_special_tokens=add_special_tokens) if hasattr(tokenizer, 'add_special_tokens') else {}
     if tokenizer is not None:
         if hasattr(tokenizer, 'encode'):
-            tokens = tokenizer.encode(x)
+            tokens = tokenizer.encode(x, **other_kwargs)
         else:
-            tokens = tokenizer(x)
+            tokens = tokenizer(x, **other_kwargs)
         if isinstance(tokens, dict) and 'input_ids' in tokens:
             tokens = tokens['input_ids']
         if isinstance(tokens, list):
@@ -2013,7 +2014,8 @@ def get_token_count(x, tokenizer, token_count_fun=None):
             raise RuntimeError("Cannot handle tokens: %s" % tokens)
     elif token_count_fun is not None:
         assert callable(token_count_fun)
-        n_tokens = token_count_fun(x)
+        other_kwargs = dict(add_special_tokens=add_special_tokens) if hasattr(token_count_fun, 'add_special_tokens') else {}
+        n_tokens = token_count_fun(x, **other_kwargs)
     else:
         tokenizer = FakeTokenizer()
         n_tokens = tokenizer.num_tokens_from_string(x)
@@ -2341,7 +2343,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
     assert max_input_tokens is not None, "Must set max_input_tokens"
     tokens = [get_token_count(x + docs_joiner, tokenizer) for x in text_context_list]
     tokens_cumsum = np.cumsum(tokens)
-    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+    where_res = np.where(tokens_cumsum <= max_input_tokens)[0]
     # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
     if where_res.shape[0] > 0:
         top_k_docs = 1 + where_res[-1]
