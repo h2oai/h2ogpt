@@ -51,7 +51,11 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                db_type=None,
                selected_file_types=None,
 
-               is_public=False):
+               is_public=False,
+
+               hf_embedding_model=None,
+               use_openai_embedding=False,
+               ):
     assert db_type is not None
 
     loaders_and_settings = dict(
@@ -100,6 +104,9 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
         db_type=db_type,
         is_public=is_public,
+
+        hf_embedding_model=hf_embedding_model,
+        use_openai_embedding=use_openai_embedding,
     )
     sources1 = path_to_docs(user_path,
                             url=url,
@@ -371,6 +378,9 @@ def make_db_main(use_openai_embedding: bool = False,
                          selected_file_types=selected_file_types,
 
                          is_public=False,
+
+                         hf_embedding_model=hf_embedding_model,
+                         use_openai_embedding=use_openai_embedding,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
