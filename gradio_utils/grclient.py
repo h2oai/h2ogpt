@@ -35,8 +35,8 @@ from pydantic import BaseModel
 
 class ReturnType(BaseModel):
     reply: str | list[str] | None
-    prompt_raw: str | None
-    actual_llm: str | None
+    prompt_raw: str | None = None
+    actual_llm: str | None = None
     text_context_list: list[str] | None = []
     input_tokens: int = 0
     output_tokens: int = 0
@@ -1098,13 +1098,7 @@ class GradioClient(Client):
                             prompt_raw = res_dict.get(
                                 "prompt_raw", ""
                             )  # only filled at end
-                            if prompt_raw:
-                                if langchain_action != LangChainAction.EXTRACT.value:
-                                    text_chunk = response.strip()
-                                else:
-                                    text_chunk = [r.strip() for r in ast.literal_eval(response)]
-                            else:
-                                text_chunk = response[len(text0) :]  # only keep new stuff
+                            text_chunk = response[len(text0) :]  # only keep new stuff
                             if not text_chunk:
                                 time.sleep(0.001)
                                 continue
@@ -1112,13 +1106,7 @@ class GradioClient(Client):
                             assert text_chunk, "must yield non-empty string"
                             if time_to_first_token is None:
                                 time_to_first_token = time.time() - t0
-                            yield ReturnType(
-                                reply=text_chunk,
-                                text_context_list=texts_out,
-                                prompt_raw=prompt_raw,
-                                actual_llm=actual_llm,
-                                time_to_first_token=time_to_first_token,
-                            )
+                            yield ReturnType(reply=text_chunk)  # streaming part
                         time.sleep(0.005)
 
                     # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
@@ -1153,13 +1141,11 @@ class GradioClient(Client):
                         t_taken_s = time.time() - t0
                         t_taken = "%.4f" % t_taken_s
 
-                        if prompt_raw:
-                            if langchain_action != LangChainAction.EXTRACT.value:
-                                text_chunk = response.strip()
-                            else:
-                                text_chunk = [r.strip() for r in ast.literal_eval(response)]
+                        assert prompt_raw, "must have prompt_raw for final response"
+                        if langchain_action != LangChainAction.EXTRACT.value:
+                            text_chunk = response.strip()
                         else:
-                            text_chunk = response[len(text0) :]  # only keep new stuff
+                            text_chunk = [r.strip() for r in ast.literal_eval(response)]
 
                         if not text_chunk:
                             actual_llm = (
@@ -1215,7 +1201,7 @@ class GradioClient(Client):
 
                         self.chat_conversation[-1] = (
                             instruction,
-                            response[len(text0) :],
+                            text_chunk,
                         )
                     else:
                         assert not success
@@ -1361,6 +1347,7 @@ class GradioClient(Client):
                 res_dict.update(
                     dict(
                         response=response,
+                        sources=sources,
                         error=strex,
                         response_no_refs=response,
                     )
@@ -1423,6 +1410,7 @@ class GradioClient(Client):
         res_dict.update(
             dict(
                 response=response,
+                sources=sources,
                 error=strex,
                 response_no_refs=response,
             )
