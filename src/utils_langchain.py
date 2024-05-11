@@ -317,7 +317,7 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
                                      hf_embedding_model=hf_embedding_model if not use_openai_embedding else None,
                                      verbose=verbose)
                 source_chunks = [x[0] for x in source_chunks_with_score]
-            except BaseException:
+            except BaseException as e:
                 if os.getenv('HARD_ASSERTS'):
                     raise
                 print("Failed to split with new method, use old method: %s" % str(e))
