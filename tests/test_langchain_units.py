@@ -8,16 +8,15 @@ import uuid
 
 import pytest
 
-from src.gen import get_model_retry
 from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3, texts_helium4, texts_helium5, \
-    texts_simple
+    texts_simple, texts_long
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice, \
     docs_joiner_default, docs_token_handling_default, db_types, db_types_full
-from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs, \
-    get_hyde_acc
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
     FakeTokenizer, get_token_count, flatten_list, tar_data
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs, \
+    get_hyde_acc
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -302,6 +301,7 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       force_t5_type=False,
 
                       verbose=False)
+    from src.gen import get_model_retry
     model, tokenizer, device = get_model_retry(reward_type=False,
                                                **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
     return model, tokenizer, base_model, prompt_type
@@ -1990,6 +1990,9 @@ def test_chroma_filtering():
                 assert assert1 or assert2
 
 
+@pytest.mark.parametrize("max_input_tokens", [
+    1024, None
+])
 @pytest.mark.parametrize("data_kind", [
     'simple',
     'helium1',
@@ -1997,11 +2000,13 @@ def test_chroma_filtering():
     'helium3',
     'helium4',
     'helium5',
+    'long',
 ])
 @wrap_test_forked
-def test_merge_docs(data_kind):
+def test_merge_docs(data_kind, max_input_tokens):
     model_max_length = 4096
-    max_input_tokens = 1024
+    if max_input_tokens is None:
+        max_input_tokens = model_max_length - 512
     docs_joiner = docs_joiner_default
     docs_token_handling = docs_token_handling_default
     tokenizer = FakeTokenizer(model_max_length=model_max_length)
@@ -2019,6 +2024,8 @@ def test_merge_docs(data_kind):
         texts = texts_helium4
     elif data_kind == 'helium5':
         texts = texts_helium5
+    elif data_kind == 'long':
+        texts = texts_long
     else:
         raise RuntimeError("BAD")
 
@@ -2035,22 +2042,42 @@ def test_merge_docs(data_kind):
 
     if data_kind == 'simple':
         assert len(docs_with_score_new) == 1
-        assert all([x < max_input_tokens for x in tokens])
+        assert all([x <= max_input_tokens for x in tokens])
     elif data_kind == 'helium1':
-        assert len(docs_with_score_new) == 4
-        assert all([x < max_input_tokens for x in tokens])
+        assert len(docs_with_score_new) == 4 if max_input_tokens == 1024 else 2
+        assert all([x <= max_input_tokens for x in tokens])
     elif data_kind == 'helium2':
-        assert len(docs_with_score_new) == 8
-        assert all([x < max_input_tokens for x in tokens])
+        assert len(docs_with_score_new) == 8 if max_input_tokens == 1024 else 3
+        assert all([x <= max_input_tokens for x in tokens])
     elif data_kind == 'helium3':
-        assert len(docs_with_score_new) == 5
-        assert all([x < max_input_tokens for x in tokens])
+        assert len(docs_with_score_new) == 5 if max_input_tokens == 1024 else 2
+        assert all([x <= max_input_tokens for x in tokens])
     elif data_kind == 'helium4':
-        assert len(docs_with_score_new) == 5
-        assert all([x < max_input_tokens for x in tokens])
+        assert len(docs_with_score_new) == 5 if max_input_tokens == 1024 else 2
+        assert all([x <= max_input_tokens for x in tokens])
     elif data_kind == 'helium5':
-        assert len(docs_with_score_new) == 3
-        assert all([x < max_input_tokens for x in tokens])
+        assert len(docs_with_score_new) == 3 if max_input_tokens == 1024 else 1
+        assert all([x <= max_input_tokens for x in tokens])
+    elif data_kind == 'long':
+        assert len(docs_with_score_new) == 41 if max_input_tokens == 1024 else 6, len(docs_with_score_new)
+        assert all([x <= max_input_tokens for x in tokens])
+
+
+@wrap_test_forked
+def test_split_and_merge():
+    kwargs = {'max_input_tokens': 7118, 'docs_token_handling': 'split_or_merge', 'joiner': '\n\n', 'non_doc_prompt': '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nGive a summary that is well-structured yet concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"""\n\n"""\nWrite a summary for a physics Ph.D. and assistant professor in physics doing astrophysics, identifying key points of interest.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n',
+    'verbose': False}
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3-8B-Instruct')
+    from langchain_core.documents import Document
+    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content in enumerate(texts_long)]
+
+    docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
+                                                       tokenizer,
+                                                       **kwargs)
+    assert len(docs_with_score) == 6
+    # ensure docuemnt doesn't start with . from sentence splitting
+    assert docs_with_score[0][0].page_content.startswith('Y')
 
 
 @wrap_test_forked

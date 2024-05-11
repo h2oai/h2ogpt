@@ -5376,11 +5376,11 @@ def go_gradio(**kwargs):
                                          text_output],
                               outputs=[text_output, chat_exception_text, speech_bot],
                               )
-        retry_user_args = dict(fn=functools.partial(user, retry=True),
+        retry_user_args = dict(fn=functools.partial(user, retry=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
                                inputs=inputs_list + [text_output],
                                outputs=text_output,
                                )
-        undo_user_args = dict(fn=functools.partial(user, undo=True),
+        undo_user_args = dict(fn=functools.partial(user, undo=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
                               inputs=inputs_list + [text_output],
                               outputs=text_output,
                               )
@@ -5566,10 +5566,11 @@ def go_gradio(**kwargs):
                                              inputs=[my_db_state, requests_state, guest_name, retry_btn, retry_btn],
                                              outputs=[my_db_state, requests_state, retry_btn],
                                              queue=queue)
-            submit_event3a = submit_event31.then(**user_args, api_name='retry' if allow_api else False)
+            submit_event3a = submit_event31.then(**retry_user_args,
+             api_name='retry' if allow_api else False)
             # if retry, no longer the saved chat
             submit_event3a2 = submit_event3a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
-            submit_event3b = submit_event3a2.then(**user_args2, api_name='retry2' if allow_api else False)
+            submit_event3b = submit_event3a2.then(**retry_user_args2, api_name='retry2' if allow_api else False)
             submit_event3c = submit_event3b.then(clear_instruct, None, instruction) \
                 .then(clear_instruct, None, iinput)
             submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else False,
@@ -7017,7 +7018,8 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            content = f"```text\n{content}\n```"
+            #content = f"```text\n{content}\n```"
+            content = text_to_html(content, api=api)
             return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
