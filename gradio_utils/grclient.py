@@ -1041,7 +1041,7 @@ class GradioClient(Client):
                     prompt_raw = res_dict.get("prompt_raw", "")
 
                     try:
-                        actual_llm = res_dict["save_dict"]["base_model"]  # fast path
+                        actual_llm = res_dict["save_dict"]["display_name"]  # fast path
                     except Exception as e:
                         print_warning(
                             f"Unable to access save_dict to get actual_llm: {str(e)}"
@@ -1185,7 +1185,7 @@ class GradioClient(Client):
 
                         try:
                             actual_llm = res_dict["save_dict"][
-                                "base_model"
+                                "display_name"
                             ]  # fast path
                         except Exception as e:
                             print_warning(
@@ -1301,7 +1301,7 @@ class GradioClient(Client):
         if self.config is None:
             self.setup()
         return [
-            x["base_model"]
+            x["display_name"]
             for x in ast.literal_eval(self.predict(api_name="/model_names"))
         ]
 
