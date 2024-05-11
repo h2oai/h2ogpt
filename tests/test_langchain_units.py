@@ -8,16 +8,15 @@ import uuid
 
 import pytest
 
-from src.gen import get_model_retry
 from tests.test_client_calls import texts_helium1, texts_helium2, texts_helium3, texts_helium4, texts_helium5, \
     texts_simple, texts_long
 from tests.utils import wrap_test_forked, kill_weaviate, make_user_path_test
 from src.enums import DocumentSubset, LangChainAction, LangChainMode, LangChainTypes, DocumentChoice, \
     docs_joiner_default, docs_token_handling_default, db_types, db_types_full
-from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs, \
-    get_hyde_acc
 from src.utils import zip_data, download_simple, get_ngpus_vis, get_mem_gpus, have_faiss, remove, get_kwargs, \
     FakeTokenizer, get_token_count, flatten_list, tar_data
+from src.gpt_langchain import get_persist_directory, get_db, get_documents, length_db1, _run_qa_db, split_merge_docs, \
+    get_hyde_acc
 
 have_openai_key = os.environ.get('OPENAI_API_KEY') is not None
 have_replicate_key = os.environ.get('REPLICATE_API_TOKEN') is not None
@@ -302,6 +301,7 @@ def get_test_model(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
                       force_t5_type=False,
 
                       verbose=False)
+    from src.gen import get_model_retry
     model, tokenizer, device = get_model_retry(reward_type=False,
                                                **get_kwargs(get_model, exclude_names=['reward_type'], **all_kwargs))
     return model, tokenizer, base_model, prompt_type
@@ -2059,7 +2059,7 @@ def test_merge_docs(data_kind, max_input_tokens):
         assert len(docs_with_score_new) == 3 if max_input_tokens == 1024 else 1
         assert all([x <= max_input_tokens for x in tokens])
     elif data_kind == 'long':
-        assert len(docs_with_score_new) == 6 if max_input_tokens == 1024 else 6
+        assert len(docs_with_score_new) == 41 if max_input_tokens == 1024 else 6, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
 
 
@@ -2076,6 +2076,8 @@ def test_split_and_merge():
                                                        tokenizer,
                                                        **kwargs)
     assert len(docs_with_score) == 6
+    # ensure docuemnt doesn't start with . from sentence splitting
+    assert docs_with_score[0][0].page_content.startswith('Y')
 
 
 @wrap_test_forked
