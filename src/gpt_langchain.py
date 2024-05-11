@@ -6790,14 +6790,15 @@ def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
 
 class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
     def __init__(
-        self,
-        separators: Optional[List[str]] = None,
-        keep_separator: bool = True,
-        is_separator_regex: bool = False,
-        **kwargs: Any,
+            self,
+            separators: Optional[List[str]] = None,
+            keep_separator: bool = True,
+            is_separator_regex: bool = False,
+            **kwargs: Any,
     ) -> None:
         """Create a new TextSplitter."""
-        super().__init__(separators=separators, keep_separator=keep_separator, is_separator_regex=is_separator_regex, **kwargs)
+        super().__init__(separators=separators, keep_separator=keep_separator, is_separator_regex=is_separator_regex,
+                         **kwargs)
         self._separators = separators or ["\n\n", "\n", "  ", " ", ""]
 
     @classmethod
@@ -6824,28 +6825,61 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
         return docs_with_score, 0
     elif docs_token_handling in [None, 'split_or_merge']:
         assert tokenizer
-        tokens_before_split = [get_token_count(x + joiner, tokenizer) for x in
-                               [x[0].page_content for x in docs_with_score]]
-        # skip split if not necessary, since expensive for some reason
-        do_split &= any([x > max_input_tokens for x in tokens_before_split])
-        if do_split:
+        # see if need to split
+        # account for joiner tokens
+        joiner_tokens = get_token_count(joiner, tokenizer)
+        doc_chunk_size = max(64, min(max_input_tokens,
+                                     max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
 
-            if do_first_semantic_split and hf_embedding_model is not None and 'model' in hf_embedding_model:
-                from langchain_experimental.text_splitter import SemanticChunker
-                text_splitter = SemanticChunker(hf_embedding_model['model'])
-                docs_with_score = text_splitter.create_documents(docs_with_score)
+        if do_first_semantic_split and hf_embedding_model is not None and 'model' in hf_embedding_model:
+            # https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/semantic-chunker/
+            from langchain_experimental.text_splitter import SemanticChunker
+            text_splitter0 = SemanticChunker(hf_embedding_model['model'])
+        else:
+            text_splitter0 = None
+
+        # skip split if not necessary, since expensive for some reason
+        text_splitter1 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
+            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
+            separators=[". "],
+        )
+        text_splitter2 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
+            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
+        )
+        # https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/recursive_text_splitter/
+        text_splitter3 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
+            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
+            separators=[
+                "\n\n",
+                "\n",
+                " ",
+                ".",
+                ",",
+                "\u200b",  # Zero-width space
+                "\uff0c",  # Fullwidth comma
+                "\u3001",  # Ideographic comma
+                "\uff0e",  # Fullwidth full stop
+                "\u3002",  # Ideographic full stop
+                "",
+            ],
+        )
+        text_splitters = dict(semantic=text_splitter0, sentence=text_splitter1, normal=text_splitter2,
+                              multilingual=text_splitter3)
+        text_splitters = {k: v for k, v in text_splitters.items() if v is not None}
+
+        did_split = False
+        for splitter_type, text_splitter in text_splitters.items():
+            tokens_before_split = [get_token_count(x + joiner, tokenizer) for x in
+                                   [x[0].page_content for x in docs_with_score]]
+
+            do_split &= any([x > max_input_tokens for x in tokens_before_split])
+            if not do_split:
+                break
+            did_split = True
 
             if verbose:
                 print('tokens_before_split=%s' % tokens_before_split, flush=True)
 
-            # see if need to split
-            # account for joiner tokens
-            joiner_tokens = get_token_count(joiner, tokenizer)
-            doc_chunk_size = max(64, min(max_input_tokens,
-                                         max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
-            text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-                tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0
-            )
             [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in
              enumerate(docs_with_score)]
             docs = [x[0] for x in docs_with_score]
@@ -6859,10 +6893,16 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
             docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
 
-            tokens_after_split = [get_token_count(x + joiner, tokenizer) for x in
-                                  [x[0].page_content for x in docs_with_score]]
             if verbose:
+                tokens_after_split = [get_token_count(x + joiner, tokenizer) for x in
+                                      [x[0].page_content for x in docs_with_score]]
                 print('tokens_after_split=%s' % tokens_after_split, flush=True)
+
+            if splitter_type == 'sentence' and len(docs_with_score) > 1:
+                # puts '. ' on next end of chunk, re-attach to end of previous chunk
+                docs_with_score = [
+                    (Document(x[0].page_content[2 if xi > 0 else 0:] + '.', metadata=x[0].metadata), x[1]) for xi, x in
+                    enumerate(docs_with_score)]
 
         docs_with_score_new = []
         k = 0
@@ -6880,7 +6920,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             doc1 = Document(page_content=new_page_content, metadata=new_metadata)
             docs_with_score_new.append((doc1, new_score))
 
-            if do_split:
+            if did_split:
                 assert one_doc_size is None, "Split failed: %s" % one_doc_size
             elif one_doc_size is not None:
                 # chopped
@@ -8021,6 +8061,12 @@ def get_chain(query=None,
                                            )
 
         # group docs if desired/can to fill context to avoid multiple LLM calls or too large chunks
+        # only do first semantic split if have GPU
+        if 'model' in hf_embedding_model and not use_openai_embedding and hasattr(hf_embedding_model['model'],
+                                                                                  'model_kwargs'):
+            do_first_semantic_split = hf_embedding_model['model'].model_kwargs.get('device') not in ['cpu']
+        else:
+            do_first_semantic_split = False
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
@@ -8028,6 +8074,7 @@ def get_chain(query=None,
                                                            joiner=docs_joiner if not doing_grounding else "Document xx",
                                                            non_doc_prompt=estimated_full_prompt,
                                                            hf_embedding_model=hf_embedding_model,
+                                                           do_first_semantic_split=do_first_semantic_split,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
         if top_k_docs > 0:
