@@ -3542,7 +3542,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
         elif inference_server == 'https://gpt.h2o.ai':
-            base_model = 'HuggingFaceH4/zephyr-7b-beta'
+            base_model = 'mistralai/Mistral-7B-Instruct-v0.2'
         else:
             base_model = 'gpt-3.5-turbo'
 
@@ -4042,7 +4042,7 @@ def play_audio(audio, sr=16000):
 ])
 @pytest.mark.parametrize("base_model", [
     'llama',
-    'HuggingFaceH4/zephyr-7b-beta'
+    'mistralai/Mistral-7B-Instruct-v0.2'
 ])
 @wrap_test_forked
 def test_client1_tts_stream(tts_model, base_model):
@@ -4107,7 +4107,7 @@ def check_final_res(res, base_model='llama'):
     if base_model == 'llama':
         assert res['save_dict']['base_model'] == 'llama'
     else:
-        assert res['save_dict']['base_model'] == 'HuggingFaceH4/zephyr-7b-beta'
+        assert res['save_dict']['base_model'] == 'mistralai/Mistral-7B-Instruct-v0.2'
     assert res['save_dict']['where_from']
     assert res['save_dict']['valid_key'] == 'not enforced'
     assert res['save_dict']['h2ogpt_key'] in [None, '']
@@ -4146,7 +4146,7 @@ def check_curl_plain_api():
     assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response'] or 'program designed' in \
            res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
-    assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict'][
+    assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == res_dict['save_dict'][
         'base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
 
@@ -4710,7 +4710,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     base_models = get_inf_models(inference_server)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
     model_lock = []
-    model_lock.append(dict(base_model='HuggingFaceH4/zephyr-7b-beta'))
+    model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2'))
     for base_model in base_models:
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
