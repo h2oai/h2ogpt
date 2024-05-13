@@ -165,6 +165,8 @@ You can also do same for h2oGPT, but take note that if you pass absolute path fo
 python generate.py --inference_server="vllm:0.0.0.0:5000" --base_model='$HOME/.cache/huggingface/hub/models--meta-llama--Llama-2-13b-chat-hf/snapshots/c2f3ec81aac798ae26dcc57799a994dfbf521496' --score_model=None --langchain_mode='UserData' --user_path=user_path --use_auth_token=True --max_seq_len=4096 --max_max_new_tokens=2048 --concurrency_count=64 --batch_size=16 --prompt_type=llama2 --add_disk_models_to_ui=False
 ```
 
+See [README_docker](README_docker.md) for more details on running h2oGPT in offline mode for docker.
+
 ### Disable access or port
 
 To ensure nobody can access your gradio server, disable the port via firewall.  If that is a hassle, then one can enable authentication by adding to CLI when running `python generate.py`:
