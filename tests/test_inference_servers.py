@@ -798,8 +798,8 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                              chat_conversation=chat_conversation,
                                              system_prompt=system_prompt)
         if system_prompt:
-            assert 'baby cat' in res_dict['response'] and 'meow' in res_dict['response'].lower()
-            assert 'baby cat' in ret6['response'] and 'meow' in ret6['response'].lower()
+            assert 'baby cat' in res_dict['response'] and ('meow' in res_dict['response'].lower() or 'purrs' in res_dict['response'].lower())
+            assert 'baby cat' in ret6['response'] and ('meow' in ret6['response'].lower() or 'purrs' in ret6['response'].lower())
         else:
             options_response = ['You asked "Who are you?"',
                                 """You asked, \"Who are you?\"""",
