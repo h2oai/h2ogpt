@@ -5109,6 +5109,7 @@ def get_test_server_client(base_model):
 
 
 @wrap_test_forked
+@pytest.mark.parametrize("guided_json", ['', TEST_SCHEMA])
 @pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
@@ -5117,7 +5118,7 @@ def get_test_server_client(base_model):
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
                                               LangChainAction.EXTRACT.value])
-def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output):
+def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output, guided_json):
     if langchain_mode == 'LLM' and \
             (langchain_action == LangChainAction.SUMMARIZE_MAP.value or
              langchain_action == LangChainAction.EXTRACT.value):
@@ -5133,55 +5134,54 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
     # string of dict for input
     prompt = "Give an example employee profile."
 
-    for guided_json in ['', TEST_SCHEMA]:
-        print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
-        use_instruction = langchain_action == LangChainAction.QUERY.value
-        kwargs = dict(instruction_nochat=prompt if use_instruction else '',
-                      prompt_query=prompt if not use_instruction else '',
-                      # below make-up line required for opus, else too "smart" and doesn't fulfill request and instead asks for more information, even though I just said give "example".
-                      prompt_summary=prompt + '  Make up values if required, do not ask further questions.' if not use_instruction else '',
-                      visible_models=base_model,
-                      text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
-                          'Henry is a good AI scientist.'],
-                      stream_output=stream_output,
-                      langchain_mode=langchain_mode,
-                      langchain_action=langchain_action,
-                      h2ogpt_key=h2ogpt_key,
-                      response_format=response_format,
-                      guided_json=guided_json,
-                      )
-        res_dict = {}
-        if stream_output:
-            for res_dict1 in client.simple_stream(client_kwargs=kwargs):
-                res_dict = res_dict1.copy()
-        else:
-            res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-            res_dict = ast.literal_eval(res_dict)
+    print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
+    use_instruction = langchain_action == LangChainAction.QUERY.value
+    kwargs = dict(instruction_nochat=prompt if use_instruction else '',
+                  prompt_query=prompt if not use_instruction else '',
+                  # below make-up line required for opus, else too "smart" and doesn't fulfill request and instead asks for more information, even though I just said give "example".
+                  prompt_summary=prompt + '  Make up values if required, do not ask further questions.' if not use_instruction else '',
+                  visible_models=base_model,
+                  text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
+                      'Henry is a good AI scientist.'],
+                  stream_output=stream_output,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
+                  h2ogpt_key=h2ogpt_key,
+                  response_format=response_format,
+                  guided_json=guided_json,
+                  )
+    res_dict = {}
+    if stream_output:
+        for res_dict1 in client.simple_stream(client_kwargs=kwargs):
+            res_dict = res_dict1.copy()
+    else:
+        res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+        res_dict = ast.literal_eval(res_dict)
 
-        response = res_dict['response']
-        print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
-              file=sys.stderr)
-        print(response, file=sys.stderr)
+    response = res_dict['response']
+    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
+          file=sys.stderr)
+    print(response, file=sys.stderr)
 
-        # just take first for testing
-        if langchain_action == LangChainAction.EXTRACT.value:
-            response = ast.literal_eval(response)
-            assert isinstance(response, list), str(response)
-            response = response[0]
+    # just take first for testing
+    if langchain_action == LangChainAction.EXTRACT.value:
+        response = ast.literal_eval(response)
+        assert isinstance(response, list), str(response)
+        response = response[0]
 
-        try:
-            mydict = json.loads(response)
-        except:
-            print("Bad response: %s" % response)
-            raise
+    try:
+        mydict = json.loads(response)
+    except:
+        print("Bad response: %s" % response)
+        raise
 
-        # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
-        check_keys = ['age', 'name', 'skills', 'workhistory']
-        cond1 = all([k in mydict for k in check_keys])
-        if not guided_json:
-            assert mydict, "Empty dict"
-        else:
-            assert cond1, "Missing keys: %s" % response
-            if base_model in vllm_base_models:
-                import jsonschema
-                jsonschema.validate(mydict, schema=guided_json)
+    # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
+    check_keys = ['age', 'name', 'skills', 'workhistory']
+    cond1 = all([k in mydict for k in check_keys])
+    if not guided_json:
+        assert mydict, "Empty dict"
+    else:
+        assert cond1, "Missing keys: %s" % response
+        if base_model in vllm_base_models:
+            import jsonschema
+            jsonschema.validate(mydict, schema=guided_json)
