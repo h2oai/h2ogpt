@@ -1845,6 +1845,24 @@ If there is a similar prompt or one wants to see how a model prompt template loo
 
 In either case, if the model card doesn't have that information, you'll need to ask around. In some cases, prompt information is included in their pipeline file or in a GitHub repository associated with the model with training of inference code. It may also be the case that the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
 
+### Migrate chroma < 0.4 to new >= 0.4
+
+* Setup env
+```bash
+pip uninstall pydantic chromadb -y
+pip install pydantic==1.10.15 chromadb==0.4.3 chroma-migrate --upgrade
+```
+* Run tool
+```bash
+chroma-migrate
+```
+Pick duckdb, pick from persistent directory, then choose the directory like `db_dir_UserData`, then choose new name of `db_dir_UserData_mig` and let migration complete
+* Copy the `db_dir_UserData/embed_info` to new directory.
+* Remove or move away old directory (`db_dir_UserData`).
+* Use `mv db_dir_UserData_mig db_dir_UserData`
+* Run h2oGPT as before
+
+
 ### Add new Embedding Model
 
 This section describes how to add a new embedding model.

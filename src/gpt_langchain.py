@@ -9322,8 +9322,8 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
         assert os.path.isfile(path_to_zip_file), "Missing zip in %s" % path_to_zip_file
         if dir_expected:
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
-            assert os.path.isdir(
-                os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
+            assert os.path.isfile(
+                os.path.join(dest, dir_expected, 'chroma.sqlite3')), "Missing db in %s" % dir_expected
 
 
 def _create_local_weaviate_client():
