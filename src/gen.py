@@ -1505,7 +1505,8 @@ def main(
     h2ogpt_pid = os.getpid() if close_button and not is_public else None
 
     # allow set token directly
-    use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
+    if not use_auth_token:
+        use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
     if isinstance(use_auth_token, str) and use_auth_token and 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
         os.environ['HUGGING_FACE_HUB_TOKEN'] = use_auth_token
     allow_upload_to_user_data = bool(
