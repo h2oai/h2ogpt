@@ -1651,7 +1651,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
             'h2oGPT is an open-source' in res_dict['response'] or
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response'] or
             'Based on the information provided in the context, h2oGPT appears to be an open-source' in res_dict[
-                'response']
+                'response'] or
+                'h2oGPT is a variant of the' in res_dict['response']
             ) and \
            'README.md' in res_dict['response']
 

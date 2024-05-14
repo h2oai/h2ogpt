@@ -85,9 +85,11 @@ class StoppingCriteriaSub(StoppingCriteria):
         if self.truncation_generation and (
                 self.model_max_length is not None and input_ids[0].shape[0] >= self.model_max_length):
             # critical limit
+            # print("Stopped 2", flush=True)
             return True
-        # print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
+        # print("Tokens: %s: %s" % (len(input_ids[0].cpu().numpy()), input_ids[0].cpu().numpy()), flush=True)
         # print("Stop Tokens: %s" % [x.cpu().numpy() for x in self.stops], flush=True)
+        # print("Not stopping", flush=True)
         return False
 
 

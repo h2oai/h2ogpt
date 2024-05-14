@@ -5543,7 +5543,7 @@ def _make_db(use_openai_embedding=False,
         db = db_trial
 
     sources = []
-    if not db:
+    if db is None:
         chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type,
                                           hf_embedding_model=hf_embedding_model,
                                           use_openai_embedding=use_openai_embedding, verbose=verbose)
@@ -5661,7 +5661,7 @@ def _make_db(use_openai_embedding=False,
                 print("Generating db", flush=True)
             else:
                 print("Adding to db", flush=True)
-    if not db:
+    if db is None:
         if sources:
             db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                         persist_directory=persist_directory,
