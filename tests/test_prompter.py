@@ -262,7 +262,7 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              ('gemma', '', None,
                               get_prompt_from_messages(messages_with_context, model='google/gemma-7b-it')),
                              # they baked in system prompt
-                             ('qwen', 'You are a helpful assistant', None,
+                             ('qwen', 'You are a helpful assistant.', None,
                               get_prompt_from_messages(messages_with_context, model='Qwen/Qwen1.5-72B-Chat')),
                          ]
                          )

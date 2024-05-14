@@ -693,6 +693,7 @@ class GradioClient(Client):
         json_object_prompt: str = None,
         json_object_prompt_simpler: str = None,
         json_code_prompt: str = None,
+        json_code_prompt_if_no_schema: str = None,
         json_schema_instruction: str = None,
         model: str | int | None = None,
         stream_output: bool = False,
@@ -814,6 +815,7 @@ class GradioClient(Client):
             :param json_object_prompt: prompt for getting LLM to do JSON object
             :param json_object_prompt_simpler: simpler of "" for MistralAI
             :param json_code_prompt: prompt for getting LLm to do JSON in code block
+            :param json_code_prompt_if_no_schema: prompt for getting LLM to do JSON in code block if no schema
             :param json_schema_instruction: prompt for LLM to use schema
 
             :param h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)

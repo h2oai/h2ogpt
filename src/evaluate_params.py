@@ -68,6 +68,7 @@ eval_func_param_names = (
         "json_object_prompt",
         "json_object_prompt_simpler",
         "json_code_prompt",
+        "json_code_prompt_if_no_schema",
         "json_schema_instruction",
 
         "system_prompt",

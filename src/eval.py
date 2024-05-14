@@ -67,6 +67,7 @@ def run_eval(  # for local function:
         json_object_prompt=None,
         json_object_prompt_simpler=None,
         json_code_prompt=None,
+        json_code_prompt_if_no_schema=None,
         json_schema_instruction=None,
 
         image_audio_loaders=None,

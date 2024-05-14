@@ -1666,6 +1666,9 @@ def go_gradio(**kwargs):
                             json_code_prompt = gr.Textbox(label="JSON Code Prompt",
                                                          info="prompt for getting LLm to do JSON in code block",
                                                          value=kwargs['json_code_prompt'] or '')
+                            json_code_prompt_if_no_schema = gr.Textbox(label="Schema instructions Prompt",
+                                                         info="prompt for LLM to use when no schema but need schema to obey rules",
+                                                         value=kwargs['json_code_prompt_if_no_schema'] or '')
                             json_schema_instruction = gr.Textbox(label="JSON Schema Prompt",
                                                          info="prompt for LLM to use schema",
                                                          value=kwargs['json_schema_instruction'] or '')

@@ -76,7 +76,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
-    json_schema_instruction0
+    json_schema_instruction0, json_code_prompt_if_no_schema0
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -434,6 +434,7 @@ def main(
         json_object_prompt=None,
         json_object_prompt_simpler=None,
         json_code_prompt=None,
+        json_code_prompt_if_no_schema=None,
         json_schema_instruction=None,
 
         add_chat_history_to_context: bool = True,
@@ -1115,6 +1116,7 @@ def main(
     :param json_object_prompt: prompt for getting LLM to do JSON object
     :param json_object_prompt_simpler: simpler of "" for MistralAI
     :param json_code_prompt: prompt for getting LLm to do JSON in code block
+    :param json_code_prompt_if_no_schema: prompt part for LLM if not schema, but need good keys etc. for JSON (e.g. due to Claude-3 limitations)
     :param json_schema_instruction: prompt for LLM to use schema
 
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
@@ -1360,6 +1362,7 @@ def main(
     if base_model == 'llama':
         if not model_path_llama:
             model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
+            prompt_type = 'llama2'
         if not prompt_type:
             prompt_type = 'unknown'
     elif base_model == 'gptj' and not model_name_gptj:
@@ -1862,6 +1865,7 @@ def main(
                             json_object_prompt,
                             json_object_prompt_simpler,
                             json_code_prompt,
+                            json_code_prompt_if_no_schema,
                             json_schema_instruction,
 
                             temperature, top_p, top_k, penalty_alpha, num_beams,
@@ -2250,6 +2254,7 @@ def main(
         json_object_prompt = json_object_prompt or json_object_prompt0
         json_object_prompt_simpler = json_object_prompt_simpler or json_object_prompt_simpler0
         json_code_prompt = json_code_prompt or json_code_prompt0
+        json_code_prompt_if_no_schema = json_code_prompt_if_no_schema or json_code_prompt_if_no_schema0
         json_schema_instruction = json_schema_instruction or json_schema_instruction0
 
         # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
@@ -3802,6 +3807,7 @@ def evaluate(
         json_object_prompt,
         json_object_prompt_simpler,
         json_code_prompt,
+        json_code_prompt_if_no_schema,
         json_schema_instruction,
 
         system_prompt,
@@ -4223,6 +4229,8 @@ def evaluate(
         json_object_prompt_simpler = '\n' + json_object_prompt_simpler + '\n\n'
         json_code_prompt = json_code_prompt or json_code_prompt0
         json_code_prompt = '\n' + json_code_prompt + '\n\n'
+        json_code_prompt_if_no_schema = json_code_prompt_if_no_schema or json_code_prompt_if_no_schema0
+        json_code_prompt_if_no_schema = '\n' + json_code_prompt_if_no_schema + '\n\n'
         json_schema_instruction = json_schema_instruction or json_schema_instruction0
         json_schema_instruction = '\n' + json_schema_instruction + '\n\n'
 
@@ -4275,7 +4283,7 @@ def evaluate(
             if guided_json_properties:
                 pre_instruction = json_code_prompt + schema_instruction
             else:
-                pre_instruction = json_code_prompt
+                pre_instruction = json_code_prompt + json_code_prompt_if_no_schema
         # ignore these, make no sense for JSON mode
         system_prompt = ''  # can mess up the model, e.g. 70b
         if instruction:
@@ -4488,6 +4496,7 @@ def evaluate(
                 json_object_prompt=json_object_prompt,
                 json_object_prompt_simpler=json_object_prompt_simpler,
                 json_code_prompt=json_code_prompt,
+                json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                 json_schema_instruction=json_schema_instruction,
 
                 text_context_list=text_context_list,
@@ -4962,6 +4971,7 @@ def evaluate(
                                          json_object_prompt=json_object_prompt,
                                          json_object_prompt_simpler=json_object_prompt_simpler,
                                          json_code_prompt=json_code_prompt,
+                                         json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                                          json_schema_instruction=json_schema_instruction,
 
                                          system_prompt=system_prompt,
@@ -5523,6 +5533,7 @@ def get_generate_params(model_lower,
                         json_object_prompt,
                         json_object_prompt_simpler,
                         json_code_prompt,
+                        json_code_prompt_if_no_schema,
                         json_schema_instruction,
                         temperature, top_p, top_k, penalty_alpha, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
@@ -5749,6 +5760,7 @@ y = np.random.randint(0, 1, 100)
                     json_object_prompt,
                     json_object_prompt_simpler,
                     json_code_prompt,
+                    json_code_prompt_if_no_schema,
                     json_schema_instruction,
 
                     system_prompt,

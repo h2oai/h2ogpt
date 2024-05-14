@@ -914,6 +914,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     json_object_prompt: Any = None
     json_object_prompt_simpler: Any = None
     json_code_prompt: Any = None
+    json_code_prompt_if_no_schema: Any = None
     json_schema_instruction: Any = None
 
     system_prompt: Any = None
@@ -1040,6 +1041,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              json_object_prompt=self.json_object_prompt,
                              json_object_prompt_simpler=self.json_object_prompt_simpler,
                              json_code_prompt=self.json_code_prompt,
+                             json_code_prompt_if_no_schema=self.json_code_prompt_if_no_schema,
                              json_schema_instruction=self.json_schema_instruction,
                              system_prompt=self.system_prompt,
                              image_audio_loaders=None,  # don't need to further do doc specific things
@@ -2422,6 +2424,7 @@ def get_llm(use_openai_model=False,
             json_object_prompt=None,
             json_object_prompt_simpler=None,
             json_code_prompt=None,
+            json_code_prompt_if_no_schema=None,
             json_schema_instruction=None,
 
             system_prompt='',
@@ -3045,6 +3048,7 @@ def get_llm(use_openai_model=False,
                 json_object_prompt=json_object_prompt,
                 json_object_prompt_simpler=json_object_prompt_simpler,
                 json_code_prompt=json_code_prompt,
+                json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                 json_schema_instruction=json_schema_instruction,
 
                 system_prompt=system_prompt,
@@ -5543,7 +5547,7 @@ def _make_db(use_openai_embedding=False,
         db = db_trial
 
     sources = []
-    if not db:
+    if db is None:
         chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type,
                                           hf_embedding_model=hf_embedding_model,
                                           use_openai_embedding=use_openai_embedding, verbose=verbose)
@@ -5661,7 +5665,7 @@ def _make_db(use_openai_embedding=False,
                 print("Generating db", flush=True)
             else:
                 print("Adding to db", flush=True)
-    if not db:
+    if db is None:
         if sources:
             db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                         persist_directory=persist_directory,
@@ -6080,6 +6084,7 @@ def _run_qa_db(query=None,
                json_object_prompt=None,
                json_object_prompt_simpler=None,
                json_code_prompt=None,
+               json_code_prompt_if_no_schema=None,
                json_schema_instruction=None,
 
                visible_models=None,
@@ -6293,6 +6298,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       json_object_prompt=json_object_prompt,
                       json_object_prompt_simpler=json_object_prompt_simpler,
                       json_code_prompt=json_code_prompt,
+                      json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                       json_schema_instruction=json_schema_instruction,
 
                       system_prompt=system_prompt,
@@ -9322,8 +9328,8 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
         assert os.path.isfile(path_to_zip_file), "Missing zip in %s" % path_to_zip_file
         if dir_expected:
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
-            assert os.path.isdir(
-                os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
+            assert os.path.isfile(
+                os.path.join(dest, dir_expected, 'chroma.sqlite3')), "Missing db in %s" % dir_expected
 
 
 def _create_local_weaviate_client():

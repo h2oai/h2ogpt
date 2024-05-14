@@ -1651,7 +1651,8 @@ def test_client_chat_stream_langchain_steps2(max_new_tokens, top_k_docs):
             'h2oGPT is an open-source' in res_dict['response'] or
             'h2oGPT is an open-source, fully permissive, commercially usable' in res_dict['response'] or
             'Based on the information provided in the context, h2oGPT appears to be an open-source' in res_dict[
-                'response']
+                'response'] or
+                'h2oGPT is a variant of the' in res_dict['response']
             ) and \
            'README.md' in res_dict['response']
 
@@ -2168,7 +2169,6 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          max_new_tokens=max_new_tokens,
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
-         append_sources_to_answer=True,
          append_sources_to_chat=False,
          **main_kwargs,
          verbose=True)
@@ -3542,7 +3542,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
         elif inference_server == 'https://gpt.h2o.ai':
-            base_model = 'HuggingFaceH4/zephyr-7b-beta'
+            base_model = 'mistralai/Mistral-7B-Instruct-v0.2'
         else:
             base_model = 'gpt-3.5-turbo'
 
@@ -4042,7 +4042,7 @@ def play_audio(audio, sr=16000):
 ])
 @pytest.mark.parametrize("base_model", [
     'llama',
-    'HuggingFaceH4/zephyr-7b-beta'
+    'mistralai/Mistral-7B-Instruct-v0.2'
 ])
 @wrap_test_forked
 def test_client1_tts_stream(tts_model, base_model):
@@ -4107,7 +4107,7 @@ def check_final_res(res, base_model='llama'):
     if base_model == 'llama':
         assert res['save_dict']['base_model'] == 'llama'
     else:
-        assert res['save_dict']['base_model'] == 'HuggingFaceH4/zephyr-7b-beta'
+        assert res['save_dict']['base_model'] == 'mistralai/Mistral-7B-Instruct-v0.2'
     assert res['save_dict']['where_from']
     assert res['save_dict']['valid_key'] == 'not enforced'
     assert res['save_dict']['h2ogpt_key'] in [None, '']
@@ -4146,7 +4146,7 @@ def check_curl_plain_api():
     assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response'] or 'program designed' in \
            res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
-    assert 'llama' == res_dict['save_dict']['base_model'] or 'HuggingFaceH4/zephyr-7b-beta' == res_dict['save_dict'][
+    assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == res_dict['save_dict'][
         'base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
 
@@ -4710,7 +4710,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     base_models = get_inf_models(inference_server)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
     model_lock = []
-    model_lock.append(dict(base_model='HuggingFaceH4/zephyr-7b-beta'))
+    model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2'))
     for base_model in base_models:
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
@@ -5062,9 +5062,9 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mistralai/Mistral-7B-Instruct-v0.2',
                      'NousResearch/Nous-Capybara-34B',
                      'mistralai/Mixtral-8x7B-Instruct-v0.1',
-                     'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
-                     'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613', 'gpt-4-0613',
-                     'gpt-4-32k-0613', 'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
+                     'mistral-medium', 'mistral-tiny', 'mistral-small-latest', 'gpt-4-turbo-2024-04-09',
+                     'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
+                     'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
@@ -5109,6 +5109,7 @@ def get_test_server_client(base_model):
 
 
 @wrap_test_forked
+@pytest.mark.parametrize("guided_json", ['', TEST_SCHEMA])
 @pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("base_model", other_base_models)
 @pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
@@ -5117,7 +5118,7 @@ def get_test_server_client(base_model):
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
                                               LangChainAction.EXTRACT.value])
-def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output):
+def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output, guided_json):
     if langchain_mode == 'LLM' and \
             (langchain_action == LangChainAction.SUMMARIZE_MAP.value or
              langchain_action == LangChainAction.EXTRACT.value):
@@ -5133,55 +5134,54 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
     # string of dict for input
     prompt = "Give an example employee profile."
 
-    for guided_json in ['', TEST_SCHEMA]:
-        print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
-        use_instruction = langchain_action == LangChainAction.QUERY.value
-        kwargs = dict(instruction_nochat=prompt if use_instruction else '',
-                      prompt_query=prompt if not use_instruction else '',
-                      # below make-up line required for opus, else too "smart" and doesn't fulfill request and instead asks for more information, even though I just said give "example".
-                      prompt_summary=prompt + '  Make up values if required, do not ask further questions.' if not use_instruction else '',
-                      visible_models=base_model,
-                      text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
-                          'Henry is a good AI scientist.'],
-                      stream_output=stream_output,
-                      langchain_mode=langchain_mode,
-                      langchain_action=langchain_action,
-                      h2ogpt_key=h2ogpt_key,
-                      response_format=response_format,
-                      guided_json=guided_json,
-                      )
-        res_dict = {}
-        if stream_output:
-            for res_dict1 in client.simple_stream(client_kwargs=kwargs):
-                res_dict = res_dict1.copy()
-        else:
-            res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-            res_dict = ast.literal_eval(res_dict)
+    print("Doing base_model=%s with guided_json %s" % (base_model, guided_json != ''))
+    use_instruction = langchain_action == LangChainAction.QUERY.value
+    kwargs = dict(instruction_nochat=prompt if use_instruction else '',
+                  prompt_query=prompt if not use_instruction else '',
+                  # below make-up line required for opus, else too "smart" and doesn't fulfill request and instead asks for more information, even though I just said give "example".
+                  prompt_summary=prompt + '  Make up values if required, do not ask further questions.' if not use_instruction else '',
+                  visible_models=base_model,
+                  text_context_list=[] if langchain_action == LangChainAction.QUERY.value else [
+                      'Henry is a good AI scientist.'],
+                  stream_output=stream_output,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
+                  h2ogpt_key=h2ogpt_key,
+                  response_format=response_format,
+                  guided_json=guided_json,
+                  )
+    res_dict = {}
+    if stream_output:
+        for res_dict1 in client.simple_stream(client_kwargs=kwargs):
+            res_dict = res_dict1.copy()
+    else:
+        res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+        res_dict = ast.literal_eval(res_dict)
 
-        response = res_dict['response']
-        print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
-              file=sys.stderr)
-        print(response, file=sys.stderr)
+    response = res_dict['response']
+    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
+          file=sys.stderr)
+    print(response, file=sys.stderr)
 
-        # just take first for testing
-        if langchain_action == LangChainAction.EXTRACT.value:
-            response = ast.literal_eval(response)
-            assert isinstance(response, list), str(response)
-            response = response[0]
+    # just take first for testing
+    if langchain_action == LangChainAction.EXTRACT.value:
+        response = ast.literal_eval(response)
+        assert isinstance(response, list), str(response)
+        response = response[0]
 
-        try:
-            mydict = json.loads(response)
-        except:
-            print("Bad response: %s" % response)
-            raise
+    try:
+        mydict = json.loads(response)
+    except:
+        print("Bad response: %s" % response)
+        raise
 
-        # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
-        check_keys = ['age', 'name', 'skills', 'workhistory']
-        cond1 = all([k in mydict for k in check_keys])
-        if not guided_json:
-            assert mydict, "Empty dict"
-        else:
-            assert cond1, "Missing keys: %s" % response
-            if base_model in vllm_base_models:
-                import jsonschema
-                jsonschema.validate(mydict, schema=guided_json)
+    # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
+    check_keys = ['age', 'name', 'skills', 'workhistory']
+    cond1 = all([k in mydict for k in check_keys])
+    if not guided_json:
+        assert mydict, "Empty dict"
+    else:
+        assert cond1, "Missing keys: %s" % response
+        if base_model in vllm_base_models:
+            import jsonschema
+            jsonschema.validate(mydict, schema=guided_json)

@@ -146,6 +146,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          json_object_prompt=None,
                          json_object_prompt_simpler=None,
                          json_code_prompt=None,
+                         json_code_prompt_if_no_schema=None,
                          json_schema_instruction=None,
 
                          system_prompt=system_prompt,

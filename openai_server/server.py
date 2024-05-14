@@ -79,6 +79,7 @@ class H2oGPTParams(BaseModel):
     json_object_prompt: str | None = None
     json_object_prompt_simpler: str | None = None
     json_code_prompt: str | None = None
+    json_code_prompt_if_no_schema: str | None = None
     json_schema_instruction: str | None = None
 
     system_prompt: str | None = 'auto'

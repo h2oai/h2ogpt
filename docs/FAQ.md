@@ -51,21 +51,21 @@ Check Chrome developer console.  If you see something like:
 Failed to load resource: the server responded with a status of 404 (Not Found)
 127.0.0.1/:1 Uncaught (in promise) TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:7860/custom_component/c866d1d814ade494ac522de29fd71dcd/component/index.js
 ```
-then need to delete your Chrome cache.
+then you need to delete your Chrome cache.
 
 ### LLaMa-3 or other chat template based models
 
-LLaMa-3 and other newer models use a HuggingFace chat template to ensure accurate behavior.  So to run the models just do:
+LLaMa-3 and other newer models use a HuggingFace chat template to ensure accurate behavior.  So to run the models, just do:
 ```bash
 python generate.py --base_model=meta-llama/Meta-Llama-3-8B-Instruct
 ```
-and h2oGPT will interpret this as an "unknown" prompt_type and use the chat template
+and h2oGPT will interpret this as an "unknown" prompt_type and use the chat template.
 
-For GGUF etc. type models, to ensure accurate prompting, one passes the tokenizer from HF to h2oGPT via `tokenizer_base_model` like:
+To ensure accurate prompting for GGUF etc. type models, you can pass the tokenizer from HF to h2oGPT via `tokenizer_base_model` as follows:
 ```bash
 python generate.py --base_model=llama --model_path_llama=https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf?download=true --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192
 ```
-and one should at least pass `max_seq_len` as well.  This ensures accurate prompting using the Meta chat template.  Note the download link just comes from picking the model in the model card's files section and clicking the up arrow then when the download file link is provided you can right click and copy that link.  HF keep changing how they present the download file, so adapt as required.
+and you should at least pass `max_seq_len` as well.  This ensures accurate prompting using the Meta chat template.  Note that the download link just comes from selecting the model in the model card's files section and clicking the up arrow. Then, when the download file link is provided, you can right-click and copy that link.  HF keeps changing how they present the download file, so adapt as required.
 
 To use offline, then do:
 ```bash
@@ -1410,9 +1410,9 @@ or other API endpoints.
 
 ### OpenAI Auth access
 
-When auth access is enabled on Gradio server it is enabled for OpenAI proxy server as well.  In that case, if access is closed (`--auth_access=closed`), then one must set the env `H2OGPT_OPENAI_USER` before launching h2oGPT, so that it can know which user and password to use.  For open access a guest or random uuid is used.  The `H2OGPT_OPENAI_USER` should be a string with `user:password` form similar to required when accessing the OpenAI proxy server with OpenAI client.
+When auth access is enabled on a Gradio server, it is also enabled for OpenAI proxy server.  In that case, if access is closed (`--auth_access=closed`), then you must set the env `H2OGPT_OPENAI_USER` before launching h2oGPT so that it can know which user and password to use.  For open access, a guest or random uuid is used.  The `H2OGPT_OPENAI_USER` should be a string with `user:password` form, similar to what is required when accessing the OpenAI proxy server with OpenAI client.
 
-For OpenAI client access, one uses the `user` parameter and fills it with the `user:password` string for the user and password that is valid for h2oGPT server access.  Example client call for guided json call with authentication:
+For OpenAI client access, one uses the `user` parameter and fills it with the `user:password` string for the user and password that is valid for h2oGPT server access. The following is an example client call for guided json call with authentication:
 ```python
 from openai import OpenAI
 
@@ -1851,6 +1851,24 @@ If there is a similar prompt or one wants to see how a model prompt template loo
     You can start by changing each thing that appears in the model card that tells about the prompting.  You can always ask for help in a GitHub issue or Discord.
 
 In either case, if the model card doesn't have that information, you'll need to ask around. In some cases, prompt information is included in their pipeline file or in a GitHub repository associated with the model with training of inference code. It may also be the case that the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
+
+### Migrate chroma < 0.4 to new >= 0.4
+
+* Setup env
+```bash
+pip uninstall pydantic chromadb -y
+pip install pydantic==1.10.15 chromadb==0.4.3 chroma-migrate --upgrade
+```
+* Run tool
+```bash
+chroma-migrate
+```
+Pick duckdb, pick from persistent directory, then choose the directory like `db_dir_UserData`, then choose new name of `db_dir_UserData_mig` and let migration complete
+* Copy the `db_dir_UserData/embed_info` to new directory.
+* Remove or move away old directory (`db_dir_UserData`).
+* Use `mv db_dir_UserData_mig db_dir_UserData`
+* Run h2oGPT as before
+
 
 ### Add new Embedding Model
 

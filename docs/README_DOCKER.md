@@ -113,6 +113,67 @@ For single GPU use `--gpus '"device=0"'` or for 2 GPUs use `--gpus '"device=0,1"
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
+## Run h2oGPT in docker offline:
+
+Ensure $HOME/users and $HOME/db_nonusers are writeable by user running docker, then run:
+```bash
+
+export TRANSFORMERS_OFFLINE=1
+export GRADIO_SERVER_PORT=7860
+export OPENAI_SERVER_PORT=5000
+export HF_HUB_OFFLINE=1
+docker run --gpus all \
+--runtime=nvidia \
+--shm-size=2g \
+-e TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE \
+-e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+-e HF_HUB_OFFLINE=$HF_HUB_OFFLINE \
+-e HF_HOME="/workspace/.cache/huggingface/" \
+-p $GRADIO_SERVER_PORT:$GRADIO_SERVER_PORT \
+-p $OPENAI_SERVER_PORT:$OPENAI_SERVER_PORT \
+--rm --init \
+--network host \
+-v /etc/passwd:/etc/passwd:ro \
+-v /etc/group:/etc/group:ro \
+-u `id -u`:`id -g` \
+-v "${HOME}"/.cache/huggingface/:/workspace/.cache/huggingface \
+-v "${HOME}"/.cache/torch/:/workspace/.cache/torch \
+-v "${HOME}"/.cache/transformers/:/workspace/.cache/transformers \
+-v "${HOME}"/save:/workspace/save \
+-v "${HOME}"/user_path:/workspace/user_path \
+-v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+-v "${HOME}"/users:/workspace/users \
+-v "${HOME}"/db_nonusers:/workspace/db_nonusers \
+-v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
+-e GRADIO_SERVER_PORT=$GRADIO_SERVER_PORT \
+ gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 \
+ /workspace/generate.py \
+ --base_model=mistralai/Mistral-7B-Instruct-v0.2 \
+ --use_safetensors=False \
+ --prompt_type=mistral \
+ --save_dir='/workspace/save/' \
+ --use_gpu_id=False \
+ --user_path=/workspace/user_path \
+ --langchain_mode="LLM" \
+ --langchain_modes="['UserData', 'MyData', 'LLM']" \
+ --score_model=None \
+ --max_max_new_tokens=2048 \
+ --max_new_tokens=1024 \
+ --visible_visible_models=False \
+ --openai_port=$OPENAI_SERVER_PORT \
+ --gradio_offline_level=2 --gradio_offline_level=2
+```
+Depending upon if use links, may require more specific mappings to direct location not linked location that cannot be used, e.g.
+```bash
+-v "${HOME}"/.cache/huggingface/hub:/workspace/.cache/huggingface/hub \
+ -v "${HOME}"/.cache:/workspace/.cache \
+```
+You can also specify the cache location:
+```bash
+ -e TRANSFORMERS_CACHE="/workspace/.cache/" \
+ ```
+
+
 ## Run h2oGPT +  vLLM or vLLM using Docker
 
 One can run an inference server in one docker and h2oGPT in another docker.

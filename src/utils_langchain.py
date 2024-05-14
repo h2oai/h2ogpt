@@ -252,7 +252,10 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             new_score = docs_with_score1[0][1]
             new_page_content = joiner.join([x[0].page_content for x in docs_with_score1])
             new_metadata = docs_with_score1[0][0].metadata.copy()
-            new_metadata['source'] = joiner.join(set([x[0].metadata['source'] for x in docs_with_score1]))
+            # keep source as single file so can look up, leave source_merged with joined version
+            if len(docs_with_score1) > 1:
+                [new_metadata.update({'source_merged_%s' % xi: x[0].metadata['source']}) for xi, x in enumerate(docs_with_score1)]
+            new_metadata['source'] = [x[0].metadata['source'] for x in docs_with_score1][0]
             doc1 = Document(page_content=new_page_content, metadata=new_metadata)
             docs_with_score_new.append((doc1, new_score))
 

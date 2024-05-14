@@ -572,8 +572,9 @@ max_chunks_per_doc_public_api = 2 * max_chunks_per_doc_public
 user_prompt_for_fake_system_prompt0 = "Who are you and what do you do?"
 json_object_prompt0 = 'Ensure your entire response is outputted as a single piece of strict valid JSON text.'
 json_object_prompt_simpler0 = 'Ensure your response is strictly valid JSON text.'
-json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.   Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
-json_schema_instruction0 = 'Ensure you follow this JSON schema:\n```json\n{properties_schema}\n```'
+json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.'
+json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
+json_schema_instruction0 = 'Ensure you follow this JSON schema, with the exact key names given:\n```json\n{properties_schema}\n```'
 
 coqui_lock_name = 'coqui'
 
