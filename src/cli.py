@@ -162,6 +162,7 @@ def run_cli(  # for local function:
         assert len(args) == len(input_args_list)
         example1 = examples[-1]  # pick reference example
         all_generations = []
+        all_sources = []
         if not context:
             context = ''
         if chat_conversation is None:
@@ -211,9 +212,10 @@ def run_cli(  # for local function:
                         # show sources at end after model itself had streamed to std rest of response
                         print('\n\n' + str(sources), flush=True)
             all_generations.append(outr + '\n')
+            all_sources.append(sources)
             if not cli_loop:
                 break
             if add_chat_history_to_context:
                 # for CLI keep track of conversation
                 chat_conversation.extend([[instruction, outr]])
-    return all_generations
+    return all_generations, all_sources
