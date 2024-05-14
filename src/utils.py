@@ -1576,7 +1576,7 @@ def set_openai(inference_server, model_name=None):
             if api_version in ['None', None]:
                 # for function tools support
                 # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-12-01-preview
-                api_version = "2023-12-01-preview"
+                api_version = "2024-04-01-preview"
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 # use this instead if exists
                 api_key = os.getenv("OPENAI_AZURE_KEY")
