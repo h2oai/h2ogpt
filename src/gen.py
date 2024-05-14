@@ -1360,6 +1360,7 @@ def main(
     if base_model == 'llama':
         if not model_path_llama:
             model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true'
+            prompt_type = 'llama2'
         if not prompt_type:
             prompt_type = 'unknown'
     elif base_model == 'gptj' and not model_name_gptj:
