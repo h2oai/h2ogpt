@@ -878,7 +878,7 @@ def go_gradio(**kwargs):
                                        )
 
     with demo:
-        support_state_callbacks = hasattr(gr.State(), 'callback')
+        support_state_callbacks = hasattr(gr.State(), 'delete_callback')
 
         # avoid actual model/tokenizer here or anything that would be bad to deepcopy
         # https://github.com/gradio-app/gradio/issues/3558
@@ -888,7 +888,7 @@ def go_gradio(**kwargs):
                 state['model'] = None
                 clear_torch_cache()
 
-        model_state_cb = dict(callback=model_state_done) if support_state_callbacks else {}
+        model_state_cb = dict(delete_callback=model_state_done) if support_state_callbacks else {}
         model_state = gr.State(
             value=dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
                        base_model=kwargs['base_model'],
@@ -929,7 +929,7 @@ def go_gradio(**kwargs):
                     scratch_data[0] = None
                     del scratch_data[0]
 
-        my_db_state_cb = dict(callback=my_db_state_done) if support_state_callbacks else {}
+        my_db_state_cb = dict(delete_callback=my_db_state_done) if support_state_callbacks else {}
 
         model_state2 = gr.State(kwargs['model_state_none'].copy())
         model_options_state = gr.State([model_options0], **model_state_cb)
@@ -6608,8 +6608,7 @@ def go_gradio(**kwargs):
         # don't pass text_output, don't want to clear output, just stop it
         # cancel only stops outer generation, not inner generation or non-generation
         clear_torch_cache_func_soft = functools.partial(clear_torch_cache, allow_skip=True)
-        stop_event = stop_btn.click(lambda: None, None, None,
-                                    cancels=submits1 + submits2 + submits3 + submits4 +
+        stop_event = stop_btn.click(cancels=submits1 + submits2 + submits3 + submits4 +
                                             [submit_event_nochat, submit_event_nochat2] +
                                             [eventdb1, eventdb2, eventdb3] +
                                             [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a,
