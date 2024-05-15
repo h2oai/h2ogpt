@@ -3767,7 +3767,7 @@ def get_youtube_urls():
             'https://%s/shorts/' % x,
             'http://%s/shorts/' % x,
             'www.%s/shorts/' % x,
-            '%s/shorts/ % x'
+            '%s/shorts/' % x,
         ])
     return set(url_prefixes_youtube1)
 
