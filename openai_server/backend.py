@@ -456,6 +456,44 @@ def get_model_list():
     return dict(model_names=base_models)
 
 
+def audio_to_text(model, audio_file, stream, response_format, **kwargs):
+    # assumes enable_stt=True set for h2oGPT
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
+        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+
+    client = get_gradio_client(kwargs.get('user'))
+    h2ogpt_key = kwargs.get('h2ogpt_key', '')
+
+    # string of dict for input
+    audio_file_str = base64.b64encode(audio_file).decode('utf-8')
+    inputs = dict(audio_file=audio_file_str, stream_output=stream, h2ogpt_key=h2ogpt_key)
+    if stream:
+        job = client.submit(*tuple(list(inputs.values())), api_name='/transcribe_audio_stream_api')
+
+        # ensure no immediate failure (only required for testing)
+        import concurrent.futures
+        try:
+            e = job.exception(timeout=0.2)
+            if e is not None:
+                raise RuntimeError(e)
+        except concurrent.futures.TimeoutError:
+            pass
+
+        n = 0
+        for text in job:
+            yield dict(text=text.strip())
+            n += 1
+
+        # get rest after job done
+        outputs = job.outputs().copy()
+        for text in outputs[n:]:
+            yield dict(text=text.strip())
+            n += 1
+    else:
+        text = client.predict(*tuple(list(inputs.values())), api_name='/transcribe_audio_api')
+        yield dict(text=text.strip())
+
+
 def text_to_audio(model, voice, input, stream, format, **kwargs):
     # tts_model = 'microsoft/speecht5_tts'
     # tts_model = 'tts_models/multilingual/multi-dataset/xtts_v2'

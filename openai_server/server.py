@@ -338,16 +338,29 @@ async def handle_list_models():
     return JSONResponse(content=[dict(id=x) for x in get_model_list()])
 
 
+# Define your request data model
+class AudiotoTextRequest(BaseModel):
+    model: str = ''
+    file: str
+    response_format: str = 'text'
+    stream: bool = True
+    timestamp_granularities: list = ["word"]
+
+
 @app.post('/v1/audio/transcriptions', dependencies=check_key)
-async def handle_audio_transcription(request: Request, request_data: TextRequest):
+async def handle_audio_transcription(request: Request):
     form = await request.form()
     audio_file = await form["file"].read()
+    model = form["model"]
+    stream = form.get("stream", False)
+    response_format = form.get("response_format", 'text')
+    request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format)
 
-    if request_data.stream:
+    if stream:
         from openai_server.backend import audio_to_text
 
         async def generator():
-            response = audio_to_text(audio_file, **dict(request_data))
+            response = audio_to_text(**dict(request_data))
             for resp in response:
                 disconnected = await request.is_disconnected()
                 if disconnected:
@@ -359,7 +372,7 @@ async def handle_audio_transcription(request: Request, request_data: TextRequest
     else:
         from openai_server.backend import audio_to_text
         response = ''
-        for response1 in audio_to_text(audio_file, **dict(request_data)):
+        for response1 in audio_to_text(**dict(request_data)):
             response = response1
         return JSONResponse(response)
 

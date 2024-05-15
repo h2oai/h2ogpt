@@ -1,6 +1,10 @@
+import base64
+import io
 import traceback
 
 import numpy as np
+from pydub import AudioSegment
+
 from src.utils import get_device
 
 
@@ -18,6 +22,26 @@ def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto')
     return transcriber
 
 
+def audio_bytes_to_numpy(audio_bytes):
+    # Load the audio bytes into a BytesIO object
+    audio_stream = io.BytesIO(audio_bytes)
+
+    # Use pydub to read the audio data from the BytesIO object
+    audio = AudioSegment.from_file(audio_stream)
+
+    # Convert pydub AudioSegment to a numpy array
+    samples = np.array(audio.get_array_of_samples())
+
+    # Get the sampling rate
+    sr = audio.frame_rate
+
+    # If the audio is stereo, we need to reshape the numpy array to [n_samples, n_channels]
+    if audio.channels > 1:
+        samples = samples.reshape((-1, audio.channels))
+
+    return sr, samples
+
+
 def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_floor=100.0, reject_no_new_text=True,
                debug=False):
     if audio_state1[0] is None:
@@ -33,7 +57,12 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
         return audio_state1, audio_state1[1]
     # assume sampling rate always same
     # keep chunks so don't normalize on noise periods, which would then saturate noise with non-noise
-    sr, y = new_chunk
+    if isinstance(new_chunk, str):
+        audio_bytes = base64.b64decode(new_chunk.encode('utf-8'))
+        sr, y = audio_bytes_to_numpy(audio_bytes)
+    else:
+        sr, y = new_chunk
+
     if y.shape[0] == 0:
         avg = 0.0
     else:
