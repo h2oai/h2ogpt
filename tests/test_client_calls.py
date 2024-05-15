@@ -4503,8 +4503,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
          auth=[(username, password)] if do_auth else None,
          add_disk_models_to_ui=False,
          score_model=None,
-         enable_tts=False,
-         enable_stt=False,
+         enable_tts=True,
+         enable_stt=True,
          )
 
     # try UserData
@@ -4603,6 +4603,17 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     text = responses.choices[0].message.content
     print(text)
     assert 'Chirpy' in text
+
+    from pathlib import Path
+    speech_file_path = Path(__file__).parent / "test_speech.wav"
+    response = openai_client.audio.speech.create(
+    model="tts-1",
+    voice="SLT (female)",
+    input=text,
+    )
+
+    response.stream_to_file(speech_file_path)
+    playsound_wav(speech_file_path)
 
 
 @pytest.mark.parametrize("base_model", [
