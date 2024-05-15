@@ -1,4 +1,6 @@
 import ast
+import base64
+import io
 import os
 import platform
 import time
@@ -6,6 +8,7 @@ import uuid
 from collections import deque
 
 import filelock
+from pydub import AudioSegment
 
 from log import logger
 from openai_server.backend_utils import convert_messages_to_structure
@@ -68,10 +71,12 @@ def get_gradio_client(user=None):
                 if os.getenv('H2OGPT_OPENAI_USER'):
                     user = os.getenv('H2OGPT_OPENAI_USER')
                     user_split = user.split(':')
-                    assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
+                    assert len(
+                        user_split) >= 2, "username cannot contain : character and must be in form username:password"
                     auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
                 else:
-                    raise ValueError("If closed access, must set ENV H2OGPT_OPENAI_USER (e.g. as 'user:pass' combination) to login from OpenAI->Gradio with some specific user.")
+                    raise ValueError(
+                        "If closed access, must set ENV H2OGPT_OPENAI_USER (e.g. as 'user:pass' combination) to login from OpenAI->Gradio with some specific user.")
             else:
                 auth_kwargs = dict(auth=(guest_name, guest_name))
         elif auth_access == 'open':
@@ -449,3 +454,83 @@ def get_model_list():
     model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
     base_models = [x['base_model'] for x in model_dict]
     return dict(model_names=base_models)
+
+
+def text_to_audio(model, voice, input, stream, format, **kwargs):
+    # tts_model = 'microsoft/speecht5_tts'
+    # tts_model = 'tts_models/multilingual/multi-dataset/xtts_v2'
+    # assumes enable_tts=True set for h2oGPT
+
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
+        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+
+    client = get_gradio_client(kwargs.get('user'))
+    h2ogpt_key = kwargs.get('h2ogpt_key')
+
+    if not voice:
+        voice = "SLT (female)"
+        chatbot_role = "Female AI Assistant"
+    else:
+        # don't know which model used
+        chatbot_role = voice
+
+    # string of dict for input
+    inputs = dict(chatbot_role=chatbot_role, speaker=voice, tts_language='autodetect', tts_speed=1.0,
+                  prompt=input, stream_output=stream,
+                  h2ogpt_key=h2ogpt_key)
+    if stream:
+        job = client.submit(*tuple(list(inputs.values())), api_name='/speak_text_api')
+
+        # ensure no immediate failure (only required for testing)
+        import concurrent.futures
+        try:
+            e = job.exception(timeout=0.2)
+            if e is not None:
+                raise RuntimeError(e)
+        except concurrent.futures.TimeoutError:
+            pass
+
+        n = 0
+        for audio_str in job:
+            yield audio_str_to_bytes(audio_str, format=format)
+            n += 1
+
+        # get rest after job done
+        outputs = job.outputs().copy()
+        for audio_str in outputs[n:]:
+            yield audio_str_to_bytes(audio_str, format=format)
+            n += 1
+    else:
+        audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')
+        yield audio_str_to_bytes(audio_str, format=format)
+
+
+def audio_str_to_bytes(audio_str1, format='wav'):
+    # Parse the input string to a dictionary
+    audio_dict = ast.literal_eval(audio_str1)
+
+    # Extract the base64 audio data and decode it
+    audio = audio_dict['audio']
+
+    # Create a BytesIO stream from the binary data
+    s = io.BytesIO(audio)
+
+    # Extract sample rate and define other audio properties
+    sr = audio_dict['sr']
+    channels = 1  # Assuming mono channel, adjust if necessary
+    sample_width = 2  # Assuming 16-bit samples (2 bytes), adjust if necessary
+
+    # Use from_raw to correctly interpret the raw audio data
+    audio_segment = AudioSegment.from_raw(
+        s,
+        sample_width=sample_width,
+        frame_rate=sr,
+        channels=channels
+    )
+
+    # Export the AudioSegment to a BytesIO object as WAV
+    output_stream = io.BytesIO()
+    audio_segment.export(output_stream, format=format)
+    output_bytes = output_stream.getvalue()
+
+    return output_bytes

@@ -274,6 +274,26 @@ OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<d
 ```
 where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.  The entry `<deployment_name>` is required for Azure, others are optional and can be filled with None or have empty input between `:`.
 
+### Text to Speech
+
+h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True`, respecitively. h2oGPT's OpenAI Proxy server follows OpenAI API for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
+```python
+from openai import OpenAI
+from pathlib import Path
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+speech_file_path = Path(__file__).parent / "speech.mp3"
+response = client.audio.speech.create(
+model="tts-1",
+voice="SLT (female)", # if server has XTT
+# voice="SLT (female)", # if server has XTT
+input="Today is a wonderful day to build something people love!"
+)
+
+response.stream_to_file(speech_file_path)
+```
+
+
 ## vLLM Inference Server-Client
 
 Create separate environment
@@ -285,20 +305,9 @@ conda install python=3.10 -y
 Assuming torch was installed with CUDA 12.1, and you have installed cuda locally in `/usr/local/cuda-12.1`:
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
-export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu123"
-pip install mosaicml-turbo megablocks==0.5.1 --upgrade  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
-pip install fschat==0.2.34 ray pandas gputil==1.4.0 uvicorn[standard]
-# optional:
-pip install flash-attn==2.4.2
-# optional:
-pip install autoawq==0.1.8
-# CHOOSE VLLM:
-# for latest vllm:
-# pip install git+https://github.com/vllm-project/vllm.git
-# for h2oai vllm with reversion of memory changes on 0.3.0:
-pip install git+https://github.com/h2oai/vllm.git@v0.3.0h2oai  # see docker_build_script_ubuntu.sh for x86 prebuilt wheel on s3
-# standard 0.3.0:
-# pip install vllm==0.3.0
+export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
+pip install flash-attn==2.5.4
+pip install vllm
 ```
 Then can start in OpenAI compliant mode, e.g. for LLaMa 65B on 2*A100 GPUs:
 ```
