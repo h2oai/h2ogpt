@@ -285,8 +285,7 @@ client = OpenAI(base_url='http://0.0.0.0:5000/v1')
 speech_file_path = Path(__file__).parent / "speech.mp3"
 response = client.audio.speech.create(
 model="tts-1",
-voice="SLT (female)", # if server has XTT
-# voice="SLT (female)", # if server has XTT
+voice="SLT (female)", # if server has XTT with Microsoft package
 input="Today is a wonderful day to build something people love!"
 )
 
