@@ -1073,11 +1073,6 @@ class _ForkDataContext(threading.local):
 
 forkdatacontext = _ForkDataContext()
 
-# Add user info
-username = getpass.getuser()
-current_working_directory = os.getcwd()
-operating_system = platform.system()
-
 
 def _traced_func(func, *args, **kwargs):
     func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
